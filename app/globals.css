@@ -1,26 +1,48 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* [경로 수정 완료] */
+/* 현재 파일(app/globals.css) 기준으로 경로를 지정해야 합니다. */
+
+/* 1. src 폴더 스캔 (한 단계 위로 가서 src 찾기) */
+@source "../src";
+
+/* 2. app 폴더 스캔 (현재 폴더) */
+@source ".";
+
+/* [다크모드 강제 인식] */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --color-primary: #00ff88;
+  --color-secondary: #ff0088;
+  --color-background: #000000;
+  --color-surface: #111111;
+  --color-muted: #888888;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+/* 기본 스타일 */
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  @apply bg-white text-gray-900 transition-colors duration-300 min-h-screen;
+}
+
+/* 다크모드 적용 시 */
+:root:where(.dark) body {
+  @apply bg-black text-white;
+}
+
+/* 스크롤바 */
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #555; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #C2F970; }
+:root:not(.dark) ::-webkit-scrollbar-thumb { background: #bbb; }
+:root:not(.dark) ::-webkit-scrollbar-thumb:hover { background: #999; }
+
+/* 텍스트 효과 */
+.text-stroke {
+  -webkit-text-stroke: 1px rgba(255, 255, 255, 0.2);
+  color: transparent;
+}
+:root:not(.dark) .text-stroke {
+  -webkit-text-stroke: 1px rgba(0, 0, 0, 0.1);
 }
