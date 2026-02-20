@@ -6,6 +6,10 @@ import { ArrowLeft, Mail, Lock, MessageCircle } from "lucide-react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 
+// 🔥 [임의 수정] TypeScript가 경로를 찾지 못하는 문제를 해결하기 위해 상대 경로로 변경했습니다.
+// 만약 에러가 계속된다면 src/lib/api.ts 파일이 실제로 존재하는지 확인해주세요!
+import { API_BASE_URL } from "../../src/lib/api"; 
+
 export default function LoginPage() {
   const router = useRouter();
   const [formData, setFormData] = useState({ email: "", password: "" });
@@ -16,7 +20,8 @@ export default function LoginPage() {
 
   const handleLogin = async () => {
     try {
-      const res = await fetch("http://localhost:8080/api/v1/auth/login", {
+      // [로직] 하드코딩된 localhost 대신 중앙 관리되는 API_BASE_URL을 사용하여 배포 환경에 대응합니다.
+      const res = await fetch(`${API_BASE_URL}/api/v1/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
@@ -36,32 +41,25 @@ export default function LoginPage() {
   };
 
   const handleSocialLogin = (provider: string) => {
-    window.location.href = `http://localhost:8080/oauth2/authorization/${provider}`;
+    // [로직] 소셜 로그인 리다이렉트 주소도 환경 변수에 따라 유동적으로 변하도록 설정했습니다.
+    window.location.href = `${API_BASE_URL}/oauth2/authorization/${provider}`;
   };
 
   return (
-    // [수정 1] flex 컨테이너에 relative와 overflow-hidden 추가
     <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
       
-      {/* 🎥 [추가] 배경 비디오 */}
-      <video
-        autoPlay
-        loop
-        muted
-        playsInline
-        className="absolute inset-0 w-full h-full object-cover z-0"
-      >
-        {/* public 폴더에 있는 영상 파일명으로 변경하세요 */}
+      {/* 🎥 배경 비디오 */}
+      <video autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover z-0">
         <source src="/login-bg.mp4" type="video/mp4" />
       </video>
 
-      {/* 🌑 [추가] 비디오 위에 어두운 막 씌우기 (글자 잘 보이게) */}
+      {/* 🌑 비디오 위 어두운 막 */}
       <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px] z-0" />
 
-      {/* ✨ [기존 유지] 보라색 빛 효과 (영상 위에 은은하게 겹치도록) */}
+      {/* ✨ 보라색 빛 효과 */}
       <div className="absolute bottom-[-20%] left-[-10%] w-[500px] h-[500px] bg-violet-600/30 rounded-full blur-[120px] z-0 pointer-events-none" />
 
-      {/* 📦 [수정] 로그인 박스 (z-index를 10으로 줘서 영상 위로 올림) */}
+      {/* 📦 로그인 박스 */}
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
@@ -106,26 +104,15 @@ export default function LoginPage() {
         </div>
 
         <div className="space-y-3 mt-6">
-            <button 
-                onClick={() => handleSocialLogin("kakao")}
-                className="w-full py-3 rounded-xl font-bold bg-[#FEE500] text-[#000000] hover:bg-[#FDD835] transition-transform hover:scale-[1.02] flex items-center justify-center gap-3"
-            >
-                <MessageCircle size={20} fill="black" className="border-none" />
+            <button onClick={() => handleSocialLogin("kakao")} className="w-full py-3 rounded-xl font-bold bg-[#FEE500] text-[#000000] hover:bg-[#FDD835] transition-transform hover:scale-[1.02] flex items-center justify-center gap-3">
+                <MessageCircle size={20} fill="black" />
                 <span>카카오로 시작하기</span>
             </button>
-
-            <button 
-                onClick={() => handleSocialLogin("naver")}
-                className="w-full py-3 rounded-xl font-bold bg-[#03C75A] text-white hover:bg-[#02b351] transition-transform hover:scale-[1.02] flex items-center justify-center gap-3"
-            >
+            <button onClick={() => handleSocialLogin("naver")} className="w-full py-3 rounded-xl font-bold bg-[#03C75A] text-white hover:bg-[#02b351] transition-transform hover:scale-[1.02] flex items-center justify-center gap-3">
                 <span className="font-black text-lg">N</span>
                 <span>네이버로 시작하기</span>
             </button>
-
-            <button 
-                onClick={() => handleSocialLogin("google")}
-                className="w-full py-3 rounded-xl font-bold bg-white text-black border border-white/20 hover:bg-gray-100 transition-transform hover:scale-[1.02] flex items-center justify-center gap-3"
-            >
+            <button onClick={() => handleSocialLogin("google")} className="w-full py-3 rounded-xl font-bold bg-white text-black border border-white/20 hover:bg-gray-100 transition-transform hover:scale-[1.02] flex items-center justify-center gap-3">
                 <svg className="w-5 h-5" viewBox="0 0 24 24">
                     <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
                     <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>

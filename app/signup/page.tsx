@@ -4,24 +4,27 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 
+// 🔥 [로직 추가] 백엔드 주소를 변수로 관리하여 유지보수를 편하게 합니다.
+const API_BASE_URL = "https://popspot.duckdns.org";
+
 export default function SignupPage() {
   const router = useRouter();
   
   // 입력 상태 관리
   const [formData, setFormData] = useState({
-    email: "",      // userId 대신 email 사용 (실제 인증용)
+    email: "",       // userId 대신 email 사용
     password: "",
     name: "",
     birthdate: "",
     gender: "M", 
-    phoneNumber: "", // 휴대폰은 이제 단순 입력만 받음
-    authCode: "",   // 이메일 인증코드
+    phoneNumber: "", // 단순 입력
+    authCode: "",    // 이메일 인증코드
   });
 
   // UI 상태 관리
-  const [isAuthSent, setIsAuthSent] = useState(false);     // 이메일 전송 여부
-  const [isAuthVerified, setIsAuthVerified] = useState(false); // 인증 완료 여부
-  const [timer, setTimer] = useState(180); // 3분 타이머
+  const [isAuthSent, setIsAuthSent] = useState(false);
+  const [isAuthVerified, setIsAuthVerified] = useState(false);
+  const [timer, setTimer] = useState(180);
 
   // 타이머 로직
   useEffect(() => {
@@ -36,14 +39,14 @@ export default function SignupPage() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  // 🔥 [변경] 이메일 인증번호 전송
+  // 🔥 [수정] 이메일 인증번호 전송 로직
   const handleSendAuth = async () => {
     if (!formData.email) return alert("이메일을 입력해주세요.");
     if (!formData.email.includes("@")) return alert("올바른 이메일 형식이 아닙니다.");
     
     try {
-        // 백엔드 API 호출
-        const res = await fetch("http://localhost:8080/api/v1/auth/email/send", {
+        // [로직] localhost 대신 실제 배포된 서버 주소(API_BASE_URL)를 사용합니다.
+        const res = await fetch(`${API_BASE_URL}/api/v1/auth/email/send`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ email: formData.email }),
@@ -61,12 +64,13 @@ export default function SignupPage() {
     }
   };
 
-  // 🔥 [변경] 이메일 인증번호 확인
+  // 🔥 [수정] 이메일 인증번호 확인 로직
   const handleVerifyAuth = async () => {
     if (!formData.authCode) return;
 
     try {
-        const res = await fetch("http://localhost:8080/api/v1/auth/email/verify", {
+        // [로직] 실제 배포된 서버 주소로 경로를 수정했습니다.
+        const res = await fetch(`${API_BASE_URL}/api/v1/auth/email/verify`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ 
@@ -86,7 +90,7 @@ export default function SignupPage() {
     }
   };
 
-  // 최종 회원가입 요청
+  // 🔥 [수정] 최종 회원가입 요청 로직
   const handleSignup = async () => {
     if (!isAuthVerified) return alert("이메일 인증을 완료해주세요.");
     if (!formData.email || !formData.password || !formData.name || !formData.phoneNumber) {
@@ -94,7 +98,8 @@ export default function SignupPage() {
     }
 
     try {
-      const res = await fetch("http://localhost:8080/api/v1/auth/signup", {
+      // [로직] 실제 배포된 서버 주소로 경로를 수정했습니다.
+      const res = await fetch(`${API_BASE_URL}/api/v1/auth/signup`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -265,7 +270,7 @@ export default function SignupPage() {
             </div>
         </div>
 
-        {/* 6. 휴대전화 (단순 입력으로 변경) */}
+        {/* 6. 휴대전화 */}
         <div className="flex flex-col gap-2 pt-2">
             <label className="text-sm font-bold text-gray-400">휴대전화</label>
             <div className="flex gap-2">

@@ -12,6 +12,9 @@ import { motion, AnimatePresence } from "framer-motion";
 
 import InteractiveMap from "../../src/components/Map/InteractiveMap"; 
 
+// 🔥 [임의 수정] TypeScript 경로 에러 방지를 위해 상대 경로로 API 주소 관리 파일을 가져옵니다.
+import { API_BASE_URL, SOCKET_BASE_URL } from "../../src/lib/api";
+
 interface MarkerData {
   id: string;
   name: string;
@@ -39,7 +42,7 @@ const getRandomColor = () => {
     return colors[Math.floor(Math.random() * colors.length)];
 };
 
-// 🔥 [추가] API가 실패하거나 로딩 중일 때 보여줄 '가짜 경로(직선)' 생성 함수
+// API 실패 시 보여줄 직선 경로 생성 로직
 const generateMockRoute = (start: MarkerData, end: MarkerData) => {
     const points = [];
     const steps = 10; 
@@ -53,27 +56,20 @@ const generateMockRoute = (start: MarkerData, end: MarkerData) => {
     return points;
 };
 
-// 🔥 [수정됨] TMAP 대신 'OSRM 오픈소스 API'를 사용하여 실제 도보 경로 가져오기
-// 별도의 API Key나 설정이 필요 없습니다.
+// OSRM 오픈소스 API를 사용하여 실제 도보 경로 가져오기 로직
 const fetchRealRoute = async (start: MarkerData, end: MarkerData) => {
     try {
-        // OSRM API 호출 (좌표 순서: 경도(lng), 위도(lat))
         const url = `https://router.project-osrm.org/route/v1/foot/${start.lng},${start.lat};${end.lng},${end.lat}?overview=full&geometries=geojson`;
-        
         const res = await fetch(url);
-        
         if (res.ok) {
             const data = await res.json();
-            
-            // OSRM 데이터 파싱 (GeoJSON [lng, lat] -> { lat, lng } 변환)
             if (data.routes && data.routes.length > 0) {
                 return data.routes[0].geometry.coordinates.map((coord: number[]) => ({
-                    lat: coord[1], // 위도
-                    lng: coord[0]  // 경도
+                    lat: coord[1], 
+                    lng: coord[0]  
                 }));
             }
         }
-        // 실패 시 가짜 경로(직선) 반환
         return generateMockRoute(start, end); 
     } catch (e) {
         console.error("OSRM API Error:", e);
@@ -81,7 +77,7 @@ const fetchRealRoute = async (start: MarkerData, end: MarkerData) => {
     }
 };
 
-// 거리/시간 계산 (Haversine Formula + 보정)
+// 거리/시간 계산 로직 (Haversine 공식 적용)
 const calculateRouteInfo = (lat1: number, lng1: number, lat2: number, lng2: number) => {
     const R = 6371; 
     const dLat = (lat2 - lat1) * (Math.PI / 180);
@@ -89,7 +85,7 @@ const calculateRouteInfo = (lat1: number, lng1: number, lat2: number, lng2: numb
     const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     const distKm = R * c; 
-    const walkingDist = distKm * 1.3; // 도보 굴곡 보정
+    const walkingDist = distKm * 1.3; 
     const minutes = Math.round((walkingDist * 1000) / 67); 
     const distStr = walkingDist < 1 ? `${Math.round(walkingDist * 1000)}m` : `${walkingDist.toFixed(1)}km`;
     return { dist: distStr, time: minutes };
@@ -101,7 +97,6 @@ export default function PlanningPage() {
   const roomId = searchParams.get("room");
 
   const [markers, setMarkers] = useState<MarkerData[]>([]);
-  // 지도에 그릴 실제 경로 데이터 (이중 배열)
   const [routePaths, setRoutePaths] = useState<{ lat: number; lng: number }[][]>([]);
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [isConnected, setIsConnected] = useState(false);
@@ -112,34 +107,31 @@ export default function PlanningPage() {
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
 
-  // 총 소요 시간 계산
+  // 총 소요 시간 계산 로직
   const totalTime = markers.reduce((acc, curr, idx) => {
       if (idx === 0) return 0;
       const prev = markers[idx - 1];
       return acc + calculateRouteInfo(prev.lat, prev.lng, curr.lat, curr.lng).time;
   }, 0);
 
-  // 🔥 [핵심 로직] 마커 변경 시 OSRM API를 통해 경로 데이터 업데이트
+  // 마커 변경 시 경로 데이터 업데이트 효과
   useEffect(() => {
       const updateRoutes = async () => {
           if (markers.length < 2) {
               setRoutePaths([]);
               return;
           }
-
           const promises = [];
           for (let i = 0; i < markers.length - 1; i++) {
               promises.push(fetchRealRoute(markers[i], markers[i + 1]));
           }
-
           const results = await Promise.all(promises);
           setRoutePaths(results);
       };
-
       updateRoutes();
   }, [markers]);
 
-  // 동선 최적화 (Greedy Algorithm)
+  // 동선 최적화 알고리즘
   const optimizeRoute = () => {
       if (markers.length < 3) return alert("최적화하려면 장소가 3개 이상 필요합니다!");
       if (!confirm("현재 위치를 시작점으로 최적 경로를 계산하시겠습니까?")) return;
@@ -153,10 +145,7 @@ export default function PlanningPage() {
           let minDist = Infinity;
 
           remaining.forEach((m, i) => {
-              const { rawDist } = calculateRouteInfo(last.lat, last.lng, m.lat, m.lng) as any; // rawDist는 내부 계산용
-              // 간단한 거리 비교를 위해 직접 계산
               const dist = Math.sqrt(Math.pow(last.lat - m.lat, 2) + Math.pow(last.lng - m.lng, 2));
-              
               if (dist < minDist) {
                   minDist = dist;
                   nearestIdx = i;
@@ -191,7 +180,7 @@ export default function PlanningPage() {
   const inviteFriend = () => {
     const url = window.location.href;
     navigator.clipboard.writeText(url);
-    alert("🔗 초대 링크가 복사되었습니다!\n친구에게 보내주세요.");
+    alert("🔗 초대 링크가 복사되었습니다!");
   };
 
   useEffect(() => {
@@ -202,7 +191,8 @@ export default function PlanningPage() {
     const myNickname = userData.nickname || "Unknown";
     setMyInfo(prev => ({ ...prev, name: myNickname }));
 
-    fetch(`http://localhost:8080/api/planning/${roomId}/state`)
+    // 🔥 [수정] http://localhost:8080 대신 API_BASE_URL 변수 사용
+    fetch(`${API_BASE_URL}/api/planning/${roomId}/state`)
       .then(res => res.json())
       .then((data: any) => {
         if (data.markers) {
@@ -222,7 +212,8 @@ export default function PlanningPage() {
         }
       });
 
-    const socket = new SockJS("http://localhost:8080/ws-planning");
+    // 🔥 [수정] 웹소켓 주소를 SOCKET_BASE_URL 변수로 교체하여 배포 환경에 대응합니다.
+    const socket = new SockJS(`${SOCKET_BASE_URL}/ws-planning`);
     const client = new Client({
       webSocketFactory: () => socket,
       onConnect: () => {
@@ -257,27 +248,29 @@ export default function PlanningPage() {
     client.activate();
     stompClientRef.current = client;
     return () => { if (client) client.deactivate(); };
-  }, [roomId, router]);
+  }, [roomId, router, myInfo.color]); // myInfo.color 의존성 추가
 
   const handleSearch = async (e: React.FormEvent) => {
       e.preventDefault();
       if (!searchQuery.trim()) return;
       setIsSearching(true);
       try {
-        const res = await fetch(`http://localhost:8080/api/popups/search?keyword=${searchQuery}`);
+        // 🔥 [수정] 검색 API 호출 주소를 API_BASE_URL로 변경했습니다.
+        const res = await fetch(`${API_BASE_URL}/api/popups/search?keyword=${searchQuery}`);
         if (res.ok) setSearchResults(await res.json());
-      } catch (e) {} finally { setIsSearching(false); }
+      } catch (e) {
+          console.error("Search error:", e);
+      } finally { setIsSearching(false); }
   };
 
   return (
     <div className="h-screen flex flex-col md:flex-row bg-[#111] text-white overflow-hidden">
-      {/* 🗺️ 왼쪽: 지도 영역 */}
       <div className="flex-1 relative h-[50vh] md:h-full border-r border-white/10">
         <InteractiveMap 
-           mode="PLAN" 
-           places={markers.map(m => ({ id: m.id, name: m.name, lat: m.lat, lng: m.lng, category: 'PLAN' }))} 
-           showPath={true} 
-           routePaths={routePaths} // 🔥 실제 경로(OSRM) 데이터 전달
+            mode="PLAN" 
+            places={markers.map(m => ({ id: m.id, name: m.name, lat: m.lat, lng: m.lng, category: 'PLAN' }))} 
+            showPath={true} 
+            routePaths={routePaths} 
         />
         <div className="absolute top-4 left-4 z-10 px-3 py-1.5 bg-black/80 backdrop-blur rounded-full border border-white/10 flex items-center gap-2 shadow-xl">
            <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></div>
@@ -285,9 +278,7 @@ export default function PlanningPage() {
         </div>
       </div>
 
-      {/* 📝 오른쪽: 사이드바 */}
       <div className="w-full md:w-[400px] flex flex-col bg-[#1a1a1a] h-[50vh] md:h-full">
-        {/* 헤더 */}
         <div className="p-5 border-b border-white/10 bg-[#1a1a1a]">
             <div className="flex justify-between items-start mb-4">
                 <div>
@@ -310,7 +301,6 @@ export default function PlanningPage() {
             </div>
         </div>
 
-        {/* 검색 영역 */}
         <div className="p-4 border-b border-white/5 bg-[#1f1f1f]">
             <form onSubmit={handleSearch} className="relative">
                 <input type="text" placeholder="성수동 팝업 검색..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
@@ -330,7 +320,6 @@ export default function PlanningPage() {
             )}
         </div>
 
-        {/* 요약 & 최적화 버튼 */}
         <div className="px-4 py-3 bg-indigo-900/20 border-b border-indigo-500/20 flex items-center justify-between">
             <div>
                 <div className="flex items-center gap-2 text-indigo-300 text-xs font-bold"><Footprints size={14}/> 총 이동 시간</div>
@@ -343,7 +332,6 @@ export default function PlanningPage() {
             )}
         </div>
 
-        {/* 추가된 마커 리스트 */}
         <div className="flex-1 overflow-y-auto p-4 space-y-0 custom-scrollbar relative">
             <div className="text-xs font-bold text-gray-500 mb-4 px-1 flex items-center gap-1"><MapPin size={12}/> 추가된 장소 ({markers.length})</div>
             {markers.length === 0 ? (
