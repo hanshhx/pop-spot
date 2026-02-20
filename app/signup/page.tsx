@@ -4,27 +4,28 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 
-// 🔥 [로직 추가] 백엔드 주소를 변수로 관리하여 유지보수를 편하게 합니다.
-const API_BASE_URL = "https://popspot.duckdns.org";
+// 🔥 [수정 완료] TypeScript 경로 에러 해결 및 중앙 관리를 위해 상대 경로로 API 주소를 가져옵니다.
+// (app/signup/page.tsx 기준으로 두 단계 위로 올라가서 src/lib/api를 찾음)
+import { API_BASE_URL } from "../../src/lib/api"; 
 
 export default function SignupPage() {
   const router = useRouter();
   
   // 입력 상태 관리
   const [formData, setFormData] = useState({
-    email: "",       // userId 대신 email 사용
+    email: "",       // userId 대신 email 사용 (실제 인증용)
     password: "",
     name: "",
     birthdate: "",
     gender: "M", 
-    phoneNumber: "", // 단순 입력
+    phoneNumber: "", // 휴대폰은 이제 단순 입력만 받음
     authCode: "",    // 이메일 인증코드
   });
 
   // UI 상태 관리
-  const [isAuthSent, setIsAuthSent] = useState(false);
-  const [isAuthVerified, setIsAuthVerified] = useState(false);
-  const [timer, setTimer] = useState(180);
+  const [isAuthSent, setIsAuthSent] = useState(false);     // 이메일 전송 여부
+  const [isAuthVerified, setIsAuthVerified] = useState(false); // 인증 완료 여부
+  const [timer, setTimer] = useState(180); // 3분 타이머
 
   // 타이머 로직
   useEffect(() => {
@@ -45,7 +46,7 @@ export default function SignupPage() {
     if (!formData.email.includes("@")) return alert("올바른 이메일 형식이 아닙니다.");
     
     try {
-        // [로직] localhost 대신 실제 배포된 서버 주소(API_BASE_URL)를 사용합니다.
+        // [로직] 하드코딩된 localhost 대신 중앙 관리되는 API_BASE_URL을 사용합니다.
         const res = await fetch(`${API_BASE_URL}/api/v1/auth/email/send`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -57,10 +58,10 @@ export default function SignupPage() {
             setTimer(180);
             alert("인증번호가 메일로 발송되었습니다.\n이메일을 확인해주세요!");
         } else {
-            alert("메일 전송 실패: 잠시 후 다시 시도해주세요.");
+            alert("메일 전송 실패: 이미 가입된 이메일이거나 서버 오류입니다.");
         }
     } catch (e) {
-        alert("서버 연결 오류");
+        alert("서버 연결 오류 (GCP 서버 상태를 확인해주세요)");
     }
   };
 
@@ -69,7 +70,7 @@ export default function SignupPage() {
     if (!formData.authCode) return;
 
     try {
-        // [로직] 실제 배포된 서버 주소로 경로를 수정했습니다.
+        // [로직] 실제 배포된 서버 주소(API_BASE_URL)로 요청을 보냅니다.
         const res = await fetch(`${API_BASE_URL}/api/v1/auth/email/verify`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },

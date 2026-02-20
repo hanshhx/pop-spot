@@ -6,8 +6,8 @@ import { ArrowLeft, Mail, Lock, MessageCircle } from "lucide-react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 
-// 🔥 [임의 수정] TypeScript가 경로를 찾지 못하는 문제를 해결하기 위해 상대 경로로 변경했습니다.
-// 만약 에러가 계속된다면 src/lib/api.ts 파일이 실제로 존재하는지 확인해주세요!
+// 🔥 [수정 완료] TypeScript 경로 에러 해결을 위해 상대 경로를 정확히 잡았습니다.
+// (app/login/page.tsx 기준으로 두 단계 위로 올라가서 src/lib/api를 찾음)
 import { API_BASE_URL } from "../../src/lib/api"; 
 
 export default function LoginPage() {
@@ -20,7 +20,7 @@ export default function LoginPage() {
 
   const handleLogin = async () => {
     try {
-      // [로직] 하드코딩된 localhost 대신 중앙 관리되는 API_BASE_URL을 사용하여 배포 환경에 대응합니다.
+      // 🔥 [핵심 수정] "http://localhost:8080" 부분을 변수로 완벽히 교체했습니다.
       const res = await fetch(`${API_BASE_URL}/api/v1/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -36,12 +36,12 @@ export default function LoginPage() {
         alert("로그인 실패: 아이디나 비밀번호를 확인해주세요.");
       }
     } catch (e) {
-      alert("서버 연결 실패");
+      alert("서버 연결 실패 (GCP 서버 상태를 확인해주세요)");
     }
   };
 
   const handleSocialLogin = (provider: string) => {
-    // [로직] 소셜 로그인 리다이렉트 주소도 환경 변수에 따라 유동적으로 변하도록 설정했습니다.
+    // 🔥 [핵심 수정] 소셜 로그인 주소도 localhost를 지우고 변수로 교체했습니다.
     window.location.href = `${API_BASE_URL}/oauth2/authorization/${provider}`;
   };
 
@@ -49,7 +49,13 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
       
       {/* 🎥 배경 비디오 */}
-      <video autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover z-0">
+      <video
+        autoPlay
+        loop
+        muted
+        playsInline
+        className="absolute inset-0 w-full h-full object-cover z-0"
+      >
         <source src="/login-bg.mp4" type="video/mp4" />
       </video>
 
@@ -104,15 +110,26 @@ export default function LoginPage() {
         </div>
 
         <div className="space-y-3 mt-6">
-            <button onClick={() => handleSocialLogin("kakao")} className="w-full py-3 rounded-xl font-bold bg-[#FEE500] text-[#000000] hover:bg-[#FDD835] transition-transform hover:scale-[1.02] flex items-center justify-center gap-3">
+            <button 
+                onClick={() => handleSocialLogin("kakao")}
+                className="w-full py-3 rounded-xl font-bold bg-[#FEE500] text-[#000000] hover:bg-[#FDD835] transition-transform hover:scale-[1.02] flex items-center justify-center gap-3"
+            >
                 <MessageCircle size={20} fill="black" />
                 <span>카카오로 시작하기</span>
             </button>
-            <button onClick={() => handleSocialLogin("naver")} className="w-full py-3 rounded-xl font-bold bg-[#03C75A] text-white hover:bg-[#02b351] transition-transform hover:scale-[1.02] flex items-center justify-center gap-3">
+
+            <button 
+                onClick={() => handleSocialLogin("naver")}
+                className="w-full py-3 rounded-xl font-bold bg-[#03C75A] text-white hover:bg-[#02b351] transition-transform hover:scale-[1.02] flex items-center justify-center gap-3"
+            >
                 <span className="font-black text-lg">N</span>
                 <span>네이버로 시작하기</span>
             </button>
-            <button onClick={() => handleSocialLogin("google")} className="w-full py-3 rounded-xl font-bold bg-white text-black border border-white/20 hover:bg-gray-100 transition-transform hover:scale-[1.02] flex items-center justify-center gap-3">
+
+            <button 
+                onClick={() => handleSocialLogin("google")}
+                className="w-full py-3 rounded-xl font-bold bg-white text-black border border-white/20 hover:bg-gray-100 transition-transform hover:scale-[1.02] flex items-center justify-center gap-3"
+            >
                 <svg className="w-5 h-5" viewBox="0 0 24 24">
                     <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
                     <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
