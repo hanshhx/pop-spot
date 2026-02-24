@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation"; // 🔥 useSearchParams 추가
 import { 
   Search, MapPin, ArrowUpRight, Flame, Calendar, Menu, Users, 
   Instagram, Twitter, Plus, X, ArrowUp, ArrowDown, Minus, 
@@ -12,7 +12,7 @@ import {
 import { motion, Variants, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 
-// 🔥 [수정됨] algoliasearch import 방식 변경 (default export 에러 해결)
+// 🔥 [Algolia] 클라이언트 설정
 import { liteClient as algoliasearch } from "algoliasearch/lite"; 
 import { InstantSearch, useSearchBox, useHits } from "react-instantsearch";
 
@@ -38,13 +38,10 @@ import AIReportModal from "../src/components/AIReportModal";
 import LiveChatTicker from "../src/components/LiveChatTicker";
 import { SortableItem } from "../src/components/SortableItem";
 import MateBoard from "../src/components/MateBoard"; 
-// 🔥 [핵심 수정] apiFetch, API_BASE_URL, SOCKET_BASE_URL을 가져와 하드코딩을 방지합니다.
 import { apiFetch, API_BASE_URL, SOCKET_BASE_URL } from "../src/lib/api";
 
-// 🔥 [Algolia] 클라이언트 설정 (본인의 Algolia 키로 교체 필요)
 const searchClient = algoliasearch("EWZCTMAVQS", "f28e121d432930f092ec55cea220efda");
 
-// 🔥 [Algolia] 커스텀 검색창 컴포넌트 (수정됨: w-full 적용)
 function CustomSearchBox(props: any) {
   const { query, refine } = useSearchBox(props);
   return (
@@ -61,12 +58,9 @@ function CustomSearchBox(props: any) {
   );
 }
 
-// 🔥 [Algolia] 커스텀 검색 결과(드롭다운) 컴포넌트
 function CustomHits() {
   const { hits, results } = useHits();
   const { query } = useSearchBox();
-
-  // 검색어가 없으면 결과를 안 보여줌 (깔끔하게)
   if (!query) return null;
 
   return (
@@ -79,7 +73,6 @@ function CustomHits() {
           hits.map((hit: any) => (
             <Link key={hit.objectID} href={`/popup/${hit.objectID}`}>
                 <div className="flex items-center gap-4 p-4 hover:bg-indigo-50 dark:hover:bg-white/5 transition-colors cursor-pointer border-b border-gray-100 dark:border-white/5 last:border-none group">
-                    {/* 이미지 (없으면 기본 아이콘) */}
                     {hit.imageUrl ? (
                         <img src={hit.imageUrl} alt={hit.name} className="w-12 h-12 rounded-xl object-cover bg-gray-200"/>
                     ) : (
@@ -87,9 +80,7 @@ function CustomHits() {
                             <Store size={20}/>
                         </div>
                     )}
-                    
                     <div className="flex-1 min-w-0">
-                        {/* 하이라이트 처리는 나중에 Algolia 설정에서 가능 */}
                         <h4 className="text-gray-900 dark:text-white font-bold text-sm truncate group-hover:text-indigo-500 transition-colors">
                             {hit.name}
                         </h4>
@@ -109,7 +100,6 @@ function CustomHits() {
   );
 }
 
-// ... 기존 인터페이스들 유지 ...
 interface PopupStore {
   id: number;
   name: string;
@@ -169,32 +159,36 @@ interface WishlistItem {
 
 const INITIAL_MY_COURSE: any[] = [];
 
+// [로직 해석] 쿠키 읽기용 헬퍼 함수
+function getCookie(name: string) {
+  if (typeof document === "undefined") return null;
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop()?.split(';').shift();
+  return null;
+}
+
 export default function Home() {
   const router = useRouter();
+  const searchParams = useSearchParams(); // 🔥 URL 파라미터 감지 추가
   const [hotPopups, setHotPopups] = useState<PopupStore[]>([]);
   const [allPopups, setAllPopups] = useState<PopupStore[]>([]);
-    
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [isAddPlaceOpen, setIsAddPlaceOpen] = useState(false);
-    
   const [currentTab, setCurrentTab] = useState("MAP");
   const [user, setUser] = useState<any>(null);
-   
   const [myPageInfo, setMyPageInfo] = useState<MyPageData | null>(null);
   const [savedCourses, setSavedCourses] = useState<any[]>([]);
   const [myWishlist, setMyWishlist] = useState<WishlistItem[]>([]);
-
   const [aiCourse, setAiCourse] = useState<any[]>([]); 
   const [isAiLoading, setIsAiLoading] = useState(false); 
   const [selectedVibe, setSelectedVibe] = useState(""); 
   const [customVibeInput, setCustomVibeInput] = useState(""); 
   const [showCustomInput, setShowCustomInput] = useState(false); 
-
   const [congestionData, setCongestionData] = useState<CongestionData | null>(null);
   const [ootd, setOotd] = useState<TrendOotd | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
-
   const [myCourseItems, setMyCourseItems] = useState<any[]>(INITIAL_MY_COURSE);
 
   const sensors = useSensors(
@@ -237,7 +231,6 @@ export default function Home() {
           alert("이미 코스에 추가된 장소입니다.");
           return;
       }
-
       setMyCourseItems([...myCourseItems, newItem]);
       setIsAddPlaceOpen(false); 
   };
@@ -250,7 +243,6 @@ export default function Home() {
         return;
     }
     try {
-        // 🔥 [수정] localhost 제거, apiFetch 사용
         const res = await apiFetch('/api/planning/create', { method: 'POST' });
         const roomId = await res.text();
         router.push(`/planning?room=${roomId}`);
@@ -261,12 +253,10 @@ export default function Home() {
 
   const fetchMyPageData = async (userId: string) => {
       try {
-          // 🔥 [수정] localhost 제거, apiFetch 사용
           const res = await apiFetch(`/api/mypage/${userId}`);
           if (res.ok) {
               const data = await res.json();
               setMyPageInfo(data);
-
               if (user) {
                   const updatedUser = { ...user, isPremium: data.isPremium };
                   setUser(updatedUser); 
@@ -280,12 +270,10 @@ export default function Home() {
 
   const fetchMyCourses = async (userId: string, shouldAutoLoad = false) => {
     try {
-        // 🔥 [수정] localhost 제거, apiFetch 사용
         const res = await apiFetch(`/api/my-courses?userId=${userId}`);
         if (res.ok) {
             const data = await res.json();
             setSavedCourses(data); 
-
             if (shouldAutoLoad && data.length > 0) {
                 const latestCourse = data[data.length - 1]; 
                 if (latestCourse.courseData) {
@@ -302,7 +290,6 @@ export default function Home() {
 
   const fetchWishlist = async (userId: string) => {
     try {
-        // 🔥 [수정] localhost 제거, apiFetch 사용
         const res = await apiFetch(`/api/wishlist/${userId}`);
         if (res.ok) {
             const data = await res.json();
@@ -316,14 +303,12 @@ export default function Home() {
   const handleRemoveWishlist = async (e: React.MouseEvent, popupId: number) => {
     e.preventDefault();
     e.stopPropagation();
-     
     if (!user) return;
     if (!confirm("찜 목록에서 삭제하시겠습니까?")) return;
 
     try {
-        // 🔥 [수정] localhost 제거, apiFetch 사용, 그리고 500 에러 방지를 위해 DELETE 메서드로 시도
         const res = await apiFetch(`/api/wishlist/${user.userId}/${popupId}`, {
-            method: "DELETE" // 백엔드 설계에 따라 POST여야 할 수도 있으나 일반적으로 삭제는 DELETE
+            method: "DELETE" 
         });
         if (res.ok) {
             setMyWishlist(prev => prev.filter(item => item.popupId !== popupId));
@@ -348,7 +333,6 @@ export default function Home() {
       if (!confirm("정말 이 코스를 삭제하시겠습니까?")) return;
 
       try {
-          // 🔥 [수정] localhost 제거, apiFetch 사용
           const res = await apiFetch(`/api/my-courses/${courseId}`, { method: 'DELETE' });
           if (res.ok) {
               alert("코스가 삭제되었습니다.");
@@ -364,7 +348,7 @@ export default function Home() {
 
   const handleTabChange = (tab: string) => {
     if ((tab === "PASSPORT" || tab === "MY" || tab === "MATE") && !user) {
-        if(confirm("🔒 해당 기능은 로그인이 필요합니다.\n로그인 하시겠습니까?")) {
+        if(confirm("🔒 해당 기능은 로그인이 필요합니다.\n로그인 하시습니까?")) {
             router.push("/login");
         }
         return;
@@ -379,8 +363,39 @@ export default function Home() {
     }
   };
 
+  // 🔥 [핵심 추가 로직] 소셜 로그인 리다이렉트 시 넘어오는 파라미터를 가로채 로그인 처리합니다.
   useEffect(() => {
-    // 🔥 [수정] localhost 제거, apiFetch 사용
+    const tokenFromUrl = searchParams.get("accessToken"); 
+    const userId = searchParams.get("userId");
+    const nickname = searchParams.get("nickname");
+    const isPremium = searchParams.get("isPremium");
+
+    if (tokenFromUrl && userId) {
+      // 1. URL에서 받은 정보를 로컬 스토리지에 즉시 강제 주입
+      localStorage.setItem("token", tokenFromUrl);
+      const socialUser = {
+        userId: userId,
+        nickname: nickname ? decodeURIComponent(nickname) : "User",
+        isPremium: isPremium === "true",
+        isSocial: true
+      };
+      localStorage.setItem("user", JSON.stringify(socialUser));
+      setUser(socialUser);
+
+      // 2. 로그인에 필요한 연관 데이터 패칭 시작
+      fetchMyCourses(userId, true);
+      fetchWishlist(userId);
+      if (sessionStorage.getItem("lastTab") === "MY") {
+          fetchMyPageData(userId);
+      }
+
+      // 3. 지저분한 URL 파라미터를 제거하여 깔끔한 메인 화면 유지
+      router.replace("/");
+      console.log("✅ [소셜 로그인] URL 파라미터 기반 인증 및 데이터 연동 성공");
+    }
+  }, [searchParams, router]);
+
+  useEffect(() => {
     apiFetch('/api/popups')
         .then(res => res.json())
         .then(data => {
@@ -428,6 +443,7 @@ export default function Home() {
 
   const handleLogout = () => {
     localStorage.removeItem("user");
+    localStorage.removeItem("token");
     sessionStorage.removeItem("aiCourseData"); 
     setUser(null);
     alert("로그아웃 되었습니다.");
@@ -442,7 +458,6 @@ export default function Home() {
     setShowCustomInput(false); 
 
     try {
-      // 🔥 [수정] localhost 제거, apiFetch 사용
       const res = await apiFetch(`/api/courses/recommend?vibe=${vibe}`);
       if (!res.ok) throw new Error("AI 서버 오류");
       const jsonString = await res.text();
@@ -471,7 +486,6 @@ export default function Home() {
     }
 
     try {
-        // 🔥 [수정] localhost 제거, apiFetch 사용
         const res = await apiFetch("/api/my-courses", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -906,8 +920,8 @@ export default function Home() {
         {currentTab === "MY" && (
             <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} 
                         className="h-[85vh] flex flex-col md:flex-row overflow-hidden rounded-[2.5rem] border backdrop-blur-md mb-24 transition-colors relative
-                                   bg-white/80 border-gray-200 
-                                   dark:bg-[#111]/80 dark:border-white/10">
+                                    bg-white/80 border-gray-200 
+                                    dark:bg-[#111]/80 dark:border-white/10">
                 
                 {/* 1. 지도 영역 (왼쪽) */}
                 <div className="w-full md:w-[55%] h-[40vh] md:h-full relative border-b md:border-b-0 md:border-r border-gray-200 dark:border-white/5">
@@ -1085,7 +1099,7 @@ export default function Home() {
                                             </div>
                                     </div>
                                     
-                                    {/* 🔥 삭제 버튼 추가 */}
+                                    {/* 삭제 버튼 추가 */}
                                     <button 
                                         onClick={(e) => handleDeleteCourse(e, course.id)}
                                         className="p-2 text-gray-400 hover:text-red-500 transition-colors rounded-full hover:bg-red-50 dark:hover:bg-red-900/20"
