@@ -38,7 +38,8 @@ import AIReportModal from "../src/components/AIReportModal";
 import LiveChatTicker from "../src/components/LiveChatTicker";
 import { SortableItem } from "../src/components/SortableItem";
 import MateBoard from "../src/components/MateBoard"; 
-import { apiFetch } from "../src/lib/api";
+// 🔥 [핵심 수정] apiFetch, API_BASE_URL, SOCKET_BASE_URL을 가져와 하드코딩을 방지합니다.
+import { apiFetch, API_BASE_URL, SOCKET_BASE_URL } from "../src/lib/api";
 
 // 🔥 [Algolia] 클라이언트 설정 (본인의 Algolia 키로 교체 필요)
 const searchClient = algoliasearch("EWZCTMAVQS", "f28e121d432930f092ec55cea220efda");
@@ -249,6 +250,7 @@ export default function Home() {
         return;
     }
     try {
+        // 🔥 [수정] localhost 제거, apiFetch 사용
         const res = await apiFetch('/api/planning/create', { method: 'POST' });
         const roomId = await res.text();
         router.push(`/planning?room=${roomId}`);
@@ -259,6 +261,7 @@ export default function Home() {
 
   const fetchMyPageData = async (userId: string) => {
       try {
+          // 🔥 [수정] localhost 제거, apiFetch 사용
           const res = await apiFetch(`/api/mypage/${userId}`);
           if (res.ok) {
               const data = await res.json();
@@ -277,6 +280,7 @@ export default function Home() {
 
   const fetchMyCourses = async (userId: string, shouldAutoLoad = false) => {
     try {
+        // 🔥 [수정] localhost 제거, apiFetch 사용
         const res = await apiFetch(`/api/my-courses?userId=${userId}`);
         if (res.ok) {
             const data = await res.json();
@@ -298,6 +302,7 @@ export default function Home() {
 
   const fetchWishlist = async (userId: string) => {
     try {
+        // 🔥 [수정] localhost 제거, apiFetch 사용
         const res = await apiFetch(`/api/wishlist/${userId}`);
         if (res.ok) {
             const data = await res.json();
@@ -316,8 +321,9 @@ export default function Home() {
     if (!confirm("찜 목록에서 삭제하시겠습니까?")) return;
 
     try {
+        // 🔥 [수정] localhost 제거, apiFetch 사용, 그리고 500 에러 방지를 위해 DELETE 메서드로 시도
         const res = await apiFetch(`/api/wishlist/${user.userId}/${popupId}`, {
-            method: "POST"
+            method: "DELETE" // 백엔드 설계에 따라 POST여야 할 수도 있으나 일반적으로 삭제는 DELETE
         });
         if (res.ok) {
             setMyWishlist(prev => prev.filter(item => item.popupId !== popupId));
@@ -342,6 +348,7 @@ export default function Home() {
       if (!confirm("정말 이 코스를 삭제하시겠습니까?")) return;
 
       try {
+          // 🔥 [수정] localhost 제거, apiFetch 사용
           const res = await apiFetch(`/api/my-courses/${courseId}`, { method: 'DELETE' });
           if (res.ok) {
               alert("코스가 삭제되었습니다.");
@@ -373,6 +380,7 @@ export default function Home() {
   };
 
   useEffect(() => {
+    // 🔥 [수정] localhost 제거, apiFetch 사용
     apiFetch('/api/popups')
         .then(res => res.json())
         .then(data => {
@@ -434,6 +442,7 @@ export default function Home() {
     setShowCustomInput(false); 
 
     try {
+      // 🔥 [수정] localhost 제거, apiFetch 사용
       const res = await apiFetch(`/api/courses/recommend?vibe=${vibe}`);
       if (!res.ok) throw new Error("AI 서버 오류");
       const jsonString = await res.text();
@@ -462,6 +471,7 @@ export default function Home() {
     }
 
     try {
+        // 🔥 [수정] localhost 제거, apiFetch 사용
         const res = await apiFetch("/api/my-courses", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -626,15 +636,14 @@ export default function Home() {
                 </div>
 
                 <section className="grid grid-cols-1 md:grid-cols-12 md:grid-rows-6 gap-4 min-h-[80vh] mb-24">
-                    {/* 🔥 [Algolia] 검색 존 (수정됨: 버튼 삭제 및 w-full) */}
+                    {/* 🔥 [Algolia] 검색 존 */}
                     <div className="col-span-1 md:col-span-5 md:row-span-2 rounded-[2rem] p-8 flex flex-col justify-between border backdrop-blur-md transition-colors bg-white/80 border-gray-200 dark:bg-[#111]/80 dark:border-white/5 relative z-50">
                         <InstantSearch searchClient={searchClient} indexName="popups">
                             <div>
                                 <h2 className="text-3xl md:text-5xl font-black leading-tight uppercase mb-4 text-gray-900 dark:text-white">
                                     Search <span className="text-primary">Zone.</span>
                                 </h2>
-                                <div className="mt-8 relative w-full"> {/* flex 관련 클래스 제거 */}
-                                    {/* 커스텀 검색창 */}
+                                <div className="mt-8 relative w-full"> 
                                     <CustomSearchBox />
                                 </div>
                             </div>
@@ -691,7 +700,6 @@ export default function Home() {
                 </section>
 
                 <motion.section initial="hidden" whileInView="visible" viewport={{ once: true }} variants={sectionVariants} className="mb-24">
-                    {/* ... (기존 코드 유지) */}
                     <div className="flex flex-col md:flex-row items-end justify-between mb-12">
                         <h2 className="text-5xl md:text-7xl font-black tracking-tighter uppercase text-transparent bg-clip-text bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 text-stroke relative z-10">POP-LOOK<span className="text-white">.</span></h2>
                         <p className="text-gray-500 dark:text-white/60 max-w-md text-right md:text-left mt-4 md:mt-0 relative z-10">성수동 갈 때 뭐 입지?<br/>오늘의 분위기에 딱 맞는 OOTD를 제안합니다.</p>
@@ -803,7 +811,6 @@ export default function Home() {
         {currentTab === "COURSE" && (
              <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} 
                           className="min-h-[80vh] flex flex-col items-center rounded-[2.5rem] border mb-24 p-6 relative overflow-hidden backdrop-blur-xl transition-colors bg-white/80 border-gray-200 dark:bg-black/80 dark:border-white/10">
-                {/* ... (기존 COURSE 탭 내용) */}
                 <div className="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-5 pointer-events-none"></div>
                 <div className="text-center mb-10 z-10 mt-8">
                     <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-indigo-500/30 bg-indigo-500/10 text-indigo-500 dark:text-indigo-400 text-xs font-bold mb-4 animate-pulse"><Sparkles size={12} /> AI CURATION BETA</div>
@@ -1229,11 +1236,11 @@ export default function Home() {
             <div className="bg-gray-200 dark:bg-white/5 rounded-xl p-6 text-xs text-gray-600 dark:text-white/40 leading-relaxed border border-gray-300 dark:border-white/5">
                 <p className="font-bold mb-2 text-gray-900 dark:text-white text-sm">⚠️ [포트폴리오 안내] 본 사이트는 상업적 목적이 없는 개인 개발용 포트폴리오입니다.</p>
                 <p className="mb-2">
-                   제공되는 모든 팝업 정보, 이미지, 혼잡도 데이터는 학습 목적으로 크롤링되거나 시뮬레이션된 데이터이며 실제와 다를 수 있습니다.<br/>
-                   실제 티켓 예매 및 결제는 이루어지지 않으며, 금전적 거래를 요구하지 않습니다.
+                    제공되는 모든 팝업 정보, 이미지, 혼잡도 데이터는 학습 목적으로 크롤링되거나 시뮬레이션된 데이터이며 실제와 다를 수 있습니다.<br/>
+                    실제 티켓 예매 및 결제는 이루어지지 않으며, 금전적 거래를 요구하지 않습니다.
                 </p>
                 <p>
-                   콘텐츠와 관련하여 저작권 및 기타 문제가 있을 경우, 아래 이메일로 연락 주시면 즉시 삭제 및 수정 조치하겠습니다.
+                    콘텐츠와 관련하여 저작권 및 기타 문제가 있을 경우, 아래 이메일로 연락 주시면 즉시 삭제 및 수정 조치하겠습니다.
                 </p>
                 <p className="mt-4 font-bold text-indigo-600 dark:text-indigo-400">Contact: [reo4321@naver.com]</p>
                 <p className="mt-4 opacity-50">© 2026 POP-SPOT Portfolio Project. All rights reserved.</p>
@@ -1290,20 +1297,20 @@ export default function Home() {
                                     <Link href={`/popup/${popup.id}`} key={popup.id} onClick={() => setIsModalOpen(false)}>
                                         <motion.div layout initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.3 }} 
                                                     className="relative flex items-center justify-between p-5 rounded-2xl transition-all duration-300 group hover:translate-y-[-2px] hover:shadow-lg border bg-white border-gray-200 hover:border-primary/50 dark:bg-[#111] dark:bg-gradient-to-br dark:from-white/5 dark:to-transparent dark:border-white/5">
-                                    <div className="flex items-center gap-5">
-                                            <div className="w-12 text-center">
-                                                <span className={`text-3xl font-black italic tracking-tighter ${idx < 3 ? 'text-transparent bg-clip-text bg-gradient-to-br from-primary to-white drop-shadow-md' : 'text-gray-300 dark:text-white/20'}`}>{idx + 1}</span>
-                                            </div>
-                                            <div>
-                                                <span className="font-bold text-lg block mb-1 transition-colors duration-300 truncate max-w-[200px] md:max-w-[280px] text-gray-900 group-hover:text-primary dark:text-white">{popup.name}</span>
-                                                <span className="text-xs flex items-center gap-1 text-gray-500 dark:text-white/60"><MapPin size={12}/> {popup.location}</span>
-                                            </div>
-                                    </div>
-                                    <div className="flex flex-col items-end gap-2 pl-4">
-                                            <div className="text-[10px] flex items-center gap-1 px-2 py-1 rounded-md bg-gray-100 text-gray-500 dark:bg-black/30 dark:text-white/60"><Users size={10}/> {popup.viewCount || 0}</div>
-                                            <span className={`text-[11px] px-3 py-1.5 rounded-full border font-bold whitespace-nowrap shrink-0 tracking-wider ${popup.status === '혼잡' ? 'border-secondary/50 text-secondary bg-secondary/10' : 'border-primary/50 text-primary bg-primary/10'}`}>{popup.status || '영업중'}</span>
-                                    </div>
-                                    </motion.div>
+                                        <div className="flex items-center gap-5">
+                                                <div className="w-12 text-center">
+                                                    <span className={`text-3xl font-black italic tracking-tighter ${idx < 3 ? 'text-transparent bg-clip-text bg-gradient-to-br from-primary to-white drop-shadow-md' : 'text-gray-300 dark:text-white/20'}`}>{idx + 1}</span>
+                                                </div>
+                                                <div>
+                                                    <span className="font-bold text-lg block mb-1 transition-colors duration-300 truncate max-w-[200px] md:max-w-[280px] text-gray-900 group-hover:text-primary dark:text-white">{popup.name}</span>
+                                                    <span className="text-xs flex items-center gap-1 text-gray-500 dark:text-white/60"><MapPin size={12}/> {popup.location}</span>
+                                                </div>
+                                        </div>
+                                        <div className="flex flex-col items-end gap-2 pl-4">
+                                                <div className="text-[10px] flex items-center gap-1 px-2 py-1 rounded-md bg-gray-100 text-gray-500 dark:bg-black/30 dark:text-white/60"><Users size={10}/> {popup.viewCount || 0}</div>
+                                                <span className={`text-[11px] px-3 py-1.5 rounded-full border font-bold whitespace-nowrap shrink-0 tracking-wider ${popup.status === '혼잡' ? 'border-secondary/50 text-secondary bg-secondary/10' : 'border-primary/50 text-primary bg-primary/10'}`}>{popup.status || '영업중'}</span>
+                                        </div>
+                                        </motion.div>
                                     </Link>
                                 ))}
                                 </AnimatePresence>

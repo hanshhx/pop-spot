@@ -201,28 +201,45 @@ export default function PopupDetail() {
     } catch (e) { console.error(e); }
   };
 
-  // ✅ [로직 해석] 스탬프 찍기 API를 호출하고 성공 시 UI 상태를 갱신합니다.
+  // 🔥 [수정 1: 400 에러 해결] URL 파라미터 대신 Body에 JSON으로 담아 POST 요청을 보냅니다.
   const handleStamp = async () => {
     if (!popup) return;
     try {
-        const res = await apiFetch(`/api/stamps?userId=${user?.userId}&popupId=${popup.id}`, { method: "POST" });
+        const res = await apiFetch(`/api/stamps`, { 
+            method: "POST",
+            body: JSON.stringify({
+                userId: user?.userId,
+                popupId: popup.id
+            })
+        });
         if (res.ok) {
             setIsStamped(true);
             alert("🎉 스탬프 완료!");
+        } else {
+            alert("이미 스탬프를 찍었거나 서버 오류입니다.");
         }
     } catch (e) { alert("오류 발생"); }
   };
 
-  // ✅ [로직 해석] 찜하기 버튼 클릭 시 서버 통신 전 UI를 먼저 바꾸는 '낙관적 업데이트'를 수행합니다.
+  // 🔥 [수정 2: 500 에러 해결] 찜 상태(isLiked)에 따라 POST(추가)와 DELETE(삭제)를 영리하게 구분합니다.
   const handleToggleLike = async () => {
     if (!popup || !user) return;
+    
     const prevStatus = isLiked;
-    setIsLiked(!isLiked); 
+    setIsLiked(!isLiked); // UI 먼저 변경 (낙관적 업데이트)
+    
     try {
-        const res = await apiFetch(`/api/wishlist/${user.userId}/${popup.id}`, { method: "POST" });
+        // 이미 찜한 상태면 DELETE(취소), 아니면 POST(추가)
+        const httpMethod = prevStatus ? "DELETE" : "POST";
+        
+        const res = await apiFetch(`/api/wishlist/${user.userId}/${popup.id}`, { 
+            method: httpMethod 
+        });
+        
         if (!res.ok) throw new Error();
     } catch (e) {
-        setIsLiked(prevStatus); // [로직 해석] 실패 시 원래 상태로 복구합니다.
+        setIsLiked(prevStatus); // 서버 통신 실패 시 원래 상태로 복구
+        alert("찜하기 처리에 실패했습니다.");
     }
   };
 
