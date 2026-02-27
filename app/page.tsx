@@ -7,7 +7,7 @@ import {
   Instagram, Twitter, Plus, X, ArrowUp, ArrowDown, Minus, 
   Map as MapIcon, Route, Ticket, User, LogOut, Sparkles, Lock, ArrowRight, Loader2, RefreshCw,
   Shirt, Video, ShoppingBag, Crown, GripVertical, PlusCircle, Zap, MessageCircle, Heart, Star, Gift, Megaphone,
-  FolderOpen, Save, Trash2, Store, ShieldCheck // 🔥 ShieldCheck 아이콘 확인
+  FolderOpen, Save, Trash2, Store, ShieldCheck
 } from "lucide-react";
 import { motion, Variants, AnimatePresence } from "framer-motion";
 import Link from "next/link";
@@ -170,11 +170,15 @@ function getCookie(name: string) {
 
 export default function Home() {
   const router = useRouter();
-  const searchParams = useSearchParams(); // 🔥 URL 파라미터 감지 추가
+  const searchParams = useSearchParams(); 
   const [hotPopups, setHotPopups] = useState<PopupStore[]>([]);
   const [allPopups, setAllPopups] = useState<PopupStore[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isReportOpen, setIsReportOpen] = useState(false);
+  
+  // 🔥 [추가] 팝업 제보 모달창 상태를 관리하는 State입니다.
+  const [isReportPopupOpen, setIsReportPopupOpen] = useState(false);
+
   const [isAddPlaceOpen, setIsAddPlaceOpen] = useState(false);
   const [currentTab, setCurrentTab] = useState("MAP");
   const [user, setUser] = useState<any>(null);
@@ -363,7 +367,6 @@ export default function Home() {
     }
   };
 
-  // 🔥 [핵심 추가 로직] 소셜 로그인 리다이렉트 시 넘어오는 파라미터를 가로채 로그인 처리합니다.
   useEffect(() => {
     const tokenFromUrl = searchParams.get("accessToken"); 
     const userId = searchParams.get("userId");
@@ -371,7 +374,6 @@ export default function Home() {
     const isPremium = searchParams.get("isPremium");
 
     if (tokenFromUrl && userId) {
-      // 1. URL에서 받은 정보를 로컬 스토리지에 즉시 강제 주입
       localStorage.setItem("token", tokenFromUrl);
       const socialUser = {
         userId: userId,
@@ -382,14 +384,12 @@ export default function Home() {
       localStorage.setItem("user", JSON.stringify(socialUser));
       setUser(socialUser);
 
-      // 2. 로그인에 필요한 연관 데이터 패칭 시작
       fetchMyCourses(userId, true);
       fetchWishlist(userId);
       if (sessionStorage.getItem("lastTab") === "MY") {
           fetchMyPageData(userId);
       }
 
-      // 3. 지저분한 URL 파라미터를 제거하여 깔끔한 메인 화면 유지
       router.replace("/");
       console.log("✅ [소셜 로그인] URL 파라미터 기반 인증 및 데이터 연동 성공");
     }
@@ -539,7 +539,6 @@ export default function Home() {
       return days > 0 ? days : 0;
   };
 
-  // 🔥 [추가] 현재 유저가 관리자인지 확인하는 변수 (동현님 계정 방어 로직 포함)
   const isAdmin = user?.role?.includes('ADMIN') || user?.email === 'reo4321@naver.com' || user?.userId === 'reo4321@naver.com';
 
   return (
@@ -568,14 +567,16 @@ export default function Home() {
           <div className="flex items-center gap-4">
              <ThemeToggle />
 
-             {/* 🔥 [추가] 로그인한 유저에게 보이는 팝업 제보하기 버튼 */}
+             {/* 🔥 [수정] Link가 아닌 onClick으로 모달창을 열도록 변경했습니다. */}
              {user && (
-                 <Link href="/report" className="hidden md:flex items-center gap-1 px-4 py-2 rounded-full font-bold text-xs border border-indigo-500/50 text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 hover:bg-indigo-500 hover:text-white transition-all shadow-sm">
+                 <button 
+                    onClick={() => setIsReportPopupOpen(true)} 
+                    className="hidden md:flex items-center gap-1 px-4 py-2 rounded-full font-bold text-xs border border-indigo-500/50 text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 hover:bg-indigo-500 hover:text-white transition-all shadow-sm"
+                 >
                      <Megaphone size={14} /> 제보하기
-                 </Link>
+                 </button>
              )}
 
-             {/* 🔥 [추가] 관리자(ADMIN) 전용 대시보드 버튼 */}
              {isAdmin && (
                  <Link href="/admin" className="hidden md:flex items-center gap-1 px-4 py-2 rounded-full font-bold text-xs border border-red-500/50 text-red-500 bg-red-500/10 hover:bg-red-500 hover:text-white transition-all shadow-sm">
                      <ShieldCheck size={14} /> 관리자
@@ -668,7 +669,6 @@ export default function Home() {
                 </div>
 
                 <section className="grid grid-cols-1 md:grid-cols-12 md:grid-rows-6 gap-4 min-h-[80vh] mb-24">
-                    {/* 🔥 [Algolia] 검색 존 */}
                     <div className="col-span-1 md:col-span-5 md:row-span-2 rounded-[2rem] p-8 flex flex-col justify-between border backdrop-blur-md transition-colors bg-white/80 border-gray-200 dark:bg-[#111]/80 dark:border-white/5 relative z-50">
                         <InstantSearch searchClient={searchClient} indexName="popups">
                             <div>
@@ -1301,6 +1301,7 @@ export default function Home() {
         </div>
       </div>
 
+      {/* 실시간 랭킹 모달 */}
       <AnimatePresence>
         {isModalOpen && (
             <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
@@ -1354,11 +1355,22 @@ export default function Home() {
         )}
       </AnimatePresence>
 
+      {/* AI 혼잡도 모달 */}
       <AnimatePresence>
         {isReportOpen && congestionData && (
             <AIReportModal 
             data={congestionData} 
             onClose={() => setIsReportOpen(false)} 
+            />
+        )}
+      </AnimatePresence>
+
+      {/* 🔥 [추가] 팝업스토어 제보하기 모달창 */}
+      <AnimatePresence>
+        {isReportPopupOpen && (
+            <ReportPopupModal 
+                user={user} 
+                onClose={() => setIsReportPopupOpen(false)} 
             />
         )}
       </AnimatePresence>
@@ -1378,4 +1390,129 @@ function DockItem({ icon, label, isActive, onClick }: any) {
       {isActive && <span className="text-[9px] font-bold mt-0.5">{label}</span>}
     </button>
   );
+}
+
+// 🔥 [추가 로직] 제보하기 기능을 수행하는 모달창 전용 컴포넌트입니다.
+function ReportPopupModal({ onClose, user }: { onClose: () => void, user: any }) {
+    // [로직 해석] 모달창 안에서 입력될 데이터들을 관리합니다.
+    const [formData, setFormData] = useState({
+        name: "",
+        category: "FASHION",
+        location: "",
+        address: "",
+        startDate: "",
+        endDate: "",
+        description: "",
+        reporterId: user?.userId || "unknown", // 현재 로그인한 유저 ID 자동 기입
+    });
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+        const { name, value } = e.target;
+        setFormData((prev) => ({ ...prev, [name]: value }));
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        try {
+            // [로직 해석] 설정하신 GCP 서버 IP로 전송합니다.
+            const response = await fetch("http://34.121.40.248:8080/api/popups/report", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(formData),
+            });
+
+            if (response.ok) {
+                alert("팝업스토어 제보가 완료되었습니다! 관리자 승인 후 지도에 노출됩니다.");
+                onClose(); // 성공 시 모달창을 닫습니다.
+            } else {
+                alert("제보 처리 중 오류가 발생했습니다.");
+            }
+        } catch (error) {
+            console.error("제보 실패:", error);
+            alert("서버와 연결할 수 없습니다.");
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+            {/* 배경 어둡게 처리하는 오버레이 */}
+            <motion.div 
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} 
+                className="absolute inset-0 bg-black/60 backdrop-blur-sm" 
+                onClick={onClose}
+            ></motion.div>
+            
+            {/* 실제 모달창 박스 */}
+            <motion.div 
+                initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} 
+                className="relative w-full max-w-xl max-h-[90vh] overflow-y-auto custom-scrollbar bg-white dark:bg-[#1a1a1a] rounded-3xl shadow-2xl p-8 border border-gray-200 dark:border-white/10"
+            >
+                <div className="flex justify-between items-start mb-6">
+                    <div>
+                        <h2 className="text-2xl font-black text-gray-900 dark:text-white flex items-center gap-2">
+                            <Megaphone className="text-indigo-500"/> 팝업스토어 제보하기
+                        </h2>
+                        <p className="text-sm text-gray-500 dark:text-white/60 mt-1">알고 있는 팝업 정보를 공유하고 보상을 받으세요!</p>
+                    </div>
+                    <button onClick={onClose} className="p-2 bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 rounded-full transition-colors">
+                        <X size={20} className="text-gray-900 dark:text-white" />
+                    </button>
+                </div>
+
+                <form onSubmit={handleSubmit} className="space-y-5">
+                    <div>
+                        <label className="block text-xs font-bold text-gray-700 dark:text-white/80 mb-1">팝업스토어 이름 *</label>
+                        <input type="text" name="name" required value={formData.name} onChange={handleChange} placeholder="예) 휩드 하우스 성수"
+                               className="w-full bg-gray-50 dark:bg-black/50 border border-gray-300 dark:border-white/10 rounded-xl p-3 focus:ring-2 focus:ring-indigo-500 outline-none text-sm dark:text-white"/>
+                    </div>
+
+                    <div>
+                        <label className="block text-xs font-bold text-gray-700 dark:text-white/80 mb-1">카테고리 *</label>
+                        <select name="category" value={formData.category} onChange={handleChange}
+                                className="w-full bg-gray-50 dark:bg-black/50 border border-gray-300 dark:border-white/10 rounded-xl p-3 focus:ring-2 focus:ring-indigo-500 outline-none text-sm dark:text-white">
+                            <option value="FASHION">패션 (FASHION)</option>
+                            <option value="FOOD">음식/카페 (FOOD)</option>
+                            <option value="POPUP">일반 팝업 (POPUP)</option>
+                        </select>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-xs font-bold text-gray-700 dark:text-white/80 mb-1">지역 (간략히) *</label>
+                            <input type="text" name="location" required value={formData.location} onChange={handleChange} placeholder="예) 성수동"
+                                   className="w-full bg-gray-50 dark:bg-black/50 border border-gray-300 dark:border-white/10 rounded-xl p-3 outline-none text-sm dark:text-white"/>
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-gray-700 dark:text-white/80 mb-1">상세 주소</label>
+                            <input type="text" name="address" value={formData.address} onChange={handleChange} placeholder="도로명 주소"
+                                   className="w-full bg-gray-50 dark:bg-black/50 border border-gray-300 dark:border-white/10 rounded-xl p-3 outline-none text-sm dark:text-white"/>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-xs font-bold text-gray-700 dark:text-white/80 mb-1">시작일 *</label>
+                            <input type="date" name="startDate" required value={formData.startDate} onChange={handleChange}
+                                   className="w-full bg-gray-50 dark:bg-black/50 border border-gray-300 dark:border-white/10 rounded-xl p-3 outline-none text-sm dark:text-white"/>
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-gray-700 dark:text-white/80 mb-1">종료일 *</label>
+                            <input type="date" name="endDate" required value={formData.endDate} onChange={handleChange}
+                                   className="w-full bg-gray-50 dark:bg-black/50 border border-gray-300 dark:border-white/10 rounded-xl p-3 outline-none text-sm dark:text-white"/>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="block text-xs font-bold text-gray-700 dark:text-white/80 mb-1">간단한 설명</label>
+                        <textarea name="description" rows={3} value={formData.description} onChange={handleChange} placeholder="어떤 팝업인가요?"
+                                  className="w-full bg-gray-50 dark:bg-black/50 border border-gray-300 dark:border-white/10 rounded-xl p-3 outline-none resize-none text-sm dark:text-white"></textarea>
+                    </div>
+
+                    <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl shadow-lg transition-transform active:scale-95">
+                        제보 제출하기
+                    </button>
+                </form>
+            </motion.div>
+        </div>
+    );
 }
