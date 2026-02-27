@@ -374,6 +374,8 @@ export default function Home() {
     const isPremium = searchParams.get("isPremium");
     const roleFromUrl = searchParams.get("role"); // 🔥 [추가] 백엔드가 보낸 role을 받습니다.
 
+console.log("🕵️‍♂️ [디버그 1] 브라우저 URL 파라미터 감지:", { tokenFromUrl, userId, roleFromUrl });
+
     if (tokenFromUrl && userId) {
       localStorage.setItem("token", tokenFromUrl);
       const socialUser = {
@@ -383,6 +385,8 @@ export default function Home() {
         role: roleFromUrl || "USER", // 🔥 [추가] 유저 객체 안에 권한을 정식으로 저장합니다.
         isSocial: true
       };
+      console.log("🕵️‍♂️ [디버그 2] 소셜로그인 후 저장할 유저 객체:", socialUser);
+
       localStorage.setItem("user", JSON.stringify(socialUser));
       setUser(socialUser);
 
@@ -420,6 +424,8 @@ export default function Home() {
 
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
+
+    console.log("🕵️‍♂️ [디버그 3] 페이지 접속 시 로컬스토리지 유저 정보:", storedUser);
     if (storedUser) {
         const parsedUser = JSON.parse(storedUser);
         setUser(parsedUser);
@@ -540,8 +546,9 @@ export default function Home() {
       const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
       return days > 0 ? days : 0;
   };
-
+  
   const isAdmin = user?.role?.includes('ADMIN');
+  console.log("🕵️‍♂️ [디버그 4] 최종 렌더링 전 user 상태:", user, "-> isAdmin:", isAdmin);
 
   return (
     <main className="min-h-screen font-sans relative pb-24 overflow-x-hidden transition-colors duration-500 bg-gray-50 text-gray-900 dark:bg-black dark:text-white">
