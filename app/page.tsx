@@ -7,7 +7,7 @@ import {
   Instagram, Twitter, Plus, X, ArrowUp, ArrowDown, Minus, 
   Map as MapIcon, Route, Ticket, User, LogOut, Sparkles, Lock, ArrowRight, Loader2, RefreshCw,
   Shirt, Video, ShoppingBag, Crown, GripVertical, PlusCircle, Zap, MessageCircle, Heart, Star, Gift, Megaphone,
-  FolderOpen, Save, Trash2, Store 
+  FolderOpen, Save, Trash2, Store, ShieldCheck // 🔥 ShieldCheck 아이콘 확인
 } from "lucide-react";
 import { motion, Variants, AnimatePresence } from "framer-motion";
 import Link from "next/link";
@@ -348,7 +348,7 @@ export default function Home() {
 
   const handleTabChange = (tab: string) => {
     if ((tab === "PASSPORT" || tab === "MY" || tab === "MATE") && !user) {
-        if(confirm("🔒 해당 기능은 로그인이 필요합니다.\n로그인 하시습니까?")) {
+        if(confirm("🔒 해당 기능은 로그인이 필요합니다.\n로그인 하시겠습니까?")) {
             router.push("/login");
         }
         return;
@@ -539,6 +539,9 @@ export default function Home() {
       return days > 0 ? days : 0;
   };
 
+  // 🔥 [추가] 현재 유저가 관리자인지 확인하는 변수 (동현님 계정 방어 로직 포함)
+  const isAdmin = user?.role?.includes('ADMIN') || user?.email === 'reo4321@naver.com' || user?.userId === 'reo4321@naver.com';
+
   return (
     <main className="min-h-screen font-sans relative pb-24 overflow-x-hidden transition-colors duration-500 bg-gray-50 text-gray-900 dark:bg-black dark:text-white">
       
@@ -564,6 +567,21 @@ export default function Home() {
 
           <div className="flex items-center gap-4">
              <ThemeToggle />
+
+             {/* 🔥 [추가] 로그인한 유저에게 보이는 팝업 제보하기 버튼 */}
+             {user && (
+                 <Link href="/report" className="hidden md:flex items-center gap-1 px-4 py-2 rounded-full font-bold text-xs border border-indigo-500/50 text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 hover:bg-indigo-500 hover:text-white transition-all shadow-sm">
+                     <Megaphone size={14} /> 제보하기
+                 </Link>
+             )}
+
+             {/* 🔥 [추가] 관리자(ADMIN) 전용 대시보드 버튼 */}
+             {isAdmin && (
+                 <Link href="/admin" className="hidden md:flex items-center gap-1 px-4 py-2 rounded-full font-bold text-xs border border-red-500/50 text-red-500 bg-red-500/10 hover:bg-red-500 hover:text-white transition-all shadow-sm">
+                     <ShieldCheck size={14} /> 관리자
+                 </Link>
+             )}
+
              {user ? (
                 <div className={`hidden md:flex items-center gap-4 px-4 py-2 rounded-full border backdrop-blur-md transition-colors
                     ${user.isPremium 
