@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { useRouter, useSearchParams } from "next/navigation"; // 🔥 useSearchParams 추가
+import { useRouter, useSearchParams } from "next/navigation"; 
 import { 
   Search, MapPin, ArrowUpRight, Flame, Calendar, Menu, Users, 
   Instagram, Twitter, Plus, X, ArrowUp, ArrowDown, Minus, 
@@ -11,6 +11,8 @@ import {
 } from "lucide-react";
 import { motion, Variants, AnimatePresence } from "framer-motion";
 import Link from "next/link";
+// 🔥 [수정] SweetAlert2의 공식 타입을 불러와서 any 에러를 원천 차단합니다!
+import Swal, { SweetAlertResult } from "sweetalert2"; 
 
 // 🔥 [Algolia] 클라이언트 설정
 import { liteClient as algoliasearch } from "algoliasearch/lite"; 
@@ -176,7 +178,7 @@ export default function Home() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isReportOpen, setIsReportOpen] = useState(false);
   
-  // 🔥 [추가] 팝업 제보 모달창 상태를 관리하는 State입니다.
+  // 🔥 팝업 제보 모달창 상태를 관리하는 State입니다.
   const [isReportPopupOpen, setIsReportPopupOpen] = useState(false);
 
   const [isAddPlaceOpen, setIsAddPlaceOpen] = useState(false);
@@ -213,12 +215,12 @@ export default function Home() {
 
   const handleCopyAiToMyCourse = () => {
       if (aiCourse.length === 0) {
-          alert("먼저 AI 추천 코스를 생성해주세요!");
+          Swal.fire({ icon: 'warning', text: '먼저 AI 추천 코스를 생성해주세요!' });
           return;
       }
       setMyCourseItems([...aiCourse]); 
       handleTabChange("MY"); 
-      alert("AI 추천 코스가 'MY' 탭에 적용되었습니다! 순서를 자유롭게 수정해보세요.");
+      Swal.fire({ icon: 'success', text: 'AI 추천 코스가 적용되었습니다! 📍' });
   };
 
   const handleAddPlace = (popup: PopupStore) => {
@@ -232,7 +234,7 @@ export default function Home() {
       };
         
       if (myCourseItems.find(item => item.id === newItem.id)) {
-          alert("이미 코스에 추가된 장소입니다.");
+          Swal.fire({ icon: 'info', text: '이미 코스에 추가된 장소입니다.' });
           return;
       }
       setMyCourseItems([...myCourseItems, newItem]);
@@ -241,9 +243,15 @@ export default function Home() {
 
   const handleCreateRoom = async () => {
     if (!user) {
-        if(confirm("🔒 작전 회의실은 로그인 후 이용 가능합니다.\n로그인 페이지로 이동하시겠습니까?")) {
-            router.push("/login");
-        }
+        Swal.fire({
+            title: '🔒 로그인이 필요합니다',
+            text: '작전 회의실은 회원 전용 기능입니다.',
+            showCancelButton: true,
+            confirmButtonText: '로그인하기',
+            cancelButtonText: '취소'
+        }).then((result: SweetAlertResult) => { 
+            if (result.isConfirmed) router.push("/login"); 
+        });
         return;
     }
     try {
@@ -251,7 +259,7 @@ export default function Home() {
         const roomId = await res.text();
         router.push(`/planning?room=${roomId}`);
     } catch (e) {
-        alert("서버 연결 실패! 백엔드를 실행해주세요.");
+        Swal.fire({ icon: 'error', text: '서버 연결 실패!' });
     }
   };
 
@@ -267,9 +275,7 @@ export default function Home() {
                   localStorage.setItem("user", JSON.stringify(updatedUser));
               }
           }
-      } catch (e) {
-          console.error("마이페이지 로드 실패", e);
-      }
+      } catch (e) { console.error("마이페이지 로드 실패", e); }
   };
 
   const fetchMyCourses = async (userId: string, shouldAutoLoad = false) => {
@@ -283,13 +289,10 @@ export default function Home() {
                 if (latestCourse.courseData) {
                     const parsedItems = JSON.parse(latestCourse.courseData);
                     setMyCourseItems(parsedItems); 
-                    console.log("✅ 저장된 코스 자동 로드 완료");
                 }
             }
         }
-    } catch (e) {
-        console.error("코스 불러오기 실패:", e);
-    }
+    } catch (e) { console.error("코스 불러오기 실패:", e); }
   };
 
   const fetchWishlist = async (userId: string) => {
@@ -299,62 +302,74 @@ export default function Home() {
             const data = await res.json();
             setMyWishlist(data);
         }
-    } catch (e) {
-        console.error("위시리스트 로드 실패:", e);
-    }
+    } catch (e) { console.error("위시리스트 로드 실패:", e); }
   };
 
   const handleRemoveWishlist = async (e: React.MouseEvent, popupId: number) => {
-    e.preventDefault();
-    e.stopPropagation();
+    e.preventDefault(); e.stopPropagation();
     if (!user) return;
-    if (!confirm("찜 목록에서 삭제하시겠습니까?")) return;
-
-    try {
-        const res = await apiFetch(`/api/wishlist/${user.userId}/${popupId}`, {
-            method: "DELETE" 
-        });
-        if (res.ok) {
-            setMyWishlist(prev => prev.filter(item => item.popupId !== popupId));
-            fetchMyPageData(user.userId);
-        } else {
-            alert("삭제 실패");
+    Swal.fire({
+        title: '찜 삭제',
+        text: '목록에서 삭제하시겠습니까?',
+        icon: 'question',
+        showCancelButton: true,
+    }).then(async (result: SweetAlertResult) => {
+        if (result.isConfirmed) {
+            try {
+                const res = await apiFetch(`/api/wishlist/${user.userId}/${popupId}`, { method: "DELETE" });
+                if (res.ok) {
+                    setMyWishlist(prev => prev.filter(item => item.popupId !== popupId));
+                    fetchMyPageData(user.userId);
+                    Swal.fire({ icon: 'success', text: '삭제되었습니다.' });
+                }
+            } catch (e) { console.error("찜 삭제 오류:", e); }
         }
-    } catch (e) {
-        console.error("찜 삭제 오류:", e);
-    }
+    });
   };
 
   const handleLoadCourse = (courseDataStr: string) => {
-      if(confirm("이 코스를 불러오시겠습니까?\n현재 편집 중인 내용은 사라집니다.")) {
-          setMyCourseItems(JSON.parse(courseDataStr));
-          window.scrollTo({ top: 0, behavior: 'smooth' }); 
-      }
+      Swal.fire({
+          title: '코스 불러오기',
+          text: '현재 편집 중인 내용은 사라집니다. 계속할까요?',
+          icon: 'warning',
+          showCancelButton: true,
+      }).then((result: SweetAlertResult) => {
+          if (result.isConfirmed) {
+              setMyCourseItems(JSON.parse(courseDataStr));
+              window.scrollTo({ top: 0, behavior: 'smooth' }); 
+          }
+      });
   }
 
   const handleDeleteCourse = async (e: React.MouseEvent, courseId: number) => {
       e.stopPropagation(); 
-      if (!confirm("정말 이 코스를 삭제하시겠습니까?")) return;
-
-      try {
-          const res = await apiFetch(`/api/my-courses/${courseId}`, { method: 'DELETE' });
-          if (res.ok) {
-              alert("코스가 삭제되었습니다.");
-              if (user) fetchMyCourses(user.userId); 
-          } else {
-              alert("삭제 실패");
+      Swal.fire({
+          title: '코스 삭제',
+          text: '정말 삭제하시겠습니까?',
+          icon: 'error',
+          showCancelButton: true,
+      }).then(async (result: SweetAlertResult) => {
+          if (result.isConfirmed) {
+              try {
+                  const res = await apiFetch(`/api/my-courses/${courseId}`, { method: 'DELETE' });
+                  if (res.ok) {
+                      Swal.fire('삭제 완료');
+                      if (user) fetchMyCourses(user.userId); 
+                  }
+              } catch (err) { console.error(err); }
           }
-      } catch (err) {
-          console.error(err);
-          alert("삭제 중 오류가 발생했습니다.");
-      }
+      });
   };
 
   const handleTabChange = (tab: string) => {
     if ((tab === "PASSPORT" || tab === "MY" || tab === "MATE") && !user) {
-        if(confirm("🔒 해당 기능은 로그인이 필요합니다.\n로그인 하시겠습니까?")) {
-            router.push("/login");
-        }
+        Swal.fire({
+            title: '🔒 로그인이 필요합니다',
+            showCancelButton: true,
+            confirmButtonText: '로그인'
+        }).then((res: SweetAlertResult) => { 
+            if (res.isConfirmed) router.push("/login"); 
+        });
         return;
     }
     setCurrentTab(tab);
@@ -372,9 +387,9 @@ export default function Home() {
     const userId = searchParams.get("userId");
     const nickname = searchParams.get("nickname");
     const isPremium = searchParams.get("isPremium");
-    const roleFromUrl = searchParams.get("role"); // 🔥 [추가] 백엔드가 보낸 role을 받습니다.
+    const roleFromUrl = searchParams.get("role"); 
 
-console.log("🕵️‍♂️ [디버그 1] 브라우저 URL 파라미터 감지:", { tokenFromUrl, userId, roleFromUrl });
+    console.log("🕵️‍♂️ [디버그 1] 브라우저 URL 파라미터 감지:", { tokenFromUrl, userId, roleFromUrl });
 
     if (tokenFromUrl && userId) {
       localStorage.setItem("token", tokenFromUrl);
@@ -382,7 +397,7 @@ console.log("🕵️‍♂️ [디버그 1] 브라우저 URL 파라미터 감지
         userId: userId,
         nickname: nickname ? decodeURIComponent(nickname) : "User",
         isPremium: isPremium === "true",
-        role: roleFromUrl || "USER", // 🔥 [추가] 유저 객체 안에 권한을 정식으로 저장합니다.
+        role: roleFromUrl || "USER", 
         isSocial: true
       };
       console.log("🕵️‍♂️ [디버그 2] 소셜로그인 후 저장할 유저 객체:", socialUser);
@@ -406,20 +421,17 @@ console.log("🕵️‍♂️ [디버그 1] 브라우저 URL 파라미터 감지
         .then(res => res.json())
         .then(data => {
             setAllPopups(data);
-            const sortedData = [...data].sort((a: PopupStore, b: PopupStore) => (b.viewCount || 0) - (a.viewCount || 0));
+            const sortedData = [...data].sort((a: any, b: any) => (b.viewCount || 0) - (a.viewCount || 0));
             setHotPopups(sortedData.slice(0, 5)); 
-        })
-        .catch(err => console.error("팝업 데이터 로딩 실패:", err));
+        });
 
     apiFetch('/api/congestion')
       .then(res => res.json())
-      .then(data => { if (data && data.level) setCongestionData(data); })
-      .catch(err => console.error("혼잡도 데이터 실패:", err));
+      .then(data => { if (data && data.level) setCongestionData(data); });
 
     apiFetch('/api/trends/ootd')
         .then(res => res.json())
-        .then(data => setOotd(data))
-        .catch(err => console.error("OOTD 로딩 실패:", err));
+        .then(data => setOotd(data));
   }, []);
 
   useEffect(() => {
@@ -454,12 +466,11 @@ console.log("🕵️‍♂️ [디버그 1] 브라우저 URL 파라미터 감지
     localStorage.removeItem("token");
     sessionStorage.removeItem("aiCourseData"); 
     setUser(null);
-    alert("로그아웃 되었습니다.");
-    window.location.reload();
+    Swal.fire({ icon: 'success', text: '로그아웃 되었습니다.' }).then(() => window.location.reload());
   };
 
   const handleAiRecommend = async (vibe: string) => {
-    if (!vibe.trim()) return alert("원하는 분위기를 입력해주세요!");
+    if (!vibe.trim()) return Swal.fire('분위기를 입력해주세요!');
     setIsAiLoading(true);
     setAiCourse([]); 
     setSelectedVibe(vibe);
@@ -467,16 +478,13 @@ console.log("🕵️‍♂️ [디버그 1] 브라우저 URL 파라미터 감지
 
     try {
       const res = await apiFetch(`/api/courses/recommend?vibe=${vibe}`);
-      if (!res.ok) throw new Error("AI 서버 오류");
       const jsonString = await res.text();
       const result = JSON.parse(jsonString);
       setAiCourse(result);
       sessionStorage.setItem("aiCourseData", JSON.stringify({ vibe: vibe, course: result }));
     } catch (e) {
-      alert("AI 연결에 실패했습니다.");
-    } finally {
-      setIsAiLoading(false);
-    }
+      Swal.fire({ icon: 'error', text: 'AI 연결 실패' });
+    } finally { setIsAiLoading(false); }
   };
 
   const handleResetCourse = () => {
@@ -486,11 +494,17 @@ console.log("🕵️‍♂️ [디버그 1] 브라우저 URL 파라미터 감지
   };
 
   const handleSaveCourse = async () => {
-    if (!user) return alert("로그인이 필요합니다.");
+    if (!user) return Swal.fire('로그인이 필요합니다.');
      
     if (!user.isPremium && savedCourses.length > 0) {
-        const confirmOverwrite = confirm("🔒 무료 회원은 코스를 1개만 저장할 수 있습니다.\n새로 저장하면 기존 코스는 사라집니다. 계속하시겠습니까?");
-        if(!confirmOverwrite) return;
+        Swal.fire({
+            title: '🔒 무료 회원 슬롯 제한',
+            text: '무료 회원은 코스를 1개만 저장 가능합니다. 덮어쓰시겠습니까?',
+            icon: 'info',
+            showCancelButton: true
+        }).then((result: SweetAlertResult) => { 
+            if (!result.isConfirmed) return; 
+        });
     }
 
     try {
@@ -505,13 +519,13 @@ console.log("🕵️‍♂️ [디버그 1] 브라우저 URL 파라미터 감지
         });
 
         if (res.ok) {
-            alert("✅ 코스가 안전하게 저장되었습니다!");
+            Swal.fire({ icon: 'success', text: '코스가 저장되었습니다! 💾' });
             fetchMyCourses(user.userId); 
         } else {
-            alert("저장 실패: 서버 오류가 발생했습니다.");
+            Swal.fire('저장 실패: 서버 오류가 발생했습니다.');
         }
     } catch (e) {
-        alert("저장 중 오류가 발생했습니다.");
+        Swal.fire('저장 중 오류가 발생했습니다.');
     }
   };
 
@@ -564,19 +578,22 @@ console.log("🕵️‍♂️ [디버그 1] 브라우저 URL 파라미터 감지
         
         {/* 헤더 */}
         <header className="flex justify-between items-end mb-8 md:mb-10 border-b border-gray-300 dark:border-white/10 pb-4">
-          <div>
-            <h1 className="text-4xl md:text-6xl font-black tracking-tighter leading-none text-gray-900 dark:text-white transition-colors">
-              POP-SPOT<span className="text-primary">.</span>
-            </h1>
-            <p className="text-xs md:text-sm mt-1 tracking-widest uppercase text-gray-600 dark:text-white/60 transition-colors">
-              Seoul Popup Store Intelligence
-            </p>
-          </div>
+          
+          {/* 🔥 6번 과제: 로고 텍스트에 Link 컴포넌트를 감싸서 메인 라우팅을 뚫어주었습니다. */}
+          <Link href="/" onClick={() => handleTabChange("MAP")}>
+            <div>
+              <h1 className="text-4xl md:text-6xl font-black tracking-tighter leading-none text-gray-900 dark:text-white transition-colors hover:text-indigo-500 dark:hover:text-indigo-400">
+                POP-SPOT<span className="text-primary">.</span>
+              </h1>
+              <p className="text-xs md:text-sm mt-1 tracking-widest uppercase text-gray-600 dark:text-white/60 transition-colors">
+                Seoul Popup Store Intelligence
+              </p>
+            </div>
+          </Link>
 
           <div className="flex items-center gap-4">
              <ThemeToggle />
 
-             {/* 🔥 [수정] Link가 아닌 onClick으로 모달창을 열도록 변경했습니다. */}
              {user && (
                  <button 
                     onClick={() => setIsReportPopupOpen(true)} 
@@ -1364,7 +1381,6 @@ console.log("🕵️‍♂️ [디버그 1] 브라우저 URL 파라미터 감지
         )}
       </AnimatePresence>
 
-      {/* AI 혼잡도 모달 */}
       <AnimatePresence>
         {isReportOpen && congestionData && (
             <AIReportModal 
@@ -1374,7 +1390,6 @@ console.log("🕵️‍♂️ [디버그 1] 브라우저 URL 파라미터 감지
         )}
       </AnimatePresence>
 
-      {/* 🔥 [추가] 팝업스토어 제보하기 모달창 */}
       <AnimatePresence>
         {isReportPopupOpen && (
             <ReportPopupModal 
@@ -1401,125 +1416,46 @@ function DockItem({ icon, label, isActive, onClick }: any) {
   );
 }
 
-// 🔥 [추가 로직] 제보하기 기능을 수행하는 모달창 전용 컴포넌트입니다.
 function ReportPopupModal({ onClose, user }: { onClose: () => void, user: any }) {
-    // [로직 해석] 모달창 안에서 입력될 데이터들을 관리합니다.
     const [formData, setFormData] = useState({
-        name: "",
-        category: "FASHION",
-        location: "",
-        address: "",
-        startDate: "",
-        endDate: "",
-        description: "",
-        reporterId: user?.userId || "unknown", // 현재 로그인한 유저 ID 자동 기입
+        name: "", category: "FASHION", location: "", address: "",
+        startDate: "", endDate: "", description: "", reporterId: user?.userId || "unknown"
     });
 
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-        const { name, value } = e.target;
-        setFormData((prev) => ({ ...prev, [name]: value }));
-    };
+    const handleChange = (e: any) => setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
 
-    const handleSubmit = async (e: React.FormEvent) => {
+    const handleSubmit = async (e: any) => {
         e.preventDefault();
         try {
-            // [로직 해석] 설정하신 GCP 서버 IP로 전송합니다.
             const response = await fetch("http://34.121.40.248:8080/api/popups/report", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(formData),
             });
-
             if (response.ok) {
-                alert("팝업스토어 제보가 완료되었습니다! 관리자 승인 후 지도에 노출됩니다.");
-                onClose(); // 성공 시 모달창을 닫습니다.
-            } else {
-                alert("제보 처리 중 오류가 발생했습니다.");
-            }
-        } catch (error) {
-            console.error("제보 실패:", error);
-            alert("서버와 연결할 수 없습니다.");
-        }
+                Swal.fire({
+                    icon: 'success',
+                    title: '제보 완료! 📢',
+                    text: '관리자 승인 후 지도에 노출됩니다.',
+                    confirmButtonColor: '#4f46e5'
+                });
+                onClose();
+            } else { Swal.fire({ icon: 'error', text: '오류가 발생했습니다.' }); }
+        } catch (error) { Swal.fire({ icon: 'error', text: '서버와 연결할 수 없습니다.' }); }
     };
 
     return (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
-            {/* 배경 어둡게 처리하는 오버레이 */}
-            <motion.div 
-                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} 
-                className="absolute inset-0 bg-black/60 backdrop-blur-sm" 
-                onClick={onClose}
-            ></motion.div>
-            
-            {/* 실제 모달창 박스 */}
-            <motion.div 
-                initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} 
-                className="relative w-full max-w-xl max-h-[90vh] overflow-y-auto custom-scrollbar bg-white dark:bg-[#1a1a1a] rounded-3xl shadow-2xl p-8 border border-gray-200 dark:border-white/10"
-            >
-                <div className="flex justify-between items-start mb-6">
-                    <div>
-                        <h2 className="text-2xl font-black text-gray-900 dark:text-white flex items-center gap-2">
-                            <Megaphone className="text-indigo-500"/> 팝업스토어 제보하기
-                        </h2>
-                        <p className="text-sm text-gray-500 dark:text-white/60 mt-1">알고 있는 팝업 정보를 공유하고 보상을 받으세요!</p>
-                    </div>
-                    <button onClick={onClose} className="p-2 bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 rounded-full transition-colors">
-                        <X size={20} className="text-gray-900 dark:text-white" />
-                    </button>
-                </div>
-
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose}></motion.div>
+            <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} className="relative w-full max-w-xl max-h-[90vh] overflow-y-auto bg-white dark:bg-[#1a1a1a] rounded-3xl p-8 border border-gray-200 dark:border-white/10 shadow-2xl">
+                <div className="flex justify-between mb-6"><div><h2 className="text-2xl font-black flex items-center gap-2"><Megaphone className="text-indigo-500"/> 팝업 제보</h2><p className="text-sm text-gray-500">알고 있는 팝업 정보를 공유하세요!</p></div><button onClick={onClose} className="p-2 bg-gray-100 rounded-full hover:bg-gray-200"><X size={20}/></button></div>
                 <form onSubmit={handleSubmit} className="space-y-5">
-                    <div>
-                        <label className="block text-xs font-bold text-gray-700 dark:text-white/80 mb-1">팝업스토어 이름 *</label>
-                        <input type="text" name="name" required value={formData.name} onChange={handleChange} placeholder="예) 휩드 하우스 성수"
-                               className="w-full bg-gray-50 dark:bg-black/50 border border-gray-300 dark:border-white/10 rounded-xl p-3 focus:ring-2 focus:ring-indigo-500 outline-none text-sm dark:text-white"/>
-                    </div>
-
-                    <div>
-                        <label className="block text-xs font-bold text-gray-700 dark:text-white/80 mb-1">카테고리 *</label>
-                        <select name="category" value={formData.category} onChange={handleChange}
-                                className="w-full bg-gray-50 dark:bg-black/50 border border-gray-300 dark:border-white/10 rounded-xl p-3 focus:ring-2 focus:ring-indigo-500 outline-none text-sm dark:text-white">
-                            <option value="FASHION">패션 (FASHION)</option>
-                            <option value="FOOD">음식/카페 (FOOD)</option>
-                            <option value="POPUP">일반 팝업 (POPUP)</option>
-                        </select>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-xs font-bold text-gray-700 dark:text-white/80 mb-1">지역 (간략히) *</label>
-                            <input type="text" name="location" required value={formData.location} onChange={handleChange} placeholder="예) 성수동"
-                                   className="w-full bg-gray-50 dark:bg-black/50 border border-gray-300 dark:border-white/10 rounded-xl p-3 outline-none text-sm dark:text-white"/>
-                        </div>
-                        <div>
-                            <label className="block text-xs font-bold text-gray-700 dark:text-white/80 mb-1">상세 주소</label>
-                            <input type="text" name="address" value={formData.address} onChange={handleChange} placeholder="도로명 주소"
-                                   className="w-full bg-gray-50 dark:bg-black/50 border border-gray-300 dark:border-white/10 rounded-xl p-3 outline-none text-sm dark:text-white"/>
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-xs font-bold text-gray-700 dark:text-white/80 mb-1">시작일 *</label>
-                            <input type="date" name="startDate" required value={formData.startDate} onChange={handleChange}
-                                   className="w-full bg-gray-50 dark:bg-black/50 border border-gray-300 dark:border-white/10 rounded-xl p-3 outline-none text-sm dark:text-white"/>
-                        </div>
-                        <div>
-                            <label className="block text-xs font-bold text-gray-700 dark:text-white/80 mb-1">종료일 *</label>
-                            <input type="date" name="endDate" required value={formData.endDate} onChange={handleChange}
-                                   className="w-full bg-gray-50 dark:bg-black/50 border border-gray-300 dark:border-white/10 rounded-xl p-3 outline-none text-sm dark:text-white"/>
-                        </div>
-                    </div>
-
-                    <div>
-                        <label className="block text-xs font-bold text-gray-700 dark:text-white/80 mb-1">간단한 설명</label>
-                        <textarea name="description" rows={3} value={formData.description} onChange={handleChange} placeholder="어떤 팝업인가요?"
-                                  className="w-full bg-gray-50 dark:bg-black/50 border border-gray-300 dark:border-white/10 rounded-xl p-3 outline-none resize-none text-sm dark:text-white"></textarea>
-                    </div>
-
-                    <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl shadow-lg transition-transform active:scale-95">
-                        제보 제출하기
-                    </button>
+                    <div><label className="block text-xs font-bold mb-1">팝업 이름 *</label><input type="text" name="name" required value={formData.name} onChange={handleChange} className="w-full bg-gray-50 dark:bg-black/50 border border-gray-300 rounded-xl p-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"/></div>
+                    <div><label className="block text-xs font-bold mb-1">카테고리 *</label><select name="category" value={formData.category} onChange={handleChange} className="w-full bg-gray-50 dark:bg-black/50 border border-gray-300 rounded-xl p-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"><option value="FASHION">패션</option><option value="FOOD">음식</option><option value="POPUP">일반</option></select></div>
+                    <div className="grid grid-cols-2 gap-4"><div><label className="block text-xs font-bold mb-1">지역 *</label><input type="text" name="location" required value={formData.location} onChange={handleChange} className="w-full border border-gray-300 rounded-xl p-3 text-sm outline-none"/></div><div><label className="block text-xs font-bold mb-1">주소</label><input type="text" name="address" value={formData.address} onChange={handleChange} className="w-full border border-gray-300 rounded-xl p-3 text-sm outline-none"/></div></div>
+                    <div className="grid grid-cols-2 gap-4"><div><label className="block text-xs font-bold mb-1">시작일 *</label><input type="date" name="startDate" required value={formData.startDate} onChange={handleChange} className="w-full border border-gray-300 rounded-xl p-3 text-sm outline-none"/></div><div><label className="block text-xs font-bold mb-1">종료일 *</label><input type="date" name="endDate" required value={formData.endDate} onChange={handleChange} className="w-full border border-gray-300 rounded-xl p-3 text-sm outline-none"/></div></div>
+                    <div><label className="block text-xs font-bold mb-1">간단 설명</label><textarea name="description" rows={3} value={formData.description} onChange={handleChange} className="w-full border border-gray-300 rounded-xl p-3 text-sm outline-none resize-none"></textarea></div>
+                    <button type="submit" className="w-full bg-indigo-600 text-white font-bold py-4 rounded-xl shadow-lg hover:bg-indigo-700 active:scale-95 transition-all">제보 제출</button>
                 </form>
             </motion.div>
         </div>
