@@ -372,6 +372,7 @@ export default function Home() {
     const userId = searchParams.get("userId");
     const nickname = searchParams.get("nickname");
     const isPremium = searchParams.get("isPremium");
+    const roleFromUrl = searchParams.get("role"); // 🔥 [추가] 백엔드가 보낸 role을 받습니다.
 
     if (tokenFromUrl && userId) {
       localStorage.setItem("token", tokenFromUrl);
@@ -379,6 +380,7 @@ export default function Home() {
         userId: userId,
         nickname: nickname ? decodeURIComponent(nickname) : "User",
         isPremium: isPremium === "true",
+        role: roleFromUrl || "USER", // 🔥 [추가] 유저 객체 안에 권한을 정식으로 저장합니다.
         isSocial: true
       };
       localStorage.setItem("user", JSON.stringify(socialUser));
@@ -539,7 +541,7 @@ export default function Home() {
       return days > 0 ? days : 0;
   };
 
-  const isAdmin = user?.role?.includes('ADMIN') || user?.email === 'reo4321@naver.com' || user?.userId === 'reo4321@naver.com';
+  const isAdmin = user?.role?.includes('ADMIN');
 
   return (
     <main className="min-h-screen font-sans relative pb-24 overflow-x-hidden transition-colors duration-500 bg-gray-50 text-gray-900 dark:bg-black dark:text-white">
