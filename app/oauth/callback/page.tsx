@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, Suspense } from "react";
-import { useSearchParams, useRouter } from "next/navigation"; // useRouter 추가
+import { useSearchParams, useRouter } from "next/navigation"; 
 import { Loader2 } from "lucide-react";
 
 // [로직 해석] 쿠키에서 특정 이름의 값을 추출하는 헬퍼 함수입니다.
@@ -18,29 +18,31 @@ function CallbackContent() {
   const [status, setStatus] = useState("로그인 처리 중...");
 
   useEffect(() => {
-    // 1. [로직 수정] 백엔드가 URL 파라미터로 보낸 accessToken을 먼저 추출합니다.
+    // 1. 백엔드가 URL 파라미터로 보낸 accessToken을 먼저 추출합니다.
     const tokenFromUrl = searchParams.get("accessToken");
     
-    // 2. [기존 유지] 쿠키에서도 토큰을 확인합니다.
+    // 2. 쿠키에서도 토큰을 확인합니다.
     const tokenFromCookie = getCookie("accessToken");
     
-    // 3. [로직 핵심] URL에 토큰이 있다면 최우선으로 채택합니다. (도메인 차단 대비)
+    // 3. URL에 토큰이 있다면 최우선으로 채택합니다.
     const token = tokenFromUrl || tokenFromCookie;
     
-    // 4. [기존 유지] URL 파라미터에서 유저 식별 정보 및 상태를 추출합니다.
+    // 4. URL 파라미터에서 유저 식별 정보 및 상태를 추출합니다.
     const userId = searchParams.get("userId");
     const nickname = searchParams.get("nickname");
     const isPremium = searchParams.get("isPremium");
+    const roleFromUrl = searchParams.get("role"); // 🔥 [추가] 백엔드가 보낸 role(권한)을 추출합니다!
 
     // [로직 분석] 유효한 토큰과 유저 ID가 확인되면 로그인 프로세스를 진행합니다.
     if (token && userId) {
-      // 5. 로컬 스토리지 저장 (기존 로직 유지)
+      // 5. 로컬 스토리지 저장
       localStorage.setItem("token", token);
 
       const realUser = {
         userId: userId,
         nickname: nickname ? decodeURIComponent(nickname) : "User",
         isPremium: isPremium === "true",
+        role: roleFromUrl || "USER", // 🔥 [추가] 추출한 권한을 유저 객체에 포함시킵니다!
         isSocial: true
       };
       
@@ -52,7 +54,7 @@ function CallbackContent() {
 
       setStatus("로그인 성공! 메인으로 이동합니다.");
       
-      // 7. [구조 해석] router.push 대신 window.location.href를 사용하여 페이지 상태를 완전히 새로고침하며 이동합니다.
+      // 7. [구조 해석] 완전히 새로고침하며 메인 페이지로 이동합니다.
       setTimeout(() => {
         window.location.href = "/";
       }, 500); 
