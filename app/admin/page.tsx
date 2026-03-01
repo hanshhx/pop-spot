@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { Check, X, ShieldCheck, MapPin, Calendar } from "lucide-react";
+// 🔥 [수정] API_BASE_URL을 사용하기 위해 기존 apiFetch 설정을 가져옵니다. 
+// (파일 경로가 다르면 맞게 수정해주세요)
+import { API_BASE_URL } from "../../src/lib/api"; 
 
 export default function AdminDashboard() {
   const [pendingPopups, setPendingPopups] = useState<any[]>([]);
@@ -9,7 +12,8 @@ export default function AdminDashboard() {
   // 1. 대기 중인 팝업 불러오기 (새로운 IP 적용)
   const fetchPending = async () => {
     try {
-      const res = await fetch("http://34.121.40.248:8080/api/admin/popups/pending");
+      // 🔥 [핵심 수정] 하드코딩된 IP를 API_BASE_URL로 교체
+      const res = await fetch(`${API_BASE_URL}/api/admin/popups/pending`);
       if (res.ok) {
         setPendingPopups(await res.json());
       }
@@ -27,9 +31,14 @@ export default function AdminDashboard() {
     if (!confirm("이 팝업을 승인하시겠습니까?\n(제보자에게 확성기가 지급되며 지도에 즉시 노출됩니다.)")) return;
     
     try {
-      await fetch(`http://34.121.40.248:8080/api/admin/popups/${id}/approve`, { method: "POST" });
-      alert("승인 완료! 맵에 노출됩니다.");
-      fetchPending(); // 목록 새로고침
+      // 🔥 [핵심 수정] 하드코딩된 IP를 API_BASE_URL로 교체
+      const res = await fetch(`${API_BASE_URL}/api/admin/popups/${id}/approve`, { method: "POST" });
+      if (res.ok) {
+        alert("승인 완료! 맵에 노출됩니다.");
+        fetchPending(); // 목록 새로고침
+      } else {
+        alert("승인 처리에 실패했습니다.");
+      }
     } catch (error) {
       alert("승인 처리 중 오류가 발생했습니다.");
     }
@@ -40,9 +49,14 @@ export default function AdminDashboard() {
     if (!confirm("이 제보를 거절하고 삭제하시겠습니까?")) return;
     
     try {
-      await fetch(`http://34.121.40.248:8080/api/admin/popups/${id}/reject`, { method: "DELETE" });
-      alert("거절(삭제) 완료!");
-      fetchPending(); // 목록 새로고침
+      // 🔥 [핵심 수정] 하드코딩된 IP를 API_BASE_URL로 교체
+      const res = await fetch(`${API_BASE_URL}/api/admin/popups/${id}/reject`, { method: "DELETE" });
+      if (res.ok) {
+        alert("거절(삭제) 완료!");
+        fetchPending(); // 목록 새로고침
+      } else {
+        alert("거절 처리에 실패했습니다.");
+      }
     } catch (error) {
       alert("거절 처리 중 오류가 발생했습니다.");
     }
