@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { MessageCircle, Plus, User, MapPin, X, Megaphone, Crown } from "lucide-react"; 
 import { useChatStore } from "../store/useChatStore";
-// 🔥 apiFetch import 확인 (경로 맞춰주세요)
 import { apiFetch } from "../lib/api";
 
 interface MateBoardProps {
@@ -25,7 +24,7 @@ interface MatePost {
     isPremium: boolean;
   };
   createdAt: string;
-  isMegaphone: boolean; // 🔥 [추가] 프론트에서도 이 필드를 받음
+  isMegaphone: boolean;
 }
 
 export default function MateBoard({ user }: MateBoardProps) {
@@ -33,16 +32,14 @@ export default function MateBoard({ user }: MateBoardProps) {
   const [isWriteOpen, setIsWriteOpen] = useState(false);
   const openChat = useChatStore((state: any) => state.openChat);
   
-  // 글쓰기 폼 상태
   const [formData, setFormData] = useState({
     title: "",
     content: "",
     targetPopup: "",
     maxPeople: 2,
-    useMegaphone: false // 🔥 [추가] 확성기 사용 여부
+    useMegaphone: false
   });
 
-  // 게시글 로딩 (정렬된 데이터가 옴)
   const fetchPosts = async () => {
     try {
       const res = await apiFetch("/api/mates");
@@ -73,12 +70,8 @@ export default function MateBoard({ user }: MateBoardProps) {
         alert(formData.useMegaphone ? "📢 확성기를 사용하여 상단에 등록되었습니다!" : "모집 글이 등록되었습니다!");
         setIsWriteOpen(false);
         fetchPosts(); 
-        // 초기화
         setFormData({ title: "", content: "", targetPopup: "", maxPeople: 2, useMegaphone: false });
-        
-        // 내 확성기 개수 업데이트를 위해 새로고침 (혹은 전역 상태 갱신)
         if(formData.useMegaphone) window.location.reload();
-
       } else {
         const errorText = await res.text();
         alert(`등록 실패: ${errorText}`);
@@ -88,31 +81,37 @@ export default function MateBoard({ user }: MateBoardProps) {
     }
   };
 
-  // 채팅 참여 로직
   const handleJoinChat = async (post: MatePost) => {
     if (!user) return alert("로그인이 필요합니다.");
-    if (post.currentPeople >= post.maxPeople && post.author.nickname !== user.nickname) {
-        return alert("모집 인원이 꽉 찼습니다.");
-    }
+    
+    // API 통신을 위한 유저 ID 확보
+    const targetUserId = user.userId || user.id;
+
     if (post.author.nickname === user.nickname) {
-        openChat({ postId: post.id, postTitle: post.title, nickname: user.nickname, userId: user.userId || user.id, isAuthor: true });
+        openChat({ postId: post.id, postTitle: post.title, nickname: user.nickname, userId: targetUserId, isAuthor: true });
         return;
     }
+    
     try {
-        const res = await apiFetch(`/api/mates/${post.id}/join`, { method: 'POST' });
-        if (res.ok || (await res.text()).includes("이미 참여")) {
-            openChat({ postId: post.id, postTitle: post.title, nickname: user.nickname, userId: user.userId || user.id, isAuthor: false });
+        // 🔥 [수정] 백엔드가 "누구인지" 알 수 있게 ?userId= 를 붙여서 보냅니다.
+        const res = await apiFetch(`/api/mates/${post.id}/join?userId=${targetUserId}`, { method: 'POST' });
+        const msg = await res.text();
+
+        if (res.ok || msg.includes("이미 참여")) {
+            openChat({ postId: post.id, postTitle: post.title, nickname: user.nickname, userId: targetUserId, isAuthor: false });
             fetchPosts(); 
         } else {
-            alert("입장 실패");
+            alert(msg === "FULL" ? "모집 인원이 꽉 찼습니다." : msg);
         }
-    } catch (e) { console.error(e); }
+    } catch (e) { 
+        console.error(e); 
+        alert("서버 통신 오류가 발생했습니다.");
+    }
   };
 
   return (
     <div className="w-full h-full flex flex-col relative bg-gray-50 dark:bg-black/50">
       
-      {/* 헤더 */}
       <div className="p-4 md:p-6 border-b border-gray-200 dark:border-white/10 flex justify-between items-center bg-white/80 dark:bg-[#111]/80 backdrop-blur-md sticky top-0 z-10">
         <div>
           <h2 className="text-xl md:text-2xl font-black text-gray-900 dark:text-white italic tracking-tighter">
@@ -128,7 +127,6 @@ export default function MateBoard({ user }: MateBoardProps) {
         </button>
       </div>
 
-      {/* 리스트 영역 */}
       <div className="flex-1 overflow-y-auto p-3 md:p-4 space-y-3 md:space-y-4 custom-scrollbar pb-20 md:pb-4">
         {posts.length === 0 ? (
             <div className="text-center py-16 md:py-20 text-gray-400 text-xs md:text-sm">
@@ -143,12 +141,11 @@ export default function MateBoard({ user }: MateBoardProps) {
                     className={`p-4 md:p-5 rounded-xl md:rounded-2xl border transition-all hover:shadow-lg bg-white dark:bg-[#1a1a1a] relative overflow-hidden
                         ${post.status === 'CLOSED' 
                             ? 'border-gray-200 dark:border-white/5 opacity-60' 
-                            : post.isMegaphone // 🔥 확성기 글 강조 스타일 (핑크 네온)
+                            : post.isMegaphone 
                                 ? 'border-pink-500 shadow-[0_0_15px_rgba(236,72,153,0.15)] dark:shadow-[0_0_15px_rgba(236,72,153,0.2)]'
                                 : 'border-indigo-100 dark:border-indigo-500/20 hover:border-indigo-500'
                         }`}
                 >
-                    {/* 🔥 확성기 뱃지 및 배경 효과 */}
                     {post.isMegaphone && (
                         <>
                             <div className="absolute top-0 left-0 w-1.5 h-full bg-pink-500"></div>
@@ -178,7 +175,6 @@ export default function MateBoard({ user }: MateBoardProps) {
 
                     <h3 className="text-base md:text-lg font-bold text-gray-900 dark:text-white mb-1.5 md:mb-2 pl-2.5 md:pl-3 flex items-center gap-1.5 md:gap-2 pr-2">
                         <span className="truncate">{post.title}</span>
-                        {/* 제목 옆에도 아이콘 추가 */}
                         {post.isMegaphone && <Megaphone size={14} className="text-pink-500 animate-pulse shrink-0 md:w-4 md:h-4"/>}
                     </h3>
                     <p className="text-xs md:text-sm text-gray-600 dark:text-gray-300 mb-3 md:mb-4 line-clamp-2 pl-2.5 md:pl-3">{post.content}</p>
@@ -200,20 +196,15 @@ export default function MateBoard({ user }: MateBoardProps) {
                                 / {post.maxPeople}명
                             </span>
 
-                            {post.status === 'RECRUITING' ? (
-                                <button 
-                                    onClick={() => handleJoinChat(post)}
-                                    className={`px-3 py-1.5 md:px-4 md:py-2 text-white rounded-lg md:rounded-xl text-[10px] md:text-xs font-bold flex items-center gap-1 transition-all shadow-md active:scale-95 ${
-                                        post.isMegaphone ? "bg-pink-600 hover:bg-pink-500 shadow-pink-500/30" : "bg-indigo-600 hover:bg-indigo-500"
-                                    }`}
-                                >
-                                    <MessageCircle size={12} className="md:w-3.5 md:h-3.5"/> 채팅 참여
-                                </button>
-                            ) : (
-                                <button disabled className="px-3 py-1.5 md:px-4 md:py-2 bg-gray-300 dark:bg-gray-700 text-white dark:text-gray-400 rounded-lg md:rounded-xl text-[10px] md:text-xs font-bold cursor-not-allowed">
-                                    모집 마감
-                                </button>
-                            )}
+                            {/* 🔥 버튼 로직: 꽉 찼더라도 일단 버튼은 활성화해서 누르면 서버가 판단하게 함 */}
+                            <button 
+                                onClick={() => handleJoinChat(post)}
+                                className={`px-3 py-1.5 md:px-4 md:py-2 text-white rounded-lg md:rounded-xl text-[10px] md:text-xs font-bold flex items-center gap-1 transition-all shadow-md active:scale-95 ${
+                                    post.status === 'CLOSED' ? "bg-gray-500 hover:bg-gray-600" : (post.isMegaphone ? "bg-pink-600 hover:bg-pink-500 shadow-pink-500/30" : "bg-indigo-600 hover:bg-indigo-500")
+                                }`}
+                            >
+                                <MessageCircle size={12} className="md:w-3.5 md:h-3.5"/> 채팅 참여
+                            </button>
                         </div>
                     </div>
                 </motion.div>
@@ -221,7 +212,6 @@ export default function MateBoard({ user }: MateBoardProps) {
         )}
       </div>
 
-      {/* 글쓰기 모달 */}
       <AnimatePresence>
         {isWriteOpen && (
             <div className="absolute inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
@@ -265,7 +255,6 @@ export default function MateBoard({ user }: MateBoardProps) {
                             value={formData.content} onChange={e => setFormData({...formData, content: e.target.value})}
                         />
                         
-                        {/* 🔥 확성기 사용 체크박스 */}
                         <div className={`p-2.5 md:p-3 rounded-lg md:rounded-xl border flex items-center justify-between cursor-pointer transition-colors ${
                             formData.useMegaphone 
                             ? "bg-pink-50 border-pink-500 dark:bg-pink-900/20" 
