@@ -11,7 +11,6 @@ import {
 } from "lucide-react";
 import { motion, Variants, AnimatePresence } from "framer-motion";
 import Link from "next/link";
-// 🔥 [수정] SweetAlert2의 공식 타입을 불러와서 any 에러를 원천 차단합니다!
 import Swal, { SweetAlertResult } from "sweetalert2"; 
 
 // 🔥 [Algolia] 클라이언트 설정
@@ -113,6 +112,9 @@ interface PopupStore {
   longitude?: string;
   category?: string;
   rankChange?: number;
+  // 🔥 [2번] 캘린더 연동을 위해 시작일, 종료일 데이터를 추가합니다.
+  startDate?: string;
+  endDate?: string;
 }
 
 interface CongestionData {
@@ -161,7 +163,6 @@ interface WishlistItem {
 
 const INITIAL_MY_COURSE: any[] = [];
 
-// [로직 해석] 쿠키 읽기용 헬퍼 함수
 function getCookie(name: string) {
   if (typeof document === "undefined") return null;
   const value = `; ${document.cookie}`;
@@ -177,8 +178,6 @@ export default function Home() {
   const [allPopups, setAllPopups] = useState<PopupStore[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isReportOpen, setIsReportOpen] = useState(false);
-  
-  // 🔥 팝업 제보 모달창 상태를 관리하는 State입니다.
   const [isReportPopupOpen, setIsReportPopupOpen] = useState(false);
 
   const [isAddPlaceOpen, setIsAddPlaceOpen] = useState(false);
@@ -196,6 +195,9 @@ export default function Home() {
   const [ootd, setOotd] = useState<TrendOotd | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const [myCourseItems, setMyCourseItems] = useState<any[]>(INITIAL_MY_COURSE);
+
+  // 🔥 [2번] 캘린더 기능을 위한 상태 추가
+  const [calendarDate, setCalendarDate] = useState(new Date());
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -389,8 +391,6 @@ export default function Home() {
     const isPremium = searchParams.get("isPremium");
     const roleFromUrl = searchParams.get("role"); 
 
-    console.log("🕵️‍♂️ [디버그 1] 브라우저 URL 파라미터 감지:", { tokenFromUrl, userId, roleFromUrl });
-
     if (tokenFromUrl && userId) {
       localStorage.setItem("token", tokenFromUrl);
       const socialUser = {
@@ -400,7 +400,6 @@ export default function Home() {
         role: roleFromUrl || "USER", 
         isSocial: true
       };
-      console.log("🕵️‍♂️ [디버그 2] 소셜로그인 후 저장할 유저 객체:", socialUser);
 
       localStorage.setItem("user", JSON.stringify(socialUser));
       setUser(socialUser);
@@ -412,32 +411,60 @@ export default function Home() {
       }
 
       router.replace("/");
-      console.log("✅ [소셜 로그인] URL 파라미터 기반 인증 및 데이터 연동 성공");
     }
   }, [searchParams, router]);
 
   useEffect(() => {
+    const cachedPopups = localStorage.getItem("cached_popups");
+    if (cachedPopups) {
+        const data = JSON.parse(cachedPopups);
+        setAllPopups(data);
+        const sortedData = [...data].sort((a: any, b: any) => (b.viewCount || 0) - (a.viewCount || 0));
+        setHotPopups(sortedData.slice(0, 5)); 
+    }
+    
     apiFetch('/api/popups')
         .then(res => res.json())
         .then(data => {
             setAllPopups(data);
             const sortedData = [...data].sort((a: any, b: any) => (b.viewCount || 0) - (a.viewCount || 0));
             setHotPopups(sortedData.slice(0, 5)); 
-        });
+            localStorage.setItem("cached_popups", JSON.stringify(data)); 
+        })
+        .catch(err => console.error("팝업 데이터 로딩 실패:", err));
+
+    const cachedCongestion = localStorage.getItem("cached_congestion");
+    if (cachedCongestion) {
+        setCongestionData(JSON.parse(cachedCongestion));
+    }
 
     apiFetch('/api/congestion')
       .then(res => res.json())
-      .then(data => { if (data && data.level) setCongestionData(data); });
+      .then(data => { 
+          if (data && data.level) {
+              setCongestionData(data); 
+              localStorage.setItem("cached_congestion", JSON.stringify(data)); 
+          }
+      })
+      .catch(err => console.error("혼잡도 데이터 실패:", err));
+
+    const cachedOotd = localStorage.getItem("cached_ootd");
+    if (cachedOotd) {
+        setOotd(JSON.parse(cachedOotd));
+    }
 
     apiFetch('/api/trends/ootd')
         .then(res => res.json())
-        .then(data => setOotd(data));
+        .then(data => {
+            setOotd(data);
+            localStorage.setItem("cached_ootd", JSON.stringify(data)); 
+        })
+        .catch(err => console.error("OOTD 로딩 실패:", err));
   }, []);
 
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
 
-    console.log("🕵️‍♂️ [디버그 3] 페이지 접속 시 로컬스토리지 유저 정보:", storedUser);
     if (storedUser) {
         const parsedUser = JSON.parse(storedUser);
         setUser(parsedUser);
@@ -531,6 +558,11 @@ export default function Home() {
 
   const handleOpenModal = () => setIsModalOpen(true);
 
+  // 🔥 [11번] 지도 마커 다이나믹 라우팅
+  const handleMarkerClickToDetail = (popupId: number | string) => {
+      router.push(`/popup/${popupId}`);
+  };
+
   const sectionVariants: Variants = {
     hidden: { opacity: 0, y: 50 },
     visible: { opacity: 1, y: 0, transition: { duration: 0.8, ease: "easeOut" } }
@@ -562,7 +594,13 @@ export default function Home() {
   };
   
   const isAdmin = user?.role?.includes('ADMIN');
-  console.log("🕵️‍♂️ [디버그 4] 최종 렌더링 전 user 상태:", user, "-> isAdmin:", isAdmin);
+
+  // 🔥 [2번] 캘린더 기능 구현 (현재 날짜를 기준으로 해당 월의 팝업을 필터링)
+  const currentMonthPopups = allPopups.filter(popup => {
+    if (!popup.startDate) return false;
+    const popupDate = new Date(popup.startDate);
+    return popupDate.getMonth() === calendarDate.getMonth() && popupDate.getFullYear() === calendarDate.getFullYear();
+  });
 
   return (
     <main className="min-h-screen font-sans relative pb-24 overflow-x-hidden transition-colors duration-500 bg-gray-50 text-gray-900 dark:bg-black dark:text-white">
@@ -579,7 +617,6 @@ export default function Home() {
         {/* 헤더 */}
         <header className="flex justify-between items-end mb-8 md:mb-10 border-b border-gray-300 dark:border-white/10 pb-4">
           
-          {/* 🔥 6번 과제: 로고 텍스트에 Link 컴포넌트를 감싸서 메인 라우팅을 뚫어주었습니다. */}
           <Link href="/" onClick={() => handleTabChange("MAP")}>
             <div>
               <h1 className="text-4xl md:text-6xl font-black tracking-tighter leading-none text-gray-900 dark:text-white transition-colors hover:text-indigo-500 dark:hover:text-indigo-400">
@@ -711,7 +748,8 @@ export default function Home() {
                     </div>
                     
                     <div className="col-span-1 md:col-span-7 md:row-span-4 rounded-[2rem] relative overflow-hidden border border-gray-200 dark:border-white/5 group bg-gray-100 dark:bg-[#111]/80 backdrop-blur-md">
-                        <InteractiveMap />
+                        {/* 🔥 11번 다이나믹 라우팅 연동 (InteractiveMap 컴포넌트 내부에서 onMarkerClick을 받도록 수정해야 합니다.) */}
+                        <InteractiveMap onMarkerClick={handleMarkerClickToDetail} />
                         <div className="absolute bottom-6 left-6 flex gap-2 z-20">
                             <span className="backdrop-blur px-4 py-2 rounded-full border text-xs font-bold flex items-center gap-2 bg-white/80 border-gray-200 text-gray-900 dark:bg-black/60 dark:border-white/10 dark:text-white">
                             <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"/> LIVE DATA
@@ -746,9 +784,26 @@ export default function Home() {
                         </div>
                     </div>
 
-                    <div className="col-span-1 md:col-span-4 md:row-span-2 bg-primary/90 backdrop-blur-md text-black rounded-[2rem] p-6 cursor-pointer hover:bg-white transition-colors relative overflow-hidden group">
-                        <ArrowUpRight className="absolute top-6 right-6 opacity-30 group-hover:opacity-100 transition-opacity" />
-                        <Calendar size={32} /><h3 className="text-2xl font-black mt-2 leading-none uppercase">Popup<br/>Calendar</h3><p className="text-xs font-bold opacity-60 mt-4 pt-4 border-t border-black/10">이번 주 오픈 &rarr;</p>
+                    {/* 🔥 [2번] 캘린더 연동 영역 */}
+                    <div className="col-span-1 md:col-span-4 md:row-span-2 bg-primary/90 backdrop-blur-md text-black rounded-[2rem] p-6 transition-colors relative overflow-hidden group">
+                        <Calendar size={32} />
+                        <h3 className="text-2xl font-black mt-2 leading-none uppercase">Popup<br/>Calendar</h3>
+                        <p className="text-xs font-bold opacity-60 mt-2 mb-2">{calendarDate.getFullYear()}년 {calendarDate.getMonth() + 1}월 오픈 예정</p>
+                        
+                        <div className="overflow-y-auto max-h-[80px] custom-scrollbar text-xs border-t border-black/10 pt-2 pr-1">
+                            {currentMonthPopups.length > 0 ? (
+                                currentMonthPopups.map((popup) => (
+                                    <Link href={`/popup/${popup.id}`} key={popup.id}>
+                                        <div className="flex justify-between items-center py-1 hover:bg-black/5 rounded px-1 cursor-pointer">
+                                            <span className="font-bold truncate max-w-[150px]">{popup.name}</span>
+                                            <span className="opacity-70 whitespace-nowrap">{new Date(popup.startDate!).getDate()}일 오픈</span>
+                                        </div>
+                                    </Link>
+                                ))
+                            ) : (
+                                <div className="text-center opacity-50 py-2">이번 달 예정된 팝업이 없습니다.</div>
+                            )}
+                        </div>
                     </div>
 
                     <div onClick={() => setIsReportOpen(true)} className="col-span-1 md:col-span-3 md:row-span-2 rounded-[2rem] p-6 cursor-pointer border flex flex-col justify-between group backdrop-blur-md transition-colors bg-white/80 border-gray-200 hover:border-primary dark:bg-[#111]/80 dark:border-white/5 dark:hover:border-primary">
@@ -1104,7 +1159,7 @@ export default function Home() {
                                             {/* 삭제 버튼 (우상단) */}
                                             <button 
                                                 onClick={(e) => handleRemoveWishlist(e, item.popupId)}
-                                                className="absolute top-2 right-2 bg-black/50 backdrop-blur rounded-full p-1.5 text-red-500 hover:bg-red-500 hover:text-white transition-all opacity-0 group-hover:opacity-100" 
+                                                className="absolute top-2 right-2 bg-black/50 backdrop-blur rounded-full p-1.5 text-red-500 hover:bg-red-50 hover:text-white transition-all opacity-0 group-hover:opacity-100" 
                                                 title="찜 해제"
                                             >
                                                 <Heart size={12} className="fill-current"/>
@@ -1416,6 +1471,7 @@ function DockItem({ icon, label, isActive, onClick }: any) {
   );
 }
 
+// 🔥 [에러 해결] 맨 아래에 ReportPopupModal 컴포넌트를 원래대로 복구시켰습니다.
 function ReportPopupModal({ onClose, user }: { onClose: () => void, user: any }) {
     const [formData, setFormData] = useState({
         name: "", category: "FASHION", location: "", address: "",

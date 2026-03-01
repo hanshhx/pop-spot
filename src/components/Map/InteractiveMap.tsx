@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import { useEffect, useState } from 'react';
 import { Map, CustomOverlayMap, Polyline } from "react-kakao-maps-sdk";
@@ -12,6 +12,7 @@ declare global {
   }
 }
 
+// 🔥 [11번 과제] 부모 컴포넌트(page.tsx)에서 onMarkerClick 함수를 받을 수 있도록 타입을 선언합니다.
 interface InteractiveMapProps {
   places?: { 
     id: string | number; 
@@ -24,8 +25,8 @@ interface InteractiveMapProps {
   showPath?: boolean; 
   center?: { lat: number; lng: number };
   mode?: "DEFAULT" | "PLAN"; 
-  // 🔥 [핵심 추가] 실제 도로 경로 좌표 데이터 받기 (이중 배열)
   routePaths?: { lat: number; lng: number }[][];
+  onMarkerClick?: (popupId: number | string) => void; // 👈 이 부분이 추가되었습니다!
 }
 
 interface MapMarkerData {
@@ -40,7 +41,8 @@ interface MapMarkerData {
 
 const CATEGORIES = ["ALL", "FASHION", "BEAUTY", "FOOD", "TECH", "ART"];
 
-export default function InteractiveMap({ places, showPath = false, center, mode = "DEFAULT", routePaths = [] }: InteractiveMapProps) {
+// 🔥 [11번 과제] 매개변수에서 onMarkerClick을 받아오도록 수정했습니다.
+export default function InteractiveMap({ places, showPath = false, center, mode = "DEFAULT", routePaths = [], onMarkerClick }: InteractiveMapProps) {
   const [markers, setMarkers] = useState<MapMarkerData[]>([]);
   const [selectedMarker, setSelectedMarker] = useState<MapMarkerData | null>(null);
   const [activeCategory, setActiveCategory] = useState("ALL");
@@ -357,15 +359,24 @@ export default function InteractiveMap({ places, showPath = false, center, mode 
             yAnchor={showPath || mode === "PLAN" ? 1.6 : 1.4}
             zIndex={100}
           >
+            {/* 🔥 [11번] 이 박스를 클릭하면 부모(page.tsx)에서 받은 onMarkerClick 함수를 실행합니다. */}
             <motion.div 
               initial={{ opacity: 0, y: 10, scale: 0.9 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 10 }}
-              className="relative min-w-[200px] p-4 bg-black/80 backdrop-blur-md border border-white/20 rounded-2xl shadow-2xl text-left"
+              className="relative min-w-[200px] p-4 bg-black/80 backdrop-blur-md border border-white/20 rounded-2xl shadow-2xl text-left cursor-pointer hover:border-primary transition-colors group"
+              onClick={() => {
+                 if (onMarkerClick && selectedMarker.popupId) {
+                     onMarkerClick(selectedMarker.popupId);
+                 }
+              }}
             >
                 <button 
-                  onClick={() => setSelectedMarker(null)}
-                  className="absolute top-2 right-2 text-white/50 hover:text-white transition-colors"
+                  onClick={(e) => {
+                      e.stopPropagation(); // 클릭 이벤트가 상세페이지 이동으로 번지는 것을 막음
+                      setSelectedMarker(null);
+                  }}
+                  className="absolute top-2 right-2 text-white/50 hover:text-white transition-colors z-10"
                 >
                   <X size={14} />
                 </button>
@@ -374,18 +385,18 @@ export default function InteractiveMap({ places, showPath = false, center, mode 
                     <span className="text-[9px] px-1.5 py-0.5 rounded bg-primary/20 text-primary border border-primary/30 font-bold">
                         {selectedMarker.category || 'POPUP'}
                     </span>
-                    <h3 className="text-white font-bold text-base truncate pr-4">{selectedMarker.name}</h3>
+                    <h3 className="text-white font-bold text-base truncate pr-4 group-hover:text-primary transition-colors">{selectedMarker.name}</h3>
                 </div>
                 
                 <p className="text-muted text-xs flex items-center gap-1 mb-3">
                   <MapPin size={10} /> {selectedMarker.address}
                 </p>
 
-                <Link href={`/popup/${selectedMarker.popupId}`}>
-                  <button className="w-full py-2 bg-white/10 hover:bg-primary hover:text-black rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1 group">
-                    View Details <ArrowRight size={10} className="group-hover:translate-x-1 transition-transform"/>
-                  </button>
-                </Link>
+                {/* 원래 있던 Link 컴포넌트는 전체 박스를 클릭하게 만들었으므로 삭제하거나 디자인만 유지합니다 */}
+                <div className="w-full py-2 bg-white/10 group-hover:bg-primary group-hover:text-black rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1 text-white">
+                  View Details <ArrowRight size={10} className="group-hover:translate-x-1 transition-transform"/>
+                </div>
+
                 <div className="absolute bottom-[-6px] left-1/2 -translate-x-1/2 w-3 h-3 bg-black/80 border-r border-b border-white/20 rotate-45 transform"></div>
             </motion.div>
           </CustomOverlayMap>
