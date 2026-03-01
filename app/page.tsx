@@ -52,9 +52,9 @@ function CustomSearchBox(props: any) {
             value={query}
             onChange={(e) => refine(e.target.value)}
             placeholder="지역, 팝업 이름, 카테고리 검색..."
-            className="w-full rounded-full py-4 pl-12 pr-4 transition-all focus:outline-none bg-gray-100 border border-gray-300 text-gray-900 dark:bg-black/40 dark:border-white/10 dark:text-white dark:placeholder:text-gray-600 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+            className="w-full rounded-full py-3 md:py-4 pl-10 md:pl-12 pr-4 transition-all focus:outline-none bg-gray-100 border border-gray-300 text-gray-900 dark:bg-black/40 dark:border-white/10 dark:text-white dark:placeholder:text-gray-600 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-sm md:text-base"
         />
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={20} />
+        <Search className="absolute left-3 md:left-4 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
     </div>
   );
 }
@@ -65,36 +65,36 @@ function CustomHits() {
   if (!query) return null;
 
   return (
-    <div className="absolute top-full left-0 right-0 mt-4 bg-white/95 dark:bg-[#111]/95 backdrop-blur-xl border border-gray-200 dark:border-white/10 rounded-2xl overflow-hidden z-50 shadow-2xl max-h-[400px] overflow-y-auto custom-scrollbar">
+    <div className="absolute top-full left-0 right-0 mt-2 md:mt-4 bg-white/95 dark:bg-[#111]/95 backdrop-blur-xl border border-gray-200 dark:border-white/10 rounded-xl md:rounded-2xl overflow-hidden z-50 shadow-2xl max-h-[300px] md:max-h-[400px] overflow-y-auto custom-scrollbar">
       {hits.length === 0 ? (
-          <div className="p-8 text-center text-gray-500 dark:text-white/50 text-sm">
+          <div className="p-6 md:p-8 text-center text-gray-500 dark:text-white/50 text-xs md:text-sm">
               검색 결과가 없습니다.
           </div>
       ) : (
           hits.map((hit: any) => (
             <Link key={hit.objectID} href={`/popup/${hit.objectID}`}>
-                <div className="flex items-center gap-4 p-4 hover:bg-indigo-50 dark:hover:bg-white/5 transition-colors cursor-pointer border-b border-gray-100 dark:border-white/5 last:border-none group">
+                <div className="flex items-center gap-3 md:gap-4 p-3 md:p-4 hover:bg-indigo-50 dark:hover:bg-white/5 transition-colors cursor-pointer border-b border-gray-100 dark:border-white/5 last:border-none group">
                     {hit.imageUrl ? (
-                        <img src={hit.imageUrl} alt={hit.name} className="w-12 h-12 rounded-xl object-cover bg-gray-200"/>
+                        <img src={hit.imageUrl} alt={hit.name} className="w-10 h-10 md:w-12 md:h-12 rounded-lg md:rounded-xl object-cover bg-gray-200"/>
                     ) : (
-                        <div className="w-12 h-12 rounded-xl bg-gray-100 dark:bg-white/10 flex items-center justify-center text-gray-400">
-                            <Store size={20}/>
+                        <div className="w-10 h-10 md:w-12 md:h-12 rounded-lg md:rounded-xl bg-gray-100 dark:bg-white/10 flex items-center justify-center text-gray-400">
+                            <Store size={18} className="md:w-5 md:h-5"/>
                         </div>
                     )}
                     <div className="flex-1 min-w-0">
-                        <h4 className="text-gray-900 dark:text-white font-bold text-sm truncate group-hover:text-indigo-500 transition-colors">
+                        <h4 className="text-gray-900 dark:text-white font-bold text-xs md:text-sm truncate group-hover:text-indigo-500 transition-colors">
                             {hit.name}
                         </h4>
-                        <p className="text-gray-500 dark:text-white/50 text-xs flex items-center gap-1 mt-0.5 truncate">
+                        <p className="text-gray-500 dark:text-white/50 text-[10px] md:text-xs flex items-center gap-1 mt-0.5 truncate">
                             <MapPin size={10} /> {hit.location || "위치 정보 없음"}
                         </p>
                     </div>
-                    <ArrowRight size={16} className="text-gray-400 group-hover:text-indigo-500 transition-colors -ml-2 opacity-0 group-hover:opacity-100 transform translate-x-[-10px] group-hover:translate-x-0 duration-300"/>
+                    <ArrowRight size={14} className="md:w-4 md:h-4 text-gray-400 group-hover:text-indigo-500 transition-colors -ml-2 opacity-0 group-hover:opacity-100 transform translate-x-[-10px] group-hover:translate-x-0 duration-300"/>
                 </div>
             </Link>
           ))
       )}
-      <div className="px-4 py-2 bg-gray-50 dark:bg-white/5 text-[10px] text-right text-gray-400 flex justify-end items-center gap-1">
+      <div className="px-3 py-1.5 md:px-4 md:py-2 bg-gray-50 dark:bg-white/5 text-[9px] md:text-[10px] text-right text-gray-400 flex justify-end items-center gap-1">
           Search by <span className="font-bold text-indigo-500">Algolia</span> ⚡️
       </div>
     </div>
@@ -112,7 +112,6 @@ interface PopupStore {
   longitude?: string;
   category?: string;
   rankChange?: number;
-  // 🔥 [2번] 캘린더 연동을 위해 시작일, 종료일 데이터를 추가합니다.
   startDate?: string;
   endDate?: string;
 }
@@ -196,7 +195,6 @@ export default function Home() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [myCourseItems, setMyCourseItems] = useState<any[]>(INITIAL_MY_COURSE);
 
-  // 🔥 [2번] 캘린더 기능을 위한 상태 추가
   const [calendarDate, setCalendarDate] = useState(new Date());
 
   const sensors = useSensors(
@@ -558,7 +556,6 @@ export default function Home() {
 
   const handleOpenModal = () => setIsModalOpen(true);
 
-  // 🔥 [11번] 지도 마커 다이나믹 라우팅
   const handleMarkerClickToDetail = (popupId: number | string) => {
       router.push(`/popup/${popupId}`);
   };
@@ -595,7 +592,6 @@ export default function Home() {
   
   const isAdmin = user?.role?.includes('ADMIN');
 
-  // 🔥 [2번] 캘린더 기능 구현 (현재 날짜를 기준으로 해당 월의 팝업을 필터링)
   const currentMonthPopups = allPopups.filter(popup => {
     if (!popup.startDate) return false;
     const popupDate = new Date(popup.startDate);
@@ -615,34 +611,34 @@ export default function Home() {
       <div className="relative z-10 p-4 md:p-6 max-w-[1600px] mx-auto">
         
         {/* 헤더 */}
-        <header className="flex justify-between items-end mb-8 md:mb-10 border-b border-gray-300 dark:border-white/10 pb-4">
+        <header className="flex flex-col md:flex-row md:justify-between items-start md:items-end mb-6 md:mb-10 border-b border-gray-300 dark:border-white/10 pb-4 gap-4 md:gap-0">
           
           <Link href="/" onClick={() => handleTabChange("MAP")}>
             <div>
-              <h1 className="text-4xl md:text-6xl font-black tracking-tighter leading-none text-gray-900 dark:text-white transition-colors hover:text-indigo-500 dark:hover:text-indigo-400">
+              <h1 className="text-3xl md:text-6xl font-black tracking-tighter leading-none text-gray-900 dark:text-white transition-colors hover:text-indigo-500 dark:hover:text-indigo-400">
                 POP-SPOT<span className="text-primary">.</span>
               </h1>
-              <p className="text-xs md:text-sm mt-1 tracking-widest uppercase text-gray-600 dark:text-white/60 transition-colors">
+              <p className="text-[10px] md:text-sm mt-1 tracking-widest uppercase text-gray-600 dark:text-white/60 transition-colors">
                 Seoul Popup Store Intelligence
               </p>
             </div>
           </Link>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3 w-full md:w-auto justify-end">
              <ThemeToggle />
 
              {user && (
                  <button 
                     onClick={() => setIsReportPopupOpen(true)} 
-                    className="hidden md:flex items-center gap-1 px-4 py-2 rounded-full font-bold text-xs border border-indigo-500/50 text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 hover:bg-indigo-500 hover:text-white transition-all shadow-sm"
+                    className="flex items-center gap-1 px-3 py-1.5 md:px-4 md:py-2 rounded-full font-bold text-[10px] md:text-xs border border-indigo-500/50 text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 hover:bg-indigo-500 hover:text-white transition-all shadow-sm whitespace-nowrap"
                  >
-                     <Megaphone size={14} /> 제보하기
+                     <Megaphone size={12} className="md:w-3.5 md:h-3.5" /> 제보하기
                  </button>
              )}
 
              {isAdmin && (
-                 <Link href="/admin" className="hidden md:flex items-center gap-1 px-4 py-2 rounded-full font-bold text-xs border border-red-500/50 text-red-500 bg-red-500/10 hover:bg-red-500 hover:text-white transition-all shadow-sm">
-                     <ShieldCheck size={14} /> 관리자
+                 <Link href="/admin" className="flex items-center gap-1 px-3 py-1.5 md:px-4 md:py-2 rounded-full font-bold text-[10px] md:text-xs border border-red-500/50 text-red-500 bg-red-500/10 hover:bg-red-500 hover:text-white transition-all shadow-sm whitespace-nowrap">
+                     <ShieldCheck size={12} className="md:w-3.5 md:h-3.5" /> 관리자
                  </Link>
              )}
 
@@ -673,9 +669,6 @@ export default function Home() {
                     </Link>
                 </div>
             )}
-            <button className="p-3 rounded-full transition-all bg-white/50 hover:bg-primary dark:bg-white/5 dark:hover:bg-primary hover:text-black">
-              <Menu size={24} />
-            </button>
           </div>
         </header>
 
@@ -684,45 +677,45 @@ export default function Home() {
             <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={sectionVariants}>
                 <div className="mb-6">
                     {user ? (
-                        <div className="w-full border rounded-[2rem] p-8 md:p-10 relative overflow-hidden flex items-center justify-between group
+                        <div className="w-full border rounded-2xl md:rounded-[2rem] p-5 md:p-10 relative overflow-hidden flex flex-col md:flex-row items-center justify-between group gap-4 md:gap-0
                                                 bg-gradient-to-r from-indigo-100 to-purple-100 border-indigo-200 
                                                 dark:from-indigo-900/40 dark:to-violet-900/40 dark:border-indigo-500/30">
                              <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
-                             <div className="relative z-10">
-                                <h2 className="text-2xl md:text-3xl font-bold mb-2 text-gray-900 dark:text-white">반가워요, <span className="text-indigo-600 dark:text-indigo-400">{user.nickname}</span>님!</h2>
-                                <p className="text-sm md:text-base text-gray-700 dark:text-indigo-200">오늘 성수동에 <span className="font-bold text-gray-900 dark:text-white">{allPopups.length}개</span>의 팝업이 열려있어요.</p>
+                             <div className="relative z-10 text-center md:text-left">
+                                <h2 className="text-xl md:text-3xl font-bold mb-1 md:mb-2 text-gray-900 dark:text-white">반가워요, <span className="text-indigo-600 dark:text-indigo-400">{user.nickname}</span>님!</h2>
+                                <p className="text-xs md:text-base text-gray-700 dark:text-indigo-200">오늘 성수동에 <span className="font-bold text-gray-900 dark:text-white">{allPopups.length}개</span>의 팝업이 열려있어요.</p>
                              </div>
-                             <button onClick={() => handleTabChange("PASSPORT")} className="hidden md:flex px-6 py-3 bg-white text-indigo-900 font-bold rounded-xl items-center gap-2 hover:scale-105 transition-transform shadow-lg">
+                             <button onClick={() => handleTabChange("PASSPORT")} className="relative z-10 w-full md:w-auto flex px-6 py-3 bg-white text-indigo-900 font-bold rounded-xl items-center justify-center gap-2 hover:scale-105 transition-transform shadow-lg text-sm md:text-base">
                                 <Ticket size={18}/> 내 여권 확인
                              </button>
                         </div>
                     ) : (
-                        <div className="w-full border rounded-[2rem] p-8 md:p-12 relative overflow-hidden text-center md:text-left flex flex-col md:flex-row items-center justify-between gap-6 transition-colors
+                        <div className="w-full border rounded-2xl md:rounded-[2rem] p-6 md:p-12 relative overflow-hidden text-center md:text-left flex flex-col md:flex-row items-center justify-between gap-6 transition-colors
                                                 bg-white/60 border-gray-200 backdrop-blur-md
                                                 dark:bg-white/5 dark:border-white/10">
                             <div className="relative z-10">
-                                <div className="inline-block px-3 py-1 mb-4 text-xs font-bold tracking-widest text-white uppercase rounded-full bg-gradient-to-r from-indigo-500 to-purple-500">
+                                <div className="inline-block px-3 py-1 mb-3 md:mb-4 text-[10px] md:text-xs font-bold tracking-widest text-white uppercase rounded-full bg-gradient-to-r from-indigo-500 to-purple-500">
                                     Welcome to POP-SPOT
                                 </div>
-                                <h2 className="text-3xl md:text-5xl font-black mb-4 leading-tight text-gray-900 dark:text-white">
-                                    Find Your <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-pink-400">Vibe</span><br/>
+                                <h2 className="text-2xl md:text-5xl font-black mb-3 md:mb-4 leading-tight text-gray-900 dark:text-white">
+                                    Find Your <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-pink-400">Vibe</span><br className="hidden md:block"/>
                                     in Seoul.
                                 </h2>
-                                <p className="text-base text-gray-600 dark:text-white/70 max-w-md">
+                                <p className="text-xs md:text-base text-gray-600 dark:text-white/70 max-w-md">
                                     지금 로그인하고 나만의 팝업 지도를 만들어보세요.<br/>
                                     친구와 함께하는 실시간 동선 계획부터 스탬프 적립까지.
                                 </p>
                             </div>
                             <div className="flex flex-col sm:flex-row gap-3 relative z-10 w-full md:w-auto">
                                 <Link href="/login" className="flex-1 md:flex-none">
-                                    <button className="w-full md:w-auto px-8 py-4 bg-primary hover:bg-primary/80 text-black font-bold rounded-xl transition-all flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(var(--primary-rgb),0.3)]">
-                                        시작하기 <ArrowRight size={18} />
+                                    <button className="w-full md:w-auto px-6 py-3 md:px-8 md:py-4 bg-primary hover:bg-primary/80 text-black font-bold rounded-xl transition-all flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(var(--primary-rgb),0.3)] text-sm md:text-base">
+                                        시작하기 <ArrowRight size={16} className="md:w-[18px] md:h-[18px]"/>
                                     </button>
                                 </Link>
                                 <Link href="/signup" className="flex-1 md:flex-none">
-                                    <button className="w-full md:w-auto px-8 py-4 font-bold rounded-xl transition-all border
+                                    <button className="w-full md:w-auto px-6 py-3 md:px-8 md:py-4 font-bold rounded-xl transition-all border
                                                     bg-white text-gray-900 border-gray-300 hover:bg-gray-100 
-                                                    dark:bg-white/10 dark:text-white dark:border-white/20 dark:hover:bg-white/20">
+                                                    dark:bg-white/10 dark:text-white dark:border-white/20 dark:hover:bg-white/20 text-sm md:text-base">
                                         회원가입
                                     </button>
                                 </Link>
@@ -731,49 +724,47 @@ export default function Home() {
                     )}
                 </div>
 
-                <section className="grid grid-cols-1 md:grid-cols-12 md:grid-rows-6 gap-4 min-h-[80vh] mb-24">
-                    <div className="col-span-1 md:col-span-5 md:row-span-2 rounded-[2rem] p-8 flex flex-col justify-between border backdrop-blur-md transition-colors bg-white/80 border-gray-200 dark:bg-[#111]/80 dark:border-white/5 relative z-50">
+                <section className="grid grid-cols-1 lg:grid-cols-12 md:grid-rows-6 gap-4 min-h-[80vh] mb-24">
+                    <div className="col-span-1 lg:col-span-5 md:row-span-2 rounded-[2rem] p-6 md:p-8 flex flex-col justify-between border backdrop-blur-md transition-colors bg-white/80 border-gray-200 dark:bg-[#111]/80 dark:border-white/5 relative z-50 order-1 lg:order-none">
                         <InstantSearch searchClient={searchClient} indexName="popups">
                             <div>
-                                <h2 className="text-3xl md:text-5xl font-black leading-tight uppercase mb-4 text-gray-900 dark:text-white">
+                                <h2 className="text-2xl md:text-5xl font-black leading-tight uppercase mb-2 md:mb-4 text-gray-900 dark:text-white">
                                     Search <span className="text-primary">Zone.</span>
                                 </h2>
-                                <div className="mt-8 relative w-full"> 
+                                <div className="mt-4 md:mt-8 relative w-full"> 
                                     <CustomSearchBox />
                                 </div>
                             </div>
-                            
                             <CustomHits />
                         </InstantSearch>
                     </div>
                     
-                    <div className="col-span-1 md:col-span-7 md:row-span-4 rounded-[2rem] relative overflow-hidden border border-gray-200 dark:border-white/5 group bg-gray-100 dark:bg-[#111]/80 backdrop-blur-md">
-                        {/* 🔥 11번 다이나믹 라우팅 연동 (InteractiveMap 컴포넌트 내부에서 onMarkerClick을 받도록 수정해야 합니다.) */}
+                    <div className="col-span-1 lg:col-span-7 md:row-span-4 rounded-[2rem] relative overflow-hidden border border-gray-200 dark:border-white/5 group bg-gray-100 dark:bg-[#111]/80 backdrop-blur-md min-h-[400px] md:min-h-0 order-2 lg:order-none">
                         <InteractiveMap onMarkerClick={handleMarkerClickToDetail} />
-                        <div className="absolute bottom-6 left-6 flex gap-2 z-20">
-                            <span className="backdrop-blur px-4 py-2 rounded-full border text-xs font-bold flex items-center gap-2 bg-white/80 border-gray-200 text-gray-900 dark:bg-black/60 dark:border-white/10 dark:text-white">
-                            <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"/> LIVE DATA
+                        <div className="absolute bottom-4 md:bottom-6 left-4 md:left-6 flex gap-2 z-20">
+                            <span className="backdrop-blur px-3 py-1.5 md:px-4 md:py-2 rounded-full border text-[10px] md:text-xs font-bold flex items-center gap-1.5 md:gap-2 bg-white/80 border-gray-200 text-gray-900 dark:bg-black/60 dark:border-white/10 dark:text-white">
+                            <span className="w-1.5 h-1.5 md:w-2 md:h-2 bg-green-500 rounded-full animate-pulse"/> LIVE DATA
                             </span>
                         </div>
                     </div>
 
-                    <div className="col-span-1 md:col-span-5 md:row-span-4 rounded-[2rem] p-6 border flex flex-col backdrop-blur-md transition-colors bg-white/80 border-gray-200 dark:bg-[#111]/80 dark:border-white/5">
-                        <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-200 dark:border-white/5">
-                            <div className="flex items-center gap-2"><Flame className="text-secondary animate-pulse" size={20} /><h3 className="font-bold text-lg text-gray-900 dark:text-white">REAL-TIME RANKING</h3></div>
-                            <button onClick={handleOpenModal} className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full transition-colors group"><Plus size={20} className="text-gray-500 dark:text-white/60 group-hover:text-primary transition-colors"/></button>
+                    <div className="col-span-1 lg:col-span-5 md:row-span-4 rounded-[2rem] p-5 md:p-6 border flex flex-col backdrop-blur-md transition-colors bg-white/80 border-gray-200 dark:bg-[#111]/80 dark:border-white/5 order-3 lg:order-none h-[300px] md:h-auto">
+                        <div className="flex items-center justify-between mb-4 md:mb-6 pb-3 md:pb-4 border-b border-gray-200 dark:border-white/5">
+                            <div className="flex items-center gap-2"><Flame size={18} className="text-secondary animate-pulse md:w-5 md:h-5"/><h3 className="font-bold text-base md:text-lg text-gray-900 dark:text-white">REAL-TIME RANKING</h3></div>
+                            <button onClick={handleOpenModal} className="p-1.5 md:p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full transition-colors group"><Plus size={18} className="md:w-5 md:h-5 text-gray-500 dark:text-white/60 group-hover:text-primary transition-colors"/></button>
                         </div>
-                        <div className="flex-1 space-y-2 overflow-y-auto custom-scrollbar pr-2">
+                        <div className="flex-1 space-y-2 overflow-y-auto custom-scrollbar pr-1 md:pr-2">
                             {hotPopups.length > 0 ? (
                             <AnimatePresence>
                                 {hotPopups.map((popup: any, idx) => (
                                 <Link href={`/popup/${popup.id}`} key={popup.id} onClick={() => handleTabChange("MAP")}>
                                     <motion.div layout initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.3 }} 
-                                                className="flex items-center justify-between p-4 mb-2 rounded-2xl transition-colors cursor-pointer group border bg-white hover:bg-gray-50 border-gray-100 hover:border-gray-300 dark:bg-white/5 dark:hover:bg-white/10 dark:border-transparent dark:hover:border-white/10">
-                                    <div className="flex items-center gap-3">
-                                            <div className="flex flex-col items-center w-6"><span className={`text-sm font-black ${idx === 0 ? 'text-primary' : 'text-gray-400 dark:text-white/30'}`}>{idx + 1}</span>{renderRankChange(popup.rankChange)}</div>
-                                            <div><span className="font-bold block text-sm text-gray-900 dark:text-white">{popup.name}</span><span className="text-[10px] text-gray-500 dark:text-white/60">{popup.location}</span></div>
+                                                className="flex items-center justify-between p-3 md:p-4 mb-2 rounded-xl md:rounded-2xl transition-colors cursor-pointer group border bg-white hover:bg-gray-50 border-gray-100 hover:border-gray-300 dark:bg-white/5 dark:hover:bg-white/10 dark:border-transparent dark:hover:border-white/10">
+                                    <div className="flex items-center gap-2 md:gap-3">
+                                            <div className="flex flex-col items-center w-5 md:w-6"><span className={`text-xs md:text-sm font-black ${idx === 0 ? 'text-primary' : 'text-gray-400 dark:text-white/30'}`}>{idx + 1}</span>{renderRankChange(popup.rankChange)}</div>
+                                            <div><span className="font-bold block text-xs md:text-sm text-gray-900 dark:text-white truncate max-w-[120px] md:max-w-[180px]">{popup.name}</span><span className="text-[9px] md:text-[10px] text-gray-500 dark:text-white/60 truncate max-w-[120px] md:max-w-full block">{popup.location}</span></div>
                                     </div>
-                                    <div className="flex flex-col items-end gap-1"><span className="text-[10px] text-gray-500 dark:text-white/60 flex items-center gap-1"><Users size={10}/> {popup.viewCount}</span><span className={`text-[10px] px-2 py-0.5 rounded-full border whitespace-nowrap ${popup.status === '혼잡' ? 'border-secondary/30 text-secondary' : 'border-primary/30 text-primary'}`}>{popup.status || '영업중'}</span></div>
+                                    <div className="flex flex-col items-end gap-1"><span className="text-[9px] md:text-[10px] text-gray-500 dark:text-white/60 flex items-center gap-1"><Users size={8} className="md:w-2.5 md:h-2.5"/> {popup.viewCount}</span><span className={`text-[9px] md:text-[10px] px-1.5 py-0.5 md:px-2 md:py-0.5 rounded-full border whitespace-nowrap ${popup.status === '혼잡' ? 'border-secondary/30 text-secondary' : 'border-primary/30 text-primary'}`}>{popup.status || '영업중'}</span></div>
                                     </motion.div>
                                 </Link>
                                 ))}
@@ -784,18 +775,17 @@ export default function Home() {
                         </div>
                     </div>
 
-                    {/* 🔥 [2번] 캘린더 연동 영역 */}
-                    <div className="col-span-1 md:col-span-4 md:row-span-2 bg-primary/90 backdrop-blur-md text-black rounded-[2rem] p-6 transition-colors relative overflow-hidden group">
-                        <Calendar size={32} />
-                        <h3 className="text-2xl font-black mt-2 leading-none uppercase">Popup<br/>Calendar</h3>
-                        <p className="text-xs font-bold opacity-60 mt-2 mb-2">{calendarDate.getFullYear()}년 {calendarDate.getMonth() + 1}월 오픈 예정</p>
+                    <div className="col-span-1 lg:col-span-4 md:row-span-2 bg-primary/90 backdrop-blur-md text-black rounded-[2rem] p-5 md:p-6 transition-colors relative overflow-hidden group order-4 lg:order-none">
+                        <Calendar size={28} className="md:w-8 md:h-8" />
+                        <h3 className="text-xl md:text-2xl font-black mt-2 leading-none uppercase">Popup<br/>Calendar</h3>
+                        <p className="text-[10px] md:text-xs font-bold opacity-60 mt-1 md:mt-2 mb-2">{calendarDate.getFullYear()}년 {calendarDate.getMonth() + 1}월 오픈 예정</p>
                         
-                        <div className="overflow-y-auto max-h-[80px] custom-scrollbar text-xs border-t border-black/10 pt-2 pr-1">
+                        <div className="overflow-y-auto max-h-[60px] md:max-h-[80px] custom-scrollbar text-[10px] md:text-xs border-t border-black/10 pt-2 pr-1">
                             {currentMonthPopups.length > 0 ? (
                                 currentMonthPopups.map((popup) => (
                                     <Link href={`/popup/${popup.id}`} key={popup.id}>
                                         <div className="flex justify-between items-center py-1 hover:bg-black/5 rounded px-1 cursor-pointer">
-                                            <span className="font-bold truncate max-w-[150px]">{popup.name}</span>
+                                            <span className="font-bold truncate max-w-[120px] md:max-w-[150px]">{popup.name}</span>
                                             <span className="opacity-70 whitespace-nowrap">{new Date(popup.startDate!).getDate()}일 오픈</span>
                                         </div>
                                     </Link>
@@ -806,95 +796,95 @@ export default function Home() {
                         </div>
                     </div>
 
-                    <div onClick={() => setIsReportOpen(true)} className="col-span-1 md:col-span-3 md:row-span-2 rounded-[2rem] p-6 cursor-pointer border flex flex-col justify-between group backdrop-blur-md transition-colors bg-white/80 border-gray-200 hover:border-primary dark:bg-[#111]/80 dark:border-white/5 dark:hover:border-primary">
-                        <div className="flex justify-between items-start"><Users size={24} className={`${getCongestionColor(congestionData?.level || '')} group-hover:scale-110 transition-transform`}/><div className="text-right">{congestionData ? (<span className={`text-2xl font-black ${getCongestionColor(congestionData.level)}`}>{congestionData.level}</span>) : (<span className="text-lg font-bold text-gray-400 animate-pulse">분석중...</span>)}</div></div>
-                        <div><h3 className="font-bold text-lg text-gray-900 dark:text-white group-hover:text-primary transition-colors">AI Report</h3><p className="text-xs text-gray-500 dark:text-white/60 mt-1">{congestionData ? `성수동 인구 ${congestionData.minPop.toLocaleString()}~${congestionData.maxPop.toLocaleString()}명` : "성수동 혼잡도 분석 중"}</p></div>
+                    <div onClick={() => setIsReportOpen(true)} className="col-span-1 lg:col-span-3 md:row-span-2 rounded-[2rem] p-5 md:p-6 cursor-pointer border flex flex-col justify-between group backdrop-blur-md transition-colors bg-white/80 border-gray-200 hover:border-primary dark:bg-[#111]/80 dark:border-white/5 dark:hover:border-primary order-5 lg:order-none">
+                        <div className="flex justify-between items-start"><Users size={20} className={`md:w-6 md:h-6 ${getCongestionColor(congestionData?.level || '')} group-hover:scale-110 transition-transform`}/><div className="text-right">{congestionData ? (<span className={`text-xl md:text-2xl font-black ${getCongestionColor(congestionData.level)}`}>{congestionData.level}</span>) : (<span className="text-sm md:text-lg font-bold text-gray-400 animate-pulse">분석중...</span>)}</div></div>
+                        <div><h3 className="font-bold text-sm md:text-lg text-gray-900 dark:text-white group-hover:text-primary transition-colors">AI Report</h3><p className="text-[10px] md:text-xs text-gray-500 dark:text-white/60 mt-0.5 md:mt-1">{congestionData ? `성수동 인구 ${congestionData.minPop.toLocaleString()}~${congestionData.maxPop.toLocaleString()}명` : "성수동 혼잡도 분석 중"}</p></div>
                     </div>
                 </section>
 
                 <motion.section initial="hidden" whileInView="visible" viewport={{ once: true }} variants={sectionVariants} className="mb-24">
-                    <div className="flex flex-col md:flex-row items-end justify-between mb-12">
-                        <h2 className="text-5xl md:text-7xl font-black tracking-tighter uppercase text-transparent bg-clip-text bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 text-stroke relative z-10">POP-LOOK<span className="text-white">.</span></h2>
-                        <p className="text-gray-500 dark:text-white/60 max-w-md text-right md:text-left mt-4 md:mt-0 relative z-10">성수동 갈 때 뭐 입지?<br/>오늘의 분위기에 딱 맞는 OOTD를 제안합니다.</p>
+                    <div className="flex flex-col md:flex-row items-center md:items-end justify-between mb-8 md:mb-12 text-center md:text-left">
+                        <h2 className="text-4xl md:text-7xl font-black tracking-tighter uppercase text-transparent bg-clip-text bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 text-stroke relative z-10">POP-LOOK<span className="text-white">.</span></h2>
+                        <p className="text-gray-500 dark:text-white/60 max-w-md mt-2 md:mt-0 relative z-10 text-xs md:text-base">성수동 갈 때 뭐 입지?<br/>오늘의 분위기에 딱 맞는 OOTD를 제안합니다.</p>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-[500px]">
-                        <div className="md:col-span-1 rounded-[2.5rem] overflow-hidden relative shadow-2xl border border-gray-200 dark:border-white/10 group bg-black">
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-auto lg:h-[500px]">
+                        <div className="lg:col-span-1 rounded-[2rem] lg:rounded-[2.5rem] overflow-hidden relative shadow-2xl border border-gray-200 dark:border-white/10 group bg-black h-[300px] lg:h-full">
                             {ootd?.data ? (
                                 <>
-                                    <video ref={videoRef} src={ootd.data.videoUrl} poster={ootd.data.thumbnail} autoPlay muted loop playsInline className="w-full h-full object-cover opacity-90 group-hover:scale-110 transition-transform duration-700"/>
+                                    <video ref={videoRef} src={ootd.data.videoUrl} poster={ootd.data.thumbnail} autoPlay muted loop playsInline className="w-full h-full object-cover opacity-90 group-hover:scale-105 lg:group-hover:scale-110 transition-transform duration-700"/>
                                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/20 pointer-events-none"/>
-                                    <div className="absolute top-6 right-6 bg-black/30 backdrop-blur-md px-3 py-1 rounded-full text-white text-xs font-bold border border-white/20 flex items-center gap-1"><Video size={12}/> Pexels Shorts</div>
-                                    <div className="absolute bottom-6 left-6 right-6 text-white"><p className="text-xs font-medium opacity-80 mb-1 uppercase tracking-wider">Today's Pick</p><h3 className="text-2xl font-black leading-none mb-2">{ootd.data.keyword}</h3><p className="text-[10px] opacity-60">Creator: {ootd.data.photographer}</p></div>
+                                    <div className="absolute top-4 right-4 lg:top-6 lg:right-6 bg-black/30 backdrop-blur-md px-2 py-1 lg:px-3 lg:py-1 rounded-full text-white text-[10px] lg:text-xs font-bold border border-white/20 flex items-center gap-1"><Video size={10} className="lg:w-3 lg:h-3"/> Pexels Shorts</div>
+                                    <div className="absolute bottom-4 left-4 right-4 lg:bottom-6 lg:left-6 lg:right-6 text-white"><p className="text-[10px] lg:text-xs font-medium opacity-80 mb-1 uppercase tracking-wider">Today's Pick</p><h3 className="text-xl lg:text-2xl font-black leading-none mb-1 lg:mb-2">{ootd.data.keyword}</h3><p className="text-[9px] lg:text-[10px] opacity-60">Creator: {ootd.data.photographer}</p></div>
                                 </>
-                            ) : (<div className="w-full h-full flex flex-col items-center justify-center text-white/50 gap-4"><Loader2 size={32} className="animate-spin"/><span className="text-sm">Fetching OOTD...</span></div>)}
+                            ) : (<div className="w-full h-full flex flex-col items-center justify-center text-white/50 gap-4"><Loader2 size={24} className="lg:w-8 lg:h-8 animate-spin"/><span className="text-xs lg:text-sm">Fetching OOTD...</span></div>)}
                         </div>
-                        <div className="md:col-span-2 flex flex-col gap-6">
-                            <div className="flex-1 rounded-[2.5rem] p-10 bg-white/80 dark:bg-[#111]/80 backdrop-blur-lg border border-gray-200 dark:border-white/5 flex flex-col justify-center items-start relative overflow-hidden">
-                                <Shirt size={120} className="absolute -right-6 -bottom-6 text-gray-100 dark:text-white/5 rotate-[-15deg]"/>
-                                <span className="text-primary font-bold tracking-widest text-xs uppercase mb-4 border border-primary/30 px-3 py-1 rounded-full">Daily Style Forecast</span>
-                                <h3 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-6 leading-tight">{ootd?.comment || "트렌디한 성수동 바이브를 분석 중입니다..."}</h3>
-                                <div className="flex flex-wrap gap-3">{['#SeongsuVibe', '#PopUpStyle', '#OOTD', `#${ootd?.data?.keyword.replace(" ", "") || 'Fashion'}`].map((tag, i) => (<span key={i} className="text-sm text-gray-500 dark:text-white/40 font-medium">{tag}</span>))}</div>
+                        <div className="lg:col-span-2 flex flex-col gap-4 lg:gap-6">
+                            <div className="flex-1 rounded-[2rem] lg:rounded-[2.5rem] p-6 lg:p-10 bg-white/80 dark:bg-[#111]/80 backdrop-blur-lg border border-gray-200 dark:border-white/5 flex flex-col justify-center items-start relative overflow-hidden">
+                                <Shirt size={80} className="lg:w-[120px] lg:h-[120px] absolute -right-4 -bottom-4 lg:-right-6 lg:-bottom-6 text-gray-100 dark:text-white/5 rotate-[-15deg]"/>
+                                <span className="text-primary font-bold tracking-widest text-[10px] lg:text-xs uppercase mb-3 lg:mb-4 border border-primary/30 px-2 py-1 lg:px-3 lg:py-1 rounded-full">Daily Style Forecast</span>
+                                <h3 className="text-xl md:text-3xl lg:text-4xl font-bold text-gray-900 dark:text-white mb-4 lg:mb-6 leading-tight">{ootd?.comment || "트렌디한 성수동 바이브를 분석 중입니다..."}</h3>
+                                <div className="flex flex-wrap gap-2 lg:gap-3">{['#SeongsuVibe', '#PopUpStyle', '#OOTD', `#${ootd?.data?.keyword.replace(" ", "") || 'Fashion'}`].map((tag, i) => (<span key={i} className="text-xs lg:text-sm text-gray-500 dark:text-white/40 font-medium">{tag}</span>))}</div>
                             </div>
-                            <div className="h-32 rounded-[2rem] bg-gradient-to-r from-gray-900 to-black dark:from-white dark:to-gray-200 flex items-center justify-between px-10 relative overflow-hidden group cursor-pointer">
+                            <div className="h-24 lg:h-32 rounded-[1.5rem] lg:rounded-[2rem] bg-gradient-to-r from-gray-900 to-black dark:from-white dark:to-gray-200 flex items-center justify-between px-6 lg:px-10 relative overflow-hidden group cursor-pointer">
                                 <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-20"/>
-                                <div className="z-10"><p className="text-gray-400 dark:text-gray-600 text-xs font-bold mb-1">POP-SPOT EXCLUSIVE</p><p className="text-white dark:text-black text-xl font-black">이 코디 입고 방문하면 스탬프 2배? 🎟️</p></div>
-                                <div className="w-12 h-12 bg-white dark:bg-black rounded-full flex items-center justify-center text-black dark:text-white group-hover:scale-110 transition-transform z-10"><ArrowUpRight size={24}/></div>
+                                <div className="z-10"><p className="text-gray-400 dark:text-gray-600 text-[10px] lg:text-xs font-bold mb-0.5 lg:mb-1">POP-SPOT EXCLUSIVE</p><p className="text-white dark:text-black text-sm lg:text-xl font-black">이 코디 입고 방문하면 스탬프 2배? 🎟️</p></div>
+                                <div className="w-8 h-8 lg:w-12 lg:h-12 bg-white dark:bg-black rounded-full flex items-center justify-center text-black dark:text-white group-hover:scale-110 transition-transform z-10"><ArrowUpRight size={18} className="lg:w-6 lg:h-6"/></div>
                             </div>
                         </div>
                     </div>
                 </motion.section>
 
                 <motion.section initial="hidden" whileInView="visible" viewport={{ once: true }} variants={sectionVariants} className="mb-24 relative">
-                    <div className="absolute -top-10 right-0 w-64 h-64 bg-indigo-500/20 rounded-full blur-[100px] pointer-events-none" />
+                    <div className="absolute -top-10 right-0 w-32 h-32 lg:w-64 lg:h-64 bg-indigo-500/20 rounded-full blur-[50px] lg:blur-[100px] pointer-events-none" />
                     <LiveChatTicker />
-                    <div className="text-center mt-8"><p className="text-sm text-gray-500 dark:text-white/40">* 성수동 현장 유저들이 실시간으로 공유하는 정보입니다.</p></div>
+                    <div className="text-center mt-6 lg:mt-8"><p className="text-[10px] lg:text-sm text-gray-500 dark:text-white/40">* 성수동 현장 유저들이 실시간으로 공유하는 정보입니다.</p></div>
                 </motion.section>
 
-                <motion.section initial="hidden" whileInView="visible" viewport={{ once: true }} variants={sectionVariants} className="mb-24 py-20 px-8 md:px-12 bg-gradient-to-br from-indigo-900 via-gray-900 to-black text-white relative overflow-hidden rounded-[2.5rem] shadow-2xl">
-                    <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-500/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
-                    <div className="absolute bottom-0 left-0 w-64 h-64 bg-pink-500/10 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2"></div>
+                <motion.section initial="hidden" whileInView="visible" viewport={{ once: true }} variants={sectionVariants} className="mb-24 py-12 px-6 lg:py-20 lg:px-12 bg-gradient-to-br from-indigo-900 via-gray-900 to-black text-white relative overflow-hidden rounded-[2rem] lg:rounded-[2.5rem] shadow-2xl">
+                    <div className="absolute top-0 right-0 w-48 h-48 lg:w-96 lg:h-96 bg-indigo-500/20 rounded-full blur-2xl lg:blur-3xl -translate-y-1/2 translate-x-1/2"></div>
+                    <div className="absolute bottom-0 left-0 w-32 h-32 lg:w-64 lg:h-64 bg-pink-500/10 rounded-full blur-2xl lg:blur-3xl translate-y-1/2 -translate-x-1/2"></div>
 
-                    <div className="flex flex-col md:flex-row items-center justify-between gap-12 relative z-10">
-                        <div className="flex-1 text-center md:text-left">
-                            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/20 border border-indigo-400/30 text-indigo-300 text-sm font-bold mb-6">
-                                <Users size={16} /> Beta: 실시간 협업 기능
+                    <div className="flex flex-col lg:flex-row items-center justify-between gap-8 lg:gap-12 relative z-10">
+                        <div className="flex-1 text-center lg:text-left">
+                            <div className="inline-flex items-center gap-1.5 lg:gap-2 px-2.5 py-1 lg:px-3 lg:py-1 rounded-full bg-indigo-500/20 border border-indigo-400/30 text-indigo-300 text-[10px] lg:text-sm font-bold mb-4 lg:mb-6">
+                                <Users size={12} className="lg:w-4 lg:h-4"/> Beta: 실시간 협업 기능
                             </div>
-                            <h2 className="text-4xl md:text-5xl font-black mb-6 leading-tight">
+                            <h2 className="text-2xl md:text-4xl lg:text-5xl font-black mb-4 lg:mb-6 leading-tight">
                                 친구와 함께 그리는<br />
                                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-pink-400">성수동 작전지도</span>
                             </h2>
-                            <p className="text-gray-400 text-lg mb-8 leading-relaxed max-w-lg">
+                            <p className="text-gray-400 text-xs lg:text-lg mb-6 lg:mb-8 leading-relaxed max-w-lg mx-auto lg:mx-0">
                                 "거기 어때?" 링크 공유는 그만.<br />
-                                같은 화면을 보며 실시간으로 마커를 찍고 동선을 계획하세요.<br />
+                                같은 화면을 보며 실시간으로 마커를 찍고 동선을 계획하세요.<br className="hidden lg:block"/>
                                 늦게 온 친구도 Redis가 저장한 기록을 바로 볼 수 있습니다.
                             </p>
                             <button 
                                 onClick={handleCreateRoom}
-                                className="group relative inline-flex items-center justify-center px-8 py-4 font-bold text-white transition-all duration-200 bg-indigo-600 rounded-full hover:bg-indigo-500 focus:outline-none ring-offset-2 focus:ring-2 ring-indigo-400"
+                                className="group relative inline-flex items-center justify-center px-6 py-3 lg:px-8 lg:py-4 font-bold text-white transition-all duration-200 bg-indigo-600 rounded-full hover:bg-indigo-500 focus:outline-none ring-offset-2 focus:ring-2 ring-indigo-400 text-sm lg:text-lg w-full lg:w-auto"
                             >
-                                <span className="mr-2 text-lg">작전 회의실 만들기</span>
-                                <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
+                                <span className="mr-2">작전 회의실 만들기</span>
+                                <ArrowRight className="w-4 h-4 lg:w-5 lg:h-5 transition-transform group-hover:translate-x-1" />
                                 <div className="absolute inset-0 rounded-full ring-2 ring-white/20 group-hover:ring-white/40 transition-all"></div>
                             </button>
                         </div>
 
-                        <div className="flex-1 w-full max-w-md hidden md:block">
-                            <div className="relative bg-gray-800/80 backdrop-blur-xl border border-gray-700/50 rounded-2xl p-6 shadow-2xl transform rotate-3 transition-transform hover:rotate-0 duration-500">
-                                <div className="w-full h-64 bg-gray-700/50 rounded-xl mb-4 relative overflow-hidden border border-gray-600/30">
-                                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-gray-500/20 font-black text-6xl select-none">MAP</div>
-                                    <div className="absolute top-1/3 left-1/4 w-8 h-8 bg-pink-500 rounded-full border-4 border-gray-800 animate-bounce shadow-lg flex items-center justify-center text-[10px] font-bold">A</div>
-                                    <div className="absolute top-2/3 right-1/3 w-8 h-8 bg-indigo-500 rounded-full border-4 border-gray-800 animate-bounce delay-100 shadow-lg flex items-center justify-center text-[10px] font-bold">B</div>
-                                    <div className="absolute bottom-10 right-10 pointer-events-none">
-                                            <div className="w-3 h-3 bg-yellow-400 rounded-full shadow-[0_0_10px_rgba(250,204,21,0.8)]"></div>
-                                            <div className="px-2 py-1 bg-yellow-400 text-black text-[10px] font-bold rounded ml-2 mt-1">친구 입력 중...</div>
+                        <div className="flex-1 w-full max-w-sm lg:max-w-md hidden md:block">
+                            <div className="relative bg-gray-800/80 backdrop-blur-xl border border-gray-700/50 rounded-2xl p-4 lg:p-6 shadow-2xl transform rotate-3 transition-transform hover:rotate-0 duration-500">
+                                <div className="w-full h-48 lg:h-64 bg-gray-700/50 rounded-xl mb-3 lg:mb-4 relative overflow-hidden border border-gray-600/30">
+                                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-gray-500/20 font-black text-4xl lg:text-6xl select-none">MAP</div>
+                                    <div className="absolute top-1/3 left-1/4 w-6 h-6 lg:w-8 lg:h-8 bg-pink-500 rounded-full border-2 lg:border-4 border-gray-800 animate-bounce shadow-lg flex items-center justify-center text-[8px] lg:text-[10px] font-bold">A</div>
+                                    <div className="absolute top-2/3 right-1/3 w-6 h-6 lg:w-8 lg:h-8 bg-indigo-500 rounded-full border-2 lg:border-4 border-gray-800 animate-bounce delay-100 shadow-lg flex items-center justify-center text-[8px] lg:text-[10px] font-bold">B</div>
+                                    <div className="absolute bottom-6 lg:bottom-10 right-6 lg:right-10 pointer-events-none">
+                                            <div className="w-2 h-2 lg:w-3 lg:h-3 bg-yellow-400 rounded-full shadow-[0_0_10px_rgba(250,204,21,0.8)]"></div>
+                                            <div className="px-1.5 py-0.5 lg:px-2 lg:py-1 bg-yellow-400 text-black text-[8px] lg:text-[10px] font-bold rounded ml-1 lg:ml-2 mt-0.5 lg:mt-1 whitespace-nowrap">친구 입력 중...</div>
                                     </div>
                                 </div>
-                                <div className="space-y-3">
-                                    <div className="flex items-center gap-3 p-3 bg-gray-900/50 rounded-lg border border-gray-700/50">
-                                        <div className="w-8 h-8 rounded-full bg-pink-500/20 flex items-center justify-center text-pink-400"><MapIcon size={16}/></div>
+                                <div className="space-y-2 lg:space-y-3">
+                                    <div className="flex items-center gap-2 lg:gap-3 p-2 lg:p-3 bg-gray-900/50 rounded-lg border border-gray-700/50">
+                                        <div className="w-6 h-6 lg:w-8 lg:h-8 rounded-full bg-pink-500/20 flex items-center justify-center text-pink-400"><MapIcon size={12} className="lg:w-4 lg:h-4"/></div>
                                         <div className="flex-1">
-                                            <div className="h-2 w-24 bg-gray-600 rounded mb-2"></div>
-                                            <div className="h-2 w-16 bg-gray-700 rounded"></div>
+                                            <div className="h-1.5 lg:h-2 w-16 lg:w-24 bg-gray-600 rounded mb-1.5 lg:mb-2"></div>
+                                            <div className="h-1.5 lg:h-2 w-10 lg:w-16 bg-gray-700 rounded"></div>
                                         </div>
                                     </div>
                                 </div>
@@ -909,12 +899,12 @@ export default function Home() {
         {/* 🟢 [PASSPORT 탭] */}
         {currentTab === "PASSPORT" && (
             <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} 
-                        className="min-h-[80vh] flex flex-col items-center justify-center rounded-[2.5rem] border mb-24 relative overflow-hidden backdrop-blur-xl transition-colors bg-white/80 border-gray-200 dark:bg-black/80 dark:border-white/10">
+                        className="min-h-[80vh] flex flex-col items-center justify-center rounded-[2rem] lg:rounded-[2.5rem] border mb-24 relative overflow-hidden backdrop-blur-xl transition-colors bg-white/80 border-gray-200 dark:bg-black/80 dark:border-white/10 p-4">
               {user ? (<PassportView />) : (
-                  <div className="text-center p-8 z-10">
-                      <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 border bg-gray-100 border-gray-200 dark:bg-white/5 dark:border-white/10"><Lock size={40} className="text-gray-400 dark:text-white/50" /></div>
-                      <h2 className="text-3xl font-bold mb-3 text-gray-900 dark:text-white">로그인이 필요해요</h2><p className="text-gray-500 dark:text-white/60 mb-8">나만의 팝업 여권을 만들고 스탬프를 모아보세요.</p>
-                      <Link href="/login"><button className="px-8 py-3 bg-primary text-black font-bold rounded-xl hover:bg-white transition-colors shadow-lg">로그인 하러가기</button></Link>
+                  <div className="text-center p-6 lg:p-8 z-10 w-full max-w-md">
+                      <div className="w-16 h-16 lg:w-20 lg:h-20 rounded-full flex items-center justify-center mx-auto mb-4 lg:mb-6 border bg-gray-100 border-gray-200 dark:bg-white/5 dark:border-white/10"><Lock size={32} className="lg:w-10 lg:h-10 text-gray-400 dark:text-white/50" /></div>
+                      <h2 className="text-2xl lg:text-3xl font-bold mb-2 lg:mb-3 text-gray-900 dark:text-white">로그인이 필요해요</h2><p className="text-xs lg:text-sm text-gray-500 dark:text-white/60 mb-6 lg:mb-8">나만의 팝업 여권을 만들고 스탬프를 모아보세요.</p>
+                      <Link href="/login"><button className="w-full lg:w-auto px-8 py-3 bg-primary text-black font-bold rounded-xl hover:bg-white transition-colors shadow-lg text-sm lg:text-base">로그인 하러가기</button></Link>
                   </div>
               )}
             </motion.div>
@@ -923,75 +913,75 @@ export default function Home() {
         {/* 🟢 [COURSE 탭] */}
         {currentTab === "COURSE" && (
              <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} 
-                          className="min-h-[80vh] flex flex-col items-center rounded-[2.5rem] border mb-24 p-6 relative overflow-hidden backdrop-blur-xl transition-colors bg-white/80 border-gray-200 dark:bg-black/80 dark:border-white/10">
+                          className="min-h-[80vh] flex flex-col items-center rounded-[2.5rem] border mb-24 p-4 lg:p-6 relative overflow-hidden backdrop-blur-xl transition-colors bg-white/80 border-gray-200 dark:bg-black/80 dark:border-white/10">
                 <div className="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-5 pointer-events-none"></div>
-                <div className="text-center mb-10 z-10 mt-8">
-                    <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-indigo-500/30 bg-indigo-500/10 text-indigo-500 dark:text-indigo-400 text-xs font-bold mb-4 animate-pulse"><Sparkles size={12} /> AI CURATION BETA</div>
-                    <h2 className="text-3xl md:text-5xl font-black italic uppercase tracking-tighter mb-2 text-gray-900 dark:text-white">POP<span className="text-gray-300 dark:text-white/20">-</span>COURSE</h2>
-                    <p className="text-gray-500 dark:text-white/60 text-sm">원하는 분위기를 선택하면 AI가 최적의 동선을 추천합니다.</p>
+                <div className="text-center mb-8 lg:mb-10 z-10 mt-6 lg:mt-8">
+                    <div className="inline-flex items-center gap-1.5 lg:gap-2 px-3 py-1 lg:px-4 lg:py-1.5 rounded-full border border-indigo-500/30 bg-indigo-500/10 text-indigo-500 dark:text-indigo-400 text-[10px] lg:text-xs font-bold mb-3 lg:mb-4 animate-pulse"><Sparkles size={10} className="lg:w-3 lg:h-3"/> AI CURATION BETA</div>
+                    <h2 className="text-2xl md:text-4xl lg:text-5xl font-black italic uppercase tracking-tighter mb-1.5 lg:mb-2 text-gray-900 dark:text-white">POP<span className="text-gray-300 dark:text-white/20">-</span>COURSE</h2>
+                    <p className="text-gray-500 dark:text-white/60 text-xs lg:text-sm">원하는 분위기를 선택하면 AI가 최적의 동선을 추천합니다.</p>
                 </div>
 
-                <div className="w-full max-w-3xl z-10 mb-12 flex flex-col gap-4">
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="w-full max-w-3xl z-10 mb-8 lg:mb-12 flex flex-col gap-3 lg:gap-4">
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4 px-2 lg:px-0">
                         {[{ label: '🔥 핫플 정복', val: '핫플' }, { label: '💖 로맨틱 데이트', val: '데이트' }, { label: '📸 인생샷 투어', val: '사진' }, { label: '🧘 힐링/여유', val: '힐링' }].map((item, idx) => (
                             <button key={idx} onClick={() => handleAiRecommend(item.val)} disabled={isAiLoading}
-                                className={`group relative p-6 rounded-3xl border transition-all duration-300 flex flex-col items-center gap-3 hover:scale-105 shadow-sm hover:shadow-md ${selectedVibe === item.val ? "bg-indigo-600 border-indigo-500 shadow-[0_0_30px_rgba(79,70,229,0.6)] text-white" : "bg-white border-gray-200 hover:bg-gray-50 dark:bg-white/5 dark:border-white/10 dark:hover:bg-white/10"}`}>
-                                <div className={`w-12 h-12 rounded-full flex items-center justify-center text-xl ${selectedVibe === item.val ? 'bg-white/20' : 'bg-gray-100 dark:bg-white/10'}`}>{item.label.split(' ')[0]}</div>
-                                <span className={`font-bold text-sm ${selectedVibe === item.val ? 'text-white' : 'text-gray-800 dark:text-white'}`}>{item.label.split(' ')[1]}</span>
-                                {isAiLoading && selectedVibe === item.val && (<div className="absolute inset-0 bg-black/50 rounded-3xl flex items-center justify-center"><Loader2 className="animate-spin text-white" /></div>)}
+                                className={`group relative p-4 lg:p-6 rounded-2xl lg:rounded-3xl border transition-all duration-300 flex flex-col items-center gap-2 lg:gap-3 hover:scale-105 shadow-sm hover:shadow-md ${selectedVibe === item.val ? "bg-indigo-600 border-indigo-500 shadow-[0_0_20px_rgba(79,70,229,0.5)] lg:shadow-[0_0_30px_rgba(79,70,229,0.6)] text-white" : "bg-white border-gray-200 hover:bg-gray-50 dark:bg-white/5 dark:border-white/10 dark:hover:bg-white/10"}`}>
+                                <div className={`w-10 h-10 lg:w-12 lg:h-12 rounded-full flex items-center justify-center text-lg lg:text-xl ${selectedVibe === item.val ? 'bg-white/20' : 'bg-gray-100 dark:bg-white/10'}`}>{item.label.split(' ')[0]}</div>
+                                <span className={`font-bold text-xs lg:text-sm ${selectedVibe === item.val ? 'text-white' : 'text-gray-800 dark:text-white'}`}>{item.label.split(' ')[1]}</span>
+                                {isAiLoading && selectedVibe === item.val && (<div className="absolute inset-0 bg-black/50 rounded-2xl lg:rounded-3xl flex items-center justify-center"><Loader2 className="animate-spin text-white w-5 h-5 lg:w-6 lg:h-6" /></div>)}
                             </button>
                         ))}
                     </div>
-                    <div className="flex flex-col items-center mt-2">
+                    <div className="flex flex-col items-center mt-2 px-2 lg:px-0">
                         {!showCustomInput ? (
-                            <button onClick={() => setShowCustomInput(true)} className="text-sm flex items-center gap-2 transition-colors border-b border-transparent pb-1 text-gray-500 hover:text-indigo-600 hover:border-indigo-600 dark:text-white/50 dark:hover:text-indigo-400 dark:hover:border-indigo-400">
-                                <Sparkles size={14} /> 찾는 분위기가 없나요? 직접 입력하기
+                            <button onClick={() => setShowCustomInput(true)} className="text-xs lg:text-sm flex items-center gap-1.5 lg:gap-2 transition-colors border-b border-transparent pb-1 text-gray-500 hover:text-indigo-600 hover:border-indigo-600 dark:text-white/50 dark:hover:text-indigo-400 dark:hover:border-indigo-400">
+                                <Sparkles size={12} className="lg:w-3.5 lg:h-3.5"/> 찾는 분위기가 없나요? 직접 입력하기
                             </button>
                         ) : (
                             <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex w-full max-w-md gap-2">
-                                <input type="text" value={customVibeInput} onChange={(e) => setCustomVibeInput(e.target.value)} placeholder="예: 비 오는 날 가기 좋은..." className="flex-1 rounded-xl px-4 py-3 transition-all focus:outline-none focus:border-indigo-500 bg-white border border-gray-300 text-gray-900 placeholder:text-gray-400 dark:bg-white/10 dark:border-white/20 dark:text-white dark:placeholder:text-white/30" onKeyDown={(e) => e.key === 'Enter' && handleAiRecommend(customVibeInput)}/>
-                                <button onClick={() => handleAiRecommend(customVibeInput)} className="bg-indigo-600 hover:bg-indigo-500 text-white px-6 rounded-xl font-bold transition-colors shadow-lg">추천</button>
-                                <button onClick={() => setShowCustomInput(false)} className="p-3 rounded-xl transition-colors bg-gray-100 hover:bg-gray-200 text-gray-500 dark:bg-white/5 dark:hover:bg-white/10 dark:text-white/50"><X size={18} /></button>
+                                <input type="text" value={customVibeInput} onChange={(e) => setCustomVibeInput(e.target.value)} placeholder="예: 비 오는 날 가기 좋은..." className="flex-1 rounded-xl px-3 py-2.5 lg:px-4 lg:py-3 transition-all focus:outline-none focus:border-indigo-500 bg-white border border-gray-300 text-gray-900 placeholder:text-gray-400 dark:bg-white/10 dark:border-white/20 dark:text-white dark:placeholder:text-white/30 text-xs lg:text-sm" onKeyDown={(e) => e.key === 'Enter' && handleAiRecommend(customVibeInput)}/>
+                                <button onClick={() => handleAiRecommend(customVibeInput)} className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 lg:px-6 rounded-xl font-bold transition-colors shadow-lg text-xs lg:text-sm whitespace-nowrap">추천</button>
+                                <button onClick={() => setShowCustomInput(false)} className="p-2.5 lg:p-3 rounded-xl transition-colors bg-gray-100 hover:bg-gray-200 text-gray-500 dark:bg-white/5 dark:hover:bg-white/10 dark:text-white/50 flex-shrink-0"><X size={16} className="lg:w-[18px] lg:h-[18px]"/></button>
                             </motion.div>
                         )}
                     </div>
                 </div>
 
-                <div className="w-full max-w-3xl z-10 min-h-[300px]">
-                    <div className="flex items-center justify-between mb-6">
-                        <h3 className="text-left font-bold text-lg flex items-center gap-2 text-gray-900 dark:text-white">
-                            {isAiLoading ? <Loader2 className="animate-spin text-indigo-500"/> : <Route size={20} className="text-indigo-500"/>}
+                <div className="w-full max-w-3xl z-10 min-h-[300px] px-2 lg:px-0">
+                    <div className="flex items-center justify-between mb-4 lg:mb-6">
+                        <h3 className="text-left font-bold text-sm lg:text-lg flex items-center gap-1.5 lg:gap-2 text-gray-900 dark:text-white">
+                            {isAiLoading ? <Loader2 className="animate-spin text-indigo-500 w-4 h-4 lg:w-5 lg:h-5"/> : <Route size={16} className="text-indigo-500 lg:w-5 lg:h-5"/>}
                             {isAiLoading ? "AI가 코스를 짜고 있어요..." : (aiCourse.length > 0 ? "AI RECOMMENDED COURSE" : "원하는 분위기를 선택해보세요!")}
                         </h3>
                         {aiCourse.length > 0 && !isAiLoading && (
-                             <button onClick={handleResetCourse} className="text-xs flex items-center gap-1 transition-colors text-gray-500 hover:text-red-500 dark:text-white/40 dark:hover:text-red-400"><RefreshCw size={12}/> 초기화</button>
+                             <button onClick={handleResetCourse} className="text-[10px] lg:text-xs flex items-center gap-1 transition-colors text-gray-500 hover:text-red-500 dark:text-white/40 dark:hover:text-red-400"><RefreshCw size={10} className="lg:w-3 lg:h-3"/> 초기화</button>
                         )}
                     </div>
 
                     {!isAiLoading && aiCourse.length > 0 && (
                         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} 
-                                    className="rounded-3xl p-8 border relative overflow-hidden group hover:border-indigo-500/50 transition-colors shadow-xl bg-white border-gray-200 dark:bg-[#1a1a1a] dark:border-white/10">
-                            <div className="absolute top-0 right-0 p-10 opacity-5"><MapIcon size={150} /></div>
+                                    className="rounded-2xl lg:rounded-3xl p-5 lg:p-8 border relative overflow-hidden group hover:border-indigo-500/50 transition-colors shadow-xl bg-white border-gray-200 dark:bg-[#1a1a1a] dark:border-white/10">
+                            <div className="absolute top-0 right-0 p-6 lg:p-10 opacity-5"><MapIcon size={100} className="lg:w-[150px] lg:h-[150px]" /></div>
                             <div className="relative z-10">
-                                <div className="flex justify-between items-start mb-8">
+                                <div className="flex justify-between items-start mb-6 lg:mb-8">
                                     <div>
-                                        <span className="text-xs font-bold text-white bg-indigo-600 px-3 py-1 rounded-full mb-3 inline-block shadow-md">FOR YOU</span>
-                                        <h4 className="text-2xl font-bold text-gray-900 dark:text-white">성수동 <span className="text-indigo-600 dark:text-indigo-400">{selectedVibe}</span> 맞춤 코스</h4>
-                                        <p className="text-gray-500 dark:text-white/50 text-sm mt-1">AI가 제안하는 최적의 동선입니다.</p>
+                                        <span className="text-[9px] lg:text-xs font-bold text-white bg-indigo-600 px-2.5 py-1 lg:px-3 lg:py-1 rounded-full mb-2 lg:mb-3 inline-block shadow-md">FOR YOU</span>
+                                        <h4 className="text-lg lg:text-2xl font-bold text-gray-900 dark:text-white">성수동 <span className="text-indigo-600 dark:text-indigo-400">{selectedVibe}</span> 맞춤 코스</h4>
+                                        <p className="text-gray-500 dark:text-white/50 text-[10px] lg:text-sm mt-0.5 lg:mt-1">AI가 제안하는 최적의 동선입니다.</p>
                                     </div>
                                 </div>
-                                <div className="space-y-6">
+                                <div className="space-y-4 lg:space-y-6">
                                     {aiCourse.map((item, idx) => (
-                                        <div key={idx} className="flex gap-4 group/item">
+                                        <div key={idx} className="flex gap-3 lg:gap-4 group/item">
                                             <div className="flex flex-col items-center">
-                                                <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-sm font-bold text-white shadow-lg z-10">{idx + 1}</div>
-                                                {idx < aiCourse.length - 1 && (<div className="w-0.5 flex-1 transition-colors my-2 bg-gray-200 group-hover/item:bg-indigo-200 dark:bg-white/10 dark:group-hover/item:bg-indigo-600/50"></div>)}
+                                                <div className="w-6 h-6 lg:w-8 lg:h-8 rounded-full bg-indigo-600 flex items-center justify-center text-xs lg:text-sm font-bold text-white shadow-lg z-10">{idx + 1}</div>
+                                                {idx < aiCourse.length - 1 && (<div className="w-0.5 flex-1 transition-colors my-1 lg:my-2 bg-gray-200 group-hover/item:bg-indigo-200 dark:bg-white/10 dark:group-hover/item:bg-indigo-600/50"></div>)}
                                             </div>
-                                            <div className="flex-1 pb-6 cursor-pointer" onClick={() => router.push(`/popup/${item.id}`)}>
-                                                <div className="p-4 rounded-2xl border transition-colors shadow-sm bg-gray-200 hover:bg-indigo-50 hover:border-indigo-200 dark:bg-white/5 dark:border-white/5 dark:hover:bg-white/10">
-                                                    <div className="flex justify-between items-center mb-1"><h5 className="font-bold text-lg text-gray-900 dark:text-white">{item.name}</h5><ArrowRight size={16} className="text-gray-400 dark:text-white/30" /></div>
-                                                    <p className="text-sm mb-2 text-indigo-600 dark:text-indigo-200/80">"{item.reason}"</p>
-                                                    <div className="flex gap-2"><span className="text-[10px] px-2 py-0.5 rounded border bg-white border-gray-200 text-gray-500 dark:bg-black/30 dark:border-white/5 dark:text-white/50">POP-UP</span></div>
+                                            <div className="flex-1 pb-4 lg:pb-6 cursor-pointer" onClick={() => router.push(`/popup/${item.id}`)}>
+                                                <div className="p-3 lg:p-4 rounded-xl lg:rounded-2xl border transition-colors shadow-sm bg-gray-200 hover:bg-indigo-50 hover:border-indigo-200 dark:bg-white/5 dark:border-white/5 dark:hover:bg-white/10">
+                                                    <div className="flex justify-between items-center mb-1"><h5 className="font-bold text-sm lg:text-lg text-gray-900 dark:text-white">{item.name}</h5><ArrowRight size={14} className="lg:w-4 lg:h-4 text-gray-400 dark:text-white/30" /></div>
+                                                    <p className="text-xs lg:text-sm mb-1.5 lg:mb-2 text-indigo-600 dark:text-indigo-200/80 line-clamp-2">"{item.reason}"</p>
+                                                    <div className="flex gap-2"><span className="text-[9px] lg:text-[10px] px-1.5 py-0.5 lg:px-2 lg:py-0.5 rounded border bg-white border-gray-200 text-gray-500 dark:bg-black/30 dark:border-white/5 dark:text-white/50">POP-UP</span></div>
                                                 </div>
                                             </div>
                                         </div>
@@ -1000,13 +990,13 @@ export default function Home() {
                                 
                                 <button 
                                     onClick={handleCopyAiToMyCourse}
-                                    className="w-full py-4 mt-4 bg-indigo-600 hover:bg-indigo-50 rounded-xl font-bold text-white transition-colors shadow-lg shadow-indigo-600/20 flex items-center justify-center gap-2"
+                                    className="w-full py-3 lg:py-4 mt-2 lg:mt-4 bg-indigo-600 hover:bg-indigo-50 rounded-xl font-bold text-white transition-colors shadow-lg shadow-indigo-600/20 flex items-center justify-center gap-1.5 lg:gap-2 text-xs lg:text-base"
                                 >
-                                  <MapIcon size={18} /> 전체 경로 지도에서 보기 (MY 탭으로 이동)
+                                  <MapIcon size={14} className="lg:w-[18px] lg:h-[18px]" /> 전체 경로 지도에서 보기 (MY 탭으로 이동)
                                 </button>
                                 
-                                <button onClick={handleSaveCourse} className="w-full py-4 mt-3 bg-white hover:bg-gray-50 text-indigo-600 border border-indigo-200 rounded-xl font-bold transition-colors flex items-center justify-center gap-2 dark:bg-white/10 dark:text-white dark:border-white/20 dark:hover:bg-white/20">
-                                    <Ticket size={18} /> 내 코스로 저장하기
+                                <button onClick={handleSaveCourse} className="w-full py-3 lg:py-4 mt-2 lg:mt-3 bg-white hover:bg-gray-50 text-indigo-600 border border-indigo-200 rounded-xl font-bold transition-colors flex items-center justify-center gap-1.5 lg:gap-2 dark:bg-white/10 dark:text-white dark:border-white/20 dark:hover:bg-white/20 text-xs lg:text-base">
+                                    <Ticket size={14} className="lg:w-[18px] lg:h-[18px]" /> 내 코스로 저장하기
                                 </button>
                             </div>
                         </motion.div>
@@ -1018,70 +1008,70 @@ export default function Home() {
         {/* 🟢 [MY 탭] - 🔥 저장된 코스 목록 & 위시리스트 */}
         {currentTab === "MY" && (
             <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} 
-                        className="h-[85vh] flex flex-col md:flex-row overflow-hidden rounded-[2.5rem] border backdrop-blur-md mb-24 transition-colors relative
+                        className="h-[85vh] lg:h-[85vh] flex flex-col md:flex-row overflow-hidden rounded-[2rem] lg:rounded-[2.5rem] border backdrop-blur-md mb-24 transition-colors relative
                                     bg-white/80 border-gray-200 
                                     dark:bg-[#111]/80 dark:border-white/10">
                 
-                {/* 1. 지도 영역 (왼쪽) */}
-                <div className="w-full md:w-[55%] h-[40vh] md:h-full relative border-b md:border-b-0 md:border-r border-gray-200 dark:border-white/5">
+                {/* 1. 지도 영역 (왼쪽/상단) */}
+                <div className="w-full md:w-[55%] h-[35vh] md:h-full relative border-b md:border-b-0 md:border-r border-gray-200 dark:border-white/5 flex-shrink-0">
                     <InteractiveMap 
                         places={myCourseItems} 
                         showPath={true} 
                         center={myCourseItems.length > 0 ? { lat: myCourseItems[0].lat, lng: myCourseItems[0].lng } : undefined}
                     />
-                    <div className="absolute top-4 left-4 z-10 bg-white/90 dark:bg-black/80 backdrop-blur px-4 py-2 rounded-full shadow-lg border border-gray-200 dark:border-white/10">
-                        <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400 flex items-center gap-1">
-                            <Sparkles size={12} /> My Course Preview
+                    <div className="absolute top-3 left-3 lg:top-4 lg:left-4 z-10 bg-white/90 dark:bg-black/80 backdrop-blur px-3 py-1.5 lg:px-4 lg:py-2 rounded-full shadow-lg border border-gray-200 dark:border-white/10">
+                        <span className="text-[10px] lg:text-xs font-bold text-indigo-600 dark:text-indigo-400 flex items-center gap-1">
+                            <Sparkles size={10} className="lg:w-3 lg:h-3" /> My Course Preview
                         </span>
                     </div>
                 </div>
 
-                {/* 2. 대시보드 & 리스트 영역 (오른쪽) */}
-                <div className="w-full md:w-[45%] h-full flex flex-col bg-white dark:bg-[#111] relative overflow-y-auto custom-scrollbar pb-20">
+                {/* 2. 대시보드 & 리스트 영역 (오른쪽/하단) */}
+                <div className="w-full md:w-[45%] h-[50vh] md:h-full flex flex-col bg-white dark:bg-[#111] relative overflow-y-auto custom-scrollbar pb-24 md:pb-20">
                     
                     {/* [섹션 1] 내 활동 요약 (Dashboard) */}
-                    <div className="p-6 border-b border-gray-100 dark:border-white/5">
-                        <h3 className="text-lg font-black mb-4 flex items-center gap-2 text-gray-900 dark:text-white">
-                            <User size={18} className="text-indigo-500"/> Activity Dashboard
+                    <div className="p-4 lg:p-6 border-b border-gray-100 dark:border-white/5">
+                        <h3 className="text-base lg:text-lg font-black mb-3 lg:mb-4 flex items-center gap-1.5 lg:gap-2 text-gray-900 dark:text-white">
+                            <User size={16} className="lg:w-[18px] lg:h-[18px] text-indigo-500"/> Activity Dashboard
                         </h3>
-                        <div className="grid grid-cols-3 gap-3">
-                            <div className="bg-gray-50 dark:bg-[#222] p-4 rounded-2xl text-center border border-gray-100 dark:border-white/5">
-                                <Heart size={20} className="mx-auto mb-1 text-red-500"/>
-                                <div className="text-2xl font-black text-gray-900 dark:text-white">{myPageInfo?.likeCount || 0}</div>
-                                <div className="text-[10px] text-gray-500">찜한 팝업</div>
+                        <div className="grid grid-cols-3 gap-2 lg:gap-3">
+                            <div className="bg-gray-50 dark:bg-[#222] p-3 lg:p-4 rounded-xl lg:rounded-2xl text-center border border-gray-100 dark:border-white/5">
+                                <Heart size={16} className="lg:w-5 lg:h-5 mx-auto mb-1 text-red-500"/>
+                                <div className="text-lg lg:text-2xl font-black text-gray-900 dark:text-white">{myPageInfo?.likeCount || 0}</div>
+                                <div className="text-[9px] lg:text-[10px] text-gray-500 mt-0.5">찜한 팝업</div>
                             </div>
-                            <div className="bg-gray-50 dark:bg-[#222] p-4 rounded-2xl text-center border border-gray-100 dark:border-white/5">
-                                <Ticket size={20} className="mx-auto mb-1 text-indigo-500"/>
-                                <div className="text-2xl font-black text-gray-900 dark:text-white">{myPageInfo?.stampCount || 0}<span className="text-sm text-gray-400 font-normal">/12</span></div>
-                                <div className="text-[10px] text-gray-500">획득 스탬프</div>
+                            <div className="bg-gray-50 dark:bg-[#222] p-3 lg:p-4 rounded-xl lg:rounded-2xl text-center border border-gray-100 dark:border-white/5">
+                                <Ticket size={16} className="lg:w-5 lg:h-5 mx-auto mb-1 text-indigo-500"/>
+                                <div className="text-lg lg:text-2xl font-black text-gray-900 dark:text-white">{myPageInfo?.stampCount || 0}<span className="text-xs lg:text-sm text-gray-400 font-normal">/12</span></div>
+                                <div className="text-[9px] lg:text-[10px] text-gray-500 mt-0.5">획득 스탬프</div>
                             </div>
-                            <div className="bg-gray-50 dark:bg-[#222] p-4 rounded-2xl text-center border border-gray-100 dark:border-white/5">
-                                <MessageCircle size={20} className="mx-auto mb-1 text-green-500"/>
-                                <div className="text-2xl font-black text-gray-900 dark:text-white">{myPageInfo?.reviewCount || 0}</div>
-                                <div className="text-[10px] text-gray-500">리뷰/톡</div>
+                            <div className="bg-gray-50 dark:bg-[#222] p-3 lg:p-4 rounded-xl lg:rounded-2xl text-center border border-gray-100 dark:border-white/5">
+                                <MessageCircle size={16} className="lg:w-5 lg:h-5 mx-auto mb-1 text-green-500"/>
+                                <div className="text-lg lg:text-2xl font-black text-gray-900 dark:text-white">{myPageInfo?.reviewCount || 0}</div>
+                                <div className="text-[9px] lg:text-[10px] text-gray-500 mt-0.5">리뷰/톡</div>
                             </div>
                         </div>
                     </div>
 
                     {/* [섹션 2] 아이템 보관함 (Inventory) */}
-                    <div className="p-6 border-b border-gray-100 dark:border-white/5">
-                        <h3 className="text-lg font-black mb-4 flex items-center gap-2 text-gray-900 dark:text-white">
-                            <Gift size={18} className="text-indigo-500"/> Inventory
+                    <div className="p-4 lg:p-6 border-b border-gray-100 dark:border-white/5">
+                        <h3 className="text-base lg:text-lg font-black mb-3 lg:mb-4 flex items-center gap-1.5 lg:gap-2 text-gray-900 dark:text-white">
+                            <Gift size={16} className="lg:w-[18px] lg:h-[18px] text-indigo-500"/> Inventory
                         </h3>
-                        <div className="space-y-3">
+                        <div className="space-y-2 lg:space-y-3">
                             {/* POP-PASS 카드 */}
-                            <div className={`p-4 rounded-2xl border flex items-center justify-between ${
+                            <div className={`p-3 lg:p-4 rounded-xl lg:rounded-2xl border flex items-center justify-between ${
                                 myPageInfo?.isPremium 
                                 ? "bg-gradient-to-r from-indigo-900 to-purple-900 border-indigo-500 text-white shadow-lg"
                                 : "bg-gray-50 dark:bg-[#222] border-gray-100 dark:border-white/5 text-gray-400"
                             }`}>
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center">
-                                        <Crown size={20} className={myPageInfo?.isPremium ? "text-yellow-400" : "text-gray-400"}/>
+                                <div className="flex items-center gap-2.5 lg:gap-3">
+                                    <div className="w-8 h-8 lg:w-10 lg:h-10 rounded-full bg-white/10 flex items-center justify-center">
+                                        <Crown size={16} className={`lg:w-5 lg:h-5 ${myPageInfo?.isPremium ? "text-yellow-400" : "text-gray-400"}`}/>
                                     </div>
                                     <div>
-                                        <div className="font-bold text-sm">POP-PASS</div>
-                                        <div className="text-xs opacity-70">
+                                        <div className="font-bold text-xs lg:text-sm">POP-PASS</div>
+                                        <div className="text-[10px] lg:text-xs opacity-70 mt-0.5">
                                             {myPageInfo?.isPremium 
                                                 ? `${getDday(myPageInfo?.premiumExpiryDate)}일 남음`
                                                 : "미보유"}
@@ -1089,21 +1079,21 @@ export default function Home() {
                                     </div>
                                 </div>
                                 <Link href="/shop">
-                                    <button className="text-xs px-3 py-1.5 bg-white/20 hover:bg-white/30 rounded-lg transition-colors font-bold">
+                                    <button className="text-[10px] lg:text-xs px-2.5 py-1.5 lg:px-3 lg:py-1.5 bg-white/20 hover:bg-white/30 rounded-lg transition-colors font-bold whitespace-nowrap">
                                         {myPageInfo?.isPremium ? "연장하기" : "구매하기"}
                                     </button>
                                 </Link>
                             </div>
 
                             {/* 확성기 카드 */}
-                            <div className="p-4 rounded-2xl border bg-gray-50 dark:bg-[#222] border-gray-100 dark:border-white/5 flex items-center justify-between">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-                                        <Megaphone size={20} className="text-green-600 dark:text-green-400"/>
+                            <div className="p-3 lg:p-4 rounded-xl lg:rounded-2xl border bg-gray-50 dark:bg-[#222] border-gray-100 dark:border-white/5 flex items-center justify-between">
+                                <div className="flex items-center gap-2.5 lg:gap-3">
+                                    <div className="w-8 h-8 lg:w-10 lg:h-10 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+                                        <Megaphone size={16} className="lg:w-5 lg:h-5 text-green-600 dark:text-green-400"/>
                                     </div>
                                     <div>
-                                        <div className="font-bold text-sm text-gray-900 dark:text-white">메이트 확성기</div>
-                                        <div className="text-xs text-gray-500 dark:text-white/50">보유 수량: {myPageInfo?.megaphoneCount || 0}개</div>
+                                        <div className="font-bold text-xs lg:text-sm text-gray-900 dark:text-white">메이트 확성기</div>
+                                        <div className="text-[10px] lg:text-xs text-gray-500 dark:text-white/50 mt-0.5">보유 수량: {myPageInfo?.megaphoneCount || 0}개</div>
                                     </div>
                                 </div>
                                 <button 
@@ -1115,7 +1105,7 @@ export default function Home() {
                                             if(confirm("확성기가 없습니다. 상점으로 이동할까요?")) router.push("/shop");
                                         }
                                     }}
-                                    className={`text-xs px-3 py-1.5 rounded-lg transition-colors font-bold ${
+                                    className={`text-[10px] lg:text-xs px-2.5 py-1.5 lg:px-3 lg:py-1.5 rounded-lg transition-colors font-bold whitespace-nowrap ${
                                         (myPageInfo?.megaphoneCount || 0) > 0 
                                         ? "bg-indigo-600 text-white hover:bg-indigo-500" 
                                         : "bg-gray-200 text-gray-400 dark:bg-white/5 cursor-not-allowed"
@@ -1128,41 +1118,41 @@ export default function Home() {
                     </div>
 
                     {/* 🔥 [섹션 3] 찜한 팝업 (Wishlist - 실제 연동 완료) */}
-                    <div className="p-6 border-b border-gray-100 dark:border-white/5">
-                        <h3 className="text-lg font-black mb-4 flex items-center gap-2 text-gray-900 dark:text-white">
-                            <Heart size={18} className="text-red-500"/> Wishlist
+                    <div className="p-4 lg:p-6 border-b border-gray-100 dark:border-white/5">
+                        <h3 className="text-base lg:text-lg font-black mb-3 lg:mb-4 flex items-center gap-1.5 lg:gap-2 text-gray-900 dark:text-white">
+                            <Heart size={16} className="lg:w-[18px] lg:h-[18px] text-red-500"/> Wishlist
                         </h3>
                         {myWishlist.length === 0 ? (
-                            <div className="text-center py-8 text-gray-400 text-xs border border-dashed border-gray-200 dark:border-white/10 rounded-xl">
+                            <div className="text-center py-6 lg:py-8 text-gray-400 text-[10px] lg:text-xs border border-dashed border-gray-200 dark:border-white/10 rounded-xl">
                                 아직 찜한 팝업스토어가 없습니다.<br/>
                                 마음에 드는 팝업에 하트를 눌러보세요!
                             </div>
                         ) : (
-                            <div className="grid grid-cols-2 gap-3">
+                            <div className="grid grid-cols-2 gap-2 lg:gap-3">
                                 {myWishlist.map((item, i) => (
-                                    <div key={i} className="relative rounded-xl overflow-hidden aspect-video group cursor-pointer border border-gray-200 dark:border-white/5 bg-gray-100 dark:bg-[#222]">
+                                    <div key={i} className="relative rounded-lg lg:rounded-xl overflow-hidden aspect-video group cursor-pointer border border-gray-200 dark:border-white/5 bg-gray-100 dark:bg-[#222]">
                                             {/* 이미지 (없으면 대체 이미지) */}
                                             {item.popupImage ? (
                                                 <img src={item.popupImage} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"/>
                                             ) : (
                                                 <div className="w-full h-full flex items-center justify-center text-gray-400">
-                                                    <Store size={24} />
+                                                    <Store size={20} className="lg:w-6 lg:h-6" />
                                                 </div>
                                             )}
                                             
                                             {/* 텍스트 오버레이 */}
-                                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent flex flex-col justify-end p-3">
-                                                <span className="text-white text-xs font-bold truncate">{item.popupName}</span>
-                                                <span className="text-white/60 text-[10px] truncate">{item.location}</span>
+                                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent flex flex-col justify-end p-2 lg:p-3">
+                                                <span className="text-white text-[10px] lg:text-xs font-bold truncate">{item.popupName}</span>
+                                                <span className="text-white/60 text-[8px] lg:text-[10px] truncate mt-0.5">{item.location}</span>
                                             </div>
 
                                             {/* 삭제 버튼 (우상단) */}
                                             <button 
                                                 onClick={(e) => handleRemoveWishlist(e, item.popupId)}
-                                                className="absolute top-2 right-2 bg-black/50 backdrop-blur rounded-full p-1.5 text-red-500 hover:bg-red-50 hover:text-white transition-all opacity-0 group-hover:opacity-100" 
+                                                className="absolute top-1.5 right-1.5 lg:top-2 lg:right-2 bg-black/50 backdrop-blur rounded-full p-1 lg:p-1.5 text-red-500 hover:bg-red-500 hover:text-white transition-all opacity-100 md:opacity-0 md:group-hover:opacity-100" 
                                                 title="찜 해제"
                                             >
-                                                <Heart size={12} className="fill-current"/>
+                                                <Heart size={10} className="lg:w-3 lg:h-3 fill-current"/>
                                             </button>
 
                                             {/* 상세보기 링크 (전체 영역) */}
@@ -1174,43 +1164,43 @@ export default function Home() {
                     </div>
 
                     {/* [섹션 4-1] 저장된 코스 목록 (History) */}
-                    <div className="p-6 border-b border-gray-100 dark:border-white/5">
-                        <h3 className="text-lg font-black mb-4 flex items-center gap-2 text-gray-900 dark:text-white">
-                            <FolderOpen size={18} className="text-indigo-500"/> Saved Courses
+                    <div className="p-4 lg:p-6 border-b border-gray-100 dark:border-white/5">
+                        <h3 className="text-base lg:text-lg font-black mb-3 lg:mb-4 flex items-center gap-1.5 lg:gap-2 text-gray-900 dark:text-white">
+                            <FolderOpen size={16} className="lg:w-[18px] lg:h-[18px] text-indigo-500"/> Saved Courses
                         </h3>
                         
                         {savedCourses.length === 0 ? (
-                            <div className="text-center text-gray-400 py-4 text-xs">
+                            <div className="text-center text-gray-400 py-3 lg:py-4 text-[10px] lg:text-xs">
                                 아직 저장된 코스가 없습니다.
                             </div>
                         ) : (
                             <div className="space-y-2">
                                 {savedCourses.map((course: any, idx: number) => (
-                                    <div key={idx} className="flex items-center justify-between p-3 rounded-xl border bg-gray-50 dark:bg-[#222] border-gray-200 dark:border-white/5 hover:border-indigo-500 transition-colors cursor-pointer group"
+                                    <div key={idx} className="flex items-center justify-between p-2.5 lg:p-3 rounded-lg lg:rounded-xl border bg-gray-50 dark:bg-[#222] border-gray-200 dark:border-white/5 hover:border-indigo-500 transition-colors cursor-pointer group"
                                      onClick={() => handleLoadCourse(course.courseData)}>
-                                    <div className="flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-bold text-xs">
+                                    <div className="flex items-center gap-2 lg:gap-3">
+                                            <div className="w-6 h-6 lg:w-8 lg:h-8 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-bold text-[10px] lg:text-xs">
                                                 {idx + 1}
                                             </div>
                                             <div>
-                                                <div className="text-sm font-bold text-gray-900 dark:text-white">{course.courseName}</div>
-                                                <div className="text-xs text-gray-500">클릭하여 불러오기</div>
+                                                <div className="text-xs lg:text-sm font-bold text-gray-900 dark:text-white">{course.courseName}</div>
+                                                <div className="text-[9px] lg:text-xs text-gray-500 mt-0.5">클릭하여 불러오기</div>
                                             </div>
                                     </div>
                                     
                                     {/* 삭제 버튼 추가 */}
                                     <button 
                                         onClick={(e) => handleDeleteCourse(e, course.id)}
-                                        className="p-2 text-gray-400 hover:text-red-500 transition-colors rounded-full hover:bg-red-50 dark:hover:bg-red-900/20"
+                                        className="p-1.5 lg:p-2 text-gray-400 hover:text-red-500 transition-colors rounded-full hover:bg-red-50 dark:hover:bg-red-900/20"
                                         title="삭제하기"
                                     >
-                                        <Trash2 size={16}/>
+                                        <Trash2 size={14} className="lg:w-4 lg:h-4"/>
                                     </button>
                                     </div>
                                 ))}
                                 {!user.isPremium && savedCourses.length >= 1 && (
-                                    <div className="mt-2 text-xs text-center text-red-500 bg-red-50 dark:bg-red-900/10 p-2 rounded-lg">
-                                        🔒 무료 회원은 코스를 1개만 저장할 수 있습니다.<br/>새로 저장하면 이 코스는 삭제됩니다.
+                                    <div className="mt-2 text-[9px] lg:text-xs text-center text-red-500 bg-red-50 dark:bg-red-900/10 p-1.5 lg:p-2 rounded-lg">
+                                        🔒 무료 회원은 코스를 1개만 저장할 수 있습니다.<br className="hidden md:block"/>새로 저장하면 이 코스는 삭제됩니다.
                                     </div>
                                 )}
                             </div>
@@ -1218,13 +1208,13 @@ export default function Home() {
                     </div>
 
                     {/* [섹션 4-2] 내 코스 관리 (기존 DND 기능) */}
-                    <div className="p-6">
-                        <h3 className="text-lg font-black mb-4 flex items-center gap-2 text-gray-900 dark:text-white">
-                            <Route size={18} className="text-indigo-500"/> Current Plan
+                    <div className="p-4 lg:p-6">
+                        <h3 className="text-base lg:text-lg font-black mb-3 lg:mb-4 flex items-center gap-1.5 lg:gap-2 text-gray-900 dark:text-white">
+                            <Route size={16} className="lg:w-[18px] lg:h-[18px] text-indigo-500"/> Current Plan
                         </h3>
                         
                         {myCourseItems.length === 0 && (
-                            <div className="text-center text-gray-400 py-6 border-2 border-dashed border-gray-200 dark:border-white/10 rounded-xl mb-4 text-xs">
+                            <div className="text-center text-gray-400 py-4 lg:py-6 border-2 border-dashed border-gray-200 dark:border-white/10 rounded-lg lg:rounded-xl mb-3 lg:mb-4 text-[10px] lg:text-xs">
                                 현재 편집 중인 코스가 없습니다.<br/>위 목록에서 불러오거나 새로 추가하세요!
                             </div>
                         )}
@@ -1247,10 +1237,10 @@ export default function Home() {
                                                     const newItems = myCourseItems.filter(i => i.id !== place.id);
                                                     setMyCourseItems(newItems);
                                                 }}
-                                                className="absolute -top-2 -right-2 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-md"
+                                                className="absolute -top-1.5 -right-1.5 lg:-top-2 lg:-right-2 bg-red-500 text-white p-1 rounded-full opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity shadow-md"
                                                 title="삭제"
                                             >
-                                                <X size={12}/>
+                                                <X size={10} className="lg:w-3 lg:h-3"/>
                                             </button>
                                         </div>
                                     ))}
@@ -1260,13 +1250,13 @@ export default function Home() {
 
                         <button 
                             onClick={() => setIsAddPlaceOpen(true)}
-                            className="w-full py-3 mt-4 border-2 border-dashed border-gray-300 dark:border-white/20 rounded-xl text-gray-500 dark:text-white/50 hover:border-indigo-500 hover:text-indigo-500 transition-colors flex items-center justify-center gap-2 font-bold text-sm"
+                            className="w-full py-2.5 lg:py-3 mt-3 lg:mt-4 border-2 border-dashed border-gray-300 dark:border-white/20 rounded-lg lg:rounded-xl text-gray-500 dark:text-white/50 hover:border-indigo-500 hover:text-indigo-500 transition-colors flex items-center justify-center gap-1.5 lg:gap-2 font-bold text-xs lg:text-sm"
                         >
-                            <PlusCircle size={16} /> 장소 추가하기
+                            <PlusCircle size={14} className="lg:w-4 lg:h-4"/> 장소 추가하기
                         </button>
 
-                        <button onClick={handleSaveCourse} className="w-full py-4 mt-4 bg-gray-900 hover:bg-black text-white font-bold rounded-xl shadow-lg transition-transform hover:scale-105 active:scale-95 flex items-center justify-center gap-2 dark:bg-white dark:text-black dark:hover:bg-gray-200">
-                            <Save size={18}/> <span>현재 코스 저장하기</span>
+                        <button onClick={handleSaveCourse} className="w-full py-3 lg:py-4 mt-3 lg:mt-4 bg-gray-900 hover:bg-black text-white font-bold rounded-lg lg:rounded-xl shadow-lg transition-transform hover:scale-105 active:scale-95 flex items-center justify-center gap-1.5 lg:gap-2 dark:bg-white dark:text-black dark:hover:bg-gray-200 text-xs lg:text-base">
+                            <Save size={14} className="lg:w-[18px] lg:h-[18px]"/> <span>현재 코스 저장하기</span>
                         </button>
                     </div>
 
@@ -1276,21 +1266,21 @@ export default function Home() {
                                 initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
                                 className="absolute inset-0 bg-white dark:bg-[#111] z-50 flex flex-col"
                             >
-                                <div className="p-4 border-b border-gray-100 dark:border-white/5 flex justify-between items-center">
-                                    <h3 className="font-bold text-lg text-gray-900 dark:text-white">장소 추가하기</h3>
-                                    <button onClick={() => setIsAddPlaceOpen(false)} className="p-2 bg-gray-100 dark:bg-white/10 rounded-full">
-                                        <X size={20} />
+                                <div className="p-3 lg:p-4 border-b border-gray-100 dark:border-white/5 flex justify-between items-center">
+                                    <h3 className="font-bold text-base lg:text-lg text-gray-900 dark:text-white">장소 추가하기</h3>
+                                    <button onClick={() => setIsAddPlaceOpen(false)} className="p-1.5 lg:p-2 bg-gray-100 dark:bg-white/10 rounded-full">
+                                        <X size={16} className="lg:w-5 lg:h-5"/>
                                     </button>
                                 </div>
-                                <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+                                <div className="flex-1 overflow-y-auto p-3 lg:p-4 custom-scrollbar">
                                     {allPopups.map((popup) => (
                                         <div key={popup.id} onClick={() => handleAddPlace(popup)} 
-                                             className="flex justify-between items-center p-4 mb-2 border border-gray-100 dark:border-white/5 rounded-xl cursor-pointer hover:bg-indigo-50 dark:hover:bg-indigo-900/20 hover:border-indigo-200 transition-colors">
+                                             className="flex justify-between items-center p-3 lg:p-4 mb-2 border border-gray-100 dark:border-white/5 rounded-lg lg:rounded-xl cursor-pointer hover:bg-indigo-50 dark:hover:bg-indigo-900/20 hover:border-indigo-200 transition-colors">
                                             <div>
-                                                <h4 className="font-bold text-sm text-gray-900 dark:text-white">{popup.name}</h4>
-                                                <p className="text-xs text-gray-500 dark:text-white/50">{popup.location}</p>
+                                                <h4 className="font-bold text-xs lg:text-sm text-gray-900 dark:text-white">{popup.name}</h4>
+                                                <p className="text-[10px] lg:text-xs text-gray-500 dark:text-white/50 mt-0.5">{popup.location}</p>
                                             </div>
-                                            <PlusCircle size={18} className="text-indigo-500" />
+                                            <PlusCircle size={16} className="lg:w-[18px] lg:h-[18px] text-indigo-500" />
                                         </div>
                                     ))}
                                 </div>
@@ -1303,32 +1293,32 @@ export default function Home() {
 
         {currentTab === "MATE" && (
             <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} 
-                        className="min-h-[80vh] rounded-[2.5rem] border mb-24 relative overflow-hidden backdrop-blur-xl transition-colors bg-white/80 border-gray-200 dark:bg-black/80 dark:border-white/10 shadow-2xl">
+                        className="min-h-[80vh] rounded-[2rem] lg:rounded-[2.5rem] border mb-24 relative overflow-hidden backdrop-blur-xl transition-colors bg-white/80 border-gray-200 dark:bg-black/80 dark:border-white/10 shadow-2xl">
                 <MateBoard user={user} />
             </motion.div>
         )}
 
       </div>
 
-      <footer className="relative z-10 border-t py-12 md:py-20 rounded-t-[3rem] mt-12 pb-32 backdrop-blur-xl transition-colors
+      <footer className="relative z-10 border-t py-8 md:py-12 lg:py-20 rounded-t-[2rem] lg:rounded-t-[3rem] mt-8 lg:mt-12 pb-32 backdrop-blur-xl transition-colors
                         bg-gray-100 border-gray-300 
                         dark:bg-black/80 dark:border-white/10">
-        <div className="max-w-[1600px] mx-auto px-8 grid grid-cols-1 md:grid-cols-4 gap-12">
-            <div className="col-span-1 md:col-span-2">
-                <h2 className="text-3xl font-black mb-4 text-gray-900 dark:text-white">POP-SPOT<span className="text-primary">.</span></h2>
-                <p className="text-gray-500 dark:text-white/60 max-w-sm mb-6 leading-relaxed text-sm">서울의 모든 팝업스토어를 연결합니다. <br/>데이터 기반의 스마트한 오프라인 경험을 제공합니다.</p>
-                <div className="flex gap-4">
-                    <a href="#" className="p-3 rounded-full transition-colors bg-white hover:bg-primary hover:text-black dark:bg-white/5">
-                        <Instagram size={20} className="text-gray-700 dark:text-white"/>
+        <div className="max-w-[1600px] mx-auto px-6 lg:px-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-12">
+            <div className="col-span-1 sm:col-span-2">
+                <h2 className="text-2xl lg:text-3xl font-black mb-3 lg:mb-4 text-gray-900 dark:text-white">POP-SPOT<span className="text-primary">.</span></h2>
+                <p className="text-gray-500 dark:text-white/60 max-w-sm mb-4 lg:mb-6 leading-relaxed text-xs lg:text-sm">서울의 모든 팝업스토어를 연결합니다. <br className="hidden md:block"/>데이터 기반의 스마트한 오프라인 경험을 제공합니다.</p>
+                <div className="flex gap-3 lg:gap-4">
+                    <a href="#" className="p-2.5 lg:p-3 rounded-full transition-colors bg-white hover:bg-primary hover:text-black dark:bg-white/5">
+                        <Instagram size={18} className="lg:w-5 lg:h-5 text-gray-700 dark:text-white"/>
                     </a>
-                    <a href="#" className="p-3 rounded-full transition-colors bg-white hover:bg-primary hover:text-black dark:bg-white/5">
-                        <Twitter size={20} className="text-gray-700 dark:text-white"/>
+                    <a href="#" className="p-2.5 lg:p-3 rounded-full transition-colors bg-white hover:bg-primary hover:text-black dark:bg-white/5">
+                        <Twitter size={18} className="lg:w-5 lg:h-5 text-gray-700 dark:text-white"/>
                     </a>
                 </div>
             </div>
             <div>
-                <h4 className="font-bold mb-6 uppercase tracking-wider text-sm text-gray-900 dark:text-white">Platform</h4>
-                <ul className="space-y-3 text-sm text-gray-500 dark:text-white/60">
+                <h4 className="font-bold mb-4 lg:mb-6 uppercase tracking-wider text-xs lg:text-sm text-gray-900 dark:text-white">Platform</h4>
+                <ul className="space-y-2 lg:space-y-3 text-xs lg:text-sm text-gray-500 dark:text-white/60">
                     <li><a href="#" className="hover:text-primary transition-colors">지도 보기</a></li>
                     <li><a href="#" className="hover:text-primary transition-colors">팝업 캘린더</a></li>
                     <li><a href="#" className="hover:text-primary transition-colors">AI 혼잡도 분석</a></li>
@@ -1336,8 +1326,8 @@ export default function Home() {
                 </ul>
             </div>
             <div>
-                <h4 className="font-bold mb-6 uppercase tracking-wider text-sm text-gray-900 dark:text-white">Partners</h4>
-                <ul className="space-y-3 text-sm text-gray-500 dark:text-white/60">
+                <h4 className="font-bold mb-4 lg:mb-6 uppercase tracking-wider text-xs lg:text-sm text-gray-900 dark:text-white">Partners</h4>
+                <ul className="space-y-2 lg:space-y-3 text-xs lg:text-sm text-gray-500 dark:text-white/60">
                     <li><a href="#" className="hover:text-primary transition-colors">파트너 등록</a></li>
                     <li><a href="#" className="hover:text-primary transition-colors">비즈니스 문의</a></li>
                     <li><a href="#" className="hover:text-primary transition-colors">광고 안내</a></li>
@@ -1345,40 +1335,41 @@ export default function Home() {
             </div>
         </div>
 
-        <div className="mt-16 pt-8 border-t border-gray-300 dark:border-white/10 text-center max-w-[1200px] mx-auto px-6">
-            <div className="bg-gray-200 dark:bg-white/5 rounded-xl p-6 text-xs text-gray-600 dark:text-white/40 leading-relaxed border border-gray-300 dark:border-white/5">
-                <p className="font-bold mb-2 text-gray-900 dark:text-white text-sm">⚠️ [포트폴리오 안내] 본 사이트는 상업적 목적이 없는 개인 개발용 포트폴리오입니다.</p>
-                <p className="mb-2">
-                    제공되는 모든 팝업 정보, 이미지, 혼잡도 데이터는 학습 목적으로 크롤링되거나 시뮬레이션된 데이터이며 실제와 다를 수 있습니다.<br/>
+        <div className="mt-10 lg:mt-16 pt-6 lg:pt-8 border-t border-gray-300 dark:border-white/10 text-center max-w-[1200px] mx-auto px-4 lg:px-6">
+            <div className="bg-gray-200 dark:bg-white/5 rounded-lg lg:rounded-xl p-4 lg:p-6 text-[10px] lg:text-xs text-gray-600 dark:text-white/40 leading-relaxed border border-gray-300 dark:border-white/5">
+                <p className="font-bold mb-1.5 lg:mb-2 text-gray-900 dark:text-white text-xs lg:text-sm">⚠️ [포트폴리오 안내] 본 사이트는 상업적 목적이 없는 개인 개발용 포트폴리오입니다.</p>
+                <p className="mb-1.5 lg:mb-2">
+                    제공되는 모든 팝업 정보, 이미지, 혼잡도 데이터는 학습 목적으로 크롤링되거나 시뮬레이션된 데이터이며 실제와 다를 수 있습니다.<br className="hidden md:block"/>
                     실제 티켓 예매 및 결제는 이루어지지 않으며, 금전적 거래를 요구하지 않습니다.
                 </p>
                 <p>
                     콘텐츠와 관련하여 저작권 및 기타 문제가 있을 경우, 아래 이메일로 연락 주시면 즉시 삭제 및 수정 조치하겠습니다.
                 </p>
-                <p className="mt-4 font-bold text-indigo-600 dark:text-indigo-400">Contact: [reo4321@naver.com]</p>
-                <p className="mt-4 opacity-50">© 2026 POP-SPOT Portfolio Project. All rights reserved.</p>
+                <p className="mt-3 lg:mt-4 font-bold text-indigo-600 dark:text-indigo-400">Contact: [reo4321@naver.com]</p>
+                <p className="mt-3 lg:mt-4 opacity-50">© 2026 POP-SPOT Portfolio Project. All rights reserved.</p>
             </div>
         </div>
       </footer>
 
-      <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50">
-        <div className="flex items-center gap-2 rounded-full p-2 px-6 shadow-2xl backdrop-blur-xl border transition-colors
+      {/* 모바일 화면에서는 flex-wrap 방지를 위해 넘치는 항목 숨김/축소 처리 */}
+      <div className="fixed bottom-4 md:bottom-8 left-1/2 -translate-x-1/2 z-50 w-[95%] max-w-[400px] md:max-w-max md:w-auto">
+        <div className="flex items-center justify-between md:justify-center gap-1 md:gap-2 rounded-full p-1.5 md:p-2 px-3 md:px-6 shadow-2xl backdrop-blur-xl border transition-colors
                         bg-white/80 border-gray-200 
                         dark:bg-black/70 dark:border-white/10">
-            <DockItem icon={<MapIcon size={20} />} label="지도" isActive={currentTab === "MAP"} onClick={() => handleTabChange("MAP")} />
-            <div className="w-px h-4 bg-gray-300 dark:bg-white/10 mx-1"></div>
-            <DockItem icon={<Route size={20} />} label="코스" isActive={currentTab === "COURSE"} onClick={() => handleTabChange("COURSE")} />
-            <Link href="/shop">
-                <button className={`flex flex-col items-center justify-center w-14 h-14 rounded-full transition-all duration-300 text-gray-400 hover:text-gray-900 hover:bg-gray-100 dark:text-white/60 dark:hover:text-white dark:hover:bg-white/10`}>
-                    <ShoppingBag size={20} />
+            <DockItem icon={<MapIcon size={20} className="w-4 h-4 md:w-5 md:h-5"/>} label="지도" isActive={currentTab === "MAP"} onClick={() => handleTabChange("MAP")} />
+            <div className="w-px h-3 md:h-4 bg-gray-300 dark:bg-white/10 mx-0 md:mx-1 shrink-0"></div>
+            <DockItem icon={<Route size={20} className="w-4 h-4 md:w-5 md:h-5"/>} label="코스" isActive={currentTab === "COURSE"} onClick={() => handleTabChange("COURSE")} />
+            <Link href="/shop" className="shrink-0">
+                <button className={`flex flex-col items-center justify-center w-10 h-10 md:w-14 md:h-14 rounded-full transition-all duration-300 text-gray-400 hover:text-gray-900 hover:bg-gray-100 dark:text-white/60 dark:hover:text-white dark:hover:bg-white/10`}>
+                    <ShoppingBag size={20} className="w-4 h-4 md:w-5 md:h-5"/>
                 </button>
             </Link>
-            <DockItem icon={<Ticket size={20} />} label="패스포트" isActive={currentTab === "PASSPORT"} onClick={() => handleTabChange("PASSPORT")} />
-            <div className="w-px h-4 bg-gray-300 dark:bg-white/10 mx-1"></div>
-            <DockItem icon={<User size={20} />} label="MY" isActive={currentTab === "MY"} onClick={() => handleTabChange("MY")} />
+            <DockItem icon={<Ticket size={20} className="w-4 h-4 md:w-5 md:h-5"/>} label="여권" isActive={currentTab === "PASSPORT"} onClick={() => handleTabChange("PASSPORT")} />
+            <div className="w-px h-3 md:h-4 bg-gray-300 dark:bg-white/10 mx-0 md:mx-1 shrink-0"></div>
+            <DockItem icon={<User size={20} className="w-4 h-4 md:w-5 md:h-5"/>} label="MY" isActive={currentTab === "MY"} onClick={() => handleTabChange("MY")} />
             
-            <div className="w-px h-4 bg-gray-300 dark:bg-white/10 mx-1"></div>
-            <DockItem icon={<Users size={20} className={currentTab === "MATE" ? "text-indigo-500" : ""} />} label="동행" isActive={currentTab === "MATE"} onClick={() => handleTabChange("MATE")} />
+            <div className="w-px h-3 md:h-4 bg-gray-300 dark:bg-white/10 mx-0 md:mx-1 shrink-0"></div>
+            <DockItem icon={<Users size={20} className={`w-4 h-4 md:w-5 md:h-5 ${currentTab === "MATE" ? "text-indigo-500" : ""}`} />} label="동행" isActive={currentTab === "MATE"} onClick={() => handleTabChange("MATE")} />
         </div>
       </div>
 
@@ -1388,41 +1379,41 @@ export default function Home() {
             <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-black/50 dark:bg-black/90 backdrop-blur-xl" onClick={() => setIsModalOpen(false)}></motion.div>
                 <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} transition={{ duration: 0.3 }} 
-                            className="relative w-full max-w-5xl h-[85vh] rounded-[2.5rem] p-8 flex flex-col shadow-2xl overflow-hidden border transition-colors bg-white border-gray-200 dark:bg-[#0a0a0a] dark:border-white/10">
-                    <div className="flex justify-between items-center mb-8 pb-6 border-b border-gray-200 dark:border-white/5">
+                            className="relative w-full max-w-5xl h-[85vh] rounded-[2rem] lg:rounded-[2.5rem] p-5 lg:p-8 flex flex-col shadow-2xl overflow-hidden border transition-colors bg-white border-gray-200 dark:bg-[#0a0a0a] dark:border-white/10">
+                    <div className="flex justify-between items-center mb-6 lg:mb-8 pb-4 lg:pb-6 border-b border-gray-200 dark:border-white/5">
                         <div>
-                        <h2 className="text-4xl font-black italic tracking-tighter text-gray-900 dark:text-white">ALL TRENDING<span className="text-primary text-5xl animate-pulse">.</span></h2>
-                        <p className="text-sm text-gray-500 dark:text-white/60 mt-2">서울에서 가장 핫한 팝업스토어 실시간 랭킹</p>
+                        <h2 className="text-2xl lg:text-4xl font-black italic tracking-tighter text-gray-900 dark:text-white">ALL TRENDING<span className="text-primary text-3xl lg:text-5xl animate-pulse">.</span></h2>
+                        <p className="text-[10px] lg:text-sm text-gray-500 dark:text-white/60 mt-1 lg:mt-2">서울에서 가장 핫한 팝업스토어 실시간 랭킹</p>
                         </div>
-                        <button onClick={() => setIsModalOpen(false)} className="p-3 rounded-full transition-colors group bg-gray-100 hover:bg-gray-200 dark:bg-white/5 dark:hover:bg-white/20">
-                            <X size={24} className="text-gray-900 dark:text-white group-hover:rotate-90 transition-transform duration-300"/>
+                        <button onClick={() => setIsModalOpen(false)} className="p-2 lg:p-3 rounded-full transition-colors group bg-gray-100 hover:bg-gray-200 dark:bg-white/5 dark:hover:bg-white/20">
+                            <X size={20} className="lg:w-6 lg:h-6 text-gray-900 dark:text-white group-hover:rotate-90 transition-transform duration-300"/>
                         </button>
                     </div>
-                    <div className="flex-1 overflow-y-auto custom-scrollbar px-2">
+                    <div className="flex-1 overflow-y-auto custom-scrollbar px-1 lg:px-2">
                         {allPopups.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center h-full text-gray-500 dark:text-white/60 space-y-4">
-                                <div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full mb-2"></div>
-                                <span className="text-sm tracking-widest uppercase">Fetching Live Data...</span>
+                            <div className="flex flex-col items-center justify-center h-full text-gray-500 dark:text-white/60 space-y-3 lg:space-y-4">
+                                <div className="animate-spin w-6 h-6 lg:w-8 lg:h-8 border-2 border-primary border-t-transparent rounded-full mb-1 lg:mb-2"></div>
+                                <span className="text-xs lg:text-sm tracking-widest uppercase">Fetching Live Data...</span>
                             </div>
                         ) : (
-                            <motion.div layout className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <motion.div layout className="grid grid-cols-1 md:grid-cols-2 gap-3 lg:gap-4">
                                 <AnimatePresence>
                                 {allPopups.map((popup, idx) => (
                                     <Link href={`/popup/${popup.id}`} key={popup.id} onClick={() => setIsModalOpen(false)}>
                                         <motion.div layout initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.3 }} 
-                                                    className="relative flex items-center justify-between p-5 rounded-2xl transition-all duration-300 group hover:translate-y-[-2px] hover:shadow-lg border bg-white border-gray-200 hover:border-primary/50 dark:bg-[#111] dark:bg-gradient-to-br dark:from-white/5 dark:to-transparent dark:border-white/5">
-                                        <div className="flex items-center gap-5">
-                                                <div className="w-12 text-center">
-                                                    <span className={`text-3xl font-black italic tracking-tighter ${idx < 3 ? 'text-transparent bg-clip-text bg-gradient-to-br from-primary to-white drop-shadow-md' : 'text-gray-300 dark:text-white/20'}`}>{idx + 1}</span>
+                                                    className="relative flex items-center justify-between p-4 lg:p-5 rounded-xl lg:rounded-2xl transition-all duration-300 group hover:translate-y-[-2px] hover:shadow-lg border bg-white border-gray-200 hover:border-primary/50 dark:bg-[#111] dark:bg-gradient-to-br dark:from-white/5 dark:to-transparent dark:border-white/5">
+                                        <div className="flex items-center gap-3 lg:gap-5">
+                                                <div className="w-8 lg:w-12 text-center">
+                                                    <span className={`text-xl lg:text-3xl font-black italic tracking-tighter ${idx < 3 ? 'text-transparent bg-clip-text bg-gradient-to-br from-primary to-white drop-shadow-md' : 'text-gray-300 dark:text-white/20'}`}>{idx + 1}</span>
                                                 </div>
                                                 <div>
-                                                    <span className="font-bold text-lg block mb-1 transition-colors duration-300 truncate max-w-[200px] md:max-w-[280px] text-gray-900 group-hover:text-primary dark:text-white">{popup.name}</span>
-                                                    <span className="text-xs flex items-center gap-1 text-gray-500 dark:text-white/60"><MapPin size={12}/> {popup.location}</span>
+                                                    <span className="font-bold text-sm lg:text-lg block mb-0.5 lg:mb-1 transition-colors duration-300 truncate max-w-[150px] md:max-w-[200px] lg:max-w-[280px] text-gray-900 group-hover:text-primary dark:text-white">{popup.name}</span>
+                                                    <span className="text-[10px] lg:text-xs flex items-center gap-1 text-gray-500 dark:text-white/60"><MapPin size={10} className="lg:w-3 lg:h-3"/> {popup.location}</span>
                                                 </div>
                                         </div>
-                                        <div className="flex flex-col items-end gap-2 pl-4">
-                                                <div className="text-[10px] flex items-center gap-1 px-2 py-1 rounded-md bg-gray-100 text-gray-500 dark:bg-black/30 dark:text-white/60"><Users size={10}/> {popup.viewCount || 0}</div>
-                                                <span className={`text-[11px] px-3 py-1.5 rounded-full border font-bold whitespace-nowrap shrink-0 tracking-wider ${popup.status === '혼잡' ? 'border-secondary/50 text-secondary bg-secondary/10' : 'border-primary/50 text-primary bg-primary/10'}`}>{popup.status || '영업중'}</span>
+                                        <div className="flex flex-col items-end gap-1.5 lg:gap-2 pl-2 lg:pl-4">
+                                                <div className="text-[9px] lg:text-[10px] flex items-center gap-1 px-1.5 py-0.5 lg:px-2 lg:py-1 rounded-md bg-gray-100 text-gray-500 dark:bg-black/30 dark:text-white/60"><Users size={8} className="lg:w-2.5 lg:h-2.5"/> {popup.viewCount || 0}</div>
+                                                <span className={`text-[9px] lg:text-[11px] px-2 py-1 lg:px-3 lg:py-1.5 rounded-full border font-bold whitespace-nowrap shrink-0 tracking-wider ${popup.status === '혼잡' ? 'border-secondary/50 text-secondary bg-secondary/10' : 'border-primary/50 text-primary bg-primary/10'}`}>{popup.status || '영업중'}</span>
                                         </div>
                                         </motion.div>
                                     </Link>
@@ -1460,13 +1451,13 @@ export default function Home() {
 
 function DockItem({ icon, label, isActive, onClick }: any) {
   return (
-    <button onClick={onClick} className={`flex flex-col items-center justify-center w-14 h-14 rounded-full transition-all duration-300 ${
+    <button onClick={onClick} className={`flex flex-col items-center justify-center w-10 h-10 md:w-14 md:h-14 rounded-full transition-all duration-300 shrink-0 ${
         isActive 
         ? "bg-gray-900 text-white scale-110 shadow-lg dark:bg-white dark:text-black" 
         : "text-gray-400 hover:text-gray-900 hover:bg-gray-100 dark:text-white/60 dark:hover:text-white dark:hover:bg-white/10"
     }`}>
       {icon}
-      {isActive && <span className="text-[9px] font-bold mt-0.5">{label}</span>}
+      {isActive && <span className="text-[8px] md:text-[9px] font-bold mt-0.5">{label}</span>}
     </button>
   );
 }
