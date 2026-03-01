@@ -29,22 +29,57 @@ export default function KakaoRoadview({ lat, lng, name }: KakaoRoadviewProps) {
           rv.setPanoId(panoId, position);
 
           // ✅ RoadviewCustomOverlay는 존재하지 않는 생성자이므로 CustomOverlay 사용
+          // 🔥 [수정] 모바일과 PC에서 오버레이 크기가 다르게 보이도록 CSS 미디어 쿼리를 적용했습니다!
           const content = `
-            <div style="
-              padding: 10px 16px;
-              background: #ffeb33;
-              border-radius: 16px;
-              border: 3px solid #000;
-              box-shadow: 0 8px 24px rgba(0,0,0,0.5);
-              display: flex;
-              align-items: center;
-              gap: 8px;
-              transform: translateY(-60px);
-            ">
-              <div style="width: 10px; height: 10px; background: red; border-radius: 50%; animation: pulse 1.5s infinite;"></div>
-              <span style="color: #000; font-weight: 900; font-size: 15px; white-space: nowrap;">${name}</span>
+            <div class="roadview-overlay">
+              <div class="pulse-dot"></div>
+              <span class="overlay-text">${name}</span>
             </div>
             <style>
+              .roadview-overlay {
+                background: #ffeb33;
+                border-radius: 12px;
+                border: 2px solid #000;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                transform: translateY(-40px);
+                padding: 6px 10px;
+              }
+              .pulse-dot {
+                width: 8px; 
+                height: 8px; 
+                background: red; 
+                border-radius: 50%; 
+                animation: pulse 1.5s infinite;
+              }
+              .overlay-text {
+                color: #000; 
+                font-weight: 900; 
+                font-size: 12px; 
+                white-space: nowrap;
+              }
+              
+              /* MD(태블릿/PC) 사이즈 이상일 때 커지는 반응형 로직 */
+              @media (min-width: 768px) {
+                .roadview-overlay {
+                  padding: 10px 16px;
+                  border-radius: 16px;
+                  border-width: 3px;
+                  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+                  gap: 8px;
+                  transform: translateY(-60px);
+                }
+                .pulse-dot { 
+                  width: 10px; 
+                  height: 10px; 
+                }
+                .overlay-text { 
+                  font-size: 15px; 
+                }
+              }
+
               @keyframes pulse {
                 0% { transform: scale(1); opacity: 1; }
                 50% { transform: scale(1.4); opacity: 0.7; }
@@ -67,20 +102,24 @@ export default function KakaoRoadview({ lat, lng, name }: KakaoRoadviewProps) {
 
   if (isError) {
     return (
-      <div className="w-full h-full bg-gray-900 flex flex-col items-center justify-center text-gray-400 p-6 text-center">
-        <AlertCircle size={48} className="mb-4 text-red-500 opacity-80" />
-        <p className="text-lg font-bold">로드뷰를 표시할 수 없는 구역입니다.</p>
-        <p className="text-sm opacity-60 mt-1">골목 깊숙한 곳이나 실내 장소일 수 있습니다.</p>
+      // 🔥 [수정] 에러창 반응형 적용 (최소 높이 보장, 패딩 및 폰트 사이즈 조정)
+      <div className="w-full h-full min-h-[200px] md:min-h-[300px] bg-gray-900 flex flex-col items-center justify-center text-gray-400 p-4 md:p-6 text-center rounded-2xl md:rounded-3xl overflow-hidden">
+        <AlertCircle className="w-8 h-8 md:w-12 md:h-12 mb-2 md:mb-4 text-red-500 opacity-80" />
+        <p className="text-sm md:text-lg font-bold">로드뷰를 표시할 수 없는 구역입니다.</p>
+        <p className="text-[10px] md:text-sm opacity-60 mt-0.5 md:mt-1">골목 깊숙한 곳이나 실내 장소일 수 있습니다.</p>
       </div>
     );
   }
 
   return (
-    <div className="w-full h-full relative">
-      <div ref={containerRef} className="w-full h-full" />
-      <div className="absolute top-4 left-4 z-10 bg-yellow-400 text-black px-3 py-1 rounded-full text-[10px] font-black shadow-xl flex items-center gap-1">
-        <MapPin size={10} /> KAKAO STREET VIEW
+    // 🔥 [수정] 정상 로드뷰 반응형 적용 (최소 높이 보장, 터치 아웃라인 제거, 뱃지 사이즈 조절)
+    <div className="w-full h-full min-h-[250px] md:min-h-[350px] relative rounded-2xl md:rounded-3xl overflow-hidden">
+      <div ref={containerRef} className="w-full h-full outline-none" />
+      <div className="absolute top-3 md:top-4 left-3 md:left-4 z-10 bg-yellow-400 text-black px-2 md:px-3 py-1 rounded-full text-[8px] md:text-[10px] font-black shadow-xl flex items-center gap-1">
+        <MapPin className="w-2.5 h-2.5 md:w-3 md:h-3" /> KAKAO STREET VIEW
       </div>
+      {/* 지도 위를 덮는 얇은 테두리 (디자인 일체감) */}
+      <div className="absolute inset-0 pointer-events-none border border-white/10 rounded-2xl md:rounded-3xl"></div>
     </div>
   );
 }

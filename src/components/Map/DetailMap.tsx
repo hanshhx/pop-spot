@@ -44,10 +44,12 @@ export default function DetailMap({ latitude, longitude }: DetailMapProps) {
   }, [latitude, longitude]);
 
   return (
-    <div className="w-full h-full bg-gray-800 relative">
-      <div ref={mapRef} className="w-full h-full" />
+    // 🔥 반응형 최적화: 최소 높이 보장 및 모서리 둥글기를 모바일/PC 환경에 맞게 유동적으로 적용
+    <div className="w-full h-full min-h-[250px] md:min-h-[350px] bg-gray-800 relative rounded-2xl md:rounded-3xl overflow-hidden">
+      {/* outline-none을 추가하여 모바일 터치 시 포커스 테두리 발생 방지 */}
+      <div ref={mapRef} className="w-full h-full outline-none" />
       {/* 지도 위를 덮는 얇은 테두리 (디자인) */}
-      <div className="absolute inset-0 pointer-events-none border border-white/10"></div>
+      <div className="absolute inset-0 pointer-events-none border border-white/10 rounded-2xl md:rounded-3xl"></div>
     </div>
   );
 }

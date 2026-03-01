@@ -23,12 +23,18 @@ interface CongestionChartProps {
 
 const CongestionChart: React.FC<CongestionChartProps> = ({ data }) => {
   if (!data || data.length === 0) {
-    return <div className="text-center p-4">데이터 로딩 중...</div>;
+    // 🔥 반응형 및 다크모드 텍스트 적용
+    return <div className="text-center p-4 text-xs md:text-sm text-gray-500 dark:text-white/60">데이터 로딩 중...</div>;
   }
 
   return (
-    <div className="w-full h-64 bg-white rounded-xl shadow-lg p-4">
-      <h3 className="text-lg font-bold text-gray-800 mb-4">📈 12시간 혼잡도 예측</h3>
+    // 🔥 [수정] 모바일/PC 높이 및 패딩 다르게 적용 (h-52 md:h-64 lg:h-72), 다크모드 배경색 완벽 대응
+    <div className="w-full h-52 md:h-64 lg:h-72 bg-white dark:bg-[#1f1f1f] rounded-xl md:rounded-2xl shadow-lg p-3 md:p-5 border border-transparent dark:border-white/5 transition-colors">
+      
+      {/* 🔥 [수정] 폰트 사이즈 및 마진 반응형 적용, 다크모드 텍스트 색상 대응 */}
+      <h3 className="text-sm md:text-base lg:text-lg font-bold text-gray-800 dark:text-white mb-2 md:mb-4">
+        📈 12시간 혼잡도 예측
+      </h3>
       
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart
@@ -42,11 +48,12 @@ const CongestionChart: React.FC<CongestionChartProps> = ({ data }) => {
             </linearGradient>
           </defs>
 
-          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
+          {/* 다크모드에서도 너무 튀지 않게 opacity 조절 */}
+          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" opacity={0.2} />
 
           <XAxis 
             dataKey="time" 
-            tick={{ fontSize: 12, fill: '#666' }} 
+            tick={{ fontSize: 12, fill: '#888' }} 
             axisLine={false}
             tickLine={false}
           />
@@ -57,7 +64,7 @@ const CongestionChart: React.FC<CongestionChartProps> = ({ data }) => {
           />
 
           <Tooltip 
-            contentStyle={{ backgroundColor: '#fff', borderRadius: '10px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+            contentStyle={{ backgroundColor: '#fff', borderRadius: '10px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', color: '#000' }}
             // [수정 포인트] value 타입을 'any'나 'number | undefined'로 넓혀줘야 합니다.
             // Recharts 내부 타입과 맞추기 위해 가장 안전한 방법은 any를 쓰는 것입니다.
             formatter={(value: any) => [

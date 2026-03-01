@@ -264,78 +264,91 @@ export default function PlanningPage() {
   };
 
   return (
-    <div className="h-screen flex flex-col md:flex-row bg-[#111] text-white overflow-hidden">
-      <div className="flex-1 relative h-[50vh] md:h-full border-r border-white/10">
+    // 🚀 모바일에서 위아래로 분리, 데스크탑에서 좌우로 분리되도록 flex-col md:flex-row 적용
+    <div className="h-[100dvh] flex flex-col md:flex-row bg-[#111] text-white overflow-hidden">
+      
+      {/* 🚀 지도 영역 반응형: 모바일은 45vh 높이, PC는 전체 높이 채움 */}
+      <div className="flex-1 relative h-[45vh] md:h-full border-b md:border-b-0 md:border-r border-white/10 shrink-0">
         <InteractiveMap 
             mode="PLAN" 
             places={markers.map(m => ({ id: m.id, name: m.name, lat: m.lat, lng: m.lng, category: 'PLAN' }))} 
             showPath={true} 
             routePaths={routePaths} 
         />
-        <div className="absolute top-4 left-4 z-10 px-3 py-1.5 bg-black/80 backdrop-blur rounded-full border border-white/10 flex items-center gap-2 shadow-xl">
-           <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></div>
-           <span className="text-[10px] font-bold text-gray-300">{isConnected ? 'LIVE SYNC' : 'OFFLINE'}</span>
+        <div className="absolute top-3 left-3 md:top-4 md:left-4 z-10 px-2.5 py-1.5 md:px-3 md:py-1.5 bg-black/80 backdrop-blur rounded-full border border-white/10 flex items-center gap-1.5 md:gap-2 shadow-xl">
+           <div className={`w-1.5 h-1.5 md:w-2 md:h-2 rounded-full ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></div>
+           <span className="text-[9px] md:text-[10px] font-bold text-gray-300">{isConnected ? 'LIVE SYNC' : 'OFFLINE'}</span>
         </div>
       </div>
 
-      <div className="w-full md:w-[400px] flex flex-col bg-[#1a1a1a] h-[50vh] md:h-full">
-        <div className="p-5 border-b border-white/10 bg-[#1a1a1a]">
-            <div className="flex justify-between items-start mb-4">
+      {/* 🚀 리스트 및 검색 영역: 모바일은 55vh 높이, PC는 400px 폭 고정 */}
+      <div className="w-full md:w-[400px] flex flex-col bg-[#1a1a1a] h-[55vh] md:h-full">
+        
+        {/* 상단 정보 패널 */}
+        <div className="p-3 md:p-5 border-b border-white/10 bg-[#1a1a1a]">
+            <div className="flex justify-between items-start mb-2 md:mb-4">
                 <div>
-                    <h2 className="font-bold text-lg flex items-center gap-2 text-indigo-400"><Navigation size={18}/> 작전 회의실</h2>
-                    <p className="text-[10px] text-gray-500 font-mono mt-1">ROOM ID: {roomId}</p>
+                    <h2 className="font-bold text-base md:text-lg flex items-center gap-1.5 md:gap-2 text-indigo-400"><Navigation size={16} className="md:w-[18px] md:h-[18px]"/> 작전 회의실</h2>
+                    <p className="text-[9px] md:text-[10px] text-gray-500 font-mono mt-0.5 md:mt-1">ROOM ID: {roomId}</p>
                 </div>
-                <button onClick={inviteFriend} className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 rounded-full text-xs font-bold transition-all flex items-center gap-1 shadow-lg shadow-indigo-500/20">
-                    <UserPlus size={14}/> 초대하기
+                <button onClick={inviteFriend} className="px-2.5 py-1.5 md:px-3 md:py-1.5 bg-indigo-600 hover:bg-indigo-500 rounded-full text-[10px] md:text-xs font-bold transition-all flex items-center gap-1 shadow-lg shadow-indigo-500/20">
+                    <UserPlus size={12} className="md:w-3.5 md:h-3.5"/> 초대
                 </button>
             </div>
+            
+            {/* 접속자 목록 */}
             <div className="flex items-center gap-2 overflow-x-auto custom-scrollbar pb-1">
                 {participants.map((p, i) => (
-                    <div key={i} className="flex flex-col items-center gap-1 min-w-[40px]">
-                        <div className={`w-10 h-10 rounded-full ${p.color} border-2 border-[#1a1a1a] flex items-center justify-center text-white font-bold text-sm shadow-md`}>
+                    <div key={i} className="flex flex-col items-center gap-1 min-w-[36px] md:min-w-[40px]">
+                        <div className={`w-8 h-8 md:w-10 md:h-10 rounded-full ${p.color} border-2 border-[#1a1a1a] flex items-center justify-center text-white font-bold text-xs md:text-sm shadow-md`}>
                             {p.name.charAt(0).toUpperCase()}
                         </div>
-                        <span className="text-[10px] text-gray-400 truncate max-w-[50px]">{p.name === myInfo.name ? "나" : p.name}</span>
+                        <span className="text-[9px] md:text-[10px] text-gray-400 truncate max-w-[40px] md:max-w-[50px]">{p.name === myInfo.name ? "나" : p.name}</span>
                     </div>
                 ))}
             </div>
         </div>
 
-        <div className="p-4 border-b border-white/5 bg-[#1f1f1f]">
+        {/* 검색 영역 */}
+        <div className="p-3 md:p-4 border-b border-white/5 bg-[#1f1f1f]">
             <form onSubmit={handleSearch} className="relative">
                 <input type="text" placeholder="성수동 팝업 검색..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full bg-[#111] border border-white/10 rounded-xl py-3 pl-10 pr-4 text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors"/>
-                <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500"/>
-                {isSearching && <Loader2 size={16} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-indigo-500 animate-spin"/>}
+                    className="w-full bg-[#111] border border-white/10 rounded-lg md:rounded-xl py-2.5 md:py-3 pl-9 md:pl-10 pr-4 text-xs md:text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors"/>
+                <Search size={14} className="md:w-4 md:h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-500"/>
+                {isSearching && <Loader2 size={14} className="md:w-4 md:h-4 absolute right-3 top-1/2 -translate-y-1/2 text-indigo-500 animate-spin"/>}
             </form>
+            
+            {/* 검색 결과 */}
             {searchResults.length > 0 && (
-                <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} className="mt-3 max-h-[150px] overflow-y-auto custom-scrollbar bg-[#111] rounded-xl border border-white/5">
+                <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} className="mt-2 md:mt-3 max-h-[120px] md:max-h-[150px] overflow-y-auto custom-scrollbar bg-[#111] rounded-lg md:rounded-xl border border-white/5">
                     {searchResults.map((place) => (
-                        <div key={place.id} onClick={() => addPlaceToMap(place)} className="flex justify-between items-center p-3 hover:bg-white/5 cursor-pointer border-b border-white/5 last:border-0 group">
-                            <div><div className="text-sm font-bold text-gray-200 group-hover:text-indigo-400">{place.name}</div><div className="text-[10px] text-gray-500 truncate max-w-[200px]">{place.location}</div></div>
-                            <PlusCircle size={16} className="text-gray-500 group-hover:text-indigo-500"/>
+                        <div key={place.id} onClick={() => addPlaceToMap(place)} className="flex justify-between items-center p-2.5 md:p-3 hover:bg-white/5 cursor-pointer border-b border-white/5 last:border-0 group">
+                            <div><div className="text-xs md:text-sm font-bold text-gray-200 group-hover:text-indigo-400">{place.name}</div><div className="text-[9px] md:text-[10px] text-gray-500 truncate max-w-[150px] md:max-w-[200px] mt-0.5">{place.location}</div></div>
+                            <PlusCircle size={14} className="md:w-4 md:h-4 text-gray-500 group-hover:text-indigo-500"/>
                         </div>
                     ))}
                 </motion.div>
             )}
         </div>
 
-        <div className="px-4 py-3 bg-indigo-900/20 border-b border-indigo-500/20 flex items-center justify-between">
+        {/* 요약 바 */}
+        <div className="px-3 py-2.5 md:px-4 md:py-3 bg-indigo-900/20 border-b border-indigo-500/20 flex items-center justify-between">
             <div>
-                <div className="flex items-center gap-2 text-indigo-300 text-xs font-bold"><Footprints size={14}/> 총 이동 시간</div>
-                <div className="text-white font-bold text-sm">약 {totalTime}분 <span className="text-xs font-normal text-gray-400">소요 예상</span></div>
+                <div className="flex items-center gap-1.5 md:gap-2 text-indigo-300 text-[10px] md:text-xs font-bold"><Footprints size={12} className="md:w-3.5 md:h-3.5"/> 총 이동 시간</div>
+                <div className="text-white font-bold text-xs md:text-sm mt-0.5">약 {totalTime}분 <span className="text-[9px] md:text-xs font-normal text-gray-400">소요 예상</span></div>
             </div>
             {markers.length >= 3 && (
-                <button onClick={optimizeRoute} className="px-3 py-1.5 bg-white/10 hover:bg-white/20 border border-white/10 rounded-lg text-xs font-bold text-yellow-400 flex items-center gap-1 transition-colors">
-                    <Wand2 size={12}/> 동선 최적화
+                <button onClick={optimizeRoute} className="px-2.5 py-1.5 md:px-3 md:py-1.5 bg-white/10 hover:bg-white/20 border border-white/10 rounded-md md:rounded-lg text-[10px] md:text-xs font-bold text-yellow-400 flex items-center gap-1 transition-colors">
+                    <Wand2 size={10} className="md:w-3 md:h-3"/> 최적화
                 </button>
             )}
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 space-y-0 custom-scrollbar relative">
-            <div className="text-xs font-bold text-gray-500 mb-4 px-1 flex items-center gap-1"><MapPin size={12}/> 추가된 장소 ({markers.length})</div>
+        {/* 마커 리스트 */}
+        <div className="flex-1 overflow-y-auto p-3 md:p-4 space-y-0 custom-scrollbar relative pb-20 md:pb-4">
+            <div className="text-[10px] md:text-xs font-bold text-gray-500 mb-3 md:mb-4 px-1 flex items-center gap-1"><MapPin size={10} className="md:w-3 md:h-3"/> 추가된 장소 ({markers.length})</div>
             {markers.length === 0 ? (
-                <div className="text-center py-12 text-gray-600 text-xs"><p>아직 추가된 장소가 없습니다.<br/>위에서 검색하여 코스를 짜보세요!</p></div>
+                <div className="text-center py-8 md:py-12 text-gray-600 text-[10px] md:text-xs"><p>아직 추가된 장소가 없습니다.<br/>위에서 검색하여 코스를 짜보세요!</p></div>
             ) : (
                 <AnimatePresence>
                 {markers.map((m, idx) => {
@@ -347,30 +360,32 @@ export default function PlanningPage() {
                     return (
                         <div key={m.id} className="relative">
                             <motion.div layout initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, height: 0, marginBottom: 0 }} 
-                                        className="flex flex-col p-4 bg-[#222] rounded-xl border border-white/5 group hover:border-indigo-500/30 transition-colors z-10 relative">
-                                <div className="flex justify-between items-center mb-3">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-[10px] font-bold">{idx + 1}</div>
-                                        <div><div className="font-bold text-sm text-gray-200">{m.name}</div><div className="text-[10px] text-gray-500">lat: {m.lat.toFixed(4)}</div></div>
+                                        className="flex flex-col p-3 md:p-4 bg-[#222] rounded-lg md:rounded-xl border border-white/5 group hover:border-indigo-500/30 transition-colors z-10 relative">
+                                <div className="flex justify-between items-center mb-2.5 md:mb-3">
+                                    <div className="flex items-center gap-2 md:gap-3">
+                                        <div className="w-5 h-5 md:w-6 md:h-6 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-[9px] md:text-[10px] font-bold">{idx + 1}</div>
+                                        <div><div className="font-bold text-xs md:text-sm text-gray-200">{m.name}</div><div className="text-[8px] md:text-[10px] text-gray-500 mt-0.5">lat: {m.lat.toFixed(4)}</div></div>
                                     </div>
-                                    <button onClick={() => removeMarker(m)} className="p-2 text-gray-600 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"><Trash2 size={14}/></button>
+                                    <button onClick={() => removeMarker(m)} className="p-1.5 md:p-2 text-gray-600 hover:text-red-500 hover:bg-red-500/10 rounded-md md:rounded-lg transition-all"><Trash2 size={12} className="md:w-3.5 md:h-3.5"/></button>
                                 </div>
-                                <div className="flex gap-2">
-                                    <button onClick={() => sendVote(m.id, "LIKE")} className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 transition-all active:scale-95">
-                                        <ThumbsUp size={12} className={m.likeCount > 0 ? "fill-blue-400" : ""} /> <span className="text-xs font-bold">{m.likeCount}</span>
+                                <div className="flex gap-1.5 md:gap-2">
+                                    <button onClick={() => sendVote(m.id, "LIKE")} className="flex-1 flex items-center justify-center gap-1 md:gap-1.5 py-1 md:py-1.5 rounded-md md:rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 transition-all active:scale-95">
+                                        <ThumbsUp size={10} className={`md:w-3 md:h-3 ${m.likeCount > 0 ? "fill-blue-400" : ""}`} /> <span className="text-[10px] md:text-xs font-bold">{m.likeCount}</span>
                                     </button>
-                                    <button onClick={() => sendVote(m.id, "FIRE")} className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 transition-all active:scale-95">
-                                        <Flame size={12} className={m.fireCount > 0 ? "fill-red-400" : ""} /> <span className="text-xs font-bold">{m.fireCount}</span>
+                                    <button onClick={() => sendVote(m.id, "FIRE")} className="flex-1 flex items-center justify-center gap-1 md:gap-1.5 py-1 md:py-1.5 rounded-md md:rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 transition-all active:scale-95">
+                                        <Flame size={10} className={`md:w-3 md:h-3 ${m.fireCount > 0 ? "fill-red-400" : ""}`} /> <span className="text-[10px] md:text-xs font-bold">{m.fireCount}</span>
                                     </button>
                                 </div>
                             </motion.div>
+                            
+                            {/* 소요 시간 선 */}
                             {routeInfo && (
-                                <div className="flex flex-col items-center my-1 relative z-0">
-                                    <div className="h-4 border-l-2 border-dashed border-gray-700"></div>
-                                    <div className="bg-gray-800 px-3 py-1 rounded-full text-[10px] font-bold text-gray-400 border border-gray-700 flex items-center gap-1 shadow-sm">
-                                        <MoveDown size={10} /> <span>도보 {routeInfo.time}분</span> <span className="text-gray-600">|</span> <span>{routeInfo.dist}</span>
+                                <div className="flex flex-col items-center my-0.5 md:my-1 relative z-0">
+                                    <div className="h-3 md:h-4 border-l-2 border-dashed border-gray-700"></div>
+                                    <div className="bg-gray-800 px-2.5 py-0.5 md:px-3 md:py-1 rounded-full text-[8px] md:text-[10px] font-bold text-gray-400 border border-gray-700 flex items-center gap-1 shadow-sm">
+                                        <MoveDown size={8} className="md:w-2.5 md:h-2.5" /> <span>도보 {routeInfo.time}분</span> <span className="text-gray-600">|</span> <span>{routeInfo.dist}</span>
                                     </div>
-                                    <div className="h-4 border-l-2 border-dashed border-gray-700"></div>
+                                    <div className="h-3 md:h-4 border-l-2 border-dashed border-gray-700"></div>
                                 </div>
                             )}
                         </div>

@@ -68,9 +68,9 @@ export function KakaoRoadview({ lat, lng, name }: KakaoRoadviewProps) {
           
           // [로직 해석] 로드뷰 화면 위에 둥둥 떠다닐 커스텀 오버레이 마커의 HTML 문자열을 구성합니다.
           const content = `
-            <div style="padding: 10px 16px; background: #ffeb33; border-radius: 16px; border: 3px solid #000; box-shadow: 0 8px 24px rgba(0,0,0,0.5); display: flex; align-items: center; gap: 8px; transform: translateY(-60px);">
-              <div style="width: 10px; height: 10px; background: red; border-radius: 50%; animation: pulse 1.5s infinite;"></div>
-              <span style="color: #000; font-weight: 900; font-size: 15px; white-space: nowrap;">${name}</span>
+            <div style="padding: 6px 10px; background: #ffeb33; border-radius: 12px; border: 2px solid #000; box-shadow: 0 4px 12px rgba(0,0,0,0.3); display: flex; align-items: center; gap: 6px; transform: translateY(-40px); font-size: 12px; white-space: nowrap;">
+              <div style="width: 8px; height: 8px; background: red; border-radius: 50%; animation: pulse 1.5s infinite;"></div>
+              <span style="color: #000; font-weight: 900;">${name}</span>
             </div>
             <style>
               @keyframes pulse { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.4); opacity: 0.7; } 100% { transform: scale(1); opacity: 1; } }
@@ -94,9 +94,9 @@ export function KakaoRoadview({ lat, lng, name }: KakaoRoadviewProps) {
   // [로직 해석] 에러 상태가 true일 경우, 로드뷰 대신 에러 안내 UI를 렌더링하여 화면 붕괴를 막습니다.
   if (isError) {
     return (
-      <div className="w-full h-full bg-gray-900 flex flex-col items-center justify-center text-gray-400 p-6 text-center">
-        <AlertCircle size={48} className="mb-4 text-red-500 opacity-80" />
-        <p className="text-lg font-bold">로드뷰를 표시할 수 없습니다.</p>
+      <div className="w-full h-full bg-gray-900 flex flex-col items-center justify-center text-gray-400 p-4 text-center">
+        <AlertCircle size={32} className="mb-2 text-red-500 opacity-80" />
+        <p className="text-sm font-bold">로드뷰를 표시할 수 없습니다.</p>
       </div>
     );
   }
@@ -162,7 +162,7 @@ export default function PopupDetail() {
             rel="noopener noreferrer" 
             className="text-indigo-500 hover:text-indigo-400 underline break-all inline-flex items-center gap-1"
           >
-            {part} <ExternalLink size={14} />
+            {part} <ExternalLink size={12} className="md:w-3.5 md:h-3.5"/>
           </a>
         );
       }
@@ -308,7 +308,7 @@ export default function PopupDetail() {
   };
 
   // [로직 해석] 인증 절차가 안 끝났거나 데이터 로딩 중이면 뼈대 화면(LOADING)을 보여줍니다.
-  if (isCheckingAuth || loading) return <div className="min-h-screen bg-black flex items-center justify-center text-white font-black">LOADING...</div>;
+  if (isCheckingAuth || loading) return <div className="min-h-screen bg-black flex items-center justify-center text-white font-black text-sm md:text-base">LOADING...</div>;
   // [코드 해석] 팝업 데이터가 끝내 없으면 아무것도 렌더링하지 않아 에러를 피합니다.
   if (!popup) return null;
 
@@ -327,32 +327,32 @@ export default function PopupDetail() {
     <main className="min-h-screen bg-[#050505] text-white relative pb-20 overflow-x-hidden overflow-y-auto"> 
       
       {/* 🟢 히어로 섹션: z-index를 낮게 잡아 뒤쪽 배경 역할을 하게 함 */}
-      <div className="relative h-[60vh] w-full overflow-hidden flex flex-col items-center justify-center z-0">
+      <div className="relative h-[50vh] md:h-[60vh] w-full overflow-hidden flex flex-col items-center justify-center z-0">
         
         {/* [코드 해석] 애니메이션 글자가 흘러가는 배경 레이어입니다. 마우스 이벤트가 무시되도록 설정되어 있습니다. */}
         <div className="absolute inset-0 flex flex-col justify-center opacity-10 select-none pointer-events-none overflow-hidden">
             {/* [로직 해석] 동일한 문구를 3번 반복 렌더링하여 화면에 빈틈없이 타이포그래피가 채워지게 합니다. */}
             {[...Array(3)].map((_, i) => (
-                <motion.div key={i} variants={marqueeVariants} animate="animate" className="whitespace-nowrap text-[15vh] font-black text-white leading-none uppercase">
+                <motion.div key={i} variants={marqueeVariants} animate="animate" className="whitespace-nowrap text-[12vh] md:text-[15vh] font-black text-white leading-none uppercase">
                     {popup.name} &nbsp; {popup.category} &nbsp;
                 </motion.div>
             ))}
         </div>
 
         {/* [코드 해석] 화면 최상단 좌우에 위치하는 뒤로가기 버튼과 테마(다크/라이트) 변경 버튼 영역입니다. */}
-        <div className="absolute top-0 left-0 w-full p-6 flex justify-between z-[50]">
+        <div className="absolute top-0 left-0 w-full p-4 md:p-6 flex justify-between z-[50]">
             {/* [코드 해석] 클릭 시 라우터 객체를 통해 이전 페이지 이력으로 돌아갑니다. */}
-            <button onClick={() => router.back()} className="p-3 bg-white/10 backdrop-blur-md rounded-full border border-white/10 hover:bg-white/20 transition-all">
-                <ArrowLeft size={24} />
+            <button onClick={() => router.back()} className="p-2.5 md:p-3 bg-white/10 backdrop-blur-md rounded-full border border-white/10 hover:bg-white/20 transition-all">
+                <ArrowLeft size={20} className="md:w-6 md:h-6" />
             </button>
             {/* [코드 해석] 현재 테마 상태에 따라 해(Sun) 또는 달(Moon) 아이콘을 교차하여 보여주고 테마를 토글합니다. */}
-            <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="p-3 bg-white/10 backdrop-blur-md rounded-full border border-white/10">
-                {theme === 'dark' ? <Sun size={24} /> : <Moon size={24} />}
+            <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="p-2.5 md:p-3 bg-white/10 backdrop-blur-md rounded-full border border-white/10">
+                {theme === 'dark' ? <Sun size={20} className="md:w-6 md:h-6" /> : <Moon size={20} className="md:w-6 md:h-6" />}
             </button>
         </div>
 
         {/* [로직 해석] Hero 중앙에 실제 팝업 정보를 카드 형태로 보여주는 핵심 UI 컴포넌트(DigitalTicket)를 삽입합니다. */}
-        <div className="relative z-10 w-full flex justify-center px-4 mt-10">
+        <div className="relative z-10 w-full flex justify-center px-4 mt-6 md:mt-10">
             <DigitalTicket 
                 name={popup.name}
                 date={`${popup.openDate} ~ ${popup.closeDate}`}
@@ -365,98 +365,99 @@ export default function PopupDetail() {
         </div>
         
         {/* [코드 해석] Hero 섹션과 하단 상세 컨텐츠가 자연스럽게 이어지도록 밑부분에 투명한 그라데이션 박스를 덮습니다. */}
-        <div className="absolute bottom-0 left-0 w-full h-32 bg-gradient-to-t from-[#050505] to-transparent z-20"></div>
+        <div className="absolute bottom-0 left-0 w-full h-24 md:h-32 bg-gradient-to-t from-[#050505] to-transparent z-20"></div>
       </div>
 
       {/* 🟢 상세 정보 컨텐츠: 히어로 섹션과 살짝 겹치게(-mt-10) 끌어올려서 시각적 깊이감을 줍니다. */}
-      <div className="p-6 max-w-3xl mx-auto space-y-10 relative z-30 -mt-10">
+      <div className="p-4 md:p-6 max-w-3xl mx-auto space-y-6 md:space-y-10 relative z-30 -mt-6 md:-mt-10">
         
         {/* [로직 해석] 사용자가 가장 빈번하게 누르는 액션 버튼들(스탬프, 공유, 찜)을 묶어둔 컨테이너입니다. */}
-        <div className="flex gap-3 relative z-[40]">
+        <div className="flex flex-row md:flex-row gap-2 md:gap-3 relative z-[40]">
             {/* [로직 해석] 스탬프 상태에 따라 버튼의 색상, 텍스트, 비활성화 여부(disabled)가 실시간으로 변합니다. */}
             <button 
                 onClick={handleStamp}
                 disabled={isStamped}
-                className={`flex-[3] py-4 rounded-2xl font-black flex items-center justify-center gap-2 transition-all border ${
+                className={`flex-[2] md:flex-[3] py-3 md:py-4 rounded-xl md:rounded-2xl font-black flex items-center justify-center gap-1.5 md:gap-2 transition-all border text-xs md:text-base ${
                     isStamped 
                     ? "bg-white/5 border-white/10 text-gray-500 cursor-not-allowed" 
                     : "bg-indigo-600 text-white shadow-xl shadow-indigo-600/20 border-transparent hover:bg-indigo-500"
                 }`}
             >
                 {/* [코드 해석] 스탬프 유무에 따라 좌측 아이콘이 체크 마크 혹은 티켓 모양으로 바뀝니다. */}
-                {isStamped ? <CheckCircle size={20}/> : <Ticket size={20}/>}
-                {isStamped ? "스탬프 인증됨" : "방문 인증 스탬프"}
+                {isStamped ? <CheckCircle size={16} className="md:w-5 md:h-5"/> : <Ticket size={16} className="md:w-5 md:h-5"/>}
+                {isStamped ? "인증됨" : "스탬프 찍기"}
             </button>
             {/* [코드 해석] 아직 기능이 붙지 않은 순수 UI 공유 버튼입니다. */}
-            <button className="flex-1 p-4 bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl text-white hover:bg-white/10 transition-colors flex items-center justify-center">
-                <Share2 size={20} />
+            <button className="flex-1 p-3 md:p-4 bg-white/5 backdrop-blur-md border border-white/10 rounded-xl md:rounded-2xl text-white hover:bg-white/10 transition-colors flex items-center justify-center">
+                <Share2 size={16} className="md:w-5 md:h-5" />
             </button>
             {/* [로직 해석] 찜하기 상태에 따라 배경색과 하트 색상이 빨갛게 채워지거나(fill-current) 투명하게 토글됩니다. */}
             <button 
                 onClick={handleToggleLike}
-                className={`flex-1 p-4 border rounded-2xl transition-colors flex items-center justify-center backdrop-blur-md ${
+                className={`flex-1 p-3 md:p-4 border rounded-xl md:rounded-2xl transition-colors flex items-center justify-center backdrop-blur-md ${
                     isLiked 
                     ? "bg-red-500/10 border-red-500 text-red-500" 
                     : "bg-white/5 border-white/10 text-white hover:bg-white/10"
                 }`}
             >
-                <Heart size={20} className={isLiked ? "fill-current" : ""} />
+                <Heart size={16} className={`md:w-5 md:h-5 ${isLiked ? "fill-current" : ""}`} />
             </button>
         </div>
 
         {/* [코드 해석] 팝업스토어의 날짜와 오픈/마감 시간을 명시적으로 보여주는 정보 카드 섹션입니다. */}
-        <div className="bg-[#111] border border-white/10 rounded-3xl p-6 space-y-4 shadow-2xl relative z-30">
+        <div className="bg-[#111] border border-white/10 rounded-2xl md:rounded-3xl p-5 md:p-6 space-y-3 md:space-y-4 shadow-2xl relative z-30">
             {/* [코드 해석] 운영 기간(Period)을 표시하는 좌우 분할 레이아웃입니다. */}
-            <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-full bg-indigo-500/10 flex items-center justify-center text-indigo-400 border border-indigo-500/20">
-                    <Calendar size={20}/>
+            <div className="flex items-center gap-3 md:gap-4">
+                <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-indigo-500/10 flex items-center justify-center text-indigo-400 border border-indigo-500/20 shrink-0">
+                    <Calendar size={16} className="md:w-5 md:h-5"/>
                 </div>
                 <div>
-                    <p className="text-[10px] text-white/40 font-bold uppercase tracking-widest">Period</p>
-                    <p className="font-bold text-white/90">{popup.openDate} ~ {popup.closeDate}</p>
+                    <p className="text-[9px] md:text-[10px] text-white/40 font-bold uppercase tracking-widest">Period</p>
+                    <p className="font-bold text-white/90 text-xs md:text-base">{popup.openDate} ~ {popup.closeDate}</p>
                 </div>
             </div>
             {/* [코드 해석] 구역을 나누기 위한 얇은 가로선(디바이더)입니다. */}
             <div className="w-full h-px bg-white/5"/>
             {/* [코드 해석] 오픈 시간(Open Time)을 표시하는 좌우 분할 레이아웃입니다. 데이터가 없으면 기본값(11:00-20:00)을 씁니다. */}
-            <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-full bg-indigo-500/10 flex items-center justify-center text-indigo-400 border border-indigo-500/20">
-                    <Clock size={20}/>
+            <div className="flex items-center gap-3 md:gap-4">
+                <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-indigo-500/10 flex items-center justify-center text-indigo-400 border border-indigo-500/20 shrink-0">
+                    <Clock size={16} className="md:w-5 md:h-5"/>
                 </div>
                 <div>
-                    <p className="text-[10px] text-white/40 font-bold uppercase tracking-widest">Open Time</p>
-                    <p className="font-bold text-white/90">{popup.openTime || "11:00"} - {popup.closeTime || "20:00"}</p>
+                    <p className="text-[9px] md:text-[10px] text-white/40 font-bold uppercase tracking-widest">Open Time</p>
+                    <p className="font-bold text-white/90 text-xs md:text-base">{popup.openTime || "11:00"} - {popup.closeTime || "20:00"}</p>
                 </div>
             </div>
         </div>
 
         {/* [로직 해석] 관리자가 백엔드에 입력해둔 긴 상세 설명 글이 렌더링되는 영역입니다. */}
-        <div className="space-y-4 relative z-30">
+        <div className="space-y-3 md:space-y-4 relative z-30">
             {/* [코드 해석] About This Spot 이라는 섹션 제목입니다. */}
-            <h3 className="text-xl font-black text-indigo-400 italic flex items-center gap-2 uppercase tracking-tighter">
-                <Info size={20}/> About This Spot
+            <h3 className="text-lg md:text-xl font-black text-indigo-400 italic flex items-center gap-1.5 md:gap-2 uppercase tracking-tighter">
+                <Info size={16} className="md:w-5 md:h-5"/> About This Spot
             </h3>
             {/* [로직 해석] whitespace-pre-line 클래스를 통해 글의 엔터(줄바꿈)를 그대로 살려주고, 링크 변환 함수를 거친 내용을 출력합니다. */}
-            <div className="bg-[#111] p-7 rounded-3xl border border-white/10 text-white/80 leading-relaxed font-medium whitespace-pre-line shadow-inner">
+            <div className="bg-[#111] p-5 md:p-7 rounded-2xl md:rounded-3xl border border-white/10 text-white/80 leading-relaxed font-medium whitespace-pre-line shadow-inner text-xs md:text-base">
                 {renderContentWithLinks(popup.content)}
             </div>
         </div>
 
         {/* [로직 해석] 사용자가 팝업스토어 위치를 찾을 수 있도록 카카오 지도를 보여주는 영역입니다. */}
-        <div className="w-full h-[350px] rounded-3xl overflow-hidden border border-white/10 relative z-30 shadow-2xl bg-[#111]">
+        <div className="w-full h-[250px] md:h-[350px] rounded-2xl md:rounded-3xl overflow-hidden border border-white/10 relative z-30 shadow-2xl bg-[#111]">
             {/* [코드 해석] DetailMap 자식 컴포넌트에 파싱된 위경도를 넘겨주어 지도를 로드합니다. */}
             <DetailMap latitude={lat} longitude={lng} />
             {/* [코드 해석] 지도 하단 중앙에 플로팅 형태로 실제 도로명 주소 텍스트를 띄웁니다. */}
-            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-black/90 backdrop-blur-xl px-5 py-2.5 rounded-full border border-white/20 text-xs flex items-center gap-2 shadow-2xl z-40 whitespace-nowrap text-white font-bold">
-                <MapPin size={14} className="text-indigo-500 animate-bounce"/> {popup.address}
+            <div className="absolute bottom-4 md:bottom-6 left-1/2 -translate-x-1/2 bg-black/90 backdrop-blur-xl px-4 py-2 md:px-5 md:py-2.5 rounded-full border border-white/20 text-[10px] md:text-xs flex items-center gap-1.5 md:gap-2 shadow-2xl z-40 whitespace-nowrap text-white font-bold w-[90%] md:w-auto overflow-hidden">
+                <MapPin size={12} className="md:w-3.5 md:h-3.5 text-indigo-500 animate-bounce shrink-0"/> 
+                <span className="truncate">{popup.address}</span>
             </div>
         </div>
 
         {/* [로직 해석] 팝업스토어별로 독립된 소켓 통신을 기반으로 유저 간 실시간 채팅을 지원하는 모듈입니다. */}
-        <div className="pt-10 relative z-30">
+        <div className="pt-6 md:pt-10 relative z-30">
              {/* [코드 해석] 실시간 느낌을 주기 위해 제목 옆에 빨간 점이 깜빡이는(animate-ping) 디자인을 넣었습니다. */}
-             <h3 className="text-xl font-black text-indigo-400 italic flex items-center gap-2 uppercase tracking-tighter mb-6">
-                Live Visitor Talk <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-ping"></span>
+             <h3 className="text-lg md:text-xl font-black text-indigo-400 italic flex items-center gap-1.5 md:gap-2 uppercase tracking-tighter mb-4 md:mb-6">
+                Live Visitor Talk <span className="w-2 h-2 md:w-2.5 md:h-2.5 rounded-full bg-red-500 animate-ping"></span>
              </h3>
              {/* [코드 해석] 팝업 고유 ID를 채팅방 방번호로 쓰고, 유저의 닉네임을 넘겨주어 채팅 인스턴스를 생성합니다. */}
              <ChatRoom roomId={popup.id} nickname={user?.nickname || "익명"} />

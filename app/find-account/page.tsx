@@ -159,102 +159,129 @@ export default function FindAccountPage() {
 
   return (
     <div className="min-h-screen bg-black text-white flex items-center justify-center p-4 relative overflow-hidden">
-      <div className="absolute top-[-20%] left-[-10%] w-[500px] h-[500px] bg-indigo-600/20 rounded-full blur-[120px]" />
-      <div className="absolute bottom-[-20%] right-[-10%] w-[500px] h-[500px] bg-violet-600/20 rounded-full blur-[120px]" />
+      {/* 🚀 배경 글로우 효과 반응형 (모바일 사이즈 줄임) */}
+      <div className="absolute top-[-10%] left-[-10%] w-[300px] md:w-[500px] h-[300px] md:h-[500px] bg-indigo-600/20 rounded-full blur-[80px] md:blur-[120px]" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[300px] md:w-[500px] h-[300px] md:h-[500px] bg-violet-600/20 rounded-full blur-[80px] md:blur-[120px]" />
 
       <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-        className="w-full max-w-md bg-[#111] border border-white/10 p-8 rounded-3xl shadow-2xl relative z-10">
+        // 🚀 메인 박스 반응형 조절 (모바일 여백 축소)
+        className="w-full max-w-md bg-[#111] border border-white/10 p-6 md:p-8 rounded-2xl md:rounded-3xl shadow-2xl relative z-10 mx-2 md:mx-0">
         
-        <div className="flex items-center justify-between mb-8">
-            <button onClick={() => router.back()} className="text-white/50 hover:text-white transition-colors"><ArrowLeft size={24} /></button>
-            <h1 className="text-2xl font-black tracking-tight">계정 찾기</h1>
+        <div className="flex items-center justify-between mb-6 md:mb-8">
+            <button onClick={() => router.back()} className="text-white/50 hover:text-white transition-colors p-1"><ArrowLeft size={20} className="md:w-6 md:h-6" /></button>
+            <h1 className="text-xl md:text-2xl font-black tracking-tight">계정 찾기</h1>
             <div className="w-6" />
         </div>
 
-        {/* 탭 버튼 */}
-        <div className="flex bg-white/5 rounded-xl p-1 mb-8">
-            <button onClick={() => handleTabChange('id')} className={`flex-1 py-3 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2 ${activeTab === 'id' ? 'bg-indigo-600 text-white shadow-lg' : 'text-white/50 hover:text-white'}`}>
-                <User size={16}/> 아이디 찾기
+        {/* 탭 버튼 반응형 (크기 및 폰트 축소) */}
+        <div className="flex bg-white/5 rounded-lg md:rounded-xl p-1 mb-6 md:mb-8">
+            <button onClick={() => handleTabChange('id')} className={`flex-1 py-2.5 md:py-3 rounded-md md:rounded-lg text-xs md:text-sm font-bold transition-all flex items-center justify-center gap-1.5 md:gap-2 ${activeTab === 'id' ? 'bg-indigo-600 text-white shadow-lg' : 'text-white/50 hover:text-white'}`}>
+                <User size={14} className="md:w-4 md:h-4"/> 아이디 찾기
             </button>
-            <button onClick={() => handleTabChange('pw')} className={`flex-1 py-3 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2 ${activeTab === 'pw' ? 'bg-indigo-600 text-white shadow-lg' : 'text-white/50 hover:text-white'}`}>
-                <KeyRound size={16}/> 비밀번호 찾기
+            <button onClick={() => handleTabChange('pw')} className={`flex-1 py-2.5 md:py-3 rounded-md md:rounded-lg text-xs md:text-sm font-bold transition-all flex items-center justify-center gap-1.5 md:gap-2 ${activeTab === 'pw' ? 'bg-indigo-600 text-white shadow-lg' : 'text-white/50 hover:text-white'}`}>
+                <KeyRound size={14} className="md:w-4 md:h-4"/> 비밀번호 찾기
             </button>
         </div>
 
         <AnimatePresence mode="wait">
             {/* 🟢 아이디 찾기 폼 */}
             {activeTab === 'id' && !foundEmail && (
-                <motion.div key="find-id-form" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} className="space-y-4">
+                <motion.div key="find-id-form" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} className="space-y-3 md:space-y-4">
                     <div className="space-y-1">
-                        <label className="text-xs text-white/50 pl-1 font-bold">이름 (닉네임)</label>
-                        <div className="relative"><input type="text" placeholder="가입한 이름" value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-[#222] border border-white/10 rounded-xl p-4 pl-12 text-white outline-none focus:border-indigo-500 transition-colors"/><User className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30" size={20}/></div>
+                        <label className="text-[10px] md:text-xs text-white/50 pl-1 font-bold">이름 (닉네임)</label>
+                        <div className="relative">
+                            <input type="text" placeholder="가입한 이름" value={name} onChange={(e) => setName(e.target.value)} 
+                                   className="w-full bg-[#222] border border-white/10 rounded-lg md:rounded-xl p-3 md:p-4 pl-10 md:pl-12 text-sm md:text-base text-white outline-none focus:border-indigo-500 transition-colors"/>
+                            <User className="absolute left-3 md:left-4 top-1/2 -translate-y-1/2 text-white/30 w-4 h-4 md:w-5 md:h-5"/>
+                        </div>
                     </div>
                     <div className="space-y-1">
-                        <label className="text-xs text-white/50 pl-1 font-bold">휴대폰 번호</label>
-                        <div className="relative"><input type="text" placeholder="01012345678" value={phone} onChange={(e) => setPhone(e.target.value)} className="w-full bg-[#222] border border-white/10 rounded-xl p-4 pl-12 text-white outline-none focus:border-indigo-500 transition-colors"/><Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30" size={20}/></div>
+                        <label className="text-[10px] md:text-xs text-white/50 pl-1 font-bold">휴대폰 번호</label>
+                        <div className="relative">
+                            <input type="text" placeholder="01012345678" value={phone} onChange={(e) => setPhone(e.target.value)} 
+                                   className="w-full bg-[#222] border border-white/10 rounded-lg md:rounded-xl p-3 md:p-4 pl-10 md:pl-12 text-sm md:text-base text-white outline-none focus:border-indigo-500 transition-colors"/>
+                            <Phone className="absolute left-3 md:left-4 top-1/2 -translate-y-1/2 text-white/30 w-4 h-4 md:w-5 md:h-5"/>
+                        </div>
                     </div>
-                    <button onClick={handleFindId} disabled={loading} className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-4 rounded-xl transition-all disabled:opacity-50 mt-4">
+                    <button onClick={handleFindId} disabled={loading} className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3.5 md:py-4 rounded-lg md:rounded-xl transition-all disabled:opacity-50 mt-2 md:mt-4 text-sm md:text-base">
                         {loading ? "찾는 중..." : "내 아이디 찾기"}
                     </button>
                 </motion.div>
             )}
 
-            {/* 🟢 아이디 찾기 결과 (JSON 파싱 후 깔끔하게 표시) */}
+            {/* 🟢 아이디 찾기 결과 */}
             {activeTab === 'id' && foundEmail && (
-                <motion.div key="find-id-result" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="text-center py-6 space-y-6">
-                    <div className="w-20 h-20 bg-green-500/10 rounded-full flex items-center justify-center mx-auto text-green-500 border border-green-500/20"><Mail size={40}/></div>
+                <motion.div key="find-id-result" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="text-center py-4 md:py-6 space-y-4 md:space-y-6">
+                    <div className="w-16 h-16 md:w-20 md:h-20 bg-green-500/10 rounded-full flex items-center justify-center mx-auto text-green-500 border border-green-500/20"><Mail className="w-8 h-8 md:w-10 md:h-10"/></div>
                     <div>
-                        <p className="text-white/50 text-sm mb-2">회원님의 아이디는</p>
-                        <h2 className="text-2xl font-black text-white">{foundEmail}</h2>
+                        <p className="text-white/50 text-xs md:text-sm mb-1 md:mb-2">회원님의 아이디는</p>
+                        <h2 className="text-xl md:text-2xl font-black text-white break-all px-2">{foundEmail}</h2>
                         
                         {/* 소셜 회원이면 뱃지 표시 */}
                         {providerInfo && (
-                            <div className="mt-3 inline-flex items-center gap-2 px-3 py-1 bg-white/10 rounded-full border border-white/20">
-                                <span className="text-xs text-indigo-400 font-bold uppercase">{providerInfo}</span>
-                                <span className="text-xs text-white/60">가입 계정</span>
+                            <div className="mt-2 md:mt-3 inline-flex items-center gap-1.5 md:gap-2 px-2.5 py-1 md:px-3 md:py-1 bg-white/10 rounded-full border border-white/20">
+                                <span className="text-[10px] md:text-xs text-indigo-400 font-bold uppercase">{providerInfo}</span>
+                                <span className="text-[10px] md:text-xs text-white/60">가입 계정</span>
                             </div>
                         )}
-                        
-                        <p className="text-white/50 text-sm mt-4">입니다.</p>
+                        <p className="text-white/50 text-xs md:text-sm mt-3 md:mt-4">입니다.</p>
                     </div>
-                    <button onClick={() => router.push("/login")} className="w-full bg-white text-black font-bold py-4 rounded-xl hover:bg-white/90 transition-colors">
+                    <button onClick={() => router.push("/login")} className="w-full bg-white text-black font-bold py-3.5 md:py-4 rounded-lg md:rounded-xl hover:bg-white/90 transition-colors text-sm md:text-base">
                         로그인하러 가기
                     </button>
                 </motion.div>
             )}
 
-            {/* 🔵 비밀번호 찾기 (이하 동일) */}
+            {/* 🔵 비밀번호 찾기 (이하 동일하게 반응형 적용) */}
             {activeTab === 'pw' && pwStep === 1 && (
-                <motion.div key="pw-step1" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }} className="space-y-4">
+                <motion.div key="pw-step1" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }} className="space-y-3 md:space-y-4">
                     <div className="space-y-1">
-                        <label className="text-xs text-white/50 pl-1 font-bold">이메일 (아이디)</label>
-                        <div className="relative"><input type="email" placeholder="example@email.com" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full bg-[#222] border border-white/10 rounded-xl p-4 pl-12 text-white outline-none focus:border-indigo-500"/><Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30" size={20}/></div>
+                        <label className="text-[10px] md:text-xs text-white/50 pl-1 font-bold">이메일 (아이디)</label>
+                        <div className="relative">
+                            <input type="email" placeholder="example@email.com" value={email} onChange={(e) => setEmail(e.target.value)} 
+                                   className="w-full bg-[#222] border border-white/10 rounded-lg md:rounded-xl p-3 md:p-4 pl-10 md:pl-12 text-sm md:text-base text-white outline-none focus:border-indigo-500"/>
+                            <Mail className="absolute left-3 md:left-4 top-1/2 -translate-y-1/2 text-white/30 w-4 h-4 md:w-5 md:h-5"/>
+                        </div>
                     </div>
                     <div className="space-y-1">
-                        <label className="text-xs text-white/50 pl-1 font-bold">이름 (닉네임)</label>
-                        <div className="relative"><input type="text" placeholder="가입한 이름" value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-[#222] border border-white/10 rounded-xl p-4 pl-12 text-white outline-none focus:border-indigo-500"/><User className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30" size={20}/></div>
+                        <label className="text-[10px] md:text-xs text-white/50 pl-1 font-bold">이름 (닉네임)</label>
+                        <div className="relative">
+                            <input type="text" placeholder="가입한 이름" value={name} onChange={(e) => setName(e.target.value)} 
+                                   className="w-full bg-[#222] border border-white/10 rounded-lg md:rounded-xl p-3 md:p-4 pl-10 md:pl-12 text-sm md:text-base text-white outline-none focus:border-indigo-500"/>
+                            <User className="absolute left-3 md:left-4 top-1/2 -translate-y-1/2 text-white/30 w-4 h-4 md:w-5 md:h-5"/>
+                        </div>
                     </div>
-                    <button onClick={handleSendEmailCode} disabled={loading} className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-4 rounded-xl mt-4 flex items-center justify-center gap-2">
-                        {loading ? "확인 중..." : "인증메일 발송"} <ChevronRight size={18}/>
+                    <button onClick={handleSendEmailCode} disabled={loading} className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3.5 md:py-4 rounded-lg md:rounded-xl mt-2 md:mt-4 flex items-center justify-center gap-2 text-sm md:text-base">
+                        {loading ? "확인 중..." : "인증메일 발송"} <ChevronRight className="w-4 h-4 md:w-5 md:h-5"/>
                     </button>
                 </motion.div>
             )}
 
             {activeTab === 'pw' && pwStep === 2 && (
-                <motion.div key="pw-step2" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }} className="space-y-4">
-                    <div className="text-center mb-4"><p className="text-white/70 text-sm">이메일로 전송된 인증번호를 입력하세요.</p><p className="text-indigo-400 font-bold mt-1">{email}</p></div>
-                    <div className="relative"><input type="text" placeholder="123456" value={authCode} onChange={(e) => setAuthCode(e.target.value)} className="w-full bg-[#222] border border-white/10 rounded-xl p-4 text-center text-white outline-none focus:border-indigo-500 tracking-[0.5em] font-bold text-lg"/></div>
-                    <button onClick={handleVerifyCode} disabled={loading} className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-4 rounded-xl mt-2">{loading ? "확인 중..." : "인증번호 확인"}</button>
+                <motion.div key="pw-step2" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }} className="space-y-3 md:space-y-4">
+                    <div className="text-center mb-2 md:mb-4">
+                        <p className="text-white/70 text-xs md:text-sm">이메일로 전송된 인증번호를 입력하세요.</p>
+                        <p className="text-indigo-400 font-bold mt-1 text-sm md:text-base break-all px-2">{email}</p>
+                    </div>
+                    <div className="relative">
+                        <input type="text" placeholder="123456" value={authCode} onChange={(e) => setAuthCode(e.target.value)} 
+                               className="w-full bg-[#222] border border-white/10 rounded-lg md:rounded-xl p-3 md:p-4 text-center text-white outline-none focus:border-indigo-500 tracking-[0.3em] md:tracking-[0.5em] font-bold text-base md:text-lg"/>
+                    </div>
+                    <button onClick={handleVerifyCode} disabled={loading} className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3.5 md:py-4 rounded-lg md:rounded-xl mt-2 text-sm md:text-base">{loading ? "확인 중..." : "인증번호 확인"}</button>
                 </motion.div>
             )}
 
             {activeTab === 'pw' && pwStep === 3 && (
-                <motion.div key="pw-step3" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="space-y-4">
+                <motion.div key="pw-step3" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="space-y-3 md:space-y-4">
                     <div className="space-y-1">
-                        <label className="text-xs text-white/50 pl-1 font-bold">새 비밀번호</label>
-                        <div className="relative"><input type="password" placeholder="새 비밀번호 입력" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className="w-full bg-[#222] border border-white/10 rounded-xl p-4 pl-12 text-white outline-none focus:border-indigo-500"/><Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30" size={20}/></div>
+                        <label className="text-[10px] md:text-xs text-white/50 pl-1 font-bold">새 비밀번호</label>
+                        <div className="relative">
+                            <input type="password" placeholder="새 비밀번호 입력" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} 
+                                   className="w-full bg-[#222] border border-white/10 rounded-lg md:rounded-xl p-3 md:p-4 pl-10 md:pl-12 text-sm md:text-base text-white outline-none focus:border-indigo-500"/>
+                            <Lock className="absolute left-3 md:left-4 top-1/2 -translate-y-1/2 text-white/30 w-4 h-4 md:w-5 md:h-5"/>
+                        </div>
                     </div>
-                    <button onClick={handleChangePassword} disabled={loading} className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-4 rounded-xl mt-4">{loading ? "변경 중..." : "비밀번호 변경 완료"}</button>
+                    <button onClick={handleChangePassword} disabled={loading} className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3.5 md:py-4 rounded-lg md:rounded-xl mt-2 md:mt-4 text-sm md:text-base">{loading ? "변경 중..." : "비밀번호 변경 완료"}</button>
                 </motion.div>
             )}
         </AnimatePresence>

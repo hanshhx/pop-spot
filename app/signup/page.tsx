@@ -131,39 +131,39 @@ export default function SignupPage() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white flex flex-col items-center py-10 px-4">
+    <div className="min-h-screen bg-black text-white flex flex-col items-center py-8 md:py-10 px-4">
       {/* 헤더 */}
-      <div className="w-full max-w-[460px] flex items-center mb-10 relative">
-        <button onClick={() => router.back()} className="absolute left-0 p-2 text-gray-400 hover:text-white">
-            <ChevronLeft size={28} />
+      <div className="w-full max-w-[460px] flex items-center mb-8 md:mb-10 relative">
+        <button onClick={() => router.back()} className="absolute left-0 p-1 md:p-2 text-gray-400 hover:text-white">
+            <ChevronLeft className="w-6 h-6 md:w-7 md:h-7" />
         </button>
         <div className="w-full text-center cursor-pointer" onClick={() => router.push("/")}>
-            <h1 className="text-3xl font-black tracking-tighter italic">
+            <h1 className="text-2xl md:text-3xl font-black tracking-tighter italic">
                 POP<span className="text-indigo-500">-</span>SPOT
             </h1>
         </div>
       </div>
 
-      <div className="w-full max-w-[460px] space-y-5">
+      <div className="w-full max-w-[460px] space-y-4 md:space-y-5 px-1 md:px-0">
         
         {/* 1. 이메일 (인증 기능 포함) */}
-        <div className="flex flex-col gap-2">
-            <label className="text-sm font-bold text-gray-400">이메일 (아이디)</label>
+        <div className="flex flex-col gap-1.5 md:gap-2">
+            <label className="text-[11px] md:text-sm font-bold text-gray-400">이메일 (아이디)</label>
             <div className="flex gap-2">
-                <div className="flex-1 bg-gray-900 border border-gray-700 focus-within:border-indigo-500 rounded-md px-3 py-3 transition-colors">
+                <div className="flex-1 bg-gray-900 border border-gray-700 focus-within:border-indigo-500 rounded-md px-2.5 py-2.5 md:px-3 md:py-3 transition-colors">
                     <input 
                         name="email" 
                         type="email" 
                         onChange={handleChange} 
                         disabled={isAuthVerified}
-                        className={`w-full bg-transparent outline-none text-white text-sm placeholder-gray-600 ${isAuthVerified ? 'text-gray-500' : ''}`}
+                        className={`w-full bg-transparent outline-none text-white text-xs md:text-sm placeholder-gray-600 ${isAuthVerified ? 'text-gray-500' : ''}`}
                         placeholder="예: popspot@gmail.com"
                     />
                 </div>
                 <button 
                     onClick={handleSendAuth}
                     disabled={isAuthVerified}
-                    className={`px-4 rounded-md text-sm font-bold whitespace-nowrap transition-colors ${
+                    className={`px-3 md:px-4 rounded-md text-xs md:text-sm font-bold whitespace-nowrap transition-colors ${
                         isAuthVerified 
                         ? 'bg-gray-800 text-indigo-400 border border-indigo-900' 
                         : 'bg-indigo-600 hover:bg-indigo-500 text-white'
@@ -176,19 +176,19 @@ export default function SignupPage() {
             {/* 인증번호 입력칸 (메일 발송 시 등장) */}
             {isAuthSent && !isAuthVerified && (
                 <div className="flex gap-2 mt-1 animate-in fade-in slide-in-from-top-2 duration-300">
-                    <div className="flex-1 bg-gray-900 border border-gray-700 px-3 py-3 flex justify-between items-center focus-within:border-indigo-500 rounded-md">
+                    <div className="flex-1 bg-gray-900 border border-gray-700 px-2.5 py-2.5 md:px-3 md:py-3 flex justify-between items-center focus-within:border-indigo-500 rounded-md">
                         <input 
                             name="authCode" 
                             type="text" 
                             placeholder="인증번호 6자리" 
                             onChange={handleChange}
-                            className="bg-transparent outline-none text-white text-sm w-full placeholder-gray-600"
+                            className="bg-transparent outline-none text-white text-xs md:text-sm w-full placeholder-gray-600"
                         />
-                        <span className="text-indigo-400 text-xs ml-2 font-mono">{formatTime(timer)}</span>
+                        <span className="text-indigo-400 text-[10px] md:text-xs ml-2 font-mono">{formatTime(timer)}</span>
                     </div>
                     <button 
                         onClick={handleVerifyAuth}
-                        className="bg-white text-black px-6 rounded-md text-sm font-bold hover:bg-gray-200 transition-colors"
+                        className="bg-white text-black px-4 md:px-6 rounded-md text-xs md:text-sm font-bold hover:bg-gray-200 transition-colors shrink-0"
                     >
                         확인
                     </button>
@@ -197,59 +197,59 @@ export default function SignupPage() {
         </div>
 
         {/* 2. 비밀번호 */}
-        <div className="flex flex-col gap-2">
-            <label className="text-sm font-bold text-gray-400">비밀번호</label>
-            <div className="bg-gray-900 border border-gray-700 focus-within:border-indigo-500 rounded-md px-3 py-3">
+        <div className="flex flex-col gap-1.5 md:gap-2">
+            <label className="text-[11px] md:text-sm font-bold text-gray-400">비밀번호</label>
+            <div className="bg-gray-900 border border-gray-700 focus-within:border-indigo-500 rounded-md px-2.5 py-2.5 md:px-3 md:py-3">
                 <input 
                     name="password" 
                     type="password" 
                     onChange={handleChange} 
-                    className="w-full bg-transparent outline-none text-white text-sm placeholder-gray-600"
+                    className="w-full bg-transparent outline-none text-white text-xs md:text-sm placeholder-gray-600"
                     placeholder="비밀번호 입력"
                 />
             </div>
         </div>
 
         {/* 3. 이름 */}
-        <div className="flex flex-col gap-2 pt-2">
-            <label className="text-sm font-bold text-gray-400">이름</label>
-            <div className="bg-gray-900 border border-gray-700 focus-within:border-indigo-500 rounded-md px-3 py-3">
+        <div className="flex flex-col gap-1.5 md:gap-2 pt-1 md:pt-2">
+            <label className="text-[11px] md:text-sm font-bold text-gray-400">이름</label>
+            <div className="bg-gray-900 border border-gray-700 focus-within:border-indigo-500 rounded-md px-2.5 py-2.5 md:px-3 md:py-3">
                 <input 
                     name="name" 
                     type="text" 
                     onChange={handleChange} 
-                    className="w-full bg-transparent outline-none text-white text-sm placeholder-gray-600"
+                    className="w-full bg-transparent outline-none text-white text-xs md:text-sm placeholder-gray-600"
                     placeholder="이름 입력"
                 />
             </div>
         </div>
 
         {/* 4. 생년월일 */}
-        <div className="flex flex-col gap-2">
-            <label className="text-sm font-bold text-gray-400">생년월일</label>
+        <div className="flex flex-col gap-1.5 md:gap-2">
+            <label className="text-[11px] md:text-sm font-bold text-gray-400">생년월일</label>
             <div className="flex gap-2">
-                <div className="bg-gray-900 border border-gray-700 px-3 py-3 flex-1 focus-within:border-indigo-500 rounded-md">
-                    <input name="birthdate" type="text" placeholder="년(4자)" maxLength={4} className="w-full bg-transparent outline-none text-white text-sm placeholder-gray-600" />
+                <div className="bg-gray-900 border border-gray-700 px-2.5 py-2.5 md:px-3 md:py-3 flex-[1.5] md:flex-1 focus-within:border-indigo-500 rounded-md">
+                    <input name="birthdate" type="text" placeholder="년(4자)" maxLength={4} className="w-full bg-transparent outline-none text-white text-xs md:text-sm placeholder-gray-600" />
                 </div>
-                <div className="bg-gray-900 border border-gray-700 px-3 py-3 w-1/4 focus-within:border-indigo-500 rounded-md">
-                    <select className="w-full bg-gray-900 outline-none text-white text-sm">
+                <div className="bg-gray-900 border border-gray-700 px-1 md:px-3 py-2.5 md:py-3 w-[72px] md:w-1/4 focus-within:border-indigo-500 rounded-md shrink-0">
+                    <select className="w-full bg-gray-900 outline-none text-white text-xs md:text-sm">
                         <option>월</option>
                         {[...Array(12)].map((_, i) => <option key={i}>{i + 1}</option>)}
                     </select>
                 </div>
-                <div className="bg-gray-900 border border-gray-700 px-3 py-3 flex-1 focus-within:border-indigo-500 rounded-md">
-                    <input type="text" placeholder="일" maxLength={2} className="w-full bg-transparent outline-none text-white text-sm placeholder-gray-600" />
+                <div className="bg-gray-900 border border-gray-700 px-2.5 py-2.5 md:px-3 md:py-3 flex-1 focus-within:border-indigo-500 rounded-md">
+                    <input type="text" placeholder="일" maxLength={2} className="w-full bg-transparent outline-none text-white text-xs md:text-sm placeholder-gray-600" />
                 </div>
             </div>
         </div>
 
         {/* 5. 성별 */}
-        <div className="flex flex-col gap-2">
-            <label className="text-sm font-bold text-gray-400">성별</label>
+        <div className="flex flex-col gap-1.5 md:gap-2">
+            <label className="text-[11px] md:text-sm font-bold text-gray-400">성별</label>
             <div className="flex bg-gray-900 rounded-md overflow-hidden border border-gray-700">
                 <button 
                     onClick={() => setFormData({...formData, gender: 'M'})}
-                    className={`flex-1 py-3 text-sm font-medium transition-all ${
+                    className={`flex-1 py-2.5 md:py-3 text-xs md:text-sm font-medium transition-all ${
                         formData.gender === 'M' 
                         ? 'bg-indigo-600 text-white font-bold' 
                         : 'text-gray-500 hover:text-gray-300'
@@ -260,7 +260,7 @@ export default function SignupPage() {
                 <div className="w-[1px] bg-gray-700"></div>
                 <button 
                     onClick={() => setFormData({...formData, gender: 'F'})}
-                    className={`flex-1 py-3 text-sm font-medium transition-all ${
+                    className={`flex-1 py-2.5 md:py-3 text-xs md:text-sm font-medium transition-all ${
                         formData.gender === 'F' 
                         ? 'bg-indigo-600 text-white font-bold' 
                         : 'text-gray-500 hover:text-gray-300'
@@ -272,15 +272,15 @@ export default function SignupPage() {
         </div>
 
         {/* 6. 휴대전화 */}
-        <div className="flex flex-col gap-2 pt-2">
-            <label className="text-sm font-bold text-gray-400">휴대전화</label>
+        <div className="flex flex-col gap-1.5 md:gap-2 pt-1 md:pt-2">
+            <label className="text-[11px] md:text-sm font-bold text-gray-400">휴대전화</label>
             <div className="flex gap-2">
                 <input 
                     name="phoneNumber" 
                     type="text" 
                     placeholder="전화번호 입력 (- 제외)" 
                     onChange={handleChange}
-                    className="w-full bg-gray-900 border border-gray-700 px-3 py-3 text-white text-sm outline-none focus:border-indigo-500 rounded-md placeholder-gray-600" 
+                    className="w-full bg-gray-900 border border-gray-700 px-2.5 py-2.5 md:px-3 md:py-3 text-white text-xs md:text-sm outline-none focus:border-indigo-500 rounded-md placeholder-gray-600" 
                 />
             </div>
         </div>
@@ -288,7 +288,7 @@ export default function SignupPage() {
         {/* 가입 버튼 */}
         <button 
             onClick={handleSignup}
-            className={`w-full font-bold text-lg py-4 mt-8 rounded-md transition-all shadow-lg ${
+            className={`w-full font-bold text-sm md:text-lg py-3.5 md:py-4 mt-6 md:mt-8 rounded-md transition-all shadow-lg ${
                 isAuthVerified
                 ? "bg-indigo-600 text-white hover:bg-indigo-500 shadow-indigo-900/20"
                 : "bg-gray-800 text-gray-500 cursor-not-allowed"

@@ -127,16 +127,16 @@ export default function InteractiveMap({ places, showPath = false, center, mode 
   const getCategoryStyle = (category?: string) => {
     const cat = category?.toUpperCase() || "PLAN";
     switch (cat) {
-      case "FASHION": return { color: "text-pink-500", border: "border-pink-500", icon: <ShoppingBag size={12} /> };
-      case "FOOD": return { color: "text-orange-500", border: "border-orange-500", icon: <Coffee size={12} /> };
-      case "ART": return { color: "text-purple-500", border: "border-purple-500", icon: <Camera size={12} /> };
-      case "TECH": return { color: "text-blue-500", border: "border-blue-500", icon: <Zap size={12} /> };
-      default: return { color: "text-indigo-600", border: "border-indigo-600", icon: <MapPin size={12} /> };
+      case "FASHION": return { color: "text-pink-500", border: "border-pink-500", icon: <ShoppingBag className="w-2.5 h-2.5 md:w-3 md:h-3" /> };
+      case "FOOD": return { color: "text-orange-500", border: "border-orange-500", icon: <Coffee className="w-2.5 h-2.5 md:w-3 md:h-3" /> };
+      case "ART": return { color: "text-purple-500", border: "border-purple-500", icon: <Camera className="w-2.5 h-2.5 md:w-3 md:h-3" /> };
+      case "TECH": return { color: "text-blue-500", border: "border-blue-500", icon: <Zap className="w-2.5 h-2.5 md:w-3 md:h-3" /> };
+      default: return { color: "text-indigo-600", border: "border-indigo-600", icon: <MapPin className="w-2.5 h-2.5 md:w-3 md:h-3" /> };
     }
   };
 
   return (
-    <div className="relative w-full h-full group overflow-hidden rounded-[20px]">
+    <div className="relative w-full h-full group overflow-hidden rounded-[20px] outline-none">
       <style jsx global>{`
         #map > div:first-child > div > div > div > img {
             filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%) !important;
@@ -147,8 +147,8 @@ export default function InteractiveMap({ places, showPath = false, center, mode 
       {/* PLAN 모드가 아니고 showPath도 아닐 때만 카테고리/사이드바 표시 */}
       {!showPath && mode !== "PLAN" && (
         <>
-          {/* 상단 카테고리 필터 */}
-          <div className="absolute top-4 left-4 right-4 z-20 flex gap-2 overflow-x-auto custom-scrollbar pb-2 pl-12 md:pl-0 transition-all">
+          {/* 상단 카테고리 필터 (반응형 패딩, 폰트 조절) */}
+          <div className="absolute top-3 md:top-4 left-3 md:left-4 right-3 md:right-4 z-20 flex gap-1.5 md:gap-2 overflow-x-auto custom-scrollbar pb-1.5 md:pb-2 pl-10 md:pl-0 transition-all">
             {CATEGORIES.map((cat) => (
               <button
                 key={`cat-btn-${cat}`} 
@@ -156,7 +156,7 @@ export default function InteractiveMap({ places, showPath = false, center, mode 
                     setActiveCategory(cat);
                     setSelectedMarker(null);
                 }}
-                className={`px-4 py-1.5 rounded-full text-[10px] font-bold backdrop-blur-md border transition-all whitespace-nowrap ${
+                className={`px-3 py-1 md:px-4 md:py-1.5 rounded-full text-[9px] md:text-[10px] font-bold backdrop-blur-md border transition-all whitespace-nowrap ${
                   activeCategory === cat 
                     ? 'bg-primary text-black border-primary shadow-[0_0_10px_rgba(var(--primary-rgb),0.5)]' 
                     : 'bg-black/40 text-white/70 border-white/10 hover:bg-white/10'
@@ -167,7 +167,7 @@ export default function InteractiveMap({ places, showPath = false, center, mode 
             ))}
           </div>
 
-          {/* 사이드바 목록 */}
+          {/* 사이드바 목록 (반응형 너비 조절) */}
           <AnimatePresence>
             {isListOpen && (
               <motion.div
@@ -175,46 +175,46 @@ export default function InteractiveMap({ places, showPath = false, center, mode 
                 animate={{ x: 0, opacity: 1 }}
                 exit={{ x: -300, opacity: 0 }}
                 transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                className="absolute top-0 left-0 bottom-0 w-[280px] z-30 bg-black/80 backdrop-blur-xl border-r border-white/10 flex flex-col shadow-2xl"
+                className="absolute top-0 left-0 bottom-0 w-[240px] md:w-[280px] z-30 bg-black/80 backdrop-blur-xl border-r border-white/10 flex flex-col shadow-2xl"
               >
-                <div className="p-4 border-b border-white/10 flex justify-between items-center">
-                    <h3 className="text-white font-bold text-lg flex items-center gap-2">
-                        <List size={18} className="text-primary"/> POPUP LIST
+                <div className="p-3 md:p-4 border-b border-white/10 flex justify-between items-center">
+                    <h3 className="text-white font-bold text-base md:text-lg flex items-center gap-1.5 md:gap-2">
+                        <List size={16} className="text-primary md:w-[18px] md:h-[18px]"/> POPUP LIST
                     </h3>
                     <button onClick={() => setIsListOpen(false)} className="p-1 hover:bg-white/10 rounded-full transition-colors">
-                        <X size={18} className="text-muted hover:text-white"/>
+                        <X size={16} className="text-muted hover:text-white md:w-[18px] md:h-[18px]"/>
                     </button>
                 </div>
 
-                <div className="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-2">
+                <div className="flex-1 overflow-y-auto custom-scrollbar p-2 md:p-3 space-y-1.5 md:space-y-2">
                     {markers.length > 0 ? (
                         markers.map((marker, index) => (
                             <div 
                                 key={`sidebar-item-${marker.popupId || index}`} 
                                 onClick={() => moveToMarker(marker)}
-                                className={`p-3 rounded-xl border cursor-pointer transition-all hover:translate-x-1 ${
+                                className={`p-2.5 md:p-3 rounded-xl border cursor-pointer transition-all hover:translate-x-1 ${
                                     selectedMarker?.popupId === marker.popupId 
                                         ? 'bg-white/10 border-primary/50 shadow-[0_0_10px_rgba(var(--primary-rgb),0.2)]' 
                                         : 'bg-transparent border-white/5 hover:bg-white/5 hover:border-white/20'
                                 }`}
                             >
-                                <h4 className={`font-bold text-sm mb-1 ${selectedMarker?.popupId === marker.popupId ? 'text-primary' : 'text-white'}`}>
+                                <h4 className={`font-bold text-xs md:text-sm mb-1 ${selectedMarker?.popupId === marker.popupId ? 'text-primary' : 'text-white'}`}>
                                     {marker.name}
                                 </h4>
-                                <p className="text-xs text-muted flex items-center gap-1 truncate">
-                                    <MapPin size={10}/> {marker.address}
+                                <p className="text-[10px] md:text-xs text-muted flex items-center gap-1 truncate">
+                                    <MapPin size={10} className="shrink-0"/> {marker.address}
                                 </p>
                             </div>
                         ))
                     ) : (
-                        <div className="text-center text-muted text-xs py-10">
+                        <div className="text-center text-muted text-[10px] md:text-xs py-8 md:py-10">
                             해당 카테고리의<br/>팝업스토어가 없습니다.
                         </div>
                     )}
                 </div>
                 
-                <div className="p-3 border-t border-white/10 text-center">
-                    <span className="text-xs text-muted">
+                <div className="p-2.5 md:p-3 border-t border-white/10 text-center">
+                    <span className="text-[10px] md:text-xs text-muted">
                         Total <strong className="text-white">{markers.length}</strong> Locations
                     </span>
                 </div>
@@ -222,37 +222,37 @@ export default function InteractiveMap({ places, showPath = false, center, mode 
             )}
           </AnimatePresence>
 
-          {/* 우측 하단 컨트롤러 */}
-          <div className="absolute bottom-6 right-4 z-20 flex flex-col gap-2">
+          {/* 우측 하단 리스트 컨트롤러 (반응형 여백/크기 조절) */}
+          <div className="absolute bottom-4 md:bottom-6 right-3 md:right-4 z-20 flex flex-col gap-2">
              <button 
                onClick={() => setIsListOpen(!isListOpen)}
-               className={`p-2.5 backdrop-blur-md border rounded-xl text-white transition-all shadow-lg ${
+               className={`p-2 md:p-2.5 backdrop-blur-md border rounded-lg md:rounded-xl text-white transition-all shadow-lg ${
                    isListOpen 
                         ? 'bg-primary text-black border-primary' 
                         : 'bg-black/80 border-white/20 hover:text-primary hover:border-primary'
                }`}
              >
-                <List size={18} />
+                <List size={16} className="md:w-[18px] md:h-[18px]" />
              </button>
           </div>
         </>
       )}
 
-      {/* 공통 컨트롤러 (위치, 줌) */}
-      <div className="absolute bottom-6 right-4 z-20 flex flex-col gap-2" style={{ bottom: (showPath || mode === "PLAN") ? '24px' : '72px' }}>
+      {/* 공통 컨트롤러 (위치, 줌) - 반응형 여백 조절 */}
+      <div className="absolute right-3 md:right-4 z-20 flex flex-col gap-1.5 md:gap-2" style={{ bottom: (showPath || mode === "PLAN") ? '16px' : '64px' }}>
          <button 
            onClick={handleMyLocation}
-           className="p-2.5 bg-black/80 backdrop-blur-md border border-white/20 rounded-xl text-white hover:text-primary hover:border-primary transition-colors shadow-lg"
+           className="p-2 md:p-2.5 bg-black/80 backdrop-blur-md border border-white/20 rounded-lg md:rounded-xl text-white hover:text-primary hover:border-primary transition-colors shadow-lg"
          >
-            <Compass size={18} />
+            <Compass size={16} className="md:w-[18px] md:h-[18px]" />
          </button>
 
-         <div className="flex flex-col bg-black/80 backdrop-blur-md border border-white/20 rounded-xl overflow-hidden shadow-lg">
-            <button onClick={zoomIn} className="p-2.5 text-white hover:text-primary hover:bg-white/10 transition-colors border-b border-white/10">
-                <Plus size={18} />
+         <div className="flex flex-col bg-black/80 backdrop-blur-md border border-white/20 rounded-lg md:rounded-xl overflow-hidden shadow-lg">
+            <button onClick={zoomIn} className="p-2 md:p-2.5 text-white hover:text-primary hover:bg-white/10 transition-colors border-b border-white/10 flex items-center justify-center">
+                <Plus size={16} className="md:w-[18px] md:h-[18px]" />
             </button>
-            <button onClick={zoomOut} className="p-2.5 text-white hover:text-primary hover:bg-white/10 transition-colors">
-                <Minus size={18} />
+            <button onClick={zoomOut} className="p-2 md:p-2.5 text-white hover:text-primary hover:bg-white/10 transition-colors flex items-center justify-center">
+                <Minus size={16} className="md:w-[18px] md:h-[18px]" />
             </button>
          </div>
       </div>
@@ -315,22 +315,22 @@ export default function InteractiveMap({ places, showPath = false, center, mode 
                   {/* 🔥 [모드 분기] PLAN 모드이거나 showPath일 때는 숫자+이름표 마커 표시 */}
                   {showPath || mode === "PLAN" ? (
                       <div className="relative flex flex-col items-center hover:z-50">
-                          {/* 1. 이름표 (항상 보임) */}
-                          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl shadow-lg border-2 bg-white ${style.border} mb-1 transform transition-all group-hover/marker:scale-110`}>
-                            <span className={`font-black text-xs ${style.color}`}>{index + 1}</span>
-                            <span className="w-px h-3 bg-gray-200"></span>
-                            <span className="font-bold text-xs text-gray-800 whitespace-nowrap">{marker.name}</span>
+                          {/* 1. 이름표 (항상 보임) - 모바일 텍스트 및 패딩 조정 */}
+                          <div className={`flex items-center gap-1.5 md:gap-2 px-2 py-1 md:px-3 md:py-1.5 rounded-lg md:rounded-xl shadow-lg border-2 bg-white ${style.border} mb-1 transform transition-all group-hover/marker:scale-110`}>
+                            <span className={`font-black text-[10px] md:text-xs ${style.color}`}>{index + 1}</span>
+                            <span className="w-px h-2.5 md:h-3 bg-gray-200"></span>
+                            <span className="font-bold text-[10px] md:text-xs text-gray-800 whitespace-nowrap">{marker.name}</span>
                             <span className={`${style.color}`}>{style.icon}</span>
                           </div>
 
                           {/* 2. 지도 핀 */}
                           <div className="relative">
-                             <div className={`w-4 h-4 transform rotate-45 border-r border-b bg-white ${style.border} -mt-3`}></div>
-                             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-white rounded-full mt-[-10px]"></div>
+                             <div className={`w-3 h-3 md:w-4 md:h-4 transform rotate-45 border-r border-b bg-white ${style.border} -mt-2 md:-mt-3`}></div>
+                             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1 h-1 md:w-1.5 md:h-1.5 bg-white rounded-full mt-[-6px] md:mt-[-10px]"></div>
                           </div>
                           
                           {/* 그림자 */}
-                          <div className="w-8 h-2 bg-black/20 blur-sm rounded-full mt-1"></div>
+                          <div className="w-6 h-1.5 md:w-8 md:h-2 bg-black/20 blur-sm rounded-full mt-1"></div>
                       </div>
                   ) : (
                       // 🟢 [기본 모드] 기존 원형 마커
@@ -338,7 +338,7 @@ export default function InteractiveMap({ places, showPath = false, center, mode 
                         <div className={`absolute -inset-2 rounded-full opacity-70 animate-ping ${
                             selectedMarker?.popupId === marker.popupId ? 'bg-primary' : 'bg-white'
                         }`}></div>
-                        <div className={`relative w-4 h-4 rounded-full border-2 border-black shadow-[0_0_10px_rgba(0,0,0,0.5)] transition-all duration-300 ${
+                        <div className={`relative w-3 h-3 md:w-4 md:h-4 rounded-full border-2 border-black shadow-[0_0_10px_rgba(0,0,0,0.5)] transition-all duration-300 ${
                             selectedMarker?.popupId === marker.popupId ? 'bg-primary scale-125' : 'bg-white group-hover/marker:bg-primary'
                         }`}></div>
                       </>
@@ -348,7 +348,7 @@ export default function InteractiveMap({ places, showPath = false, center, mode 
             );
         })}
 
-        {/* 선택된 마커 오버레이 (상세 정보) */}
+        {/* 선택된 마커 오버레이 (상세 정보) - 모바일 패딩 및 사이즈 최적화 */}
         {selectedMarker && (
           <CustomOverlayMap
             key={`selected-popup-overlay-${selectedMarker.popupId}`} 
@@ -364,7 +364,7 @@ export default function InteractiveMap({ places, showPath = false, center, mode 
               initial={{ opacity: 0, y: 10, scale: 0.9 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 10 }}
-              className="relative min-w-[200px] p-4 bg-black/80 backdrop-blur-md border border-white/20 rounded-2xl shadow-2xl text-left cursor-pointer hover:border-primary transition-colors group"
+              className="relative min-w-[160px] md:min-w-[200px] p-3 md:p-4 bg-black/80 backdrop-blur-md border border-white/20 rounded-xl md:rounded-2xl shadow-2xl text-left cursor-pointer hover:border-primary transition-colors group"
               onClick={() => {
                  if (onMarkerClick && selectedMarker.popupId) {
                      onMarkerClick(selectedMarker.popupId);
@@ -376,28 +376,28 @@ export default function InteractiveMap({ places, showPath = false, center, mode 
                       e.stopPropagation(); // 클릭 이벤트가 상세페이지 이동으로 번지는 것을 막음
                       setSelectedMarker(null);
                   }}
-                  className="absolute top-2 right-2 text-white/50 hover:text-white transition-colors z-10"
+                  className="absolute top-1.5 right-1.5 md:top-2 md:right-2 text-white/50 hover:text-white transition-colors z-10"
                 >
-                  <X size={14} />
+                  <X size={12} className="md:w-3.5 md:h-3.5" />
                 </button>
 
-                <div className="flex items-center gap-2 mb-1">
-                    <span className="text-[9px] px-1.5 py-0.5 rounded bg-primary/20 text-primary border border-primary/30 font-bold">
+                <div className="flex items-center gap-1.5 md:gap-2 mb-1">
+                    <span className="text-[8px] md:text-[9px] px-1 md:px-1.5 py-0.5 rounded bg-primary/20 text-primary border border-primary/30 font-bold">
                         {selectedMarker.category || 'POPUP'}
                     </span>
-                    <h3 className="text-white font-bold text-base truncate pr-4 group-hover:text-primary transition-colors">{selectedMarker.name}</h3>
+                    <h3 className="text-white font-bold text-xs md:text-base truncate pr-4 group-hover:text-primary transition-colors">{selectedMarker.name}</h3>
                 </div>
                 
-                <p className="text-muted text-xs flex items-center gap-1 mb-3">
-                  <MapPin size={10} /> {selectedMarker.address}
+                <p className="text-muted text-[9px] md:text-xs flex items-center gap-1 mb-2 md:mb-3">
+                  <MapPin size={8} className="md:w-2.5 md:h-2.5 shrink-0" /> <span className="truncate">{selectedMarker.address}</span>
                 </p>
 
                 {/* 원래 있던 Link 컴포넌트는 전체 박스를 클릭하게 만들었으므로 삭제하거나 디자인만 유지합니다 */}
-                <div className="w-full py-2 bg-white/10 group-hover:bg-primary group-hover:text-black rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1 text-white">
-                  View Details <ArrowRight size={10} className="group-hover:translate-x-1 transition-transform"/>
+                <div className="w-full py-1.5 md:py-2 bg-white/10 group-hover:bg-primary group-hover:text-black rounded-md md:rounded-lg text-[10px] md:text-xs font-bold transition-all flex items-center justify-center gap-1 text-white">
+                  View Details <ArrowRight size={10} className="group-hover:translate-x-1 transition-transform md:w-2.5 md:h-2.5"/>
                 </div>
 
-                <div className="absolute bottom-[-6px] left-1/2 -translate-x-1/2 w-3 h-3 bg-black/80 border-r border-b border-white/20 rotate-45 transform"></div>
+                <div className="absolute bottom-[-5px] md:bottom-[-6px] left-1/2 -translate-x-1/2 w-2.5 h-2.5 md:w-3 md:h-3 bg-black/80 border-r border-b border-white/20 rotate-45 transform"></div>
             </motion.div>
           </CustomOverlayMap>
         )}

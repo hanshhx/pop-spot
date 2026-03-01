@@ -66,18 +66,20 @@ function CallbackContent() {
   }, [searchParams, router]);
 
   return (
-    <div className="flex flex-col items-center gap-4">
-      <Loader2 className="w-12 h-12 text-indigo-500 animate-spin" />
-      <h2 className="text-xl font-bold text-white">{status}</h2>
+    // 🚀 반응형 적용: gap 크기 조절, px-4 및 text-center 추가로 모바일 가독성 확보
+    <div className="flex flex-col items-center gap-3 md:gap-4 px-4 text-center">
+      <Loader2 className="w-8 h-8 md:w-12 md:h-12 text-indigo-500 animate-spin" />
+      <h2 className="text-lg md:text-xl font-bold text-white">{status}</h2>
     </div>
   );
 }
 
 export default function OAuthCallbackPage() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-black">
+    <div className="min-h-screen flex items-center justify-center bg-black p-4">
       {/* [구조 해석] useSearchParams를 사용하기 위해 Suspense로 감싸 클라이언트 사이드 렌더링을 보장합니다. */}
-      <Suspense fallback={<div className="text-white">인증 정보를 확인 중입니다...</div>}>
+      {/* 🚀 반응형 텍스트 사이즈 추가 */}
+      <Suspense fallback={<div className="text-white text-sm md:text-base font-medium">인증 정보를 확인 중입니다...</div>}>
         <CallbackContent />
       </Suspense>
     </div>

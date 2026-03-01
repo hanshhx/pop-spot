@@ -121,21 +121,21 @@ export default function ShopPage() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white p-6 relative overflow-hidden">
+    <div className="min-h-screen bg-black text-white p-4 md:p-6 relative overflow-hidden">
       <Script src="https://cdn.iamport.kr/v1/iamport.js" />
       
       {/* 배경 효과 */}
-      <div className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] bg-purple-600/30 rounded-full blur-[120px]" />
-      <div className="absolute bottom-[-20%] right-[-10%] w-[600px] h-[600px] bg-indigo-600/30 rounded-full blur-[120px]" />
+      <div className="absolute top-[-10%] left-[-10%] w-[300px] md:w-[600px] h-[300px] md:h-[600px] bg-purple-600/30 rounded-full blur-[80px] md:blur-[120px]" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[300px] md:w-[600px] h-[300px] md:h-[600px] bg-indigo-600/30 rounded-full blur-[80px] md:blur-[120px]" />
 
-      <header className="relative z-10 flex items-center gap-4 mb-12">
-        <button onClick={() => router.back()} className="p-2 bg-white/10 rounded-full hover:bg-white/20 transition-colors">
-            <ArrowLeft />
+      <header className="relative z-10 flex items-center gap-3 md:gap-4 mb-8 md:mb-12">
+        <button onClick={() => router.back()} className="p-1.5 md:p-2 bg-white/10 rounded-full hover:bg-white/20 transition-colors">
+            <ArrowLeft className="w-5 h-5 md:w-6 md:h-6"/>
         </button>
-        <h1 className="text-3xl font-black italic tracking-tighter">ITEM SHOP</h1>
+        <h1 className="text-2xl md:text-3xl font-black italic tracking-tighter">ITEM SHOP</h1>
       </header>
 
-      <main className="relative z-10 max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8">
+      <main className="relative z-10 max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8 px-2 md:px-0">
         
         {/* 아이템 카드 렌더링 */}
         {items.map((item) => {
@@ -145,43 +145,43 @@ export default function ShopPage() {
                     key={item.id}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className={`relative p-8 rounded-[2.5rem] border overflow-hidden group cursor-pointer transition-all hover:scale-[1.02]
+                    className={`relative p-6 md:p-8 rounded-[2rem] md:rounded-[2.5rem] border overflow-hidden group cursor-pointer transition-all hover:scale-[1.02]
                         ${isPass 
                             ? "bg-gradient-to-br from-indigo-900 to-purple-900 border-indigo-500 shadow-[0_0_40px_rgba(79,70,229,0.3)]" 
                             : "bg-white/5 border-white/10 hover:border-white/30"
                         }`}
                 >
                     <div className="relative z-10">
-                        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-6 
+                        <div className={`w-10 h-10 md:w-14 md:h-14 rounded-xl md:rounded-2xl flex items-center justify-center mb-4 md:mb-6 
                             ${isPass ? "bg-white text-indigo-900" : "bg-white/10 text-white"}`}>
-                            {isPass ? <Crown size={28} /> : <Megaphone size={28} />}
+                            {isPass ? <Crown size={20} className="md:w-7 md:h-7"/> : <Megaphone size={20} className="md:w-7 md:h-7"/>}
                         </div>
                         
-                        <h2 className="text-2xl font-bold mb-2">{item.name}</h2>
-                        <p className="text-white/60 mb-8 min-h-[48px]">{item.description}</p>
+                        <h2 className="text-xl md:text-2xl font-bold mb-1 md:mb-2">{item.name}</h2>
+                        <p className="text-white/60 mb-6 md:mb-8 text-xs md:text-sm min-h-[36px] md:min-h-[48px]">{item.description}</p>
                         
                         {/* 혜택 리스트 (UI 데코레이션) */}
-                        <ul className="space-y-3 mb-8">
+                        <ul className="space-y-2 md:space-y-3 mb-6 md:mb-8">
                             {isPass ? (
                                 <>
-                                    <li className="flex gap-2 text-sm"><Check size={16} className="text-green-400"/> AI 코스 무제한 저장</li>
-                                    <li className="flex gap-2 text-sm"><Check size={16} className="text-green-400"/> 리뷰 시크릿 팁 잠금해제</li>
-                                    <li className="flex gap-2 text-sm"><Check size={16} className="text-green-400"/> 프리미엄 뱃지 부여</li>
+                                    <li className="flex gap-1.5 md:gap-2 text-xs md:text-sm"><Check size={14} className="md:w-4 md:h-4 text-green-400"/> AI 코스 무제한 저장</li>
+                                    <li className="flex gap-1.5 md:gap-2 text-xs md:text-sm"><Check size={14} className="md:w-4 md:h-4 text-green-400"/> 리뷰 시크릿 팁 잠금해제</li>
+                                    <li className="flex gap-1.5 md:gap-2 text-xs md:text-sm"><Check size={14} className="md:w-4 md:h-4 text-green-400"/> 프리미엄 뱃지 부여</li>
                                 </>
                             ) : (
                                 <>
-                                    <li className="flex gap-2 text-sm"><Check size={16} className="text-green-400"/> 동행 게시판 상단 고정</li>
-                                    <li className="flex gap-2 text-sm"><Check size={16} className="text-green-400"/> 게시글 강조 효과 (Highlight)</li>
-                                    <li className="flex gap-2 text-sm"><Check size={16} className="text-green-400"/> 매칭 확률 200% 증가</li>
+                                    <li className="flex gap-1.5 md:gap-2 text-xs md:text-sm"><Check size={14} className="md:w-4 md:h-4 text-green-400"/> 동행 게시판 상단 고정</li>
+                                    <li className="flex gap-1.5 md:gap-2 text-xs md:text-sm"><Check size={14} className="md:w-4 md:h-4 text-green-400"/> 게시글 강조 효과 (Highlight)</li>
+                                    <li className="flex gap-1.5 md:gap-2 text-xs md:text-sm"><Check size={14} className="md:w-4 md:h-4 text-green-400"/> 매칭 확률 200% 증가</li>
                                 </>
                             )}
                         </ul>
 
                         <div className="flex items-center justify-between mt-auto">
-                            <span className="text-2xl font-black">{item.price.toLocaleString()}원</span>
+                            <span className="text-xl md:text-2xl font-black">{item.price.toLocaleString()}원</span>
                             <button 
                                 onClick={() => handlePayment(item)}
-                                className={`px-6 py-3 rounded-xl font-bold transition-colors
+                                className={`px-4 py-2.5 md:px-6 md:py-3 rounded-lg md:rounded-xl font-bold transition-colors text-sm md:text-base
                                 ${isPass 
                                     ? "bg-white text-indigo-900 hover:bg-gray-200" 
                                     : "bg-white/10 text-white hover:bg-white hover:text-black border border-white/20"
