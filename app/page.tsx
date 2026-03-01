@@ -858,7 +858,7 @@ export default function Home() {
                                 같은 화면을 보며 실시간으로 마커를 찍고 동선을 계획하세요.<br className="hidden lg:block"/>
                                 늦게 온 친구도 Redis가 저장한 기록을 바로 볼 수 있습니다.
                             </p>
-                            <button 
+                            <button 
                                 onClick={handleCreateRoom}
                                 className="group relative inline-flex items-center justify-center px-6 py-3 lg:px-8 lg:py-4 font-bold text-white transition-all duration-200 bg-indigo-600 rounded-full hover:bg-indigo-500 focus:outline-none ring-offset-2 focus:ring-2 ring-indigo-400 text-sm lg:text-lg w-full lg:w-auto"
                             >
@@ -898,7 +898,7 @@ export default function Home() {
 
         {/* 🟢 [PASSPORT 탭] */}
         {currentTab === "PASSPORT" && (
-            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} 
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} 
                         className="min-h-[80vh] flex flex-col items-center justify-center rounded-[2rem] lg:rounded-[2.5rem] border mb-24 relative overflow-hidden backdrop-blur-xl transition-colors bg-white/80 border-gray-200 dark:bg-black/80 dark:border-white/10 p-4">
               {user ? (<PassportView />) : (
                   <div className="text-center p-6 lg:p-8 z-10 w-full max-w-md">
@@ -912,7 +912,7 @@ export default function Home() {
 
         {/* 🟢 [COURSE 탭] */}
         {currentTab === "COURSE" && (
-             <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} 
+             <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} 
                           className="min-h-[80vh] flex flex-col items-center rounded-[2.5rem] border mb-24 p-4 lg:p-6 relative overflow-hidden backdrop-blur-xl transition-colors bg-white/80 border-gray-200 dark:bg-black/80 dark:border-white/10">
                 <div className="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-5 pointer-events-none"></div>
                 <div className="text-center mb-8 lg:mb-10 z-10 mt-6 lg:mt-8">
@@ -959,7 +959,7 @@ export default function Home() {
                     </div>
 
                     {!isAiLoading && aiCourse.length > 0 && (
-                        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} 
+                        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} 
                                     className="rounded-2xl lg:rounded-3xl p-5 lg:p-8 border relative overflow-hidden group hover:border-indigo-500/50 transition-colors shadow-xl bg-white border-gray-200 dark:bg-[#1a1a1a] dark:border-white/10">
                             <div className="absolute top-0 right-0 p-6 lg:p-10 opacity-5"><MapIcon size={100} className="lg:w-[150px] lg:h-[150px]" /></div>
                             <div className="relative z-10">
@@ -988,7 +988,7 @@ export default function Home() {
                                     ))}
                                 </div>
                                 
-                                <button 
+                                <button 
                                     onClick={handleCopyAiToMyCourse}
                                     className="w-full py-3 lg:py-4 mt-2 lg:mt-4 bg-indigo-600 hover:bg-indigo-50 rounded-xl font-bold text-white transition-colors shadow-lg shadow-indigo-600/20 flex items-center justify-center gap-1.5 lg:gap-2 text-xs lg:text-base"
                                 >
@@ -1007,16 +1007,16 @@ export default function Home() {
 
         {/* 🟢 [MY 탭] - 🔥 저장된 코스 목록 & 위시리스트 */}
         {currentTab === "MY" && (
-            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} 
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} 
                         className="h-[85vh] lg:h-[85vh] flex flex-col md:flex-row overflow-hidden rounded-[2rem] lg:rounded-[2.5rem] border backdrop-blur-md mb-24 transition-colors relative
-                                    bg-white/80 border-gray-200 
+                                    bg-white/80 border-gray-200 
                                     dark:bg-[#111]/80 dark:border-white/10">
                 
                 {/* 1. 지도 영역 (왼쪽/상단) */}
                 <div className="w-full md:w-[55%] h-[35vh] md:h-full relative border-b md:border-b-0 md:border-r border-gray-200 dark:border-white/5 flex-shrink-0">
-                    <InteractiveMap 
-                        places={myCourseItems} 
-                        showPath={true} 
+                    <InteractiveMap 
+                        places={myCourseItems} 
+                        showPath={true} 
                         center={myCourseItems.length > 0 ? { lat: myCourseItems[0].lat, lng: myCourseItems[0].lng } : undefined}
                     />
                     <div className="absolute top-3 left-3 lg:top-4 lg:left-4 z-10 bg-white/90 dark:bg-black/80 backdrop-blur px-3 py-1.5 lg:px-4 lg:py-2 rounded-full shadow-lg border border-gray-200 dark:border-white/10">
@@ -1061,7 +1061,7 @@ export default function Home() {
                         <div className="space-y-2 lg:space-y-3">
                             {/* POP-PASS 카드 */}
                             <div className={`p-3 lg:p-4 rounded-xl lg:rounded-2xl border flex items-center justify-between ${
-                                myPageInfo?.isPremium 
+                                myPageInfo?.isPremium 
                                 ? "bg-gradient-to-r from-indigo-900 to-purple-900 border-indigo-500 text-white shadow-lg"
                                 : "bg-gray-50 dark:bg-[#222] border-gray-100 dark:border-white/5 text-gray-400"
                             }`}>
@@ -1072,7 +1072,7 @@ export default function Home() {
                                     <div>
                                         <div className="font-bold text-xs lg:text-sm">POP-PASS</div>
                                         <div className="text-[10px] lg:text-xs opacity-70 mt-0.5">
-                                            {myPageInfo?.isPremium 
+                                            {myPageInfo?.isPremium 
                                                 ? `${getDday(myPageInfo?.premiumExpiryDate)}일 남음`
                                                 : "미보유"}
                                         </div>
@@ -1096,7 +1096,7 @@ export default function Home() {
                                         <div className="text-[10px] lg:text-xs text-gray-500 dark:text-white/50 mt-0.5">보유 수량: {myPageInfo?.megaphoneCount || 0}개</div>
                                     </div>
                                 </div>
-                                <button 
+                                <button 
                                     onClick={() => {
                                         if((myPageInfo?.megaphoneCount || 0) > 0) {
                                             alert("동행 게시판 글쓰기 화면에서 사용할 수 있습니다!");
@@ -1106,8 +1106,8 @@ export default function Home() {
                                         }
                                     }}
                                     className={`text-[10px] lg:text-xs px-2.5 py-1.5 lg:px-3 lg:py-1.5 rounded-lg transition-colors font-bold whitespace-nowrap ${
-                                        (myPageInfo?.megaphoneCount || 0) > 0 
-                                        ? "bg-indigo-600 text-white hover:bg-indigo-500" 
+                                        (myPageInfo?.megaphoneCount || 0) > 0 
+                                        ? "bg-indigo-600 text-white hover:bg-indigo-500" 
                                         : "bg-gray-200 text-gray-400 dark:bg-white/5 cursor-not-allowed"
                                     }`}
                                 >
@@ -1147,9 +1147,9 @@ export default function Home() {
                                             </div>
 
                                             {/* 삭제 버튼 (우상단) */}
-                                            <button 
+                                            <button 
                                                 onClick={(e) => handleRemoveWishlist(e, item.popupId)}
-                                                className="absolute top-1.5 right-1.5 lg:top-2 lg:right-2 bg-black/50 backdrop-blur rounded-full p-1 lg:p-1.5 text-red-500 hover:bg-red-500 hover:text-white transition-all opacity-100 md:opacity-0 md:group-hover:opacity-100" 
+                                                className="absolute top-1.5 right-1.5 lg:top-2 lg:right-2 bg-black/50 backdrop-blur rounded-full p-1 lg:p-1.5 text-red-500 hover:bg-red-500 hover:text-white transition-all opacity-100 md:opacity-0 md:group-hover:opacity-100" 
                                                 title="찜 해제"
                                             >
                                                 <Heart size={10} className="lg:w-3 lg:h-3 fill-current"/>
@@ -1189,7 +1189,7 @@ export default function Home() {
                                     </div>
                                     
                                     {/* 삭제 버튼 추가 */}
-                                    <button 
+                                    <button 
                                         onClick={(e) => handleDeleteCourse(e, course.id)}
                                         className="p-1.5 lg:p-2 text-gray-400 hover:text-red-500 transition-colors rounded-full hover:bg-red-50 dark:hover:bg-red-900/20"
                                         title="삭제하기"
@@ -1219,20 +1219,20 @@ export default function Home() {
                             </div>
                         )}
 
-                        <DndContext 
-                            sensors={sensors} 
-                            collisionDetection={closestCenter} 
+                        <DndContext 
+                            sensors={sensors} 
+                            collisionDetection={closestCenter} 
                             onDragEnd={handleDragEnd}
                         >
-                            <SortableContext 
-                                items={myCourseItems} 
+                            <SortableContext 
+                                items={myCourseItems} 
                                 strategy={verticalListSortingStrategy}
                             >
                                 <div className="space-y-2">
                                     {myCourseItems.map((place, index) => (
                                         <div key={place.id} className="relative group">
                                             <SortableItem id={place.id} place={place} index={index} />
-                                            <button 
+                                            <button 
                                                 onClick={() => {
                                                     const newItems = myCourseItems.filter(i => i.id !== place.id);
                                                     setMyCourseItems(newItems);
@@ -1248,7 +1248,7 @@ export default function Home() {
                             </SortableContext>
                         </DndContext>
 
-                        <button 
+                        <button 
                             onClick={() => setIsAddPlaceOpen(true)}
                             className="w-full py-2.5 lg:py-3 mt-3 lg:mt-4 border-2 border-dashed border-gray-300 dark:border-white/20 rounded-lg lg:rounded-xl text-gray-500 dark:text-white/50 hover:border-indigo-500 hover:text-indigo-500 transition-colors flex items-center justify-center gap-1.5 lg:gap-2 font-bold text-xs lg:text-sm"
                         >
@@ -1262,7 +1262,7 @@ export default function Home() {
 
                     <AnimatePresence>
                         {isAddPlaceOpen && (
-                            <motion.div 
+                            <motion.div 
                                 initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
                                 className="absolute inset-0 bg-white dark:bg-[#111] z-50 flex flex-col"
                             >
@@ -1274,7 +1274,7 @@ export default function Home() {
                                 </div>
                                 <div className="flex-1 overflow-y-auto p-3 lg:p-4 custom-scrollbar">
                                     {allPopups.map((popup) => (
-                                        <div key={popup.id} onClick={() => handleAddPlace(popup)} 
+                                        <div key={popup.id} onClick={() => handleAddPlace(popup)} 
                                              className="flex justify-between items-center p-3 lg:p-4 mb-2 border border-gray-100 dark:border-white/5 rounded-lg lg:rounded-xl cursor-pointer hover:bg-indigo-50 dark:hover:bg-indigo-900/20 hover:border-indigo-200 transition-colors">
                                             <div>
                                                 <h4 className="font-bold text-xs lg:text-sm text-gray-900 dark:text-white">{popup.name}</h4>
@@ -1292,7 +1292,7 @@ export default function Home() {
         )}
 
         {currentTab === "MATE" && (
-            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} 
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} 
                         className="min-h-[80vh] rounded-[2rem] lg:rounded-[2.5rem] border mb-24 relative overflow-hidden backdrop-blur-xl transition-colors bg-white/80 border-gray-200 dark:bg-black/80 dark:border-white/10 shadow-2xl">
                 <MateBoard user={user} />
             </motion.div>
@@ -1301,7 +1301,7 @@ export default function Home() {
       </div>
 
       <footer className="relative z-10 border-t py-8 md:py-12 lg:py-20 rounded-t-[2rem] lg:rounded-t-[3rem] mt-8 lg:mt-12 pb-32 backdrop-blur-xl transition-colors
-                        bg-gray-100 border-gray-300 
+                        bg-gray-100 border-gray-300 
                         dark:bg-black/80 dark:border-white/10">
         <div className="max-w-[1600px] mx-auto px-6 lg:px-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-12">
             <div className="col-span-1 sm:col-span-2">
@@ -1354,7 +1354,7 @@ export default function Home() {
       {/* 모바일 화면에서는 flex-wrap 방지를 위해 넘치는 항목 숨김/축소 처리 */}
       <div className="fixed bottom-4 md:bottom-8 left-1/2 -translate-x-1/2 z-50 w-[95%] max-w-[400px] md:max-w-max md:w-auto">
         <div className="flex items-center justify-between md:justify-center gap-1 md:gap-2 rounded-full p-1.5 md:p-2 px-3 md:px-6 shadow-2xl backdrop-blur-xl border transition-colors
-                        bg-white/80 border-gray-200 
+                        bg-white/80 border-gray-200 
                         dark:bg-black/70 dark:border-white/10">
             <DockItem icon={<MapIcon size={20} className="w-4 h-4 md:w-5 md:h-5"/>} label="지도" isActive={currentTab === "MAP"} onClick={() => handleTabChange("MAP")} />
             <div className="w-px h-3 md:h-4 bg-gray-300 dark:bg-white/10 mx-0 md:mx-1 shrink-0"></div>
@@ -1378,7 +1378,7 @@ export default function Home() {
         {isModalOpen && (
             <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-black/50 dark:bg-black/90 backdrop-blur-xl" onClick={() => setIsModalOpen(false)}></motion.div>
-                <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} transition={{ duration: 0.3 }} 
+                <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} transition={{ duration: 0.3 }} 
                             className="relative w-full max-w-5xl h-[85vh] rounded-[2rem] lg:rounded-[2.5rem] p-5 lg:p-8 flex flex-col shadow-2xl overflow-hidden border transition-colors bg-white border-gray-200 dark:bg-[#0a0a0a] dark:border-white/10">
                     <div className="flex justify-between items-center mb-6 lg:mb-8 pb-4 lg:pb-6 border-b border-gray-200 dark:border-white/5">
                         <div>
@@ -1400,7 +1400,7 @@ export default function Home() {
                                 <AnimatePresence>
                                 {allPopups.map((popup, idx) => (
                                     <Link href={`/popup/${popup.id}`} key={popup.id} onClick={() => setIsModalOpen(false)}>
-                                        <motion.div layout initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.3 }} 
+                                        <motion.div layout initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.3 }} 
                                                     className="relative flex items-center justify-between p-4 lg:p-5 rounded-xl lg:rounded-2xl transition-all duration-300 group hover:translate-y-[-2px] hover:shadow-lg border bg-white border-gray-200 hover:border-primary/50 dark:bg-[#111] dark:bg-gradient-to-br dark:from-white/5 dark:to-transparent dark:border-white/5">
                                         <div className="flex items-center gap-3 lg:gap-5">
                                                 <div className="w-8 lg:w-12 text-center">
@@ -1429,18 +1429,18 @@ export default function Home() {
 
       <AnimatePresence>
         {isReportOpen && congestionData && (
-            <AIReportModal 
-            data={congestionData} 
-            onClose={() => setIsReportOpen(false)} 
+            <AIReportModal 
+            data={congestionData} 
+            onClose={() => setIsReportOpen(false)} 
             />
         )}
       </AnimatePresence>
 
       <AnimatePresence>
         {isReportPopupOpen && (
-            <ReportPopupModal 
-                user={user} 
-                onClose={() => setIsReportPopupOpen(false)} 
+            <ReportPopupModal 
+                user={user} 
+                onClose={() => setIsReportPopupOpen(false)} 
             />
         )}
       </AnimatePresence>
@@ -1452,8 +1452,8 @@ export default function Home() {
 function DockItem({ icon, label, isActive, onClick }: any) {
   return (
     <button onClick={onClick} className={`flex flex-col items-center justify-center w-10 h-10 md:w-14 md:h-14 rounded-full transition-all duration-300 shrink-0 ${
-        isActive 
-        ? "bg-gray-900 text-white scale-110 shadow-lg dark:bg-white dark:text-black" 
+        isActive 
+        ? "bg-gray-900 text-white scale-110 shadow-lg dark:bg-white dark:text-black" 
         : "text-gray-400 hover:text-gray-900 hover:bg-gray-100 dark:text-white/60 dark:hover:text-white dark:hover:bg-white/10"
     }`}>
       {icon}
@@ -1474,7 +1474,8 @@ function ReportPopupModal({ onClose, user }: { onClose: () => void, user: any })
     const handleSubmit = async (e: any) => {
         e.preventDefault();
         try {
-            const response = await fetch("http://34.121.40.248:8080/api/popups/report", {
+            // ✅ 해결: API_BASE_URL (https://popspot.duckdns.org 등)을 사용하도록 변경!
+            const response = await fetch(`${API_BASE_URL}/api/popups/report`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(formData),
@@ -1507,4 +1508,4 @@ function ReportPopupModal({ onClose, user }: { onClose: () => void, user: any })
             </motion.div>
         </div>
     );
-}
+} 
