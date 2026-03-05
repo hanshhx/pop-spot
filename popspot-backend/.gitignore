@@ -1,0 +1,80 @@
+# ==========================================
+# 1. 🔐 보안 및 비밀 파일 (절대 커밋 금지!)
+# ==========================================
+# 🔥 모든 properties 및 yml 파일 업로드 완벽 차단! (키 유출 방지)
+*.properties
+*.yml
+*.yaml
+
+# 환경변수 파일
+.env
+.env.local
+
+# 암호화 키, 인증서 등
+*.key
+*.pem
+*.p12
+*.jks
+
+# ==========================================
+# 2. 🏗️ 빌드 결과물 및 의존성 (필요 없음)
+# ==========================================
+HELP.md
+.gradle
+build/
+out/
+bin/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/**/build/
+!**/src/test/**/build/
+!**/src/main/**/bin/
+!**/src/test/**/bin/
+!**/src/main/**/out/
+!**/src/test/**/out/
+
+# ==========================================
+# 3. 🖥️ IDE 및 에디터 설정 (개발자 개인 설정)
+# ==========================================
+### STS / Eclipse ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+
+### VS Code ###
+.vscode/
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+# ==========================================
+# 4. 📂 로컬 업로드 파일 및 로그
+# ==========================================
+# 이미지가 저장되는 로컬 폴더 (서버마다 달라야 함)
+uploads/
+upload/
+
+# 로그 파일
+logs/
+*.log
+*.log.gz
+
+# ==========================================
+# 5. 💻 운영체제 파일 (맥/윈도우 찌꺼기)
+# ==========================================
+.DS_Store
+Thumbs.db
+Desktop.ini
