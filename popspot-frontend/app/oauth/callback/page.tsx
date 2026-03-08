@@ -3,6 +3,8 @@
 import { useEffect, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation"; 
 import { Loader2 } from "lucide-react";
+// 🔥 [임의 추가] 백엔드와 통신하기 위해 전역 API 주소를 가져옵니다.
+import { API_BASE_URL } from "../../../src/lib/api"; 
 
 // [로직 해석] 쿠키에서 특정 이름의 값을 추출하는 헬퍼 함수입니다.
 function getCookie(name: string) {
@@ -18,51 +20,93 @@ function CallbackContent() {
   const [status, setStatus] = useState("로그인 처리 중...");
 
   useEffect(() => {
-    // 1. 백엔드가 URL 파라미터로 보낸 accessToken을 먼저 추출합니다.
+    // =========================================================================
+    // ❌ [기존 코드 보존] 보안 업데이트로 인해 주소창에 더 이상 토큰이 들어오지 않습니다.
+    // 기존의 이 부분은 주석 처리하여 히스토리로 남겨둡니다.
+    // =========================================================================
+    /*
     const tokenFromUrl = searchParams.get("accessToken");
-    
-    // 2. 쿠키에서도 토큰을 확인합니다.
     const tokenFromCookie = getCookie("accessToken");
-    
-    // 3. URL에 토큰이 있다면 최우선으로 채택합니다.
     const token = tokenFromUrl || tokenFromCookie;
-    
-    // 4. URL 파라미터에서 유저 식별 정보 및 상태를 추출합니다.
     const userId = searchParams.get("userId");
     const nickname = searchParams.get("nickname");
     const isPremium = searchParams.get("isPremium");
-    const roleFromUrl = searchParams.get("role"); // 🔥 [추가] 백엔드가 보낸 role(권한)을 추출합니다!
+    const roleFromUrl = searchParams.get("role");
 
-    // [로직 분석] 유효한 토큰과 유저 ID가 확인되면 로그인 프로세스를 진행합니다.
     if (token && userId) {
-      // 5. 로컬 스토리지 저장
       localStorage.setItem("token", token);
 
       const realUser = {
         userId: userId,
         nickname: nickname ? decodeURIComponent(nickname) : "User",
         isPremium: isPremium === "true",
-        role: roleFromUrl || "USER", // 🔥 [추가] 추출한 권한을 유저 객체에 포함시킵니다!
+        role: roleFromUrl || "USER",
         isSocial: true
       };
       
-      // [구조 해석] JSON 문자열로 변환하여 로컬스토리지에 저장, 전역에서 유저 정보를 사용하게 합니다.
       localStorage.setItem("user", JSON.stringify(realUser));
-
-      // 6. 보안을 위해 쿠키 삭제 (선택 사항)
       document.cookie = "accessToken=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;";
 
       setStatus("로그인 성공! 메인으로 이동합니다.");
-      
-      // 7. [구조 해석] 완전히 새로고침하며 메인 페이지로 이동합니다.
       setTimeout(() => {
         window.location.href = "/";
       }, 500); 
     } else {
-      // [로직 분석] 인증 정보가 부족할 경우 에러 메시지를 출력하고 로그인 페이지로 돌려보냅니다.
       setStatus("로그인 정보가 없습니다. 다시 시도해주세요.");
       setTimeout(() => router.push("/login"), 2000);
     }
+    */
+    
+    // =========================================================================
+    // ✅ [신규 코드] HttpOnly 보안 쿠키를 기반으로 백엔드에서 직접 유저 정보를 긁어옵니다.
+    // =========================================================================
+    const fetchUserInfo = async () => {
+        try {
+            // credentials: "include" 옵션이 핵심입니다. 이 옵션을 켜야 브라우저가
+            // 자신만의 비밀 금고에 넣어둔 HttpOnly 쿠키(accessToken)를 꺼내서 서버로 전송합니다.
+            const res = await fetch(`${API_BASE_URL}/api/v1/auth/me`, {
+                method: "GET",
+                credentials: "include" 
+            });
+
+            if (res.ok) {
+                // 1. 서버가 쿠키를 까보고 이상이 없으면 유저 정보를 JSON으로 돌려줍니다.
+                const userInfo = await res.json();
+                
+                // 2. 프론트엔드 전역에서 쓸 수 있도록 로컬 스토리지에 세팅합니다.
+                const realUser = {
+                    userId: userInfo.userId,
+                    nickname: userInfo.nickname,
+                    isPremium: userInfo.isPremium,
+                    role: userInfo.role,
+                    isSocial: true
+                };
+                localStorage.setItem("user", JSON.stringify(realUser));
+
+                // 3. 로그인 성공 처리
+                setStatus("로그인 성공! 메인으로 이동합니다.");
+                setTimeout(() => {
+                    window.location.href = "/";
+                }, 500);
+            } else {
+                // 🔥 [문제 해결 핵심 1] 백엔드가 401 에러 등을 보내면, 에러 메시지를 까서 보여줍니다.
+                const errorText = await res.text();
+                setStatus(`인증 거부됨: ${res.status} - ${errorText}`);
+                
+                // 에러를 화면에서 5초간 보여준 뒤 로그인 창으로 돌려보냅니다.
+                setTimeout(() => router.push("/login"), 5000);
+            }
+        } catch (error: any) {
+            // 🔥 [문제 해결 핵심 2] CORS 때문에 아예 연결조차 못하고 터진 에러를 잡아냅니다.
+            console.error("Fetch API 에러:", error);
+            setStatus(`서버 연결 차단됨 (CORS 또는 네트워크 문제): ${error.message}`);
+            
+            // 에러를 화면에서 5초간 보여준 뒤 로그인 창으로 돌려보냅니다.
+            setTimeout(() => router.push("/login"), 5000);
+        }
+    };
+
+    fetchUserInfo();
   }, [searchParams, router]);
 
   return (
