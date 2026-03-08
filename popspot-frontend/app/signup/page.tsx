@@ -2,19 +2,17 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, Eye, EyeOff, CheckCircle2, XCircle, Check } from "lucide-react"; // 🔥 아이콘 추가
+import { ChevronLeft, Eye, EyeOff, CheckCircle2, XCircle, Check } from "lucide-react";
 
-// 🔥 [수정 완료] TypeScript 경로 에러 해결 및 중앙 관리를 위해 상대 경로로 API 주소를 가져옵니다.
 import { API_BASE_URL } from "../../src/lib/api"; 
 
 export default function SignupPage() {
   const router = useRouter();
-  
-  // 입력 상태 관리 (🔥 passwordConfirm 추가)
+
   const [formData, setFormData] = useState({
     email: "",       
     password: "",
-    passwordConfirm: "", // 추가됨
+    passwordConfirm: "",
     name: "",
     birthdate: "",
     gender: "M", 
@@ -22,45 +20,50 @@ export default function SignupPage() {
     authCode: "",    
   });
 
-  // UI 상태 관리 (🔥 눈알 아이콘 토글용 상태 추가)
   const [showPassword, setShowPassword] = useState(false);
   const [showPasswordConfirm, setShowPasswordConfirm] = useState(false);
 
-  // 인증 상태 관리
   const [isAuthSent, setIsAuthSent] = useState(false);     
-  const [isAuthVerified, setIsAuthVerified] = useState(false); 
+  const [isAuthVerified, setIsAuthVerified] = useState(false);
   const [timer, setTimer] = useState(180); 
 
-  // 🔥 [추가] 약관 동의 상태 관리
   const [agreements, setAgreements] = useState({
     terms: false,
     privacy: false
   });
 
-  // ================= [🔥 실시간 유효성 검사 로직] =================
+  // ================= [🔥 실시간 유효성 검사 로직 (백엔드 동기화)] =================
   
-  // 1. 닉네임(이름) 검사: 특수문자 제외 2~8글자
-  const isValidName = /^[a-zA-Z0-9가-힣]{2,8}$/.test(formData.name);
-  
+  // 🔥 [83번 임의 수정] 이메일 정규식 검사 추가
+  const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email);
+
+  // 🔥 [84번 임의 수정] 백엔드 규칙과 동일하게 영문, 숫자, 특수문자 조합 8~20자 강제
+  const isValidPassword = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{8,20}$/.test(formData.password);
+
   // 2. 비밀번호 일치 검사
   const isPasswordMatch = formData.password !== "" && formData.password === formData.passwordConfirm;
   const isPasswordMismatch = formData.passwordConfirm !== "" && formData.password !== formData.passwordConfirm;
 
+  // 1. 닉네임(이름) 검사
+  const isValidName = /^[a-zA-Z0-9가-힣]{2,8}$/.test(formData.name);
+
+  // 🔥 [82번 임의 수정] 010으로 시작하는 11자리 숫자 강제
+  const isValidPhone = /^010\d{8}$/.test(formData.phoneNumber);
+
   // 3. 약관 전체 동의 여부
   const isAllAgreed = agreements.terms && agreements.privacy;
 
-  // 4. 전체 폼 유효성 (가입 버튼 활성화 조건)
+  // 4. 전체 폼 유효성 (모든 조건이 true여야만 가입 버튼 활성화)
   const isFormValid = 
     isAuthVerified && 
-    formData.password.length >= 4 && 
+    isValidPassword && 
     isPasswordMatch && 
     isValidName && 
-    formData.phoneNumber.length >= 10 && 
+    isValidPhone && 
     isAllAgreed;
 
   // ==============================================================
 
-  // 타이머 로직
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (isAuthSent && !isAuthVerified && timer > 0) {
@@ -73,7 +76,6 @@ export default function SignupPage() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  // 🔥 [추가] 약관 동의 핸들러
   const handleAgreeAll = () => {
     const newValue = !isAllAgreed;
     setAgreements({ terms: newValue, privacy: newValue });
@@ -83,10 +85,10 @@ export default function SignupPage() {
     setAgreements({ ...agreements, [name]: !agreements[name] });
   };
 
-  // 이메일 인증번호 전송 로직
   const handleSendAuth = async () => {
     if (!formData.email) return alert("이메일을 입력해주세요.");
-    if (!formData.email.includes("@")) return alert("올바른 이메일 형식이 아닙니다.");
+    // 🔥 [83번 임의 수정] 정규식을 통과하지 못한 이메일은 전송 시도조차 막습니다.
+    if (!isValidEmail) return alert("올바른 이메일 형식이 아닙니다.");
     
     try {
         const res = await fetch(`${API_BASE_URL}/api/v1/auth/email/send`, {
@@ -97,7 +99,7 @@ export default function SignupPage() {
 
         if (res.ok) {
             setIsAuthSent(true);
-            setTimer(180);
+            setTimer(300); // 🔥 [백엔드 동기화] 백엔드의 Redis 5분(300초)과 타이머를 맞춥니다.
             alert("인증번호가 메일로 발송되었습니다.\n이메일을 확인해주세요!");
         } else {
             alert("메일 전송 실패: 이미 가입된 이메일이거나 서버 오류입니다.");
@@ -107,7 +109,6 @@ export default function SignupPage() {
     }
   };
 
-  // 이메일 인증번호 확인 로직
   const handleVerifyAuth = async () => {
     if (!formData.authCode) return;
 
@@ -132,7 +133,6 @@ export default function SignupPage() {
     }
   };
 
-  // 최종 회원가입 요청 로직
   const handleSignup = async () => {
     if (!isFormValid) return alert("입력 정보와 약관 동의를 다시 확인해주세요.");
 
@@ -143,7 +143,7 @@ export default function SignupPage() {
         body: JSON.stringify({
             email: formData.email,
             password: formData.password,
-            nickname: formData.name, // 백엔드 DTO에 맞게 name을 nickname으로 매핑
+            nickname: formData.name, 
             phoneNumber: formData.phoneNumber
         }),
       });
@@ -160,7 +160,6 @@ export default function SignupPage() {
     }
   };
 
-  // 시간 포맷 (03:00)
   const formatTime = (time: number) => {
     const minutes = Math.floor(time / 60);
     const seconds = time % 60;
@@ -183,11 +182,14 @@ export default function SignupPage() {
 
       <div className="w-full max-w-[460px] space-y-4 md:space-y-5 px-1 md:px-0">
         
-        {/* 1. 이메일 (인증 기능 포함) */}
+        {/* 1. 이메일 */}
         <div className="flex flex-col gap-1.5 md:gap-2">
             <label className="text-[11px] md:text-sm font-bold text-gray-400">이메일 (아이디)</label>
             <div className="flex gap-2">
-                <div className="flex-1 bg-gray-900 border border-gray-700 focus-within:border-indigo-500 rounded-md px-2.5 py-2.5 md:px-3 md:py-3 transition-colors">
+                {/* 🔥 [83번 임의 수정] 이메일 형식이 틀리면 테두리가 빨갛게 변하도록 UI 피드백 추가 */}
+                <div className={`flex-1 bg-gray-900 border transition-colors rounded-md px-2.5 py-2.5 md:px-3 md:py-3 ${
+                    formData.email.length > 0 && !isValidEmail && !isAuthVerified ? "border-red-500" : "border-gray-700 focus-within:border-indigo-500"
+                }`}>
                     <input 
                         name="email" 
                         type="email" 
@@ -209,6 +211,10 @@ export default function SignupPage() {
                     {isAuthVerified ? "인증완료" : "인증하기"}
                 </button>
             </div>
+            {/* 이메일 에러 메시지 */}
+            {formData.email.length > 0 && !isValidEmail && !isAuthVerified && (
+                <p className="text-[10px] md:text-xs text-red-500 flex items-center gap-1"><XCircle size={12}/> 올바른 이메일 형식이 아닙니다.</p>
+            )}
 
             {/* 인증번호 입력칸 */}
             {isAuthSent && !isAuthVerified && (
@@ -233,24 +239,33 @@ export default function SignupPage() {
             )}
         </div>
 
-        {/* 2. 비밀번호 (🔥 눈알 아이콘 추가) */}
+        {/* 2. 비밀번호 */}
         <div className="flex flex-col gap-1.5 md:gap-2">
             <label className="text-[11px] md:text-sm font-bold text-gray-400">비밀번호</label>
-            <div className="relative bg-gray-900 border border-gray-700 focus-within:border-indigo-500 rounded-md px-2.5 py-2.5 md:px-3 md:py-3">
+            {/* 🔥 [84번 임의 수정] 강도 조건 미달 시 빨간 테두리 피드백 */}
+            <div className={`relative bg-gray-900 border rounded-md px-2.5 py-2.5 md:px-3 md:py-3 transition-colors ${
+                formData.password.length > 0 && !isValidPassword ? "border-red-500" : "border-gray-700 focus-within:border-indigo-500"
+            }`}>
                 <input 
                     name="password" 
                     type={showPassword ? "text" : "password"} 
                     onChange={handleChange} 
                     className="w-full bg-transparent outline-none text-white text-xs md:text-sm placeholder-gray-600 pr-8"
-                    placeholder="4자 이상 입력해주세요"
+                    placeholder="영문, 숫자, 특수문자 포함 8~20자"
                 />
                 <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-200">
                     {showPassword ? <EyeOff size={16}/> : <Eye size={16}/>}
                 </button>
             </div>
+            {/* 🔥 [84번 임의 수정] 조건 불충족 시 에러 메시지 렌더링 */}
+            {formData.password.length > 0 && (
+                isValidPassword 
+                ? <p className="text-[10px] md:text-xs text-green-500 flex items-center gap-1"><CheckCircle2 size={12}/> 안전한 비밀번호입니다.</p>
+                : <p className="text-[10px] md:text-xs text-red-500 flex items-center gap-1"><XCircle size={12}/> 영문, 숫자, 특수문자를 포함해 8~20자로 입력해주세요.</p>
+            )}
         </div>
 
-        {/* 3. 비밀번호 확인 (🔥 실시간 일치 UI 추가) */}
+        {/* 3. 비밀번호 확인 */}
         <div className="flex flex-col gap-1.5 md:gap-2">
             <label className="text-[11px] md:text-sm font-bold text-gray-400">비밀번호 확인</label>
             <div className={`relative bg-gray-900 border rounded-md px-2.5 py-2.5 md:px-3 md:py-3 transition-colors ${
@@ -271,7 +286,7 @@ export default function SignupPage() {
             {isPasswordMatch && <p className="text-[10px] md:text-xs text-green-500 flex items-center gap-1"><CheckCircle2 size={12}/> 비밀번호가 일치합니다.</p>}
         </div>
 
-        {/* 4. 이름 (🔥 실시간 규칙 검사 UI 추가) */}
+        {/* 4. 이름 (닉네임) */}
         <div className="flex flex-col gap-1.5 md:gap-2 pt-1 md:pt-2">
             <label className="text-[11px] md:text-sm font-bold text-gray-400">이름 (닉네임)</label>
             <div className={`bg-gray-900 border rounded-md px-2.5 py-2.5 md:px-3 md:py-3 transition-colors ${
@@ -293,7 +308,7 @@ export default function SignupPage() {
             )}
         </div>
 
-        {/* 5. 생년월일 (기존 유지) */}
+        {/* 5. 생년월일 */}
         <div className="flex flex-col gap-1.5 md:gap-2 pt-1 md:pt-2">
             <label className="text-[11px] md:text-sm font-bold text-gray-400">생년월일</label>
             <div className="flex gap-2">
@@ -312,7 +327,7 @@ export default function SignupPage() {
             </div>
         </div>
 
-        {/* 6. 성별 (기존 유지) */}
+        {/* 6. 성별 */}
         <div className="flex flex-col gap-1.5 md:gap-2">
             <label className="text-[11px] md:text-sm font-bold text-gray-400">성별</label>
             <div className="flex bg-gray-900 rounded-md overflow-hidden border border-gray-700">
@@ -336,21 +351,30 @@ export default function SignupPage() {
             </div>
         </div>
 
-        {/* 7. 휴대전화 (기존 유지) */}
+        {/* 7. 휴대전화 */}
         <div className="flex flex-col gap-1.5 md:gap-2 pt-1 md:pt-2">
             <label className="text-[11px] md:text-sm font-bold text-gray-400">휴대전화</label>
-            <div className="flex gap-2">
+            {/* 🔥 [82번 임의 수정] 전화번호 형식 불일치 시 UI 피드백 적용 */}
+            <div className={`flex gap-2 bg-gray-900 border rounded-md px-2.5 py-2.5 md:px-3 md:py-3 transition-colors ${
+                formData.phoneNumber.length > 0 && !isValidPhone ? "border-red-500" : "border-gray-700 focus-within:border-indigo-500"
+            }`}>
                 <input 
                     name="phoneNumber" 
                     type="text" 
-                    placeholder="전화번호 입력 (- 제외)" 
+                    placeholder="01012345678 (- 제외)" 
                     onChange={handleChange}
-                    className="w-full bg-gray-900 border border-gray-700 px-2.5 py-2.5 md:px-3 md:py-3 text-white text-xs md:text-sm outline-none focus:border-indigo-500 rounded-md placeholder-gray-600" 
+                    className="w-full bg-transparent text-white text-xs md:text-sm outline-none placeholder-gray-600" 
                 />
             </div>
+            {/* 전화번호 에러 메시지 */}
+            {formData.phoneNumber.length > 0 && (
+                isValidPhone 
+                ? <p className="text-[10px] md:text-xs text-green-500 flex items-center gap-1"><CheckCircle2 size={12}/> 올바른 전화번호 형식입니다.</p>
+                : <p className="text-[10px] md:text-xs text-red-500 flex items-center gap-1"><XCircle size={12}/> 010으로 시작하는 11자리 숫자만 입력 가능합니다.</p>
+            )}
         </div>
 
-        {/* 🔥 8. 필수 약관 동의 (신규 추가) */}
+        {/* 8. 약관 동기화 */}
         <div className="bg-gray-900 p-4 rounded-md border border-gray-700 space-y-3 mt-6">
             <label className="flex items-center gap-3 cursor-pointer pb-3 border-b border-gray-800">
                 <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${isAllAgreed ? "bg-indigo-600 border-indigo-600" : "border-gray-500"}`}>
@@ -377,7 +401,7 @@ export default function SignupPage() {
             </label>
         </div>
 
-        {/* 9. 가입 버튼 (🔥 모든 조건 충족 시에만 활성화) */}
+        {/* 9. 가입 버튼 */}
         <button 
             onClick={handleSignup}
             className={`w-full font-bold text-sm md:text-lg py-3.5 md:py-4 mt-6 rounded-md transition-all shadow-lg ${
