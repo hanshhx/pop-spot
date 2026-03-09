@@ -7,6 +7,13 @@ import {
     BarChart3, Users, MessageSquare, Gift, Trash2, Edit3 
 } from "lucide-react";
 import Swal from "sweetalert2";
+
+// 🔥 [임의 추가] 예쁜 차트를 그리기 위한 recharts 라이브러리 컴포넌트 임포트
+import { 
+    PieChart, Pie, Cell, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, 
+    BarChart, Bar, XAxis, YAxis, CartesianGrid 
+} from 'recharts';
+
 // 🔥 apiFetch 경로를 동현님 프로젝트 구조에 맞게 확인해주세요! (일반적으로 ../../src/lib/api 또는 ../src/lib/api)
 import { apiFetch } from "../../src/lib/api"; 
 
@@ -142,6 +149,18 @@ export default function AdminPage() {
         } catch (e) { Swal.fire('오류', '서버 통신 실패', 'error'); }
     };
 
+    // 🔥 [임의 추가] 차트 렌더링을 위한 데이터 가공 로직
+    const COLORS = ['#10b981', '#f59e0b']; // 초록색(영업중), 노란색(대기중) 색상 지정
+    const pieData = stats ? [
+        { name: '영업중 팝업', value: stats.activePopups },
+        { name: '승인 대기중', value: stats.pendingPopups }
+    ] : [];
+
+    const barData = stats ? [
+        { name: '가입 유저 수', count: stats.totalUsers },
+        { name: '게시글 수', count: stats.totalMatePosts }
+    ] : [];
+
     // ================= [UI 렌더링] =================
 
     return (
@@ -190,7 +209,7 @@ export default function AdminPage() {
                 {/* 탭 1: 대시보드 & 제보 관리 */}
                 {!isLoading && activeTab === "DASHBOARD" && (
                     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                        {/* 통계 요약 (IT 경영 어필 포인트!) */}
+                        {/* 1. 통계 요약 텍스트 박스 */}
                         {stats && (
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                                 <div className="bg-white dark:bg-[#1a1a1a] p-5 rounded-2xl border border-gray-200 dark:border-white/5 shadow-sm flex items-center justify-between">
@@ -212,6 +231,46 @@ export default function AdminPage() {
                             </div>
                         )}
 
+                        {/* 🔥 [임의 추가] 2. 데이터 시각화 차트 영역 */}
+                        {stats && (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {/* 도넛 차트: 팝업스토어 현황 */}
+                                <div className="bg-white dark:bg-[#1a1a1a] p-6 rounded-2xl border border-gray-200 dark:border-white/5 shadow-sm">
+                                    <h3 className="text-sm font-bold text-gray-500 mb-4 text-center">팝업스토어 상태 현황</h3>
+                                    <div className="h-64">
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <PieChart>
+                                                <Pie data={pieData} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
+                                                    {pieData.map((entry, index) => (
+                                                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                                    ))}
+                                                </Pie>
+                                                <RechartsTooltip contentStyle={{ borderRadius: '10px', border: 'none', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }} />
+                                                <Legend verticalAlign="bottom" height={36}/>
+                                            </PieChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                </div>
+
+                                {/* 막대 차트: 콘텐츠 현황 */}
+                                <div className="bg-white dark:bg-[#1a1a1a] p-6 rounded-2xl border border-gray-200 dark:border-white/5 shadow-sm">
+                                    <h3 className="text-sm font-bold text-gray-500 mb-4 text-center">서비스 활성도 지표</h3>
+                                    <div className="h-64">
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <BarChart data={barData} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
+                                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
+                                                <XAxis dataKey="name" tick={{ fontSize: 12, fill: '#6b7280' }} axisLine={false} tickLine={false} />
+                                                <YAxis tick={{ fontSize: 12, fill: '#6b7280' }} axisLine={false} tickLine={false} />
+                                                <RechartsTooltip cursor={{ fill: '#f3f4f6' }} contentStyle={{ borderRadius: '10px', border: 'none', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }} />
+                                                <Bar dataKey="count" fill="#6366f1" radius={[4, 4, 0, 0]} barSize={40} />
+                                            </BarChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* 3. 제보 대기열 리스트 */}
                         <h2 className="text-xl font-bold flex items-center gap-2 pt-4 border-t border-gray-200 dark:border-white/10"><AlertCircle className="text-yellow-500"/> 제보 승인 대기열</h2>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {pendingPopups.length === 0 ? (
