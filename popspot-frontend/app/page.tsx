@@ -610,7 +610,7 @@ export default function Home() {
   const isAdmin = user?.role?.includes('ADMIN');
 
   return (
-    <main className="min-h-screen font-sans relative pb-24 overflow-x-hidden transition-colors duration-500 bg-gray-50 text-gray-900 dark:bg-black dark:text-white">
+    <main className="min-h-screen font-sans relative pb-32 overflow-x-hidden transition-colors duration-500 bg-gray-50 text-gray-900 dark:bg-black dark:text-white">
       
       <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
         <video autoPlay loop muted playsInline className="absolute min-w-full min-h-full object-cover">
@@ -623,8 +623,8 @@ export default function Home() {
         
         <header role="banner" className="flex flex-col md:flex-row md:justify-between items-start md:items-end mb-6 md:mb-10 border-b border-gray-300 dark:border-white/10 pb-4 gap-4 md:gap-0">
           <Link href="/" onClick={() => handleTabChange("MAP")} passHref legacyBehavior>
-            <a>
-              <h1 className="text-3xl md:text-6xl font-black tracking-tighter leading-none text-gray-900 dark:text-white transition-colors hover:text-indigo-500 dark:hover:text-indigo-400">
+            <a className="group">
+              <h1 className="text-3xl md:text-6xl font-black tracking-tighter leading-none text-gray-900 dark:text-white transition-colors group-hover:text-indigo-500 dark:group-hover:text-indigo-400">
                 POP-SPOT<span className="text-primary">.</span>
               </h1>
               <p className="text-[10px] md:text-sm mt-1 tracking-widest uppercase text-gray-600 dark:text-white/60 transition-colors">
@@ -797,7 +797,6 @@ export default function Home() {
                             </AnimatePresence>
                             ) : (
                             <div className="h-full flex flex-col justify-center space-y-3 opacity-60">
-                                {/* 스켈레톤 로딩 UI 적용 */}
                                 {[...Array(5)].map((_, i) => (
                                     <div key={i} className="animate-pulse flex items-center justify-between p-3 md:p-4 rounded-xl md:rounded-2xl border bg-gray-100 dark:bg-white/5 border-transparent">
                                         <div className="flex gap-3 items-center">
@@ -1404,24 +1403,29 @@ export default function Home() {
       </footer>
 
       {/* Navigation Dock */}
-      <nav aria-label="Main Navigation" className="fixed bottom-4 md:bottom-8 left-1/2 -translate-x-1/2 z-50 w-[95%] max-w-[400px] md:max-w-max md:w-auto">
-        <div className="flex items-center justify-between md:justify-center gap-1 md:gap-2 rounded-full p-1.5 md:p-2 px-3 md:px-6 shadow-2xl backdrop-blur-xl border transition-colors bg-white/80 border-gray-200 dark:bg-black/70 dark:border-white/10">
-            <DockItem icon={<MapIcon size={20} className="w-4 h-4 md:w-5 md:h-5"/>} label="지도" isActive={currentTab === "MAP"} onClick={() => handleTabChange("MAP")} />
-            <div className="w-px h-3 md:h-4 bg-gray-300 dark:bg-white/10 mx-0 md:mx-1 shrink-0"></div>
-            <DockItem icon={<Route size={20} className="w-4 h-4 md:w-5 md:h-5"/>} label="코스" isActive={currentTab === "COURSE"} onClick={() => handleTabChange("COURSE")} />
+      <nav aria-label="Main Navigation" className="fixed bottom-4 md:bottom-8 left-1/2 -translate-x-1/2 z-50 w-[95%] max-w-[450px] md:max-w-max md:w-auto">
+        <div className="flex items-center justify-between md:justify-center gap-1 md:gap-2 rounded-[2rem] p-2 px-3 md:px-6 shadow-2xl backdrop-blur-xl border transition-colors bg-white/90 border-gray-200 dark:bg-black/80 dark:border-white/10">
+            <DockItem icon={<MapIcon size={24} className="w-5 h-5 md:w-6 md:h-6"/>} label="지도" isActive={currentTab === "MAP"} onClick={() => handleTabChange("MAP")} />
+            <div className="w-px h-6 bg-gray-300 dark:bg-white/10 mx-0 md:mx-1 shrink-0"></div>
+            <DockItem icon={<Route size={24} className="w-5 h-5 md:w-6 md:h-6"/>} label="코스" isActive={currentTab === "COURSE"} onClick={() => handleTabChange("COURSE")} />
+            
             <Link href="/shop" passHref legacyBehavior>
                 <a className="shrink-0">
-                    <button className={`flex flex-col items-center justify-center w-10 h-10 md:w-14 md:h-14 rounded-full transition-all duration-300 text-gray-400 hover:text-gray-900 hover:bg-gray-100 dark:text-white/60 dark:hover:text-white dark:hover:bg-white/10`}>
-                        <ShoppingBag size={20} className="w-4 h-4 md:w-5 md:h-5"/>
+                    <button className="relative flex flex-col items-center justify-center w-12 h-12 md:w-16 md:h-16 rounded-2xl transition-all duration-300 group text-gray-500 hover:text-gray-900 hover:bg-gray-100 dark:text-white/60 dark:hover:text-white dark:hover:bg-white/10">
+                        <div className="transition-transform duration-300 group-hover:-translate-y-1">
+                            <ShoppingBag size={24} className="w-5 h-5 md:w-6 md:h-6"/>
+                        </div>
+                        <span className="text-[10px] md:text-[11px] font-bold mt-1 opacity-70 group-hover:opacity-100">상점</span>
                     </button>
                 </a>
             </Link>
-            <DockItem icon={<Ticket size={20} className="w-4 h-4 md:w-5 md:h-5"/>} label="여권" isActive={currentTab === "PASSPORT"} onClick={() => handleTabChange("PASSPORT")} />
-            <div className="w-px h-3 md:h-4 bg-gray-300 dark:bg-white/10 mx-0 md:mx-1 shrink-0"></div>
-            <DockItem icon={<User size={20} className="w-4 h-4 md:w-5 md:h-5"/>} label="MY" isActive={currentTab === "MY"} onClick={() => handleTabChange("MY")} />
             
-            <div className="w-px h-3 md:h-4 bg-gray-300 dark:bg-white/10 mx-0 md:mx-1 shrink-0"></div>
-            <DockItem icon={<Users size={20} className={`w-4 h-4 md:w-5 md:h-5 ${currentTab === "MATE" ? "text-indigo-500" : ""}`} />} label="동행" isActive={currentTab === "MATE"} onClick={() => handleTabChange("MATE")} />
+            <DockItem icon={<Ticket size={24} className="w-5 h-5 md:w-6 md:h-6"/>} label="여권" isActive={currentTab === "PASSPORT"} onClick={() => handleTabChange("PASSPORT")} />
+            <div className="w-px h-6 bg-gray-300 dark:bg-white/10 mx-0 md:mx-1 shrink-0"></div>
+            <DockItem icon={<User size={24} className="w-5 h-5 md:w-6 md:h-6"/>} label="MY" isActive={currentTab === "MY"} onClick={() => handleTabChange("MY")} />
+            
+            <div className="w-px h-6 bg-gray-300 dark:bg-white/10 mx-0 md:mx-1 shrink-0"></div>
+            <DockItem icon={<Users size={24} className={`w-5 h-5 md:w-6 md:h-6 ${currentTab === "MATE" ? "text-indigo-500" : ""}`} />} label="동행" isActive={currentTab === "MATE"} onClick={() => handleTabChange("MATE")} />
         </div>
       </nav>
 
@@ -1525,13 +1529,17 @@ export default function Home() {
 /* -------------------------------------------------------------------------- */
 function DockItem({ icon, label, isActive, onClick }: any) {
   return (
-    <button onClick={onClick} className={`flex flex-col items-center justify-center w-10 h-10 md:w-14 md:h-14 rounded-full transition-all duration-300 shrink-0 ${
+    <button onClick={onClick} className={`relative flex flex-col items-center justify-center w-12 h-12 md:w-16 md:h-16 rounded-2xl transition-all duration-300 shrink-0 group ${
         isActive 
-        ? "bg-gray-900 text-white scale-110 shadow-lg dark:bg-white dark:text-black" 
-        : "text-gray-400 hover:text-gray-900 hover:bg-gray-100 dark:text-white/60 dark:hover:text-white dark:hover:bg-white/10"
+        ? "bg-gray-900 text-white scale-105 shadow-xl dark:bg-white dark:text-black" 
+        : "text-gray-500 hover:text-gray-900 hover:bg-gray-100 dark:text-white/60 dark:hover:text-white dark:hover:bg-white/10"
     }`}>
-      {icon}
-      {isActive && <span className="text-[8px] md:text-[9px] font-bold mt-0.5">{label}</span>}
+      <div className={`transition-transform duration-300 ${isActive ? '-translate-y-0.5' : 'group-hover:-translate-y-1'}`}>
+        {icon}
+      </div>
+      <span className={`text-[10px] md:text-[11px] font-bold transition-all duration-300 mt-1 ${isActive ? 'opacity-100' : 'opacity-70 group-hover:opacity-100'}`}>
+        {label}
+      </span>
     </button>
   );
 }
