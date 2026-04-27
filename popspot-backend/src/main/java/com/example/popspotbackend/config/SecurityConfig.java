@@ -103,9 +103,10 @@ public class SecurityConfig {
 
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowCredentials(true);
-        // setAllowedOrigins 는 정확 매칭. Vercel preview URL 패턴이 필요하면 setAllowedOriginPatterns 로 교체.
-        // 단, "*" 와 allowCredentials=true 동시 사용 금지! (브라우저가 거부)
-        config.setAllowedOrigins(origins);
+        // setAllowedOriginPatterns: 와일드카드 허용 (https://*.vercel.app 같은 패턴) + credentials 호환.
+        // 환경변수 APP_ALLOWED_ORIGINS 에 정확 매칭 도메인과 패턴을 같이 적을 수 있다.
+        // ⚠️ 절대 단독 "*" 만 두지 말 것. 반드시 도메인 한정 패턴 사용.
+        config.setAllowedOriginPatterns(origins);
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH", "HEAD"));
         config.setAllowedHeaders(List.of(
                 "Authorization", "Content-Type", "Accept", "Origin",
