@@ -56,18 +56,19 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         String[] origins = parseOrigins();
 
-        // /ws-stomp — SockJS 사용 (HTTP fallback). Origin 정확매칭은 setAllowedOrigins.
+        // setAllowedOriginPatterns: 와일드카드 허용 (https://*.vercel.app 같은 패턴) + credentials 호환.
+        // SecurityConfig 와 동일 화이트리스트(APP_ALLOWED_ORIGINS) 사용.
         registry.addEndpoint("/ws-stomp")
-                .setAllowedOrigins(origins)
+                .setAllowedOriginPatterns(origins)
                 .addInterceptors(new JwtHandshakeInterceptor())
                 .withSockJS();
 
         registry.addEndpoint("/ws-planning")
-                .setAllowedOrigins(origins)
+                .setAllowedOriginPatterns(origins)
                 .addInterceptors(new JwtHandshakeInterceptor())
                 .withSockJS();
 
-        log.info("🛡️ WebSocket allowed origins: {}", Arrays.toString(origins));
+        log.info("🛡️ WebSocket allowed origin patterns: {}", Arrays.toString(origins));
     }
 
     @Override
