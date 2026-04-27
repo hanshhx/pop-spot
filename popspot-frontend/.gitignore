@@ -1,0 +1,43 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files (보안을 위해 환경 변수 파일은 무조건 제외)
+.env*
+# 단, 변수명만 적어둔 예시 파일은 깃허브에 올라가도록 예외 허용
+!.env.example
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+# next-env.d.ts는 Next.js 공식 권장사항에 따라 깃허브에 올려야 하므로 여기서 삭제했습니다.

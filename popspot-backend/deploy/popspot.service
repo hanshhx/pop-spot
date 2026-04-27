@@ -1,0 +1,41 @@
+[Unit]
+Description=POP-SPOT Spring Boot Backend
+After=network.target postgresql.service redis-server.service
+Wants=network-online.target
+Requires=postgresql.service
+
+[Service]
+Type=simple
+
+# 실행 사용자 — SSH 접속 사용자(reo4321) 그대로 사용.
+# (별도 시스템 사용자 만들지 않고 기존 홈디렉토리 활용)
+User=reo4321
+Group=reo4321
+
+# 환경변수 파일 — 모든 시크릿이 여기 들어 있다 (.env.example 참고).
+# 권한은 600, 소유자 reo4321 권장.
+EnvironmentFile=/home/reo4321/popspot.env
+
+# JVM 옵션 — 메모리/GC/파일 인코딩
+Environment=JAVA_TOOL_OPTIONS=-Xms512m -Xmx1024m -XX:+UseG1GC -Dfile.encoding=UTF-8
+
+# 작업 디렉토리 — 여기에 uploads/ 가 자동 생성됨
+WorkingDirectory=/home/reo4321
+
+# 메인 실행 — Java 21 / Spring Boot fat-jar
+# scp 로 올린 jar 가 ~/popspot-backend-0.0.1-SNAPSHOT.jar 이므로 그 경로 그대로 실행
+ExecStart=/usr/bin/java -jar /home/reo4321/popspot-backend-0.0.1-SNAPSHOT.jar
+
+# 재시작 정책
+Restart=on-failure
+RestartSec=5
+SuccessExitStatus=143
+TimeoutStopSec=20
+
+# 로그 — /var/log/popspot/ 가 없으면 만들어 두세요
+#   sudo mkdir -p /var/log/popspot && sudo chown reo4321:reo4321 /var/log/popspot
+StandardOutput=append:/var/log/popspot/app.log
+StandardError=append:/var/log/popspot/app.log
+
+[Install]
+WantedBy=multi-user.target

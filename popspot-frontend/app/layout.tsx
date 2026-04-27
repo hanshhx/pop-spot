@@ -1,0 +1,60 @@
+import type { Metadata, Viewport } from "next";
+import "./globals.css";
+import Script from "next/script";
+import { Providers } from "./Providers";
+import AuthGuard from "@/components/AuthGuard";
+import GlobalChatManager from "@/components/GlobalChatManager";
+
+export const metadata: Metadata = {
+  metadataBase: new URL("https://pop-spot.app"),
+  title: {
+    default: "POP-SPOT — 서울 팝업스토어 인텔리전스",
+    template: "%s · POP-SPOT",
+  },
+  description:
+    "성수 · 한남 · 압구정. 서울 모든 팝업을 한 화면에서. 실시간 혼잡도, AI 코스 추천, 친구와 동선 계획까지.",
+  keywords: ["팝업스토어", "서울 팝업", "성수동 팝업", "POP-SPOT", "팝업 캘린더"],
+  openGraph: {
+    title: "POP-SPOT — 서울 팝업스토어 인텔리전스",
+    description: "서울의 모든 팝업, 한 화면에.",
+    type: "website",
+    locale: "ko_KR",
+    images: ["/og-image.png"],
+  },
+  icons: {
+    icon: "/icon.svg",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#F5F3EE" },
+    { media: "(prefers-color-scheme: dark)", color: "#0A0A0A" },
+  ],
+  width: "device-width",
+  initialScale: 1,
+};
+
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  return (
+    <html lang="ko" suppressHydrationWarning>
+      <body className="font-sans antialiased">
+        <Providers>
+          <AuthGuard>
+            {children}
+            <GlobalChatManager />
+          </AuthGuard>
+        </Providers>
+
+        <Script
+          src={`//dapi.kakao.com/v2/maps/sdk.js?appkey=${process.env.NEXT_PUBLIC_KAKAO_MAP_KEY}&autoload=false`}
+          strategy="beforeInteractive"
+        />
+      </body>
+    </html>
+  );
+}
