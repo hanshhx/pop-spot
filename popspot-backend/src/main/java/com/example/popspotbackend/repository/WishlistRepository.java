@@ -1,13 +1,15 @@
 package com.example.popspotbackend.repository;
 
 import com.example.popspotbackend.entity.Wishlist;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
 import java.util.Optional;
 
 public interface WishlistRepository extends JpaRepository<Wishlist, Long> {
 
-    // 🔥 [수정] User 객체 안의 userId 필드를 찾도록 언더바(_) 추가
+    // 🔥 [수정] popupStore + popupStore.images 까지 fetch — open-in-view=false 환경에서 JSON 직렬화 시 LazyInit 방어
+    @EntityGraph(attributePaths = {"popupStore", "popupStore.images"})
     List<Wishlist> findAllByUser_UserIdOrderByIdDesc(String userId);
 
     // 🔥 [수정] 명확한 경로 지정 (User_UserId, PopupStore_Id)
