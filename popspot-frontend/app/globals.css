@@ -1,0 +1,188 @@
+@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css");
+@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap");
+@import "tailwindcss";
+
+@source "../src";
+@source ".";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --color-lime-50:  #f5fde6;
+  --color-lime-100: #e7fbc2;
+  --color-lime-200: #d3f796;
+  --color-lime-300: #c2f970;
+  --color-lime-400: #a8e645;
+  --color-lime-500: #88c828;
+  --color-lime-600: #6aa317;
+  --color-lime-700: #4f7a10;
+  --color-lime-800: #3a570a;
+  --color-lime-900: #243605;
+
+  --color-hot-50:  #ffe7ef;
+  --color-hot-100: #ffc2d4;
+  --color-hot-200: #ff8eb1;
+  --color-hot-300: #ff6094;
+  --color-hot-400: #ff3d7f;
+  --color-hot-500: #ee1a64;
+  --color-hot-600: #c40d4f;
+  --color-hot-700: #97083d;
+  --color-hot-800: #6a052b;
+  --color-hot-900: #43021a;
+
+  --color-violet-50:  #efeaff;
+  --color-violet-100: #d8cdff;
+  --color-violet-200: #b9a4ff;
+  --color-violet-300: #9a7eff;
+  --color-violet-400: #7b61ff;
+  --color-violet-500: #5e3fee;
+  --color-violet-600: #4626c8;
+  --color-violet-700: #341c95;
+  --color-violet-800: #221363;
+  --color-violet-900: #110a36;
+
+  --color-ink-50:  #f7f7f7;
+  --color-ink-100: #e6e6e6;
+  --color-ink-200: #cfcfcf;
+  --color-ink-300: #a5a5a5;
+  --color-ink-400: #6f6f6f;
+  --color-ink-500: #3f3f3f;
+  --color-ink-600: #232323;
+  --color-ink-700: #161616;
+  --color-ink-800: #0f0f0f;
+  --color-ink-900: #0a0a0a;
+
+  --color-cream-50:  #fefdfa;
+  --color-cream-100: #fbf9f3;
+  --color-cream-200: #f5f3ee;
+  --color-cream-300: #ece9e0;
+  --color-cream-400: #ddd9cb;
+  --color-cream-500: #c4bfae;
+
+  --color-primary: var(--color-lime-300);
+  --color-primary-foreground: var(--color-ink-900);
+  --color-accent: var(--color-hot-400);
+  --color-accent-foreground: #ffffff;
+  --color-support: var(--color-violet-400);
+  --color-support-foreground: #ffffff;
+
+  --color-background: var(--color-cream-200);
+  --color-foreground: var(--color-ink-900);
+  --color-surface: #ffffff;
+  --color-surface-foreground: var(--color-ink-900);
+  --color-muted: var(--color-ink-300);
+  --color-muted-foreground: var(--color-ink-500);
+  --color-border: rgba(10, 10, 10, 0.1);
+  --color-border-strong: rgba(10, 10, 10, 0.2);
+  --color-ring: var(--color-lime-300);
+
+  --color-success: #22a06b;
+  --color-warning: #d4a017;
+  --color-danger: var(--color-hot-500);
+
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-2xl: 32px;
+  --radius-pill: 9999px;
+
+  --shadow-xs: 0 1px 2px rgba(10, 10, 10, 0.04);
+  --shadow-sm: 0 1px 3px rgba(10, 10, 10, 0.06), 0 1px 2px rgba(10, 10, 10, 0.04);
+  --shadow-md: 0 4px 12px rgba(10, 10, 10, 0.06), 0 2px 4px rgba(10, 10, 10, 0.04);
+  --shadow-lg: 0 12px 24px rgba(10, 10, 10, 0.08), 0 4px 8px rgba(10, 10, 10, 0.04);
+  --shadow-pop: 0 16px 40px rgba(10, 10, 10, 0.12);
+  --shadow-glow: 0 0 0 4px rgba(194, 249, 112, 0.3);
+
+  --font-sans: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+  --font-display: "Pretendard Variable", Pretendard, sans-serif;
+  --font-mono: "JetBrains Mono", "D2Coding", ui-monospace, "SFMono-Regular", monospace;
+
+  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+:root.dark {
+  --color-background: var(--color-ink-900);
+  --color-foreground: var(--color-cream-200);
+  --color-surface: var(--color-ink-700);
+  --color-surface-foreground: var(--color-cream-200);
+  --color-muted: var(--color-ink-400);
+  --color-muted-foreground: var(--color-ink-300);
+  --color-border: rgba(245, 243, 238, 0.1);
+  --color-border-strong: rgba(245, 243, 238, 0.2);
+
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.5), 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5), 0 2px 4px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 12px 24px rgba(0, 0, 0, 0.6), 0 4px 8px rgba(0, 0, 0, 0.3);
+  --shadow-pop: 0 16px 40px rgba(0, 0, 0, 0.7);
+  --shadow-glow: 0 0 0 4px rgba(194, 249, 112, 0.4);
+}
+
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-sans);
+  font-feature-settings: "ss01", "ss02", "cv11";
+  letter-spacing: -0.01em;
+  min-height: 100svh;
+  transition: background-color 0.3s var(--ease-out-quart), color 0.3s var(--ease-out-quart);
+}
+
+p, li {
+  line-height: 1.65;
+  word-break: keep-all;
+}
+
+.font-display-en {
+  font-family: var(--font-mono);
+  letter-spacing: -0.04em;
+}
+
+::selection {
+  background-color: var(--color-lime-300);
+  color: var(--color-ink-900);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: 2px;
+}
+
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--color-border-strong);
+  border-radius: var(--radius-pill);
+}
+::-webkit-scrollbar-thumb:hover { background: var(--color-lime-300); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+.text-stroke {
+  -webkit-text-stroke: 1px var(--color-border-strong);
+  color: transparent;
+}
+
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.animate-marquee {
+  animation: marquee 40s linear infinite;
+}

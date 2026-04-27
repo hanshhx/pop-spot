@@ -1,0 +1,85 @@
+# ==========================================
+# 1. 🔐 보안 및 비밀 파일 (절대 커밋 금지!)
+# ==========================================
+# 환경변수 파일 (절대 커밋 X)
+.env
+.env.*
+!.env.example
+
+# 시크릿 분리 후에는 application*.properties / yml 자체는 커밋 가능 — 단, 평문 시크릿 절대 금지!
+# 시크릿 들어간 옛날 파일 백업 패턴은 커밋 차단
+application-secret*.properties
+application-secret*.yml
+application-secret*.yaml
+*-secret.properties
+*-secret.yml
+*-secret.yaml
+
+# 암호화 키, 인증서 등
+*.key
+*.pem
+*.p12
+*.jks
+
+# ==========================================
+# 2. 🏗️ 빌드 결과물 및 의존성 (필요 없음)
+# ==========================================
+HELP.md
+.gradle
+build/
+out/
+bin/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/**/build/
+!**/src/test/**/build/
+!**/src/main/**/bin/
+!**/src/test/**/bin/
+!**/src/main/**/out/
+!**/src/test/**/out/
+
+# ==========================================
+# 3. 🖥️ IDE 및 에디터 설정 (개발자 개인 설정)
+# ==========================================
+### STS / Eclipse ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+
+### VS Code ###
+.vscode/
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+# ==========================================
+# 4. 📂 로컬 업로드 파일 및 로그
+# ==========================================
+# 이미지가 저장되는 로컬 폴더 (서버마다 달라야 함)
+uploads/
+upload/
+
+# 로그 파일
+logs/
+*.log
+*.log.gz
+
+# ==========================================
+# 5. 💻 운영체제 파일 (맥/윈도우 찌꺼기)
+# ==========================================
+.DS_Store
+Thumbs.db
+Desktop.ini
