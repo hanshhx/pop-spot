@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   ChevronLeft,
@@ -9,6 +10,7 @@ import {
   CheckCircle2,
   XCircle,
   Check,
+  ExternalLink,
 } from "lucide-react";
 import Swal from "sweetalert2";
 
@@ -527,33 +529,59 @@ export default function SignupPage() {
           </label>
 
           {[
-            { key: "terms" as const, label: "[필수] POP-SPOT 서비스 이용약관" },
-            { key: "privacy" as const, label: "[필수] 개인정보 수집 및 이용" },
+            {
+              key: "terms" as const,
+              label: "[필수] POP-SPOT 서비스 이용약관",
+              href: "/terms",
+            },
+            {
+              key: "privacy" as const,
+              label: "[필수] 개인정보 수집 및 이용",
+              // 별도의 /privacy 페이지가 없으면 /terms 안의 §개인정보 단원으로 통합
+              href: "/terms",
+            },
           ].map((item) => (
-            <label
+            <div
               key={item.key}
-              className="flex items-center gap-3 cursor-pointer select-none"
+              className="flex items-center justify-between gap-3"
             >
-              <input
-                type="checkbox"
-                className="sr-only"
-                checked={agreements[item.key]}
-                onChange={() => handleAgreeItem(item.key)}
-              />
-              <span
-                aria-hidden
-                className={`size-4 rounded border flex items-center justify-center transition-colors ${
-                  agreements[item.key]
-                    ? "bg-lime-300 border-lime-300"
-                    : "border-cream-200/30"
-                }`}
+              {/* 체크박스 + 라벨은 클릭 시 동의 토글 */}
+              <label className="flex items-center gap-3 cursor-pointer select-none flex-1 min-w-0">
+                <input
+                  type="checkbox"
+                  className="sr-only"
+                  checked={agreements[item.key]}
+                  onChange={() => handleAgreeItem(item.key)}
+                />
+                <span
+                  aria-hidden
+                  className={`size-4 rounded border flex items-center justify-center transition-colors shrink-0 ${
+                    agreements[item.key]
+                      ? "bg-lime-300 border-lime-300"
+                      : "border-cream-200/30"
+                  }`}
+                >
+                  {agreements[item.key] && (
+                    <Check className="size-2.5 text-ink-900" />
+                  )}
+                </span>
+                <span className="text-xs text-cream-200/60 truncate">
+                  {item.label}
+                </span>
+              </label>
+
+              {/* 약관 본문 새 탭으로 — "동의 전 열람" 절차 보장 */}
+              <Link
+                href={item.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="shrink-0 inline-flex items-center gap-1 text-[11px] text-cream-200/50 hover:text-lime-300 transition-colors underline underline-offset-2"
+                aria-label={`${item.label} 보기 (새 탭)`}
               >
-                {agreements[item.key] && (
-                  <Check className="size-2.5 text-ink-900" />
-                )}
-              </span>
-              <span className="text-xs text-cream-200/60">{item.label}</span>
-            </label>
+                보기
+                <ExternalLink className="size-2.5" aria-hidden />
+              </Link>
+            </div>
           ))}
         </div>
 

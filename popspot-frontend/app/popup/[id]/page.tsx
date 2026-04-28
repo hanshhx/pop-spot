@@ -5,10 +5,11 @@ import { useEffect, useRef, useState } from "react";
 // [코드 해석] Next.js의 앱 라우터에서 URL 파라미터를 읽고 페이지를 이동시키는 훅을 불러옵니다.
 import { useParams, useRouter } from "next/navigation";
 // [코드 해석] UI 디자인에 사용할 Lucide 아이콘들을 불러옵니다.
-import { 
-  ArrowLeft, MapPin, Calendar, Clock, Share2, Heart, CheckCircle, Ticket, 
-  Sun, Moon, ExternalLink, Info, AlertCircle 
+import {
+  ArrowLeft, MapPin, Calendar, Clock, Share2, Heart, CheckCircle, Ticket,
+  Sun, Moon, ExternalLink, Info, AlertCircle, ShieldAlert, Sparkles
 } from "lucide-react";
+import { TakedownModal } from "../../../src/features/popup/TakedownModal";
 // [코드 해석] 타이포그래피 애니메이션을 구현하기 위해 Framer Motion 모듈을 불러옵니다.
 import { motion, Variants } from "framer-motion";
 // [코드 해석] 다크/라이트 모드 전환을 위한 next-themes 훅을 불러옵니다.
@@ -115,6 +116,9 @@ interface PopupDetail {
   id: number; name: string; content: string; address: string; category: string;
   status?: string; openDate?: string; closeDate?: string; openTime?: string; closeTime?: string;
   latitude?: string; longitude?: string;
+  // [V4] 자동수집/검수/저작권 메타
+  sourceType?: string; sourceUrl?: string; sourceName?: string;
+  reviewStatus?: string;
 }
 
 // [로직 해석] 상세 페이지의 전체 레이아웃과 데이터 흐름을 담당하는 메인 컴포넌트입니다.
@@ -138,6 +142,8 @@ export default function PopupDetail() {
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   // [코드 해석] 로컬스토리지에서 가져온 유저 정보를 담아두는 상태입니다.
   const [user, setUser] = useState<any>(null);
+  // [V4] 권리자 takedown 신고 모달 상태
+  const [takedownOpen, setTakedownOpen] = useState(false);
 
   // [코드 해석] 테스트 목적이나 유저 데이터가 없을 때를 대비한 기본 유저 ID 상수입니다.
   const TEST_USER_ID = "test_user";
@@ -202,10 +208,10 @@ export default function PopupDetail() {
         const data = response.data || response; 
         // [로직 해석] 추출한 데이터를 PopupDetail 인터페이스 구조에 맞게 매핑하여 상태를 업데이트합니다.
         setPopup({
-            id: data.popupId || data.id, 
+            id: data.popupId || data.id,
             name: data.name,
             content: data.content,
-            address: data.location || data.address, 
+            address: data.location || data.address,
             category: data.category,
             status: data.status || "운영중",
             openDate: data.startDate || data.openDate,
@@ -213,7 +219,12 @@ export default function PopupDetail() {
             openTime: data.openTime,
             closeTime: data.closeTime,
             latitude: data.latitude,
-            longitude: data.longitude
+            longitude: data.longitude,
+            // [V4] 자동수집 메타
+            sourceType: data.sourceType,
+            sourceUrl: data.sourceUrl,
+            sourceName: data.sourceName,
+            reviewStatus: data.reviewStatus,
         });
         // [코드 해석] 데이터를 모두 받아왔으므로 로딩 상태를 false로 풀어 화면을 렌더링하게 합니다.
         setLoading(false);
@@ -443,6 +454,60 @@ export default function PopupDetail() {
             </div>
         </div>
 
+        {/* [V4] 자동수집 출처 + 권리자 신고 박스
+                - sourceType==CRAWLED 인 row 만 출처/AI 뱃지 노출
+                - 모든 row 에서 신고 버튼은 노출 (manual 데이터 오류도 신고 가능) */}
+        <div className="bg-[#111] border border-white/10 rounded-2xl md:rounded-3xl p-5 md:p-6 space-y-3 md:space-y-4 shadow-2xl relative z-30">
+            {popup.sourceType === "CRAWLED" && (
+                <div className="flex items-start gap-3 md:gap-4">
+                    <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-blue-300/10 flex items-center justify-center text-blue-300 border border-blue-300/20 shrink-0">
+                        <Sparkles size={16} className="md:w-5 md:h-5"/>
+                    </div>
+                    <div className="min-w-0 flex-1">
+                        <p className="text-[9px] md:text-[10px] text-white/40 font-bold uppercase tracking-widest">
+                            AI 자동수집 정보
+                        </p>
+                        <p className="text-xs md:text-sm text-white/70 leading-relaxed">
+                            본 정보는 공개된 검색 API ({popup.sourceName || "외부 출처"}) 의 결과를 AI 가 정리한 것입니다.
+                            정확성을 보장하지 않으며, 항상 원문을 참고해주세요.
+                        </p>
+                        {popup.sourceUrl && (
+                            <a
+                                href={popup.sourceUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1.5 mt-2 text-xs md:text-sm text-lime-300 hover:text-lime-400 underline break-all"
+                            >
+                                원문 출처 보기
+                                <ExternalLink size={12} className="md:w-3.5 md:h-3.5 shrink-0"/>
+                            </a>
+                        )}
+                    </div>
+                </div>
+            )}
+            <div className={`flex items-start gap-3 md:gap-4 ${popup.sourceType === "CRAWLED" ? "border-t border-white/5 pt-3 md:pt-4" : ""}`}>
+                <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-red-300/10 flex items-center justify-center text-red-300 border border-red-300/20 shrink-0">
+                    <ShieldAlert size={16} className="md:w-5 md:h-5"/>
+                </div>
+                <div className="min-w-0 flex-1">
+                    <p className="text-[9px] md:text-[10px] text-white/40 font-bold uppercase tracking-widest">
+                        Report / Takedown
+                    </p>
+                    <p className="text-xs md:text-sm text-white/70 leading-relaxed mb-2">
+                        부정확한 정보거나 본인이 운영하는 팝업이 동의 없이 게시되었다면 즉시 신고해주세요.
+                        24시간 내 검토 후 조치합니다.
+                    </p>
+                    <button
+                        onClick={() => setTakedownOpen(true)}
+                        className="inline-flex items-center gap-1.5 text-xs md:text-sm text-red-300 hover:text-red-200 underline"
+                    >
+                        정보 삭제·수정 요청
+                        <ShieldAlert size={12} className="md:w-3.5 md:h-3.5"/>
+                    </button>
+                </div>
+            </div>
+        </div>
+
         {/* [로직 해석] 사용자가 팝업스토어 위치를 찾을 수 있도록 카카오 지도를 보여주는 영역입니다. */}
         <div className="w-full h-[250px] md:h-[350px] rounded-2xl md:rounded-3xl overflow-hidden border border-white/10 relative z-30 shadow-2xl bg-[#111]">
             {/* [코드 해석] DetailMap 자식 컴포넌트에 파싱된 위경도를 넘겨주어 지도를 로드합니다. */}
@@ -465,6 +530,14 @@ export default function PopupDetail() {
         </div>
 
       </div>
+
+      {/* [V4] 권리자 takedown 신고 모달 */}
+      <TakedownModal
+          open={takedownOpen}
+          onOpenChange={setTakedownOpen}
+          popupId={popup.id}
+          popupName={popup.name}
+      />
     </main>
   );
 }
