@@ -2,6 +2,7 @@ package com.example.popspotbackend.service.crawler;
 
 import com.example.popspotbackend.entity.PopupStore;
 import com.example.popspotbackend.repository.PopupStoreRepository;
+import com.example.popspotbackend.service.KakaoApiService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -29,6 +30,8 @@ public class PopupCrawlOrchestrator {
     private final KakaoPopupCrawler kakaoCrawler;
     private final PopupNormalizationService normalizer;
     private final PopupStoreRepository popupStoreRepository;
+    /** Geocoding 용 — 카카오 로컬 키워드 검색 API */
+    private final KakaoApiService kakaoApiService;
 
     /** 자동 게시 임계값 — application.properties 의 popspot.crawler.confidence-threshold */
     @Value("${popspot.crawler.confidence-threshold:0.8}")
@@ -161,6 +164,9 @@ public class PopupCrawlOrchestrator {
             // 5) 출처 첫번째 URL 을 source_url 로 저장
             PopupCrawlSource primarySource = snippets.get(0);
 
+            // 6) Geocoding — 카카오 로컬 API 로 위경도 자동 변환 (지도 표시용)
+            String[] coords = geocode(result.getName(), result.getLocation());
+
             PopupStore newPopup = PopupStore.builder()
                     .name(result.getName())
                     .location(result.getLocation())
@@ -170,6 +176,8 @@ public class PopupCrawlOrchestrator {
                     .startDate(result.getStartDate())
                     .endDate(result.getEndDate())
                     .viewCount(0)
+                    .latitude(coords != null ? coords[0] : null)
+                    .longitude(coords != null ? coords[1] : null)
                     .sourceType("CRAWLED")
                     .sourceUrl(primarySource.getLink())
                     .sourceName(primarySource.getSourceName())
@@ -219,5 +227,87 @@ public class PopupCrawlOrchestrator {
 
     private void sleepQuietly(long ms) {
         try { Thread.sleep(ms); } catch (InterruptedException ignored) { Thread.currentThread().interrupt(); }
+    }
+
+    /**
+     * Kakao 로컬 키워드 검색으로 좌표 변환.
+     * 1차: 이름+위치 함께 → 정확도 ↑
+     * 2차: (1차 실패 시) 위치만 → fallback
+     * @return [lat, lng] 또는 null (실패/결과없음)
+     */
+    private String[] geocode(String name, String location) {
+        try {
+            String trimmedName = name == null ? "" : name.trim();
+            String trimmedLoc = location == null ? "" : location.trim();
+
+            // 1차 시도 — 이름+위치
+            String query1 = (trimmedName + " " + trimmedLoc).trim();
+            if (!query1.isBlank()) {
+                String[] r = tryGeocodeOnce(query1);
+                if (r != null) return r;
+            }
+
+            // 2차 시도 — 위치만
+            if (!trimmedLoc.isBlank() && !trimmedLoc.equals(query1)) {
+                String[] r = tryGeocodeOnce(trimmedLoc);
+                if (r != null) return r;
+            }
+
+            return null;
+        } catch (Exception e) {
+            log.debug("[Geocode] '{}' 실패: {}", name, e.toString());
+            return null;
+        }
+    }
+
+    /** Kakao 로컬 API 호출 1회. 실패 시 null 반환 (예외 던지지 않음). */
+    private String[] tryGeocodeOnce(String query) {
+        try {
+            Map<String, Object> response = kakaoApiService.searchPopups(query);
+            if (response == null) return null;
+
+            Object docsRaw = response.get("documents");
+            if (!(docsRaw instanceof List<?>)) return null;
+            List<?> documents = (List<?>) docsRaw;
+            if (documents.isEmpty()) return null;
+
+            Object firstRaw = documents.get(0);
+            if (!(firstRaw instanceof Map<?, ?>)) return null;
+            Map<?, ?> first = (Map<?, ?>) firstRaw;
+
+            Object x = first.get("x"); // longitude
+            Object y = first.get("y"); // latitude
+            if (x == null || y == null) return null;
+
+            return new String[]{String.valueOf(y), String.valueOf(x)};
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /**
+     * 좌표 누락된 자동수집 row 일괄 backfill (admin 1회 호출).
+     * @return 좌표 채워진 row 수
+     */
+    public int geocodeMissing() {
+        List<PopupStore> targets = popupStoreRepository.findCrawledMissingCoordinates();
+        if (targets.isEmpty()) {
+            log.info("[Geocode-Backfill] 대상 없음");
+            return 0;
+        }
+        log.info("[Geocode-Backfill] 시작 — 대상 {}개", targets.size());
+        int filled = 0;
+        for (PopupStore p : targets) {
+            String[] coords = geocode(p.getName(), p.getLocation());
+            if (coords != null) {
+                p.setLatitude(coords[0]);
+                p.setLongitude(coords[1]);
+                popupStoreRepository.save(p);
+                filled++;
+            }
+            sleepQuietly(300); // Kakao API 매너
+        }
+        log.info("[Geocode-Backfill] 완료 — {}/{}개 좌표 채움", filled, targets.size());
+        return filled;
     }
 }

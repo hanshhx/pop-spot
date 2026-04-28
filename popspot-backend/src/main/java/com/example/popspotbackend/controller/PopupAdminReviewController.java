@@ -87,4 +87,15 @@ public class PopupAdminReviewController {
         resp.put("stats", stats);
         return ResponseEntity.ok(resp);
     }
+
+    /**
+     * 좌표 누락된 자동수집 row 일괄 geocoding (1회 실행).
+     * 신규 크롤은 자동으로 좌표 채워지지만, 이전에 수집된 row 들은 NULL 임 → 이걸로 backfill.
+     */
+    @PostMapping("/geocode-missing")
+    public ResponseEntity<Map<String, Object>> geocodeMissing() {
+        log.info("[CrawlReview] geocoding backfill 시작");
+        int filled = orchestrator.geocodeMissing();
+        return ResponseEntity.ok(Map.of("geocoded", filled));
+    }
 }
