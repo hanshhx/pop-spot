@@ -14,16 +14,18 @@ public class AiConfig {
     @Value("${langchain4j.google-ai-gemini.chat-model.api-key}")
     private String apiKey;
 
+    /** application.properties 의 GEMINI_MODEL_NAME 환경변수 사용 (기본 2.0-flash) */
+    @Value("${langchain4j.google-ai-gemini.chat-model.model-name:gemini-2.0-flash}")
+    private String modelName;
+
     @Bean
     @Primary
     public ChatLanguageModel chatLanguageModel() {
-        System.out.println("🚀 [AiConfig] Gemini 2.5 Flash 모델 (타임아웃 60초) 적용 중...");
-
+        // 무료 티어 한도: gemini-2.0-flash 가 2.5-flash 보다 RPM/RPD 더 관대
         return GoogleAiGeminiChatModel.builder()
                 .apiKey(apiKey)
-                .modelName("gemini-2.5-flash")
+                .modelName(modelName)
                 .temperature(0.7)
-                // 🔥 [핵심 수정] 타임아웃을 60초(1분)로 늘립니다. (기본값은 보통 10~30초임)
                 .timeout(Duration.ofSeconds(60))
                 .build();
     }

@@ -37,6 +37,10 @@ public class PopupCrawlOrchestrator {
     @Value("${popspot.crawler.confidence-threshold:0.8}")
     private double confidenceThreshold;
 
+    /** 자동 게시 목표치 — 이만큼 모이면 조기 종료. 0 또는 음수면 제한 없음. */
+    @Value("${popspot.crawler.max-auto-published:0}")
+    private int maxAutoPublished;
+
     /** 검색 키워드 (서울 한정, 다각도) — 브랜드명 추가로 정확도 ↑, 한 번에 20+ 자동게시 목표 */
     private static final List<String> KEYWORDS = List.of(
             // 일반
@@ -151,9 +155,24 @@ public class PopupCrawlOrchestrator {
         }
 
         // 2) 각 그룹마다 Gemini 정규화 → 저장
+        // ⚠️ Gemini 무료 티어 RPM 10 회피 — 호출 사이 6.5초 대기
+        boolean firstNormalization = true;
         for (Map.Entry<String, List<PopupCrawlSource>> entry : grouped.entrySet()) {
+            // 🎯 자동게시 목표치 달성 시 조기 종료 (Gemini quota / 시간 절약)
+            if (maxAutoPublished > 0 && autoPublished >= maxAutoPublished) {
+                log.info("[PopupCrawlOrchestrator] 자동게시 목표 {}개 달성 → 조기 종료 (정규화 {}회 처리)",
+                        maxAutoPublished, normalized);
+                break;
+            }
+
             List<PopupCrawlSource> snippets = entry.getValue();
             if (snippets.isEmpty()) continue;
+
+            // 첫 호출 외엔 RPM 10 이하로 강제 (60/10 = 6초)
+            if (!firstNormalization) {
+                sleepQuietly(6500);
+            }
+            firstNormalization = false;
 
             NormalizedPopup result = normalizer.normalize(snippets);
             normalized++;
