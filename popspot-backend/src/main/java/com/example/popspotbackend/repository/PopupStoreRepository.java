@@ -5,8 +5,11 @@ import com.example.popspotbackend.entity.PopupStore;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import java.util.List;
+import java.util.Optional;
 
 // ✅ ID 타입을 String -> Long으로 변경하여 에러 해결
 public interface PopupStoreRepository extends JpaRepository<PopupStore, Long> {
@@ -52,4 +55,71 @@ public interface PopupStoreRepository extends JpaRepository<PopupStore, Long> {
     @EntityGraph(attributePaths = {"images"})
     @Query("SELECT p FROM PopupStore p WHERE p.status IS NULL OR p.status <> 'PENDING'")
     List<PopupStore> findAllVisible();
+
+    // ============================================================
+    // [V4] 자동수집 / 캘린더 / 만료 / 검수 / Takedown 쿼리
+    // ============================================================
+
+    /** 중복 수집 방어 (external_id = SHA-256(name + location + startDate)) */
+    Optional<PopupStore> findByExternalId(String externalId);
+
+    /**
+     * "보여줄 수 있는" 팝업의 통일 필터.
+     *  - status NOT IN ('PENDING','EXPIRED')
+     *  - review_status 가 NULL(레거시 manual) / AUTO_PUBLISHED / APPROVED 만 노출
+     *  - PENDING_REVIEW / REJECTED / TAKEDOWN 은 차단
+     */
+    @EntityGraph(attributePaths = {"images"})
+    @Query("""
+           SELECT p FROM PopupStore p
+            WHERE (p.status IS NULL OR p.status NOT IN ('PENDING','EXPIRED'))
+              AND (p.reviewStatus IS NULL OR p.reviewStatus IN ('AUTO_PUBLISHED','APPROVED'))
+           """)
+    List<PopupStore> findAllPublic();
+
+    /**
+     * 캘린더 — 지정된 날짜 구간에 행사 기간이 걸친 팝업.
+     *  포함 조건: startDate <= toDate AND endDate >= fromDate
+     *  startDate/endDate 는 String(YYYY-MM-DD) 이지만 ISO 형태이므로 사전식 비교 안전.
+     */
+    @EntityGraph(attributePaths = {"images"})
+    @Query("""
+           SELECT p FROM PopupStore p
+            WHERE (p.status IS NULL OR p.status NOT IN ('PENDING','EXPIRED'))
+              AND (p.reviewStatus IS NULL OR p.reviewStatus IN ('AUTO_PUBLISHED','APPROVED'))
+              AND p.startDate IS NOT NULL AND p.endDate IS NOT NULL
+              AND p.startDate <= :toDate
+              AND p.endDate   >= :fromDate
+            ORDER BY p.startDate ASC
+           """)
+    List<PopupStore> findCalendarRange(@Param("fromDate") String fromDate,
+                                       @Param("toDate") String toDate);
+
+    /** 인기 팝업 — public 한 것만 (자동게시 + 수동 둘 다 포함, 만료 제외) */
+    @EntityGraph(attributePaths = {"images"})
+    @Query("""
+           SELECT p FROM PopupStore p
+            WHERE (p.status IS NULL OR p.status NOT IN ('PENDING','EXPIRED'))
+              AND (p.reviewStatus IS NULL OR p.reviewStatus IN ('AUTO_PUBLISHED','APPROVED'))
+            ORDER BY COALESCE(p.viewCount, 0) DESC
+           """)
+    List<PopupStore> findTrendingPublic(Pageable pageable);
+
+    /** admin 검수 큐 (신뢰도 낮음) */
+    @EntityGraph(attributePaths = {"images"})
+    @Query("SELECT p FROM PopupStore p WHERE p.reviewStatus = 'PENDING_REVIEW' ORDER BY p.crawledAt DESC")
+    List<PopupStore> findPendingReview(Pageable pageable);
+
+    /** 만료 처리 대상 (오늘보다 endDate 가 작은 row) — 1회 실행 후 status=EXPIRED 로 update */
+    @Query("""
+           SELECT p FROM PopupStore p
+            WHERE p.endDate IS NOT NULL
+              AND p.endDate < :today
+              AND (p.status IS NULL OR p.status <> 'EXPIRED')
+           """)
+    List<PopupStore> findToExpire(@Param("today") String today);
+
+    @Modifying
+    @Query("UPDATE PopupStore p SET p.status = 'EXPIRED' WHERE p.id IN :ids")
+    int markExpired(@Param("ids") List<Long> ids);
 }
