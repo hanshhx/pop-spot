@@ -3,11 +3,18 @@ package com.example.popspotbackend.service;
 import com.example.popspotbackend.dto.SignupRequestDto;
 import com.example.popspotbackend.entity.User;
 import com.example.popspotbackend.repository.UserRepository;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.security.Keys;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.charset.StandardCharsets;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -17,6 +24,35 @@ public class AuthService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+
+    // 🔑 [V4 fix] 로컬 로그인도 진짜 JWT 발급 (OAuth2SuccessHandler 와 동일 키)
+    @Value("${jwt.secret:}")
+    private String jwtSecret;
+
+    @Value("${jwt.access-token-validity-ms:3600000}")
+    private long accessTokenValidityMs;
+
+    private java.security.Key signingKey;
+
+    @PostConstruct
+    void initJwtKey() {
+        if (jwtSecret == null || jwtSecret.isBlank()
+                || jwtSecret.getBytes(StandardCharsets.UTF_8).length < 32) {
+            throw new IllegalStateException("JWT_SECRET 환경변수 누락/짧음 (32B+ 필요)");
+        }
+        this.signingKey = Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
+    }
+
+    /** OAuth2SuccessHandler 와 동일한 형식의 JWT 발급 */
+    private String issueJwt(User user) {
+        return Jwts.builder()
+                .setSubject(user.getUserId())
+                .claim("role", user.getRole())
+                .setIssuedAt(new Date())
+                .setExpiration(new Date(System.currentTimeMillis() + accessTokenValidityMs))
+                .signWith(signingKey, SignatureAlgorithm.HS256)
+                .compact();
+    }
 
     // ================= [기존 코드 유지] =================
 
@@ -71,7 +107,8 @@ public class AuthService {
                 .role(user.getRole())
                 .isPremium(user.isPremium())
                 .megaphoneCount(user.getMegaphoneCount())
-                .token("TEMP_TOKEN_" + user.getUserId())
+                // 🔑 [V4 fix] TEMP_TOKEN 제거 — OAuth2SuccessHandler 와 동일한 JWT 발급
+                .token(issueJwt(user))
                 .build();
     }
 
