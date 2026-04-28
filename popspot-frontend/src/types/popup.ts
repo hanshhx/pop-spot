@@ -24,6 +24,25 @@ export interface PopupStore {
   rankChange?: number;
   startDate?: string;
   endDate?: string;
+  // [V4] 자동수집/검수/저작권 메타데이터
+  sourceType?: "MANUAL" | "CRAWLED" | "USER_REPORT";
+  sourceUrl?: string;
+  sourceName?: string;
+  reviewStatus?: "AUTO_PUBLISHED" | "PENDING_REVIEW" | "APPROVED" | "REJECTED" | "TAKEDOWN";
+  confidenceScore?: number;
+}
+
+/** GET /api/popups/calendar 응답 (가벼운 DTO) */
+export interface CalendarPopup {
+  id: number;
+  name: string;
+  location: string;
+  category?: string;
+  startDate?: string;
+  endDate?: string;
+  imageUrl?: string;
+  sourceType?: "MANUAL" | "CRAWLED" | "USER_REPORT";
+  sourceUrl?: string;
 }
 
 export interface CongestionForecast {

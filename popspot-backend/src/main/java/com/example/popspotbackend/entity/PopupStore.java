@@ -2,6 +2,7 @@ package com.example.popspotbackend.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Map;
@@ -80,6 +81,48 @@ public class PopupStore {
     @OneToMany(fetch = FetchType.LAZY)
     @JoinColumn(name = "popup_id")
     private List<PopupImage> images = new ArrayList<>();
+
+    // ============================================================
+    // [V4] 자동수집/검수/Takedown 필드
+    // ============================================================
+    /** MANUAL / CRAWLED / USER_REPORT */
+    @Column(name = "source_type", length = 20)
+    private String sourceType;
+
+    /** 원본 URL (네이버 블로그, 카카오 웹, 공식 사이트 등) — 저작권법 출처표시 */
+    @Column(name = "source_url", columnDefinition = "TEXT")
+    private String sourceUrl;
+
+    /** 출처 이름 (예: "네이버 블로그", "카카오 검색", "공식 사이트") */
+    @Column(name = "source_name", length = 100)
+    private String sourceName;
+
+    /** 중복 수집 방어용 SHA-256 (name + location + startDate) */
+    @Column(name = "external_id", length = 64, unique = true)
+    private String externalId;
+
+    /** Gemini 정규화 신뢰도 0.00 ~ 1.00 */
+    @Column(name = "confidence_score", precision = 3, scale = 2)
+    private java.math.BigDecimal confidenceScore;
+
+    @Column(name = "crawled_at")
+    private LocalDateTime crawledAt;
+
+    @Column(name = "last_seen_at")
+    private LocalDateTime lastSeenAt;
+
+    /** AUTO_PUBLISHED / PENDING_REVIEW / APPROVED / REJECTED / TAKEDOWN */
+    @Column(name = "review_status", length = 20)
+    private String reviewStatus;
+
+    @Column(name = "takedown_requested_at")
+    private LocalDateTime takedownRequestedAt;
+
+    @Column(name = "takedown_reason", length = 500)
+    private String takedownReason;
+
+    @Column(name = "takedown_requester", length = 255)
+    private String takedownRequester;
 
     public String getImageUrl() {
         if (images != null && !images.isEmpty()) {

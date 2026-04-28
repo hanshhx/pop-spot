@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from "lucide-react";
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Sparkles } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -196,8 +196,18 @@ export function PopupCalendarModal({
                   >
                     <article className="p-3 bg-cream-300 dark:bg-ink-800 rounded-md border border-[var(--color-border)] flex justify-between items-center hover:border-lime-300/60 transition-colors group cursor-pointer">
                       <div className="min-w-0 flex-1">
-                        <h5 className="font-semibold text-sm text-foreground group-hover:text-lime-500 transition-colors truncate">
+                        <h5 className="font-semibold text-sm text-foreground group-hover:text-lime-500 transition-colors truncate flex items-center gap-1.5">
                           {popup.name}
+                          {/* [V4] 자동수집 정보임을 한눈에 알리는 뱃지 — 정확성 면책의 가시성 확보 */}
+                          {popup.sourceType === "CRAWLED" && (
+                            <span
+                              title="AI 자동수집 정보 — 상세페이지에서 출처 확인"
+                              className="shrink-0 inline-flex items-center gap-0.5 text-[9px] font-bold px-1.5 py-0.5 bg-blue-100 dark:bg-blue-950/60 text-blue-600 dark:text-blue-300 border border-blue-200 dark:border-blue-900 rounded-pill"
+                            >
+                              <Sparkles className="size-2.5" aria-hidden />
+                              AI
+                            </span>
+                          )}
                         </h5>
                         <p className="text-xs text-muted-foreground mt-0.5 truncate">
                           {popup.location}

@@ -11,6 +11,8 @@ const PLATFORM_LINKS = [
   { label: "팝업 캘린더", href: "/" },
   { label: "AI 혼잡도 분석", href: "/" },
   { label: "매거진", href: "/" },
+  // [V4] 자동수집 운영 시 가시성 필수 — 사용자가 약관/신고 절차에 접근 가능해야 함
+  { label: "이용약관", href: "/terms" },
 ];
 
 const PARTNER_LINKS = [
@@ -116,8 +118,17 @@ export function Footer({ className }: FooterProps) {
             실제 티켓 예매 및 결제는 이루어지지 않으며, 금전적 거래를 요구하지 않습니다.
           </p>
           <p>
-            콘텐츠와 관련하여 저작권 및 기타 문제가 있을 경우, 아래 이메일로 연락 주시면
-            즉시 삭제 및 수정 조치하겠습니다.
+            팝업스토어 정보 일부는 공개된 검색 API (네이버·카카오) 와 사용자 제보를 기반으로
+            자동/수동 수집·정리됩니다. 정보 정확성을 보장하지 않으며, 자세한 내용은{" "}
+            <Link href="/terms" className="text-lime-500 hover:underline">
+              이용약관 §10
+            </Link>{" "}
+            를 참고해주세요.
+          </p>
+          <p>
+            저작권·정보 오류 등으로 정보 삭제·수정이 필요한 경우 각 팝업 상세페이지의 신고 버튼 또는
+            아래 이메일로 연락 주시면{" "}
+            <strong>접수 즉시 노출이 차단되며 24시간 내 조치</strong>됩니다.
           </p>
           <p className="mt-3 font-bold">
             Contact:{" "}
