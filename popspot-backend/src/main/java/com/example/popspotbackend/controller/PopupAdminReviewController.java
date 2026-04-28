@@ -18,11 +18,15 @@ import java.util.Map;
 /**
  * [V4] 자동수집된 팝업 중 신뢰도 < 임계값 인 것들 (PENDING_REVIEW) 을 admin 이 검수.
  *
+ * 기존 AdminController 와 URL 충돌 회피를 위해 /api/admin/popups/crawl 하위에 둠.
+ *  - 기존 AdminController: 사용자 제보(status='PENDING') 검수 (수동 입력 데이터)
+ *  - 본 컨트롤러: 자동수집(reviewStatus='PENDING_REVIEW') 검수 (Naver/Kakao + Gemini 결과)
+ *
  * 모든 엔드포인트 ROLE_ADMIN 만 호출 가능.
  */
 @Slf4j
 @RestController
-@RequestMapping("/api/admin/popups")
+@RequestMapping("/api/admin/popups/crawl")
 @RequiredArgsConstructor
 @PreAuthorize("hasRole('ADMIN')")
 public class PopupAdminReviewController {
@@ -30,32 +34,32 @@ public class PopupAdminReviewController {
     private final PopupStoreRepository popupStoreRepository;
     private final PopupCrawlOrchestrator orchestrator;
 
-    /** 검수 대기 큐 */
+    /** 자동수집 검수 대기 큐 (신뢰도 < 0.8) */
     @GetMapping("/pending")
     public ResponseEntity<List<PopupStore>> pending(
             @RequestParam(defaultValue = "50") int size) {
         return ResponseEntity.ok(popupStoreRepository.findPendingReview(PageRequest.of(0, size)));
     }
 
-    /** 승인 → 즉시 노출 */
+    /** 검수 승인 → 즉시 노출 (자동수집된 검수 대기 row 전용) */
     @PostMapping("/{id}/approve")
     public ResponseEntity<Map<String, Object>> approve(@PathVariable Long id) {
         PopupStore p = popupStoreRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("팝업 id=" + id + " 없음"));
         p.setReviewStatus("APPROVED");
         popupStoreRepository.save(p);
-        log.info("[AdminReview] APPROVED id={} name={}", id, p.getName());
+        log.info("[CrawlReview] APPROVED id={} name={}", id, p.getName());
         return ResponseEntity.ok(Map.of("status","APPROVED","id",id));
     }
 
-    /** 거부 → 영구 비공개 */
+    /** 검수 거부 → 영구 비공개 */
     @PostMapping("/{id}/reject")
     public ResponseEntity<Map<String, Object>> reject(@PathVariable Long id) {
         PopupStore p = popupStoreRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("팝업 id=" + id + " 없음"));
         p.setReviewStatus("REJECTED");
         popupStoreRepository.save(p);
-        log.info("[AdminReview] REJECTED id={} name={}", id, p.getName());
+        log.info("[CrawlReview] REJECTED id={} name={}", id, p.getName());
         return ResponseEntity.ok(Map.of("status","REJECTED","id",id));
     }
 
@@ -69,14 +73,14 @@ public class PopupAdminReviewController {
         PopupStore p = popupStoreRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("팝업 id=" + id + " 없음"));
         popupStoreRepository.delete(p);
-        log.warn("[AdminReview] PERMANENT_DELETED id={} name={}", id, p.getName());
+        log.warn("[CrawlReview] PERMANENT_DELETED id={} name={}", id, p.getName());
         return ResponseEntity.ok(Map.of("status","DELETED","id",id));
     }
 
     /** 수동 크롤 1회 트리거 (운영자 디버깅용) */
-    @PostMapping("/crawl/run")
+    @PostMapping("/run")
     public ResponseEntity<Map<String, Object>> runCrawlNow() {
-        log.info("[AdminReview] 수동 크롤 트리거됨");
+        log.info("[CrawlReview] 수동 크롤 트리거됨");
         Map<String, Integer> stats = orchestrator.runOnce();
         Map<String, Object> resp = new HashMap<>();
         resp.put("triggeredAt", LocalDateTime.now().toString());
