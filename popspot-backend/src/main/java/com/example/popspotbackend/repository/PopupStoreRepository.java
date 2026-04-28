@@ -122,4 +122,13 @@ public interface PopupStoreRepository extends JpaRepository<PopupStore, Long> {
     @Modifying
     @Query("UPDATE PopupStore p SET p.status = 'EXPIRED' WHERE p.id IN :ids")
     int markExpired(@Param("ids") List<Long> ids);
+
+    /** 자동수집됐지만 좌표가 비어있는 row — geocoding backfill 대상 */
+    @Query("""
+           SELECT p FROM PopupStore p
+            WHERE p.sourceType = 'CRAWLED'
+              AND (p.latitude IS NULL OR p.latitude = ''
+                   OR p.longitude IS NULL OR p.longitude = '')
+           """)
+    List<PopupStore> findCrawledMissingCoordinates();
 }
