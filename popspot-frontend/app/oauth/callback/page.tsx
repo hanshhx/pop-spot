@@ -53,10 +53,10 @@ function CallbackContent() {
                 };
                 localStorage.setItem("user", JSON.stringify(realUser));
 
-                // 5. 로그인 성공 처리
+                // 5. 로그인 성공 처리 (인트로 미들웨어 우회 — 메인 직행)
                 setStatus("로그인 성공! 메인으로 이동합니다.");
                 setTimeout(() => {
-                    window.location.href = "/";
+                    window.location.href = "/?entered=1";
                 }, 500);
             } else {
                 // 백엔드가 401 에러 등을 보내면, 에러 메시지를 까서 보여줍니다.

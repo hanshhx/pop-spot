@@ -65,7 +65,8 @@ export default function LoginPage() {
           showConfirmButton: false,
           timer: 1200,
         });
-        router.push("/");
+        // 인트로 미들웨어 우회 — 방금 인트로 거쳐서 로그인 왔으니 메인 직행
+        router.push("/?entered=1");
       } else {
         Swal.fire({
           icon: "error",
