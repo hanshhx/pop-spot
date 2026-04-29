@@ -5,7 +5,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { Loader2 } from "lucide-react";
 
 // 🔥 [수정] "/oauth/callback" 경로를 반드시 추가해야 소셜 로그인 처리가 가능합니다!
-const PUBLIC_PATHS = ["/login", "/signup", "/", "/find-account", "/oauth/callback"]; 
+const PUBLIC_PATHS = ["/intro", "/login", "/signup", "/", "/find-account", "/oauth/callback"];
 
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
