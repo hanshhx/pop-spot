@@ -51,9 +51,10 @@ dependencies {
     // 2. JSON 처리 라이브러리 (ObjectMapper, JsonNode 사용 시 필수)
     // 스프링 부트 웹 스타터에 기본 포함되어 있지만, 에러가 난다면 명시적으로 추가해야 합니다.
     implementation 'com.fasterxml.jackson.core:jackson-databind'
-// [1] LangChain4j 스프링 부트 통합팩 (버전 0.34.0)
+// [1] LangChain4j 스프링 부트 통합팩
     implementation 'dev.langchain4j:langchain4j-spring-boot-starter:0.36.0'
-    implementation 'dev.langchain4j:langchain4j-google-ai-gemini:0.36.0'
+    // Groq 는 OpenAI API 호환이므로 langchain4j-open-ai 사용
+    implementation 'dev.langchain4j:langchain4j-open-ai:0.36.0'
     implementation 'org.json:json:20231013'
     implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
     implementation 'org.springframework.boot:spring-boot-starter-mail'

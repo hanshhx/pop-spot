@@ -154,11 +154,11 @@ public class PopupCrawlOrchestrator {
             sleepQuietly(800);  // API 매너 — 폭주 방지
         }
 
-        // 2) 각 그룹마다 Gemini 정규화 → 저장
-        // ⚠️ Gemini 무료 티어 RPM 10 회피 — 호출 사이 6.5초 대기
+        // 2) 각 그룹마다 LLM 정규화 → 저장
+        // Groq 무료 한도: 30 RPM → 2초 간격이면 안전
         boolean firstNormalization = true;
         for (Map.Entry<String, List<PopupCrawlSource>> entry : grouped.entrySet()) {
-            // 🎯 자동게시 목표치 달성 시 조기 종료 (Gemini quota / 시간 절약)
+            // 🎯 자동게시 목표치 달성 시 조기 종료 (LLM 호출/시간 절약)
             if (maxAutoPublished > 0 && autoPublished >= maxAutoPublished) {
                 log.info("[PopupCrawlOrchestrator] 자동게시 목표 {}개 달성 → 조기 종료 (정규화 {}회 처리)",
                         maxAutoPublished, normalized);
@@ -168,9 +168,9 @@ public class PopupCrawlOrchestrator {
             List<PopupCrawlSource> snippets = entry.getValue();
             if (snippets.isEmpty()) continue;
 
-            // 첫 호출 외엔 RPM 10 이하로 강제 (60/10 = 6초)
+            // 첫 호출 외엔 RPM 30 이하로 강제 (60/30 = 2초)
             if (!firstNormalization) {
-                sleepQuietly(6500);
+                sleepQuietly(2200);
             }
             firstNormalization = false;
 
