@@ -4,8 +4,9 @@ import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { MessageCircle, ArrowRight } from "lucide-react";
 import Link from "next/link";
-// 🔥 [수정] API 헬퍼 함수 import
-import { apiFetch } from "../lib/api";
+// GET 호출은 apiFetch 의 Content-Type 헤더가 preflight 를 일으켜서
+// 직접 fetch 를 사용한다.
+import { API_BASE_URL } from "../lib/api";
 
 interface TickerMessage {
   popupName: string;
@@ -17,19 +18,21 @@ interface TickerMessage {
 export default function LiveChatTicker() {
   const [messages, setMessages] = useState<TickerMessage[]>([]);
 
-  // 1. 최신 채팅 데이터 가져오기
+  // 1. 최신 채팅 데이터 가져오기 — Simple Request 로 보내야 preflight 회피
   const fetchRecentChats = async () => {
     try {
-      // 캐시 방지를 위해 타임스탬프 추가
-      // 🔥 [수정] apiFetch 사용
-      const res = await apiFetch(`/api/chat/ticker?t=${Date.now()}`);
-      
+      const url = `${API_BASE_URL}/api/chat/ticker?t=${Date.now()}`;
+      // Content-Type 헤더 없이 GET → simple request → preflight 안 일어남
+      const res = await fetch(url, { credentials: "include" });
+
       if (res.ok) {
         const data = await res.json();
-        // 데이터가 너무 적으면 애니메이션이 끊기므로 복제해서 늘려줍니다.
-        if (data.length > 0) {
-          setMessages([...data, ...data, ...data]); 
+        if (Array.isArray(data) && data.length > 0) {
+          // 데이터가 너무 적으면 애니메이션이 끊기므로 복제해서 늘려줍니다.
+          setMessages([...data, ...data, ...data]);
         }
+      } else {
+        console.error(`Ticker API ${res.status}`);
       }
     } catch (e) {
       console.error("티커 로딩 실패", e);

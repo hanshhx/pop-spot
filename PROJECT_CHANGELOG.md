@@ -7,10 +7,11 @@
 
 ## 목차
 
-1. [백엔드 변경 사항 (16개 영역)](#1-백엔드-변경-사항)
-2. [프론트엔드 변경 사항 (6개 영역)](#2-프론트엔드-변경-사항)
-3. [운영 중 막혔던 부분 — 트러블슈팅 일지 (20건)](#3-운영-중-막혔던-부분--트러블슈팅-일지)
+1. [백엔드 변경 사항 (17개 영역)](#1-백엔드-변경-사항)
+2. [프론트엔드 변경 사항 (9개 영역)](#2-프론트엔드-변경-사항)
+3. [운영 중 막혔던 부분 — 트러블슈팅 일지 (25건)](#3-운영-중-막혔던-부분--트러블슈팅-일지)
 4. [최종 시스템 구조](#4-최종-시스템-구조)
+5. [향후 권장 작업](#5-향후-권장-작업)
 
 ---
 
@@ -919,6 +920,130 @@ private String issueJwt(User user) {
 
 ---
 
+## 1.17 Gemini → Groq LLM 마이그레이션
+
+### 변경 전 — 취약했던 점
+
+```java
+// AiConfig.java (기존)
+return GoogleAiGeminiChatModel.builder()
+    .apiKey(apiKey)
+    .modelName("gemini-2.0-flash")
+    .build();
+```
+
+```properties
+# application.properties
+langchain4j.google-ai-gemini.chat-model.api-key=${GEMINI_API_KEY:}
+langchain4j.google-ai-gemini.chat-model.model-name=${GEMINI_MODEL_NAME:gemini-2.0-flash}
+```
+
+- **Gemini Free 한도**: RPM 10, RPD 1500 — 자동수집(60키워드) + 코스추천 동시 사용 시 부족
+- **API 키 노출 시 자동 차단**: Google secret scanner 가 채팅/git 노출된 키를 발견하면 quota 를 0 으로 강제 변경 → 같은 프로젝트의 모든 키가 묶여서 죽음
+- **재발급 무한루프**: 같은 프로젝트에 새 키 발급해도 quota 0 그대로
+
+### 왜 바꿨나
+
+- Gemini 키가 채팅 노출 후 Google scanner 에 의해 무력화됨 (`limit: 0`)
+- 같은 프로젝트에 새 키 발급해도 0 → 운영 중단 사태
+- Groq 무료 한도가 압도적으로 큼 (14,400 req/day = Gemini Free 의 ~720배)
+- Groq 는 OpenAI 호환 API → LangChain4j `langchain4j-open-ai` 모듈 그대로 활용 가능
+- 자동수집 + 코스추천 둘 다 한 키로 여유롭게 운영 가능
+
+### 어떻게 바꿨나
+
+**1) 의존성 교체** (`build.gradle`)
+```gradle
+// 제거
+// implementation 'dev.langchain4j:langchain4j-google-ai-gemini:0.36.0'
+
+// 추가
+implementation 'dev.langchain4j:langchain4j-open-ai:0.36.0'
+```
+
+**2) AiConfig.java 재작성**
+```java
+@Configuration
+public class AiConfig {
+    @Value("${groq.api-key}")
+    private String apiKey;
+
+    @Value("${groq.model-name:llama-3.3-70b-versatile}")
+    private String modelName;
+
+    @Value("${groq.base-url:https://api.groq.com/openai/v1}")
+    private String baseUrl;
+
+    @Bean
+    @Primary
+    public ChatLanguageModel chatLanguageModel() {
+        return OpenAiChatModel.builder()
+            .baseUrl(baseUrl)        // ← Groq 엔드포인트
+            .apiKey(apiKey)
+            .modelName(modelName)
+            .temperature(0.7)
+            .timeout(Duration.ofSeconds(60))
+            .build();
+    }
+}
+```
+
+**3) application.properties 갱신**
+```properties
+# 12. AI (Groq — OpenAI 호환 API)
+groq.api-key=${GROQ_API_KEY:}
+groq.model-name=${GROQ_MODEL_NAME:llama-3.3-70b-versatile}
+groq.base-url=${GROQ_BASE_URL:https://api.groq.com/openai/v1}
+```
+
+**4) 자동수집 호출 간격 단축** (`PopupCrawlOrchestrator.java`)
+```java
+// Before — Gemini RPM 10 회피용 6.5초
+sleepQuietly(6500);
+
+// After — Groq RPM 30 활용
+sleepQuietly(2200);
+```
+
+→ 60키워드 풀크롤 시간 **13분 → 약 5분** (~62% 단축)
+
+**5) `.env.example` 갱신**
+```bash
+# 제거: GEMINI_API_KEY, GEMINI_MODEL_NAME
+# 추가:
+GROQ_API_KEY=
+GROQ_MODEL_NAME=llama-3.3-70b-versatile
+GROQ_BASE_URL=https://api.groq.com/openai/v1
+```
+
+**6) AiCourseService / PopupNormalizationService — 코드 변경 없음**
+두 서비스 모두 `ChatLanguageModel` 인터페이스에만 의존 → Spring DI 가 자동으로 새 빈 주입.
+
+### 검증
+
+```bash
+# Groq 직접 호출
+curl -X POST "https://api.groq.com/openai/v1/chat/completions" \
+  -H "Authorization: Bearer $GROQ_API_KEY" \
+  -d '{"model":"llama-3.3-70b-versatile","messages":[{"role":"user","content":"hi"}]}'
+# → {"choices":[{"message":{"content":"Hi there!..."}}]}
+
+# 백엔드 통한 코스 추천
+curl -G "https://popspot.duckdns.org/api/courses/recommend" \
+  --data-urlencode "vibe=데이트"
+# → 5개 추천 popup + 좌표 + 카테고리 + 추천이유
+```
+
+| 지표 | Gemini Free | Groq Free |
+|---|---|---|
+| 일일 한도 | 0 (차단됨) | 14,400 req |
+| 분당 한도 | RPM 10 | RPM 30 |
+| 응답 속도 | 2~5초 | ~50ms |
+| 비용 | $0 | $0 |
+| 모델 | gemini-2.0-flash | llama-3.3-70b-versatile |
+
+---
+
 # 2. 프론트엔드 변경 사항
 
 ## 2.1 환경변수 분리
@@ -1058,6 +1183,181 @@ const PLATFORM_LINKS = [
 ```
 
 → "동의 전 열람 가능" 법적 요건 충족.
+
+---
+
+## 2.7 인트로(커버) 페이지 신규 — 풀스크린 스크롤 스냅 + 영상 배경
+
+### 변경 전 — 부족했던 점
+
+- 사용자가 사이트 처음 들어오면 **곧장 메인페이지** (지도/팝업 리스트) 표시
+- 브랜드 인지/정체성 전달 부족, 어디서 본 듯한 사이트 느낌
+- "POP-SPOT 이 뭐 하는 곳?" 한눈에 안 들어옴
+
+### 왜 바꿨나
+
+- 첫 방문 임팩트가 결정적인 컨버전 요소
+- 기능 나열보다 **임팩트 + 차별점 + CTA** 의 페이지가 신뢰감 높임
+- 비로그인 사용자에게도 가치 제안 후 가입 유도 가능
+
+### 어떻게 바꿨나
+
+**1) `/intro` 라우트 신규** (`app/intro/page.tsx`)
+
+5섹션 풀스크린 스냅 스크롤 구조:
+
+| # | 섹션 | 무드 | 콘텐츠 |
+|---|---|---|---|
+| 1 | Hero | 영상 + 다크 그라데이션 | 로고/슬로건/3아이콘/CTA |
+| 2 | Why POP-SPOT | 라임 후광 | "더 이상 놓치지 마세요" + 통계 3개 (60+/1~2/24h) |
+| 3 | Core Features | 글래스모피즘 | 캘린더/지도/랭킹 카드 |
+| 4 | Only on POP-SPOT | 보라/핫 후광 | AI코스/친구동선/스탬프/혼잡도 (2x2) |
+| 5 | Final CTA | 핫핑크 틴트 | 큰 로그인/회원가입 버튼 |
+
+**핵심 CSS — 스크롤 스냅:**
+```tsx
+<div style={{
+  scrollSnapType: "y mandatory",
+  scrollBehavior: "smooth",
+  WebkitOverflowScrolling: "touch",  // iOS momentum
+}}>
+  <section style={{ scrollSnapAlign: "start" }}>...</section>
+  ...
+</div>
+```
+
+**핵심 — 영상 영구 재생** (모든 섹션에서 계속):
+```tsx
+{/* 페이지 전체 fixed 비디오 — z-0 */}
+<div className="fixed inset-0 z-0 bg-ink-900">
+  <video autoPlay loop muted playsInline>
+    <source src="/14385-256955049.mp4" type="video/mp4" />
+  </video>
+</div>
+
+{/* 스크롤 컨테이너 — z-10 */}
+<div className="relative z-10 h-screen overflow-y-scroll snap-mandatory">
+  ...섹션들 (각 섹션은 반투명 오버레이)
+</div>
+```
+
+**섹션 진입 애니메이션 (framer-motion):**
+```tsx
+<motion.div
+  initial={{ opacity: 0, y: 30 }}
+  whileInView={{ opacity: 1, y: 0 }}
+  viewport={{ once: false, amount: 0.4 }}  // 다시 스크롤하면 재생
+  transition={{ duration: 0.7 }}
+>
+```
+
+**2) middleware.ts 신규** — `/` 진입 시 `/intro` 로 강제 리다이렉트
+```typescript
+export function middleware(request: NextRequest) {
+  const { pathname, searchParams } = request.nextUrl;
+  if (pathname === "/") {
+    if (searchParams.get("entered") !== "1") {
+      const url = request.nextUrl.clone();
+      url.pathname = "/intro";
+      return NextResponse.redirect(url);
+    }
+  }
+  return NextResponse.next();
+}
+export const config = { matcher: ["/"] };
+```
+
+→ 사용자가 `popspot.com` 만 쳐도 항상 인트로 → ENTER 클릭 시 `/?entered=1` 으로 메인.
+
+**3) 로그인 상태 인지 CTA**
+```tsx
+const proceed = () => {
+  if (isLoggedIn) router.push("/?entered=1");
+  else router.push("/login");
+};
+```
+- 비로그인: "로그인하러 가기" + 🔑 아이콘
+- 로그인: "ENTER" + → 화살표
+
+### 검증
+
+```bash
+# 비로그인 상태로 / 접속 → /intro 리다이렉트 → ENTER → /login → 로그인 → /?entered=1 → 메인
+# 로그인 상태로 / 접속 → /intro 리다이렉트 → ENTER → /?entered=1 → 메인
+```
+
+---
+
+## 2.8 AuthGuard 공개 경로에 /intro 추가
+
+### 변경 전 — 인트로가 안 보이는 버그
+
+```typescript
+// AuthGuard.tsx (기존)
+const PUBLIC_PATHS = ["/login", "/signup", "/", "/find-account", "/oauth/callback"];
+```
+
+→ 비로그인 사용자가 `/intro` 접근 시 AuthGuard 가 `/login` 으로 강제 이동 = **인트로 페이지 자체를 못 봄**.
+
+### 어떻게 바꿨나
+
+```typescript
+const PUBLIC_PATHS = ["/intro", "/login", "/signup", "/", "/find-account", "/oauth/callback"];
+```
+
+추가로 로그인/OAuth 성공 후 `/?entered=1` 로 보내서 **로그인 직후 인트로 재표시 방지**:
+
+```typescript
+// app/login/page.tsx
+router.push("/?entered=1");  // 기존: router.push("/")
+
+// app/oauth/callback/page.tsx
+window.location.href = "/?entered=1";
+```
+
+→ 비로그인 → 인트로 → 로그인 → 메인 직행 (인트로 두 번 안 봄).
+
+---
+
+## 2.9 SearchBox — Algolia 잘못된 키 안전 fallback
+
+### 변경 전 — 콘솔 에러 폭발
+
+```typescript
+const searchClient = algoliasearch(
+  process.env.NEXT_PUBLIC_ALGOLIA_APP_ID!,
+  process.env.NEXT_PUBLIC_ALGOLIA_SEARCH_KEY!
+);
+```
+
+→ 잘못된 App ID (`imp68206770` 등 만료/오타) 시 매 페이지 로드마다:
+```
+imp68206770-1.algolianet.com  ERR_NAME_NOT_RESOLVED
+imp68206770-2.algolianet.com  ERR_NAME_NOT_RESOLVED
+imp68206770-3.algolianet.com  ERR_NAME_NOT_RESOLVED
+RetryError: Unreachable hosts...
+```
+
+### 어떻게 바꿨나
+
+```typescript
+const isAlgoliaConfigured =
+  !!ALGOLIA_APP_ID &&
+  !!ALGOLIA_SEARCH_KEY &&
+  ALGOLIA_APP_ID.length >= 6 &&
+  /^[A-Z0-9]+$/.test(ALGOLIA_APP_ID);  // 정식 형식만 통과
+
+const searchClient = isAlgoliaConfigured
+  ? algoliasearch(ALGOLIA_APP_ID!, ALGOLIA_SEARCH_KEY!)
+  : null;
+
+export function SearchZone() {
+  if (!searchClient) return <SearchZoneFallback />;  // 비활성 입력창 + "준비 중"
+  return <InstantSearch ...>...</InstantSearch>;
+}
+```
+
+→ 키가 비어있거나 형식 안 맞으면 **외부 호출 자체 차단**, 콘솔 깨끗.
 
 ---
 
@@ -1332,6 +1632,133 @@ Remove-Item "popspot-frontend\package-lock (1).json" -Force
 
 ---
 
+## 3.22 application-prod.properties 외부 파일 우선순위 함정
+
+**증상:** popspot.env 의 `GEMINI_API_KEY` 를 새 키로 바꾸고 백엔드 재시작했는데도 옛날 키로 호출되어 `limit: 0` 반복.
+
+**원인:** Spring Boot 가 `cd ~` 후 실행되면 **현재 디렉토리** 의 `application-prod.properties` 를 자동 로드하는데, `/home/reo4321/application-prod.properties` 에 옛날 키가 평문으로 박혀있었음.
+
+```
+JAR 안 application-prod.properties:
+  api-key=${GEMINI_API_KEY:}     ← 환경변수 참조 (정상)
+
+/home/reo4321/application-prod.properties (Feb 19, 외부 파일):
+  api-key=AIzaSy(옛날키 평문)    ← 환경변수보다 우선 적용 (범인)
+```
+
+→ 환경변수 새 키 적용을 외부 파일이 덮어씀.
+
+**해결:**
+```bash
+nano /home/reo4321/application-prod.properties
+# 평문 키 라인 → ${GEMINI_API_KEY:} 로 교체
+```
+
+→ Spring Boot 가 환경변수에서 키 읽도록 통일.
+
+**교훈:** 외부 properties 에 시크릿 평문 박지 말 것. 무조건 `${ENV_VAR:}` 참조 사용.
+
+---
+
+## 3.23 Gemini API 키 노출 → Google 자동 차단
+
+**증상:** Gemini 키를 채팅창에 붙여넣어 디버깅 후, 새 키 발급받아도 모두 `RESOURCE_EXHAUSTED, limit: 0`.
+
+**원인:** Google Cloud 의 secret scanner 가 **노출된 키를 자동 감지** → 그 키가 속한 **프로젝트 전체의 quota 를 0 으로 강제 변경**. 같은 프로젝트에 새 키 발급해도 quota 0 그대로 유지.
+
+```json
+{
+  "violations": [{
+    "quotaMetric": "...generate_content_free_tier_requests",
+    "quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier",
+    "limit": 0
+  }]
+}
+```
+
+`limit: 0` 은 일일 한도 초과가 아니라 **프로젝트 차단** 신호.
+
+**해결:**
+1. https://console.cloud.google.com 에서 **새 프로젝트** 생성
+2. 새 프로젝트에서 Generative Language API 활성화
+3. AI Studio 에서 **그 새 프로젝트 선택** 후 키 발급
+4. 또는 → **Groq 으로 마이그레이션** (1.17 참조, 결국 이 길로 감)
+
+**교훈:**
+- 키는 **절대 채팅/git 에 붙이지 말 것** (앞 5자리만 공유 OK)
+- AI Studio 의 "Create API Key" 디폴트가 옛날 프로젝트 → 새 프로젝트 선택 의식적으로
+- 같은 사고 반복 방지 위해 Groq 같은 다중 벤더 옵션 확보
+
+---
+
+## 3.24 Algolia 잘못된 App ID 콘솔 스팸
+
+**증상:** 메인페이지 진입 시 콘솔에 빨간 에러 폭발.
+```
+imp68206770-1.algolianet.com  ERR_NAME_NOT_RESOLVED
+imp68206770-2.algolianet.com  ERR_NAME_NOT_RESOLVED
+imp68206770-3.algolianet.com  ERR_NAME_NOT_RESOLVED
+RetryError: Unreachable hosts - your application id may be incorrect
+```
+
+**원인:** `.env.local` 또는 Vercel env 의 `NEXT_PUBLIC_ALGOLIA_APP_ID` 가 만료/오타 (`imp68206770` 같은 데모 ID). Algolia 가 호스트명을 `<APP_ID>-X.algolianet.com` 으로 만드는데, 존재하지 않는 ID 라 DNS 실패.
+
+**해결:** SearchBox.tsx 에 형식 검증 + fallback (2.9 참조).
+
+```typescript
+const isAlgoliaConfigured = !!APP_ID && /^[A-Z0-9]+$/.test(APP_ID);
+const searchClient = isAlgoliaConfigured ? algoliasearch(...) : null;
+```
+
+→ 잘못된 키면 외부 호출 안 함, fallback UI 표시.
+
+**교훈:** 외부 SaaS 의존성은 항상 **graceful degradation** 패턴 적용. 키 누락/오류 시 앱이 죽으면 안 됨.
+
+---
+
+## 3.25 시놀로지 마이그레이션 준비
+
+**상황:** GCP Free Tier 가 **2026-05-28 만료**. 친구 시놀로지 NAS 로 이전 결정.
+
+**진단 결과 (현재 GCP VM):**
+- Ubuntu 22.04.5 LTS / 2 vCPU / 1 GB RAM
+- 디스크 13 GB / 29 GB 사용
+- 실행 중: Spring Boot, PostgreSQL 14, Redis 6, nginx 1.18
+- DB: `popspot_db` (popspot_user / 비번 1234) — 시놀로지 옮기기 전 강한 비번으로 변경 필수
+- nginx 외부 설정: `/etc/nginx/sites-available/default` 안에 popspot 라우팅
+- SSL: Let's Encrypt `popspot.duckdns.org` 발급됨
+
+**옮길 파일 (총 ~200MB):**
+- DB 덤프 (`pg_dumpall`) ~70MB
+- popspot-backend-0.0.1-SNAPSHOT.jar 92MB
+- popspot.env (3KB) — API 키들
+- start.sh (4KB)
+- application-prod.properties (4KB)
+- uploads/ (1.7MB)
+- nginx 설정 + Let's Encrypt 인증서
+
+**전송 방법 비교:**
+| 방법 | 추천도 | 비고 |
+|---|---|---|
+| rsync 직접 | ⭐⭐⭐⭐⭐ | 시놀로지 SSH 가능 시 |
+| SFTP via FileZilla | ⭐⭐⭐ | SSH 안 켜는 경우 |
+| FTP | ❌ | 평문 비번, 비추 |
+
+**시놀로지 운영 계획:**
+- **Container Manager (Docker Compose)** 로 4개 컨테이너 (postgres / redis / backend / nginx)
+- DSM 내장 **Reverse Proxy** 로 nginx 대체 가능
+- DSM 내장 **Let's Encrypt** 로 SSL 재발급
+- DuckDNS 도메인 그대로 (IP 만 친구 집 공유기로)
+
+**상세 절차:** `SYNOLOGY_MIGRATION_GUIDE.md` 별도 문서 참조 (11개 섹션, 전송/Docker Compose/Postgres 복원/SSL/검증 체크리스트 12개/트러블슈팅 6가지).
+
+**아직 미완료:**
+- 친구 시놀로지 모델/RAM/외부IP 확인 대기
+- DB 비번 변경 (1234 → 32자 랜덤)
+- 실제 데이터 이전 + 검증
+
+---
+
 # 4. 최종 시스템 구조
 
 ## 인프라
@@ -1339,21 +1766,25 @@ Remove-Item "popspot-frontend\package-lock (1).json" -Force
 ```
 [사용자 브라우저]
         ↓ HTTPS
-┌──────────────────────┐         ┌──────────────────────┐
-│   Vercel             │         │   GCP Compute Engine │
-│   popspot.co.kr      │ ──API─→ │   popspot.duckdns.org│
-│   Next.js 프론트     │         │   Spring Boot 4.0.2  │
-└──────────────────────┘         │   PostgreSQL 14      │
-                                 │   Redis              │
-                                 │   nginx + LE SSL     │
-                                 └──────────────────────┘
+        ↓ (/ → middleware → /intro 자동 리다이렉트)
+┌──────────────────────┐         ┌──────────────────────────┐
+│   Vercel             │         │   GCP VM (Ubuntu 22.04)  │
+│   popspot.vercel.app │ ──API─→ │   popspot.duckdns.org    │
+│   Next.js 16 프론트  │         │   ⚠ 5/28 만료 → Synology │
+│   /intro 인트로 페이지│        │   Spring Boot 4.0.2      │
+│   (스냅 스크롤+영상) │         │   PostgreSQL 14          │
+└──────────────────────┘         │   Redis 6                │
+                                 │   nginx 1.18 + LE SSL    │
+                                 └──────────────────────────┘
                                             ↓
                                  ┌──────────────────────┐
                                  │  외부 서비스         │
                                  │  - Naver 검색 API    │
-                                 │  - Kakao 검색 API    │
-                                 │  - Gemini AI         │
+                                 │  - Kakao 검색/지도   │
+                                 │  - Groq AI (LLM)     │
+                                 │    llama-3.3-70b     │
                                  │  - PortOne (결제)    │
+                                 │  - Kakao OAuth2      │
                                  │  - Sentry (오류추적) │
                                  └──────────────────────┘
 ```
@@ -1365,7 +1796,8 @@ Remove-Item "popspot-frontend\package-lock (1).json" -Force
   ├─ 60 키워드 ("서울 팝업스토어" 등)
   ├─ × Naver 블로그/뉴스 + Kakao 웹/블로그 (각 30건)
   ├─ × 800ms rate limit
-  ├─ Gemini 정규화 → 신뢰도 점수
+  ├─ Groq llama-3.3-70b 정규화 → 신뢰도 점수
+  │   (호출 간격 2.2초 — RPM 30 활용, 60키워드 풀크롤 ~5분)
   ├─ Kakao Local API geocoding → lat/lng
   ├─ external_id (SHA-256) 중복 검사
   └─ confidence ≥ 0.8 → AUTO_PUBLISHED
@@ -1379,7 +1811,7 @@ Remove-Item "popspot-frontend\package-lock (1).json" -Force
 
 1. **TOS 준수** — 공식 검색 API 만, 일일 한도 1% 미만
 2. **저작권** — snippet+source_url 만, AI paraphrase
-3. **개인정보** — Gemini 프롬프트 PII 제외 + §13
+3. **개인정보** — LLM 프롬프트 PII 제외 + §13
 4. **정확성 면책** — 신뢰도 점수, AI 뱃지, Footer
 5. **Takedown** — 24h SLA, 즉시 차단, 약관 §11
 6. **만료 자동처리** — 매일 5시 EXPIRED
@@ -1400,14 +1832,29 @@ PopupStore 총합: 150개
 
 # 5. 향후 권장 작업
 
+## 🔴 최우선 (5월 내)
+- [ ] **시놀로지 마이그레이션** — GCP 5/28 만료 (SYNOLOGY_MIGRATION_GUIDE.md 참조)
+  - [ ] 친구 시놀로지 모델/RAM/외부IP 확인
+  - [ ] DB 비번 1234 → 32자 랜덤으로 변경
+  - [ ] Container Manager (Docker Compose) 로 4개 컨테이너 배포
+  - [ ] DuckDNS IP 변경 + 친구 공유기 포트포워딩
+  - [ ] 12개 검증 체크리스트 통과
+  - [ ] GCP VM 정지
+
 ## 즉시 (포트폴리오 단계)
 - [x] 자동수집 활성화
 - [x] 매일 자동 스케줄 가동
+- [x] **Gemini → Groq 마이그레이션** (1.17 참조, 한도 0 → 14400/day)
+- [x] **인트로 페이지 신규** (2.7 참조, 5섹션 스냅 스크롤)
+- [x] **Algolia 안전 fallback** (2.9 참조, 콘솔 에러 제거)
 - [ ] 1주일 운영 후 더미 133개 hard delete
 
 ## 가까운 시일 (포트폴리오 유지 시)
 - [ ] 회원가입 — 만 14세 미만 차단 로직
 - [ ] 프론트 lighthouse 점수 점검
+- [ ] 코스 추천을 룰 기반으로 갈아치우기 (LLM 의존도 ↓, AiCourseService 만 변경)
+- [ ] Algolia 인덱싱 스크립트 작성 또는 백엔드 검색으로 대체
+- [ ] 인트로 페이지 영상 4MB 이하로 압축 (모바일 데이터 절약)
 
 ## 수익화 시점 (필수)
 - [ ] Footer 의 "포트폴리오" 라벨 제거
@@ -1418,6 +1865,18 @@ PopupStore 총합: 150개
 
 ---
 
-**문서 버전:** v1.0  
-**최종 수정:** 2026-04-28  
+**문서 버전:** v1.1
+**최종 수정:** 2026-05-01
 **작성자:** POP-SPOT 개발팀
+
+**v1.1 변경점:**
+- §1.17 Gemini → Groq LLM 마이그레이션 추가
+- §2.7 인트로(커버) 페이지 신규 추가
+- §2.8 AuthGuard 공개 경로 + 로그인 후 ?entered=1 추가
+- §2.9 SearchBox Algolia 잘못된 키 fallback 추가
+- §3.22 application-prod.properties 외부 파일 우선순위 함정 추가
+- §3.23 Gemini API 키 노출 → Google 자동 차단 추가
+- §3.24 Algolia 잘못된 App ID 콘솔 스팸 추가
+- §3.25 시놀로지 마이그레이션 준비 추가
+- §4 시스템 구조 — Groq, 인트로 페이지, 시놀로지 이전 예정 반영
+- §5 향후 권장 작업 — 시놀로지 마이그레이션 최우선 순위로

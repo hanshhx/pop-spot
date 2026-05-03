@@ -17,10 +17,25 @@ interface AlgoliaHit {
   location?: string;
 }
 
-const searchClient = algoliasearch(
-  process.env.NEXT_PUBLIC_ALGOLIA_APP_ID!,
-  process.env.NEXT_PUBLIC_ALGOLIA_SEARCH_KEY!
-);
+/* --------------------------------------------------------------------------
+ * Algolia 환경변수가 비어있거나 잘못된 ID(예: 데모용 더미)면
+ * 클라이언트 자체를 만들지 않고 fallback UI 를 표시한다.
+ * -------------------------------------------------------------------------- */
+const ALGOLIA_APP_ID = process.env.NEXT_PUBLIC_ALGOLIA_APP_ID;
+const ALGOLIA_SEARCH_KEY = process.env.NEXT_PUBLIC_ALGOLIA_SEARCH_KEY;
+
+// App ID 형식이 너무 짧거나 명백히 잘못된 값을 사전 차단
+const isAlgoliaConfigured =
+  !!ALGOLIA_APP_ID &&
+  !!ALGOLIA_SEARCH_KEY &&
+  ALGOLIA_APP_ID.length >= 6 &&
+  ALGOLIA_SEARCH_KEY.length >= 10 &&
+  // Algolia 정식 App ID 패턴(영문 대문자 + 숫자) 외 모양은 막음
+  /^[A-Z0-9]+$/.test(ALGOLIA_APP_ID);
+
+const searchClient = isAlgoliaConfigured
+  ? algoliasearch(ALGOLIA_APP_ID!, ALGOLIA_SEARCH_KEY!)
+  : null;
 
 function CustomSearchBox(props: UseSearchBoxProps) {
   const { query, refine } = useSearchBox(props);
@@ -99,10 +114,48 @@ function CustomHits() {
 }
 
 /**
+ * Algolia 키 미설정/잘못된 키일 때 보여주는 안전한 fallback.
+ * 외부 호출을 일절 하지 않으므로 콘솔 에러 없음.
+ */
+function SearchZoneFallback() {
+  return (
+    <div className="rounded-xl p-6 md:p-8 flex flex-col justify-between border border-[var(--color-border)] bg-surface relative z-50 min-h-[260px]">
+      <div>
+        <h2 className="font-display-en text-3xl md:text-5xl font-extrabold tracking-tighter mb-4 text-foreground">
+          Search <span className="text-lime-300">Zone.</span>
+        </h2>
+        <div className="mt-6 relative w-full">
+          <input
+            type="text"
+            disabled
+            placeholder="검색 기능 준비 중입니다..."
+            aria-label="팝업 검색 (준비 중)"
+            className="w-full h-12 rounded-pill py-3 pl-12 pr-4 bg-cream-300/50 dark:bg-ink-800/50 border border-[var(--color-border)] text-muted-foreground placeholder:text-muted-foreground/70 cursor-not-allowed text-sm md:text-base"
+          />
+          <Search
+            className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/50"
+            size={18}
+            aria-hidden
+          />
+        </div>
+      </div>
+      <p className="text-[11px] text-muted-foreground/70 mt-4">
+        곧 더 강력한 검색으로 찾아뵐게요.
+      </p>
+    </div>
+  );
+}
+
+/**
  * Algolia 기반 검색존.
  * 메인 페이지 MAP 탭 좌측에 들어감. 결과는 입력창 아래 dropdown 으로.
+ * Algolia 키가 없거나 잘못 설정됐으면 fallback UI 로 안전하게 대체.
  */
 export function SearchZone() {
+  if (!searchClient) {
+    return <SearchZoneFallback />;
+  }
+
   return (
     <div className="rounded-xl p-6 md:p-8 flex flex-col justify-between border border-[var(--color-border)] bg-surface relative z-50 min-h-[260px]">
       <InstantSearch searchClient={searchClient} indexName="popups">
