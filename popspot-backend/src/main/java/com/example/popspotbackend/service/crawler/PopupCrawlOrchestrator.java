@@ -16,10 +16,11 @@ import java.time.LocalDateTime;
 import java.util.*;
 
 /**
- * 검색 API → Gemini 정규화 → DB 저장 까지 전체 파이프라인.
+ * 검색 API → LLM 정규화 → DB 저장 까지 전체 파이프라인.
  *
  * 키워드는 "서울 + 카테고리/지역" 조합으로 다각도 수집.
- * confidence ≥ threshold 면 자동 게시 (AUTO_PUBLISHED), 그 외 PENDING_REVIEW.
+ * confidence ≥ threshold 면 자동 게시 (AUTO_PUBLISHED), 미만이면 즉시 폐기.
+ * (검수 큐는 사용하지 않음 — 품질 우선 정책)
  */
 @Slf4j
 @Service
@@ -184,7 +185,15 @@ public class PopupCrawlOrchestrator {
                 continue;
             }
 
-            // 3) 중복 검사
+            // 3) 신뢰도 임계값 미달 → 저장하지 않고 폐기 (PENDING_REVIEW 큐 사용 안 함)
+            if (result.getConfidence() < confidenceThreshold) {
+                rejected++;
+                log.debug("[PopupCrawlOrchestrator] 신뢰도 미달 폐기: {} (confidence={}, threshold={})",
+                        result.getName(), result.getConfidence(), confidenceThreshold);
+                continue;
+            }
+
+            // 4) 중복 검사
             String externalId = computeExternalId(result.getName(), result.getLocation(), result.getStartDate());
             Optional<PopupStore> existing = popupStoreRepository.findByExternalId(externalId);
 
@@ -196,18 +205,14 @@ public class PopupCrawlOrchestrator {
                 continue;
             }
 
-            // 4) 신뢰도에 따라 review_status 결정
-            String reviewStatus = result.getConfidence() >= confidenceThreshold
-                    ? "AUTO_PUBLISHED"
-                    : "PENDING_REVIEW";
+            // 5) 신뢰도 통과 → 무조건 자동 게시 (PENDING_REVIEW 사용 안 함)
+            String reviewStatus = "AUTO_PUBLISHED";
+            autoPublished++;
 
-            if ("AUTO_PUBLISHED".equals(reviewStatus)) autoPublished++;
-            else pendingReview++;
-
-            // 5) 출처 첫번째 URL 을 source_url 로 저장
+            // 6) 출처 첫번째 URL 을 source_url 로 저장
             PopupCrawlSource primarySource = snippets.get(0);
 
-            // 6) Geocoding — 카카오 로컬 API 로 위경도 자동 변환 (지도 표시용)
+            // 7) Geocoding — 카카오 로컬 API 로 위경도 자동 변환 (지도 표시용)
             String[] coords = geocode(result.getName(), result.getLocation());
 
             PopupStore newPopup = PopupStore.builder()
