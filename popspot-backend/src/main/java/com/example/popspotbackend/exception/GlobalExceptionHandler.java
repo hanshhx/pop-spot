@@ -9,6 +9,7 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.time.OffsetDateTime;
 import java.util.HashMap;
@@ -30,6 +31,16 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(AuthenticationException.class)
     public ResponseEntity<Map<String, Object>> handleAuthException(AuthenticationException ex) {
         return body(HttpStatus.UNAUTHORIZED, "Unauthorized", "인증이 필요합니다.");
+    }
+
+    /**
+     * 정적 리소스 없음 (예: 누가 백엔드 도메인 루트(/) 직접 접속).
+     * 백엔드는 API 만 제공하므로 정적 리소스 없는 게 정상 → 조용히 404 반환.
+     * 스택트레이스 안 찍어서 로그 깔끔하게 유지.
+     */
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleNoResource(NoResourceFoundException ex) {
+        return body(HttpStatus.NOT_FOUND, "Not Found", "요청한 리소스가 없습니다.");
     }
 
     /** 인가 실패 (권한 부족) */

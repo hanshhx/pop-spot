@@ -52,9 +52,15 @@ export default function DigitalTicket({ name, date, address, category, userName,
           transition={{ duration: 0.8, type: "spring" }}
           className="relative w-full max-w-4xl bg-[#1a1a1a]/95 backdrop-blur-2xl border border-white/10 rounded-3xl md:rounded-[2.5rem] overflow-hidden shadow-[0_15px_30px_-10px_rgba(0,0,0,0.8)] md:shadow-[0_25px_50px_-12px_rgba(0,0,0,0.8)] flex flex-col md:flex-row z-10"
         >
-          {/* 노이즈 질감 배경 */}
-          <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-10 pointer-events-none"></div>
-          
+          {/* 노이즈 질감 배경 — SVG 데이터 URL 로 인라인 (외부 의존성 제거) */}
+          <div
+            className="absolute inset-0 opacity-10 pointer-events-none"
+            style={{
+              backgroundImage:
+                "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>\")",
+            }}
+          ></div>
+
           {/* 상단 장식 포인트 바 */}
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-lime-300 via-lime-400 to-hot-400 z-20"></div>
 
