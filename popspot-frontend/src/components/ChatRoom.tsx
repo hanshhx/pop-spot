@@ -30,21 +30,23 @@ export default function ChatRoom({ roomId, nickname }: Props) {
 
   // 1. 소켓 및 데이터 로드
   useEffect(() => {
-    // 🔥 [수정 2] fetch -> apiFetch로 변경 (주소 자동 처리)
+    // 1-1) 과거 채팅 히스토리 로드 → state 채우기
     apiFetch(`/api/chat/history/${roomId}`)
       .then(res => res.json())
       .then(data => {
+        if (Array.isArray(data)) setMessages(data);
       })
       .catch(err => console.error("히스토리 로드 실패:", err));
 
-    // 🔥 [수정 3] 소켓 주소를 환경 변수(SOCKET_BASE_URL)로 변경
+    // 1-2) WebSocket 연결 + 구독 → 새 메시지 들어올 때마다 state 추가
     const socketFactory = () => new SockJS(`${SOCKET_BASE_URL}/ws-stomp`);
-    
+
     client.current = new Client({
       webSocketFactory: socketFactory,
       onConnect: () => {
         client.current?.subscribe(`/sub/chat/room/${roomId}`, (res) => {
           const newMessage = JSON.parse(res.body);
+          setMessages(prev => [...prev, newMessage]);
         });
       },
     });
