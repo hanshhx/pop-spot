@@ -7,7 +7,7 @@ import {
   Ticket,
   User,
   Users,
-  ShoppingBag,
+  Music2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -19,7 +19,7 @@ interface BottomDockProps {
 }
 
 interface DockItemDef {
-  key: DockTab | "SHOP";
+  key: DockTab | "MUSIC";
   icon: React.ElementType;
   label: string;
   href?: string;
@@ -28,7 +28,7 @@ interface DockItemDef {
 const ITEMS: DockItemDef[] = [
   { key: "MAP", icon: MapIcon, label: "지도" },
   { key: "COURSE", icon: Route, label: "코스" },
-  { key: "SHOP", icon: ShoppingBag, label: "상점", href: "/shop" },
+  { key: "MUSIC", icon: Music2, label: "음악", href: "/music" },
   { key: "PASSPORT", icon: Ticket, label: "여권" },
   { key: "MY", icon: User, label: "MY" },
   { key: "MATE", icon: Users, label: "동행" },
