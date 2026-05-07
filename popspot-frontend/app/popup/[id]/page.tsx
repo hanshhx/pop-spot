@@ -16,9 +16,10 @@ import { motion, Variants } from "framer-motion";
 import { useTheme } from "next-themes"; 
 
 // [코드 해석] 분리된 하위 컴포넌트(지도, 채팅, 디지털 티켓)를 불러옵니다.
-import DetailMap from "../../../src/components/Map/DetailMap"; 
+import DetailMap from "../../../src/components/Map/DetailMap";
 import ChatRoom from "../../../src/components/ChatRoom";
-import DigitalTicket from "../../../src/components/DigitalTicket"; 
+import DigitalTicket from "../../../src/components/DigitalTicket";
+import MusicForPopup from "../../../src/components/music/MusicForPopup";
 // [코드 해석] 서버와 통신하기 위한 커스텀 API fetch 함수를 불러옵니다.
 import { apiFetch } from "../../../src/lib/api";
 import { notify, notifyError } from "@/lib/notify";
@@ -517,6 +518,11 @@ export default function PopupDetail() {
                 <MapPin size={12} className="md:w-3.5 md:h-3.5 text-lime-500 animate-bounce shrink-0"/> 
                 <span className="truncate">{popup.address}</span>
             </div>
+        </div>
+
+        {/* [V5] 음악 매칭 — 이 팝업과 어울리는 곡 */}
+        <div className="pt-6 md:pt-10 relative z-30">
+            <MusicForPopup popupId={popup.id} />
         </div>
 
         {/* [로직 해석] 팝업스토어별로 독립된 소켓 통신을 기반으로 유저 간 실시간 채팅을 지원하는 모듈입니다. */}

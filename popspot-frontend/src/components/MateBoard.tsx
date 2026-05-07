@@ -348,11 +348,11 @@ export default function MateBoard({ user }: MateBoardProps) {
                               formData.useMegaphone 
                               ? "bg-hot-50 border-hot-400 dark:bg-hot-900/20 dark:border-hot-400/50" 
                               : "bg-gray-50 border-gray-200 hover:bg-gray-100 dark:bg-white/5 dark:border-white/10 dark:hover:bg-white/10"
-                          }`} onClick={async () => {
+                          }`} onClick={() => {
                                if ((user.megaphoneCount || 0) > 0) {
                                    setFormData({...formData, useMegaphone: !formData.useMegaphone})
                                } else {
-                                   if (await confirmAction({ text: "확성기가 없습니다. 상점에서 구매하시겠습니까?" })) window.location.href = "/shop";
+                                   notify("확성기가 없습니다. 보유한 확성기로만 사용할 수 있어요.");
                                }
                           }}>
                                <div className="flex items-center gap-2 md:gap-3">

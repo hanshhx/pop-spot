@@ -7,7 +7,7 @@ import {
   Instagram, Twitter, Plus, X, ArrowUp, ArrowDown, Minus, 
   Map as MapIcon, Route, Ticket, User as UserIcon, LogOut, Sparkles, Lock, ArrowRight, Loader2, RefreshCw,
   Shirt, Video, ShoppingBag, Crown, GripVertical, PlusCircle, Zap, MessageCircle, Heart, Star, Gift, Megaphone,
-  FolderOpen, Save, Trash2, Store, ShieldCheck, ChevronLeft, ChevronRight, Camera, Coffee
+  FolderOpen, Save, Trash2, Store, ShieldCheck, ChevronLeft, ChevronRight, Camera, Coffee, Music
 } from "lucide-react";
 import { motion, Variants, AnimatePresence } from "framer-motion";
 import Link from "next/link";
@@ -39,7 +39,7 @@ import { apiFetch, API_BASE_URL, SOCKET_BASE_URL } from "../src/lib/api";
 import { Header } from "../src/components/layout/Header";
 import { Footer } from "../src/components/layout/Footer";
 import { BottomDock, type DockTab } from "../src/components/layout/BottomDock";
-import { notify, confirmAction } from "@/lib/notify";
+import { notify } from "@/lib/notify";
 import { SearchZone } from "@/features/popup/SearchBox";
 import { ReportPopupModal } from "@/features/popup/ReportPopupModal";
 import { PopupCalendarModal } from "@/features/popup/PopupCalendarModal";
@@ -556,6 +556,31 @@ export default function Home() {
                     )}
                 </section>
 
+                {/* V5: 음악 → 팝업 추천 진입 (홈 디스커버리) */}
+                <Link
+                    href="/music"
+                    aria-label="POP·MUSIC 둘러보기"
+                    className="group relative mb-6 flex items-center justify-between overflow-hidden rounded-2xl border border-[var(--color-border)] bg-gradient-to-r from-fuchsia-500/15 via-lime-300/10 to-sky-500/15 p-5 backdrop-blur transition hover:scale-[1.005] hover:shadow-lg"
+                >
+                    <div className="flex items-center gap-4">
+                        <div className="grid h-12 w-12 place-items-center rounded-xl bg-lime-300 text-ink-900 shadow-lg shadow-lime-300/30">
+                            <Music size={20} />
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-bold uppercase tracking-[0.4em] text-muted-foreground">
+                                NEW · BETA
+                            </p>
+                            <p className="text-base md:text-lg font-black text-foreground">
+                                지금 듣는 노래에 어울리는 팝업, 찾아드려요
+                            </p>
+                            <p className="mt-0.5 text-xs text-muted-foreground">
+                                AI 무드 분석으로 매칭 · 운명의 곡 룰렛까지
+                            </p>
+                        </div>
+                    </div>
+                    <ArrowRight size={20} className="text-foreground transition group-hover:translate-x-1" />
+                </Link>
+
                 {/* Dashboard Main Grid */}
                 <section aria-label="Dashboard Layout" className="grid grid-cols-1 lg:grid-cols-12 md:grid-rows-6 gap-4 min-h-[80vh] mb-16">
                     
@@ -1027,11 +1052,9 @@ export default function Home() {
                                         </div>
                                     </div>
                                 </div>
-                                <Link href="/shop">
-                                        <button className="text-xs px-3 py-1.5 bg-foreground/10 hover:bg-foreground/20 rounded-pill transition-colors font-semibold whitespace-nowrap">
-                                            {myPageInfo?.isPremium ? "연장하기" : "구매하기"}
-                                        </button>
-                                    </Link>
+                                <span className="text-[10px] lg:text-xs px-3 py-1.5 bg-foreground/5 rounded-pill text-muted-foreground font-semibold whitespace-nowrap">
+                                    {myPageInfo?.isPremium ? "이용 중" : "준비 중"}
+                                </span>
                             </article>
 
                             <article className="p-4 rounded-md border border-[var(--color-border)] bg-cream-300 dark:bg-ink-800 flex items-center justify-between">
@@ -1045,12 +1068,12 @@ export default function Home() {
                                     </div>
                                 </div>
                                 <button
-                                    onClick={async () => {
+                                    onClick={() => {
                                         if((myPageInfo?.megaphoneCount || 0) > 0) {
                                             notify("동행 게시판 글쓰기 화면에서 사용할 수 있습니다!");
                                             handleTabChange("MATE");
                                         } else {
-                                            if (await confirmAction({ text: "확성기가 없습니다. 상점에서 구매하시겠습니까?" })) router.push("/shop");
+                                            notify("확성기는 보유한 만큼만 사용할 수 있어요.");
                                         }
                                     }}
                                     className={`text-xs px-3 py-1.5 rounded-pill transition-colors font-semibold whitespace-nowrap ${

@@ -1,7 +1,6 @@
 "use client";
 
 import { Lock, Crown } from "lucide-react";
-import Link from "next/link";
 
 interface Props {
   isPremium: boolean;
@@ -34,12 +33,8 @@ export default function SecretTip({ isPremium, tip }: Props) {
           
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/60 dark:bg-black/60 backdrop-blur-sm z-10 rounded-lg md:rounded-xl p-2">
             <Lock className="w-5 h-5 md:w-6 md:h-6 text-gray-500 mb-1.5 md:mb-2" />
-            <p className="text-xs md:text-sm font-bold text-gray-800 dark:text-white mb-2 md:mb-3 text-center">프리미엄 회원 전용 정보입니다</p>
-            <Link href="/shop">
-                <button className="px-3 py-1.5 md:px-4 md:py-2 bg-gradient-to-r bg-lime-300 text-white text-[10px] md:text-xs font-bold rounded-full hover:scale-105 transition-transform shadow-lg whitespace-nowrap">
-                POP-PASS로 잠금해제 🔓
-                </button>
-            </Link>
+            <p className="text-xs md:text-sm font-bold text-gray-800 dark:text-white mb-1 md:mb-2 text-center">프리미엄 회원 전용 정보입니다</p>
+            <p className="text-[10px] md:text-xs text-gray-500 text-center">곧 다시 만나요 🍀</p>
           </div>
         </div>
       )}
