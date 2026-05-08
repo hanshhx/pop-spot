@@ -137,7 +137,11 @@ function MiniPlayerBar() {
           </button>
           <button
             type="button"
-            onClick={close}
+            onClick={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              close();
+            }}
             aria-label="플레이어 닫기"
             className="grid h-9 w-9 place-items-center rounded-full text-muted-foreground transition hover:bg-foreground/10"
           >
@@ -202,7 +206,12 @@ function FullScreenPlayer() {
 
       <button
         type="button"
-        onClick={collapse}
+        onClick={(e) => {
+          // 풀 플레이어가 어떤 페이지 위에 떠 있어도 버블링이 라우터/링크를 건드리지 않게
+          e.stopPropagation();
+          e.preventDefault();
+          collapse();
+        }}
         aria-label="미니 플레이어로 줄이기"
         className="absolute right-4 top-4 z-20 grid place-items-center rounded-full bg-white/10 p-2 text-white backdrop-blur transition hover:bg-white/20"
       >
