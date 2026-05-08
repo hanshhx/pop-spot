@@ -8,7 +8,7 @@ import { ArrowLeft, Ticket, Music2, MapPin, Sparkles } from "lucide-react";
 
 import { apiFetch } from "@/lib/api";
 import { MusicTrack, UserMusicHistory } from "@/types/music";
-import MusicPlayerModal from "@/components/music/MusicPlayerModal";
+import { useMusicPlayer } from "@/components/music/MusicPlayerProvider";
 
 interface HistoryItem extends UserMusicHistory {
   // 백엔드가 entity 그대로 보내고 있어서 일단 raw 사용.
@@ -17,10 +17,10 @@ interface HistoryItem extends UserMusicHistory {
 
 export default function MusicPassportPage() {
   const router = useRouter();
+  const player = useMusicPlayer();
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [tracks, setTracks] = useState<Record<number, MusicTrack>>({});
   const [loading, setLoading] = useState(true);
-  const [active, setActive] = useState<MusicTrack | null>(null);
 
   useEffect(() => {
     setLoading(true);
@@ -130,7 +130,7 @@ export default function MusicPassportPage() {
                   className="group flex items-center gap-4 rounded-2xl border border-white/5 bg-white/5 p-3 backdrop-blur transition hover:bg-white/10"
                 >
                   <button
-                    onClick={() => t && setActive(t)}
+                    onClick={() => t && player.play(t)}
                     className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-white/10"
                     disabled={!t}
                   >
@@ -173,11 +173,6 @@ export default function MusicPassportPage() {
         )}
       </div>
 
-      <MusicPlayerModal
-        track={active}
-        onClose={() => setActive(null)}
-        onChangeTrack={(t) => setActive(t)}
-      />
     </div>
   );
 }

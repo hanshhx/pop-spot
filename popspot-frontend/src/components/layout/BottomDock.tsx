@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import {
   Map as MapIcon,
   Route,
@@ -11,7 +10,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export type DockTab = "MAP" | "COURSE" | "PASSPORT" | "MY" | "MATE";
+export type DockTab = "MAP" | "COURSE" | "MUSIC" | "PASSPORT" | "MY" | "MATE";
 
 interface BottomDockProps {
   currentTab: DockTab;
@@ -19,16 +18,19 @@ interface BottomDockProps {
 }
 
 interface DockItemDef {
-  key: DockTab | "MUSIC";
+  key: DockTab;
   icon: React.ElementType;
   label: string;
-  href?: string;
 }
 
+/**
+ * 모든 탭은 같은 페이지 안에서 즉시 전환된다 — 외부 라우트 X.
+ * 마이페이지/지도/음악 모두 같은 모델로 통일해서 깜빡임 없이 이동.
+ */
 const ITEMS: DockItemDef[] = [
   { key: "MAP", icon: MapIcon, label: "지도" },
   { key: "COURSE", icon: Route, label: "코스" },
-  { key: "MUSIC", icon: Music2, label: "음악", href: "/music" },
+  { key: "MUSIC", icon: Music2, label: "음악" },
   { key: "PASSPORT", icon: Ticket, label: "여권" },
   { key: "MY", icon: User, label: "MY" },
   { key: "MATE", icon: Users, label: "동행" },
@@ -56,33 +58,15 @@ export function BottomDock({ currentTab, onTabChange }: BottomDockProps) {
           "bg-surface/95 backdrop-blur-md shadow-pop"
         )}
       >
-        {ITEMS.map((item) => {
-          if (item.href) {
-            return (
-              <Link
-                key={item.key}
-                href={item.href}
-                className="shrink-0"
-                aria-label={item.label}
-              >
-                <DockButton
-                  icon={item.icon}
-                  label={item.label}
-                  isActive={false}
-                />
-              </Link>
-            );
-          }
-          return (
-            <DockButton
-              key={item.key}
-              icon={item.icon}
-              label={item.label}
-              isActive={currentTab === item.key}
-              onClick={() => onTabChange(item.key as DockTab)}
-            />
-          );
-        })}
+        {ITEMS.map((item) => (
+          <DockButton
+            key={item.key}
+            icon={item.icon}
+            label={item.label}
+            isActive={currentTab === item.key}
+            onClick={() => onTabChange(item.key)}
+          />
+        ))}
       </div>
     </nav>
   );
