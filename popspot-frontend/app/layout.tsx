@@ -4,6 +4,8 @@ import Script from "next/script";
 import { Providers } from "./Providers";
 import AuthGuard from "@/components/AuthGuard";
 import GlobalChatManager from "@/components/GlobalChatManager";
+import { MusicPlayerProvider } from "@/components/music/MusicPlayerProvider";
+import { GlobalMusicPlayer } from "@/components/music/GlobalMusicPlayer";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://pop-spot.app"),
@@ -45,8 +47,11 @@ export default function RootLayout({
       <body className="font-sans antialiased">
         <Providers>
           <AuthGuard>
-            {children}
-            <GlobalChatManager />
+            <MusicPlayerProvider>
+              {children}
+              <GlobalChatManager />
+              <GlobalMusicPlayer />
+            </MusicPlayerProvider>
           </AuthGuard>
         </Providers>
 

@@ -39,6 +39,7 @@ import { apiFetch, API_BASE_URL, SOCKET_BASE_URL } from "../src/lib/api";
 import { Header } from "../src/components/layout/Header";
 import { Footer } from "../src/components/layout/Footer";
 import { BottomDock, type DockTab } from "../src/components/layout/BottomDock";
+import MusicTab from "@/components/music/MusicTab";
 import { notify } from "@/lib/notify";
 import { SearchZone } from "@/features/popup/SearchBox";
 import { ReportPopupModal } from "@/features/popup/ReportPopupModal";
@@ -452,9 +453,16 @@ export default function Home() {
       setSelectedVibe(parsed.vibe);
     }
       
+    // 외부에서 들어올 때 ?tab=music 같은 파라미터로 직접 진입할 수 있게 한다.
+    // (예: 구버전 /music 라우트가 / 로 redirect 될 때 사용)
+    const tabParam = searchParams.get("tab");
+    if (tabParam) {
+      setCurrentTab(tabParam.toUpperCase());
+      return;
+    }
     const lastTab = sessionStorage.getItem("lastTab");
     if (lastTab) setCurrentTab(lastTab);
-  }, []);
+  }, [searchParams]);
 
   /* Utilities */
   const sectionVariants: Variants = {
@@ -557,10 +565,11 @@ export default function Home() {
                 </section>
 
                 {/* V5: 음악 → 팝업 추천 진입 (홈 디스커버리) */}
-                <Link
-                    href="/music"
+                <button
+                    type="button"
+                    onClick={() => handleTabChange("MUSIC")}
                     aria-label="POP·MUSIC 둘러보기"
-                    className="group relative mb-6 flex items-center justify-between overflow-hidden rounded-2xl border border-[var(--color-border)] bg-gradient-to-r from-fuchsia-500/15 via-lime-300/10 to-sky-500/15 p-5 backdrop-blur transition hover:scale-[1.005] hover:shadow-lg"
+                    className="group relative mb-6 flex w-full items-center justify-between overflow-hidden rounded-2xl border border-[var(--color-border)] bg-gradient-to-r from-fuchsia-500/15 via-lime-300/10 to-sky-500/15 p-5 backdrop-blur transition hover:scale-[1.005] hover:shadow-lg"
                 >
                     <div className="flex items-center gap-4">
                         <div className="grid h-12 w-12 place-items-center rounded-xl bg-lime-300 text-ink-900 shadow-lg shadow-lime-300/30">
@@ -579,7 +588,7 @@ export default function Home() {
                         </div>
                     </div>
                     <ArrowRight size={20} className="text-foreground transition group-hover:translate-x-1" />
-                </Link>
+                </button>
 
                 {/* Dashboard Main Grid */}
                 <section aria-label="Dashboard Layout" className="grid grid-cols-1 lg:grid-cols-12 md:grid-rows-6 gap-4 min-h-[80vh] mb-16">
@@ -843,6 +852,18 @@ export default function Home() {
                       <Link href="/login" className="inline-flex w-full lg:w-auto px-6 py-3 bg-lime-300 hover:bg-lime-400 text-ink-900 font-semibold rounded-pill transition-colors items-center justify-center text-sm lg:text-base">로그인 하러가기</Link>
                   </div>
               )}
+            </motion.section>
+        )}
+
+        {/* TAB: MUSIC */}
+        {currentTab === "MUSIC" && (
+            <motion.section
+                aria-label="Music to Popup"
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mb-16 rounded-xl border border-[var(--color-border)] bg-surface p-4 lg:p-6"
+            >
+                <MusicTab />
             </motion.section>
         )}
 
