@@ -23,8 +23,13 @@ public class MusicTrack {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "itunes_track_id", unique = true, nullable = false, length = 50)
+    /** 레거시 — iTunes 시대의 트랙 ID. 새로 만드는 곡은 비어 있다 */
+    @Column(name = "itunes_track_id", unique = true, length = 50)
     private String itunesTrackId;
+
+    /** 현재 검색 소스인 Spotify 의 track ID */
+    @Column(name = "spotify_track_id", unique = true, length = 50)
+    private String spotifyTrackId;
 
     @Column(name = "artist_name", nullable = false, length = 200)
     private String artistName;
@@ -79,9 +84,18 @@ public class MusicTrack {
         if (isOfficial == null) isOfficial = false;
     }
 
-    /** 캐시가 24시간 이내면 fresh — YouTube TOS 준수 */
+    /**
+     * 외부 API 재호출이 필요 없는 상태인지 판단한다.
+     *
+     * 정책:
+     *   - YouTube 영상 ID 가 박혀 있으면 영구 캐시로 본다 (재호출 없음)
+     *   - 아직 못 박은 곡만 다시 시도한다
+     *
+     * 24시간 TTL 을 들었다 풀었던 이력이 있는데, 한 번 매칭된 영상 ID 는
+     * 변경될 일이 거의 없고 매번 재호출하면 quota 가 빠르게 닳기 때문에
+     * 영구 캐시로 변경. 메타데이터 갱신이 필요할 때는 별도 배치로 돌린다.
+     */
     public boolean isCacheFresh() {
-        if (cachedAt == null) return false;
-        return cachedAt.isAfter(LocalDateTime.now().minusHours(24));
+        return youtubeVideoId != null && !youtubeVideoId.isBlank();
     }
 }

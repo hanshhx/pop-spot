@@ -30,7 +30,7 @@ import java.util.*;
 @RequiredArgsConstructor
 public class MusicService {
 
-    private final ITunesSearchService itunes;
+    private final SpotifySearchService spotify;
     private final YouTubeMusicSearchService youtube;
     private final MusicMoodAnalysisService moodService;
     private final MusicTrackRepository trackRepo;
@@ -38,16 +38,21 @@ public class MusicService {
     private final PopupStoreRepository popupRepo;
     private final ObjectMapper mapper = new ObjectMapper();
 
-    /** 검색 결과 그리드용 — iTunes 검색 + YouTube 매칭 (mood 분석 없이 빠르게) */
+    /**
+     * 검색 결과 그리드용 — Spotify 검색만, YouTube 는 클릭 시점에 lazy fetch.
+     *
+     * 검색 트래픽은 Spotify 가 받고 (분당 100 호출 정도, 사실상 무제한),
+     * YouTube Data API 의 일일 10,000 unit quota 는 실제로 재생 버튼이
+     * 눌린 곡에만 1회씩 사용한다.
+     */
     @Transactional
     public List<MusicTrack> searchTracks(String query, int limit) {
-        List<ITunesSearchService.ITunesTrack> candidates = itunes.search(query, limit);
+        List<SpotifySearchService.SpotifyTrack> candidates = spotify.search(query, limit);
         List<MusicTrack> result = new ArrayList<>();
 
-        for (ITunesSearchService.ITunesTrack it : candidates) {
-            MusicTrack track = trackRepo.findByItunesTrackId(it.getTrackId())
-                    .filter(MusicTrack::isCacheFresh)
-                    .orElseGet(() -> upsertTrack(it));
+        for (SpotifySearchService.SpotifyTrack it : candidates) {
+            MusicTrack track = trackRepo.findBySpotifyTrackId(it.getSpotifyId())
+                    .orElseGet(() -> upsertTrackMetaOnly(it));
             result.add(track);
         }
         return result;
@@ -58,6 +63,10 @@ public class MusicService {
     public MatchResult matchPopups(Long trackId, String userId) {
         MusicTrack track = trackRepo.findById(trackId)
                 .orElseThrow(() -> new IllegalArgumentException("track not found: " + trackId));
+
+        // YouTube 영상 ID lazy fetch — 재생 시점에 그 곡만 검색.
+        // searchTracks 가 12곡 × 100unit 다 쓰는 걸 막기 위해 lazy 화.
+        ensureYoutubeVideoId(track);
 
         // 분위기 분석 캐시
         if (track.getMoodTags() == null || track.getMoodTags().isEmpty()) {
@@ -106,6 +115,52 @@ public class MusicService {
     }
 
     /**
+     * 카테고리 키워드로 검색해서 그리드 채우기.
+     * (예: "여름밤", "운동", "비 오는 날")
+     * 검색 결과의 메타만 캐싱하므로 추가 외부 호출 없음.
+     */
+    @Transactional
+    public List<MusicTrack> tracksForCategory(String keyword, int limit) {
+        return searchTracks(keyword, limit);
+    }
+
+    /**
+     * 자동 다음 곡 추천 — 현재 곡과 분위기가 비슷한 곡 N개를 반환한다.
+     *
+     * 알고리즘:
+     *   1. 시드 곡의 무드 태그 추출
+     *   2. 그 무드 태그가 곡 리스트의 무드 태그와 겹치는 정도 계산
+     *   3. 겹침 점수 + 재생 횟수로 정렬 → Top N
+     *
+     * 외부 API 안 쓰고 DB 만으로 처리하므로 quota 부담 0.
+     */
+    public List<MusicTrack> recommendNext(Long seedTrackId, int limit) {
+        MusicTrack seed = trackRepo.findById(seedTrackId).orElse(null);
+        if (seed == null) return List.of();
+
+        List<String> seedMoods = parseTagsJson(seed.getMoodTags());
+        if (seedMoods.isEmpty()) return popular(limit);
+
+        return trackRepo.findTopPlayed(PageRequest.of(0, 200)).stream()
+                .filter(t -> !t.getId().equals(seedTrackId))
+                .filter(t -> t.getYoutubeVideoId() != null && !t.getYoutubeVideoId().isBlank())
+                .map(t -> new RankedTrack(t, similarity(seedMoods, parseTagsJson(t.getMoodTags()))))
+                .filter(rt -> rt.score > 0)
+                .sorted(Comparator.comparingInt((RankedTrack rt) -> rt.score).reversed())
+                .limit(limit)
+                .map(rt -> rt.track)
+                .toList();
+    }
+
+    private int similarity(List<String> a, List<String> b) {
+        int score = 0;
+        for (String tag : a) if (b.contains(tag)) score += 20;
+        return score;
+    }
+
+    private record RankedTrack(MusicTrack track, int score) {}
+
+    /**
      * 역방향 매칭 — 팝업 → 어울리는 곡 N개.
      * 팝업의 description/content/category 에서 키워드를 뽑고,
      * 곡의 moodTags 와 겹치는 정도로 점수화.
@@ -147,14 +202,14 @@ public class MusicService {
 
     // ----------------------- private helpers -----------------------
 
-    private MusicTrack upsertTrack(ITunesSearchService.ITunesTrack it) {
-        // YouTube 영상 매칭 (공식 음원 우선)
-        YouTubeMusicSearchService.YouTubeVideo video =
-                youtube.searchOfficialAudio(it.getArtistName(), it.getTrackName());
-
-        MusicTrack track = trackRepo.findByItunesTrackId(it.getTrackId())
+    /**
+     * Spotify 메타만 저장 (YouTube 호출 없음).
+     * 검색 그리드 카드를 빠르게 띄우는 용도.
+     */
+    private MusicTrack upsertTrackMetaOnly(SpotifySearchService.SpotifyTrack it) {
+        MusicTrack track = trackRepo.findBySpotifyTrackId(it.getSpotifyId())
                 .orElseGet(() -> MusicTrack.builder()
-                        .itunesTrackId(it.getTrackId())
+                        .spotifyTrackId(it.getSpotifyId())
                         .build());
 
         track.setArtistName(it.getArtistName());
@@ -164,13 +219,27 @@ public class MusicService {
         track.setArtworkUrlHires(it.getArtworkUrlHires());
         track.setPreviewUrl(it.getPreviewUrl());
         track.setDurationMs(it.getDurationMs());
+        track.setCachedAt(LocalDateTime.now());
+        return trackRepo.save(track);
+    }
+
+    /**
+     * 재생 직전에 YouTube 영상 ID 가 비어있으면 채워준다.
+     * 이미 박혀있으면 호출 안 함 (quota 절약).
+     */
+    private void ensureYoutubeVideoId(MusicTrack track) {
+        if (track.getYoutubeVideoId() != null && !track.getYoutubeVideoId().isBlank()) {
+            return; // 이미 있음
+        }
+        YouTubeMusicSearchService.YouTubeVideo video =
+                youtube.searchOfficialAudio(track.getArtistName(), track.getTrackName());
         if (video != null) {
             track.setYoutubeVideoId(video.getVideoId());
             track.setYoutubeChannel(video.getChannelTitle());
             track.setIsOfficial(Boolean.TRUE.equals(video.getIsOfficial()));
         }
+        // 못 찾아도 일단 cachedAt 갱신해서 너무 자주 재시도하지 않게
         track.setCachedAt(LocalDateTime.now());
-        return trackRepo.save(track);
     }
 
     /** 무드 태그 → popup_store 매칭. 단순 키워드 contains 점수 */

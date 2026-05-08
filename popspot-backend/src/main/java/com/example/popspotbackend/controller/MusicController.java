@@ -28,12 +28,12 @@ public class MusicController {
     @GetMapping("/search")
     public List<MusicTrack> search(@RequestParam("q") String query,
                                    @RequestParam(value = "limit", defaultValue = "12") int limit) {
-        return musicService.searchTracks(query, limit);
+        return musicService.searchTracks(sanitizeQuery(query), clampLimit(limit, 25));
     }
 
     @GetMapping("/popular")
     public List<MusicTrack> popular(@RequestParam(value = "limit", defaultValue = "12") int limit) {
-        return musicService.popular(limit);
+        return musicService.popular(clampLimit(limit, 50));
     }
 
     @PostMapping("/{trackId}/play")
@@ -61,5 +61,40 @@ public class MusicController {
                                           @RequestParam(value = "limit", defaultValue = "30") int limit) {
         if (user == null) return List.of();
         return musicService.userHistory(user.getUsername(), limit);
+    }
+
+    /**
+     * 카테고리 키워드로 곡 그리드 채우기.
+     * 카테고리는 프론트에서 정의하고 그 키워드를 query 로 그대로 넘긴다.
+     */
+    @GetMapping("/category")
+    public List<MusicTrack> category(@RequestParam("keyword") String keyword,
+                                      @RequestParam(value = "limit", defaultValue = "12") int limit) {
+        return musicService.tracksForCategory(sanitizeQuery(keyword), clampLimit(limit, 25));
+    }
+
+    /** 현재 재생 곡 종료 시 호출 — 다음 자동 재생용 추천 큐 */
+    @GetMapping("/{trackId}/next")
+    public List<MusicTrack> nextRecommendations(@PathVariable Long trackId,
+                                                 @RequestParam(value = "limit", defaultValue = "5") int limit) {
+        return musicService.recommendNext(trackId, clampLimit(limit, 20));
+    }
+
+    /* ----- 입력 검증 유틸 ----- */
+
+    /**
+     * 검색어 길이/공백 정리.
+     * 너무 긴 입력은 외부 API 호출만 무거워지므로 잘라낸다.
+     */
+    private String sanitizeQuery(String raw) {
+        if (raw == null) return "";
+        String trimmed = raw.trim();
+        if (trimmed.length() > 80) trimmed = trimmed.substring(0, 80);
+        return trimmed;
+    }
+
+    private int clampLimit(int requested, int max) {
+        if (requested < 1) return 1;
+        return Math.min(requested, max);
     }
 }
