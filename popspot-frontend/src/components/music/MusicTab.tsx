@@ -1,8 +1,16 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { Dice5, Flame, Loader2, Search, Sparkles, Ticket } from "lucide-react";
+import {
+  Dice5,
+  Flame,
+  Loader2,
+  Music2,
+  Search,
+  Sparkles,
+  Ticket,
+} from "lucide-react";
 import Link from "next/link";
 
 import { apiFetch } from "@/lib/api";
@@ -10,10 +18,10 @@ import { MatchResult, MusicTrack } from "@/types/music";
 import { useMusicPlayer } from "./MusicPlayerProvider";
 
 /**
- * 검색 디바운스 — 입력이 멈추고 350ms 후 한 번만 호출.
- * IME 조합 중에는 effect 가 흘러도 query 자체는 안정적이라 추가 처리 불필요.
+ * 검색 디바운스 — 입력이 멈추고 N ms 후 한 번만 호출.
+ * IME 조합 중에는 effect 가 흘러도 value 자체는 안정적이라 추가 처리 불필요.
  */
-function useDebounce<T>(value: T, delay = 350) {
+function useDebounce<T>(value: T, delay = 250) {
   const [v, setV] = useState(value);
   useEffect(() => {
     const t = setTimeout(() => setV(value), delay);
@@ -47,8 +55,18 @@ const CATEGORIES: { id: string; label: string; keyword: string; emoji: string }[
 export default function MusicTab() {
   const player = useMusicPlayer();
 
+  // 입력값과, 실제 검색어로 확정된 값(자동완성 클릭 또는 Enter 시점)을 분리.
+  // 자동완성이 사용자 의도를 정확한 텍스트로 만들어주므로
+  // 검색 자체는 "확정된 검색어"가 들어왔을 때만 일어난다.
   const [query, setQuery] = useState("");
-  const debounced = useDebounce(query, 350);
+  const [submittedQuery, setSubmittedQuery] = useState("");
+  const debouncedQuery = useDebounce(query, 250);
+
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [suggestOpen, setSuggestOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(-1);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const suggestBoxRef = useRef<HTMLDivElement>(null);
 
   const [popular, setPopular] = useState<MusicTrack[]>([]);
   const [popularLoading, setPopularLoading] = useState(true);
@@ -71,18 +89,82 @@ export default function MusicTab() {
       .finally(() => setPopularLoading(false));
   }, []);
 
+  // 자동완성 — 입력하는 동안 백엔드 /suggest 호출
   useEffect(() => {
-    if (!debounced.trim()) {
+    const q = debouncedQuery.trim();
+    if (!q) {
+      setSuggestions([]);
+      return;
+    }
+    apiFetch(`/api/music/suggest?q=${encodeURIComponent(q)}&limit=8`)
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data: string[]) => {
+        setSuggestions(data || []);
+        setActiveIndex(-1);
+      })
+      .catch(() => setSuggestions([]));
+  }, [debouncedQuery]);
+
+  // 확정된 검색어로 실제 곡 검색
+  useEffect(() => {
+    const q = submittedQuery.trim();
+    if (!q) {
       setResults([]);
       return;
     }
     setSearching(true);
-    apiFetch(`/api/music/search?q=${encodeURIComponent(debounced)}&limit=18`)
+    apiFetch(`/api/music/search?q=${encodeURIComponent(q)}&limit=18`)
       .then((r) => (r.ok ? r.json() : []))
       .then((data: MusicTrack[]) => setResults(data || []))
       .catch(() => setResults([]))
       .finally(() => setSearching(false));
-  }, [debounced]);
+  }, [submittedQuery]);
+
+  // 외부 클릭 시 드롭다운 닫기
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (
+        suggestBoxRef.current &&
+        !suggestBoxRef.current.contains(e.target as Node) &&
+        inputRef.current &&
+        !inputRef.current.contains(e.target as Node)
+      ) {
+        setSuggestOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const submitSearch = (q: string) => {
+    const trimmed = q.trim();
+    if (!trimmed) return;
+    setQuery(trimmed);
+    setSubmittedQuery(trimmed);
+    setSuggestOpen(false);
+    setActiveCategory(null);
+    inputRef.current?.blur();
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!suggestOpen || suggestions.length === 0) {
+      if (e.key === "Enter") submitSearch(query);
+      return;
+    }
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActiveIndex((i) => Math.min(i + 1, suggestions.length - 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActiveIndex((i) => Math.max(i - 1, -1));
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      const target = activeIndex >= 0 ? suggestions[activeIndex] : query;
+      submitSearch(target);
+    } else if (e.key === "Escape") {
+      setSuggestOpen(false);
+    }
+  };
 
   const handleCategory = async (id: string, keyword: string) => {
     setActiveCategory(id);
@@ -110,7 +192,7 @@ export default function MusicTab() {
     }
   };
 
-  const showResults = debounced.trim().length > 0;
+  const showResults = submittedQuery.trim().length > 0;
   const showCategory = !showResults && activeCategory != null;
 
   const display: MusicTrack[] = showResults
@@ -120,13 +202,13 @@ export default function MusicTab() {
       : popular;
 
   const sectionTitle = useMemo(() => {
-    if (showResults) return `검색 "${debounced}"`;
+    if (showResults) return `검색 "${submittedQuery}"`;
     if (showCategory) {
       const c = CATEGORIES.find((x) => x.id === activeCategory);
       return c ? `${c.emoji} ${c.label}` : "";
     }
     return "지금 인기있는 곡";
-  }, [showResults, showCategory, debounced, activeCategory]);
+  }, [showResults, showCategory, submittedQuery, activeCategory]);
 
   return (
     <div className="relative min-h-[80vh] w-full">
@@ -146,18 +228,51 @@ export default function MusicTab() {
       {/* 검색 + 룰렛/패스포트 */}
       <div className="mb-6 flex flex-col gap-2 sm:flex-row">
         <div className="relative flex-1">
-          <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Search className="pointer-events-none absolute left-4 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input
+            ref={inputRef}
             value={query}
             onChange={(e) => {
               setQuery(e.target.value);
               setActiveCategory(null);
+              setSuggestOpen(true);
             }}
+            onFocus={() => setSuggestOpen(true)}
+            onKeyDown={handleKeyDown}
             placeholder="아티스트, 곡명으로 검색"
             className="h-12 w-full rounded-pill border border-[var(--color-border)] bg-cream-200 pl-11 pr-4 text-sm text-foreground placeholder:text-muted-foreground focus:border-lime-400 focus:outline-none dark:bg-ink-800"
+            autoComplete="off"
           />
           {searching && (
             <Loader2 className="absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />
+          )}
+
+          {/* 자동완성 드롭다운 */}
+          {suggestOpen && suggestions.length > 0 && (
+            <div
+              ref={suggestBoxRef}
+              role="listbox"
+              className="absolute left-0 right-0 top-full z-20 mt-2 overflow-hidden rounded-2xl border border-[var(--color-border)] bg-surface shadow-pop"
+            >
+              {suggestions.map((s, i) => (
+                <button
+                  key={`${s}-${i}`}
+                  type="button"
+                  role="option"
+                  aria-selected={activeIndex === i}
+                  onMouseEnter={() => setActiveIndex(i)}
+                  onClick={() => submitSearch(s)}
+                  className={`flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm transition ${
+                    activeIndex === i
+                      ? "bg-foreground/5 text-foreground"
+                      : "text-foreground/80 hover:bg-foreground/5"
+                  }`}
+                >
+                  <Music2 className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  <span className="truncate">{s}</span>
+                </button>
+              ))}
+            </div>
           )}
         </div>
         <button
