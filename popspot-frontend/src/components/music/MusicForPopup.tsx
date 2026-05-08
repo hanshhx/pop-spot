@@ -6,7 +6,7 @@ import { Music2, Play, Sparkles } from "lucide-react";
 
 import { apiFetch } from "@/lib/api";
 import { MusicTrack } from "@/types/music";
-import MusicPlayerModal from "./MusicPlayerModal";
+import { useMusicPlayer } from "./MusicPlayerProvider";
 
 interface TrackMatch {
   track: MusicTrack;
@@ -16,18 +16,16 @@ interface TrackMatch {
 
 interface Props {
   popupId: number;
-  /** 외부에서 모달 상태를 끌어쓰고 싶을 때 (선택). 미지정 시 내부 상태 사용 */
-  onPlayTrack?: (t: MusicTrack) => void;
 }
 
 /**
  * 팝업 상세페이지에 끼워 쓰는 "이 팝업에 어울리는 곡" 위젯.
  * 백엔드 GET /api/music/by-popup/{id} 호출 → 곡 카드 목록 + 인라인 플레이어.
  */
-export default function MusicForPopup({ popupId, onPlayTrack }: Props) {
+export default function MusicForPopup({ popupId }: Props) {
+  const player = useMusicPlayer();
   const [matches, setMatches] = useState<TrackMatch[]>([]);
   const [loading, setLoading] = useState(true);
-  const [active, setActive] = useState<MusicTrack | null>(null);
 
   useEffect(() => {
     if (!popupId) return;
@@ -77,7 +75,7 @@ export default function MusicForPopup({ popupId, onPlayTrack }: Props) {
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.04 }}
-              onClick={() => (onPlayTrack ? onPlayTrack(m.track) : setActive(m.track))}
+              onClick={() => player.play(m.track, matches.map((x) => x.track))}
               className="group text-left"
             >
               <div className="relative aspect-square overflow-hidden rounded-lg bg-foreground/5 ring-1 ring-[var(--color-border)] transition group-hover:ring-foreground/30">
@@ -118,14 +116,6 @@ export default function MusicForPopup({ popupId, onPlayTrack }: Props) {
         </div>
       </section>
 
-      {/* 외부에서 onPlayTrack 안 줬을 때만 자체 모달 */}
-      {!onPlayTrack && (
-        <MusicPlayerModal
-          track={active}
-          onClose={() => setActive(null)}
-          onChangeTrack={(t) => setActive(t)}
-        />
-      )}
     </>
   );
 }
