@@ -39,18 +39,18 @@ public class MusicService {
     private final ObjectMapper mapper = new ObjectMapper();
 
     /**
-     * 검색 결과 그리드용 — Spotify 검색만, YouTube 는 클릭 시점에 lazy fetch.
+     * 검색 결과 그리드용 — Spotify 단일 호출.
      *
-     * 검색 트래픽은 Spotify 가 받고 (분당 100 호출 정도, 사실상 무제한),
-     * YouTube Data API 의 일일 10,000 unit quota 는 실제로 재생 버튼이
-     * 눌린 곡에만 1회씩 사용한다.
+     * 자동완성(/api/music/suggest)이 사용자 의도를 정확한 텍스트로 만들어주므로
+     * 백엔드는 "정규화·폴백·약한 매칭 검사" 같은 추측 로직을 모두 제거하고
+     * Spotify 결과를 그대로 반환한다. 단순한 흐름이 매칭 정확도와 디버깅성을 모두 잡는다.
      */
     @Transactional
     public List<MusicTrack> searchTracks(String query, int limit) {
-        List<SpotifySearchService.SpotifyTrack> candidates = spotify.search(query, limit);
-        List<MusicTrack> result = new ArrayList<>();
+        List<SpotifySearchService.SpotifyTrack> spotifyResults = spotify.search(query, limit);
 
-        for (SpotifySearchService.SpotifyTrack it : candidates) {
+        List<MusicTrack> result = new ArrayList<>();
+        for (SpotifySearchService.SpotifyTrack it : spotifyResults) {
             MusicTrack track = trackRepo.findBySpotifyTrackId(it.getSpotifyId())
                     .orElseGet(() -> upsertTrackMetaOnly(it));
             result.add(track);
