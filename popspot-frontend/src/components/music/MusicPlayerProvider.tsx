@@ -79,9 +79,11 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
 
   /**
    * 곡 클릭 시 호출.
-   * - 현재 재생곡 갱신
-   * - 무드 분석 + 팝업 매칭 API (/play) 호출
-   * - 자동 큐 보충
+   * - 현재 재생곡 즉시 갱신 (앨범아트/곡명 바로 보이게)
+   * - /play 응답이 오면 youtubeVideoId 가 채워진 track 으로 다시 갱신
+   *   → IFrame Player 가 그 시점에 영상 ID 받고 재생 시작
+   * - 무드 분석 + 팝업 매칭 결과도 같이 반영
+   * - 다음 곡 추천 큐 보충
    */
   const play = useCallback(
     (track: MusicTrack, list?: MusicTrack[]) => {
@@ -93,7 +95,13 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
       setMatchLoading(true);
       apiFetch(`/api/music/${track.id}/play`, { method: "POST" })
         .then((r) => (r.ok ? r.json() : null))
-        .then((data: MatchResult | null) => setMatch(data))
+        .then((data: MatchResult | null) => {
+          if (!data) return;
+          setMatch(data);
+          // 백엔드가 lazy fetch 로 youtube_video_id 를 채워서 보내준다.
+          // 그 갱신된 track 으로 current 를 덮어써야 IFrame 이 영상을 로드한다.
+          if (data.track) setCurrent(data.track);
+        })
         .catch(() => null)
         .finally(() => setMatchLoading(false));
 
