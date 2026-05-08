@@ -3,6 +3,7 @@ package com.example.popspotbackend.controller;
 import com.example.popspotbackend.entity.MusicTrack;
 import com.example.popspotbackend.entity.UserMusicHistory;
 import com.example.popspotbackend.service.music.MusicService;
+import com.example.popspotbackend.service.music.SearchSuggestService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -24,11 +25,22 @@ import java.util.List;
 public class MusicController {
 
     private final MusicService musicService;
+    private final SearchSuggestService suggestService;
 
     @GetMapping("/search")
     public List<MusicTrack> search(@RequestParam("q") String query,
                                    @RequestParam(value = "limit", defaultValue = "12") int limit) {
         return musicService.searchTracks(sanitizeQuery(query), clampLimit(limit, 25));
+    }
+
+    /**
+     * 검색어 자동완성 — 사용자가 타이핑하는 동안 호출되는 가벼운 엔드포인트.
+     * YouTube Suggest 응답을 그대로 받아 한국 곡 의도를 정확히 표현해주는 후보 리스트를 돌려준다.
+     */
+    @GetMapping("/suggest")
+    public List<String> suggest(@RequestParam("q") String query,
+                                 @RequestParam(value = "limit", defaultValue = "8") int limit) {
+        return suggestService.suggest(sanitizeQuery(query), clampLimit(limit, 12));
     }
 
     @GetMapping("/popular")
