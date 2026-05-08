@@ -12,6 +12,8 @@ public interface MusicTrackRepository extends JpaRepository<MusicTrack, Long> {
 
     Optional<MusicTrack> findByItunesTrackId(String itunesTrackId);
 
+    Optional<MusicTrack> findBySpotifyTrackId(String spotifyTrackId);
+
     /** 가장 많이 재생된 N 곡 (인기 차트) */
     @Query("SELECT m FROM MusicTrack m WHERE m.youtubeVideoId IS NOT NULL ORDER BY m.playCount DESC")
     List<MusicTrack> findTopPlayed(Pageable pageable);
