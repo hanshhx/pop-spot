@@ -7,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -29,8 +30,10 @@ import java.util.concurrent.ConcurrentMap;
 @RequiredArgsConstructor
 public class SearchSuggestService {
 
+    // ⚠️ oe=utf-8 / ie=utf-8 강제 — 이거 없으면 한국어 응답이 EUC-KR 류 인코딩으로 와서
+    //    UTF-8 디코딩 시 글자 깨지고 JSON 파싱 실패한다.
     private static final String SUGGEST_URL =
-            "https://suggestqueries.google.com/complete/search?ds=yt&client=firefox&hl=ko&q=";
+            "https://suggestqueries.google.com/complete/search?ds=yt&client=firefox&hl=ko&oe=utf-8&ie=utf-8&q=";
 
     private final RestTemplate restTemplate = new RestTemplate();
     private final ObjectMapper mapper = new ObjectMapper();
@@ -43,16 +46,33 @@ public class SearchSuggestService {
         String key = query.trim().toLowerCase();
 
         List<String> cached = cache.get(key);
-        if (cached != null) return cap(cached, limit);
+        // 빈 결과는 캐시 안 함 — 일시적 실패가 영구화되는 걸 방지
+        if (cached != null && !cached.isEmpty()) return cap(cached, limit);
 
         try {
-            String url = SUGGEST_URL + URLEncoder.encode(query.trim(), StandardCharsets.UTF_8);
-            String response = restTemplate.getForObject(url, String.class);
+            // ⚠️ String 으로 호출하면 Spring 이 또 인코딩해서 %EB → %25EB 로 이중 인코딩됨.
+            //    URI 객체로 명시적으로 만들어 넘기면 추가 인코딩이 일어나지 않는다.
+            String encodedQuery = URLEncoder.encode(query.trim(), StandardCharsets.UTF_8);
+            URI uri = URI.create(SUGGEST_URL + encodedQuery);
+            log.debug("[자동완성] 호출 시작: q={}", query);
+
+            // ⚠️ Spring RestTemplate 의 String 변환은 응답 Content-Type 에 charset 이 없으면
+            //    ISO-8859-1 로 디코딩해서 한글이 깨진다. byte[] 로 받아서 명시적으로 UTF-8 변환.
+            byte[] raw = restTemplate.getForObject(uri, byte[].class);
+            if (raw == null || raw.length == 0) {
+                log.warn("[자동완성] 빈 응답: {}", query);
+                return List.of();
+            }
+            String response = new String(raw, StandardCharsets.UTF_8);
 
             JsonNode root = mapper.readTree(response);
             // 응답 구조: ["query", ["candidate1", "candidate2", ...], ...]
             JsonNode list = root.size() > 1 ? root.get(1) : null;
-            if (list == null || !list.isArray()) return List.of();
+            if (list == null || !list.isArray()) {
+                log.warn("[자동완성] 응답 구조 이상: {} → {}", query,
+                        response.substring(0, Math.min(200, response.length())));
+                return List.of();
+            }
 
             List<String> result = new ArrayList<>();
             for (JsonNode item : list) {
@@ -63,7 +83,8 @@ public class SearchSuggestService {
             // 음악 관련 키워드가 들어간 후보를 위로 (선택적 가산점)
             result = preferMusical(result, query.trim());
 
-            cache.put(key, result);
+            // 결과가 있을 때만 캐시
+            if (!result.isEmpty()) cache.put(key, result);
             return cap(result, limit);
         } catch (Exception e) {
             log.warn("[자동완성] 실패: {} → {}", query, e.toString());
