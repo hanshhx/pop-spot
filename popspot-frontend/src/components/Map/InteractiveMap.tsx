@@ -184,7 +184,7 @@ export default function InteractiveMap({ places, showPath = false, center, mode 
   };
 
   return (
-    <div className="relative w-full h-full group flex overflow-hidden rounded-[20px] outline-none">
+    <div className="relative w-full h-full min-h-0 group flex overflow-hidden rounded-[20px] outline-none">
       <style jsx global>{`
         #map > div:first-child > div > div > div > img {
             filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%) !important;
@@ -193,7 +193,7 @@ export default function InteractiveMap({ places, showPath = false, center, mode 
       `}</style>
 
       {/* 좌측 — 지도 영역 (사이드 패널 펼치면 자동으로 좁아짐) */}
-      <div className="relative flex-1 h-full overflow-hidden">
+      <div className="relative flex-1 min-w-0 h-full overflow-hidden">
 
       {/* PLAN 모드가 아니고 showPath도 아닐 때만 카테고리/사이드바 표시 */}
       {!showPath && mode !== "PLAN" && (
@@ -478,8 +478,8 @@ export default function InteractiveMap({ places, showPath = false, center, mode 
       {/* 우측 — 지도 바깥 사이드 패널 (데스크톱 전용, 접기/펼치기 가능) */}
       {!showPath && mode !== "PLAN" && (
         <aside
-          className={`hidden md:flex relative h-full bg-black/95 border-l border-white/10 flex-col transition-all duration-300 ease-out ${
-            isPanelExpanded ? "w-[300px]" : "w-0"
+          className={`hidden md:flex relative h-full max-h-full overflow-hidden bg-black/95 border-l border-white/10 flex-col transition-all duration-300 ease-out shrink-0 ${
+            isPanelExpanded ? "w-[260px]" : "w-0"
           }`}
         >
           {/* 접기/펼치기 손잡이 — 패널 좌측 가장자리에 항상 떠있음 */}
@@ -498,7 +498,7 @@ export default function InteractiveMap({ places, showPath = false, center, mode 
 
           {isPanelExpanded && (
             <>
-              <div className="p-4 border-b border-white/10 flex justify-between items-center">
+              <div className="p-4 border-b border-white/10 flex justify-between items-center flex-shrink-0">
                 <h3 className="text-white font-bold text-base flex items-center gap-2">
                   <List size={16} className="text-primary" /> POPUP LIST
                 </h3>
@@ -507,7 +507,8 @@ export default function InteractiveMap({ places, showPath = false, center, mode 
                 </span>
               </div>
 
-              <div className="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-2">
+              {/* min-h-0 가 핵심 — 부모 height 를 넘지 않고 내부에서만 스크롤되게 함 */}
+              <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-3 space-y-2">
                 {markers.length > 0 ? (
                   markers.map((marker, index) => {
                     const itemStyle = getCategoryStyle(marker.category);
