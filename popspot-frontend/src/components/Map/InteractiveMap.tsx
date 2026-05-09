@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Map, CustomOverlayMap, Polyline } from "react-kakao-maps-sdk";
-import { X, MapPin, ArrowRight, Plus, Minus, Compass, List, ShoppingBag, Coffee, Camera, Zap } from "lucide-react";
+import { X, MapPin, ArrowRight, Plus, Minus, Compass, List, ShoppingBag, Coffee, Camera, Zap, Sparkles } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { notify } from "@/lib/notify";
@@ -40,7 +40,44 @@ interface MapMarkerData {
   category?: string;
 }
 
-const CATEGORIES = ["ALL", "FASHION", "BEAUTY", "FOOD", "TECH", "ART"];
+// DB 의 실제 카테고리 값과 일치 (자동수집 팝업까지 모두 매칭되도록)
+const CATEGORIES = ["ALL", "CHARACTER", "FASHION", "BEAUTY", "FOOD", "CULTURE", "ETC"];
+
+/**
+ * 같은 좌표(같은 빌딩 등)에 박힌 마커들을 작은 원형으로 분산시킨다.
+ * 자동수집 geocoding 결과 동일 좌표가 자주 발생해서 시각적으로 1개만 보이는 문제를 해결.
+ *
+ * 분산 반경: 위경도 0.00005 도 ≈ 약 5m (실제 위치 인식 영향 없는 수준)
+ */
+function spreadOverlappingMarkers(markers: MapMarkerData[]): MapMarkerData[] {
+  const groups = new Map<string, MapMarkerData[]>();
+  for (const m of markers) {
+    if (!m.latitude || !m.longitude) continue;
+    const key = `${m.latitude},${m.longitude}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(m);
+  }
+
+  const result: MapMarkerData[] = [];
+  for (const list of groups.values()) {
+    if (list.length === 1) {
+      result.push(list[0]);
+      continue;
+    }
+    const baseLat = parseFloat(list[0].latitude);
+    const baseLng = parseFloat(list[0].longitude);
+    const radius = 0.00005;
+    list.forEach((m, i) => {
+      const angle = (2 * Math.PI * i) / list.length;
+      result.push({
+        ...m,
+        latitude: (baseLat + radius * Math.cos(angle)).toString(),
+        longitude: (baseLng + radius * Math.sin(angle)).toString(),
+      });
+    });
+  }
+  return result;
+}
 
 // 🔥 [11번 과제] 매개변수에서 onMarkerClick을 받아오도록 수정했습니다.
 export default function InteractiveMap({ places, showPath = false, center, mode = "DEFAULT", routePaths = [], onMarkerClick }: InteractiveMapProps) {
@@ -80,12 +117,16 @@ export default function InteractiveMap({ places, showPath = false, center, mode 
           if (!res.ok) throw new Error('네트워크 응답 실패');
           return res.json();
         })
-        .then((data) => {
-          setMarkers(data);
+        .then((data: MapMarkerData[]) => {
+          // 같은 좌표에 여러 팝업이 박힌 경우 (자동수집 geocoding 동일 빌딩 등)
+          // 시각적으로 마커가 겹쳐 안 보이는 걸 막기 위해 미세하게 흩뿌린다.
+          // 약 5m 반경의 작은 원형 분산이라 실제 위치 인식에는 영향 없음.
+          const spread = spreadOverlappingMarkers(data || []);
+          setMarkers(spread);
         })
         .catch((err) => console.error("❌ API 호출 에러:", err));
     }
-  }, [activeCategory, places]); 
+  }, [activeCategory, places]);
 
   // center prop 변경 시 지도 이동
   useEffect(() => {
@@ -124,15 +165,16 @@ export default function InteractiveMap({ places, showPath = false, center, mode 
     setSelectedMarker(marker);
   };
 
-  // 카테고리별 스타일 매핑
+  // 카테고리별 스타일 매핑 — DB 실제 카테고리에 맞춤
   const getCategoryStyle = (category?: string) => {
-    const cat = category?.toUpperCase() || "PLAN";
+    const cat = category?.toUpperCase() || "ETC";
     switch (cat) {
-      case "FASHION": return { color: "text-hot-400", border: "border-hot-400", icon: <ShoppingBag className="w-2.5 h-2.5 md:w-3 md:h-3" /> };
-      case "FOOD": return { color: "text-orange-500", border: "border-orange-500", icon: <Coffee className="w-2.5 h-2.5 md:w-3 md:h-3" /> };
-      case "ART": return { color: "text-lime-500", border: "border-lime-300", icon: <Camera className="w-2.5 h-2.5 md:w-3 md:h-3" /> };
-      case "TECH": return { color: "text-blue-500", border: "border-blue-500", icon: <Zap className="w-2.5 h-2.5 md:w-3 md:h-3" /> };
-      default: return { color: "text-lime-500", border: "border-lime-300", icon: <MapPin className="w-2.5 h-2.5 md:w-3 md:h-3" /> };
+      case "CHARACTER": return { color: "text-purple-400", border: "border-purple-400", icon: <Sparkles className="w-2.5 h-2.5 md:w-3 md:h-3" /> };
+      case "FASHION":   return { color: "text-hot-400", border: "border-hot-400", icon: <ShoppingBag className="w-2.5 h-2.5 md:w-3 md:h-3" /> };
+      case "BEAUTY":    return { color: "text-pink-400", border: "border-pink-400", icon: <Camera className="w-2.5 h-2.5 md:w-3 md:h-3" /> };
+      case "FOOD":      return { color: "text-orange-500", border: "border-orange-500", icon: <Coffee className="w-2.5 h-2.5 md:w-3 md:h-3" /> };
+      case "CULTURE":   return { color: "text-cyan-400", border: "border-cyan-400", icon: <Camera className="w-2.5 h-2.5 md:w-3 md:h-3" /> };
+      default:          return { color: "text-lime-500", border: "border-lime-300", icon: <MapPin className="w-2.5 h-2.5 md:w-3 md:h-3" /> };
     }
   };
 
@@ -334,15 +376,34 @@ export default function InteractiveMap({ places, showPath = false, center, mode 
                           <div className="w-6 h-1.5 md:w-8 md:h-2 bg-black/20 blur-sm rounded-full mt-1"></div>
                       </div>
                   ) : (
-                      // 🟢 [기본 모드] 기존 원형 마커
-                      <>
-                        <div className={`absolute -inset-2 rounded-full opacity-70 animate-ping ${
+                      // 🟢 [기본 모드] 항상 카테고리 색상 + 이름이 보이는 작은 카드 핀
+                      <div className="relative flex flex-col items-center hover:z-50">
+                          {/* 이름 카드 — 항상 보임. 카테고리 색상으로 강조 */}
+                          <div
+                            className={`flex items-center gap-1 px-2 py-1 rounded-lg shadow-lg backdrop-blur-md border-2 whitespace-nowrap transform transition-all group-hover/marker:scale-110 ${
+                              selectedMarker?.popupId === marker.popupId
+                                ? `bg-primary text-black ${style.border}`
+                                : `bg-black/85 text-white ${style.border}`
+                            }`}
+                          >
+                            <span className={selectedMarker?.popupId === marker.popupId ? 'text-black' : style.color}>
+                              {style.icon}
+                            </span>
+                            <span className="font-bold text-[10px] md:text-xs">
+                              {marker.name.length > 10 ? marker.name.slice(0, 10) + '…' : marker.name}
+                            </span>
+                          </div>
+
+                          {/* 카드 아래 작은 점 (위치 표시) */}
+                          <div className={`w-2 h-2 mt-0.5 rounded-full border-2 border-black ${
                             selectedMarker?.popupId === marker.popupId ? 'bg-primary' : 'bg-white'
-                        }`}></div>
-                        <div className={`relative w-3 h-3 md:w-4 md:h-4 rounded-full border-2 border-black shadow-[0_0_10px_rgba(0,0,0,0.5)] transition-all duration-300 ${
-                            selectedMarker?.popupId === marker.popupId ? 'bg-primary scale-125' : 'bg-white group-hover/marker:bg-primary'
-                        }`}></div>
-                      </>
+                          }`}></div>
+
+                          {/* ping 효과 — 선택된 마커만 */}
+                          {selectedMarker?.popupId === marker.popupId && (
+                            <div className="absolute bottom-0 w-2 h-2 rounded-full bg-primary opacity-70 animate-ping"></div>
+                          )}
+                      </div>
                   )}
                 </div>
               </CustomOverlayMap>
