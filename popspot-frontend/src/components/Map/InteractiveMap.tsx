@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Map, CustomOverlayMap, Polyline } from "react-kakao-maps-sdk";
-import { X, MapPin, ArrowRight, Plus, Minus, Compass, List, ShoppingBag, Coffee, Camera, Zap, Sparkles } from "lucide-react";
+import { X, MapPin, ArrowRight, Plus, Minus, Compass, List, ShoppingBag, Coffee, Camera, Zap, Sparkles, ChevronLeft, ChevronRight } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { notify } from "@/lib/notify";
@@ -87,8 +87,10 @@ export default function InteractiveMap({ places, showPath = false, center, mode 
   const [selectedMarker, setSelectedMarker] = useState<MapMarkerData | null>(null);
   const [activeCategory, setActiveCategory] = useState("ALL");
   const [map, setMap] = useState<any>(null);
-  // 모바일에서만 토글 사용. 데스크톱은 항상 우측에 사이드 패널이 떠있다.
+  // 모바일 토글 (지도 위에 떠있는 옛 사이드바)
   const [isListOpen, setIsListOpen] = useState(false);
+  // 데스크톱 — 지도 옆 사이드 영역의 펼침/접힘 (기본 펼침)
+  const [isPanelExpanded, setIsPanelExpanded] = useState(true);
 
   // 데이터 변환 로직
   useEffect(() => {
@@ -182,13 +184,16 @@ export default function InteractiveMap({ places, showPath = false, center, mode 
   };
 
   return (
-    <div className="relative w-full h-full group overflow-hidden rounded-[20px] outline-none">
+    <div className="relative w-full h-full group flex overflow-hidden rounded-[20px] outline-none">
       <style jsx global>{`
         #map > div:first-child > div > div > div > img {
             filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%) !important;
         }
         #map { background-color: #1a1a1a !important; }
       `}</style>
+
+      {/* 좌측 — 지도 영역 (사이드 패널 펼치면 자동으로 좁아짐) */}
+      <div className="relative flex-1 h-full overflow-hidden">
 
       {/* PLAN 모드가 아니고 showPath도 아닐 때만 카테고리/사이드바 표시 */}
       {!showPath && mode !== "PLAN" && (
@@ -212,56 +217,6 @@ export default function InteractiveMap({ places, showPath = false, center, mode 
               </button>
             ))}
           </div>
-
-          {/* 데스크톱 — 항상 보이는 우측 사이드 패널 (md+ 화면) */}
-          <aside className="hidden md:flex absolute top-0 right-0 bottom-0 w-[300px] z-30 bg-black/85 backdrop-blur-xl border-l border-white/10 flex-col shadow-2xl">
-              <div className="p-4 border-b border-white/10 flex justify-between items-center">
-                  <h3 className="text-white font-bold text-lg flex items-center gap-2">
-                      <List size={18} className="text-primary"/> POPUP LIST
-                  </h3>
-                  <span className="text-[10px] text-muted">
-                      <strong className="text-primary">{markers.length}</strong> spots
-                  </span>
-              </div>
-              <div className="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-2">
-                  {markers.length > 0 ? (
-                      markers.map((marker, index) => {
-                          const itemStyle = getCategoryStyle(marker.category);
-                          const isSelected = selectedMarker?.popupId === marker.popupId;
-                          return (
-                              <div
-                                  key={`desktop-sidebar-${marker.popupId || index}`}
-                                  onClick={() => moveToMarker(marker)}
-                                  className={`p-3 rounded-xl border cursor-pointer transition-all hover:translate-x-[-4px] ${
-                                      isSelected
-                                          ? 'bg-white/10 border-primary/50 shadow-[0_0_10px_rgba(var(--primary-rgb),0.2)]'
-                                          : 'bg-transparent border-white/5 hover:bg-white/5 hover:border-white/20'
-                                  }`}
-                              >
-                                  <div className="flex items-center gap-2 mb-1">
-                                      <span className={itemStyle.color}>{itemStyle.icon}</span>
-                                      <h4 className={`font-bold text-sm flex-1 truncate ${isSelected ? 'text-primary' : 'text-white'}`}>
-                                          {marker.name}
-                                      </h4>
-                                  </div>
-                                  <p className="text-xs text-muted flex items-center gap-1 truncate">
-                                      <MapPin size={10} className="shrink-0"/> {marker.address}
-                                  </p>
-                                  {marker.category && (
-                                      <span className={`inline-block mt-1.5 text-[9px] px-1.5 py-0.5 rounded font-bold border ${itemStyle.border} ${itemStyle.color}`}>
-                                          {marker.category}
-                                      </span>
-                                  )}
-                              </div>
-                          );
-                      })
-                  ) : (
-                      <div className="text-center text-muted text-xs py-10">
-                          해당 카테고리의<br/>팝업스토어가 없습니다.
-                      </div>
-                  )}
-              </div>
-          </aside>
 
           {/* 모바일 — 토글 방식 사이드바 (md 미만 화면) */}
           <AnimatePresence>
@@ -517,6 +472,91 @@ export default function InteractiveMap({ places, showPath = false, center, mode 
           </CustomOverlayMap>
         )}
       </Map>
+      </div>
+      {/* /지도 영역 */}
+
+      {/* 우측 — 지도 바깥 사이드 패널 (데스크톱 전용, 접기/펼치기 가능) */}
+      {!showPath && mode !== "PLAN" && (
+        <aside
+          className={`hidden md:flex relative h-full bg-black/95 border-l border-white/10 flex-col transition-all duration-300 ease-out ${
+            isPanelExpanded ? "w-[300px]" : "w-0"
+          }`}
+        >
+          {/* 접기/펼치기 손잡이 — 패널 좌측 가장자리에 항상 떠있음 */}
+          <button
+            type="button"
+            onClick={() => setIsPanelExpanded((v) => !v)}
+            aria-label={isPanelExpanded ? "리스트 접기" : "리스트 펼치기"}
+            className="absolute -left-3 top-1/2 -translate-y-1/2 z-10 grid h-12 w-6 place-items-center rounded-l-md border border-r-0 border-white/15 bg-black/85 text-white/70 hover:text-primary hover:border-primary transition"
+          >
+            {isPanelExpanded ? (
+              <ChevronRight className="h-4 w-4" />
+            ) : (
+              <ChevronLeft className="h-4 w-4" />
+            )}
+          </button>
+
+          {isPanelExpanded && (
+            <>
+              <div className="p-4 border-b border-white/10 flex justify-between items-center">
+                <h3 className="text-white font-bold text-base flex items-center gap-2">
+                  <List size={16} className="text-primary" /> POPUP LIST
+                </h3>
+                <span className="text-[10px] text-muted">
+                  <strong className="text-primary">{markers.length}</strong> spots
+                </span>
+              </div>
+
+              <div className="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-2">
+                {markers.length > 0 ? (
+                  markers.map((marker, index) => {
+                    const itemStyle = getCategoryStyle(marker.category);
+                    const isSelected = selectedMarker?.popupId === marker.popupId;
+                    return (
+                      <div
+                        key={`side-panel-${marker.popupId || index}`}
+                        onClick={() => moveToMarker(marker)}
+                        className={`p-3 rounded-xl border cursor-pointer transition-all hover:translate-x-[-3px] ${
+                          isSelected
+                            ? "bg-white/10 border-primary/50 shadow-[0_0_10px_rgba(var(--primary-rgb),0.2)]"
+                            : "bg-transparent border-white/5 hover:bg-white/5 hover:border-white/20"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className={itemStyle.color}>{itemStyle.icon}</span>
+                          <h4
+                            className={`font-bold text-sm flex-1 truncate ${
+                              isSelected ? "text-primary" : "text-white"
+                            }`}
+                          >
+                            {marker.name}
+                          </h4>
+                        </div>
+                        <p className="text-xs text-muted flex items-center gap-1 truncate">
+                          <MapPin size={10} className="shrink-0" /> {marker.address}
+                        </p>
+                        {marker.category && (
+                          <span
+                            className={`inline-block mt-1.5 text-[9px] px-1.5 py-0.5 rounded font-bold border ${itemStyle.border} ${itemStyle.color}`}
+                          >
+                            {marker.category}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="text-center text-muted text-xs py-10">
+                    해당 카테고리의
+                    <br />
+                    팝업스토어가 없습니다.
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </aside>
+      )}
     </div>
   );
 }
