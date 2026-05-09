@@ -50,16 +50,18 @@ const CATEGORIES = ["ALL", "CHARACTER", "FASHION", "BEAUTY", "FOOD", "CULTURE", 
  * 분산 반경: 위경도 0.00005 도 ≈ 약 5m (실제 위치 인식 영향 없는 수준)
  */
 function spreadOverlappingMarkers(markers: MapMarkerData[]): MapMarkerData[] {
-  const groups = new Map<string, MapMarkerData[]>();
+  // ⚠️ 이 파일은 react-kakao-maps-sdk 의 Map 컴포넌트를 import 하므로
+  //    JS 내장 Map 자료구조와 이름이 충돌한다. 그래서 객체(Record) 로 그룹핑.
+  const groups: Record<string, MapMarkerData[]> = {};
   for (const m of markers) {
     if (!m.latitude || !m.longitude) continue;
     const key = `${m.latitude},${m.longitude}`;
-    if (!groups.has(key)) groups.set(key, []);
-    groups.get(key)!.push(m);
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(m);
   }
 
   const result: MapMarkerData[] = [];
-  for (const list of groups.values()) {
+  for (const list of Object.values(groups)) {
     if (list.length === 1) {
       result.push(list[0]);
       continue;
