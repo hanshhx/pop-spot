@@ -105,6 +105,19 @@ export default function MusicTab() {
       .catch(() => setSuggestions([]));
   }, [debouncedQuery]);
 
+  // 입력만 해도 자동으로 검색 결과 그리드를 채운다 (자동완성과 별개).
+  // 사용자가 굳이 후보를 클릭/Enter 안 해도 결과가 보이고,
+  // 더 정확한 결과를 원하면 드롭다운 후보를 클릭해서 갈아탈 수 있다.
+  useEffect(() => {
+    const q = debouncedQuery.trim();
+    if (!q) {
+      setSubmittedQuery("");
+      return;
+    }
+    setSubmittedQuery(q);
+    setActiveCategory(null);
+  }, [debouncedQuery]);
+
   // 확정된 검색어로 실제 곡 검색
   useEffect(() => {
     const q = submittedQuery.trim();
