@@ -598,8 +598,8 @@ export default function Home() {
                         <SearchZone />
                     </div>
                     
-                    {/* Map Zone — min-h-0 / max-h 로 자식이 부모 grid 셀을 늘리지 않도록 강제 */}
-                    <div className="col-span-1 lg:col-span-7 md:row-span-4 rounded-[2rem] relative overflow-hidden border border-gray-200 dark:border-white/5 group bg-gray-100 dark:bg-[#111]/80 backdrop-blur-md min-h-[400px] md:min-h-0 md:max-h-[70vh] order-2 lg:order-none">
+                    {/* Map Zone */}
+                    <div className="col-span-1 lg:col-span-7 md:row-span-4 rounded-[2rem] relative overflow-hidden border border-gray-200 dark:border-white/5 group bg-gray-100 dark:bg-[#111]/80 backdrop-blur-md min-h-[400px] md:min-h-0 order-2 lg:order-none">
                         <InteractiveMap onMarkerClick={handleMarkerClickToDetail} />
                         <div className="absolute bottom-4 md:bottom-6 left-4 md:left-6 flex gap-2 z-20">
                             <span className="backdrop-blur px-3 py-1.5 md:px-4 md:py-2 rounded-full border text-[10px] md:text-xs font-bold flex items-center gap-1.5 md:gap-2 bg-white/80 border-gray-200 text-gray-900 dark:bg-black/60 dark:border-white/10 dark:text-white">
