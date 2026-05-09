@@ -87,6 +87,7 @@ export default function InteractiveMap({ places, showPath = false, center, mode 
   const [selectedMarker, setSelectedMarker] = useState<MapMarkerData | null>(null);
   const [activeCategory, setActiveCategory] = useState("ALL");
   const [map, setMap] = useState<any>(null);
+  // 모바일에서만 토글 사용. 데스크톱은 항상 우측에 사이드 패널이 떠있다.
   const [isListOpen, setIsListOpen] = useState(false);
 
   // 데이터 변환 로직
@@ -212,7 +213,57 @@ export default function InteractiveMap({ places, showPath = false, center, mode 
             ))}
           </div>
 
-          {/* 사이드바 목록 (반응형 너비 조절) */}
+          {/* 데스크톱 — 항상 보이는 우측 사이드 패널 (md+ 화면) */}
+          <aside className="hidden md:flex absolute top-0 right-0 bottom-0 w-[300px] z-30 bg-black/85 backdrop-blur-xl border-l border-white/10 flex-col shadow-2xl">
+              <div className="p-4 border-b border-white/10 flex justify-between items-center">
+                  <h3 className="text-white font-bold text-lg flex items-center gap-2">
+                      <List size={18} className="text-primary"/> POPUP LIST
+                  </h3>
+                  <span className="text-[10px] text-muted">
+                      <strong className="text-primary">{markers.length}</strong> spots
+                  </span>
+              </div>
+              <div className="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-2">
+                  {markers.length > 0 ? (
+                      markers.map((marker, index) => {
+                          const itemStyle = getCategoryStyle(marker.category);
+                          const isSelected = selectedMarker?.popupId === marker.popupId;
+                          return (
+                              <div
+                                  key={`desktop-sidebar-${marker.popupId || index}`}
+                                  onClick={() => moveToMarker(marker)}
+                                  className={`p-3 rounded-xl border cursor-pointer transition-all hover:translate-x-[-4px] ${
+                                      isSelected
+                                          ? 'bg-white/10 border-primary/50 shadow-[0_0_10px_rgba(var(--primary-rgb),0.2)]'
+                                          : 'bg-transparent border-white/5 hover:bg-white/5 hover:border-white/20'
+                                  }`}
+                              >
+                                  <div className="flex items-center gap-2 mb-1">
+                                      <span className={itemStyle.color}>{itemStyle.icon}</span>
+                                      <h4 className={`font-bold text-sm flex-1 truncate ${isSelected ? 'text-primary' : 'text-white'}`}>
+                                          {marker.name}
+                                      </h4>
+                                  </div>
+                                  <p className="text-xs text-muted flex items-center gap-1 truncate">
+                                      <MapPin size={10} className="shrink-0"/> {marker.address}
+                                  </p>
+                                  {marker.category && (
+                                      <span className={`inline-block mt-1.5 text-[9px] px-1.5 py-0.5 rounded font-bold border ${itemStyle.border} ${itemStyle.color}`}>
+                                          {marker.category}
+                                      </span>
+                                  )}
+                              </div>
+                          );
+                      })
+                  ) : (
+                      <div className="text-center text-muted text-xs py-10">
+                          해당 카테고리의<br/>팝업스토어가 없습니다.
+                      </div>
+                  )}
+              </div>
+          </aside>
+
+          {/* 모바일 — 토글 방식 사이드바 (md 미만 화면) */}
           <AnimatePresence>
             {isListOpen && (
               <motion.div
@@ -220,7 +271,7 @@ export default function InteractiveMap({ places, showPath = false, center, mode 
                 animate={{ x: 0, opacity: 1 }}
                 exit={{ x: -300, opacity: 0 }}
                 transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                className="absolute top-0 left-0 bottom-0 w-[240px] md:w-[280px] z-30 bg-black/80 backdrop-blur-xl border-r border-white/10 flex flex-col shadow-2xl"
+                className="md:hidden absolute top-0 left-0 bottom-0 w-[240px] z-30 bg-black/80 backdrop-blur-xl border-r border-white/10 flex flex-col shadow-2xl"
               >
                 <div className="p-3 md:p-4 border-b border-white/10 flex justify-between items-center">
                     <h3 className="text-white font-bold text-base md:text-lg flex items-center gap-1.5 md:gap-2">
@@ -267,17 +318,17 @@ export default function InteractiveMap({ places, showPath = false, center, mode 
             )}
           </AnimatePresence>
 
-          {/* 우측 하단 리스트 컨트롤러 (반응형 여백/크기 조절) */}
-          <div className="absolute bottom-4 md:bottom-6 right-3 md:right-4 z-20 flex flex-col gap-2">
-             <button 
+          {/* 모바일 전용 — 리스트 토글 버튼 (데스크톱은 사이드 패널 항상 보이므로 숨김) */}
+          <div className="md:hidden absolute bottom-4 right-3 z-20 flex flex-col gap-2">
+             <button
                onClick={() => setIsListOpen(!isListOpen)}
-               className={`p-2 md:p-2.5 backdrop-blur-md border rounded-lg md:rounded-xl text-white transition-all shadow-lg ${
-                   isListOpen 
-                        ? 'bg-primary text-black border-primary' 
+               className={`p-2 backdrop-blur-md border rounded-lg text-white transition-all shadow-lg ${
+                   isListOpen
+                        ? 'bg-primary text-black border-primary'
                         : 'bg-black/80 border-white/20 hover:text-primary hover:border-primary'
                }`}
              >
-                <List size={16} className="md:w-[18px] md:h-[18px]" />
+                <List size={16} />
              </button>
           </div>
         </>
