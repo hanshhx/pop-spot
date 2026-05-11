@@ -218,18 +218,17 @@ function FullScreenPlayer() {
         <ChevronDown className="h-6 w-6" />
       </button>
 
-      <div className="relative z-10 flex flex-1 flex-col items-center overflow-y-auto px-6 py-12">
-        <motion.img
-          key={current.id}
-          initial={{ scale: 0.92, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ duration: 0.5 }}
-          src={current.artworkUrlHires || current.artworkUrl}
-          alt={current.trackName}
-          className="aspect-square w-64 rounded-2xl object-cover shadow-2xl ring-1 ring-white/10 sm:w-80"
+      <div className="relative z-10 flex flex-1 flex-col items-center overflow-y-auto px-6 pt-12 pb-12">
+        {/*
+         * 풀 플레이어의 상단은 YouTube IFrame 무대(MusicPlayerProvider 가 fixed 로 렌더)가
+         * 차지한다. 여기서는 영상 영역만큼 빈 공간을 띄워 두고, 곡 정보는 그 아래에 표시.
+         */}
+        <div
+          className="aspect-video w-[92vw] max-w-[640px]"
+          aria-hidden
         />
 
-        <div className="mt-8 max-w-md text-center text-white">
+        <div className="mt-6 max-w-md text-center text-white">
           <h1 className="text-2xl font-black tracking-tight sm:text-3xl">
             {current.trackName}
           </h1>
