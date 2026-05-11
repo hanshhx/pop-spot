@@ -68,9 +68,12 @@ public class YouTubeMusicSearchService {
             JsonNode items = mapper.readTree(response).path("items");
             if (items.isEmpty()) return null;
 
-            // 공식 채널 있으면 우선, 없으면 그냥 첫 번째 (= YouTube 가 가장 관련성 높다고 판단한 영상).
-            // 이전에는 공식 없으면 null 리턴해서 곡이 안 떴는데, 이제는 무조건 후보를 사용.
-            JsonNode best = pickPreferredOrFirst(items, artist);
+            // 영상 제목으로 정확도 검증한 후보 선택 — 엉뚱한 영상이 박히는 걸 막는다.
+            JsonNode best = pickBestByTitle(items, artist, track);
+            if (best == null) {
+                log.warn("[YouTube] 신뢰할 만한 매칭을 못 찾음 — artist='{}' track='{}'", artist, track);
+                return null;
+            }
 
             return YouTubeVideo.builder()
                     .videoId(best.path("id").path("videoId").asText())
@@ -182,22 +185,81 @@ public class YouTubeMusicSearchService {
     }
 
     /**
-     * 공식 채널(Topic/VEVO/Official) 있으면 그것을, 없으면 첫 번째 결과를 반환.
-     * 매칭 자체가 우선이라 공식 없다고 null 안 돌려준다.
+     * 영상 제목과 채널을 동시에 검증해서 가장 신뢰할 만한 후보를 고른다.
+     *
+     * 단계 (위에서부터 적용 — 매칭되면 즉시 반환):
+     *   1) 영상 제목에 '아티스트' AND '트랙명' 둘 다 포함        ← 가장 강력
+     *   2) 공식 채널(Topic/VEVO/Official) AND 영상 제목에 트랙명 포함
+     *   3) 공식 채널이기만 하면 됨
+     *   4) 영상 제목에 트랙명 포함 (채널 무관)
+     *   5) 영상 제목에 아티스트 포함 (제목에 곡명이 변형됐을 수 있음)
+     *   6) 아무 매칭 없으면 null 반환 — "엉뚱한 영상 박힘" 사고를 막는다
+     *
+     * artist 가 빈 문자열인 폴백 경로는 트랙명 기준만 적용.
      */
-    private JsonNode pickPreferredOrFirst(JsonNode items, String artist) {
-        JsonNode topic = null, vevo = null, official = null;
+    private JsonNode pickBestByTitle(JsonNode items, String artist, String track) {
+        boolean hasArtist = artist != null && !artist.trim().isEmpty();
+        boolean hasTrack = track != null && !track.trim().isEmpty();
+        if (!hasArtist && !hasTrack) return items.get(0);
+
+        // 1) 제목에 아티스트 AND 트랙명 둘 다
+        if (hasArtist && hasTrack) {
+            for (JsonNode item : items) {
+                String title = item.path("snippet").path("title").asText("");
+                if (containsLoose(title, artist) && containsLoose(title, track)) return item;
+            }
+        }
+
+        // 2) 공식 채널 + 트랙명
+        if (hasTrack) {
+            for (JsonNode item : items) {
+                String channel = item.path("snippet").path("channelTitle").asText("");
+                String title = item.path("snippet").path("title").asText("");
+                if (isOfficialChannel(channel, artist) && containsLoose(title, track)) return item;
+            }
+        }
+
+        // 3) 공식 채널만
         for (JsonNode item : items) {
             String channel = item.path("snippet").path("channelTitle").asText("");
-            String upper = channel.toUpperCase(Locale.ROOT);
-            if (upper.endsWith("- TOPIC") && topic == null) topic = item;
-            else if (upper.contains("VEVO") && vevo == null) vevo = item;
-            else if ((upper.contains("OFFICIAL") || channel.equalsIgnoreCase(artist)) && official == null) official = item;
+            if (isOfficialChannel(channel, artist)) return item;
         }
-        if (topic != null) return topic;
-        if (vevo != null) return vevo;
-        if (official != null) return official;
-        return items.get(0);  // 공식 없으면 그냥 가장 위에 뜬 영상
+
+        // 4) 트랙명만이라도 제목에
+        if (hasTrack) {
+            for (JsonNode item : items) {
+                String title = item.path("snippet").path("title").asText("");
+                if (containsLoose(title, track)) return item;
+            }
+        }
+
+        // 5) 아티스트명만 제목에
+        if (hasArtist) {
+            for (JsonNode item : items) {
+                String title = item.path("snippet").path("title").asText("");
+                if (containsLoose(title, artist)) return item;
+            }
+        }
+
+        // 6) 신뢰할 만한 매칭 없음 — null 반환해서 엉뚱한 영상이 박히는 사고 방지
+        return null;
+    }
+
+    /**
+     * 대소문자 무시 + 공백 / 특수문자 무시 매칭.
+     * "Super Shy" 가 영상 제목 "NewJeans 'Super Shy' (MV)" 안에 있는지 같이 비교.
+     */
+    private boolean containsLoose(String haystack, String needle) {
+        if (haystack == null || needle == null) return false;
+        String h = normalize(haystack);
+        String n = normalize(needle);
+        if (n.isEmpty()) return false;
+        return h.contains(n);
+    }
+
+    private String normalize(String s) {
+        return s.toLowerCase(Locale.ROOT)
+                .replaceAll("[\\s'\\\"`()\\[\\].,!?·\\-_/]", "");
     }
 
     private boolean isOfficialChannel(String channel, String artist) {
