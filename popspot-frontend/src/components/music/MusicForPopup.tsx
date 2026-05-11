@@ -95,8 +95,8 @@ export default function MusicForPopup({ popupId }: Props) {
 
                 <div className="absolute inset-0 flex items-end bg-gradient-to-t from-black/80 to-transparent opacity-0 transition group-hover:opacity-100">
                   <div className="flex w-full items-center justify-between p-2">
-                    <span className="rounded-full bg-lime-300 px-1.5 py-0.5 text-[9px] font-black text-ink-900">
-                      🎯 {m.score}%
+                    <span className="rounded-full bg-lime-300 px-2 py-0.5 text-[9px] font-bold text-ink-900">
+                      매칭 {m.score}%
                     </span>
                     <span className="grid h-8 w-8 place-items-center rounded-full bg-lime-300 text-ink-900 shadow-lg transition group-hover:scale-110">
                       <Play className="ml-0.5 h-3.5 w-3.5" fill="currentColor" />

@@ -142,39 +142,44 @@ export default function PassportView() {
         </div>
       </div>
 
-      {/* 4. 리워드/혜택 (🔥 현실적인 보상으로 변경) */}
+      {/* 리워드/혜택 — 스탬프 누적 시 자동 부여되는 도장 마니아 칭호 단계 */}
       <div>
         <h3 className="text-white font-bold mb-4 flex items-center gap-2">
           <Gift size={18} className="text-secondary"/> REWARDS
         </h3>
-        
+
         <div className="space-y-3">
           <div className={`bg-surface/50 p-4 rounded-2xl flex items-center gap-4 border transition-all ${acquiredCount >= 3 ? 'border-primary/50 bg-primary/10 opacity-100' : 'border-white/5 opacity-50'}`}>
             <div className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center text-muted">1</div>
             <div className="flex-1">
-              <h4 className="text-sm font-bold text-white">📢 메이트 확성기 1개</h4>
+              <h4 className="text-sm font-bold text-white">팝업 입문자 뱃지</h4>
               <p className="text-xs text-muted">스탬프 3개 달성 시 자동 지급</p>
             </div>
-            <button 
-              onClick={() => notify("스탬프 획득 시 인벤토리에 자동 지급되었습니다!\nMY 탭에서 확인해 보세요.")}
-              disabled={acquiredCount < 3} 
-              className={`text-xs px-3 py-1.5 rounded-full transition-colors whitespace-nowrap ${acquiredCount >= 3 ? 'bg-primary text-black font-bold hover:scale-105' : 'bg-white/5 text-white/30 cursor-not-allowed'}`}>
-                {acquiredCount >= 3 ? '지급 완료' : '잠김'}
-            </button>
+            <span className={`text-xs px-3 py-1.5 rounded-full whitespace-nowrap ${acquiredCount >= 3 ? 'bg-primary text-black font-bold' : 'bg-white/5 text-white/30'}`}>
+              {acquiredCount >= 3 ? '획득' : '잠김'}
+            </span>
           </div>
 
           <div className={`bg-surface/50 p-4 rounded-2xl flex items-center gap-4 border transition-all ${acquiredCount >= 6 ? 'border-primary/50 bg-primary/10 opacity-100' : 'border-white/5 opacity-50'}`}>
             <div className="w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center text-primary font-bold">2</div>
             <div className="flex-1">
-              <h4 className="text-sm font-bold text-white">📢 메이트 확성기 1개</h4>
+              <h4 className="text-sm font-bold text-white">팝업 헌터 뱃지</h4>
               <p className="text-xs text-muted">스탬프 6개 달성 시 자동 지급</p>
             </div>
-            <button 
-              onClick={() => notify("스탬프 획득 시 인벤토리에 자동 지급되었습니다!\nMY 탭에서 확인해 보세요.")}
-              disabled={acquiredCount < 6} 
-              className={`text-xs px-3 py-1.5 rounded-full transition-colors whitespace-nowrap ${acquiredCount >= 6 ? 'bg-primary text-black font-bold hover:scale-105' : 'bg-white/5 text-white/30 cursor-not-allowed'}`}>
-                {acquiredCount >= 6 ? '지급 완료' : '잠김'}
-            </button>
+            <span className={`text-xs px-3 py-1.5 rounded-full whitespace-nowrap ${acquiredCount >= 6 ? 'bg-primary text-black font-bold' : 'bg-white/5 text-white/30'}`}>
+              {acquiredCount >= 6 ? '획득' : '잠김'}
+            </span>
+          </div>
+
+          <div className={`bg-surface/50 p-4 rounded-2xl flex items-center gap-4 border transition-all ${acquiredCount >= 12 ? 'border-primary/50 bg-primary/10 opacity-100' : 'border-white/5 opacity-50'}`}>
+            <div className="w-10 h-10 bg-primary/30 rounded-full flex items-center justify-center text-primary font-bold">3</div>
+            <div className="flex-1">
+              <h4 className="text-sm font-bold text-white">팝업 마스터 칭호</h4>
+              <p className="text-xs text-muted">스탬프 12개 달성 시 자동 지급</p>
+            </div>
+            <span className={`text-xs px-3 py-1.5 rounded-full whitespace-nowrap ${acquiredCount >= 12 ? 'bg-primary text-black font-bold' : 'bg-white/5 text-white/30'}`}>
+              {acquiredCount >= 12 ? '획득' : '잠김'}
+            </span>
           </div>
         </div>
       </div>
