@@ -1,6 +1,7 @@
 package com.example.popspotbackend.entity;
 
 import com.example.popspotbackend.entity.PopupStore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -20,8 +21,14 @@ public class ChatMessage {
     private Long id;
 
     // [기존 코드 유지]
+    // WebSocket broadcast 시 트랜잭션 밖에서 직렬화되므로
+    // lazy 컬렉션은 무시 (LazyInitializationException 방지).
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "POPUP_ID")
+    @JsonIgnoreProperties({
+            "images", "imageUrl", "stamps", "reviews", "comments",
+            "hibernateLazyInitializer", "handler"
+    })
     private PopupStore popupStore;
 
     private String sender;

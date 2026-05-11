@@ -40,6 +40,7 @@ import { Header } from "../src/components/layout/Header";
 import { Footer } from "../src/components/layout/Footer";
 import { BottomDock, type DockTab } from "../src/components/layout/BottomDock";
 import MusicTab from "@/components/music/MusicTab";
+import RankCard from "@/components/rank/RankCard";
 import { notify } from "@/lib/notify";
 import { SearchZone } from "@/features/popup/SearchBox";
 import { ReportPopupModal } from "@/features/popup/ReportPopupModal";
@@ -1049,7 +1050,19 @@ export default function Home() {
                         </div>
                     </div>
 
-                    {/* Inventory 섹션 제거 — 상점 페이지 폐기로 POP-PASS / 확성기 결제 흐름 종료 */}
+                    {/* 등급 진열 카드 — 스탬프 누적량에 따른 등급 + 다음 단계 진행도 */}
+                    <div className="p-4 lg:p-6 border-b border-[var(--color-border)]">
+                        <h3 className="text-base lg:text-lg font-bold mb-4 flex items-center gap-2 text-foreground">
+                            <Star size={16} className="lg:w-[18px] lg:h-[18px] text-amber-500" /> 내 등급
+                        </h3>
+                        <RankCard
+                            stampCount={myPageInfo?.stampCount || 0}
+                            nickname={user?.nickname}
+                            onSeeAll={() => handleTabChange("PASSPORT")}
+                        />
+                    </div>
+
+                    {/* 옛 inventory 컨테이너 — 보존 (혹시 후속 카드 추가 시 재사용) */}
                     <div className="hidden">
                     </div>
 

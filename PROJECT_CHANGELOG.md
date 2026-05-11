@@ -1865,9 +1865,859 @@ PopupStore 총합: 150개
 
 ---
 
-**문서 버전:** v1.1
-**최종 수정:** 2026-05-01
+---
+
+# 6. 실제 마이그레이션 실행 (2026-05-03)
+
+§3.25 에서 계획만 세웠던 시놀로지 마이그레이션을 실제로 실행한 기록.
+**예상 시간 1~2시간 → 실제 약 6시간** (트러블슈팅 포함). 모든 결정/명령어/막힌 점 정리.
+
+## 6.1 환경 변경 — DSM Container Manager → Proxmox + Ubuntu VM
+
+### 변경 전 계획
+시놀로지 DSM 의 **Container Manager (Docker Compose)** 로 4개 컨테이너 운영.
+
+### 실제 환경
+친구가 **Proxmox VE** (가상화 플랫폼) 를 시놀로지에 깔고, 그 위에 **Ubuntu VM** 을 만들어줬음. 즉:
+
+```
+시놀로지 NAS (하드웨어)
+    └── Proxmox VE (가상화 플랫폼)
+            └── Ubuntu VM (POP-SPOT 호스팅)
+```
+
+### 왜 이게 더 나았나
+- **Full Linux 환경** — DSM 의 제약 (sudo 제한, 패키지 매니저 차이) 없음
+- **systemd 사용 가능** — GCP 와 동일한 방식
+- **Xshell 로 SSH 직접 접속** — 터미널 친화적
+- **Proxmox 리소스 분리** — VM 자체 메모리/CPU 격리
+
+### 단점
+- VM 안에 들어가서 작업 → Proxmox 콘솔 추가 계층
+- 친구가 만든 VM 환경에 의존 (모델/설정 등 알아야 함)
+
+---
+
+## 6.2 외부 노출 — Tailscale Funnel 선택
+
+### 옵션 비교
+
+| 방식 | 장점 | 단점 | 채택 |
+|---|---|---|---|
+| **A. 친구 공유기 포트포워딩** | 도메인 그대로 (`popspot.duckdns.org`) 유지 가능 | 친구 공유기 손대야 함, ISP 80 포트 차단 위험 | ❌ |
+| **B. Tailscale Funnel** | HTTPS 자동, 친구 공유기 안 건드림, 5분 셋업 | 도메인이 `*.ts.net` 형태로 변경 | ✅ |
+| **C. Cloudflare Tunnel** | 도메인 유지 가능, HTTPS 자동 | 추가 도구 설치, Cloudflare 가입 | ❌ |
+
+### Tailscale Funnel 선택 이유
+1. Ubuntu VM 에 Tailscale 이미 설치됨 (친구가 셋업)
+2. **무료 플랜에서 월 1TB 트래픽** — 작은 사이트엔 충분
+3. **자동 SSL** — Let's Encrypt 별도 셋업 불필요
+4. 한 명령어로 활성화: `sudo tailscale funnel --bg 8080`
+5. **친구 공유기 / 시놀로지 네트워크 설정 안 건드림**
+
+### 새 도메인
+```
+이전: https://popspot.duckdns.org      (GCP, Let's Encrypt)
+변경: https://vm-113.tailc57dd4.ts.net  (Tailscale Funnel)
+```
+
+DuckDNS 도메인은 → **Tailscale 100.x.x.x 사설 IP 가리킬 수 없음** (DuckDNS 는 공인 IP 만 지원). 그래서 새 도메인 사용. 추후 Cloudflare DNS 등으로 도메인 통합 가능.
+
+---
+
+## 6.3 호스팅 방식 — Docker 빼고 직접 설치
+
+### 옵션 비교
+
+| 방식 | 계층 구조 | 디버깅 | 채택 |
+|---|---|---|---|
+| **A. 직접 설치 (bare metal)** | VM → 서비스 | ⭐⭐⭐ 단순 | ✅ |
+| **B. Docker Compose** | VM → 컨테이너 → 서비스 | ⭐⭐ 복잡 | ❌ |
+| **C. systemd 서비스** | VM → systemd → 서비스 | ⭐⭐⭐ 단순 | (start.sh 사용) |
+
+### 선택 이유
+1. **GCP 환경과 동일** — 새로 배울 거 없음, start.sh 그대로 사용
+2. **로그 직접 접근** — `tail -f ~/nohup.out` 한 줄로 끝
+3. **재시작 단순** — `bash ~/start.sh` 한 명령
+4. **컨테이너 안 들어가도 됨** — 디버깅 시 직접 nano 로 파일 수정 가능
+5. **백엔드 1개 + DB 1개** — 컨테이너 격리 필요 없음
+
+### 단점
+- 새 환경 만들 때마다 수동 설치 (Docker 면 한 번에)
+- → 한 번 옮길 거니까 OK
+
+---
+
+## 6.4 마이그레이션 10단계 실행 기록
+
+### Phase 1 — Ubuntu VM 환경 준비 (10분)
+
+```bash
+# Xshell 로 reo4321@100.99.233.107 접속
+sudo apt update && sudo apt upgrade -y
+
+# 필수 패키지 한 번에
+sudo apt install -y \
+  openjdk-21-jdk-headless \
+  postgresql postgresql-contrib \
+  redis-server \
+  nginx \
+  certbot python3-certbot-nginx \
+  rsync curl htop
+```
+
+> 📌 apt upgrade 중 "Pending kernel upgrade" 다이얼로그 나옴 → Enter 로 OK 누르고 계속 진행. 재부팅은 나중에.
+
+설치 결과:
+- OpenJDK 21
+- PostgreSQL 14
+- Redis 6
+- nginx 1.18 (사용 안 할 거지만 일단 설치)
+
+### Phase 2 — GCP 데이터 백업 (5분)
+
+```bash
+ssh -i ~/.ssh/gcp_key reo4321@34.121.111.208
+
+# DB 덤프
+sudo -u postgres pg_dump \
+  --format=plain \
+  --encoding=UTF8 \
+  --no-owner \
+  --no-privileges \
+  popspot_db > ~/popspot_backup.sql
+
+# nginx 설정 백업
+sudo cp /etc/nginx/sites-available/default ~/nginx-default.conf
+sudo chown reo4321:reo4321 ~/nginx-default.conf
+```
+
+옮길 파일 (총 ~200MB):
+- `popspot_backup.sql` — 112KB (작아 보이지만 정상 — Phase 4 검증 참조)
+- `popspot-backend-0.0.1-SNAPSHOT.jar` — 98MB
+- `popspot.env` — 3KB
+- `start.sh`, `application-prod.properties`
+- `uploads/`
+- `nginx-default.conf`
+
+### Phase 3 — Tailscale 로 직접 전송 (5분)
+
+```bash
+# GCP 에 Tailscale 설치
+curl -fsSL https://tailscale.com/install.sh | sh
+sudo tailscale up
+# → 출력 URL 브라우저로 열어서 본인 Tailscale 계정 인증
+
+# 가입 확인
+tailscale status
+ping -c 3 100.99.233.107  # Ubuntu VM 응답 확인
+
+# rsync 한 방에 전송
+rsync -avzP \
+  ~/popspot-backend-0.0.1-SNAPSHOT.jar \
+  ~/popspot.env \
+  ~/start.sh \
+  ~/application-prod.properties \
+  ~/popspot_backup.sql \
+  ~/nginx-default.conf \
+  ~/uploads/ \
+  reo4321@100.99.233.107:~/
+```
+
+> 📌 처음에 `ubuntu@100.99.233.107` 로 시도했다가 비번 거부 → Xshell 세션 속성 보니 사용자명이 **`reo4321`** (GCP 와 동일) → 변경 후 성공.
+
+### Phase 4 — DB 복원 (10분)
+
+```bash
+# 강한 비번 생성 (메모장에 따로 보관)
+openssl rand -base64 32
+
+# PostgreSQL 사용자 + DB 생성
+sudo -u postgres psql <<'EOF'
+CREATE USER popspot_user WITH PASSWORD '강한_새_비번';
+CREATE DATABASE popspot_db
+    OWNER popspot_user
+    ENCODING 'UTF8'
+    LC_COLLATE 'C.UTF-8'
+    LC_CTYPE 'C.UTF-8'
+    TEMPLATE template0;
+GRANT ALL PRIVILEGES ON DATABASE popspot_db TO popspot_user;
+GRANT ALL ON SCHEMA public TO popspot_user;
+EOF
+
+# 덤프 복원
+sudo -u postgres psql popspot_db < ~/popspot_backup.sql
+
+# 검증 — 일부러 테이블별 row 수
+sudo -u postgres psql popspot_db -c "
+SELECT 'popup_store' AS t, COUNT(*) FROM popup_store
+UNION ALL SELECT 'users', COUNT(*) FROM users;
+"
+```
+
+복원 결과:
+```
+COPY 17  (popup_store)
+COPY 18  (users)
+COPY 149 (course)
+... (18 테이블 모두)
+```
+
+> 📌 **`ERROR: permission denied for table popup_store`** 발생 → pg_dump 가 `--no-owner` 옵션 때문에 OWNER 가 `postgres` 가 됨. ALTER OWNER 일괄 적용으로 해결:
+> ```sql
+> DO $$
+> DECLARE r record;
+> BEGIN
+>   FOR r IN SELECT tablename FROM pg_tables WHERE schemaname='public' LOOP
+>     EXECUTE 'ALTER TABLE public.' || quote_ident(r.tablename) || ' OWNER TO popspot_user';
+>   END LOOP;
+> END $$;
+> ```
+
+### Phase 5 — 백엔드 띄우기 (10분)
+
+```bash
+# popspot.env 의 DB_PASSWORD 를 새 비번으로
+nano ~/popspot.env
+# Ctrl+W → DB_PASSWORD 검색 → 값 수정 → Ctrl+O Enter Ctrl+X
+
+# Redis 시작
+sudo systemctl enable --now redis-server
+redis-cli ping  # → PONG
+
+# 백엔드 시작
+bash ~/start.sh
+sleep 60
+tail -30 ~/nohup.out
+```
+
+부팅 결과:
+```
+Started PopspotBackendApplication in 9.272 seconds
+```
+
+→ GCP (47초) 보다 5배 빠름! Proxmox VM 의 CPU 가 더 좋은 듯.
+
+### Phase 6 — Tailscale Funnel 외부 노출 (10분)
+
+#### 처음엔 nginx 도 같이 셋업하려 했음
+
+```bash
+sudo cp ~/nginx-default.conf /etc/nginx/sites-available/popspot
+sudo ln -sf /etc/nginx/sites-available/popspot /etc/nginx/sites-enabled/
+sudo rm /etc/nginx/sites-enabled/default
+sudo nginx -t
+# → "nginx: configuration file /etc/nginx/nginx.conf test failed"
+```
+
+→ GCP 의 nginx 설정이 `popspot.duckdns.org` SSL 인증서를 가리킴. 새 VM 엔 그 인증서 없으니 실패.
+
+#### nginx 빼는 결정
+
+분석 결과 nginx 가 하던 일이 SSL + 프록시뿐. Tailscale Funnel 이 둘 다 대체:
+
+```bash
+sudo systemctl stop nginx
+sudo systemctl disable nginx
+
+sudo tailscale funnel --bg 8080
+
+sudo tailscale funnel status
+# Funnel on:
+#   https://vm-113.tailc57dd4.ts.net (Funnel on)
+#   |-- proxy http://127.0.0.1:8080
+```
+
+외부 접속 테스트:
+```bash
+curl https://vm-113.tailc57dd4.ts.net/actuator/health
+# → {"status":"UP"}  ✅
+```
+
+### Phase 7 — Vercel 환경변수 변경 (5분)
+
+Vercel 대시보드 → POP-SPOT → Settings → Environment Variables:
+
+```
+NEXT_PUBLIC_API_URL = https://vm-113.tailc57dd4.ts.net
+```
+
+→ **Save → Deployments → Redeploy**
+
+> 📌 처음에 `NEXT_PUBLIC_API_BASE_URL` 로 잘못 적었음 (BASE 들어감). 코드는 `NEXT_PUBLIC_API_URL` 찾는데 못 찾으니까 fallback `http://localhost:8080` 사용. → OAuth 리다이렉트 URL 이 `http://localhost:8080/oauth2/...` 로 가는 사고. 변수명에서 BASE 빼고 정정.
+
+### Phase 8 — OAuth 콜백 URL 등록 (5분)
+
+3개 프로바이더 콘솔에 새 URL 추가 (옛 URL 도 그대로 둠):
+
+| 프로바이더 | 콘솔 | 등록 URL |
+|---|---|---|
+| 카카오 | https://developers.kakao.com → 카카오 로그인 → Redirect URI | `https://vm-113.tailc57dd4.ts.net/login/oauth2/code/kakao` |
+| 네이버 | https://developers.naver.com → API 설정 → Callback URL | `https://vm-113.tailc57dd4.ts.net/login/oauth2/code/naver` |
+| 구글 | https://console.cloud.google.com → Credentials → OAuth 2.0 Client | `https://vm-113.tailc57dd4.ts.net/login/oauth2/code/google` |
+
+### Phase 9 — 모니터링 (1~2일 예정)
+
+```bash
+# 매일 확인
+curl https://vm-113.tailc57dd4.ts.net/actuator/health
+curl https://vm-113.tailc57dd4.ts.net/api/popups | head -100
+free -h
+```
+
+새 popup 들어오는지 / 메모리 안정한지 / 사용자 트래픽 들어오는지.
+
+### Phase 10 — GCP 정지 (1~2일 후 예정)
+
+```bash
+# 백엔드 프로세스만 종료 (VM 은 살려둠 — 비상 백업)
+ssh -i ~/.ssh/gcp_key reo4321@34.121.111.208 "sudo pkill -f popspot-backend"
+
+# 5/28 만료 전에 VM 자체 정지/삭제
+```
+
+---
+
+## 6.5 트러블슈팅 모음 (오늘 막혔던 19가지)
+
+### 6.5.1 SSH 비번 거부 (`Permission denied`)
+
+**증상:**
+```
+ubuntu@100.99.233.107's password:
+Permission denied, please try again.
+```
+
+**원인:** Ubuntu VM 의 사용자명이 `ubuntu` 가 아니라 `reo4321`. (친구가 GCP 와 동일한 사용자명으로 만들어줌). Xshell 세션 속성에 보면 `reo4321@VM-113`.
+
+**해결:**
+```bash
+rsync -avzP ... reo4321@100.99.233.107:~/  # ubuntu → reo4321
+```
+
+**교훈:** Xshell/SSH 의 사용자명은 항상 세션 속성에서 먼저 확인.
+
+---
+
+### 6.5.2 rsync `Connection timed out`
+
+**증상:**
+```
+ssh: connect to host 100.99.233.107 port 22: Connection timed out
+```
+
+**원인:** GCP VM 에 Tailscale 미설치. `100.x.x.x` 는 Tailscale 사설 IP 라 같은 tailnet 안에 있어야 보임.
+
+**해결:**
+```bash
+# GCP 에 Tailscale 설치 + 가입
+curl -fsSL https://tailscale.com/install.sh | sh
+sudo tailscale up
+# 출력 URL 브라우저로 열어 인증 후 같은 tailnet 가입
+```
+
+**교훈:** Tailscale IP (100.x.x.x) 는 Tailscale 가입한 머신끼리만 통신 가능.
+
+---
+
+### 6.5.3 DB 덤프 사이즈 작아 보임 (112KB)
+
+**증상:** `pg_dump` 결과 파일이 112KB. GCP 의 DB 사이즈가 68MB 였는데 너무 작은 듯.
+
+**원인:** 정상. `pg_dump` 디폴트는 데이터를 `INSERT` 가 아니라 **`COPY` 형식**으로 떠냄. COPY 가 훨씬 컴팩트:
+- INSERT 형식: 한 행 = 여러 줄 (`INSERT INTO ... VALUES (...);`)
+- COPY 형식: 한 행 = 한 줄 (탭 구분)
+
+또한 GCP `/var/lib/postgresql` 의 68MB 는 system catalogs + WAL + 다른 DB 다 합친 것. 실제 popspot_db 만은 작음.
+
+**검증:**
+```bash
+grep -c "^COPY public" ~/popspot_backup.sql  # → 18 (테이블 수)
+wc -l ~/popspot_backup.sql                   # → 936 (정상)
+```
+
+---
+
+### 6.5.4 DB 권한 거부 (`permission denied for table popup_store`)
+
+**증상:**
+```
+ERROR: permission denied for table popup_store
+```
+
+**원인:** `pg_dump --no-owner` 로 떠서 복원할 때 OWNER 가 `postgres` 가 됨. `popspot_user` 는 그 테이블 접근 못함.
+
+**해결:** 모든 테이블/시퀀스 OWNER 일괄 변경:
+```sql
+DO $$
+DECLARE r record;
+BEGIN
+  FOR r IN SELECT tablename FROM pg_tables WHERE schemaname='public' LOOP
+    EXECUTE 'ALTER TABLE public.' || quote_ident(r.tablename) || ' OWNER TO popspot_user';
+  END LOOP;
+END $$;
+
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO popspot_user;
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO popspot_user;
+ALTER DATABASE popspot_db OWNER TO popspot_user;
+```
+
+---
+
+### 6.5.5 `popspot.env` 첫 줄 깨짐 (ANSI escape 문자)
+
+**증상:**
+```bash
+bash ~/start.sh
+# /home/reo4321/popspot.env: 줄 1: Y4: 명령어를 찾을 수 없음
+# /home/reo4321/popspot.env: 줄 1: [7: 명령어를 찾을 수 없음
+```
+
+**원인:** nano 로 비번 편집 중 화살표 키 → ANSI escape sequence (`ESC[7` 같은 것) 가 텍스트로 들어감. 첫 줄이 `aY4Y4a[7a[7[7# ====...` 처럼 깨짐.
+
+**해결:** 깨진 첫 줄이 마침 주석 (`# ===`) 이라 통째 삭제:
+```bash
+sed -i '1d' ~/popspot.env
+```
+
+**교훈:**
+- nano 편집 중 화살표 키 막 누르지 말기
+- 비번은 `Shift+Insert` 로 깔끔히 붙여넣기
+- 저장 직전 `head -5` 로 첫 줄 확인
+
+---
+
+### 6.5.6 환경변수 이름 자체 깨짐 (`ALGOLIA_API_KaaD`aDEY`)
+
+**증상:** `grep CRAWLER popspot.env` 결과에 이상한 줄:
+```
+ALGOLIA_API_KaaD`aDEY=...
+```
+
+**원인:** 6.5.5 와 같은 이유로 변수명에 백틱/escape 문자 섞임.
+
+**해결:** Algolia 어차피 안 쓰니 해당 줄 통째 삭제:
+```bash
+sed -i '/ALGOLIA_API_KaaD/d' ~/popspot.env
+```
+
+---
+
+### 6.5.7 백엔드 부팅 실패 (Algolia 클라이언트 초기화 실패)
+
+**증상:** `nohup.out` 에 stack trace:
+```
+SearchService.init(SearchService.java:33)
+DefaultSearchClient.create(DefaultSearchClient.java:25)
+SearchConfig$Builder.build(SearchConfig.java:26)
+```
+
+**원인:** `SearchService` 가 `@PostConstruct` 에서 Algolia 클라이언트 생성 시도. App ID 가 비어있으니 IllegalArgumentException → @PostConstruct 실패 → 빈 생성 실패 → 백엔드 부팅 자체 실패.
+
+**해결:** `SearchService.java` 에 graceful fallback 추가:
+```java
+@Value("${algolia.app-id:}")  // 콜론 추가로 빈 값 허용
+private String appId;
+
+@PostConstruct
+public void init() {
+    if (appId == null || appId.isBlank() || appId.length() < 6
+            || !appId.matches("^[A-Z0-9]+$")) {
+        log.warn("Algolia 미설정 → 검색 기능 비활성화");
+        return;  // 클라이언트 안 만들고 종료
+    }
+    try {
+        SearchClient client = DefaultSearchClient.create(appId, apiKey);
+        index = client.initIndex("popups", PopupSearchDto.class);
+        enabled = true;
+    } catch (Exception e) {
+        log.warn("Algolia 클라이언트 초기화 실패 → 비활성화");
+    }
+}
+```
+
+**교훈:** `@PostConstruct` 에서 외부 서비스 초기화 시 try-catch + enabled 플래그 패턴 필수.
+
+---
+
+### 6.5.8 `application-prod.properties` 평문 시크릿
+
+**증상:** 외부 properties 파일 안에 OAuth Client ID/Secret 평문으로 박혀있음.
+
+**원인:** 초기 배포 시 평문으로 적어둔 게 남아있음. JAR 안의 application-prod.properties 가 환경변수 참조하는데, 외부 파일이 그걸 덮어씀.
+
+**해결:** 외부 파일 통째로 비우기 (가장 안전):
+```bash
+cp ~/application-prod.properties ~/application-prod.properties.bak
+> ~/application-prod.properties
+```
+
+→ 모든 설정은 `popspot.env` 환경변수 → JAR 안 properties 참조 패턴으로 단일화.
+
+---
+
+### 6.5.9 Vercel 환경변수 이름 mismatch
+
+**증상:** OAuth 로그인 클릭 시 URL 이 `http://localhost:8080/oauth2/...` 로 감.
+
+**원인:**
+- 코드 (`app/login/page.tsx`): `process.env.NEXT_PUBLIC_API_URL` 찾음
+- Vercel 설정: `NEXT_PUBLIC_API_BASE_URL` (BASE 들어감) 으로 잘못 적음
+- → 매치 안 되니 fallback `http://localhost:8080` 사용
+
+**해결:** Vercel 에 정확한 변수명 추가:
+```
+NEXT_PUBLIC_API_URL = https://vm-113.tailc57dd4.ts.net  ✅
+```
+
+→ Save → Redeploy.
+
+**교훈:** 환경변수 추가 전 `grep -rn "process.env.NEXT_PUBLIC_" src/` 로 코드가 찾는 정확한 이름 먼저 확인.
+
+---
+
+### 6.5.10 `wss://` syntax 에러
+
+**증상:**
+```
+Uncaught SyntaxError: The URL's scheme must be either 'http:' or 'https:'.
+'wss:' is not allowed.
+```
+
+**원인:** API_BASE_URL 이 `wss://` 로 시작. 어딘가 `new URL(API_URL + '/api/...')` 에 wss URL 들어가서 폭발.
+
+**해결:** `NEXT_PUBLIC_API_URL` 은 무조건 `https://` 로. WebSocket 은 별도 변수 또는 자동 변환 사용.
+
+```typescript
+// api.ts 의 자동 변환 로직
+export const SOCKET_BASE_URL =
+  process.env.NEXT_PUBLIC_SOCKET_URL
+  ?? API_BASE_URL?.replace(/^https?:\/\//, m => m === "https://" ? "wss://" : "ws://")
+  ?? "ws://localhost:8080";
+```
+
+---
+
+### 6.5.11 캐시 문제 (시크릿창 OK, 일반창 X)
+
+**증상:** 시크릿 모드에서는 사이트 정상, 일반 브라우저에서는 옛 빌드의 옛 도메인 호출.
+
+**원인:** 일반 브라우저가 옛 JS 번들 / Service Worker 캐시 보존.
+
+**해결:**
+1. **하드 리프레시**: `Ctrl + Shift + R`
+2. **Clear site data**: F12 → Application → Storage → Clear site data
+3. **Service Worker unregister** (있을 때)
+
+---
+
+### 6.5.12 OAuth 리다이렉트 localhost (6.5.9 의 결과)
+
+**증상:** 네이버 로그인 클릭 시 `http://localhost:8080/oauth2/authorization/naver` 로 이동.
+
+**원인:** Vercel 환경변수 mismatch (6.5.9 참조).
+
+**해결:** `NEXT_PUBLIC_API_URL` 정확히 추가 + Redeploy.
+
+---
+
+### 6.5.13 Live Visitor Talk — 백엔드 200, 프론트 안 보임
+
+**증상:**
+- `curl https://.../api/chat/ticker` → 200 OK + JSON 데이터
+- 사이트에서 LIVE NOW 영역 안 보임
+
+**원인 1 — apiFetch 의 preflight:**
+```typescript
+// apiFetch 가 항상 Content-Type: application/json 추가
+// → GET 요청에도 preflight (OPTIONS) 발생
+// → 백엔드 OPTIONS 처리 못 하면 실제 GET 실패
+```
+
+**해결 1:** `LiveChatTicker` 가 `apiFetch` 안 쓰고 직접 `fetch` 사용:
+```typescript
+const res = await fetch(url, { credentials: "include" });
+// Content-Type 헤더 안 붙임 → simple request → preflight 회피
+```
+
+**원인 2 — ChatRoom 의 setMessages 누락:**
+```typescript
+// ChatRoom.tsx (Before)
+client.current?.subscribe(`/sub/chat/room/${roomId}`, (res) => {
+  const newMessage = JSON.parse(res.body);
+  // ❌ setMessages 호출 없음 → state 업데이트 X → 화면 표시 X
+});
+```
+
+**해결 2:**
+```typescript
+client.current?.subscribe(`/sub/chat/room/${roomId}`, (res) => {
+  const newMessage = JSON.parse(res.body);
+  setMessages(prev => [...prev, newMessage]);  // ✅ 추가
+});
+
+// 히스토리 로드도 같이 누락됨
+.then(data => {
+  if (Array.isArray(data)) setMessages(data);  // ✅ 추가
+})
+```
+
+---
+
+### 6.5.14 WebSocket LazyInitializationException
+
+**증상:** 채팅 메시지 보낼 때 백엔드 에러:
+```
+LazyInitializationException: Cannot lazily initialize collection of role
+'PopupStore.images' with key '160' (no session)
+```
+
+**원인:**
+- WebSocket broadcast 는 트랜잭션 밖에서 실행
+- ChatMessage → popupStore (EAGER) → images (LAZY) 직렬화 시점에 세션 끊어짐
+- `getImageUrl()` getter 가 `images.isEmpty()` 호출 → 폭발
+
+**해결:** `ChatMessage.popupStore` 에 `@JsonIgnoreProperties` 추가:
+```java
+@ManyToOne(fetch = FetchType.EAGER)
+@JoinColumn(name = "POPUP_ID")
+@JsonIgnoreProperties({
+    "images", "imageUrl", "stamps", "reviews", "comments",
+    "hibernateLazyInitializer", "handler"
+})
+private PopupStore popupStore;
+```
+
+→ JSON 직렬화 시 lazy 컬렉션 + derived getter (`imageUrl`) 모두 무시.
+
+---
+
+### 6.5.15 `noise.svg` 404 (외부 의존성)
+
+**증상:** 콘솔에:
+```
+GET https://grainy-gradients.vercel.app/noise.svg 404
+```
+
+**원인:** `DigitalTicket.tsx` 의 grainy 텍스처 효과로 외부 사이트의 SVG 사용. 그 사이트가 더 이상 호스팅 안 함.
+
+**해결:** 인라인 SVG 데이터 URL 로 교체:
+```tsx
+<div
+  className="absolute inset-0 opacity-10 pointer-events-none"
+  style={{
+    backgroundImage:
+      "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>\")",
+  }}
+></div>
+```
+
+**교훈:** 외부 URL 의존성은 항상 죽을 수 있음. 단순 텍스처는 인라인 SVG 가 안전.
+
+---
+
+### 6.5.16 `NoResourceFoundException` 로그 시끄러움
+
+**증상:** 백엔드 로그에 큰 stack trace:
+```
+NoResourceFoundException: No static resource for request '/'.
+```
+
+**원인:** 누군가 (봇/본인 테스트) 백엔드 도메인 루트 (`https://vm-113.tailc57dd4.ts.net/`) 직접 접속. 백엔드는 API 만 제공, 정적 리소스 없으니 에러.
+
+**해결:** `GlobalExceptionHandler` 에 핸들러 추가:
+```java
+@ExceptionHandler(NoResourceFoundException.class)
+public ResponseEntity<Map<String, Object>> handleNoResource(NoResourceFoundException ex) {
+    return body(HttpStatus.NOT_FOUND, "Not Found", "요청한 리소스가 없습니다.");
+}
+```
+
+→ 조용히 404 응답, 스택트레이스 안 찍음.
+
+---
+
+### 6.5.17 결제 400 에러 (PortOne)
+
+**증상:**
+```
+404 Not Found on GET request for "https://api.iamport.kr/payments/imp_122973170162":
+"존재하지 않는 결제정보입니다."
+```
+
+**원인:** PortOne 서버에 해당 imp_uid 가 없음. 가짜/테스트 결제거나, 가맹점 식별코드 mismatch.
+
+**해결 (미완):**
+- Vercel 에 `NEXT_PUBLIC_IAMPORT_MERCHANT_CODE` 환경변수 추가
+- 백엔드 `IAMPORT_API_KEY/SECRET` 가 PortOne 콘솔의 키와 일치하는지 확인
+
+→ 결제 기능은 마이그레이션 후 별도 점검 (지금 운영 차단 요소 아님).
+
+---
+
+### 6.5.18 Proxmox 웹 접속 안 됨 (`https://jsycure-vm.tail149964.ts.net:8443`)
+
+**증상:** 친구가 알려준 Proxmox 웹 관리 URL 접속 안 됨.
+
+**원인 가능성:**
+- 시놀로지/Proxmox 재부팅됨
+- Tailscale Funnel 설정 풀림
+- 포트 변경 (8443 → 8006 등)
+
+**해결:** 친구한테 확인 부탁. 단 **Ubuntu VM 만 살아있으면 본인 작업에 영향 없음** — Proxmox 웹은 VM 만들 때만 필요.
+
+---
+
+### 6.5.19 Vercel `DEPLOYMENT_NOT_FOUND`
+
+**증상:**
+```
+The deployment could not be found on Vercel. DEPLOYMENT_NOT_FOUND
+```
+
+**원인:** Vercel Redeploy 진행 중일 때 일시적으로 발생.
+
+**해결:** 1~2분 기다리면 자동 해결. Deployments 탭에서 Ready 상태 확인.
+
+---
+
+## 6.6 새로 생긴 코드 변경
+
+이번 마이그레이션 중 백엔드/프론트 6개 파일 수정:
+
+| 파일 | 변경 |
+|---|---|
+| **백엔드 — `SearchService.java`** | Algolia 키 미설정 시 graceful fallback (enabled 플래그) |
+| **백엔드 — `GlobalExceptionHandler.java`** | `NoResourceFoundException` 핸들러 추가 |
+| **백엔드 — `ChatMessage.java`** | `@JsonIgnoreProperties` 로 lazy 컬렉션 직렬화 회피 |
+| **프론트 — `ChatRoom.tsx`** | 히스토리 + WebSocket 메시지에 setMessages 호출 추가 |
+| **프론트 — `LiveChatTicker.tsx`** | apiFetch → 직접 fetch (preflight 회피) |
+| **프론트 — `DigitalTicket.tsx`** | 외부 noise.svg → 인라인 SVG 데이터 URL |
+
+---
+
+## 6.7 마이그레이션 결과 — Before vs After 비교
+
+| 항목 | GCP (Before) | Ubuntu VM (After) |
+|---|---|---|
+| **호스팅** | GCP Compute Engine (e2-small) | 친구 시놀로지 → Proxmox VE → Ubuntu VM |
+| **OS** | Ubuntu 22.04.5 LTS | Ubuntu 22.04.5 LTS (동일) |
+| **외부 노출** | nginx + Let's Encrypt SSL | Tailscale Funnel (자동 SSL) |
+| **도메인** | popspot.duckdns.org | vm-113.tailc57dd4.ts.net |
+| **SSH 접속** | ssh -i ~/.ssh/gcp_key reo4321@34.121.111.208 | Xshell + Tailscale 100.99.233.107 (reo4321) |
+| **파일 전송** | scp via SSH key | rsync via Tailscale |
+| **백엔드 부팅 시간** | 47초 | **9초** (5배 빠름) |
+| **DB** | PostgreSQL 14 (popspot_db / popspot_user) | 동일 (비번만 강한 32자로 변경) |
+| **Redis** | Redis 6 | Redis 6 (동일) |
+| **nginx** | 사용 (SSL + 프록시) | **사용 안 함** (Tailscale Funnel 이 대체) |
+| **비용** | $0 (5/28 만료) | $0 (친구 호스팅 + Tailscale 무료) |
+| **OAuth 콜백** | popspot.duckdns.org/login/oauth2/code/* | vm-113.tailc57dd4.ts.net/login/oauth2/code/* |
+
+---
+
+## 6.8 갱신된 시스템 구조 (5/3 이후)
+
+```
+[사용자 브라우저]
+        ↓ HTTPS
+        ↓ (/ → middleware → /intro 자동 리다이렉트)
+┌──────────────────────────┐
+│   Vercel                 │
+│   popspot.vercel.app     │
+│   Next.js 16 프론트엔드   │
+│   /intro 인트로 페이지    │
+│   (스냅 스크롤+영상)      │
+└──────────────────────────┘
+        ↓ API 호출
+        ↓ https://vm-113.tailc57dd4.ts.net
+┌──────────────────────────┐
+│   Tailscale Funnel       │
+│   (자동 SSL + 인터넷 노출) │
+└──────────────────────────┘
+        ↓ HTTP localhost:8080
+┌──────────────────────────────────────┐
+│   친구 시놀로지 NAS                   │
+│      └── Proxmox VE (가상화)          │
+│            └── Ubuntu VM (Tailscale)  │
+│                  ├── Spring Boot 4.0.2│
+│                  ├── PostgreSQL 14    │
+│                  └── Redis 6          │
+└──────────────────────────────────────┘
+        ↓
+┌──────────────────────┐
+│  외부 서비스          │
+│  - Naver 검색 API    │
+│  - Kakao 검색/지도   │
+│  - Groq AI (LLM)     │
+│    llama-3.3-70b     │
+│  - PortOne (결제)    │
+│  - Kakao OAuth2      │
+│  - Sentry (오류추적) │
+└──────────────────────┘
+```
+
+---
+
+## 6.9 회고 — 6시간 동안 배운 것
+
+### ⭐ 잘한 결정
+
+1. **Docker 안 쓴 거** — GCP 와 동일 환경이라 디버깅 쉬웠음. Docker 였으면 컨테이너 안 들어갔다 나왔다 더 복잡했을 듯.
+2. **Tailscale Funnel** — 친구 공유기 안 건드리고 5분 만에 외부 노출. 압도적으로 단순.
+3. **GCP 백엔드 살려둔 거** — 새 VM 검증 완료까지 사용자가 사이트 못 들어가는 일 없었음. 점진적 전환.
+4. **rsync 직접 전송** — Tailscale 가입한 김에 PC 경유 안 하고 5분 만에 전송 완료.
+
+### 🤔 다음에 더 잘할 수 있는 것
+
+1. **환경변수명 사전 검증** — `grep -rn "NEXT_PUBLIC_" src/` 로 코드가 찾는 이름 먼저 확인했으면 OAuth localhost 사고 없었을 듯.
+2. **nano 에서 비번 입력 신중히** — 화살표/마우스 휠 사용 자제. 안 그러면 ANSI escape 문자 들어가서 환경변수 깨짐.
+3. **DB 덤프 시 OWNER 처리 미리 결정** — `--no-owner` 옵션 쓰면 ALTER OWNER 후처리 필요. 미리 알았으면 더 빨랐을 듯.
+4. **빌드 자주 — 점진 검증** — Algolia / NoResourceFound / ChatMessage 수정사항을 모아서 한 번에 빌드/배포했으면 시간 절약.
+
+### 📊 시간 분포 (실제)
+
+| 단계 | 예상 | 실제 |
+|---|---|---|
+| Phase 1 환경 준비 | 10분 | 10분 ✓ |
+| Phase 2 백업 | 5분 | 5분 ✓ |
+| Phase 3 전송 | 5분 | 30분 (SSH 사용자명 + Tailscale 설치) |
+| Phase 4 DB 복원 | 10분 | 30분 (권한 문제) |
+| Phase 5 백엔드 띄우기 | 5분 | 1시간 (env 깨짐 + Algolia 빌드 사이클) |
+| Phase 6 외부 노출 | 10분 | 20분 (nginx 빼는 결정) |
+| Phase 7 Vercel | 5분 | 30분 (변수명 mismatch + 캐시 + Redeploy) |
+| Phase 8 OAuth | 5분 | 10분 ✓ |
+| Phase 9-10 모니터링/정리 | (예정) | (예정) |
+| **소계** | **약 1시간** | **약 4시간 + 추가 디버깅 2시간** |
+
+→ 마이그레이션은 **항상 예상 시간의 2~3배**.
+
+---
+
+# 7. v1.2 변경점 요약
+
+- §6 통째로 신규 — 실제 마이그레이션 실행 기록 (10단계 + 19개 트러블슈팅)
+- §6.1 Proxmox + Ubuntu VM 환경 결정 (DSM Container Manager 대신)
+- §6.2 Tailscale Funnel 외부 노출 (nginx + Let's Encrypt 대체)
+- §6.3 직접 설치 방식 채택 (Docker 빼기)
+- §6.4 10단계 실제 명령어 + 결과 + 막힌 점
+- §6.5 트러블슈팅 19가지 (SSH/rsync/DB 권한/env 깨짐/Algolia/CORS preflight/LazyInit/캐시 등)
+- §6.6 새 코드 변경 6개 파일
+- §6.7 Before/After 비교표
+- §6.8 갱신된 시스템 구조도
+- §6.9 회고 (잘한 결정 / 개선점 / 시간 분포)
+
+---
+
+**문서 버전:** v1.2
+**최종 수정:** 2026-05-03
 **작성자:** POP-SPOT 개발팀
+
+**v1.2 변경점:**
+- §6 실제 마이그레이션 실행 기록 통째 추가 (5/3, 약 6시간 작업)
+- 10단계 마이그레이션 + 19가지 트러블슈팅 모두 포함
+- GCP → Proxmox/Ubuntu VM 이전 완료 (백엔드만 정지 대기)
+- 외부 노출 nginx → Tailscale Funnel 로 대체
+- 도메인 popspot.duckdns.org → vm-113.tailc57dd4.ts.net
 
 **v1.1 변경점:**
 - §1.17 Gemini → Groq LLM 마이그레이션 추가
