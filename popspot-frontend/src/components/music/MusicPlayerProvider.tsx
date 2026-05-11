@@ -220,15 +220,33 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
     ],
   );
 
+  // 모드에 따라 IFrame 컨테이너의 위치/크기 결정.
+  // 풀 모드: 화면 중앙에 크게 (영상 메인 노출 — 약관 준수)
+  // 미니 모드: 화면 우측 하단에 PIP 처럼 작게 (영상이 계속 보임)
+  // 숨김 모드: 화면 밖
+  const stageClass =
+    mode === "full"
+      ? "fixed left-1/2 top-[12vh] z-[110] aspect-video w-[92vw] max-w-[640px] -translate-x-1/2 overflow-hidden rounded-2xl shadow-2xl ring-1 ring-white/10"
+      : mode === "mini"
+        ? "fixed bottom-36 right-3 z-[95] aspect-video w-[140px] sm:bottom-40 sm:right-4 sm:w-[180px] overflow-hidden rounded-xl shadow-2xl ring-1 ring-white/15"
+        : "fixed -left-[9999px] -top-[9999px] h-0 w-0 overflow-hidden";
+
   return (
     <MusicPlayerContext.Provider value={value}>
       {children}
-      {/* YouTube IFrame 은 Provider 안에 박아서 라우트 이동에도 살아있게 한다 */}
+      {/*
+       * YouTube IFrame 무대 — 라우트가 바뀌어도 같은 노드가 유지되어야 재생이 끊기지 않는다.
+       * 모드에 따라 위치/크기만 부드럽게 전환한다. YouTube 약관 준수를 위해 영상은
+       * 어느 모드에서도 시각적으로 노출된다(숨김 모드는 곡이 없을 때만).
+       */}
       <div
-        ref={player.containerRef}
-        className="pointer-events-none fixed -left-[9999px] -top-[9999px] h-0 w-0 opacity-0"
-        aria-hidden
-      />
+        className={`${stageClass} transition-all duration-300 ease-out bg-black`}
+        aria-hidden={mode === "hidden"}
+      >
+        {/* 실제 IFrame 이 들어가는 자리 — pointer-events 활성으로 두어
+            사용자가 영상을 정상적으로 인터랙션할 수 있게 한다 (약관 준수) */}
+        <div ref={player.containerRef} className="absolute inset-0" />
+      </div>
     </MusicPlayerContext.Provider>
   );
 }
