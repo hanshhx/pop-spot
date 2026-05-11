@@ -101,12 +101,23 @@ export default function IntroPage() {
     }
   };
 
+  // Enter / Space 키로도 진입할 수 있게 글로벌 키 핸들러 등록
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        proceed();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoggedIn]);
+
   return (
     <>
-      {/* =================================================================== */}
-      {/* 페이지 전체 고정 배경 비디오 (모든 섹션 뒤에 깔림)                       */}
-      {/* =================================================================== */}
-      <div className="fixed inset-0 z-0 bg-ink-900">
+      {/* 페이지 전체 고정 배경 비디오 — pointer-events-none 으로 클릭 흡수 차단 */}
+      <div className="pointer-events-none fixed inset-0 z-0 bg-ink-900">
         <video
           autoPlay
           loop
@@ -122,12 +133,11 @@ export default function IntroPage() {
         </video>
       </div>
 
-      {/* =================================================================== */}
-      {/* 상단 고정: SKIP / Login 버튼                                          */}
-      {/* =================================================================== */}
+      {/* 상단 고정: SKIP / Login 버튼 — z-index 최상위로 고정 */}
       <button
+        type="button"
         onClick={proceed}
-        className="fixed right-5 top-5 z-50 rounded-full bg-white/10 px-3 py-1.5 text-xs font-medium text-cream-100 backdrop-blur-md ring-1 ring-white/20 transition hover:bg-white/20 sm:right-6 sm:top-6"
+        className="fixed right-5 top-5 z-[100] rounded-full bg-white/15 px-4 py-2 text-xs font-semibold text-cream-100 backdrop-blur-md ring-1 ring-white/25 transition hover:bg-white/25 active:scale-95 sm:right-6 sm:top-6"
         aria-label="인트로 건너뛰기"
       >
         {isLoggedIn ? "Skip →" : "Login →"}
@@ -151,8 +161,8 @@ export default function IntroPage() {
           className="relative flex min-h-screen w-full items-center justify-center overflow-hidden"
           style={{ scrollSnapAlign: "start" }}
         >
-          {/* Hero 전용 그라데이션 (투명 → 어두움) */}
-          <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/20 to-black/60" />
+          {/* Hero 전용 그라데이션 (투명 → 어두움) — 클릭 흡수 차단 */}
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/30 via-black/20 to-black/60" />
 
           <div className="relative z-10 mx-auto flex max-w-5xl flex-col items-center px-6 py-12 text-center">
             <motion.div
@@ -283,7 +293,7 @@ export default function IntroPage() {
           style={{ scrollSnapAlign: "start" }}
         >
           {/* 배경 — 라임 후광이 보이도록 어둡지만 영상은 비치게 */}
-          <div className="absolute inset-0 bg-ink-900/65 backdrop-blur-[2px]" />
+          <div className="pointer-events-none absolute inset-0 bg-ink-900/65 backdrop-blur-[2px]" />
           <div className="pointer-events-none absolute left-1/2 top-1/2 h-[500px] w-[500px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-lime-300/15 blur-3xl" />
 
           <motion.div
@@ -347,7 +357,7 @@ export default function IntroPage() {
           style={{ scrollSnapAlign: "start" }}
         >
           {/* 어두운 오버레이 — 카드 가독성 확보 */}
-          <div className="absolute inset-0 bg-ink-900/70 backdrop-blur-[2px]" />
+          <div className="pointer-events-none absolute inset-0 bg-ink-900/70 backdrop-blur-[2px]" />
 
           <div className="relative z-10 mx-auto max-w-6xl">
             <motion.div
@@ -450,7 +460,7 @@ export default function IntroPage() {
           style={{ scrollSnapAlign: "start" }}
         >
           {/* 핫핑크 틴트 오버레이 — 영상이 약간 비치도록 */}
-          <div className="absolute inset-0 bg-hot-500/75 backdrop-blur-[1px]" />
+          <div className="pointer-events-none absolute inset-0 bg-hot-500/75 backdrop-blur-[1px]" />
           <div
             className="pointer-events-none absolute inset-0 opacity-15"
             style={{

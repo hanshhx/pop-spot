@@ -580,10 +580,10 @@ export default function Home() {
                                 NEW · BETA
                             </p>
                             <p className="text-base md:text-lg font-black text-foreground">
-                                지금 듣는 노래에 어울리는 팝업, 찾아드려요
+                                듣는 곡으로 분위기에 맞는 팝업 찾기
                             </p>
                             <p className="mt-0.5 text-xs text-muted-foreground">
-                                AI 무드 분석으로 매칭 · 운명의 곡 룰렛까지
+                                Spotify 검색 · 풀 재생 · 룰렛 · 패스포트
                             </p>
                         </div>
                     </div>
@@ -1049,64 +1049,8 @@ export default function Home() {
                         </div>
                     </div>
 
-                    {/* Inventory */}
-                    <div className="p-4 lg:p-6 border-b border-[var(--color-border)]">
-                        <h3 className="text-base lg:text-lg font-bold mb-4 flex items-center gap-2 text-foreground">
-                            <Gift size={16} className="lg:w-[18px] lg:h-[18px] text-lime-500"/> Inventory
-                        </h3>
-                        <div className="space-y-2 lg:space-y-3">
-                            <article className={`p-4 rounded-md border flex items-center justify-between ${
-                                myPageInfo?.isPremium 
-                                ? "bg-ink-900 text-cream-200 border-ink-900 dark:bg-cream-200 dark:text-ink-900 dark:border-cream-200 shadow-md"
-                                : "bg-cream-300 dark:bg-ink-800 border-[var(--color-border)] text-muted-foreground"
-                            }`}>
-                                <div className="flex items-center gap-2.5 lg:gap-3">
-                                    <div className="w-8 h-8 lg:w-10 lg:h-10 rounded-full bg-white/10 flex items-center justify-center">
-                                        <Crown size={16} className={`lg:w-5 lg:h-5 ${myPageInfo?.isPremium ? "text-lime-300 dark:text-lime-700" : "text-muted-foreground"}`}/>
-                                    </div>
-                                    <div>
-                                        <div className="font-bold text-xs lg:text-sm">POP-PASS</div>
-                                        <div className="text-[10px] lg:text-xs opacity-70 mt-0.5">
-                                            {myPageInfo?.isPremium 
-                                                ? `${getDday(myPageInfo?.premiumExpiryDate)}일 남음`
-                                                : "미보유"}
-                                        </div>
-                                    </div>
-                                </div>
-                                <span className="text-[10px] lg:text-xs px-3 py-1.5 bg-foreground/5 rounded-pill text-muted-foreground font-semibold whitespace-nowrap">
-                                    {myPageInfo?.isPremium ? "이용 중" : "준비 중"}
-                                </span>
-                            </article>
-
-                            <article className="p-4 rounded-md border border-[var(--color-border)] bg-cream-300 dark:bg-ink-800 flex items-center justify-between">
-                                <div className="flex items-center gap-2.5 lg:gap-3">
-                                    <div className="w-10 h-10 rounded-full bg-success/15 flex items-center justify-center">
-                                        <Megaphone size={16} className="lg:w-5 lg:h-5 text-success"/>
-                                    </div>
-                                    <div>
-                                        <div className="font-semibold text-sm text-foreground">메이트 확성기</div>
-                                        <div className="text-xs text-muted-foreground mt-0.5">보유 수량: {myPageInfo?.megaphoneCount || 0}개</div>
-                                    </div>
-                                </div>
-                                <button
-                                    onClick={() => {
-                                        if((myPageInfo?.megaphoneCount || 0) > 0) {
-                                            notify("동행 게시판 글쓰기 화면에서 사용할 수 있습니다!");
-                                            handleTabChange("MATE");
-                                        } else {
-                                            notify("확성기는 보유한 만큼만 사용할 수 있어요.");
-                                        }
-                                    }}
-                                    className={`text-xs px-3 py-1.5 rounded-pill transition-colors font-semibold whitespace-nowrap ${
-                                        (myPageInfo?.megaphoneCount || 0) > 0 
-                                        ? "bg-lime-300 text-ink-900 hover:bg-lime-400" 
-                                        : "bg-cream-400 dark:bg-ink-700 text-muted-foreground cursor-not-allowed"
-                                    }`}
-                                >
-                                    사용하기
-                                </button>
-                            </article>
-                        </div>
+                    {/* Inventory 섹션 제거 — 상점 페이지 폐기로 POP-PASS / 확성기 결제 흐름 종료 */}
+                    <div className="hidden">
                     </div>
 
                     {/* Wishlist */}
