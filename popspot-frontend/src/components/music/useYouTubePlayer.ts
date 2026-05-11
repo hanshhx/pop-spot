@@ -82,17 +82,19 @@ export function useYouTubePlayer({ videoId, onEnded }: UsePlayerOptions) {
 
       playerRef.current = new window.YT.Player(target, {
         videoId,
-        height: "0",
-        width: "0",
+        // 부모 컨테이너 크기에 맞추도록 100%. 0 으로 두면 약관상 오디오 분리 사용으로 해석될 위험.
+        height: "100%",
+        width: "100%",
         playerVars: {
           autoplay: 1,
-          controls: 0,
-          modestbranding: 1,
-          rel: 0,
-          disablekb: 1,
-          fs: 0,
-          iv_load_policy: 3,
-          playsinline: 1,
+          controls: 0,        // YouTube 자체 컨트롤바 숨김 (우리 컨트롤로 대체)
+          modestbranding: 1,  // 큰 YouTube 로고 최소화 (작은 워터마크는 약관상 유지)
+          rel: 0,             // 관련 영상 추천 최소화
+          disablekb: 1,       // 키보드 단축키 비활성
+          fs: 0,              // 전체화면 버튼 숨김
+          iv_load_policy: 3,  // 영상 주석 비활성
+          playsinline: 1,     // 모바일에서 인라인 재생
+          cc_load_policy: 0,  // 자막 자동 표시 X
         },
         events: {
           onReady: (e: any) => {
