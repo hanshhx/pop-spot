@@ -6,6 +6,7 @@ import { Lock, CheckCircle, Award, Gift } from "lucide-react";
 // 🔥 [수정] API 헬퍼 함수 import
 import { apiFetch } from "../../lib/api";
 import { notify } from "@/lib/notify";
+import { getUserRank } from "@/lib/rank";
 
 // [기존 유지] 백엔드에서 받아올 데이터 형태 정의
 interface StampData {
@@ -45,9 +46,10 @@ export default function PassportView() {
   }, [user]); 
 
   // 진행률 계산 (목표 12개로 설정)
-  const totalCount = 12; 
+  const totalCount = 12;
   const acquiredCount = stamps.length;
   const progress = Math.min((acquiredCount / totalCount) * 100, 100);
+  const rank = getUserRank(acquiredCount);
 
   return (
     <motion.div 
@@ -66,8 +68,16 @@ export default function PassportView() {
             {user ? `${user.nickname}'s COLLECTION` : "SEOUL POP-UP COLLECTION"}
           </p>
         </div>
-        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-lime-400 border-2 border-white flex items-center justify-center text-black font-bold text-lg shadow-[0_0_15px_rgba(var(--primary-rgb),0.5)]">
-          {user ? user.nickname.substring(0, 2).toUpperCase() : "ME"}
+        {/* 아바타 — 획득한 등급에 따라 ring 색이 자동으로 바뀐다 */}
+        <div className="relative">
+          <div className={`w-14 h-14 rounded-full bg-gradient-to-br from-primary to-lime-400 flex items-center justify-center text-black font-bold text-lg shadow-lg ring-4 ${rank.ring} ring-offset-2 ring-offset-surface transition-all`}>
+            {user ? user.nickname.substring(0, 2).toUpperCase() : "ME"}
+          </div>
+          {rank.key !== "NONE" && (
+            <span className={`absolute -bottom-1 -right-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold border-2 border-surface ${rank.accent} text-ink-900`}>
+              {rank.label.replace("팝업 ", "")}
+            </span>
+          )}
         </div>
       </div>
 
