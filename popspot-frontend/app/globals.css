@@ -132,30 +132,25 @@
 
 /*
  * 밝은 라임/크림 계열 배경 위 텍스트 가독성 강제.
- * 다크모드에서 흰색 글씨가 그대로 노출되면 배경에 묻혀 글자 식별 불가.
- * 아래 배경을 가진 요소의 직속 텍스트는 무조건 진한 잉크색으로 표시.
+ * ⚠️ light 모드에서만 적용 — 다크모드에서는 같은 클래스명이 있어도
+ *    실제 배경이 dark:bg-* 로 덮여있어서 글씨를 검정으로 만들면 가려진다.
+ *    그래서 :root:not(.dark) 안에서만 동작하도록 한다.
  */
-.bg-lime-100,
-.bg-lime-200,
-.bg-lime-300,
-.bg-cream-100,
-.bg-cream-200,
-[class*="bg-[#d2f797]"],
-[class*="bg-[#fbffda]"],
-[class*="bg-[#c2f970]"] {
+:root:not(.dark) .bg-lime-100,
+:root:not(.dark) .bg-lime-200,
+:root:not(.dark) .bg-lime-300,
+:root:not(.dark) .bg-cream-100,
+:root:not(.dark) .bg-cream-200,
+:root:not(.dark) [class*="bg-[#d2f797]"],
+:root:not(.dark) [class*="bg-[#fbffda]"],
+:root:not(.dark) [class*="bg-[#c2f970]"] {
   color: var(--color-ink-900);
 }
-/* 위 배경 안의 muted-foreground / white 글씨도 강제로 어둡게 */
-.bg-lime-100 .text-white,
-.bg-lime-200 .text-white,
-.bg-lime-300 .text-white,
-.bg-cream-100 .text-white,
-.bg-cream-200 .text-white,
-.bg-lime-100 .text-muted-foreground,
-.bg-lime-200 .text-muted-foreground,
-.bg-lime-300 .text-muted-foreground,
-.bg-cream-100 .text-muted-foreground,
-.bg-cream-200 .text-muted-foreground {
+:root:not(.dark) .bg-lime-100 .text-white,
+:root:not(.dark) .bg-lime-200 .text-white,
+:root:not(.dark) .bg-lime-300 .text-white,
+:root:not(.dark) .bg-cream-100 .text-white,
+:root:not(.dark) .bg-cream-200 .text-white {
   color: var(--color-ink-700) !important;
 }
 
