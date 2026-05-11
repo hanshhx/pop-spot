@@ -105,13 +105,15 @@
 
 :root.dark {
   --color-background: var(--color-ink-900);
-  --color-foreground: var(--color-cream-200);
+  /* 본문 텍스트가 순수 흰색에 가까우면 눈에 부담이 커서 가독성이 떨어진다.
+     약간 어두운 따뜻한 톤으로 변경해 장시간 봐도 편하게 보이도록 조정. */
+  --color-foreground: #d8d4ca;
   --color-surface: var(--color-ink-700);
-  --color-surface-foreground: var(--color-cream-200);
+  --color-surface-foreground: #d8d4ca;
   --color-muted: var(--color-ink-400);
-  --color-muted-foreground: var(--color-ink-300);
-  --color-border: rgba(245, 243, 238, 0.1);
-  --color-border-strong: rgba(245, 243, 238, 0.2);
+  --color-muted-foreground: #9a958a;
+  --color-border: rgba(245, 243, 238, 0.12);
+  --color-border-strong: rgba(245, 243, 238, 0.22);
 
   --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.5);
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.5), 0 1px 2px rgba(0, 0, 0, 0.4);
@@ -120,6 +122,13 @@
   --shadow-pop: 0 16px 40px rgba(0, 0, 0, 0.7);
   --shadow-glow: 0 0 0 4px rgba(194, 249, 112, 0.4);
 }
+
+/*
+ * 다크모드에서 'text-white' 또는 'dark:text-white' 로 박힌 절대 흰색은
+ * 배경과 대비가 너무 강해서 가독성이 떨어진다. 본문 톤으로 부드럽게 덮어쓴다.
+ * (강조 색상은 text-foreground/색상 변수를 쓰는 곳은 영향 없음)
+ */
+:root.dark body { color-scheme: dark; }
 
 html {
   -webkit-font-smoothing: antialiased;

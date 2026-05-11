@@ -7,6 +7,7 @@ import {
   Flame,
   Loader2,
   Music2,
+  Play,
   Search,
   Sparkles,
   Ticket,
@@ -31,17 +32,17 @@ function useDebounce<T>(value: T, delay = 250) {
 }
 
 /** 카테고리는 프론트에서 정의 — 백엔드는 keyword 만 받아서 검색 수행 */
-const CATEGORIES: { id: string; label: string; keyword: string; emoji: string }[] = [
-  { id: "summer", label: "여름밤", keyword: "summer night", emoji: "🌃" },
-  { id: "rainy", label: "비 오는 날", keyword: "rainy day", emoji: "🌧️" },
-  { id: "study", label: "공부할 때", keyword: "study lofi", emoji: "📚" },
-  { id: "workout", label: "운동", keyword: "workout pump", emoji: "💪" },
-  { id: "drive", label: "드라이브", keyword: "driving korean indie", emoji: "🚗" },
-  { id: "kpop", label: "K-POP", keyword: "k-pop hits", emoji: "🎤" },
-  { id: "indie", label: "한국 인디", keyword: "korean indie", emoji: "🎸" },
-  { id: "ballad", label: "발라드", keyword: "korean ballad", emoji: "💧" },
-  { id: "rnb", label: "R&B", keyword: "korean rnb", emoji: "🌙" },
-  { id: "ost", label: "OST", keyword: "korean drama ost", emoji: "🎬" },
+const CATEGORIES: { id: string; label: string; keyword: string }[] = [
+  { id: "summer", label: "여름밤", keyword: "summer night" },
+  { id: "rainy", label: "비 오는 날", keyword: "rainy day" },
+  { id: "study", label: "공부할 때", keyword: "study lofi" },
+  { id: "workout", label: "운동", keyword: "workout pump" },
+  { id: "drive", label: "드라이브", keyword: "driving korean indie" },
+  { id: "kpop", label: "K-POP", keyword: "k-pop hits" },
+  { id: "indie", label: "한국 인디", keyword: "korean indie" },
+  { id: "ballad", label: "발라드", keyword: "korean ballad" },
+  { id: "rnb", label: "R&B", keyword: "korean rnb" },
+  { id: "ost", label: "OST", keyword: "korean drama ost" },
 ];
 
 /**
@@ -218,7 +219,7 @@ export default function MusicTab() {
     if (showResults) return `검색 "${submittedQuery}"`;
     if (showCategory) {
       const c = CATEGORIES.find((x) => x.id === activeCategory);
-      return c ? `${c.emoji} ${c.label}` : "";
+      return c ? c.label : "";
     }
     return "지금 인기있는 곡";
   }, [showResults, showCategory, submittedQuery, activeCategory]);
@@ -227,14 +228,12 @@ export default function MusicTab() {
     <div className="relative min-h-[80vh] w-full">
       {/* 헤더 */}
       <header className="mb-6">
-        <p className="text-xs font-bold uppercase tracking-[0.4em] text-lime-500/80 dark:text-lime-300/80">
-          Music meets Popups
+        <p className="text-xs font-bold uppercase tracking-[0.3em] text-muted-foreground">
+          POP · MUSIC
         </p>
         <h2 className="mt-2 text-2xl font-black leading-tight tracking-tight text-foreground sm:text-4xl">
-          지금 듣는 노래에 어울리는{" "}
-          <span className="bg-gradient-to-r from-lime-400 to-emerald-400 bg-clip-text text-transparent">
-            팝업스토어
-          </span>
+          듣고 있던 곡으로,{" "}
+          <span className="text-lime-500 dark:text-lime-300">팝업을 골라봐요</span>
         </h2>
       </header>
 
@@ -320,13 +319,12 @@ export default function MusicTab() {
                 key={c.id}
                 type="button"
                 onClick={() => handleCategory(c.id, c.keyword)}
-                className={`flex items-center gap-1.5 rounded-pill border px-3 py-1.5 text-xs font-bold transition ${
+                className={`rounded-pill border px-3.5 py-1.5 text-xs font-bold transition ${
                   active
                     ? "border-lime-400 bg-lime-300 text-ink-900"
                     : "border-[var(--color-border)] bg-cream-200 text-foreground hover:bg-cream-300 dark:bg-ink-800 dark:hover:bg-ink-700"
                 }`}
               >
-                <span>{c.emoji}</span>
                 {c.label}
               </button>
             );
@@ -404,15 +402,15 @@ function TrackCard({
             className="h-full w-full object-cover transition duration-500 group-hover:scale-110"
           />
         ) : (
-          <div className="grid h-full place-items-center text-3xl text-muted-foreground">
-            ♪
+          <div className="grid h-full place-items-center text-muted-foreground">
+            <Music2 className="h-8 w-8" />
           </div>
         )}
 
         <div className="absolute inset-0 flex items-end bg-gradient-to-t from-black/80 to-transparent opacity-0 transition group-hover:opacity-100">
           <div className="flex w-full items-center justify-end p-3">
             <span className="grid h-10 w-10 place-items-center rounded-full bg-lime-300 text-ink-900 shadow-xl">
-              ▶
+              <Play className="ml-0.5 h-4 w-4" fill="currentColor" />
             </span>
           </div>
         </div>
