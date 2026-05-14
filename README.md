@@ -220,15 +220,15 @@
 
 | 버전 | 시기 | 핵심 변화 |
 |:---:|:---:|---|
-| **v1.0** | 2024 가을 | AWS EC2 + 모놀리식. 시크릿 하드코딩 / CORS \* / H2 in-memory (👎 부끄러운 시작) |
-| **v1.1** | 2025 봄 | 🔐 OWASP Top 10 적용 (시크릿 환경변수 · JWT 32B · Rate Limit · BCrypt 12) <br/>🤖 Gemini → **Groq** (200/일 → 14,400/일, 약 72배) |
-| **v1.2** | 2025 5월 | 🏠 GCP → **Proxmox VM** (집 서버, 월 0원) <br/>🔒 nginx + certbot → **Tailscale Funnel** (HTTPS 자동) |
-| **v1.3** | 2026 1~4월 | 🎵 음악 시스템 풀세트 (Spotify + YouTube + 무드 + 글로벌 플레이어) <br/>🕷️ 자동수집 V4 (Naver/Kakao + LLM + confidence 분기) <br/>🏆 등급 시스템 (BEGINNER / HUNTER / MASTER) |
-| **v1.4** | 2026 5월 | 🧹 백엔드 Clean Code 7 Wave (48 파일) <br/>📏 Spotless `googleJavaFormat aosp` <br/>외부 동작 100% 동일, 내부 구조만 정리 |
+| **v1.0** | 2024 가을 | AWS EC2 + 모놀리식. 시크릿 하드코딩 / CORS \* / H2 in-memory |
+| **v1.1** | 2025 봄 |  OWASP Top 10 적용 (시크릿 환경변수 · JWT 32B · Rate Limit · BCrypt 12) <br/> Gemini → **Groq** (200/일 → 14,400/일, 약 72배) |
+| **v1.2** | 2025 5월 |  GCP → **Proxmox VM** (집 서버, 월 0원) <br/> nginx + certbot → **Tailscale Funnel** (HTTPS 자동) |
+| **v1.3** | 2026 1~4월 |  음악 시스템 풀세트 (Spotify + YouTube + 무드 + 글로벌 플레이어) <br/> 자동수집 V4 (Naver/Kakao + LLM + confidence 분기) <br/> 등급 시스템 (BEGINNER / HUNTER / MASTER) |
+| **v1.4** | 2026 5월 |  백엔드 Clean Code 7 Wave (48 파일) <br/> Spotless `googleJavaFormat aosp` <br/>외부 동작 100% 동일, 내부 구조만 정리 |
 
 ---
 
-## 📦 폴더 구조 (백엔드)
+##  폴더 구조 (백엔드)
 
 ```
 popspot-backend/
@@ -261,7 +261,7 @@ popspot-backend/
 
 ---
 
-## 🎯 TODO
+##  TODO
 
 - [ ] iOS / Android 네이티브 (Capacitor 검토)
 - [ ] 팝업 이미지 OCR — 자동수집 정확도 더 올리기
@@ -271,11 +271,11 @@ popspot-backend/
 
 ---
 
-## 👥 만든 사람
+##  만든 사람
 
 **동현** · 디자인 도움 [@hanshhx](https://github.com/hanshhx)
 
-처음엔 학교 캡스톤 과제였는데 어쩌다 보니 여기까지 왔다. 학교 끝나고 카페에서 짬짬이.
+
 
 문의 / 버그 제보는 GitHub Issues 로.
 
