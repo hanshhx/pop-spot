@@ -2,8 +2,8 @@ package com.example.popspotbackend.repository;
 
 // 🔥 [수정] domain -> entity 로 변경
 import com.example.popspotbackend.entity.ChatMessage;
-import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
+import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface ChatRepository extends JpaRepository<ChatMessage, Long> {
     // 1. 특정 방의 채팅 내역 (상세페이지용) - 변경됨 (popupStore.id로 조회)

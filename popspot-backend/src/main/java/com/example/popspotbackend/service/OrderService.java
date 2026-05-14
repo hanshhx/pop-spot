@@ -7,29 +7,35 @@ import com.example.popspotbackend.entity.User;
 import com.example.popspotbackend.repository.GoodsRepository;
 import com.example.popspotbackend.repository.OrderRepository;
 import com.example.popspotbackend.repository.UserRepository;
+import java.time.LocalDateTime;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
-
 /**
- * 결제 처리 — 위변조 방어 강화.
+ * 결제 처리 + 위변조 방어.
  *
- * 변경 사항:
- *   1) 프론트가 보낸 amount 신뢰 X. 아임포트 서버에서 실제 결제 내역 다시 조회.
- *   2) DB 의 상품 가격과 서버 측 결제 금액 비교. 불일치 시 자동 취소 + SecurityException.
- *   3) 결제 상태 paid 만 허용.
- *   4) imp_uid 중복 결제 차단.
- *   5) 인증된 본인의 userId 만 사용. dto 의 userId 는 무시.
- *   6) 테스트 모드(amount=100/0) 우회 로직 제거.
+ * <p>핵심 원칙: 클라이언트가 보낸 금액/유저ID/상품명은 신뢰하지 않는다.
+ *
+ * <ul>
+ *   <li>금액 — 아임포트 서버에서 실시간 재조회 후 DB 가격과 대조, 불일치 시 자동 환불 + SecurityException
+ *   <li>유저 — 인증 컨텍스트의 principal 사용
+ *   <li>상품 — DB 의 Goods row 기반
+ *   <li>중복 — {@code imp_uid} 유니크 체크로 재처리 차단
+ *   <li>상태 — {@code paid} 만 허용
+ * </ul>
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class OrderService {
+
+    private static final String PAYMENT_STATUS_PAID = "paid";
+    private static final String CANCEL_REASON_AMOUNT_MISMATCH = "amount_mismatch";
+
+    private static final int POPPASS_GRANT_DAYS = 30;
 
     private final OrderRepository orderRepository;
     private final UserRepository userRepository;
@@ -38,81 +44,118 @@ public class OrderService {
 
     @Transactional
     public void processOrder(OrderController.OrderDto dto, Authentication authentication) {
-        // ---- 0. 인증된 사용자만 결제 가능 ----
+        String authUserId = requireAuthenticatedUser(authentication);
+        validatePaymentDtoOrThrow(dto);
+        rejectDuplicatePayment(dto.getImpUid());
+
+        Goods goods = findGoodsOrThrow(dto.getGoodsId());
+        IamportService.PaymentInfo payment = verifyPaymentOrThrow(dto.getImpUid(), goods);
+
+        orderRepository.save(buildOrderRecord(authUserId, payment, goods));
+        grantPurchaseEntitlements(authUserId, goods);
+        log.info(
+                "주문 완료 impUid={} userId={} amount={}",
+                payment.impUid(),
+                authUserId,
+                payment.amount());
+    }
+
+    /* ============================== 검증 단계 ============================== */
+
+    private String requireAuthenticatedUser(Authentication authentication) {
         if (authentication == null || authentication.getName() == null) {
             throw new SecurityException("로그인이 필요합니다.");
         }
-        String authUserId = authentication.getName();
+        return authentication.getName();
+    }
 
+    private void validatePaymentDtoOrThrow(OrderController.OrderDto dto) {
         if (dto.getImpUid() == null || dto.getImpUid().isBlank()) {
             throw new IllegalArgumentException("imp_uid 누락");
         }
         if (dto.getGoodsId() == null) {
             throw new IllegalArgumentException("상품 ID 누락");
         }
+    }
 
-        // ---- 1. 중복 결제 차단 ----
-        if (orderRepository.existsByImpUid(dto.getImpUid())) {
+    private void rejectDuplicatePayment(String impUid) {
+        if (orderRepository.existsByImpUid(impUid)) {
             throw new IllegalStateException("이미 처리된 주문입니다.");
         }
+    }
 
-        // ---- 2. 상품 정보 조회 (서버 가격이 진실) ----
-        Goods goods = goodsRepository.findById(dto.getGoodsId())
+    private Goods findGoodsOrThrow(Long goodsId) {
+        return goodsRepository
+                .findById(goodsId)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 상품입니다."));
+    }
 
-        int expectedAmount = goods.getPrice() == null ? 0 : goods.getPrice();
-
-        // ---- 3. 아임포트 서버 실시간 검증 ----
+    private IamportService.PaymentInfo verifyPaymentOrThrow(String impUid, Goods goods) {
         if (!iamportService.isConfigured()) {
             throw new IllegalStateException("결제 검증 모듈이 설정되지 않았습니다. 관리자에게 문의하세요.");
         }
+        IamportService.PaymentInfo payment = iamportService.findPaymentByImpUid(impUid);
 
-        IamportService.PaymentInfo payment = iamportService.findPaymentByImpUid(dto.getImpUid());
-
-        if (!"paid".equals(payment.status())) {
+        if (!PAYMENT_STATUS_PAID.equals(payment.status())) {
             log.warn("결제 상태 비정상 impUid={} status={}", payment.impUid(), payment.status());
             throw new IllegalStateException("결제 상태가 정상이 아닙니다: " + payment.status());
         }
 
+        int expectedAmount = goods.getPrice() == null ? 0 : goods.getPrice();
         if (payment.amount() != expectedAmount) {
-            log.warn("⚠️ 결제 금액 위변조 의심 impUid={} server={} expected={}",
-                    payment.impUid(), payment.amount(), expectedAmount);
-            iamportService.cancelPayment(payment.impUid(), "amount_mismatch", payment.amount());
+            log.warn(
+                    "결제 금액 위변조 의심 impUid={} server={} expected={}",
+                    payment.impUid(),
+                    payment.amount(),
+                    expectedAmount);
+            iamportService.cancelPayment(
+                    payment.impUid(), CANCEL_REASON_AMOUNT_MISMATCH, payment.amount());
             throw new SecurityException("결제 금액 위변조가 감지되어 자동 취소되었습니다.");
         }
+        return payment;
+    }
 
-        // ---- 4. 주문 저장 ----
-        Orders order = Orders.builder()
-                .userId(authUserId)
+    /* ============================== 저장 / 지급 ============================== */
+
+    private Orders buildOrderRecord(
+            String userId, IamportService.PaymentInfo payment, Goods goods) {
+        return Orders.builder()
+                .userId(userId)
                 .impUid(payment.impUid())
                 .merchantUid(payment.merchantUid())
-                .goodsId(dto.getGoodsId())
+                .goodsId(goods.getId())
                 .goodsName(goods.getName())
                 .amount(payment.amount())
                 .build();
-        orderRepository.save(order);
+    }
 
-        // ---- 5. 사용자 권한/아이템 지급 ----
-        User user = userRepository.findById(authUserId)
-                .orElseThrow(() -> new IllegalStateException("유저 없음"));
+    private void grantPurchaseEntitlements(String userId, Goods goods) {
+        User user =
+                userRepository
+                        .findById(userId)
+                        .orElseThrow(() -> new IllegalStateException("유저 없음"));
 
-        String normalizeName = goods.getName() == null
-                ? ""
-                : goods.getName().toUpperCase().replace(" ", "").replace("-", "");
-
-        if (normalizeName.contains("PASS") || normalizeName.contains("멤버십")) {
-            user.extendPremium(30);
-            if (user.getPremiumExpiryDate() == null) {
-                user.setPremiumExpiryDate(LocalDateTime.now().plusDays(30));
-            }
-            user.setPremium(true);
-            log.info("👑 PASS 지급 userId={} expiry={}", authUserId, user.getPremiumExpiryDate());
-        } else if (normalizeName.contains("확성기") || normalizeName.contains("MEGAPHONE")) {
+        String normalized = normalizeGoodsName(goods.getName());
+        if (normalized.contains("PASS") || normalized.contains("멤버십")) {
+            grantPopPass(user, userId);
+        } else if (normalized.contains("확성기") || normalized.contains("MEGAPHONE")) {
             user.addMegaphone(1);
-            log.info("📢 확성기 지급 userId={} count={}", authUserId, user.getMegaphoneCount());
+            log.info("확성기 지급 userId={} count={}", userId, user.getMegaphoneCount());
         }
-
         userRepository.saveAndFlush(user);
-        log.info("✅ 주문 완료 impUid={} userId={} amount={}", payment.impUid(), authUserId, payment.amount());
+    }
+
+    private void grantPopPass(User user, String userId) {
+        user.extendPremium(POPPASS_GRANT_DAYS);
+        if (user.getPremiumExpiryDate() == null) {
+            user.setPremiumExpiryDate(LocalDateTime.now().plusDays(POPPASS_GRANT_DAYS));
+        }
+        user.setPremium(true);
+        log.info("POP-PASS 지급 userId={} expiry={}", userId, user.getPremiumExpiryDate());
+    }
+
+    private String normalizeGoodsName(String name) {
+        if (name == null) return "";
+        return name.toUpperCase().replace(" ", "").replace("-", "");
     }
 }

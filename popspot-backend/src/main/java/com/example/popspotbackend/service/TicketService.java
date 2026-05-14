@@ -1,86 +1,106 @@
 package com.example.popspotbackend.service;
 
-import jakarta.annotation.PreDestroy; // 🔥 [추가] 종료 처리를 위해 필요
+import jakarta.annotation.PreDestroy;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-
+/**
+ * 티켓팅 시뮬레이션 — 봇이 광클하는 환경에서 사용자가 마지막 자리를 잡을 수 있을지 시험한다.
+ *
+ * <p>스레드 풀은 {@value #BOT_THREAD_POOL_SIZE}개로 제한 (저사양 VM 에서 OOM 방지). 봇은 {@value #BOT_COUNT} 마리가 동시에
+ * 클릭하며 매 시도 사이 50~150ms 의 짧은 휴식을 둔다.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class TicketService {
 
-    private final StringRedisTemplate redisTemplate;
+    private static final int BOT_THREAD_POOL_SIZE = 10;
+    private static final int BOT_COUNT = 5;
+    private static final int INITIAL_STOCK = 30;
 
-    // 🔥 [수정 1] 스레드 풀 개수 최적화 (50 -> 10)
-    // 기존 50개는 t2.micro(1GB RAM) 같은 저사양 서버에서 OOM(메모리 부족)을 유발할 수 있습니다.
-    // 10개로 줄여도 봇 5마리 시뮬레이션에는 충분합니다.
-    private final ExecutorService executorService = Executors.newFixedThreadPool(10);
+    private static final long BOT_BASE_DELAY_MS = 50;
+    private static final long BOT_RANDOM_DELAY_MS = 100;
+
+    private static final String STOCK_KEY_PREFIX = "ticket:stock:";
+    private static final String RESULT_SUCCESS = "SUCCESS";
+    private static final String RESULT_FAIL = "FAIL";
+
+    private final StringRedisTemplate redisTemplate;
+    private final ExecutorService executorService =
+            Executors.newFixedThreadPool(BOT_THREAD_POOL_SIZE);
 
     public void resetGame(String itemId) {
-        String key = "ticket:stock:" + itemId;
-        redisTemplate.opsForValue().set(key, "30");
-        log.info("🎟️ [시뮬레이션] {} 리셋 완료. 재고 30개", itemId);
+        redisTemplate.opsForValue().set(stockKey(itemId), String.valueOf(INITIAL_STOCK));
+        log.info("[Ticket] {} 리셋 완료. 재고 {}개", itemId, INITIAL_STOCK);
     }
 
+    /** 봇 {@value #BOT_COUNT} 마리가 동시에 재고를 깎기 시작한다. */
     public void startSimulation(String itemId) {
-        String key = "ticket:stock:" + itemId;
-
-        // 🔥 [기존 로직 유지] 봇 5마리가 동시에 미친듯이 클릭하는 상황 연출
-        for(int i=0; i<5; i++) {
-            executorService.submit(() -> {
-                try {
-                    while (true) {
-                        String currentStockStr = redisTemplate.opsForValue().get(key);
-                        if (currentStockStr == null || Integer.parseInt(currentStockStr) <= 0) break;
-
-                        // 🔥 [기존 로직 유지] 딜레이를 0.05초~0.1초로 극단적으로 줄임
-                        // 거의 1초에 10~20개씩 빠집니다.
-                        Thread.sleep((long) (50 + Math.random() * 100));
-
-                        redisTemplate.opsForValue().decrement(key);
-                        log.info("📉 [봇 광클] 재고 감소!");
-                    }
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                }
-            });
+        String key = stockKey(itemId);
+        for (int i = 0; i < BOT_COUNT; i++) {
+            executorService.submit(() -> runBotLoop(key));
         }
     }
 
-    // (기존 메서드 유지)
     public String attemptReservation(String userId, String itemId) {
-        String key = "ticket:stock:" + itemId;
-        Long stock = redisTemplate.opsForValue().decrement(key);
-
+        Long stock = redisTemplate.opsForValue().decrement(stockKey(itemId));
         if (stock != null && stock >= 0) {
-            log.info("🎉 USER [{}] 최종 성공! (남은 재고: {})", userId, stock);
-            return "SUCCESS";
-        } else {
-            log.info("😭 USER [{}] 최종 실패... (매진)", userId);
-            return "FAIL";
+            log.info("[Ticket] USER {} 성공 (남은 재고: {})", userId, stock);
+            return RESULT_SUCCESS;
         }
+        log.info("[Ticket] USER {} 실패 (매진)", userId);
+        return RESULT_FAIL;
     }
 
     public String getStock(String itemId) {
-        String key = "ticket:stock:" + itemId;
-        return redisTemplate.opsForValue().get(key);
+        return redisTemplate.opsForValue().get(stockKey(itemId));
     }
 
-    // 🔥 [추가] 서버 종료 시 스레드 풀 정리 (메모리 누수 방지)
     @PreDestroy
     public void cleanup() {
-        log.info("TicketService 스레드 풀 안전 종료 중...");
+        log.info("[Ticket] 스레드 풀 안전 종료 중");
         executorService.shutdown();
     }
 
-    // (기존 메서드들 - 사용하지 않는다면 비워둠)
-    public void triggerBots(String itemId, int botCount) { /* ... */ }
-    public String attemptTicket(String userId, String itemId) { return attemptReservation(userId, itemId); }
-    public void resetGame(String itemId, int stock) { resetGame(itemId); }
-    public void triggerClusterBots(String userTargetId, int totalBotCount) { /* ... */ }
+    /* ============================== 내부 헬퍼 ============================== */
+
+    private String stockKey(String itemId) {
+        return STOCK_KEY_PREFIX + itemId;
+    }
+
+    private void runBotLoop(String key) {
+        try {
+            while (true) {
+                String current = redisTemplate.opsForValue().get(key);
+                if (current == null || Integer.parseInt(current) <= 0) break;
+                Thread.sleep((long) (BOT_BASE_DELAY_MS + Math.random() * BOT_RANDOM_DELAY_MS));
+                redisTemplate.opsForValue().decrement(key);
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    /* ============================== 레거시 호환 ============================== */
+
+    public void triggerBots(String itemId, int botCount) {
+        // 사용되지 않지만 외부 호출 호환을 위해 메서드만 유지.
+    }
+
+    public String attemptTicket(String userId, String itemId) {
+        return attemptReservation(userId, itemId);
+    }
+
+    public void resetGame(String itemId, int stock) {
+        resetGame(itemId);
+    }
+
+    public void triggerClusterBots(String userTargetId, int totalBotCount) {
+        // legacy 호환용 no-op.
+    }
 }

@@ -4,6 +4,11 @@ import com.example.popspotbackend.entity.ChatMessage;
 import com.example.popspotbackend.entity.PopupStore;
 import com.example.popspotbackend.repository.ChatRepository;
 import com.example.popspotbackend.repository.PopupStoreRepository;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
@@ -13,72 +18,63 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
+/**
+ * 팝업 상세 페이지의 실시간 채팅 + 메인 페이지 티커.
+ *
+ * <p>STOMP: {@code /pub/chat/message/{popupId}} → {@code /sub/chat/room/{popupId}}. 티커는 최근 10건 중 팝업
+ * 매핑이 살아있는 메시지만 보여준다 (예전 orphan row 회피).
+ */
 @Slf4j
 @RestController
 @RequiredArgsConstructor
 public class ChatController {
 
+    private static final int TICKER_LIMIT = 10;
+
     private final ChatRepository chatRepository;
     private final PopupStoreRepository popupStoreRepository;
 
-    // 1. 실시간 메시지 전송 (🔥 에러 디버깅을 위해 로그/예외처리 추가됨)
     @MessageMapping("/chat/message/{roomId}")
     @SendTo("/sub/chat/room/{roomId}")
     public ChatMessage sendMessage(@DestinationVariable Long roomId, ChatMessageDto dto) {
-
-        // [디버깅] 메시지가 컨트롤러까지 도착했는지 확인하는 로그
-        System.out.println(">>> [채팅 수신] 방 번호(popupId): " + roomId + ", 메시지: " + dto.getMessage());
-
-        try {
-            // DB에서 팝업 정보를 찾습니다. (여기서 에러가 가장 많이 발생함)
-            PopupStore popup = popupStoreRepository.findById(roomId)
-                    .orElseThrow(() -> new RuntimeException("팝업 스토어 ID(" + roomId + ")가 DB에 존재하지 않습니다."));
-
-            ChatMessage chat = new ChatMessage(popup, dto.getSender(), dto.getMessage());
-            return chatRepository.save(chat);
-
-        } catch (Exception e) {
-            // [에러 확인] 어떤 문제인지 빨간 글씨로 콘솔에 출력합니다.
-            System.err.println("❌ [채팅 에러 발생] " + e.getMessage());
-            // 트랜잭션 롤백 등을 위해 에러를 다시 던집니다.
-            throw e;
-        }
+        log.debug("[Chat] roomId={} sender={} 수신", roomId, dto.getSender());
+        PopupStore popup =
+                popupStoreRepository
+                        .findById(roomId)
+                        .orElseThrow(
+                                () ->
+                                        new RuntimeException(
+                                                "팝업 스토어 ID(" + roomId + ")가 DB에 존재하지 않습니다."));
+        return chatRepository.save(new ChatMessage(popup, dto.getSender(), dto.getMessage()));
     }
 
-    // 2. 상세 페이지용 채팅 내역 (기존 로직 유지)
     @GetMapping("/api/chat/history/{roomId}")
     public List<ChatMessage> getChatHistory(@PathVariable Long roomId) {
         return chatRepository.findByPopupStore_IdOrderBySendTimeAsc(roomId);
     }
 
-    // 3. 메인 페이지용 실시간 티커 (기존 로직 유지)
+    /** 메인 페이지 티커. 팝업이 사라진 orphan 메시지는 노출하지 않는다. */
     @GetMapping("/api/chat/ticker")
     public List<Map<String, String>> getRecentChats() {
         List<ChatMessage> recents = chatRepository.findTop10ByOrderBySendTimeDesc();
-
-        List<Map<String, String>> result = new ArrayList<>();
+        List<Map<String, String>> result = new ArrayList<>(TICKER_LIMIT);
         for (ChatMessage msg : recents) {
-            // 팝업 정보가 없는(Null) 옛날 데이터는 건너뜁니다.
-            if (msg.getPopupStore() == null) {
-                continue;
-            }
-
-            Map<String, String> map = new HashMap<>();
-            map.put("popupName", msg.getPopupStore().getName()); // 팝업 이름
-            map.put("popupId", String.valueOf(msg.getPopupStore().getId())); // 링크 이동용 ID
-            map.put("sender", msg.getSender());
-            map.put("message", msg.getMessage());
-            result.add(map);
+            if (msg.getPopupStore() == null) continue;
+            result.add(toTickerEntry(msg));
         }
         return result;
     }
 
-    @lombok.Data
+    private Map<String, String> toTickerEntry(ChatMessage msg) {
+        Map<String, String> entry = new HashMap<>();
+        entry.put("popupName", msg.getPopupStore().getName());
+        entry.put("popupId", String.valueOf(msg.getPopupStore().getId()));
+        entry.put("sender", msg.getSender());
+        entry.put("message", msg.getMessage());
+        return entry;
+    }
+
+    @Data
     public static class ChatMessageDto {
         private String sender;
         private String message;

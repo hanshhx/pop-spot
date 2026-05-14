@@ -1,4 +1,5 @@
 package com.example.popspotbackend.dto;
+
 import lombok.Data;
 
 @Data

@@ -1,29 +1,52 @@
 package com.example.popspotbackend.entity;
 
-import jakarta.persistence.*;
-import lombok.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.SequenceGenerator;
+import jakarta.persistence.Table;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
+/**
+ * 팝업스토어 엔티티 — 수동 등록 / 사용자 제보 / 자동수집(crawled) 모두 같은 테이블에 저장한다.
+ *
+ * <p>자동수집 row 는 {@code sourceType=CRAWLED}, 원본 URL 표시, 외부 ID 해시로 중복 차단, LLM 신뢰도와 {@code
+ * reviewStatus} 로 검수 / 게시 단계를 구분한다. Takedown 신고는 {@code reviewStatus=TAKEDOWN} 으로 즉시 노출 차단 후 admin
+ * 이 처리한다.
+ */
 @Entity
 @Getter
 @Setter
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
 @Table(name = "popup_store")
 public class PopupStore {
 
+    private static final String MAIN_IMAGE_FLAG = "Y";
+    private static final String FALLBACK_IMAGE_URL =
+            "https://images.unsplash.com/photo-1542291026-7eec264c27ff?q=80&w=2070&auto=format&fit=crop";
+
     @Id
-    // 🚨 [핵심 로직] PostgreSQL의 시퀀스 기능을 사용하여 ID 자동 생성
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "popup_store_generator")
     @SequenceGenerator(
             name = "popup_store_generator",
-            sequenceName = "popup_store_seq", // DB에 만든 시퀀스 이름과 일치해야 함
-            allocationSize = 1                // 1씩 증가
-    )
+            sequenceName = "popup_store_seq",
+            allocationSize = 1)
     @Column(name = "popup_id")
     private Long id;
 
@@ -76,34 +99,32 @@ public class PopupStore {
     @Column(name = "reporter_id")
     private String reporterId;
 
+    /** N+1 폭주 방지를 위해 LAZY 로딩. */
     @Builder.Default
-    // 🔥 [임의 수정] 기존 EAGER(즉시 로딩)를 LAZY(지연 로딩)로 변경하여 N+1 쿼리 폭주를 막습니다.
     @OneToMany(fetch = FetchType.LAZY)
     @JoinColumn(name = "popup_id")
     private List<PopupImage> images = new ArrayList<>();
 
-    // ============================================================
-    // [V4] 자동수집/검수/Takedown 필드
-    // ============================================================
-    /** MANUAL / CRAWLED / USER_REPORT */
+    /* ============================== V4 자동수집 / 검수 ============================== */
+
+    /** MANUAL / CRAWLED / USER_REPORT. */
     @Column(name = "source_type", length = 20)
     private String sourceType;
 
-    /** 원본 URL (네이버 블로그, 카카오 웹, 공식 사이트 등) — 저작권법 출처표시 */
+    /** 원본 URL — 저작권법 출처 표시 의무 충족. */
     @Column(name = "source_url", columnDefinition = "TEXT")
     private String sourceUrl;
 
-    /** 출처 이름 (예: "네이버 블로그", "카카오 검색", "공식 사이트") */
     @Column(name = "source_name", length = 100)
     private String sourceName;
 
-    /** 중복 수집 방어용 SHA-256 (name + location + startDate) */
+    /** 중복 수집 방어용 SHA-256 (name + location + startDate). */
     @Column(name = "external_id", length = 64, unique = true)
     private String externalId;
 
-    /** Gemini 정규화 신뢰도 0.00 ~ 1.00 */
+    /** LLM 정규화 신뢰도 0.00 ~ 1.00. */
     @Column(name = "confidence_score", precision = 3, scale = 2)
-    private java.math.BigDecimal confidenceScore;
+    private BigDecimal confidenceScore;
 
     @Column(name = "crawled_at")
     private LocalDateTime crawledAt;
@@ -111,7 +132,7 @@ public class PopupStore {
     @Column(name = "last_seen_at")
     private LocalDateTime lastSeenAt;
 
-    /** AUTO_PUBLISHED / PENDING_REVIEW / APPROVED / REJECTED / TAKEDOWN */
+    /** AUTO_PUBLISHED / PENDING_REVIEW / APPROVED / REJECTED / TAKEDOWN. */
     @Column(name = "review_status", length = 20)
     private String reviewStatus;
 
@@ -124,42 +145,57 @@ public class PopupStore {
     @Column(name = "takedown_requester", length = 255)
     private String takedownRequester;
 
+    /* ============================== 헬퍼 / 비즈니스 메서드 ============================== */
+
+    /** 대표 이미지 URL. main flag 가 있는 row 를 우선하고, 없으면 첫 번째 이미지, 그것도 없으면 fallback. */
     public String getImageUrl() {
-        if (images != null && !images.isEmpty()) {
-            return images.stream()
-                    .filter(img -> "Y".equals(img.getMainYn()))
-                    .findFirst()
-                    .map(PopupImage::getImageUrl)
-                    .orElse(images.get(0).getImageUrl());
-        }
-        return "https://images.unsplash.com/photo-1542291026-7eec264c27ff?q=80&w=2070&auto=format&fit=crop";
+        if (images == null || images.isEmpty()) return FALLBACK_IMAGE_URL;
+        return images.stream()
+                .filter(img -> MAIN_IMAGE_FLAG.equals(img.getMainYn()))
+                .findFirst()
+                .map(PopupImage::getImageUrl)
+                .orElse(images.get(0).getImageUrl());
     }
 
+    /** 외부 API 가 보낸 Map 으로 필드를 부분 업데이트. null 값은 덮어쓰지 않는다. */
     public void updateAllDetails(Map<String, String> data) {
         if (data == null) return;
-        if (data.get("popup_id") != null) this.apiPopupId = data.get("popup_id");
-        if (data.get("partner_id") != null) this.partnerId = data.get("partner_id");
-        if (data.get("name") != null) this.name = data.get("name");
-        if (data.get("content") != null) this.content = data.get("content");
-        if (data.get("description") != null) this.description = data.get("description");
-        if (data.get("category") != null) this.category = data.get("category");
-        if (data.get("start_date") != null) this.startDate = data.get("start_date");
-        if (data.get("end_date") != null) this.endDate = data.get("end_date");
-        if (data.get("location") != null) this.location = data.get("location");
-        if (data.get("latitude") != null) this.latitude = data.get("latitude");
-        if (data.get("longitude") != null) this.longitude = data.get("longitude");
-        if (data.get("is_active") != null) this.isActive = data.get("is_active");
-        if (data.get("status") != null) this.status = data.get("status");
-        if (data.get("views") != null) {
-            try {
-                this.viewCount = Integer.parseInt(data.get("views"));
-            } catch (NumberFormatException e) {}
-        }
+        applyIfPresent(data, "popup_id", v -> this.apiPopupId = v);
+        applyIfPresent(data, "partner_id", v -> this.partnerId = v);
+        applyIfPresent(data, "name", v -> this.name = v);
+        applyIfPresent(data, "content", v -> this.content = v);
+        applyIfPresent(data, "description", v -> this.description = v);
+        applyIfPresent(data, "category", v -> this.category = v);
+        applyIfPresent(data, "start_date", v -> this.startDate = v);
+        applyIfPresent(data, "end_date", v -> this.endDate = v);
+        applyIfPresent(data, "location", v -> this.location = v);
+        applyIfPresent(data, "latitude", v -> this.latitude = v);
+        applyIfPresent(data, "longitude", v -> this.longitude = v);
+        applyIfPresent(data, "is_active", v -> this.isActive = v);
+        applyIfPresent(data, "status", v -> this.status = v);
+        applyIntIfPresent(data, "views", v -> this.viewCount = v);
     }
 
     public void updateDetails(String description, String startDate, String endDate) {
         this.description = description;
         this.startDate = startDate;
         this.endDate = endDate;
+    }
+
+    private void applyIfPresent(
+            Map<String, String> data, String key, java.util.function.Consumer<String> setter) {
+        String value = data.get(key);
+        if (value != null) setter.accept(value);
+    }
+
+    private void applyIntIfPresent(
+            Map<String, String> data, String key, java.util.function.Consumer<Integer> setter) {
+        String value = data.get(key);
+        if (value == null) return;
+        try {
+            setter.accept(Integer.parseInt(value));
+        } catch (NumberFormatException ignore) {
+            // 정수 파싱 실패는 무시 (외부 데이터의 빈 문자열/문자 대응).
+        }
     }
 }

@@ -1,9 +1,9 @@
 package com.example.popspotbackend.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty; // 🔥 이 import 추가!
+import java.time.LocalDateTime;
 import lombok.Builder;
 import lombok.Data;
-import java.time.LocalDateTime;
 
 @Data
 @Builder
@@ -16,7 +16,7 @@ public class MyPageDto {
 
     private LocalDateTime premiumExpiryDate; // 만료일
     private int megaphoneCount; // 확성기 개수
-    private int stampCount;     // 스탬프 개수
-    private int likeCount;      // 찜한 개수
-    private int reviewCount;    // 리뷰 개수
+    private int stampCount; // 스탬프 개수
+    private int likeCount; // 찜한 개수
+    private int reviewCount; // 리뷰 개수
 }

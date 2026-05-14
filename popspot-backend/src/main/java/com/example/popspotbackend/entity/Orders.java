@@ -1,24 +1,38 @@
 package com.example.popspotbackend.entity;
 
-import jakarta.persistence.*;
-import lombok.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.SequenceGenerator;
+import jakarta.persistence.Table;
 import java.time.LocalDateTime;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
+/**
+ * 주문 영수증. {@code impUid} 가 unique 제약으로 중복 결제를 차단한다 (재시도 idempotency).
+ *
+ * <p>PostgreSQL 환경이므로 IDENTITY 대신 SEQUENCE 를 사용한다. 기존 테이블을 유지하면서 안전하게 PK 를 생성할 수 있다.
+ */
 @Entity
-@Getter @Setter
+@Getter
+@Setter
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
 @Table(name = "ORDERS")
 public class Orders {
 
     @Id
-    // 🚨 [에러 해결 포인트] 동현님의 DB는 PostgreSQL입니다!
-    // IDENTITY 방식은 컬럼이 SERIAL 타입일 때만 작동하므로,
-    // 기존 테이블을 유지하면서 가장 안전하게 번호를 생성하는 SEQUENCE 방식으로 수정했습니다.
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "orders_seq_gen")
     @SequenceGenerator(name = "orders_seq_gen", sequenceName = "orders_seq", allocationSize = 1)
-    @Column(name = "ORDER_ID") // DB 컬럼명과 일치시킴
+    @Column(name = "ORDER_ID")
     private Long id;
 
     @Column(name = "USER_ID")

@@ -1,40 +1,46 @@
 package com.example.popspotbackend.controller;
 
 import com.example.popspotbackend.service.TicketService;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
-import java.util.Map;
-
+/**
+ * 티켓팅 시뮬레이션 게임 API.
+ *
+ * <p>{@code /start} 호출 시 재고를 리셋하고 봇들을 비동기로 출발시켜 실제 티켓팅 같은 압박감을 만든다.
+ */
 @RestController
 @RequestMapping("/api/game")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "http://localhost:3000")
 public class GameController {
+
+    private static final String DEFAULT_STOCK_WHEN_MISSING = "0";
 
     private final TicketService ticketService;
 
-    // 1. 시뮬레이션 시작 (사용자가 '시작' 누르면 호출)
-    // 재고를 리셋하고, 봇들을 바로 출발시킵니다. 사용자는 이제 서둘러야 합니다.
     @PostMapping("/start")
     public ResponseEntity<String> startSimulation(@RequestParam String itemId) {
-        ticketService.resetGame(itemId);    // 1. 재고 30개로 리셋
-        ticketService.startSimulation(itemId); // 2. 봇들 출발 (비동기)
+        ticketService.resetGame(itemId);
+        ticketService.startSimulation(itemId);
         return ResponseEntity.ok("START");
     }
 
-    // 2. 최종 예매 요청 (사용자가 모든 단계 끝내고 호출)
     @PostMapping("/reserve")
-    public ResponseEntity<Map<String, String>> reserve(@RequestParam String userId, @RequestParam String itemId) {
+    public ResponseEntity<Map<String, String>> reserve(
+            @RequestParam String userId, @RequestParam String itemId) {
         String result = ticketService.attemptReservation(userId, itemId);
         return ResponseEntity.ok(Map.of("result", result));
     }
 
-    // 3. 실시간 재고 확인
     @GetMapping("/stock")
     public ResponseEntity<String> getStock(@RequestParam String itemId) {
         String stock = ticketService.getStock(itemId);
-        return ResponseEntity.ok(stock != null ? stock : "0");
+        return ResponseEntity.ok(stock != null ? stock : DEFAULT_STOCK_WHEN_MISSING);
     }
 }

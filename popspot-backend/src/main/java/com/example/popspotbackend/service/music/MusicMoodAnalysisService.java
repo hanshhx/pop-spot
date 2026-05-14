@@ -4,37 +4,56 @@ import com.example.popspotbackend.entity.MusicTrack;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.langchain4j.model.chat.ChatLanguageModel;
+import java.util.ArrayList;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.List;
-
 /**
- * 음악 트랙의 분위기 키워드 5개를 Groq AI 로 추출.
- * 추출된 키워드는 popup_store 의 mood/카테고리와 매칭에 사용.
+ * 음악 트랙의 분위기 키워드 5개를 Groq AI 로 추출한다.
+ *
+ * <p>화이트리스트({@link #ALLOWED_MOODS}) 안에서만 키워드를 선택하도록 강제해 같은 분위기가 "여름밤" / "한여름밤" / "여름의 밤" 처럼 변형되어
+ * 매칭이 비결정적이 되는 것을 막는다.
+ *
+ * <p>응답이 JSON 배열이 아니거나 허용되지 않은 키워드면 자동 필터링. 그 결과 빈 리스트가 나올 수 있고, 그 경우 호출 측은 매칭 폴백 로직으로 흘러간다.
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class MusicMoodAnalysisService {
 
+    private static final int MAX_TAGS = 5;
+
+    private static final List<String> ALLOWED_MOODS =
+            List.of(
+                    "청량", "여름", "감성", "빈티지", "레트로", "모던", "시크", "발랄", "차분", "몽환", "로맨틱", "우울",
+                    "에너지", "댄스", "재즈", "어쿠스틱", "힙합", "록", "팝", "전자음", "야경", "햇살", "비오는날", "겨울", "봄",
+                    "가을", "데이트", "혼자", "친구", "파티", "카페", "산책", "드라이브", "감각적", "트렌디", "키치", "키덜트",
+                    "아련", "꿈", "하이틴");
+
     private final ChatLanguageModel chatLanguageModel;
-    private final ObjectMapper mapper = new ObjectMapper();
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
-    private static final List<String> ALLOWED_MOODS = List.of(
-            "청량", "여름", "감성", "빈티지", "레트로", "모던", "시크",
-            "발랄", "차분", "몽환", "로맨틱", "우울", "에너지", "댄스",
-            "재즈", "어쿠스틱", "힙합", "록", "팝", "전자음", "야경",
-            "햇살", "비오는날", "겨울", "봄", "가을", "데이트", "혼자",
-            "친구", "파티", "카페", "산책", "드라이브", "감각적", "트렌디",
-            "키치", "키덜트", "아련", "꿈", "하이틴"
-    );
-
-    /** 곡 정보 → 무드 키워드 5개 추출 (Groq Llama-3.3) */
+    /** 곡 메타데이터를 입력으로 받아 무드 키워드 최대 5개 반환. */
     public List<String> analyze(MusicTrack track) {
-        String prompt = """
+        String prompt = buildPrompt(track);
+
+        try {
+            String response = chatLanguageModel.generate(prompt);
+            return parseMoodTags(response);
+        } catch (Exception e) {
+            log.warn(
+                    "[Mood] Groq 분석 실패: {} - {} → {}",
+                    track.getArtistName(),
+                    track.getTrackName(),
+                    e.toString());
+            return List.of();
+        }
+    }
+
+    private String buildPrompt(MusicTrack track) {
+        return """
                 당신은 음악 분위기 분석가입니다.
                 아래 곡의 분위기를 추출해 한국어 키워드 5개로 답하세요.
 
@@ -48,46 +67,47 @@ public class MusicMoodAnalysisService {
                 - 아티스트: %s
                 - 곡명: %s
                 - 앨범: %s
-                """.formatted(
-                String.join(", ", ALLOWED_MOODS),
-                track.getArtistName(),
-                track.getTrackName(),
-                track.getAlbumName() != null ? track.getAlbumName() : ""
-        );
-
-        try {
-            String response = chatLanguageModel.generate(prompt);
-            return parseMoodTags(response);
-        } catch (Exception e) {
-            log.warn("[Mood] Groq 분석 실패: {} - {} → {}",
-                    track.getArtistName(), track.getTrackName(), e.toString());
-            return List.of();
-        }
+                """
+                .formatted(
+                        String.join(", ", ALLOWED_MOODS),
+                        track.getArtistName(),
+                        track.getTrackName(),
+                        track.getAlbumName() != null ? track.getAlbumName() : "");
     }
 
+    /**
+     * AI 응답에서 JSON 배열을 추출해 화이트리스트 필터링 후 최대 5개 반환. 응답에 잡설이 섞여 있어도 첫 {@code [} 와 마지막 {@code ]} 사이만
+     * 잘라낸다.
+     */
     private List<String> parseMoodTags(String raw) {
-        if (raw == null || raw.isBlank()) return List.of();
+        String json = extractJsonArray(raw);
+        if (json == null) return List.of();
 
-        // JSON 부분만 추출 ([...] 형태)
-        int start = raw.indexOf('[');
-        int end = raw.lastIndexOf(']');
-        if (start < 0 || end <= start) return List.of();
-
-        String json = raw.substring(start, end + 1);
         try {
-            JsonNode arr = mapper.readTree(json);
-            List<String> tags = new ArrayList<>();
-            for (JsonNode n : arr) {
-                String tag = n.asText("").trim();
-                if (!tag.isEmpty() && ALLOWED_MOODS.contains(tag)) {
-                    tags.add(tag);
-                }
-            }
-            // 5개로 제한
-            return tags.stream().limit(5).toList();
+            JsonNode arrayNode = objectMapper.readTree(json);
+            return collectAllowedTags(arrayNode);
         } catch (Exception e) {
             log.debug("[Mood] JSON 파싱 실패: {}", json);
             return List.of();
         }
+    }
+
+    private String extractJsonArray(String raw) {
+        if (raw == null || raw.isBlank()) return null;
+        int start = raw.indexOf('[');
+        int end = raw.lastIndexOf(']');
+        if (start < 0 || end <= start) return null;
+        return raw.substring(start, end + 1);
+    }
+
+    private List<String> collectAllowedTags(JsonNode arrayNode) {
+        List<String> tags = new ArrayList<>();
+        for (JsonNode node : arrayNode) {
+            String tag = node.asText("").trim();
+            if (!tag.isEmpty() && ALLOWED_MOODS.contains(tag)) {
+                tags.add(tag);
+            }
+        }
+        return tags.stream().limit(MAX_TAGS).toList();
     }
 }
