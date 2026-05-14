@@ -58,7 +58,7 @@
 
 <table align="center">
   <tr>
-    <th colspan="6" align="center">💾 Data Layer</th>
+    <th colspan="6" align="center"> Data Layer</th>
   </tr>
   <tr>
     <td width="160" align="center">
@@ -96,7 +96,7 @@
 
 <table align="center">
   <tr>
-    <th colspan="6" align="center">🌍 External APIs</th>
+    <th colspan="6" align="center"> External APIs</th>
   </tr>
   <tr>
     <td width="160" align="center">
@@ -134,23 +134,23 @@
 
 <table align="center">
   <tr>
-    <th colspan="4" align="center">🔐 Backend Internals</th>
+    <th colspan="4" align="center"> Backend Internals</th>
   </tr>
   <tr>
     <td width="220" align="center">
-      <b>🛡️ Security</b><br/>
+      <b> Security</b><br/>
       <sub>JWT (HS256 · 32B+)<br/>OAuth2 (Google · Kakao · Naver)<br/>BCrypt 12 · CORS Allowlist</sub>
     </td>
     <td width="220" align="center">
-      <b>🚦 Rate Limit</b><br/>
+      <b> Rate Limit</b><br/>
       <sub>Bucket4j<br/>로그인 5/min<br/>이메일 5/h</sub>
     </td>
     <td width="220" align="center">
-      <b>⏰ Schedulers</b><br/>
+      <b> Schedulers</b><br/>
       <sub>04:00 · 자동수집<br/>05:00 · 만료 처리</sub>
     </td>
     <td width="220" align="center">
-      <b>🔌 WebSocket</b><br/>
+      <b> WebSocket</b><br/>
       <sub>STOMP<br/>채팅 · 일정 협업</sub>
     </td>
   </tr>
@@ -163,7 +163,7 @@
 <table align="center">
 <tr>
 <td align="center" width="110">
-  <b>⏰ Cron 04:00</b><br/><sub>매일 KST</sub>
+  <b> Cron 04:00</b><br/><sub>매일 KST</sub>
 </td>
 <td align="center">→</td>
 <td align="center" width="170">
@@ -193,7 +193,7 @@
 <table align="center">
 <tr>
 <td align="center" width="130">
-  <b>🎵 곡 클릭</b>
+  <b> 곡 클릭</b>
 </td>
 <td align="center">→</td>
 <td align="center" width="170">
@@ -207,7 +207,7 @@
 </td>
 <td align="center">→</td>
 <td align="center" width="150">
-  <b>🎁 팝업 5개</b><br/><sub>카테고리 매칭</sub>
+  <b> 팝업 5개</b><br/><sub>카테고리 매칭</sub>
 </td>
 </tr>
 </table>
