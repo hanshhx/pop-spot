@@ -3,29 +3,37 @@ package com.example.popspotbackend.service.crawler;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.langchain4j.model.chat.ChatLanguageModel;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDate;
-import java.util.List;
-import java.util.stream.Collectors;
-
 /**
- * 검색 API 결과(snippet 들) → Gemini → 구조화된 NormalizedPopup.
+ * 검색 API 결과(snippet 들)를 LLM 에 넘겨 구조화된 {@link NormalizedPopup} 으로 정규화.
  *
- * 동일 팝업에 대해 여러 출처 snippet 을 한 번에 넣어 정확도를 올림.
- * confidence 점수는 Gemini 가 직접 매김 (필드 완성도/날짜 명확성/장소 명확성).
+ * <p>동일 팝업 후보에 대해 여러 출처 snippet 을 한 번에 넘겨 정확도를 끌어올린다. confidence 점수는 LLM 이 직접 매긴다 (필드 완성도/날짜 명확성/장소
+ * 명확성).
+ *
+ * <p>토큰 절약을 위해 snippet 은 최대 {@link #MAX_SNIPPETS_PER_REQUEST} 개까지만 사용.
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class PopupNormalizationService {
 
-    private final ChatLanguageModel chatLanguageModel;
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private static final int MAX_SNIPPETS_PER_REQUEST = 8;
+    private static final String DEFAULT_CATEGORY = "ETC";
+    private static final String SEOUL_KEYWORD = "서울";
 
-    private static final String PROMPT_TEMPLATE = """
+    private static final String ERROR_EMPTY_SNIPPETS = "EMPTY_SNIPPETS";
+    private static final String ERROR_EMPTY_NAME = "EMPTY_NAME";
+    private static final String ERROR_NOT_IN_SEOUL = "NOT_IN_SEOUL";
+    private static final String ERROR_LLM_PREFIX = "LLM_ERROR: ";
+
+    private static final String PROMPT_TEMPLATE =
+            """
             너는 한국 서울에서 열리는 팝업스토어 정보를 정리하는 어시스턴트야.
             아래 검색 결과 snippet 들을 보고 동일한 팝업스토어 1개에 대한 구조화된 JSON 1개를 출력해.
 
@@ -59,69 +67,117 @@ public class PopupNormalizationService {
             {"name":"○○ 팝업스토어","location":"서울 성동구 성수동","category":"FASHION","startDate":"2026-05-01","endDate":"2026-05-31","description":"○○ 브랜드 신상 컬렉션 팝업","content":"...","confidence":0.85,"error":null}
             """;
 
-    /**
-     * snippet 묶음을 Gemini 에 던져 NormalizedPopup 1개를 받음.
-     */
+    private final ChatLanguageModel chatLanguageModel;
+    private final ObjectMapper objectMapper = new ObjectMapper();
+
+    /** snippet 묶음을 LLM 에 넘겨 NormalizedPopup 1개를 받는다. */
     public NormalizedPopup normalize(List<PopupCrawlSource> snippets) {
         if (snippets == null || snippets.isEmpty()) {
-            return NormalizedPopup.builder()
-                    .confidence(0.0)
-                    .error("EMPTY_SNIPPETS")
-                    .build();
+            return buildErrorResult(ERROR_EMPTY_SNIPPETS);
         }
 
-        String snippetText = snippets.stream()
-                .limit(8)   // 토큰 절약
-                .map(s -> "[" + s.getSourceName() + "] " + safe(s.getTitle()) + " : " + safe(s.getDescription()))
-                .collect(Collectors.joining("\n"));
-
-        String prompt = String.format(PROMPT_TEMPLATE, LocalDate.now(), snippetText);
+        String prompt = buildPrompt(snippets);
 
         try {
             String response = chatLanguageModel.generate(prompt);
-            String clean = response.replaceAll("```json", "")
-                    .replaceAll("```", "")
-                    .trim();
-            JsonNode node = objectMapper.readTree(clean);
-
-            NormalizedPopup result = NormalizedPopup.builder()
-                    .name(node.path("name").asText(""))
-                    .location(node.path("location").asText(""))
-                    .category(node.path("category").asText("ETC"))
-                    .startDate(nullableText(node, "startDate"))
-                    .endDate(nullableText(node, "endDate"))
-                    .description(node.path("description").asText(""))
-                    .content(node.path("content").asText(""))
-                    .confidence(node.path("confidence").asDouble(0.0))
-                    .error(nullableText(node, "error"))
-                    .build();
-
-            // 안전 점검: name 비었으면 강제 0
-            if (result.getName() == null || result.getName().isBlank()) {
-                result.setConfidence(0.0);
-                if (result.getError() == null) result.setError("EMPTY_NAME");
-            }
-            // 서울 외 지역이면 0
-            if (result.getLocation() != null && !result.getLocation().contains("서울")) {
-                result.setConfidence(0.0);
-                if (result.getError() == null) result.setError("NOT_IN_SEOUL");
-            }
-            return result;
-
+            JsonNode jsonNode = parseJsonResponse(response);
+            NormalizedPopup result = parseNormalizedPopup(jsonNode);
+            return applyPostValidations(result);
         } catch (Exception e) {
-            log.error("[PopupNormalizationService] Gemini 호출 실패: {}", e.toString());
-            return NormalizedPopup.builder()
-                    .confidence(0.0)
-                    .error("GEMINI_ERROR: " + e.getMessage())
-                    .build();
+            log.error("[PopupNormalization] LLM 호출 실패: {}", e.toString());
+            return buildErrorResult(ERROR_LLM_PREFIX + e.getMessage());
         }
     }
 
+    /* =========================== 프롬프트 / 파싱 =========================== */
+
+    private String buildPrompt(List<PopupCrawlSource> snippets) {
+        String snippetText = formatSnippetsForPrompt(snippets);
+        return String.format(PROMPT_TEMPLATE, LocalDate.now(), snippetText);
+    }
+
+    private String formatSnippetsForPrompt(List<PopupCrawlSource> snippets) {
+        return snippets.stream()
+                .limit(MAX_SNIPPETS_PER_REQUEST)
+                .map(this::formatSingleSnippet)
+                .collect(Collectors.joining("\n"));
+    }
+
+    private String formatSingleSnippet(PopupCrawlSource snippet) {
+        return "["
+                + snippet.getSourceName()
+                + "] "
+                + safe(snippet.getTitle())
+                + " : "
+                + safe(snippet.getDescription());
+    }
+
+    /** LLM 응답에서 마크다운 코드펜스를 제거한 후 JSON 파싱. */
+    private JsonNode parseJsonResponse(String rawResponse) throws Exception {
+        String cleaned = rawResponse.replaceAll("```json", "").replaceAll("```", "").trim();
+        return objectMapper.readTree(cleaned);
+    }
+
+    private NormalizedPopup parseNormalizedPopup(JsonNode node) {
+        return NormalizedPopup.builder()
+                .name(node.path("name").asText(""))
+                .location(node.path("location").asText(""))
+                .category(node.path("category").asText(DEFAULT_CATEGORY))
+                .startDate(nullableText(node, "startDate"))
+                .endDate(nullableText(node, "endDate"))
+                .description(node.path("description").asText(""))
+                .content(node.path("content").asText(""))
+                .confidence(node.path("confidence").asDouble(0.0))
+                .error(nullableText(node, "error"))
+                .build();
+    }
+
+    /* =========================== 후처리 검증 =========================== */
+
+    /**
+     * LLM 이 confidence 를 잘못 매겼을 경우를 대비한 안전 점검.
+     *
+     * <ul>
+     *   <li>name 이 비어있으면 강제 0.0
+     *   <li>서울 외 지역이면 강제 0.0
+     * </ul>
+     */
+    private NormalizedPopup applyPostValidations(NormalizedPopup result) {
+        if (isNameMissing(result)) {
+            forceRejection(result, ERROR_EMPTY_NAME);
+        }
+        if (isLocationOutsideSeoul(result)) {
+            forceRejection(result, ERROR_NOT_IN_SEOUL);
+        }
+        return result;
+    }
+
+    private boolean isNameMissing(NormalizedPopup result) {
+        return result.getName() == null || result.getName().isBlank();
+    }
+
+    private boolean isLocationOutsideSeoul(NormalizedPopup result) {
+        return result.getLocation() != null && !result.getLocation().contains(SEOUL_KEYWORD);
+    }
+
+    private void forceRejection(NormalizedPopup result, String errorCode) {
+        result.setConfidence(0.0);
+        if (result.getError() == null) {
+            result.setError(errorCode);
+        }
+    }
+
+    /* =========================== 단순 헬퍼 =========================== */
+
+    private NormalizedPopup buildErrorResult(String errorCode) {
+        return NormalizedPopup.builder().confidence(0.0).error(errorCode).build();
+    }
+
     private String nullableText(JsonNode node, String field) {
-        JsonNode v = node.path(field);
-        if (v.isNull() || v.isMissingNode()) return null;
-        String s = v.asText("");
-        return s.isBlank() ? null : s;
+        JsonNode value = node.path(field);
+        if (value.isNull() || value.isMissingNode()) return null;
+        String text = value.asText("");
+        return text.isBlank() ? null : text;
     }
 
     private String safe(String s) {

@@ -1,7 +1,5 @@
 package com.example.popspotbackend.entity;
 
-import com.example.popspotbackend.entity.PopupStore;
-import com.example.popspotbackend.entity.User;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -13,9 +11,11 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Table(name = "WISHLIST", uniqueConstraints = {
-        @UniqueConstraint(columnNames = {"user_id", "popup_store_id"}) // 중복 방지
-})
+@Table(
+        name = "WISHLIST",
+        uniqueConstraints = {
+            @UniqueConstraint(columnNames = {"user_id", "popup_store_id"}) // 중복 방지
+        })
 public class Wishlist {
 
     @Id

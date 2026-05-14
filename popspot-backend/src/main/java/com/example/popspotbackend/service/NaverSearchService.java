@@ -1,13 +1,34 @@
 package com.example.popspotbackend.service;
 
+import java.net.URI;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.*;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
-import java.util.*;
+import org.springframework.web.util.UriComponentsBuilder;
 
+/** 네이버 이미지 / 블로그 검색 API 래퍼. 팝업스토어 페이지의 보조 콘텐츠 생성에 사용된다. */
+@Slf4j
 @Service
 public class NaverSearchService {
+
+    private static final String IMAGE_SEARCH_URL = "https://openapi.naver.com/v1/search/image";
+    private static final String BLOG_SEARCH_URL = "https://openapi.naver.com/v1/search/blog.json";
+
+    private static final int IMAGE_DISPLAY_COUNT = 100;
+    private static final int BLOG_DISPLAY_COUNT = 5;
+    private static final String SORT_BY_SIMILARITY = "sim";
+
+    private static final String QUERY_SUFFIX_POPUP = " 팝업스토어";
+    private static final String QUERY_SUFFIX_REVIEW = " 후기";
 
     @Value("${naver.client.id}")
     private String clientId;
@@ -17,60 +38,64 @@ public class NaverSearchService {
 
     private final RestTemplate restTemplate = new RestTemplate();
 
-    /**
-     * [로직 해석]
-     * 네이버 이미지 검색 API를 호출하여 최대 100개의 이미지 URL을 따옵니다.
-     * display=100 파라미터를 통해 한 번에 대량의 데이터를 요청합니다.
-     */
+    /** 키워드 + "팝업스토어" 로 보강한 이미지 검색. 결과 100건의 원본 링크만 추출해 반환. */
     public List<String> searchPopupImages(String keyword) {
-        // [로직] 검색어에 '팝업스토어'를 붙여 정확도를 높이고 100개를 요청합니다.
-        String url = "https://openapi.naver.com/v1/search/image?query=" + keyword + " 팝업스토어&display=100&sort=sim";
-
-        HttpHeaders headers = new HttpHeaders();
-        headers.set("X-Naver-Client-Id", clientId);
-        headers.set("X-Naver-Client-Secret", clientSecret);
-
-        HttpEntity<String> entity = new HttpEntity<>(headers);
-
+        URI uri =
+                UriComponentsBuilder.fromUriString(IMAGE_SEARCH_URL)
+                        .queryParam("query", keyword + QUERY_SUFFIX_POPUP)
+                        .queryParam("display", IMAGE_DISPLAY_COUNT)
+                        .queryParam("sort", SORT_BY_SIMILARITY)
+                        .build()
+                        .encode()
+                        .toUri();
         try {
-            ResponseEntity<Map> response = restTemplate.exchange(url, HttpMethod.GET, entity, Map.class);
-            List<Map<String, Object>> items = (List<Map<String, Object>>) response.getBody().get("items");
-
-            List<String> imageUrls = new ArrayList<>();
-            if (items != null) {
-                for (Map<String, Object> item : items) {
-                    // [로직] 각 아이템에서 이미지 원본 링크(link)만 뽑아서 리스트에 담습니다.
-                    imageUrls.add((String) item.get("link"));
-                }
+            List<Map<String, Object>> items = fetchItems(uri);
+            List<String> imageUrls = new ArrayList<>(items.size());
+            for (Map<String, Object> item : items) {
+                imageUrls.add((String) item.get("link"));
             }
             return imageUrls;
         } catch (Exception e) {
-            System.err.println("네이버 이미지 API 호출 실패: " + e.getMessage());
+            log.warn("네이버 이미지 API 호출 실패: {}", e.toString());
             return Collections.emptyList();
         }
     }
 
-    /**
-     * [로직 해석]
-     * 블로그 리뷰 텍스트를 수집하는 메서드입니다.
-     */
+    /** 키워드 + "후기" 블로그 검색 결과 description 을 이어붙여 한 덩어리의 텍스트로 반환. */
     public String searchBlogReviews(String keyword) {
-        String url = "https://openapi.naver.com/v1/search/blog.json?query=" + keyword + " 후기&display=5";
+        URI uri =
+                UriComponentsBuilder.fromUriString(BLOG_SEARCH_URL)
+                        .queryParam("query", keyword + QUERY_SUFFIX_REVIEW)
+                        .queryParam("display", BLOG_DISPLAY_COUNT)
+                        .build()
+                        .encode()
+                        .toUri();
+        List<Map<String, Object>> items = fetchItems(uri);
+        StringBuilder sb = new StringBuilder();
+        for (Map<String, Object> item : items) {
+            sb.append(item.get("description")).append(' ');
+        }
+        return sb.toString();
+    }
 
+    /* ============================== 내부 헬퍼 ============================== */
+
+    private List<Map<String, Object>> fetchItems(URI uri) {
+        @SuppressWarnings("rawtypes")
+        ResponseEntity<Map> response =
+                restTemplate.exchange(
+                        uri, HttpMethod.GET, new HttpEntity<>(buildHeaders()), Map.class);
+        if (response.getBody() == null) return Collections.emptyList();
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> items =
+                (List<Map<String, Object>>) response.getBody().get("items");
+        return items != null ? items : Collections.emptyList();
+    }
+
+    private HttpHeaders buildHeaders() {
         HttpHeaders headers = new HttpHeaders();
         headers.set("X-Naver-Client-Id", clientId);
         headers.set("X-Naver-Client-Secret", clientSecret);
-
-        HttpEntity<String> entity = new HttpEntity<>(headers);
-        ResponseEntity<Map> response = restTemplate.exchange(url, HttpMethod.GET, entity, Map.class);
-
-        List<Map<String, Object>> items = (List<Map<String, Object>>) response.getBody().get("items");
-        StringBuilder sb = new StringBuilder();
-        if (items != null) {
-            for (Map<String, Object> item : items) {
-                sb.append(item.get("description")).append(" ");
-            }
-        }
-        return sb.toString();
+        return headers;
     }
 }

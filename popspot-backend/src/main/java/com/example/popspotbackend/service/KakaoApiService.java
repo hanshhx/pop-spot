@@ -1,34 +1,46 @@
 package com.example.popspotbackend.service;
 
+import java.net.URI;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.*;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.util.UriComponentsBuilder;
 
-import java.util.Map;
-
+/** 카카오 Local 키워드 검색 호출 래퍼. 응답 Map 그대로 반환해 호출자가 가공한다. */
 @Service
 @RequiredArgsConstructor
 public class KakaoApiService {
 
+    private static final String KAKAO_LOCAL_URL =
+            "https://dapi.kakao.com/v2/local/search/keyword.json";
+
     @Value("${kakao.api.key}")
     private String kakaoApiKey;
 
-    private final String KAKAO_LOCAL_URL = "https://dapi.kakao.com/v2/local/search/keyword.json";
+    private final RestTemplate restTemplate = new RestTemplate();
 
     public Map<String, Object> searchPopups(String keyword) {
-        RestTemplate restTemplate = new RestTemplate();
+        URI uri =
+                UriComponentsBuilder.fromUriString(KAKAO_LOCAL_URL)
+                        .queryParam("query", keyword)
+                        .build()
+                        .encode()
+                        .toUri();
 
-        // 1. 헤더 설정 (인증)
         HttpHeaders headers = new HttpHeaders();
-        headers.set("Authorization", "KakaoAK " + kakaoApiKey);
-        HttpEntity<String> entity = new HttpEntity<>(headers);
+        headers.set(HttpHeaders.AUTHORIZATION, "KakaoAK " + kakaoApiKey);
 
-        // 2. API 호출
-        String url = KAKAO_LOCAL_URL + "?query=" + keyword;
-        ResponseEntity<Map> response = restTemplate.exchange(url, HttpMethod.GET, entity, Map.class);
-
-        return response.getBody();
+        @SuppressWarnings("rawtypes")
+        ResponseEntity<Map> response =
+                restTemplate.exchange(uri, HttpMethod.GET, new HttpEntity<>(headers), Map.class);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> body = response.getBody();
+        return body;
     }
 }

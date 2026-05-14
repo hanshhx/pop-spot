@@ -1,17 +1,16 @@
 package com.example.popspotbackend.entity;
 
 import jakarta.persistence.*;
+import java.time.LocalDateTime;
 import lombok.*;
 
-import java.time.LocalDateTime;
-
-/**
- * 사용자별 음악 청취 기록 (음악 패스포트용).
- */
+/** 사용자별 음악 청취 기록 (음악 패스포트용). */
 @Entity
 @Table(name = "user_music_history")
-@Getter @Setter
-@NoArgsConstructor @AllArgsConstructor
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
 @Builder
 public class UserMusicHistory {
 

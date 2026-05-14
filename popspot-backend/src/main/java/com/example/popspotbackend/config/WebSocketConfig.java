@@ -1,8 +1,15 @@
 package com.example.popspotbackend.config;
 
+import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import jakarta.annotation.PostConstruct;
+import java.nio.charset.StandardCharsets;
+import java.security.Key;
+import java.util.Arrays;
+import java.util.LinkedHashSet;
+import java.util.Map;
+import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
@@ -16,22 +23,21 @@ import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
 import org.springframework.web.socket.server.HandshakeInterceptor;
 
-import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
-import java.util.LinkedHashSet;
-import java.util.Map;
-import java.util.Set;
-
 /**
- * 변경 사항:
- * - setAllowedOriginPatterns("*") 제거 → 화이트리스트만 허용 (CSRF/도청 방어).
- * - 핸드셰이크 단계에서 JWT 검증 (선택적). 없으면 익명 통과 — 채팅 컨트롤러에서 접근 제어.
- *   (기존 익명 채팅이 동작하므로 호환을 위해 reject 하지 않음. 단 인증된 토큰이 있으면 user 정보를 attributes 에 담아 둠.)
+ * STOMP WebSocket 엔드포인트 설정.
+ *
+ * <p>SecurityConfig 와 동일한 {@code APP_ALLOWED_ORIGINS} 화이트리스트만 허용해 CSRF/도청을 방어한다. 핸드셰이크 단계에서 JWT 가
+ * 있으면 검증해 {@code userId}/{@code role} 을 attributes 에 담아 두고, 없거나 검증이 실패해도 익명 채팅 호환을 위해 통과시킨다 — 인증
+ * 체크는 메시지 발행 단에서 처리.
  */
 @Slf4j
 @Configuration
 @EnableWebSocketMessageBroker
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
+
+    private static final int JWT_SECRET_MIN_BYTES = 32;
+    private static final String BEARER_PREFIX = "Bearer ";
+    private static final String LOCAL_DEV_ORIGIN = "http://localhost:3000";
 
     @Value("${app.frontend.url:http://localhost:3000}")
     private String frontendUrl;
@@ -42,33 +48,33 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     @Value("${jwt.secret:}")
     private String jwtSecret;
 
-    private java.security.Key signingKey;
+    private Key signingKey;
 
     @PostConstruct
     void init() {
-        if (jwtSecret != null && !jwtSecret.isBlank()
-                && jwtSecret.getBytes(StandardCharsets.UTF_8).length >= 32) {
-            this.signingKey = Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
+        if (jwtSecret == null || jwtSecret.isBlank()) return;
+        byte[] keyBytes = jwtSecret.getBytes(StandardCharsets.UTF_8);
+        if (keyBytes.length >= JWT_SECRET_MIN_BYTES) {
+            this.signingKey = Keys.hmacShaKeyFor(keyBytes);
         }
     }
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         String[] origins = parseOrigins();
+        HandshakeInterceptor interceptor = new JwtHandshakeInterceptor();
 
-        // setAllowedOriginPatterns: 와일드카드 허용 (https://*.vercel.app 같은 패턴) + credentials 호환.
-        // SecurityConfig 와 동일 화이트리스트(APP_ALLOWED_ORIGINS) 사용.
         registry.addEndpoint("/ws-stomp")
                 .setAllowedOriginPatterns(origins)
-                .addInterceptors(new JwtHandshakeInterceptor())
+                .addInterceptors(interceptor)
                 .withSockJS();
 
         registry.addEndpoint("/ws-planning")
                 .setAllowedOriginPatterns(origins)
-                .addInterceptors(new JwtHandshakeInterceptor())
+                .addInterceptors(interceptor)
                 .withSockJS();
 
-        log.info("🛡️ WebSocket allowed origin patterns: {}", Arrays.toString(origins));
+        log.info("WebSocket allowed origin patterns: {}", Arrays.toString(origins));
     }
 
     @Override
@@ -88,48 +94,53 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
         if (frontendUrl != null && !frontendUrl.isBlank()) {
             set.add(frontendUrl.trim());
         }
-        set.add("http://localhost:3000");
+        set.add(LOCAL_DEV_ORIGIN);
         return set.toArray(new String[0]);
     }
 
-    /** 핸드셰이크 시 ?token=... 또는 Authorization 헤더의 JWT 를 검증. */
+    /** 핸드셰이크 시 Authorization Bearer 또는 {@code ?token=} 쿼리에서 JWT 를 꺼내 검증. */
     private class JwtHandshakeInterceptor implements HandshakeInterceptor {
         @Override
-        public boolean beforeHandshake(ServerHttpRequest request, ServerHttpResponse response,
-                                       WebSocketHandler wsHandler, Map<String, Object> attributes) {
-            if (signingKey == null) return true; // dev 환경에서 시크릿 미설정 시 통과
-
+        public boolean beforeHandshake(
+                ServerHttpRequest request,
+                ServerHttpResponse response,
+                WebSocketHandler wsHandler,
+                Map<String, Object> attributes) {
+            if (signingKey == null) return true;
             try {
-                String token = null;
-                if (request instanceof ServletServerHttpRequest servletReq) {
-                    String auth = servletReq.getServletRequest().getHeader("Authorization");
-                    if (auth != null && auth.startsWith("Bearer ")) {
-                        token = auth.substring(7);
-                    } else {
-                        // SockJS 는 헤더를 못 보내므로 ?token=... 쿼리 지원
-                        token = servletReq.getServletRequest().getParameter("token");
-                    }
-                }
-
+                String token = extractToken(request);
                 if (token != null && !token.isBlank()) {
-                    var claims = Jwts.parserBuilder()
-                            .setSigningKey(signingKey)
-                            .build()
-                            .parseClaimsJws(token)
-                            .getBody();
+                    Claims claims =
+                            Jwts.parserBuilder()
+                                    .setSigningKey(signingKey)
+                                    .build()
+                                    .parseClaimsJws(token)
+                                    .getBody();
                     attributes.put("userId", claims.getSubject());
                     attributes.put("role", claims.get("role", String.class));
                 }
-                // 토큰이 없거나 검증 실패해도 익명 채팅 호환을 위해 통과 — 메시지 발행 단에서 인증 체크.
-                return true;
             } catch (Exception e) {
                 log.debug("WS handshake JWT 검증 실패: {}", e.getClass().getSimpleName());
-                return true;
             }
+            return true;
         }
 
         @Override
-        public void afterHandshake(ServerHttpRequest request, ServerHttpResponse response,
-                                   WebSocketHandler wsHandler, Exception exception) { /* no-op */ }
+        public void afterHandshake(
+                ServerHttpRequest request,
+                ServerHttpResponse response,
+                WebSocketHandler wsHandler,
+                Exception exception) {
+            // no-op
+        }
+
+        private String extractToken(ServerHttpRequest request) {
+            if (!(request instanceof ServletServerHttpRequest servletReq)) return null;
+            String auth = servletReq.getServletRequest().getHeader("Authorization");
+            if (auth != null && auth.startsWith(BEARER_PREFIX)) {
+                return auth.substring(BEARER_PREFIX.length());
+            }
+            return servletReq.getServletRequest().getParameter("token");
+        }
     }
 }

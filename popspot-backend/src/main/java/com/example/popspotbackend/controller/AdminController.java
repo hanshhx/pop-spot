@@ -5,78 +5,87 @@ import com.example.popspotbackend.entity.PopupStore;
 import com.example.popspotbackend.repository.MatePostRepository;
 import com.example.popspotbackend.repository.PopupStoreRepository;
 import com.example.popspotbackend.service.AdminService;
+import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
-import java.util.Map;
-
+/**
+ * 관리자 운영 콘솔 API.
+ *
+ * <p>클래스 단 {@code @PreAuthorize("hasRole('ADMIN')")} 로 SecurityConfig URL 매칭과 이중 방어를 건다. 라우트 패턴이
+ * 바뀌어도 권한 체크가 누락되지 않도록 하는 안전장치다.
+ */
 @RestController
 @RequestMapping("/api/admin")
 @RequiredArgsConstructor
-// 🔥 [보안 강화] SecurityConfig URL 매칭 + 메서드 단 이중 방어. 라우트 패턴 변경/오타 시에도 안전.
 @PreAuthorize("hasRole('ADMIN')")
 public class AdminController {
 
+    private static final String STATUS_PENDING = "PENDING";
+
     private final PopupStoreRepository popupStoreRepository;
+    private final MatePostRepository matePostRepository;
     private final AdminService adminService;
 
-    // 🔥 [신규 추가] 컨트롤러에서도 메이트 게시글 리스트를 반환하기 위해 주입
-    private final MatePostRepository matePostRepository;
+    /* ============================== 팝업 승인 큐 ============================== */
 
-    // ================= [기존 로직 유지] =================
-
-    // 1. 대기 중(PENDING)인 팝업 목록 불러오기
     @GetMapping("/popups/pending")
     public ResponseEntity<List<PopupStore>> getPendingPopups() {
-        return ResponseEntity.ok(popupStoreRepository.findByStatus("PENDING"));
+        return ResponseEntity.ok(popupStoreRepository.findByStatus(STATUS_PENDING));
     }
 
-    // 2. 관리자 승인 버튼 클릭 시
     @PostMapping("/popups/{id}/approve")
     public ResponseEntity<String> approvePopup(@PathVariable Long id) {
         adminService.approvePopup(id);
         return ResponseEntity.ok("승인 및 보상 지급 완료!");
     }
 
-    // 3. 관리자 거절 버튼 클릭 시
     @DeleteMapping("/popups/{id}/reject")
     public ResponseEntity<String> rejectPopup(@PathVariable Long id) {
         adminService.rejectPopup(id);
         return ResponseEntity.ok("거절(삭제) 완료!");
     }
 
-    // ================= [🔥 신규 관리자 API 추가] =================
+    /* ============================== 대시보드 / 전체 팝업 ============================== */
 
-    // 1. 📊 대시보드 통계 조회
     @GetMapping("/stats")
     public ResponseEntity<Map<String, Object>> getStats() {
         return ResponseEntity.ok(adminService.getAdminStats());
     }
 
-    // 2. 🛑 전체 팝업스토어 조회 및 상태 강제 변경
+    /** 관리자는 PENDING/영업중/종료 구분 없이 모든 팝업을 본다. */
     @GetMapping("/popups/all")
     public ResponseEntity<List<PopupStore>> getAllPopupsForAdmin() {
-        // 관리자는 필터링 없이(PENDING, 영업중, 종료 등) 모든 팝업을 봅니다.
         return ResponseEntity.ok(popupStoreRepository.findAll());
     }
 
     @PatchMapping("/popups/{id}/status")
-    public ResponseEntity<String> changePopupStatus(@PathVariable Long id, @RequestParam String status) {
+    public ResponseEntity<String> changePopupStatus(
+            @PathVariable Long id, @RequestParam String status) {
         adminService.changePopupStatus(id, status);
         return ResponseEntity.ok("상태가 [" + status + "]로 변경되었습니다.");
     }
 
-    // 3. 🎁 유저에게 아이템 수동 지급
+    /* ============================== 보상 / 메이트 운영 ============================== */
+
+    /** 유저 nickname 으로 MEGAPHONE / POPPASS 아이템 수동 지급. */
     @PostMapping("/reward")
     public ResponseEntity<String> giveReward(@RequestBody Map<String, String> request) {
         try {
             String nickname = request.get("nickname");
-            String itemType = request.get("itemType"); // "MEGAPHONE" or "POPPASS"
+            String itemType = request.get("itemType");
             int amount = Integer.parseInt(request.get("amount"));
-
             adminService.giveReward(nickname, itemType, amount);
             return ResponseEntity.ok(nickname + "님에게 보상이 지급되었습니다.");
         } catch (Exception e) {
@@ -84,10 +93,8 @@ public class AdminController {
         }
     }
 
-    // 4. 🧹 전체 메이트 게시글 조회 및 강제 삭제
     @GetMapping("/mate-posts")
     public ResponseEntity<List<MatePost>> getAllMatePosts() {
-        // 최신순 정렬 메서드를 호출하여 관리자 화면에 뿌려줍니다.
         return ResponseEntity.ok(matePostRepository.findAllByOrderByIsMegaphoneDescCreatedAtDesc());
     }
 

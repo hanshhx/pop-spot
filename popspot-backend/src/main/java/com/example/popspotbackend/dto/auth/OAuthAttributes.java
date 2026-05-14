@@ -1,9 +1,8 @@
 package com.example.popspotbackend.dto.auth;
 
+import java.util.Map;
 import lombok.Builder;
 import lombok.Getter;
-
-import java.util.Map;
 
 @Getter
 public class OAuthAttributes {
@@ -15,7 +14,13 @@ public class OAuthAttributes {
     private String provider; // kakao, naver, google
 
     @Builder
-    public OAuthAttributes(Map<String, Object> attributes, String nameAttributeKey, String name, String email, String picture, String provider) {
+    public OAuthAttributes(
+            Map<String, Object> attributes,
+            String nameAttributeKey,
+            String name,
+            String email,
+            String picture,
+            String provider) {
         this.attributes = attributes;
         this.nameAttributeKey = nameAttributeKey;
         this.name = name;
@@ -25,7 +30,8 @@ public class OAuthAttributes {
     }
 
     // 소셜 서비스 구분 (Factory method)
-    public static OAuthAttributes of(String registrationId, String userNameAttributeName, Map<String, Object> attributes) {
+    public static OAuthAttributes of(
+            String registrationId, String userNameAttributeName, Map<String, Object> attributes) {
         if ("naver".equals(registrationId)) {
             return ofNaver("id", attributes);
         }
@@ -35,7 +41,8 @@ public class OAuthAttributes {
         return ofGoogle(userNameAttributeName, attributes);
     }
 
-    private static OAuthAttributes ofGoogle(String userNameAttributeName, Map<String, Object> attributes) {
+    private static OAuthAttributes ofGoogle(
+            String userNameAttributeName, Map<String, Object> attributes) {
         return OAuthAttributes.builder()
                 .name((String) attributes.get("name"))
                 .email((String) attributes.get("email"))
@@ -46,7 +53,8 @@ public class OAuthAttributes {
                 .build();
     }
 
-    private static OAuthAttributes ofKakao(String userNameAttributeName, Map<String, Object> attributes) {
+    private static OAuthAttributes ofKakao(
+            String userNameAttributeName, Map<String, Object> attributes) {
         // 카카오는 구조가 다름: kakao_account 안에 email, profile 등이 있음
         Map<String, Object> kakaoAccount = (Map<String, Object>) attributes.get("kakao_account");
         Map<String, Object> profile = (Map<String, Object>) kakaoAccount.get("profile");
@@ -61,7 +69,8 @@ public class OAuthAttributes {
                 .build();
     }
 
-    private static OAuthAttributes ofNaver(String userNameAttributeName, Map<String, Object> attributes) {
+    private static OAuthAttributes ofNaver(
+            String userNameAttributeName, Map<String, Object> attributes) {
         // 네이버는 response 안에 정보가 있음
         Map<String, Object> response = (Map<String, Object>) attributes.get("response");
 

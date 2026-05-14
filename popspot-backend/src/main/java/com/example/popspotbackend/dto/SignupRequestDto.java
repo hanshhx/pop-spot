@@ -1,12 +1,13 @@
 package com.example.popspotbackend.dto;
 
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
-// 🔥 [임의 수정] 데이터 유효성 검증을 위한 라이브러리 추가
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+// 🔥 [임의 수정] 데이터 유효성 검증을 위한 라이브러리 추가
 
 @Getter
 @Setter
@@ -20,7 +21,8 @@ public class SignupRequestDto {
 
     // 🔥 [14번 임의 수정] 비밀번호 강도 검증 (영문, 숫자, 특수문자 포함 8~20자)
     @NotBlank(message = "비밀번호를 입력해주세요.")
-    @Pattern(regexp = "^(?=.*[A-Za-z])(?=.*\\d)(?=.*[@$!%*#?&])[A-Za-z\\d@$!%*#?&]{8,20}$",
+    @Pattern(
+            regexp = "^(?=.*[A-Za-z])(?=.*\\d)(?=.*[@$!%*#?&])[A-Za-z\\d@$!%*#?&]{8,20}$",
             message = "비밀번호는 8~20자리이며, 영문, 숫자, 특수문자를 반드시 포함해야 합니다.")
     private String password;
 

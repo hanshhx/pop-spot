@@ -2,32 +2,38 @@ package com.example.popspotbackend.service.music;
 
 import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.model.chat.ChatLanguageModel;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-
 /**
- * 한국어 검색어를 Spotify 가 잘 잡는 영문 표기로 변환한다.
+ * 한국어 검색어를 Spotify 가 잘 매칭하는 영문 정식 표기로 변환한다.
  *
- *   "뉴진스"           → "NewJeans"
- *   "잔나비"           → "Jannabi"
- *   "한 페이지가 될 수 있게"   → "DAY6 한 페이지가 될 수 있게"
- *   "벚꽃엔딩"         → "Busker Busker Cherry Blossom Ending"
+ * <p>Spotify 한국 카탈로그가 가수명을 영문으로만 등록한 경우 (예: NewJeans, DAY6), 한국어 입력은 음성학적 매칭 때문에 엉뚱한 곡이 잡힌다. 이 정규화를
+ * 거치면 Spotify 매칭 정확도가 크게 올라간다.
  *
- * Spotify 한국어 매칭이 약한 경우(예: 가수명이 영문으로만 등록된 경우)
- * 이 정규화를 거쳐 영문/혼합 표기로 재검색하면 잘 잡힌다.
+ * <p>같은 입력은 메모리 캐시되어 첫 호출 후 외부 LLM 호출이 발생하지 않는다.
  *
- * 같은 입력은 메모리 캐시되어 같은 검색어 두 번째부터는 외부 호출이 없다.
+ * <pre>
+ *   "뉴진스"                  → "NewJeans"
+ *   "잔나비"                  → "Jannabi"
+ *   "한 페이지가 될 수 있게"  → "DAY6 한 페이지가 될 수 있게"
+ *   "벚꽃엔딩"                → "Busker Busker 벚꽃엔딩"
+ * </pre>
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class MusicQueryNormalizationService {
 
-    private static final String SYSTEM_PROMPT = """
+    private static final int MAX_NORMALIZED_LENGTH = 80;
+    private static final String OUTPUT_PREFIX_FULL = "출력:";
+    private static final String OUTPUT_PREFIX_SPACED = "출력 :";
+
+    private static final String SYSTEM_PROMPT =
+            """
             너는 한국 음악 검색을 위한 표기 변환 도우미다.
             입력 한국어 검색어를 Spotify 에서 매칭이 잘 되는 표기로 바꿔서 답한다.
 
@@ -51,47 +57,63 @@ public class MusicQueryNormalizationService {
             """;
 
     private final ChatLanguageModel chatModel;
-    private final ConcurrentMap<String, String> cache = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, String> normalizationCache = new ConcurrentHashMap<>();
 
-    /**
-     * 정규화된 검색어를 반환. AI 호출이 실패하면 입력을 그대로 돌려준다.
-     */
+    /** AI 호출이 실패하면 입력을 그대로 돌려준다. */
     public String normalize(String raw) {
-        if (raw == null || raw.isBlank()) return raw;
-        String key = raw.trim();
+        if (isBlank(raw)) return raw;
 
-        String cached = cache.get(key);
+        String key = raw.trim();
+        String cached = normalizationCache.get(key);
         if (cached != null) return cached;
 
-        String result = askModel(key);
-        cache.put(key, result);
-        return result;
+        String normalized = requestNormalizationFromModel(key);
+        normalizationCache.put(key, normalized);
+        return normalized;
     }
 
-    private String askModel(String query) {
+    private String requestNormalizationFromModel(String query) {
         try {
             String prompt = SYSTEM_PROMPT + "\n\n입력: " + query + "\n출력:";
-            String raw = chatModel.generate(UserMessage.from(prompt)).content().text();
+            String rawResponse = chatModel.generate(UserMessage.from(prompt)).content().text();
 
-            String cleaned = clean(raw);
-            if (cleaned.isBlank() || cleaned.length() > 80) return query;
-            return cleaned;
+            String cleaned = cleanResponse(rawResponse);
+            return isValidNormalization(cleaned) ? cleaned : query;
         } catch (Exception e) {
             log.warn("[음악 정규화] 실패: {} → {}", query, e.toString());
             return query;
         }
     }
 
-    private String clean(String raw) {
+    /** AI 응답에서 "출력:" 접두어, 따옴표, 줄바꿈, 다중 공백을 제거한다. */
+    private String cleanResponse(String raw) {
         if (raw == null) return "";
-        String s = raw.trim();
-        if (s.startsWith("출력:") || s.startsWith("출력 :")) {
-            s = s.substring(s.indexOf(':') + 1).trim();
+
+        String cleaned = raw.trim();
+        cleaned = stripOutputPrefix(cleaned);
+        cleaned = cleaned.replaceAll("[\"'`]", "");
+        cleaned = cleaned.replaceAll("\\s+", " ").trim();
+        cleaned = firstLineOnly(cleaned);
+        return cleaned;
+    }
+
+    private String stripOutputPrefix(String s) {
+        if (s.startsWith(OUTPUT_PREFIX_FULL) || s.startsWith(OUTPUT_PREFIX_SPACED)) {
+            return s.substring(s.indexOf(':') + 1).trim();
         }
-        s = s.replaceAll("[\"'`]", "");
-        s = s.replaceAll("\\s+", " ").trim();
-        int newline = s.indexOf('\n');
-        if (newline > 0) s = s.substring(0, newline).trim();
         return s;
+    }
+
+    private String firstLineOnly(String s) {
+        int newlineIndex = s.indexOf('\n');
+        return newlineIndex > 0 ? s.substring(0, newlineIndex).trim() : s;
+    }
+
+    private boolean isValidNormalization(String cleaned) {
+        return !cleaned.isBlank() && cleaned.length() <= MAX_NORMALIZED_LENGTH;
+    }
+
+    private boolean isBlank(String s) {
+        return s == null || s.isBlank();
     }
 }

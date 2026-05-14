@@ -3,6 +3,7 @@ package com.example.popspotbackend.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
+import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
@@ -13,23 +14,28 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
-import java.util.Map;
-
 /**
- * 아임포트(PortOne) REST API 직접 호출.
+ * 아임포트(PortOne) REST API 클라이언트.
  *
- * 흐름:
- *   1) getToken()  → access_token 발급 (POST /users/getToken)
- *   2) findPaymentByImpUid(impUid) → 실제 결제 정보 조회 (GET /payments/{imp_uid})
- *   3) cancelPayment(impUid, reason, amount) → 위변조 의심 시 자동 환불
- *
- * 직접 호출하는 이유: jitpack 의존성 없이 가벼운 RestTemplate 호출만으로 충분.
+ * <p>흐름: {@link #getAccessToken()} → {@link #findPaymentByImpUid(String)} 로 실제 결제 정보를 가져오고, 위변조가
+ * 의심되면 {@link #cancelPayment(String, String, int)} 로 즉시 환불한다. jitpack 의존성 없이 RestTemplate 호출만으로 충분해
+ * 직접 호출 방식을 택했다.
  */
 @Slf4j
 @Service
 public class IamportService {
 
-    private static final String BASE = "https://api.iamport.kr";
+    private static final String BASE_URL = "https://api.iamport.kr";
+    private static final String GET_TOKEN_PATH = "/users/getToken";
+    private static final String PAYMENTS_PATH = "/payments/";
+    private static final String CANCEL_PATH = "/payments/cancel";
+
+    private static final String FIELD_CODE = "code";
+    private static final String FIELD_MESSAGE = "message";
+    private static final String FIELD_RESPONSE = "response";
+    private static final int SUCCESS_CODE = 0;
+
+    private static final String DEFAULT_CANCEL_REASON = "auto-cancel";
 
     @Value("${iamport.api-key:}")
     private String apiKey;
@@ -43,105 +49,112 @@ public class IamportService {
     @PostConstruct
     void check() {
         if (apiKey.isBlank() || apiSecret.isBlank()) {
-            log.warn("⚠️ IAMPORT_API_KEY / IAMPORT_API_SECRET 미설정 — 결제 검증이 비활성화됩니다. " +
-                     "운영 배포 전 반드시 설정하세요.");
+            log.warn(
+                    "IAMPORT_API_KEY / IAMPORT_API_SECRET 미설정 — 결제 검증 비활성화. "
+                            + "운영 배포 전 반드시 설정하세요.");
         }
     }
 
-    /** 결제 검증이 가능한 환경인지 (키 존재 여부) */
     public boolean isConfigured() {
         return !apiKey.isBlank() && !apiSecret.isBlank();
     }
 
-    /** access_token 발급 */
+    /* ============================== 토큰 / 조회 / 취소 ============================== */
+
     public String getAccessToken() {
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-
-        Map<String, String> body = Map.of(
-                "imp_key", apiKey,
-                "imp_secret", apiSecret
-        );
-
-        ResponseEntity<String> resp = restTemplate.exchange(
-                BASE + "/users/getToken",
-                HttpMethod.POST,
-                new HttpEntity<>(body, headers),
-                String.class
-        );
-
+        Map<String, String> body = Map.of("imp_key", apiKey, "imp_secret", apiSecret);
+        ResponseEntity<String> resp =
+                restTemplate.exchange(
+                        BASE_URL + GET_TOKEN_PATH,
+                        HttpMethod.POST,
+                        new HttpEntity<>(body, jsonHeaders()),
+                        String.class);
         try {
-            JsonNode root = mapper.readTree(resp.getBody());
-            int code = root.path("code").asInt(-1);
-            if (code != 0) {
-                throw new IllegalStateException("Iamport getToken 실패: " + root.path("message").asText());
-            }
-            return root.path("response").path("access_token").asText();
+            JsonNode root = parseSuccessResponse(resp.getBody(), "getToken");
+            return root.path("access_token").asText();
+        } catch (RuntimeException e) {
+            throw e;
         } catch (Exception e) {
             throw new IllegalStateException("Iamport getToken 응답 파싱 실패", e);
         }
     }
 
-    /** imp_uid 로 실제 결제 정보 조회 — 위변조 방어의 핵심 */
+    /** {@code imp_uid} 로 실제 결제 정보를 조회해 클라이언트가 보낸 값과 대조한다 (위변조 방어 핵심). */
     public PaymentInfo findPaymentByImpUid(String impUid) {
-        String token = getAccessToken();
-        HttpHeaders headers = new HttpHeaders();
-        headers.set("Authorization", token);
-
-        ResponseEntity<String> resp = restTemplate.exchange(
-                BASE + "/payments/" + impUid,
-                HttpMethod.GET,
-                new HttpEntity<>(headers),
-                String.class
-        );
-
+        ResponseEntity<String> resp =
+                restTemplate.exchange(
+                        BASE_URL + PAYMENTS_PATH + impUid,
+                        HttpMethod.GET,
+                        new HttpEntity<>(authHeaders(getAccessToken())),
+                        String.class);
         try {
-            JsonNode root = mapper.readTree(resp.getBody());
-            int code = root.path("code").asInt(-1);
-            if (code != 0) {
-                throw new IllegalStateException("Iamport findPayment 실패: " + root.path("message").asText());
-            }
-            JsonNode r = root.path("response");
+            JsonNode r = parseSuccessResponse(resp.getBody(), "findPayment");
             return new PaymentInfo(
                     r.path("imp_uid").asText(),
                     r.path("merchant_uid").asText(),
                     r.path("status").asText(),
                     r.path("amount").asInt(),
                     r.path("buyer_email").asText(""),
-                    r.path("paid_at").asLong(0)
-            );
+                    r.path("paid_at").asLong(0));
+        } catch (RuntimeException e) {
+            throw e;
         } catch (Exception e) {
             throw new IllegalStateException("Iamport findPayment 응답 파싱 실패", e);
         }
     }
 
-    /** 위변조 의심 시 즉시 환불 */
     public void cancelPayment(String impUid, String reason, int amount) {
-        String token = getAccessToken();
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.set("Authorization", token);
+        HttpHeaders headers = jsonHeaders();
+        headers.set(HttpHeaders.AUTHORIZATION, getAccessToken());
 
-        Map<String, Object> body = Map.of(
-                "imp_uid", impUid,
-                "reason", reason == null ? "auto-cancel" : reason,
-                "amount", amount,
-                "checksum", amount
-        );
-
+        Map<String, Object> body =
+                Map.of(
+                        "imp_uid", impUid,
+                        "reason", reason == null ? DEFAULT_CANCEL_REASON : reason,
+                        "amount", amount,
+                        "checksum", amount);
         try {
-            ResponseEntity<String> resp = restTemplate.exchange(
-                    BASE + "/payments/cancel",
-                    HttpMethod.POST,
-                    new HttpEntity<>(body, headers),
-                    String.class
-            );
-            log.warn("🔁 Iamport 결제 취소 결과 status={} body={}", resp.getStatusCode(), resp.getBody());
+            ResponseEntity<String> resp =
+                    restTemplate.exchange(
+                            BASE_URL + CANCEL_PATH,
+                            HttpMethod.POST,
+                            new HttpEntity<>(body, headers),
+                            String.class);
+            log.warn("Iamport 결제 취소 결과 status={} body={}", resp.getStatusCode(), resp.getBody());
         } catch (Exception e) {
             log.error("Iamport 결제 취소 실패 impUid={}: {}", impUid, e.getMessage());
         }
     }
 
-    public record PaymentInfo(String impUid, String merchantUid, String status, int amount,
-                              String buyerEmail, long paidAtSec) { }
+    /* ============================== 내부 헬퍼 ============================== */
+
+    private HttpHeaders jsonHeaders() {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        return headers;
+    }
+
+    private HttpHeaders authHeaders(String token) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.set(HttpHeaders.AUTHORIZATION, token);
+        return headers;
+    }
+
+    private JsonNode parseSuccessResponse(String body, String operation) throws Exception {
+        JsonNode root = mapper.readTree(body);
+        int code = root.path(FIELD_CODE).asInt(-1);
+        if (code != SUCCESS_CODE) {
+            throw new IllegalStateException(
+                    "Iamport " + operation + " 실패: " + root.path(FIELD_MESSAGE).asText());
+        }
+        return root.path(FIELD_RESPONSE);
+    }
+
+    public record PaymentInfo(
+            String impUid,
+            String merchantUid,
+            String status,
+            int amount,
+            String buyerEmail,
+            long paidAtSec) {}
 }

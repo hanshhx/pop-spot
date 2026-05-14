@@ -1,8 +1,8 @@
 package com.example.popspotbackend.repository;
 
 import com.example.popspotbackend.entity.MyCourse;
-import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
+import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface MyCourseRepository extends JpaRepository<MyCourse, Long> {
 

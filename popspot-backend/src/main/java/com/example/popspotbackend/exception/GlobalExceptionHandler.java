@@ -1,6 +1,9 @@
 package com.example.popspotbackend.exception;
 
 import io.sentry.Sentry;
+import java.time.OffsetDateTime;
+import java.util.HashMap;
+import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -11,65 +14,59 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
-import java.time.OffsetDateTime;
-import java.util.HashMap;
-import java.util.Map;
-
 /**
  * 글로벌 예외 처리.
  *
- * 표준 응답 규격: { status, error, message, timestamp }
- *  - 운영에서 스택트레이스 절대 노출 X
- *  - 5xx 는 사용자에게는 일반화된 메시지만 (Sentry 에서 추적)
- *  - SecurityException → 403, AuthenticationException → 401
+ * <p>표준 응답 규격: {@code { status, error, message, timestamp }}. 운영에서는 스택트레이스를 응답에 절대 노출하지 않으며, 예상치 못한
+ * 5xx 는 일반화된 메시지만 돌려주고 원인은 Sentry 로만 추적한다. {@link SecurityException} 은 403, {@link
+ * AuthenticationException} 은 401.
  */
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    /** 인증 실패 (잘못된 토큰 등) */
+    private static final String MESSAGE_UNAUTHORIZED = "인증이 필요합니다.";
+    private static final String MESSAGE_FORBIDDEN = "접근 권한이 없습니다.";
+    private static final String MESSAGE_NOT_FOUND = "요청한 리소스가 없습니다.";
+    private static final String MESSAGE_INTERNAL = "서버 내부 오류가 발생했습니다. 관리자에게 알림이 전송되었습니다.";
+
     @ExceptionHandler(AuthenticationException.class)
     public ResponseEntity<Map<String, Object>> handleAuthException(AuthenticationException ex) {
-        return body(HttpStatus.UNAUTHORIZED, "Unauthorized", "인증이 필요합니다.");
+        return body(HttpStatus.UNAUTHORIZED, "Unauthorized", MESSAGE_UNAUTHORIZED);
     }
 
     /**
-     * 정적 리소스 없음 (예: 누가 백엔드 도메인 루트(/) 직접 접속).
-     * 백엔드는 API 만 제공하므로 정적 리소스 없는 게 정상 → 조용히 404 반환.
-     * 스택트레이스 안 찍어서 로그 깔끔하게 유지.
+     * 정적 리소스 없음 — 백엔드는 API 만 제공하므로 누가 루트({@code /})로 들어오면 정상적으로 404 를 돌려준다. 스택트레이스는 남기지 않아 로그를 깔끔하게
+     * 유지.
      */
     @ExceptionHandler(NoResourceFoundException.class)
     public ResponseEntity<Map<String, Object>> handleNoResource(NoResourceFoundException ex) {
-        return body(HttpStatus.NOT_FOUND, "Not Found", "요청한 리소스가 없습니다.");
+        return body(HttpStatus.NOT_FOUND, "Not Found", MESSAGE_NOT_FOUND);
     }
 
-    /** 인가 실패 (권한 부족) */
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<Map<String, Object>> handleAccessDenied(AccessDeniedException ex) {
-        return body(HttpStatus.FORBIDDEN, "Forbidden", "접근 권한이 없습니다.");
+        return body(HttpStatus.FORBIDDEN, "Forbidden", MESSAGE_FORBIDDEN);
     }
 
-    /** 보안 위반 (위변조 결제 등) */
+    /** 위변조 결제 등 보안 정책 위반. */
     @ExceptionHandler(SecurityException.class)
     public ResponseEntity<Map<String, Object>> handleSecurity(SecurityException ex) {
-        log.warn("⚠️ SecurityException: {}", ex.getMessage());
+        log.warn("SecurityException: {}", ex.getMessage());
         Sentry.captureException(ex);
         return body(HttpStatus.FORBIDDEN, "Forbidden", ex.getMessage());
     }
 
-    /** 잘못된 요청 데이터 */
     @ExceptionHandler({IllegalArgumentException.class, MethodArgumentNotValidException.class})
     public ResponseEntity<Map<String, Object>> handleBadRequest(Exception ex) {
         return body(HttpStatus.BAD_REQUEST, "Bad Request", ex.getMessage());
     }
 
-    /** 도메인 정책 위반 / 상태 불일치 */
     @ExceptionHandler(IllegalStateException.class)
     public ResponseEntity<Map<String, Object>> handleIllegalState(IllegalStateException ex) {
         return body(HttpStatus.CONFLICT, "Conflict", ex.getMessage());
     }
 
-    /** 비즈니스 로직 중 개발자가 의도적으로 던진 RuntimeException */
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<Map<String, Object>> handleRuntimeExceptions(RuntimeException ex) {
         Sentry.captureException(ex);
@@ -77,13 +74,11 @@ public class GlobalExceptionHandler {
         return body(HttpStatus.BAD_REQUEST, "Bad Request", ex.getMessage());
     }
 
-    /** 예상치 못한 서버 에러 — 응답에 내부 정보 절대 노출 X */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleAllExceptions(Exception ex) {
         Sentry.captureException(ex);
         log.error("UnhandledException: {}", ex.getClass().getName(), ex);
-        return body(HttpStatus.INTERNAL_SERVER_ERROR, "Internal Server Error",
-                "서버 내부 오류가 발생했습니다. 관리자에게 알림이 전송되었습니다.");
+        return body(HttpStatus.INTERNAL_SERVER_ERROR, "Internal Server Error", MESSAGE_INTERNAL);
     }
 
     private ResponseEntity<Map<String, Object>> body(HttpStatus status, String error, String msg) {

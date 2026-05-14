@@ -2,33 +2,30 @@ package com.example.popspotbackend.config;
 
 import dev.langchain4j.model.chat.ChatLanguageModel;
 import dev.langchain4j.model.openai.OpenAiChatModel;
+import java.time.Duration;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 
-import java.time.Duration;
-
 /**
- * LLM 설정 — Groq (OpenAI API 호환) 사용.
+ * LLM 설정 — Groq (OpenAI API 호환) 게이트웨이.
  *
- *  - 무료 한도: 14,400 req/day (Gemini Free 의 ~720배)
- *  - 모델 추천: llama-3.3-70b-versatile (품질) / llama-3.1-8b-instant (속도)
- *  - Endpoint: https://api.groq.com/openai/v1
- *
- *  application.properties 의 groq.* 설정과 환경변수 GROQ_API_KEY 를 사용.
+ * <p>무료 한도 14,400 req/day. 기본 모델은 품질 기준의 {@code llama-3.3-70b-versatile} 이며 속도가 더 필요하면 {@code
+ * llama-3.1-8b-instant} 로 환경변수에서 교체할 수 있다. Endpoint 도 환경변수로 다른 OpenAI 호환 서비스로 바꿀 수 있다.
  */
 @Configuration
 public class AiConfig {
 
+    private static final double DEFAULT_TEMPERATURE = 0.7;
+    private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(60);
+
     @Value("${groq.api-key}")
     private String apiKey;
 
-    /** Groq 모델명. 기본 llama-3.3-70b-versatile (Gemini 2.0-flash 와 비슷한 품질) */
     @Value("${groq.model-name:llama-3.3-70b-versatile}")
     private String modelName;
 
-    /** Groq endpoint (OpenAI 호환). 다른 OpenAI 호환 서비스로 바꿀 수도 있음. */
     @Value("${groq.base-url:https://api.groq.com/openai/v1}")
     private String baseUrl;
 
@@ -39,8 +36,8 @@ public class AiConfig {
                 .baseUrl(baseUrl)
                 .apiKey(apiKey)
                 .modelName(modelName)
-                .temperature(0.7)
-                .timeout(Duration.ofSeconds(60))
+                .temperature(DEFAULT_TEMPERATURE)
+                .timeout(REQUEST_TIMEOUT)
                 .build();
     }
 }

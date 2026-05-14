@@ -3,26 +3,29 @@ package com.example.popspotbackend.controller;
 import com.example.popspotbackend.entity.PopupStore;
 import com.example.popspotbackend.repository.PopupStoreRepository;
 import com.example.popspotbackend.service.crawler.PopupCrawlOrchestrator;
+import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.*;
-
-import java.time.LocalDateTime;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 /**
- * [V4] 자동수집된 팝업 중 신뢰도 < 임계값 인 것들 (PENDING_REVIEW) 을 admin 이 검수.
+ * 자동수집된 팝업 검수 큐 (신뢰도 임계값 미만은 {@code reviewStatus = PENDING_REVIEW}).
  *
- * 기존 AdminController 와 URL 충돌 회피를 위해 /api/admin/popups/crawl 하위에 둠.
- *  - 기존 AdminController: 사용자 제보(status='PENDING') 검수 (수동 입력 데이터)
- *  - 본 컨트롤러: 자동수집(reviewStatus='PENDING_REVIEW') 검수 (Naver/Kakao + Gemini 결과)
- *
- * 모든 엔드포인트 ROLE_ADMIN 만 호출 가능.
+ * <p>기존 {@code AdminController} 는 사용자 제보({@code status = PENDING})를 검수하고, 본 컨트롤러는 자동수집 결과
+ * (Naver/Kakao + LLM)를 검수한다. URL 충돌 방지를 위해 {@code /api/admin/popups/crawl} 하위로 분리되며 모든 엔드포인트는
+ * ROLE_ADMIN 전용.
  */
 @Slf4j
 @RestController
@@ -31,53 +34,53 @@ import java.util.Map;
 @PreAuthorize("hasRole('ADMIN')")
 public class PopupAdminReviewController {
 
+    private static final int DEFAULT_PAGE_SIZE = 50;
+
+    private static final String REVIEW_APPROVED = "APPROVED";
+    private static final String REVIEW_REJECTED = "REJECTED";
+    private static final String RESPONSE_STATUS_DELETED = "DELETED";
+
     private final PopupStoreRepository popupStoreRepository;
     private final PopupCrawlOrchestrator orchestrator;
 
-    /** 자동수집 검수 대기 큐 (신뢰도 < 0.8) */
+    /** 자동수집 검수 대기 큐 (신뢰도 < 임계값). */
     @GetMapping("/pending")
     public ResponseEntity<List<PopupStore>> pending(
-            @RequestParam(defaultValue = "50") int size) {
+            @RequestParam(defaultValue = "" + DEFAULT_PAGE_SIZE) int size) {
         return ResponseEntity.ok(popupStoreRepository.findPendingReview(PageRequest.of(0, size)));
     }
 
-    /** 검수 승인 → 즉시 노출 (자동수집된 검수 대기 row 전용) */
     @PostMapping("/{id}/approve")
     public ResponseEntity<Map<String, Object>> approve(@PathVariable Long id) {
-        PopupStore p = popupStoreRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("팝업 id=" + id + " 없음"));
-        p.setReviewStatus("APPROVED");
-        popupStoreRepository.save(p);
-        log.info("[CrawlReview] APPROVED id={} name={}", id, p.getName());
-        return ResponseEntity.ok(Map.of("status","APPROVED","id",id));
+        PopupStore popup = findOrThrow(id);
+        popup.setReviewStatus(REVIEW_APPROVED);
+        popupStoreRepository.save(popup);
+        log.info("[CrawlReview] APPROVED id={} name={}", id, popup.getName());
+        return ResponseEntity.ok(Map.of("status", REVIEW_APPROVED, "id", id));
     }
 
-    /** 검수 거부 → 영구 비공개 */
     @PostMapping("/{id}/reject")
     public ResponseEntity<Map<String, Object>> reject(@PathVariable Long id) {
-        PopupStore p = popupStoreRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("팝업 id=" + id + " 없음"));
-        p.setReviewStatus("REJECTED");
-        popupStoreRepository.save(p);
-        log.info("[CrawlReview] REJECTED id={} name={}", id, p.getName());
-        return ResponseEntity.ok(Map.of("status","REJECTED","id",id));
+        PopupStore popup = findOrThrow(id);
+        popup.setReviewStatus(REVIEW_REJECTED);
+        popupStoreRepository.save(popup);
+        log.info("[CrawlReview] REJECTED id={} name={}", id, popup.getName());
+        return ResponseEntity.ok(Map.of("status", REVIEW_REJECTED, "id", id));
     }
 
     /**
-     * Takedown 처리 후 영구 삭제 (악성 takedown 방어 위해 admin 만 가능).
-     * - 24시간 내 조치 약관 만족 위해 reviewStatus=TAKEDOWN 으로 즉시 hide 가 우선,
-     *   영구 삭제는 검토 후 별도 호출.
+     * Takedown 영구 삭제. 약관상 24시간 내 노출 차단은 {@code reviewStatus = TAKEDOWN} 으로 우선 처리하고, 본 호출은 검토 후 영구
+     * 삭제 단계에서만 호출한다 (악성 takedown 방어).
      */
     @DeleteMapping("/{id}/permanent")
     public ResponseEntity<Map<String, Object>> permanentDelete(@PathVariable Long id) {
-        PopupStore p = popupStoreRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("팝업 id=" + id + " 없음"));
-        popupStoreRepository.delete(p);
-        log.warn("[CrawlReview] PERMANENT_DELETED id={} name={}", id, p.getName());
-        return ResponseEntity.ok(Map.of("status","DELETED","id",id));
+        PopupStore popup = findOrThrow(id);
+        popupStoreRepository.delete(popup);
+        log.warn("[CrawlReview] PERMANENT_DELETED id={} name={}", id, popup.getName());
+        return ResponseEntity.ok(Map.of("status", RESPONSE_STATUS_DELETED, "id", id));
     }
 
-    /** 수동 크롤 1회 트리거 (운영자 디버깅용) */
+    /** 운영자 디버깅용 수동 크롤 1회 트리거. */
     @PostMapping("/run")
     public ResponseEntity<Map<String, Object>> runCrawlNow() {
         log.info("[CrawlReview] 수동 크롤 트리거됨");
@@ -88,14 +91,16 @@ public class PopupAdminReviewController {
         return ResponseEntity.ok(resp);
     }
 
-    /**
-     * 좌표 누락된 자동수집 row 일괄 geocoding (1회 실행).
-     * 신규 크롤은 자동으로 좌표 채워지지만, 이전에 수집된 row 들은 NULL 임 → 이걸로 backfill.
-     */
+    /** 좌표 누락된 자동수집 row 일괄 geocoding backfill. */
     @PostMapping("/geocode-missing")
     public ResponseEntity<Map<String, Object>> geocodeMissing() {
         log.info("[CrawlReview] geocoding backfill 시작");
-        int filled = orchestrator.geocodeMissing();
-        return ResponseEntity.ok(Map.of("geocoded", filled));
+        return ResponseEntity.ok(Map.of("geocoded", orchestrator.geocodeMissing()));
+    }
+
+    private PopupStore findOrThrow(Long id) {
+        return popupStoreRepository
+                .findById(id)
+                .orElseThrow(() -> new RuntimeException("팝업 id=" + id + " 없음"));
     }
 }
