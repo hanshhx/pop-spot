@@ -4,7 +4,7 @@
 
 성수동 팝업스토어 검색 · 자동수집 · 음악 매칭 서비스
 
-🌐 **[popspot.co.kr](https://popspot.co.kr/)**
+ **[popspot.co.kr](https://popspot.co.kr/)**
 
 [![Java](https://img.shields.io/badge/Java-21-ED8B00?logo=openjdk&logoColor=white)](https://openjdk.org/)
 [![Spring](https://img.shields.io/badge/Spring_Boot-4.0-6DB33F?logo=springboot&logoColor=white)](https://spring.io/)
@@ -17,7 +17,7 @@
 
 ---
 
-## 🏗️ Architecture
+##  Architecture
 
 <table align="center">
   <tr>
@@ -158,7 +158,7 @@
 
 ---
 
-## 🕷️ 자동수집 (V4)
+##  자동수집 (V4)
 
 <table align="center">
 <tr>
@@ -188,7 +188,7 @@
 
 ---
 
-## 🎵 음악 → 팝업 매칭
+##  음악 → 팝업 매칭
 
 <table align="center">
 <tr>
@@ -216,7 +216,7 @@
 
 ---
 
-## 📈 버전별 진화
+##  버전별 진화
 
 | 버전 | 시기 | 핵심 변화 |
 |:---:|:---:|---|
@@ -249,7 +249,7 @@ popspot-backend/
 
 ---
 
-## 🐛 트러블슈팅 (재밌었던 것만)
+##  트러블슈팅 (재밌었던 것만)
 
 | # | 문제 | 해결 |
 |:--:|---|---|
