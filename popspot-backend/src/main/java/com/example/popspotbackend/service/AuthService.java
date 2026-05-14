@@ -1,5 +1,7 @@
 package com.example.popspotbackend.service;
 
+import com.example.popspotbackend.dto.LoginRequestDto;
+import com.example.popspotbackend.dto.LoginResponseDto;
 import com.example.popspotbackend.dto.SignupRequestDto;
 import com.example.popspotbackend.entity.User;
 import com.example.popspotbackend.repository.UserRepository;
@@ -7,43 +9,150 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
 import jakarta.annotation.PostConstruct;
+import java.nio.charset.StandardCharsets;
+import java.security.Key;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.nio.charset.StandardCharsets;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
-
+/**
+ * 로컬 회원 가입 / 로그인 / 비밀번호 재설정 / 이메일 찾기.
+ *
+ * <p>로컬 로그인도 OAuth2SuccessHandler 와 동일 키로 JWT 를 발급한다 (TEMP_TOKEN 폐기). JWT 시크릿은 32 바이트 이상이어야 하며
+ * {@code @PostConstruct} 에서 검증한다.
+ */
 @Service
 @RequiredArgsConstructor
 public class AuthService {
 
+    private static final int JWT_SECRET_MIN_BYTES = 32;
+
+    private static final String ROLE_USER = "USER";
+    private static final String PROVIDER_LOCAL = "LOCAL";
+    private static final String SOCIAL_USER_ERROR_PREFIX = "SOCIAL_USER:";
+
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
-    // 🔑 [V4 fix] 로컬 로그인도 진짜 JWT 발급 (OAuth2SuccessHandler 와 동일 키)
     @Value("${jwt.secret:}")
     private String jwtSecret;
 
     @Value("${jwt.access-token-validity-ms:3600000}")
     private long accessTokenValidityMs;
 
-    private java.security.Key signingKey;
+    private Key signingKey;
 
     @PostConstruct
     void initJwtKey() {
-        if (jwtSecret == null || jwtSecret.isBlank()
-                || jwtSecret.getBytes(StandardCharsets.UTF_8).length < 32) {
-            throw new IllegalStateException("JWT_SECRET 환경변수 누락/짧음 (32B+ 필요)");
+        if (jwtSecret == null
+                || jwtSecret.isBlank()
+                || jwtSecret.getBytes(StandardCharsets.UTF_8).length < JWT_SECRET_MIN_BYTES) {
+            throw new IllegalStateException(
+                    "JWT_SECRET 환경변수 누락/짧음 (" + JWT_SECRET_MIN_BYTES + "B+ 필요)");
         }
         this.signingKey = Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
     }
 
-    /** OAuth2SuccessHandler 와 동일한 형식의 JWT 발급 */
+    /* ============================== 가입 / 로그인 ============================== */
+
+    @Transactional
+    public String signup(SignupRequestDto requestDto) {
+        if (userRepository.existsByEmail(requestDto.getEmail())) {
+            throw new RuntimeException("이미 존재하는 이메일입니다.");
+        }
+        User user =
+                User.builder()
+                        .email(requestDto.getEmail())
+                        .password(passwordEncoder.encode(requestDto.getPassword()))
+                        .nickname(requestDto.getNickname())
+                        .phoneNumber(requestDto.getPhoneNumber())
+                        .role(ROLE_USER)
+                        .provider(PROVIDER_LOCAL)
+                        .build();
+        return userRepository.save(user).getUserId();
+    }
+
+    @Transactional(readOnly = true)
+    public LoginResponseDto login(LoginRequestDto requestDto) {
+        User user = findByEmailOrThrow(requestDto.getEmail());
+        if (!passwordEncoder.matches(requestDto.getPassword(), user.getPassword())) {
+            throw new RuntimeException("비밀번호가 일치하지 않습니다.");
+        }
+        return LoginResponseDto.builder()
+                .userId(user.getUserId())
+                .email(user.getEmail())
+                .nickname(user.getNickname())
+                .role(user.getRole())
+                .isPremium(user.isPremium())
+                .megaphoneCount(user.getMegaphoneCount())
+                .token(issueJwt(user))
+                .build();
+    }
+
+    @Transactional(readOnly = true)
+    public boolean checkEmailExists(String email) {
+        return userRepository.existsByEmail(email);
+    }
+
+    /* ============================== 아이디 / 비밀번호 찾기 ============================== */
+
+    @Transactional(readOnly = true)
+    public String findEmailByPhoneNumber(String phoneNumber) {
+        return userRepository
+                .findByPhoneNumber(phoneNumber)
+                .orElseThrow(() -> new RuntimeException("해당 번호로 가입된 유저가 없습니다."))
+                .getEmail();
+    }
+
+    /** 닉네임 + 전화번호로 이메일 + provider 를 함께 반환 (프론트에서 소셜 여부 안내용). */
+    @Transactional(readOnly = true)
+    public Map<String, String> findEmailByNameAndPhone(String nickname, String phoneNumber) {
+        User user =
+                userRepository
+                        .findByNicknameAndPhoneNumber(nickname, phoneNumber)
+                        .orElseThrow(() -> new RuntimeException("일치하는 회원 정보가 없습니다."));
+        Map<String, String> result = new HashMap<>();
+        result.put("email", user.getEmail());
+        result.put("provider", user.getProvider() == null ? PROVIDER_LOCAL : user.getProvider());
+        return result;
+    }
+
+    /**
+     * 비밀번호 재설정 전 검증. 소셜 가입 사용자는 비밀번호가 존재하지 않으므로 차단하고 {@code SOCIAL_USER:<provider>} 형태의 에러로 컨트롤러에
+     * 전달해 프론트가 안내 메시지를 띄울 수 있게 한다.
+     */
+    @Transactional(readOnly = true)
+    public void checkUserForPasswordReset(String email, String nickname) {
+        User user = findByEmailOrThrow(email);
+        if (!user.getNickname().equals(nickname)) {
+            throw new RuntimeException("이름이 일치하지 않습니다.");
+        }
+        String provider = user.getProvider();
+        if (provider != null && !PROVIDER_LOCAL.equals(provider) && !"null".equals(provider)) {
+            throw new RuntimeException(SOCIAL_USER_ERROR_PREFIX + provider);
+        }
+    }
+
+    @Transactional
+    public void updatePassword(String email, String newPassword) {
+        User user = findByEmailOrThrow(email);
+        user.changePassword(passwordEncoder.encode(newPassword));
+    }
+
+    /* ============================== 내부 헬퍼 ============================== */
+
+    private User findByEmailOrThrow(String email) {
+        return userRepository
+                .findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("가입되지 않은 이메일입니다."));
+    }
+
+    /** OAuth2SuccessHandler 와 동일한 형식의 JWT 발급. */
     private String issueJwt(User user) {
         return Jwts.builder()
                 .setSubject(user.getUserId())
@@ -52,111 +161,5 @@ public class AuthService {
                 .setExpiration(new Date(System.currentTimeMillis() + accessTokenValidityMs))
                 .signWith(signingKey, SignatureAlgorithm.HS256)
                 .compact();
-    }
-
-    // ================= [기존 코드 유지] =================
-
-    @Transactional
-    public String signup(SignupRequestDto requestDto) {
-        if (userRepository.existsByEmail(requestDto.getEmail())) {
-            throw new RuntimeException("이미 존재하는 이메일입니다.");
-        }
-
-        User user = User.builder()
-                .email(requestDto.getEmail())
-                .password(passwordEncoder.encode(requestDto.getPassword()))
-                .nickname(requestDto.getNickname())
-                .phoneNumber(requestDto.getPhoneNumber())
-                .role("USER")
-                .provider("LOCAL")
-                .build();
-
-        return userRepository.save(user).getUserId();
-    }
-
-    @Transactional(readOnly = true)
-    public String findEmailByPhoneNumber(String phoneNumber) {
-        User user = userRepository.findByPhoneNumber(phoneNumber)
-                .orElseThrow(() -> new RuntimeException("해당 번호로 가입된 유저가 없습니다."));
-
-        return user.getEmail();
-    }
-
-    @Transactional
-    public void updatePassword(String email, String newPassword) {
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("해당 이메일의 유저가 없습니다."));
-
-        String encodedPassword = passwordEncoder.encode(newPassword);
-        user.changePassword(encodedPassword);
-    }
-
-    @Transactional(readOnly = true)
-    public com.example.popspotbackend.dto.LoginResponseDto login(com.example.popspotbackend.dto.LoginRequestDto requestDto) {
-        User user = userRepository.findByEmail(requestDto.getEmail())
-                .orElseThrow(() -> new RuntimeException("가입되지 않은 이메일입니다."));
-
-        if (!passwordEncoder.matches(requestDto.getPassword(), user.getPassword())) {
-            throw new RuntimeException("비밀번호가 일치하지 않습니다.");
-        }
-
-        return com.example.popspotbackend.dto.LoginResponseDto.builder()
-                .userId(user.getUserId())
-                .email(user.getEmail())
-                .nickname(user.getNickname())
-                .role(user.getRole())
-                .isPremium(user.isPremium())
-                .megaphoneCount(user.getMegaphoneCount())
-                // 🔑 [V4 fix] TEMP_TOKEN 제거 — OAuth2SuccessHandler 와 동일한 JWT 발급
-                .token(issueJwt(user))
-                .build();
-    }
-
-    // 이메일 존재 여부 확인
-    @Transactional(readOnly = true)
-    public boolean checkEmailExists(String email) {
-        return userRepository.existsByEmail(email);
-    }
-
-    // ================= [🔥 새로 추가된 메서드] =================
-
-    /**
-     * [추가 1] 아이디 찾기 (이름 + 전화번호)
-     * 반환값: 이메일뿐만 아니라 가입 경로(provider)도 같이 반환하여 프론트에서 소셜 여부를 알려줌
-     */
-    @Transactional(readOnly = true)
-    public Map<String, String> findEmailByNameAndPhone(String nickname, String phoneNumber) {
-        // UserRepository에 findByNicknameAndPhoneNumber 메서드가 필요합니다.
-        User user = userRepository.findByNicknameAndPhoneNumber(nickname, phoneNumber)
-                .orElseThrow(() -> new RuntimeException("일치하는 회원 정보가 없습니다."));
-
-        Map<String, String> result = new HashMap<>();
-        result.put("email", user.getEmail());
-        // provider가 null이면 "LOCAL"로 간주
-        result.put("provider", user.getProvider() == null ? "LOCAL" : user.getProvider());
-
-        return result;
-    }
-
-    /**
-     * [추가 2] 비밀번호 찾기 전 검증 (이메일 + 이름 + 소셜 여부 체크)
-     * 소셜 로그인 유저라면 비밀번호 변경을 막기 위해 에러를 발생시킵니다.
-     */
-    @Transactional(readOnly = true)
-    public void checkUserForPasswordReset(String email, String nickname) {
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("가입된 이메일이 아닙니다."));
-
-        // 이름 일치 확인
-        if (!user.getNickname().equals(nickname)) {
-            throw new RuntimeException("이름이 일치하지 않습니다.");
-        }
-
-        // 🔥 소셜 로그인 유저 차단 로직
-        String provider = user.getProvider();
-        if (provider != null && !provider.equals("LOCAL") && !provider.equals("null")) {
-            // 컨트롤러에서 잡아서 프론트에 알려줄 수 있도록 특수 메시지 전송
-            throw new RuntimeException("SOCIAL_USER:" + provider);
-        }
     }
 }

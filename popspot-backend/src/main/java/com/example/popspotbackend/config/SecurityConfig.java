@@ -1,6 +1,11 @@
 package com.example.popspotbackend.config;
 
 import com.example.popspotbackend.service.CustomOAuth2UserService;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -20,21 +25,12 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.CorsUtils;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Set;
-
 /**
- * 보안 설정.
+ * Spring Security 설정.
  *
- * 핵심 변경:
- * - CORS: 와일드카드 X. 환경변수 APP_ALLOWED_ORIGINS 화이트리스트만 허용.
- * - 세션: STATELESS (JWT 토큰만 신뢰).
- * - @EnableMethodSecurity: 컨트롤러 @PreAuthorize 활성화.
- * - BCrypt strength: 12.
- * - /actuator: ADMIN 전용. health 만 외부 공개.
+ * <p>요약: CORS 는 와일드카드 단독을 금지하고 {@code APP_ALLOWED_ORIGINS} 화이트리스트만 허용한다. 세션은 STATELESS (JWT 만 신뢰),
+ * 메서드 단 {@code @PreAuthorize} 활성화, BCrypt strength 12, {@code /actuator/**} 는 ADMIN 전용이고 {@code
+ * /actuator/health} 만 외부 공개한다.
  */
 @Slf4j
 @Configuration
@@ -43,6 +39,37 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class SecurityConfig {
 
+    private static final int BCRYPT_STRENGTH = 12;
+    private static final String LOCAL_DEV_ORIGIN = "http://localhost:3000";
+    private static final long CORS_MAX_AGE_SECONDS = 3600L;
+
+    private static final List<String> ALLOWED_METHODS =
+            List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH", "HEAD");
+    private static final List<String> ALLOWED_HEADERS =
+            List.of(
+                    "Authorization",
+                    "Content-Type",
+                    "Accept",
+                    "Origin",
+                    "X-Requested-With",
+                    "Cache-Control",
+                    "X-XSRF-TOKEN");
+    private static final List<String> EXPOSED_HEADERS =
+            List.of("Authorization", "Content-Disposition");
+
+    private static final String[] PUBLIC_PATHS = {
+        "/",
+        "/api/**",
+        "/login/**",
+        "/oauth2/**",
+        "/signup/**",
+        "/error",
+        "/favicon.ico",
+        "/ws-stomp/**",
+        "/ws-planning/**",
+        "/uploads/**"
+    };
+
     private final CustomOAuth2UserService customOAuth2UserService;
     private final OAuth2SuccessHandler oAuth2SuccessHandler;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
@@ -50,76 +77,71 @@ public class SecurityConfig {
     @Value("${app.frontend.url:http://localhost:3000}")
     private String frontendUrl;
 
-    /** 쉼표로 구분된 화이트리스트. 운영에서는 .env 의 APP_ALLOWED_ORIGINS 로 주입. */
+    /** 쉼표 구분 화이트리스트. 운영에서는 .env 의 {@code APP_ALLOWED_ORIGINS} 로 주입. */
     @Value("${app.allowed-origins:http://localhost:3000}")
     private String allowedOriginsRaw;
 
     @Bean
     public PasswordEncoder passwordEncoder() {
-        // BCrypt strength=12 (기본 10보다 약 4배 느려 brute-force 방어)
-        return new BCryptPasswordEncoder(12);
+        return new BCryptPasswordEncoder(BCRYPT_STRENGTH);
     }
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        http
-                .csrf(AbstractHttpConfigurer::disable)
+        http.csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
-
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(CorsUtils::isPreFlightRequest).permitAll()
-
-                        // health 만 외부 공개 (probe/loadbalancer 용)
-                        .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
-
-                        // 1️⃣ 관리자 / 모니터링
-                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                        .requestMatchers("/actuator/**").hasRole("ADMIN")
-
-                        // 2️⃣ 일반 허용 (구체적인 보안은 메서드 단 @PreAuthorize 로)
-                        .requestMatchers(
-                                "/", "/api/**", "/login/**", "/oauth2/**", "/signup/**",
-                                "/error", "/favicon.ico", "/ws-stomp/**", "/ws-planning/**", "/uploads/**"
-                        ).permitAll()
-
-                        // 3️⃣ 그 외는 인증 필요
-                        .anyRequest().authenticated()
-                )
-                .oauth2Login(oauth2 -> oauth2
-                        .userInfoEndpoint(userInfo -> userInfo.userService(customOAuth2UserService))
-                        .successHandler(oAuth2SuccessHandler)
-                        .failureUrl((frontendUrl == null || frontendUrl.isEmpty() ? "" : frontendUrl) + "/login?error")
-                );
+                .addFilterBefore(
+                        jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                .authorizeHttpRequests(
+                        auth ->
+                                auth.requestMatchers(CorsUtils::isPreFlightRequest)
+                                        .permitAll()
+                                        .requestMatchers("/actuator/health", "/actuator/health/**")
+                                        .permitAll()
+                                        .requestMatchers("/api/admin/**")
+                                        .hasRole("ADMIN")
+                                        .requestMatchers("/actuator/**")
+                                        .hasRole("ADMIN")
+                                        .requestMatchers(PUBLIC_PATHS)
+                                        .permitAll()
+                                        .anyRequest()
+                                        .authenticated())
+                .oauth2Login(
+                        oauth2 ->
+                                oauth2.userInfoEndpoint(
+                                                userInfo ->
+                                                        userInfo.userService(
+                                                                customOAuth2UserService))
+                                        .successHandler(oAuth2SuccessHandler)
+                                        .failureUrl(buildOAuthFailureUrl()));
         return http.build();
     }
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         List<String> origins = parseOrigins(allowedOriginsRaw, frontendUrl);
-        log.info("🛡️ CORS allowed origins: {}", origins);
+        log.info("CORS allowed origins: {}", origins);
 
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowCredentials(true);
-        // setAllowedOriginPatterns: 와일드카드 허용 (https://*.vercel.app 같은 패턴) + credentials 호환.
-        // 환경변수 APP_ALLOWED_ORIGINS 에 정확 매칭 도메인과 패턴을 같이 적을 수 있다.
-        // ⚠️ 절대 단독 "*" 만 두지 말 것. 반드시 도메인 한정 패턴 사용.
         config.setAllowedOriginPatterns(origins);
-        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH", "HEAD"));
-        config.setAllowedHeaders(List.of(
-                "Authorization", "Content-Type", "Accept", "Origin",
-                "X-Requested-With", "Cache-Control", "X-XSRF-TOKEN"
-        ));
-        config.setExposedHeaders(List.of("Authorization", "Content-Disposition"));
-        config.setMaxAge(3600L);
+        config.setAllowedMethods(ALLOWED_METHODS);
+        config.setAllowedHeaders(ALLOWED_HEADERS);
+        config.setExposedHeaders(EXPOSED_HEADERS);
+        config.setMaxAge(CORS_MAX_AGE_SECONDS);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
         return source;
     }
 
+    private String buildOAuthFailureUrl() {
+        String prefix = (frontendUrl == null || frontendUrl.isEmpty()) ? "" : frontendUrl;
+        return prefix + "/login?error";
+    }
+
+    /** 쉼표 구분 문자열을 origin 리스트로 변환. fallback URL 과 로컬 개발 origin 을 항상 포함시켜 빠뜨림을 방지한다. */
     private List<String> parseOrigins(String raw, String fallback) {
         Set<String> set = new LinkedHashSet<>();
         if (raw != null && !raw.isBlank()) {
@@ -131,8 +153,7 @@ public class SecurityConfig {
         if (fallback != null && !fallback.isBlank()) {
             set.add(fallback.trim());
         }
-        // 로컬 개발 보장
-        set.add("http://localhost:3000");
+        set.add(LOCAL_DEV_ORIGIN);
         return new ArrayList<>(set);
     }
 }

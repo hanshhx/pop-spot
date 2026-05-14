@@ -2,91 +2,79 @@ package com.example.popspotbackend.service.music;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
+import java.util.Locale;
+import lombok.Builder;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
-import java.util.Locale;
-
 /**
- * YouTube Data API v3 — 공식 음원 영상 ID 검색.
+ * YouTube Data API v3 — 영상 ID 검색.
  *
- * 공식 음원 우선 채널:
- *  - "*** - Topic"  (자동 생성 아티스트 채널)
- *  - "*** VEVO"
- *  - 채널명에 "Official" 포함
- *  - 채널명이 아티스트명과 동일
+ * <p>두 가지 검색 경로:
  *
- * Quota 비용: search.list = 100 unit / 1회. 일일 10,000 unit 무료.
+ * <ul>
+ *   <li>{@link #searchOfficialAudio} — Spotify 메타데이터로 곡 ID 매칭 (주 경로)
+ *   <li>{@link #searchMusicOnly} — Spotify 가 못 찾는 한국 인디 곡용 폴백
+ * </ul>
+ *
+ * <p>quota 비용: search.list = 100 unit/회. 일일 10,000 unit 무료. 403(quotaExceeded) 응답을 받으면 12시간 동안 호출을
+ * 자동 차단해 로그 폭격을 막는다.
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class YouTubeMusicSearchService {
 
+    private static final String SEARCH_URL = "https://www.googleapis.com/youtube/v3/search";
+    private static final int SEARCH_RESULT_LIMIT = 10;
+    private static final int QUOTA_BLOCK_HOURS = 12;
+    private static final String MUSIC_CATEGORY_ID = "10";
+    private static final String FALLBACK_QUERY_SUFFIX = " 노래";
+
     private final RestTemplate restTemplate = new RestTemplate();
-    private final ObjectMapper mapper = new ObjectMapper();
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Value("${youtube.api-key:}")
     private String apiKey;
 
+    /** quota 초과 감지 시 호출을 차단하는 만료 시각. 서버 메모리에만 유지되며 백엔드 재시작 시 초기화된다. */
+    private volatile LocalDateTime quotaExhaustedUntil;
+
+    /**
+     * 곡의 공식 영상을 검색해 IFrame Player 에 띄울 video ID 를 찾는다.
+     *
+     * <p>영상 제목으로 5단계 신뢰도 검증을 거쳐 엉뚱한 영상이 박히는 사고를 막는다. 신뢰할 만한 매칭이 없으면 {@code null} 반환.
+     */
     public YouTubeVideo searchOfficialAudio(String artist, String track) {
-        if (apiKey == null || apiKey.isBlank()) {
+        if (isApiKeyMissing()) {
             log.warn("[YouTube] API 키 미설정 → 검색 스킵");
             return null;
         }
+        if (isQuotaCurrentlyBlocked()) return null;
 
-        // 단순 "아티스트 + 곡명" 으로 검색 — "official audio" 같은 영문 키워드는
-        // 한국 곡에서 오히려 매칭률을 떨어뜨림 (DAY6 한국곡 검색 시 영어 단어 들어가면 노이즈).
-        String query = (artist.trim() + " " + (track == null ? "" : track.trim())).trim();
-
-        // ⚠️ build().toUri() 는 한글 인코딩 안 함 → percent-encoding 필수.
-        // ⚠️ videoEmbeddable=true 는 IFrame 재생 위해 유지 (없으면 빈 화면).
-        // ✗ videoCategoryId=10 (Music) 제거 — 라이브, 직접 업로드, 커버 등 카테고리 분류 안 된 영상까지 포함해서 매칭률 ↑
-        // ✗ videoSyndicated=true 제거 — 너무 엄격해서 후보 0개 되는 경우 많음
-        String uri = UriComponentsBuilder
-                .fromUriString("https://www.googleapis.com/youtube/v3/search")
-                .queryParam("part", "snippet")
-                .queryParam("type", "video")
-                .queryParam("videoEmbeddable", "true")
-                .queryParam("maxResults", 10)
-                .queryParam("q", query)
-                .queryParam("key", apiKey)
-                .encode(java.nio.charset.StandardCharsets.UTF_8)
-                .toUriString();
-
-        // quota 초과 상태면 호출 자체를 일정 시간 스킵 (서버 메모리 캐시)
-        if (quotaExhaustedUntil != null && quotaExhaustedUntil.isAfter(java.time.LocalDateTime.now())) {
-            return null;
-        }
+        String query = buildArtistTrackQuery(artist, track);
+        String url = buildSearchUrl(query, false);
 
         try {
-            String response = restTemplate.getForObject(uri, String.class);
-            JsonNode items = mapper.readTree(response).path("items");
+            JsonNode items = fetchSearchItems(url);
             if (items.isEmpty()) return null;
 
-            // 영상 제목으로 정확도 검증한 후보 선택 — 엉뚱한 영상이 박히는 걸 막는다.
             JsonNode best = pickBestByTitle(items, artist, track);
             if (best == null) {
-                log.warn("[YouTube] 신뢰할 만한 매칭을 못 찾음 — artist='{}' track='{}'", artist, track);
+                log.warn("[YouTube] 신뢰할 매칭을 못 찾음 — artist='{}' track='{}'", artist, track);
                 return null;
             }
-
-            return YouTubeVideo.builder()
-                    .videoId(best.path("id").path("videoId").asText())
-                    .title(best.path("snippet").path("title").asText())
-                    .channelTitle(best.path("snippet").path("channelTitle").asText())
-                    .thumbnail(best.path("snippet").path("thumbnails").path("high").path("url").asText())
-                    .isOfficial(isOfficialChannel(best.path("snippet").path("channelTitle").asText(), artist))
-                    .build();
-        } catch (org.springframework.web.client.HttpClientErrorException.Forbidden e) {
-            // quotaExceeded 등 403 은 일반적으로 일일 quota 초과 → 다음 PT 자정까지 호출 차단.
-            // 매 호출마다 로그 폭격되는 걸 막기 위해 12시간 동안 호출 자체 스킵.
-            quotaExhaustedUntil = java.time.LocalDateTime.now().plusHours(12);
-            log.warn("[YouTube] quota 초과 감지 → {} 까지 호출 차단", quotaExhaustedUntil);
+            return toYouTubeVideo(best, artist);
+        } catch (HttpClientErrorException.Forbidden e) {
+            blockOnQuotaExceeded();
             return null;
         } catch (Exception e) {
             log.warn("[YouTube] 검색 실패: {} → {}", query, e.toString());
@@ -94,59 +82,34 @@ public class YouTubeMusicSearchService {
         }
     }
 
-    /** quota 초과 감지 시 호출을 차단하는 시각 (서버 메모리에만 기록 — 재시작 시 리셋) */
-    private volatile java.time.LocalDateTime quotaExhaustedUntil;
-
     /**
-     * 한국 인디 곡 검색용 폴백 — Spotify 매칭이 약할 때 사용.
+     * Spotify 가 못 찾는 한국 인디 곡용 폴백.
      *
-     * 일반 검색과 달리:
-     *   - videoCategoryId=10 (Music) 강제 → 정치/뉴스/일반 영상 차단
-     *   - 검색어에 "노래" 키워드 추가해서 음악 의도 명확히
-     *   - 결과 영상 제목에 음악성 키워드(MV/Audio/Topic/뮤직 등) 가 있는 것만 채택
-     *   - 그래도 못 찾으면 null (엉뚱한 영상은 절대 안 잡힘)
+     * <p>일반 검색과 다른 점:
+     *
+     * <ul>
+     *   <li>{@code videoCategoryId=10} 강제 → 정치/뉴스/일반 영상 차단
+     *   <li>검색어에 "노래" 추가 → 음악 의도 명확화
+     *   <li>채널/제목에 음악성 키워드 포함된 영상만 채택
+     * </ul>
      */
     public YouTubeVideo searchMusicOnly(String query) {
-        if (apiKey == null || apiKey.isBlank()) return null;
-        if (query == null || query.isBlank()) return null;
-        if (quotaExhaustedUntil != null && quotaExhaustedUntil.isAfter(java.time.LocalDateTime.now())) {
-            return null;
-        }
+        if (isApiKeyMissing() || query == null || query.isBlank()) return null;
+        if (isQuotaCurrentlyBlocked()) return null;
 
-        // 검색어에 음악 의도 키워드 추가 → "한페이지" 대신 "한페이지 노래" 로 검색
-        String enhancedQuery = query.trim() + " 노래";
-
-        String uri = UriComponentsBuilder
-                .fromUriString("https://www.googleapis.com/youtube/v3/search")
-                .queryParam("part", "snippet")
-                .queryParam("type", "video")
-                .queryParam("videoCategoryId", "10")     // Music 카테고리 강제
-                .queryParam("videoEmbeddable", "true")
-                .queryParam("maxResults", 10)
-                .queryParam("q", enhancedQuery)
-                .queryParam("key", apiKey)
-                .encode(java.nio.charset.StandardCharsets.UTF_8)
-                .toUriString();
+        String enhancedQuery = query.trim() + FALLBACK_QUERY_SUFFIX;
+        String url = buildSearchUrl(enhancedQuery, true);
 
         try {
-            String response = restTemplate.getForObject(uri, String.class);
-            JsonNode items = mapper.readTree(response).path("items");
+            JsonNode items = fetchSearchItems(url);
             if (items.isEmpty()) return null;
 
             JsonNode picked = pickMusicalCandidate(items);
             if (picked == null) return null;
 
-            String channel = picked.path("snippet").path("channelTitle").asText("");
-            return YouTubeVideo.builder()
-                    .videoId(picked.path("id").path("videoId").asText())
-                    .title(picked.path("snippet").path("title").asText())
-                    .channelTitle(channel)
-                    .thumbnail(picked.path("snippet").path("thumbnails").path("high").path("url").asText())
-                    .isOfficial(isOfficialChannel(channel, ""))
-                    .build();
-        } catch (org.springframework.web.client.HttpClientErrorException.Forbidden e) {
-            quotaExhaustedUntil = java.time.LocalDateTime.now().plusHours(12);
-            log.warn("[YouTube] quota 초과 (음악 폴백) → {} 까지 차단", quotaExhaustedUntil);
+            return toYouTubeVideo(picked, "");
+        } catch (HttpClientErrorException.Forbidden e) {
+            blockOnQuotaExceeded();
             return null;
         } catch (Exception e) {
             log.warn("[YouTube] 음악 폴백 실패: {} → {}", query, e.toString());
@@ -154,112 +117,164 @@ public class YouTubeMusicSearchService {
         }
     }
 
-    /**
-     * 결과 후보 중 명백히 음악성 있는 영상만 추려낸다.
-     * 채널이 Topic/VEVO/Official 이거나, 제목에 MV/Audio/노래/뮤직 같은 키워드가 있는 것.
-     */
-    private JsonNode pickMusicalCandidate(JsonNode items) {
-        for (JsonNode item : items) {
-            String channel = item.path("snippet").path("channelTitle").asText("");
-            String title = item.path("snippet").path("title").asText("");
-            String channelUpper = channel.toUpperCase(Locale.ROOT);
-            String titleUpper = title.toUpperCase(Locale.ROOT);
+    /* =========================== HTTP / URL =========================== */
 
-            boolean musicalChannel = channelUpper.endsWith("- TOPIC")
-                    || channelUpper.contains("VEVO")
-                    || channelUpper.contains("OFFICIAL")
-                    || channelUpper.contains("RECORDS")
-                    || channelUpper.contains("ENTERTAINMENT");
-
-            boolean musicalTitle = titleUpper.contains("MV")
-                    || titleUpper.contains("M/V")
-                    || titleUpper.contains("AUDIO")
-                    || titleUpper.contains("OFFICIAL")
-                    || title.contains("뮤직비디오")
-                    || title.contains("음원")
-                    || title.contains("노래");
-
-            if (musicalChannel || musicalTitle) return item;
-        }
-        return null;
+    private String buildArtistTrackQuery(String artist, String track) {
+        String safeTrack = (track == null) ? "" : track.trim();
+        return (artist.trim() + " " + safeTrack).trim();
     }
 
     /**
-     * 영상 제목과 채널을 동시에 검증해서 가장 신뢰할 만한 후보를 고른다.
+     * {@code build().toUri()} 는 한글을 percent-encode 하지 않아 그대로 보내면 400 발생. {@code encode()} 로 명시적으로
+     * 인코딩한 String 으로 호출.
      *
-     * 단계 (위에서부터 적용 — 매칭되면 즉시 반환):
-     *   1) 영상 제목에 '아티스트' AND '트랙명' 둘 다 포함        ← 가장 강력
-     *   2) 공식 채널(Topic/VEVO/Official) AND 영상 제목에 트랙명 포함
-     *   3) 공식 채널이기만 하면 됨
-     *   4) 영상 제목에 트랙명 포함 (채널 무관)
-     *   5) 영상 제목에 아티스트 포함 (제목에 곡명이 변형됐을 수 있음)
-     *   6) 아무 매칭 없으면 null 반환 — "엉뚱한 영상 박힘" 사고를 막는다
+     * <p>{@code videoEmbeddable=true} 는 IFrame 재생을 위해 필수. 음악-only 폴백 모드에서는 {@code
+     * videoCategoryId=10} 으로 음악 카테고리 강제.
+     */
+    private String buildSearchUrl(String query, boolean forceMusicCategory) {
+        UriComponentsBuilder builder =
+                UriComponentsBuilder.fromUriString(SEARCH_URL)
+                        .queryParam("part", "snippet")
+                        .queryParam("type", "video")
+                        .queryParam("videoEmbeddable", "true")
+                        .queryParam("maxResults", SEARCH_RESULT_LIMIT)
+                        .queryParam("q", query)
+                        .queryParam("key", apiKey);
+
+        if (forceMusicCategory) {
+            builder.queryParam("videoCategoryId", MUSIC_CATEGORY_ID);
+        }
+        return builder.encode(StandardCharsets.UTF_8).toUriString();
+    }
+
+    private JsonNode fetchSearchItems(String url) throws Exception {
+        String response = restTemplate.getForObject(url, String.class);
+        return objectMapper.readTree(response).path("items");
+    }
+
+    private YouTubeVideo toYouTubeVideo(JsonNode item, String artist) {
+        JsonNode snippet = item.path("snippet");
+        String channel = snippet.path("channelTitle").asText("");
+        return YouTubeVideo.builder()
+                .videoId(item.path("id").path("videoId").asText())
+                .title(snippet.path("title").asText())
+                .channelTitle(channel)
+                .thumbnail(snippet.path("thumbnails").path("high").path("url").asText())
+                .isOfficial(isOfficialChannel(channel, artist))
+                .build();
+    }
+
+    /* =========================== Quota 차단 =========================== */
+
+    private boolean isApiKeyMissing() {
+        return apiKey == null || apiKey.isBlank();
+    }
+
+    private boolean isQuotaCurrentlyBlocked() {
+        return quotaExhaustedUntil != null && quotaExhaustedUntil.isAfter(LocalDateTime.now());
+    }
+
+    private void blockOnQuotaExceeded() {
+        quotaExhaustedUntil = LocalDateTime.now().plusHours(QUOTA_BLOCK_HOURS);
+        log.warn("[YouTube] quota 초과 감지 → {} 까지 호출 차단", quotaExhaustedUntil);
+    }
+
+    /* =========================== 영상 선택 알고리즘 =========================== */
+
+    /**
+     * 5단계 신뢰도 검증을 거쳐 최적 영상 선택.
      *
-     * artist 가 빈 문자열인 폴백 경로는 트랙명 기준만 적용.
+     * <ol>
+     *   <li>제목에 아티스트 AND 트랙명 둘 다 포함 (가장 강력)
+     *   <li>공식 채널 + 제목에 트랙명 포함
+     *   <li>공식 채널(Topic/VEVO/Official)만
+     *   <li>제목에 트랙명 포함
+     *   <li>제목에 아티스트명 포함
+     * </ol>
+     *
+     * 어느 단계도 통과 못 하면 null — 엉뚱한 영상 박힘 방지.
      */
     private JsonNode pickBestByTitle(JsonNode items, String artist, String track) {
-        boolean hasArtist = artist != null && !artist.trim().isEmpty();
-        boolean hasTrack = track != null && !track.trim().isEmpty();
+        boolean hasArtist = isNotBlank(artist);
+        boolean hasTrack = isNotBlank(track);
         if (!hasArtist && !hasTrack) return items.get(0);
 
-        // 1) 제목에 아티스트 AND 트랙명 둘 다
         if (hasArtist && hasTrack) {
-            for (JsonNode item : items) {
-                String title = item.path("snippet").path("title").asText("");
-                if (containsLoose(title, artist) && containsLoose(title, track)) return item;
-            }
+            JsonNode strict =
+                    findFirstMatching(items, item -> isArtistAndTrackInTitle(item, artist, track));
+            if (strict != null) return strict;
         }
-
-        // 2) 공식 채널 + 트랙명
         if (hasTrack) {
-            for (JsonNode item : items) {
-                String channel = item.path("snippet").path("channelTitle").asText("");
-                String title = item.path("snippet").path("title").asText("");
-                if (isOfficialChannel(channel, artist) && containsLoose(title, track)) return item;
-            }
+            JsonNode officialWithTrack =
+                    findFirstMatching(items, item -> isOfficialWithTrack(item, artist, track));
+            if (officialWithTrack != null) return officialWithTrack;
         }
 
-        // 3) 공식 채널만
-        for (JsonNode item : items) {
-            String channel = item.path("snippet").path("channelTitle").asText("");
-            if (isOfficialChannel(channel, artist)) return item;
-        }
+        JsonNode officialOnly = findFirstMatching(items, item -> isOfficialItem(item, artist));
+        if (officialOnly != null) return officialOnly;
 
-        // 4) 트랙명만이라도 제목에
         if (hasTrack) {
-            for (JsonNode item : items) {
-                String title = item.path("snippet").path("title").asText("");
-                if (containsLoose(title, track)) return item;
-            }
+            JsonNode trackInTitle = findFirstMatching(items, item -> isInTitle(item, track));
+            if (trackInTitle != null) return trackInTitle;
         }
-
-        // 5) 아티스트명만 제목에
         if (hasArtist) {
-            for (JsonNode item : items) {
-                String title = item.path("snippet").path("title").asText("");
-                if (containsLoose(title, artist)) return item;
-            }
+            return findFirstMatching(items, item -> isInTitle(item, artist));
         }
-
-        // 6) 신뢰할 만한 매칭 없음 — null 반환해서 엉뚱한 영상이 박히는 사고 방지
         return null;
     }
 
-    /**
-     * 대소문자 무시 + 공백 / 특수문자 무시 매칭.
-     * "Super Shy" 가 영상 제목 "NewJeans 'Super Shy' (MV)" 안에 있는지 같이 비교.
-     */
-    private boolean containsLoose(String haystack, String needle) {
-        if (haystack == null || needle == null) return false;
-        String h = normalize(haystack);
-        String n = normalize(needle);
-        if (n.isEmpty()) return false;
-        return h.contains(n);
+    /** 음악-only 폴백 — 채널/제목에 음악성 키워드 포함된 첫 후보 반환. */
+    private JsonNode pickMusicalCandidate(JsonNode items) {
+        return findFirstMatching(items, this::hasMusicalSignal);
     }
 
-    private String normalize(String s) {
-        return s.toLowerCase(Locale.ROOT)
-                .replaceAll("[\\s'\\\"`()\\[\\].,!?·\\-_/]", "");
+    private boolean hasMusicalSignal(JsonNode item) {
+        String channel = item.path("snippet").path("channelTitle").asText("");
+        String title = item.path("snippet").path("title").asText("");
+        return hasMusicalChannelKeyword(channel) || hasMusicalTitleKeyword(title);
+    }
+
+    private boolean hasMusicalChannelKeyword(String channel) {
+        String upper = channel.toUpperCase(Locale.ROOT);
+        return upper.endsWith("- TOPIC")
+                || upper.contains("VEVO")
+                || upper.contains("OFFICIAL")
+                || upper.contains("RECORDS")
+                || upper.contains("ENTERTAINMENT");
+    }
+
+    private boolean hasMusicalTitleKeyword(String title) {
+        String upper = title.toUpperCase(Locale.ROOT);
+        return upper.contains("MV")
+                || upper.contains("M/V")
+                || upper.contains("AUDIO")
+                || upper.contains("OFFICIAL")
+                || title.contains("뮤직비디오")
+                || title.contains("음원")
+                || title.contains("노래");
+    }
+
+    /* =========================== 매칭 조건 =========================== */
+
+    private boolean isArtistAndTrackInTitle(JsonNode item, String artist, String track) {
+        String title = item.path("snippet").path("title").asText("");
+        return containsLoose(title, artist) && containsLoose(title, track);
+    }
+
+    private boolean isOfficialWithTrack(JsonNode item, String artist, String track) {
+        String channel = item.path("snippet").path("channelTitle").asText("");
+        String title = item.path("snippet").path("title").asText("");
+        return isOfficialChannel(channel, artist) && containsLoose(title, track);
+    }
+
+    private boolean isOfficialItem(JsonNode item, String artist) {
+        String channel = item.path("snippet").path("channelTitle").asText("");
+        return isOfficialChannel(channel, artist);
+    }
+
+    private boolean isInTitle(JsonNode item, String needle) {
+        String title = item.path("snippet").path("title").asText("");
+        return containsLoose(title, needle);
     }
 
     private boolean isOfficialChannel(String channel, String artist) {
@@ -271,8 +286,40 @@ public class YouTubeMusicSearchService {
                 || channel.equalsIgnoreCase(artist);
     }
 
-    @lombok.Builder
-    @lombok.Getter
+    /* =========================== 단순 헬퍼 =========================== */
+
+    @FunctionalInterface
+    private interface ItemPredicate {
+        boolean test(JsonNode item);
+    }
+
+    private JsonNode findFirstMatching(JsonNode items, ItemPredicate predicate) {
+        for (JsonNode item : items) {
+            if (predicate.test(item)) return item;
+        }
+        return null;
+    }
+
+    /** 대소문자 / 공백 / 특수문자 무시한 부분 일치 비교. "Super Shy" 가 "NewJeans 'Super Shy' (MV)" 안에 있는지 같이 인식. */
+    private boolean containsLoose(String haystack, String needle) {
+        if (haystack == null || needle == null) return false;
+        String h = normalize(haystack);
+        String n = normalize(needle);
+        return !n.isEmpty() && h.contains(n);
+    }
+
+    private String normalize(String s) {
+        return s.toLowerCase(Locale.ROOT).replaceAll("[\\s'\\\"`()\\[\\].,!?·\\-_/]", "");
+    }
+
+    private boolean isNotBlank(String s) {
+        return s != null && !s.trim().isEmpty();
+    }
+
+    /* =========================== 공개 DTO =========================== */
+
+    @Builder
+    @Getter
     public static class YouTubeVideo {
         private String videoId;
         private String title;

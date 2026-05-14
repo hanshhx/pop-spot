@@ -5,39 +5,41 @@ import com.example.popspotbackend.entity.User;
 import com.example.popspotbackend.repository.MatePostRepository;
 import com.example.popspotbackend.repository.PopupStoreRepository;
 import com.example.popspotbackend.repository.UserRepository;
+import java.util.HashMap;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.HashMap;
-import java.util.Map;
-
+/**
+ * 관리자 운영 로직 — 팝업 승인 / 거절 / 상태 변경, 이벤트 보상 지급, 메이트 게시글 강제 삭제, 대시보드 통계.
+ *
+ * <p>상태 코드는 한글 "영업중" / "PENDING" / "EXPIRED" 등으로 운영자가 직접 보는 값을 그대로 쓴다.
+ */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AdminService {
 
+    private static final String STATUS_OPEN = "영업중";
+    private static final String STATUS_PENDING = "PENDING";
+
+    private static final String ITEM_MEGAPHONE = "MEGAPHONE";
+    private static final String ITEM_POPPASS = "POPPASS";
+
     private final PopupStoreRepository popupStoreRepository;
     private final UserRepository userRepository;
-
-    // 🔥 [신규 추가] 커뮤니티(메이트 게시판) 관리를 위해 레포지토리 의존성 추가
     private final MatePostRepository matePostRepository;
 
-    // ================= [기존 로직 유지] =================
+    /* ============================== 팝업 승인 / 상태 변경 ============================== */
+
+    /** 제보된 팝업 승인 — 상태를 "영업중" 으로 바꾸고 신고자에게 확성기 1개를 보상으로 지급. */
     @Transactional
     public void approvePopup(Long popupId) {
-        PopupStore popup = popupStoreRepository.findById(popupId)
-                .orElseThrow(() -> new RuntimeException("존재하지 않는 팝업입니다."));
-
-        // 🔥 동현님 DB 규격에 맞춰 "OPEN" 대신 "영업중"으로 저장!
-        popup.setStatus("영업중");
-
-        if (popup.getReporterId() != null) {
-            userRepository.findById(popup.getReporterId()).ifPresent(user -> {
-                user.addMegaphone(1);
-                userRepository.save(user);
-                System.out.println("🎁 [보상 지급] " + user.getNickname() + "님에게 확성기 지급 완료!");
-            });
-        }
+        PopupStore popup = findPopupOrThrow(popupId);
+        popup.setStatus(STATUS_OPEN);
+        rewardReporterIfPresent(popup);
     }
 
     @Transactional
@@ -45,59 +47,67 @@ public class AdminService {
         popupStoreRepository.deleteById(popupId);
     }
 
-    // ================= [🔥 신규 관리자 로직 추가] =================
-
-    // 1. 🛑 팝업스토어 '상태' 강제 제어 (운영 관리)
     @Transactional
     public void changePopupStatus(Long popupId, String newStatus) {
-        PopupStore popup = popupStoreRepository.findById(popupId)
-                .orElseThrow(() -> new RuntimeException("존재하지 않는 팝업입니다."));
-        popup.setStatus(newStatus);
+        findPopupOrThrow(popupId).setStatus(newStatus);
     }
 
-    // 2. 🎁 이벤트 아이템 수동 지급 (유저 관리 CS)
+    /* ============================== 보상 / 메이트 운영 ============================== */
+
+    /** {@code MEGAPHONE} 또는 {@code POPPASS} 를 닉네임으로 식별된 유저에게 직접 지급. */
     @Transactional
     public void giveReward(String nickname, String itemType, int amount) {
-        User user = userRepository.findByNickname(nickname)
-                .orElseThrow(() -> new RuntimeException("해당 닉네임의 유저를 찾을 수 없습니다."));
+        User user =
+                userRepository
+                        .findByNickname(nickname)
+                        .orElseThrow(() -> new RuntimeException("해당 닉네임의 유저를 찾을 수 없습니다."));
 
-        if ("MEGAPHONE".equalsIgnoreCase(itemType)) {
+        if (ITEM_MEGAPHONE.equalsIgnoreCase(itemType)) {
             user.addMegaphone(amount);
-            System.out.println("📢 관리자가 " + nickname + "님에게 확성기 " + amount + "개 지급!");
-        } else if ("POPPASS".equalsIgnoreCase(itemType)) {
-            user.extendPremium(amount); // amount를 일(days)로 계산해서 연장
-            System.out.println("👑 관리자가 " + nickname + "님에게 POP-PASS " + amount + "일권 지급!");
+            log.info("[Admin] {}님에게 확성기 {}개 지급", nickname, amount);
+        } else if (ITEM_POPPASS.equalsIgnoreCase(itemType)) {
+            user.extendPremium(amount);
+            log.info("[Admin] {}님에게 POP-PASS {}일권 지급", nickname, amount);
         } else {
             throw new IllegalArgumentException("알 수 없는 아이템 타입입니다.");
         }
     }
 
-    // 3. 🧹 악성 메이트 게시글 강제 삭제 (콘텐츠 관리)
     @Transactional
     public void forceDeleteMatePost(Long postId) {
         matePostRepository.deleteById(postId);
     }
 
-    // 4. 📊 대시보드 통계 요약 (데이터 분석)
+    /* ============================== 대시보드 통계 ============================== */
+
+    /** 카운트 쿼리만 사용해 N+1 / 전체 조회 부하 없이 통계를 계산한다. */
     @Transactional(readOnly = true)
     public Map<String, Object> getAdminStats() {
         Map<String, Object> stats = new HashMap<>();
-        // 총 가입 유저 수
         stats.put("totalUsers", userRepository.count());
-
-        // 🔥 [24번 임의 수정] 기존의 .findByStatus().size()를 주석 처리하고 가벼운 .countBy()로 대체
-        // stats.put("activePopups", popupStoreRepository.findByStatus("영업중").size());
-        // stats.put("pendingPopups", popupStoreRepository.findByStatus("PENDING").size());
-
-        // 현재 영업중인 팝업 수
-        stats.put("activePopups", popupStoreRepository.countByStatus("영업중"));
-
-        // 전체 메이트 게시글 수
+        stats.put("activePopups", popupStoreRepository.countByStatus(STATUS_OPEN));
         stats.put("totalMatePosts", matePostRepository.count());
-
-        // 승인 대기 중인 제보 수
-        stats.put("pendingPopups", popupStoreRepository.countByStatus("PENDING"));
-
+        stats.put("pendingPopups", popupStoreRepository.countByStatus(STATUS_PENDING));
         return stats;
+    }
+
+    /* ============================== 내부 헬퍼 ============================== */
+
+    private PopupStore findPopupOrThrow(Long popupId) {
+        return popupStoreRepository
+                .findById(popupId)
+                .orElseThrow(() -> new RuntimeException("존재하지 않는 팝업입니다."));
+    }
+
+    private void rewardReporterIfPresent(PopupStore popup) {
+        if (popup.getReporterId() == null) return;
+        userRepository
+                .findById(popup.getReporterId())
+                .ifPresent(
+                        user -> {
+                            user.addMegaphone(1);
+                            userRepository.save(user);
+                            log.info("[Admin] 신고자 {}님에게 확성기 1개 보상 지급", user.getNickname());
+                        });
     }
 }

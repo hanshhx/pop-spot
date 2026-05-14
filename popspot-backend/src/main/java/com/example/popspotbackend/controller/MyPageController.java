@@ -7,16 +7,24 @@ import com.example.popspotbackend.repository.MatePostRepository;
 import com.example.popspotbackend.repository.StampRepository;
 import com.example.popspotbackend.repository.UserRepository;
 import com.example.popspotbackend.repository.WishlistRepository;
-import lombok.RequiredArgsConstructor;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-
 import java.time.LocalDateTime;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
+/**
+ * 마이페이지 요약 정보. 프리미엄 만료 lazy-expire 와 활동량 카운트(채팅 + 게시글)를 함께 처리한다.
+ *
+ * <p>스탬프/찜 개수는 N+1 회피를 위해 {@code countBy...} 쿼리를 사용한다 (예전 {@code findAll().size()} 대체).
+ */
+@Slf4j
 @RestController
 @RequestMapping("/api/mypage")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "http://localhost:3000")
 public class MyPageController {
 
     private final UserRepository userRepository;
@@ -27,54 +35,42 @@ public class MyPageController {
 
     @GetMapping("/{userId}")
     public ResponseEntity<MyPageDto> getMyPageInfo(@PathVariable String userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("유저 없음"));
+        User user = findUserOrThrow(userId);
+        expirePremiumIfNeeded(user);
 
-        // 유효기간 만료 체크
-        if (user.isPremium() && user.getPremiumExpiryDate() != null) {
-            if (LocalDateTime.now().isAfter(user.getPremiumExpiryDate())) {
-                user.expirePremium();
-                userRepository.save(user);
-            }
-        }
-
-        // 1. 스탬프, 찜 개수
-        // 🔥 [21, 22번 임의 수정] 기존의 .findAll...().size()를 주석 처리하고, 빠르고 가벼운 .countBy...()로 대체합니다.
-        // int stampCount = stampRepository.findAllByUserId(userId).size();
-        // int likeCount = wishlistRepository.findAllByUser_UserIdOrderByIdDesc(userId).size();
         int stampCount = stampRepository.countByUserId(userId);
         int likeCount = wishlistRepository.countByUser_UserId(userId);
+        int reviewCount = countMyActivity(user);
 
-        // 🔥 [디버깅 로그 시작] ------------------------------------------------
-        // 2. 활동량 계산 (채팅 + 게시글)
-        // (1) 채팅: sender 컬럼이 내 닉네임과 같은지 확인
-        int myChatCount = chatRepository.countBySender(user.getNickname());
+        return ResponseEntity.ok(
+                MyPageDto.builder()
+                        .nickname(user.getNickname())
+                        .isPremium(user.isPremium())
+                        .premiumExpiryDate(user.getPremiumExpiryDate())
+                        .megaphoneCount(user.getMegaphoneCount())
+                        .stampCount(stampCount)
+                        .likeCount(likeCount)
+                        .reviewCount(reviewCount)
+                        .build());
+    }
 
-        // (2) 글: author_id가 내 userId와 같은지 확인
-        int myPostCount = matePostRepository.countByAuthor_UserId(userId);
+    private User findUserOrThrow(String userId) {
+        return userRepository.findById(userId).orElseThrow(() -> new RuntimeException("유저 없음"));
+    }
 
-        System.out.println("=========================================");
-        System.out.println("🔍 [마이페이지 조회] 유저: " + user.getNickname() + " (" + userId + ")");
-        System.out.println("   - 스탬프: " + stampCount);
-        System.out.println("   - 찜하기: " + likeCount);
-        System.out.println("   - 쓴 채팅(닉네임 기준): " + myChatCount);
-        System.out.println("   - 쓴 글(ID 기준): " + myPostCount);
-        System.out.println("   => 총 리뷰/톡 카운트: " + (myChatCount + myPostCount));
-        System.out.println("=========================================");
-        // ------------------------------------------------ [디버깅 로그 끝]
+    /** 프리미엄 유효기간이 지났으면 즉시 만료 처리한다 (조회 시점 lazy expire). */
+    private void expirePremiumIfNeeded(User user) {
+        if (!user.isPremium() || user.getPremiumExpiryDate() == null) return;
+        if (LocalDateTime.now().isAfter(user.getPremiumExpiryDate())) {
+            user.expirePremium();
+            userRepository.save(user);
+        }
+    }
 
-        int reviewCount = myChatCount + myPostCount;
-
-        MyPageDto response = MyPageDto.builder()
-                .nickname(user.getNickname())
-                .isPremium(user.isPremium())
-                .premiumExpiryDate(user.getPremiumExpiryDate())
-                .megaphoneCount(user.getMegaphoneCount())
-                .stampCount(stampCount)
-                .likeCount(likeCount)
-                .reviewCount(reviewCount)
-                .build();
-
-        return ResponseEntity.ok(response);
+    /** 채팅(닉네임 기준) + 게시글(userId 기준) 활동 카운트. */
+    private int countMyActivity(User user) {
+        int chatCount = chatRepository.countBySender(user.getNickname());
+        int postCount = matePostRepository.countByAuthor_UserId(user.getUserId());
+        return chatCount + postCount;
     }
 }

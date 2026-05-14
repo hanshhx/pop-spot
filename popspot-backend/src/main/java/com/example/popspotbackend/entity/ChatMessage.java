@@ -1,15 +1,15 @@
 package com.example.popspotbackend.entity;
 
-import com.example.popspotbackend.entity.PopupStore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
+import java.time.LocalDateTime;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import java.time.LocalDateTime;
 
 @Entity
-@Getter @Setter
+@Getter
+@Setter
 @NoArgsConstructor
 public class ChatMessage {
 
@@ -26,8 +26,13 @@ public class ChatMessage {
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "POPUP_ID")
     @JsonIgnoreProperties({
-            "images", "imageUrl", "stamps", "reviews", "comments",
-            "hibernateLazyInitializer", "handler"
+        "images",
+        "imageUrl",
+        "stamps",
+        "reviews",
+        "comments",
+        "hibernateLazyInitializer",
+        "handler"
     })
     private PopupStore popupStore;
 

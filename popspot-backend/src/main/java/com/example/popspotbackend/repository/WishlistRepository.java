@@ -1,14 +1,15 @@
 package com.example.popspotbackend.repository;
 
 import com.example.popspotbackend.entity.Wishlist;
-import org.springframework.data.jpa.repository.EntityGraph;
-import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.jpa.repository.EntityGraph;
+import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface WishlistRepository extends JpaRepository<Wishlist, Long> {
 
-    // 🔥 [수정] popupStore + popupStore.images 까지 fetch — open-in-view=false 환경에서 JSON 직렬화 시 LazyInit 방어
+    // 🔥 [수정] popupStore + popupStore.images 까지 fetch — open-in-view=false 환경에서 JSON 직렬화 시 LazyInit
+    // 방어
     @EntityGraph(attributePaths = {"popupStore", "popupStore.images"})
     List<Wishlist> findAllByUser_UserIdOrderByIdDesc(String userId);
 

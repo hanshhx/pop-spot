@@ -2,57 +2,88 @@ package com.example.popspotbackend.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.net.URI;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Random;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.*;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.util.UriComponentsBuilder;
 
-import java.util.*;
-
+/**
+ * Pexels Video Search API 호출 — 메인 페이지 OOTD 영상 추천.
+ *
+ * <p>검색어는 성수동 감성 키워드 풀에서 랜덤으로 고르고 세로 영상 10개 중 하나를 다시 랜덤으로 픽한다.
+ */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class PexelsService {
+
+    private static final String SEARCH_URL = "https://api.pexels.com/videos/search";
+    private static final String ORIENTATION_PORTRAIT = "portrait";
+    private static final int RESULTS_PER_REQUEST = 10;
+
+    private static final String[] FASHION_KEYWORDS = {
+        "street fashion", "urban style", "seoul fashion", "trendy outfit", "hipster style"
+    };
 
     @Value("${pexels.api-key}")
     private String apiKey;
 
     private final RestTemplate restTemplate = new RestTemplate();
     private final ObjectMapper objectMapper = new ObjectMapper();
+    private final Random random = new Random();
 
-    // 1. OOTD 영상 추천 (검색어 기반)
     public Map<String, String> getFashionVideo() {
-        // 성수동 감성 키워드 풀
-        String[] keywords = {"street fashion", "urban style", "seoul fashion", "trendy outfit", "hipster style"};
-        String query = keywords[new Random().nextInt(keywords.length)];
-
-        // Pexels Video Search API (세로 영상, 1개만 요청)
-        String url = "https://api.pexels.com/videos/search?query=" + query + "&orientation=portrait&per_page=10";
-
-        HttpHeaders headers = new HttpHeaders();
-        headers.set("Authorization", apiKey);
-        HttpEntity<String> entity = new HttpEntity<>(headers);
-
+        String query = FASHION_KEYWORDS[random.nextInt(FASHION_KEYWORDS.length)];
         try {
-            ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, entity, String.class);
-            JsonNode root = objectMapper.readTree(response.getBody());
-            JsonNode videos = root.path("videos");
-
-            if (videos.size() > 0) {
-                // 검색 결과 중 랜덤 1개 픽
-                JsonNode video = videos.get(new Random().nextInt(videos.size()));
-
-                Map<String, String> data = new HashMap<>();
-                data.put("keyword", query); // 검색된 키워드 (예: urban style)
-                data.put("photographer", video.path("user").path("name").asText());
-                data.put("videoUrl", video.path("video_files").get(0).path("link").asText()); // 실제 영상 링크
-                data.put("thumbnail", video.path("image").asText()); // 로딩용 썸네일
-
-                return data;
-            }
+            ResponseEntity<String> response =
+                    restTemplate.exchange(
+                            buildUri(query),
+                            HttpMethod.GET,
+                            new HttpEntity<>(buildHeaders()),
+                            String.class);
+            return pickRandomVideo(response.getBody(), query);
         } catch (Exception e) {
-            e.printStackTrace();
+            log.warn("Pexels 호출 실패 query='{}' err={}", query, e.toString());
+            return null;
         }
-        return null;
+    }
+
+    private URI buildUri(String query) {
+        return UriComponentsBuilder.fromUriString(SEARCH_URL)
+                .queryParam("query", query)
+                .queryParam("orientation", ORIENTATION_PORTRAIT)
+                .queryParam("per_page", RESULTS_PER_REQUEST)
+                .build()
+                .encode()
+                .toUri();
+    }
+
+    private HttpHeaders buildHeaders() {
+        HttpHeaders headers = new HttpHeaders();
+        headers.set(HttpHeaders.AUTHORIZATION, apiKey);
+        return headers;
+    }
+
+    private Map<String, String> pickRandomVideo(String body, String query) throws Exception {
+        JsonNode videos = objectMapper.readTree(body).path("videos");
+        if (videos.size() == 0) return null;
+
+        JsonNode video = videos.get(random.nextInt(videos.size()));
+        Map<String, String> data = new HashMap<>();
+        data.put("keyword", query);
+        data.put("photographer", video.path("user").path("name").asText());
+        data.put("videoUrl", video.path("video_files").get(0).path("link").asText());
+        data.put("thumbnail", video.path("image").asText());
+        return data;
     }
 }

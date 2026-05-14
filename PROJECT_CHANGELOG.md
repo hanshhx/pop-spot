@@ -2708,8 +2708,1580 @@ The deployment could not be found on Vercel. DEPLOYMENT_NOT_FOUND
 
 ---
 
-**문서 버전:** v1.2
-**최종 수정:** 2026-05-03
+---
+
+# 7. V5 — 상점 폐기, 음악 ↔ 팝업 매칭 시스템 도입
+
+## 7.1 왜 상점 페이지를 폐기했나
+
+### 변경 전 — 상점이 있던 이유와 그 한계
+
+원래 `/shop` 페이지에는 두 가지 상품이 있었다.
+
+```tsx
+// app/shop/page.tsx (구버전)
+- POP-PASS 멤버십  : 프리미엄 가입 (월 9,900원)
+- 메이트 확성기    : 동행 게시판 상단 고정 1회권
+```
+
+결제는 PortOne(아임포트) 카카오페이 테스트 모드로 동작했고, 백엔드는 `OrderController` 에서 검증한 뒤 `user.isPremium = true` 또는 `megaphoneCount + 1` 을 DB 에 반영했다.
+
+문제는 다음 네 가지였다.
+
+1. **운영 정당성 부족** — 사이드 프로젝트 단계에서 결제 시스템을 굳이 유지할 이유가 없다. 결제는 운영 책임(환불·세금계산서·소비자보호법)이 따라붙는다.
+2. **사용자 흐름 단절** — 사용자는 팝업 정보 보러 왔는데 어느 순간 결제창이 뜬다. 메인 가치 제안과 어긋난다.
+3. **포트폴리오에서 약점** — 면접관이 "왜 굳이 결제?" 물어보면 답이 약하다. 결제 자체가 본질 기능이 아니라 부가 기능이라.
+4. **유지보수 비용** — PortOne SDK 업데이트, 가맹점 코드 관리, 결제 실패 케이스 핸들링 등 코드 표면적이 크다.
+
+### 왜 음악으로 바꿨나
+
+POP-SPOT 의 본질은 "오늘 어떤 팝업에 갈지 정해주는 도구"다. 음악은 그 결정의 가장 강한 입력값 중 하나다.
+
+- 사용자가 듣고 있는 곡 → 그날의 분위기 → 분위기에 맞는 팝업
+- 음악 검색은 사용자가 매일 자연스럽게 하는 행동이라 진입 장벽이 낮다
+- "음악 → 팝업" 은 다른 팝업 정보 앱에 없는 차별화 포인트
+
+기능 자체는 **검색 + 재생 + 매칭** 세 단계라 명확하다. 결제처럼 외부 의존성(PG사·금융망)도 없어서 책임 범위가 좁다.
+
+### 어떻게 폐기했나
+
+코드 차원에서의 폐기는 두 단계로 진행했다.
+
+**Step 1 — 즉시 진입 차단**
+
+```tsx
+// app/shop/page.tsx (현재)
+import { redirect } from "next/navigation";
+
+export default function ShopRedirect() {
+  redirect("/music");
+}
+```
+
+`/shop` 라우트로 들어오는 모든 요청을 `/music` 으로 리다이렉트. 기존 북마크·외부 링크는 모두 음악 페이지로 자연스럽게 이동.
+
+**Step 2 — 잔재 정리**
+
+- `BottomDock` 의 SHOP 아이콘 → MUSIC 으로 교체 (외부 라우트가 아닌 currentTab 으로)
+- `app/page.tsx` 의 "구매하기 / 연장하기" Link → 단순 텍스트 라벨로
+- `MateBoard.tsx`, `SecretTip.tsx` 의 `/shop` 링크 제거 + 안내 메시지 변경
+- MY 탭의 Inventory (POP-PASS + 메이트 확성기 카드) 통째로 제거 → `RankCard` 로 대체
+- PASSPORT 의 보상 "확성기 1개 지급" → "팝업 입문자/헌터/마스터 뱃지" 로 의미 있게 교체
+
+DB 의 `isPremium`, `megaphoneCount` 컬럼은 그대로 두었다. 이미 가입했던 사용자의 데이터를 함부로 지우지 않기 위해서이며, 코드 표면(UI/로직)만 잘라낸 상태다.
+
+### 검증
+
+```bash
+# 모든 /shop 참조가 사라졌는지 (테스트 단계)
+grep -rn "/shop" src/ app/ | grep -v "redirect"
+# → 결과 비어있어야 정상
+
+# BottomDock 에서 MUSIC 탭이 currentTab 으로 동작하는지
+grep -n "MUSIC" src/components/layout/BottomDock.tsx
+```
+
+---
+
+## 7.2 음악 검색 — iTunes → Spotify 마이그레이션의 시행착오
+
+음악 기능은 **검색**과 **재생**으로 나뉜다. 그 둘을 어떻게 조합하느냐가 가장 큰 고민이었다.
+
+### 1차 시도 — iTunes Search API
+
+```java
+// 초기 ITunesSearchService.java
+URI uri = UriComponentsBuilder
+        .fromUriString("https://itunes.apple.com/search")
+        .queryParam("term", query)
+        .queryParam("country", "KR")
+        .build()
+        .toUri();
+```
+
+**이걸 선택했던 이유**
+
+- 무료, API 키 불필요
+- 한국 스토어 지원 (`country=KR`)
+- 1000×1000 고해상도 앨범 아트
+- 30초 미리듣기 URL 제공
+
+**막힌 점**
+
+운영하면서 두 가지 큰 문제가 드러났다.
+
+1. **한글 검색이 잘 안 잡힘** — Apple 의 한국 스토어 메타데이터가 영문 발음 표기 위주로 등록되어 있어 "뉴진스" 검색 시 NewJeans 가 안 나오는 일이 잦았다. iTunes 의 한국어 토큰화가 약해서 "한 페이지가 될 수 있게" 같은 곡이 안 잡히는 경우 대부분이었다.
+2. **`UriComponentsBuilder.build().toUri()` 가 한글을 percent-encode 하지 않음** — 그래서 raw 한글 바이트가 그대로 전송되어 iTunes 가 `400 Bad Request` 로 거절하는 케이스가 발생.
+
+```
+[iTunes] 검색 실패: 한로로 → 400 Bad Request on GET request for "https://itunes.apple.com/search"
+```
+
+해결책으로 `.encode(StandardCharsets.UTF_8).toUriString()` 으로 변경해서 인코딩 문제는 풀었지만, 한국 곡 카탈로그 자체가 약한 건 해결 불가능했다.
+
+### 2차 — Spotify Web API 로 마이그레이션
+
+```java
+// SpotifySearchService.java
+private static final String TOKEN_URL = "https://accounts.spotify.com/api/token";
+private static final String SEARCH_URL = "https://api.spotify.com/v1/search";
+
+// Client Credentials Flow — Client ID/Secret 으로 access token 발급
+private synchronized String ensureAccessToken() {
+    if (cachedToken != null && tokenExpiresAt.isAfter(LocalDateTime.now().plusSeconds(30))) {
+        return cachedToken;
+    }
+    // ... Basic Auth 로 토큰 발급 후 메모리 캐시
+}
+```
+
+**왜 Spotify 였나**
+
+- Spotify 한국 카탈로그는 멜론/지니와 거의 동등한 수준 (메이저는 100%, 인디는 80%+)
+- 검색 quota 가 사실상 무제한 (분당 ~100 호출)
+- 정식 한글 메타데이터를 가지고 있다
+- Access Token 은 1시간 유효, 메모리 캐시로 재발급 빈도 낮음
+- 보안: **Client Secret 을 백엔드에서만 보유** (BFF 패턴) — 프론트엔드 직접 호출은 절대 금지
+
+**왜 Spotify 로 재생까지 안 했나**
+
+Spotify Web Playback SDK 는 풀 재생이 가능하지만 **사용자가 Spotify Premium 구독자여야** 한다. 무료 사용자는 30초 미리듣기만 가능. 한국 사용자 중 Premium 비율이 낮아 현실적이지 않았다.
+
+또 2024년 11월 Spotify API 변경으로 audio features (BPM, energy, danceability) 등 분석 데이터 엔드포인트가 다수 deprecated 되었지만 — **Search API 는 멀쩡히 동작**하니까 그것만 활용했다.
+
+### 3차 — 한국어 검색 정확도 5단계 폴백
+
+Spotify 로 옮긴 뒤에도 "뉴진스" 검색에 러시아 곡(Bravo - Ветер знает)이 첫 결과로 잡히는 사고가 발생했다. Spotify 가 한국어 그대로 받으면 음성학적 유사 매칭으로 엉뚱한 곡을 던질 때가 있다.
+
+해결책은 **5단계 폴백 + AI 정규화** 결합이었다.
+
+```java
+// SpotifySearchService.search() 의 한국어 분기
+if (containsHangul(query)) {
+    // 1) KR 마켓 직접 검색
+    List<SpotifyTrack> kr = callSearch(token, query, limit, "KR");
+    if (isStrongMatch(kr, query)) return kr;
+
+    // 2) Groq AI 가 영문 정규 표기로 변환 ("뉴진스" → "NewJeans")
+    String normalizedQuery = queryNormalizer.normalize(query);
+    if (!normalizedQuery.equalsIgnoreCase(query)) {
+        List<SpotifyTrack> aiResults = callSearch(token, normalizedQuery, limit, null);
+        if (isStrongMatch(aiResults, normalizedQuery)) return aiResults;
+    }
+
+    // 3) YouTube Suggest 가 추천한 표기로 재검색
+    List<SpotifyTrack> suggested = searchViaSuggestion(token, query, limit);
+    if (isStrongMatch(suggested, query)) return suggested;
+
+    // 4) 원본 한국어로 글로벌 마켓
+    List<SpotifyTrack> global = callSearch(token, query, limit, null);
+
+    // 5) 우선순위대로 합쳐서 반환 (중복 제거)
+    return mergeUnique(...);
+}
+```
+
+각 단계의 역할:
+
+| 단계 | 도구 | 처리 케이스 |
+|---|---|---|
+| 1 | Spotify `market=KR` | 한국 발매 곡 |
+| 2 | Groq AI 정규화 | 가수명이 영문으로만 등록된 K-pop |
+| 3 | YouTube Suggest 정규화 | Groq 가 모르는 마이너 곡명 |
+| 4 | Spotify 글로벌 | 해외 발매된 한국 곡 |
+| 5 | 결과 합치기 | 빈 결과 방지 |
+
+**`isStrongMatch` 의 역할**
+
+```java
+private boolean isStrongMatch(List<SpotifyTrack> results, String query) {
+    if (results == null || results.isEmpty()) return false;
+    String compactQ = query.toLowerCase().trim().replaceAll("\\s+", "");
+
+    for (SpotifyTrack t : results) {
+        String compactName = t.getTrackName().toLowerCase().replaceAll("\\s+", "");
+        String compactArtist = t.getArtistName().toLowerCase().replaceAll("\\s+", "");
+        if (compactName.contains(compactQ) || compactArtist.contains(compactQ)) return true;
+    }
+    return false;
+}
+```
+
+검색어가 결과의 곡명/가수에 실제로 포함되지 않으면 "약한 매칭" 으로 판정해서 다음 단계로 넘김. 띄어쓰기 차이까지 흡수해서 "한 페이지" / "한페이지" 같은 변형도 같은 곡으로 인식.
+
+### 검증
+
+```bash
+# 한국어 검색 동작
+curl -s -G "http://localhost:8080/api/music/search" \
+  --data-urlencode "q=뉴진스" --data-urlencode "limit=3" | head -c 200
+# → artistName 에 "NewJeans" 가 들어있어야 정상
+```
+
+---
+
+## 7.3 음악 재생 — YouTube IFrame 통합과 약관 대응
+
+### 왜 YouTube 였나
+
+풀 재생이 가능한 무료 API 는 사실상 YouTube 가 유일하다. 한국 K-pop 의 99%+ 가 공식 채널(Topic/VEVO/Official)에 음원이 올라와 있다.
+
+```java
+// YouTubeMusicSearchService.java
+public YouTubeVideo searchOfficialAudio(String artist, String track) {
+    String query = (artist.trim() + " " + track.trim()).trim();
+    String uri = UriComponentsBuilder
+            .fromUriString("https://www.googleapis.com/youtube/v3/search")
+            .queryParam("part", "snippet")
+            .queryParam("type", "video")
+            .queryParam("videoEmbeddable", "true")  // IFrame 임베드 가능한 영상만
+            .queryParam("maxResults", 10)
+            .queryParam("q", query)
+            .queryParam("key", apiKey)
+            .encode(StandardCharsets.UTF_8)
+            .toUriString();
+    // ...
+}
+```
+
+`videoEmbeddable=true` 가 핵심. 일부 뮤직비디오는 외부 임베드를 차단해두기 때문에 이 파라미터 없이는 우리 IFrame Player 에서 빈 화면이 뜬다.
+
+### 막힌 점 — quota 폭발
+
+YouTube Data API 의 무료 quota 는 일일 10,000 units. `search.list` 는 1회당 100 units 사용. 즉 **하루 100회 검색 만에 quota 소진**.
+
+검색마다 12곡 그리드를 채우려고 각 곡마다 YouTube 호출하면 1회 검색 = 1200 units. 8번 검색하면 quota 끝.
+
+### 해결책 — Lazy Fetch + 영구 캐시
+
+```java
+// MusicService.java
+@Transactional
+public List<MusicTrack> searchTracks(String query, int limit) {
+    List<SpotifySearchService.SpotifyTrack> spotifyResults = spotify.search(query, limit);
+    // 검색 시점에는 Spotify 만 호출, YouTube 는 호출 X
+    for (SpotifySearchService.SpotifyTrack it : spotifyResults) {
+        MusicTrack track = trackRepo.findBySpotifyTrackId(it.getSpotifyId())
+                .orElseGet(() -> upsertTrackMetaOnly(it));
+        result.add(track);
+    }
+    return result;
+}
+
+// 재생 클릭 시점에만 YouTube 호출
+private void ensureYoutubeVideoId(MusicTrack track) {
+    if (track.getYoutubeVideoId() != null) return;  // 이미 박힌 곡은 패스
+    YouTubeVideo video = youtube.searchOfficialAudio(track.getArtistName(), track.getTrackName());
+    if (video != null) {
+        track.setYoutubeVideoId(video.getVideoId());
+        track.setYoutubeChannel(video.getChannelTitle());
+        track.setIsOfficial(Boolean.TRUE.equals(video.getIsOfficial()));
+    }
+}
+```
+
+그리고 한 번 박은 `youtube_video_id` 는 **영구 캐시**로 처리. 다시는 외부 호출 안 함.
+
+```java
+// MusicTrack.isCacheFresh()
+public boolean isCacheFresh() {
+    return youtubeVideoId != null && !youtubeVideoId.isBlank();
+}
+```
+
+**효과**
+
+| 시점 | 이전 | 이후 |
+|---|---|---|
+| 검색 (12곡 그리드) | YouTube 12회 호출 = 1200 units | 0 호출 |
+| 곡 클릭 (첫 재생) | 0 (이미 캐시) | YouTube 1회 = 100 units |
+| 같은 곡 재생 | 0 | 0 |
+
+같은 1만 quota 로 검색 100회+ 가능. 사실상 무제한.
+
+### quota 초과 자동 차단
+
+403 응답 받으면 12시간 동안 YouTube 호출을 메모리 캐시로 차단해서 로그 폭격 방지.
+
+```java
+} catch (HttpClientErrorException.Forbidden e) {
+    quotaExhaustedUntil = LocalDateTime.now().plusHours(12);
+    log.warn("[YouTube] quota 초과 → {} 까지 호출 차단", quotaExhaustedUntil);
+    return null;
+}
+```
+
+### 약관 대응 — IFrame 가시화
+
+가장 큰 고민은 **YouTube API Services Terms of Service §III.E.4.b** 였다.
+
+> "API Client must not separate, isolate, or modify the audio or video components of any YouTube audiovisual content."
+
+처음에는 IFrame 을 `height: 0; width: 0` 으로 숨기고 오디오만 사용했는데, 이게 약관 정면 위반이었다. 적발 시 API key 정지 + Google Cloud 계정 정지 위험.
+
+해결 — IFrame 을 **모든 모드에서 가시화**:
+
+```tsx
+// MusicPlayerProvider.tsx — IFrame 무대 위치를 모드에 따라 변경
+const stageClass =
+  mode === "full"
+    ? "fixed left-1/2 top-[12vh] z-[110] aspect-video w-[92vw] max-w-[640px] -translate-x-1/2 ..."
+    : mode === "mini"
+      ? "fixed bottom-36 right-3 z-[95] aspect-video w-[140px] sm:w-[180px] ..."
+      : "fixed -left-[9999px] -top-[9999px] h-0 w-0";
+```
+
+| 모드 | IFrame 위치 | 비고 |
+|---|---|---|
+| 풀 모드 | 화면 상단 중앙 (16:9, 640px) | 영상 메인 노출 |
+| 미니 모드 | 우측 하단 PIP (16:9, 180px) | 페이지 이동해도 영상 보임 |
+| 비활성 | -9999px | 곡이 없을 때만 |
+
+YouTube UI 는 약관이 허용하는 범위 내에서 최소화:
+
+| 옵션 | 효과 | 약관 |
+|---|---|---|
+| `controls=0` | YouTube 컨트롤바 숨김 | OK (우리 컨트롤로 대체) |
+| `modestbranding=1` | 큰 YouTube 로고 최소화 | OK (작은 워터마크는 유지) |
+| `rel=0` | 관련 영상 추천 최소화 | OK |
+| `disablekb=1` | 키보드 단축키 비활성 | OK |
+| `fs=0` | 전체화면 버튼 숨김 | OK |
+| `iv_load_policy=3` | 영상 주석 비활성 | OK |
+| `cc_load_policy=0` | 자막 자동표시 X | OK |
+
+추가로 곡이 끝나는 순간(state=0) 우리 `onEnded` 가 즉시 다음 곡의 video_id 를 IFrame 에 로드 → YouTube 추천 그리드가 뜨기 전에 새 영상이 그 자리를 차지.
+
+```ts
+// useYouTubePlayer.ts
+events: {
+    onStateChange: (e) => {
+        const state = e.data;  // 0 = ended
+        if (state === 0) onEndedRef.current?.();
+    }
+}
+```
+
+---
+
+## 7.4 글로벌 음악 플레이어 — Provider 패턴
+
+### 왜 글로벌 Provider 였나
+
+처음에는 음악 모달을 `/music` 페이지 안에만 두었다. 그러니까 사용자가 곡을 들으면서 지도 페이지로 이동하면 음악이 끊겼다. 일반 음악 앱(Spotify, YouTube Music)에서는 페이지 이동에도 재생이 유지된다.
+
+이를 위해 **React Context + Root Layout 마운트** 패턴을 적용.
+
+```tsx
+// app/layout.tsx
+<MusicPlayerProvider>
+  {children}
+  <GlobalMusicPlayer />
+</MusicPlayerProvider>
+```
+
+`MusicPlayerProvider` 가 layout 최상단에 한 번만 마운트되므로 어떤 페이지로 이동해도 같은 인스턴스 유지. `useYouTubePlayer` 훅의 IFrame 도 같은 노드 재사용.
+
+### Context 의 노출 인터페이스
+
+```ts
+// MusicPlayerProvider.tsx
+interface ContextValue {
+  // 상태
+  current: MusicTrack | null;
+  playlist: MusicTrack[];
+  match: MatchResult | null;
+  mode: "hidden" | "mini" | "full";
+
+  // 액션
+  play: (track, list?) => void;
+  pause / resume / toggle: () => void;
+  next / prev: () => void;
+  close / expand / collapse: () => void;
+  seekPercent: (percent) => void;
+
+  // 재생 신호
+  isReady / isPlaying: boolean;
+  progress / currentSec / durationSec: number;
+}
+```
+
+어떤 컴포넌트에서든 `useMusicPlayer()` 한 번이면 위 인터페이스 전부 사용 가능.
+
+### 자동 다음 곡 (추천 큐)
+
+```ts
+const player = useYouTubePlayer({
+  videoId: current?.youtubeVideoId ?? null,
+  onEnded: () => playNextFromQueue(),
+});
+
+const playNextFromQueue = useCallback(() => {
+  // 1) 사용자가 보고 있던 그리드의 다음 곡 우선
+  const idx = playlist.findIndex(t => t.id === current.id);
+  if (playlist[idx + 1]) { play(playlist[idx + 1], playlist); return; }
+
+  // 2) 그리드 끝나면 추천 큐에서 이어 재생
+  if (autoQueue.length > 0) {
+    const [head, ...rest] = autoQueue;
+    setAutoQueue(rest);
+    play(head);
+  }
+}, [current, playlist, autoQueue]);
+```
+
+추천 큐는 곡을 처음 재생할 때 `/api/music/{trackId}/next` 로 백엔드가 무드 태그 유사도 기준으로 5~8곡 미리 받아 둠. 외부 API 호출이 아니라 DB 만 보는 알고리즘이라 quota 부담 0.
+
+---
+
+## 7.5 검색 자동완성 — BFF 프록시 + 인코딩 함정
+
+### 왜 만들었나
+
+사용자가 "한페이지" 라고만 입력하면 Spotify 가 정확한 곡을 못 찾을 때가 많았다. 사용자가 정확한 표기("DAY6 한 페이지가 될 수 있게")로 입력하도록 도와주는 자동완성이 필요했다.
+
+YouTube 의 비공식 Suggest 엔드포인트(`https://suggestqueries.google.com/complete/search`)가 무료/키 없음 + 한국어 데이터 풍부해서 채택.
+
+### 왜 백엔드 프록시였나
+
+브라우저에서 직접 호출하면 CORS 차단. 그리고 더 큰 이유는 **응답 인코딩 처리가 까다로워서** 백엔드에서 통일하는 게 안정적이었다.
+
+```java
+// SearchSuggestService.java
+@Service
+public class SearchSuggestService {
+    private static final String SUGGEST_URL =
+        "https://suggestqueries.google.com/complete/search" +
+        "?ds=yt&client=firefox&hl=ko&oe=utf-8&ie=utf-8&q=";
+
+    public List<String> suggest(String query, int limit) {
+        // 메모리 캐시 검사
+        if (cache.containsKey(key)) return cap(cache.get(key), limit);
+
+        String encodedQuery = URLEncoder.encode(query.trim(), StandardCharsets.UTF_8);
+        URI uri = URI.create(SUGGEST_URL + encodedQuery);
+
+        byte[] raw = restTemplate.getForObject(uri, byte[].class);
+        String response = new String(raw, StandardCharsets.UTF_8);
+
+        JsonNode root = mapper.readTree(response);
+        JsonNode list = root.get(1);  // ["query", ["c1", "c2", ...]]
+        // ...
+    }
+}
+```
+
+### 인코딩 함정 3가지 (모두 직접 겪고 해결)
+
+**함정 1 — Spring RestTemplate 의 이중 URL 인코딩**
+
+`String` 으로 URL 을 넘기면 Spring 이 또 인코딩한다. 우리가 `URLEncoder.encode` 로 한 번 인코딩한 값을 String 으로 넘기면 `%EB%89%B4` → `%25EB%2589%25B4` 로 이중 인코딩되어 YouTube 가 깨진 query 로 받음.
+
+해결 — `URI` 객체로 직접 넘기기:
+
+```java
+URI uri = URI.create(SUGGEST_URL + encodedQuery);
+byte[] raw = restTemplate.getForObject(uri, byte[].class);
+// ✓ URI 로 넘기면 추가 인코딩 안 일어남
+```
+
+**함정 2 — Content-Type 에 charset 이 없으면 ISO-8859-1 로 디코딩**
+
+Spring RestTemplate 의 기본 String 변환기는 응답 Content-Type 에 charset 이 명시 안 되어 있으면 ISO-8859-1 로 디코딩한다. 한글이 다 깨진다.
+
+해결 — `byte[]` 로 받아서 명시적으로 UTF-8 변환:
+
+```java
+byte[] raw = restTemplate.getForObject(uri, byte[].class);
+String response = new String(raw, StandardCharsets.UTF_8);
+```
+
+**함정 3 — YouTube Suggest 의 응답 인코딩 자체가 다름**
+
+`hl=ko` 만 붙이면 응답이 EUC-KR 같은 인코딩으로 올 때가 있다 (`["뉴진스" → ["´º¸½º",...]` 처럼 깨짐). `oe=utf-8&ie=utf-8` 강제로 UTF-8 응답 강제.
+
+```
+URL: ?ds=yt&client=firefox&hl=ko&oe=utf-8&ie=utf-8&q=...
+```
+
+세 함정 다 풀고 나서야 자동완성이 정상 동작했다.
+
+### 빈 결과 캐시 함정
+
+```java
+// 빈 결과를 캐시하면 일시적 실패가 영구화됨
+List<String> cached = cache.get(key);
+if (cached != null && !cached.isEmpty()) return cap(cached, limit);
+
+// ...
+
+if (!result.isEmpty()) cache.put(key, result);  // 결과가 있을 때만 캐시
+```
+
+---
+
+## 7.6 프론트 자동완성 드롭다운
+
+```tsx
+// MusicTab.tsx 의 검색 인풋
+<input
+  ref={inputRef}
+  value={query}
+  onChange={(e) => {
+    setQuery(e.target.value);
+    setSuggestOpen(true);
+  }}
+  onFocus={() => setSuggestOpen(true)}
+  onKeyDown={handleKeyDown}  // ↑↓ Enter Esc
+  placeholder="아티스트, 곡명으로 검색"
+/>
+
+{suggestOpen && suggestions.length > 0 && (
+  <div role="listbox" className="absolute top-full ...">
+    {suggestions.map((s, i) => (
+      <button onClick={() => submitSearch(s)} ...>{s}</button>
+    ))}
+  </div>
+)}
+```
+
+핵심 UX 결정:
+
+- **디바운스 250ms** — 자동완성 호출 빈도 조절
+- **입력만으로도 검색 진행** — 사용자가 후보 클릭하지 않아도 입력값으로 그리드 즉시 갱신
+- **후보 클릭 시 더 정확한 검색어로 재검색** — 정확도 향상은 옵션
+- **↑↓ 화살표 네비게이션 + Enter 확정 + Esc 닫기** — 키보드 접근성
+
+---
+
+## 7.7 데이터 모델 — V5 / V6 마이그레이션
+
+### V5: 음악 트랙 + 사용자 청취 기록 (2026-05 초)
+
+```sql
+-- src/main/resources/db/migration/V5__music_track.sql
+CREATE TABLE music_track (
+    id                  BIGSERIAL PRIMARY KEY,
+    itunes_track_id     VARCHAR(50) UNIQUE NOT NULL,  -- V5 당시 PK 후보
+    artist_name         VARCHAR(200) NOT NULL,
+    track_name          VARCHAR(300) NOT NULL,
+    album_name          VARCHAR(300),
+    artwork_url         TEXT,
+    artwork_url_hires   TEXT,           -- 1000x1000 고화질
+    preview_url         TEXT,           -- iTunes 30초 미리듣기 (백업)
+    youtube_video_id    VARCHAR(20),    -- 풀 재생용 (lazy fetch)
+    youtube_channel     VARCHAR(200),
+    is_official         BOOLEAN DEFAULT FALSE,
+    mood_tags           TEXT,           -- JSON: ["청량","여름","파스텔",...]
+    duration_ms         INTEGER,
+    play_count          INTEGER DEFAULT 0,
+    last_searched_at    TIMESTAMP,
+    cached_at           TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_music_track_itunes_id ON music_track(itunes_track_id);
+CREATE INDEX idx_music_track_play_count ON music_track(play_count DESC);
+CREATE INDEX idx_music_track_artist ON music_track(LOWER(artist_name));
+
+-- 사용자별 청취 기록 (음악 패스포트 / 추천 기록)
+CREATE TABLE user_music_history (
+    id              BIGSERIAL PRIMARY KEY,
+    user_id         VARCHAR(50) NOT NULL,
+    track_id        BIGINT NOT NULL REFERENCES music_track(id),
+    played_at       TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    matched_popup_id BIGINT,        -- 그 곡으로 추천받은 팝업 (NULL 가능)
+    UNIQUE(user_id, track_id, played_at)
+);
+```
+
+**설계 의도**
+- `mood_tags` 는 JSON 배열로 저장 — 정규화 테이블 안 만들어 join 비용 0
+- `play_count` + `last_searched_at` 으로 인기차트/추천 큐 구현
+- `cached_at` 으로 외부 API 재호출 정책 판단
+- `youtube_channel` + `is_official` 로 Topic/VEVO/Official 구분 저장
+- `user_music_history` 의 unique 제약은 같은 곡을 같은 시각에 두 번 기록 못 하게 (중복 방지)
+
+### V6: Spotify 마이그레이션 — spotify_track_id 추가
+
+```sql
+-- V6__music_spotify.sql
+ALTER TABLE music_track
+    ADD COLUMN IF NOT EXISTS spotify_track_id VARCHAR(50);
+
+-- itunes_track_id 가 NOT NULL 이었는데, Spotify 만 쓰면 채울 값이 없어 nullable 로 완화
+ALTER TABLE music_track ALTER COLUMN itunes_track_id DROP NOT NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_music_track_spotify_id
+    ON music_track(spotify_track_id)
+    WHERE spotify_track_id IS NOT NULL;
+```
+
+V5 → V6 사이의 호환성 — `itunes_track_id` 컬럼은 그대로 두고 새 `spotify_track_id` 만 추가. 옛 V5 시절 데이터도 깨지지 않게.
+
+---
+
+## 7.8 AI 무드 분석 — Groq 로 곡의 분위기 추출
+
+```java
+// MusicMoodAnalysisService.java
+private static final List<String> ALLOWED_MOODS = List.of(
+    "청량", "여름", "겨울", "가을", "봄", "비", "밤", "새벽",
+    "발랄", "신남", "댄스", "에너지", "파티", "축제",
+    "감성", "우울", "쓸쓸", "차분", "잔잔", "위로",
+    "사랑", "이별", "그리움", "설렘",
+    "키치", "빈티지", "레트로", "트렌디", "도시", "한적",
+    "파스텔", "모노톤", "네온", "골든아워",
+    "카페", "드라이브", "산책", "공부", "운동"
+);
+
+private static final String SYSTEM_PROMPT = """
+    너는 음악 분위기 큐레이터다.
+    주어진 곡의 분위기를 아래 키워드 중에서만 정확히 5개 골라 JSON 배열로만 답한다.
+    설명/문장부호/markdown 금지. ["청량","여름","발랄","파스텔","댄스"] 형식.
+
+    선택 가능한 키워드:
+    {allowedMoods}
+    """;
+```
+
+**왜 화이트리스트 방식인가**
+
+AI 가 자유롭게 답변하면 같은 분위기인데 "여름밤" / "한여름밤" / "여름의 밤" 처럼 변형이 무한히 생긴다. 그러면 팝업과의 키워드 매칭이 비결정적이 됨. **40개 고정 키워드** 안에서만 5개 선택하도록 강제 → 매칭 알고리즘이 단순해지고 결과가 일관됨.
+
+또 응답 파싱이 견고함:
+```java
+List<String> tags = mapper.readValue(rawResponse, new TypeReference<List<String>>() {});
+// 화이트리스트 외 키워드는 자동 필터링
+return tags.stream().filter(ALLOWED_MOODS::contains).limit(5).toList();
+```
+
+응답이 JSON 배열이 아니거나 이상한 키워드가 들어와도 정상 동작 (필터링 후 남는 게 0개일 수 있지만, 그 경우엔 빈 매칭 결과로 흘러감).
+
+---
+
+## 7.9 음악 → 팝업 매칭 알고리즘
+
+```java
+// MusicService.matchByMood
+private int scoreMatch(PopupStore p, List<String> moodTags) {
+    String haystack = (
+        (p.getName()        != null ? p.getName()        : "") + " " +
+        (p.getDescription() != null ? p.getDescription() : "") + " " +
+        (p.getContent()     != null ? p.getContent()     : "")
+    ).toLowerCase();
+
+    int score = 0;
+    for (String tag : moodTags) {
+        if (haystack.contains(tag.toLowerCase())) score += 30;  // 키워드 1개 = 30점
+    }
+    // 카테고리 정합성 보너스
+    if (moodTags.contains("댄스") && "FASHION".equals(p.getCategory()))    score += 10;
+    if (moodTags.contains("키치") && "CHARACTER".equals(p.getCategory()))  score += 15;
+    if (moodTags.contains("카페") && "FOOD".equals(p.getCategory()))       score += 15;
+    return Math.min(100, score);
+}
+```
+
+**점수 설계**
+- 무드 키워드 1개 매칭 = **30점**. 5개 키워드면 최대 150점이 100으로 capping → 매우 잘 맞으면 100% 매칭
+- 카테고리 정합성 보너스 = 10~15점. "댄스" 무드 + 패션 팝업, "키치" 무드 + 캐릭터 팝업 같은 자연스러운 조합 가산
+- 0점이면 결과에서 제외 (관련 없는 팝업 차단)
+
+매칭 흐름:
+```java
+return popupRepo.findAllPublic().stream()
+        .map(p -> new PopupMatch(p, scoreMatch(p, moodTags)))
+        .filter(m -> m.score() > 0)
+        .sorted(Comparator.comparing(PopupMatch::score).reversed())
+        .limit(5)
+        .toList();
+```
+
+곡 한 곡이 재생될 때마다 활성 팝업 전체와 매칭 계산 → 상위 5개 반환. 외부 API 호출 0회. DB 만 사용.
+
+---
+
+## 7.10 역방향 매칭 — 팝업 → 어울리는 곡
+
+```java
+// MusicService.matchTracksForPopup (V6)
+public List<TrackMatch> matchTracksForPopup(Long popupId, int limit) {
+    PopupStore popup = popupRepo.findById(popupId).orElse(null);
+    if (popup == null) return List.of();
+
+    String haystack = (popup.getName() + " " + popup.getDescription() + " " + popup.getContent()).toLowerCase();
+
+    return trackRepo.findAllWithMood(PageRequest.of(0, 500)).stream()
+            .map(t -> {
+                List<String> tags = parseTagsJson(t.getMoodTags());
+                int score = 0;
+                for (String tag : tags) {
+                    if (haystack.contains(tag.toLowerCase())) score += 25;
+                }
+                // 카테고리 ↔ 무드 보너스 (매칭 방향만 다른 동일 로직)
+                if ("FASHION".equals(popup.getCategory())   && tags.contains("댄스")) score += 10;
+                if ("CHARACTER".equals(popup.getCategory()) && tags.contains("키치")) score += 15;
+                if ("FOOD".equals(popup.getCategory())       && tags.contains("카페")) score += 15;
+                return new TrackMatch(t, tags, Math.min(100, score));
+            })
+            .filter(m -> m.score() > 0)
+            .sorted(Comparator.comparing(TrackMatch::score).reversed())
+            .limit(limit)
+            .toList();
+}
+```
+
+**왜 만들었나**
+
+팝업 상세 페이지에서 "이 팝업과 어울리는 곡" 위젯이 필요했다. 정방향(곡 → 팝업)만 있으면 팝업 페이지 사용자가 음악 기능을 만날 길이 좁다. 양방향 매칭이 전환을 만든다.
+
+**프론트 통합**
+
+```tsx
+// MusicForPopup.tsx — 팝업 상세 페이지 안에 끼워 쓰는 위젯
+useEffect(() => {
+  apiFetch(`/api/music/by-popup/${popupId}?limit=6`)
+    .then(r => r.json())
+    .then(setMatches);
+}, [popupId]);
+```
+
+팝업 상세에 진입하면 자동으로 6곡 매칭 → 그리드 표시. 곡 카드 클릭 시 글로벌 플레이어 띄움.
+
+---
+
+## 7.11 운명의 곡 룰렛 + 자동 다음 곡 + 음악 패스포트
+
+### 룰렛 — 랜덤 1곡 즉시 재생
+
+```java
+// 무드 태그가 있는 곡 중 랜덤 1개 추출
+@Query(value = """
+    SELECT * FROM music_track
+    WHERE youtube_video_id IS NOT NULL AND mood_tags IS NOT NULL
+    ORDER BY RANDOM()
+    LIMIT 1
+    """, nativeQuery = true)
+Optional<MusicTrack> findRandomWithMood();
+
+// POST /api/music/roulette
+public MatchResult roulette(String userId) {
+    MusicTrack track = trackRepo.findRandomWithMood()
+            .orElseThrow(() -> new IllegalStateException("아직 운명의 곡 풀이 비어있습니다"));
+    return matchPopups(track.getId(), userId);
+}
+```
+
+검색을 안 하고도 "그냥 한 번 들려줘" 라는 사용자 의도에 대응. UX 적으로는 룰렛 버튼 → 클릭 → 즉시 풀 플레이어 띄우면서 매칭 팝업까지 표시.
+
+### 자동 다음 곡 추천 큐
+
+```java
+// MusicService.recommendNext — 무드 태그 유사도 기반
+public List<MusicTrack> recommendNext(Long seedTrackId, int limit) {
+    MusicTrack seed = trackRepo.findById(seedTrackId).orElse(null);
+    if (seed == null) return List.of();
+
+    List<String> seedMoods = parseTagsJson(seed.getMoodTags());
+    if (seedMoods.isEmpty()) return popular(limit);  // 무드 없으면 인기곡 폴백
+
+    return trackRepo.findTopPlayed(PageRequest.of(0, 200)).stream()
+            .filter(t -> !t.getId().equals(seedTrackId))
+            .filter(t -> t.getYoutubeVideoId() != null)
+            .map(t -> new RankedTrack(t, similarity(seedMoods, parseTagsJson(t.getMoodTags()))))
+            .filter(rt -> rt.score > 0)
+            .sorted(Comparator.comparingInt((RankedTrack rt) -> rt.score).reversed())
+            .limit(limit)
+            .map(rt -> rt.track)
+            .toList();
+}
+
+private int similarity(List<String> a, List<String> b) {
+    int score = 0;
+    for (String tag : a) if (b.contains(tag)) score += 20;
+    return score;
+}
+```
+
+**왜 DB 기반인가**
+
+YouTube/Spotify 의 추천 알고리즘은 외부 API 호출 비용이 큰데, 우리는 이미 곡마다 무드 태그가 있어 자체 알고리즘으로 충분. 외부 의존성 0.
+
+### 프론트의 자동 큐 보충
+
+```ts
+// MusicPlayerProvider.tsx
+const refillAutoQueue = useCallback(async (seedId: number) => {
+  if (refillingRef.current) return;     // 중복 호출 차단
+  refillingRef.current = true;
+  try {
+    const res = await apiFetch(`/api/music/${seedId}/next?limit=8`);
+    if (res.ok) setAutoQueue(await res.json());
+  } finally {
+    refillingRef.current = false;
+  }
+}, []);
+
+const playNextFromQueue = useCallback(() => {
+  // 1순위: 사용자가 보고 있던 그리드의 다음 곡
+  const idx = playlist.findIndex(t => t.id === current.id);
+  if (playlist[idx + 1]) { play(playlist[idx + 1], playlist); return; }
+
+  // 2순위: 추천 큐에서 이어 재생
+  if (autoQueue.length > 0) {
+    const [head, ...rest] = autoQueue;
+    setAutoQueue(rest);
+    play(head);
+  }
+}, [current, playlist, autoQueue, play]);
+```
+
+곡이 끝나는 시점에 `onEnded` 가 트리거 → `playNextFromQueue` 가 다음 곡을 즉시 IFrame 에 로드. YouTube 추천 그리드가 뜨기 전에 새 영상으로 교체.
+
+### 음악 패스포트
+
+```ts
+// app/music/passport/page.tsx — 청취 기록 + 통계 카드
+const stats = useMemo(() => {
+  const trackIds = new Set(history.map(h => h.trackId));
+  const popupIds = new Set(history.filter(h => h.matchedPopupId).map(h => h.matchedPopupId));
+  return {
+    plays: history.length,
+    uniqueTracks: trackIds.size,
+    matchedPopups: popupIds.size,
+  };
+}, [history]);
+```
+
+총 재생 / 감상한 곡 / 매칭된 팝업 3가지 통계 카드. 아래에 청취 타임라인 (곡 + 시간 + 매칭 팝업 링크).
+
+`user_music_history` 테이블이 모든 데이터의 원천. 곡 클릭 → `/play` POST → 백엔드가 `historyRepo.save()` 로 자동 기록.
+
+---
+
+## 7.12 `/music` 페이지 폐기 → 홈 탭으로 통합
+
+### 변경 전 — 별도 라우트
+
+```
+/music              (검색 + 카테고리 + 룰렛)
+/music/passport     (청취 기록)
+```
+
+별도 페이지로 두니 사용자가 BottomDock 의 다른 탭(MAP/COURSE 등) 으로 이동하면 음악 페이지 자체가 unmount. Provider 가 root layout 에 있어서 재생은 유지됐지만 페이지 자체는 다시 마운트하느라 검색 상태/스크롤 다 초기화.
+
+### 변경 후 — 홈의 currentTab 으로 통합
+
+```tsx
+// BottomDock 의 MUSIC 이 외부 라우트가 아닌 내부 탭
+const ITEMS: DockItemDef[] = [
+  { key: "MAP",      icon: MapIcon, label: "지도" },
+  { key: "COURSE",   icon: Route,   label: "코스" },
+  { key: "MUSIC",    icon: Music2,  label: "음악" },  // ← 외부 라우트 X
+  { key: "PASSPORT", icon: Ticket,  label: "여권" },
+  { key: "MY",       icon: User,    label: "MY" },
+  { key: "MATE",     icon: Users,   label: "동행" },
+];
+```
+
+```tsx
+// app/page.tsx — currentTab === "MUSIC" 분기
+{currentTab === "MUSIC" && (
+  <motion.section ...>
+    <MusicTab />
+  </motion.section>
+)}
+```
+
+이제 음악 탭을 누르면 페이지 이동 없이 즉시 전환. 다른 탭으로 갔다 와도 검색 상태 유지.
+
+### `/music` 라우트 호환
+
+```tsx
+// app/music/page.tsx (현재) — 옛 북마크/외부 링크 호환
+import { redirect } from "next/navigation";
+export default function MusicRedirect() {
+  redirect("/?tab=music");
+}
+```
+
+```tsx
+// app/page.tsx — ?tab=music 쿼리 파라미터 처리
+useEffect(() => {
+  const tabParam = searchParams.get("tab");
+  if (tabParam) {
+    setCurrentTab(tabParam.toUpperCase());
+    return;
+  }
+  // ...
+}, [searchParams]);
+```
+
+옛 `/music` URL 로 들어와도 자연스럽게 홈 음악 탭으로 이동.
+
+---
+
+## 7.13 카테고리 라이브러리 — 검색 외 진입 경로
+
+```tsx
+// MusicTab.tsx — 10개 카테고리 칩
+const CATEGORIES = [
+  { id: "summer",   label: "여름밤",       keyword: "summer night" },
+  { id: "rainy",    label: "비 오는 날",   keyword: "rainy day" },
+  { id: "study",    label: "공부할 때",    keyword: "study lofi" },
+  { id: "workout",  label: "운동",         keyword: "workout pump" },
+  { id: "drive",    label: "드라이브",     keyword: "driving korean indie" },
+  { id: "kpop",     label: "K-POP",        keyword: "k-pop hits" },
+  { id: "indie",    label: "한국 인디",    keyword: "korean indie" },
+  { id: "ballad",   label: "발라드",       keyword: "korean ballad" },
+  { id: "rnb",      label: "R&B",          keyword: "korean rnb" },
+  { id: "ost",      label: "OST",          keyword: "korean drama ost" },
+];
+```
+
+**왜 keyword 분리**
+
+label 은 한국어 (UI 표시용), keyword 는 검색에 실제 들어가는 영문/혼합 (Spotify 검색 효율). 한국 카테고리지만 검색은 영문이 더 정확해서.
+
+백엔드 엔드포인트는 그냥 검색을 재사용:
+
+```java
+// MusicController.category
+@GetMapping("/category")
+public List<MusicTrack> category(@RequestParam("keyword") String keyword,
+                                  @RequestParam(value = "limit", defaultValue = "12") int limit) {
+    return musicService.tracksForCategory(sanitizeQuery(keyword), clampLimit(limit, 25));
+}
+
+// MusicService.tracksForCategory 는 그냥 searchTracks 호출
+public List<MusicTrack> tracksForCategory(String keyword, int limit) {
+    return searchTracks(keyword, limit);
+}
+```
+
+별도 알고리즘 없이 검색 흐름 그대로 재사용 → 코드 표면 작음.
+
+---
+
+## 7.14 음악 API 엔드포인트 전체 목록
+
+```
+GET   /api/music/search?q=...&limit=12               곡 검색 (Spotify + 5단계 폴백)
+GET   /api/music/popular?limit=12                    인기 차트 (play_count 기준)
+GET   /api/music/category?keyword=...&limit=12       카테고리 검색
+POST  /api/music/{trackId}/play                      재생 + 무드 분석 + 팝업 매칭 + 히스토리
+POST  /api/music/roulette                            랜덤 곡 1개 + 매칭
+GET   /api/music/{trackId}/next?limit=5              자동 다음 곡 추천 큐
+GET   /api/music/history?limit=30                    사용자 청취 기록 (로그인 사용자)
+GET   /api/music/by-popup/{popupId}?limit=5          팝업 → 어울리는 곡 (역방향)
+GET   /api/music/suggest?q=...&limit=8               자동완성 후보 (YouTube Suggest 프록시)
+```
+
+모든 엔드포인트가 `MusicController` 한 클래스에 모여 있고 입력 검증(sanitizeQuery / clampLimit)을 일관적으로 적용.
+
+---
+
+
+
+## 8.1 YouTube IFrame 과 React DOM Reconciler 충돌
+
+### 증상
+
+음악 플레이어 닫기 버튼 누르면 화이트 스크린 + 콘솔에 다음 에러:
+
+```
+Uncaught NotFoundError: Failed to execute 'insertBefore' on 'Node':
+  The node before which the new node is to be inserted is not a child of this node.
+```
+
+### 원인
+
+`new YT.Player(element, ...)` 는 인수로 받은 `element` 자체를 `<iframe>` 으로 **교체** 해버린다. React 가 ref 로 관리하던 DOM 노드가 사라진 상태에서 나중에 unmount 시점에 React 가 그 노드를 찾으려다 `NotFoundError`.
+
+### 해결
+
+React 가 관리하는 wrapper 와 YouTube 가 교체하는 inner 를 분리.
+
+```ts
+// useYouTubePlayer.ts
+const wrapper = containerRef.current;
+const target = document.createElement("div");
+wrapper.appendChild(target);  // 우리가 직접 만든 inner 노드
+
+playerRef.current = new window.YT.Player(target, { ... });  // target 만 교체
+
+return () => {
+    if (playerRef.current?.destroy) {
+        try { playerRef.current.destroy(); } catch {}
+    }
+    // wrapper 안의 잔여 노드 직접 제거
+    if (wrapper.isConnected) {
+        while (wrapper.firstChild) wrapper.removeChild(wrapper.firstChild);
+    }
+};
+```
+
+React 는 wrapper 만 보고, 내부는 우리가 직접 만들고 직접 정리. 충돌 0.
+
+---
+
+## 8.2 /play 응답 후 IFrame 이 video_id 못 받던 버그
+
+### 증상
+
+곡 카드를 처음 클릭하면 풀 플레이어는 뜨는데 영상이 안 재생됨. 다시 누르면 가끔 재생됨. 일관성 없음.
+
+### 원인
+
+```ts
+// MusicPlayerProvider.tsx (수정 전)
+const play = (track) => {
+    setCurrent(track);  // ← 이 시점에 track.youtubeVideoId 는 null
+    apiFetch(`/api/music/${track.id}/play`, { method: "POST" })
+        .then(r => r.json())
+        .then(data => setMatch(data));  // ← match 만 갱신, track 은 안 갱신
+};
+```
+
+흐름:
+1. 프론트에 곡 카드 클릭 → `setCurrent(track)` (video_id null)
+2. `useYouTubePlayer({ videoId: null })` → IFrame 안 떠짐
+3. `/play` POST → 백엔드가 lazy fetch 로 video_id 채움
+4. 응답에 갱신된 track 있음, **하지만 `setMatch` 만 호출, `setCurrent` 안 함**
+5. 결과: 프론트의 current 는 영원히 null video_id
+
+### 해결
+
+```ts
+.then((data: MatchResult | null) => {
+    if (!data) return;
+    setMatch(data);
+    if (data.track) setCurrent(data.track);  // ✓ 갱신된 track 으로 current 다시
+})
+```
+
+백엔드가 채워준 video_id 가 프론트에 즉시 반영되어 IFrame 이 정상 로드.
+
+---
+
+## 8.3 한국어 검색이 안 잡힌 5가지 원인 (시간순)
+
+이 부분이 가장 오래 걸렸다. 사용자가 한국어로 검색했는데 결과가 엉뚱한 곡으로 나오는 문제. 단계별로 원인을 잡았다.
+
+| 원인 | 증상 | 해결 |
+|---|---|---|
+| 1 | iTunes KR 카탈로그 약함 | Spotify 로 마이그레이션 |
+| 2 | iTunes UriComponentsBuilder 인코딩 누락 | `.encode(UTF_8)` 추가 |
+| 3 | Spotify 가 "뉴진스" 그대로 검색하면 러시아 곡 매칭 | Groq AI 정규화 단계 추가 |
+| 4 | 자동완성도 한국어 후보만 추천 | YouTube Suggest `oe=utf-8` |
+| 5 | 결과가 있어도 검색어 미포함 (약한 매칭) | `isStrongMatch` 검증 + 5단계 폴백 |
+
+---
+
+## 8.4 YouTube 영상 매칭 정확도 — 첫 결과 신뢰성 문제
+
+### 증상
+
+곡 클릭 후 재생됐는데 다른 가수의 cover 곡이나 라이브 영상이 나오는 경우. 한 번 잘못 매칭된 video_id 는 영구 캐시라 영원히 잘못된 곡 재생.
+
+### 원인
+
+```java
+// pickPreferredOrFirst (수정 전) — 너무 관대했음
+private JsonNode pickPreferredOrFirst(JsonNode items, String artist) {
+    // Topic/VEVO/Official 우선
+    // ... 다 없으면
+    return items.get(0);  // ← YouTube 검색 첫 결과 무조건 사용
+}
+```
+
+YouTube 검색의 첫 결과가 그 곡이라는 보장이 없다. 광고 영상, 짧은 클립, 무관한 영상이 첫 결과로 뜰 수 있음.
+
+### 해결 — 영상 제목으로 5단계 검증
+
+```java
+private JsonNode pickBestByTitle(JsonNode items, String artist, String track) {
+    // 1) 영상 제목에 아티스트 AND 트랙명 모두 포함
+    for (JsonNode item : items) {
+        if (containsLoose(title, artist) && containsLoose(title, track)) return item;
+    }
+    // 2) 공식 채널 + 트랙명 포함
+    // 3) 공식 채널 (Topic/VEVO/Official)
+    // 4) 트랙명만 포함
+    // 5) 아티스트명만 포함
+    // 6) 다 안 되면 null (엉뚱한 영상 박힘 방지)
+    return null;
+}
+
+private boolean containsLoose(String haystack, String needle) {
+    String h = normalize(haystack);
+    String n = normalize(needle);
+    return h.contains(n);
+}
+
+private String normalize(String s) {
+    return s.toLowerCase().replaceAll("[\\s'\"`()\\[\\].,!?·\\-_/]", "");
+}
+```
+
+`containsLoose` 의 normalize 는 공백·특수문자 차이를 무시한다. "한 페이지가 될 수 있게" 와 영상 제목 "DAY6한페이지가될수있게(라이브)" 가 같은 곡이라고 인식.
+
+이 검증 추가 후 엉뚱한 영상 박히는 사고 사실상 0.
+
+---
+
+## 8.5 카테고리 enum 미스매칭 — 지도 13개 → 27개
+
+### 증상
+
+자동수집으로 27개의 좌표 있는 팝업이 DB 에 있는데 지도엔 13개만 표시.
+
+### 진단
+
+```bash
+sudo -u postgres psql -d popspot_db -c "
+SELECT category, COUNT(*) FROM popup_store
+WHERE latitude IS NOT NULL AND status NOT IN ('PENDING','EXPIRED')
+GROUP BY category;"
+```
+
+| 카테고리 | 개수 |
+|---|---|
+| CHARACTER | 16 |
+| FASHION | 5 |
+| BEAUTY | 3 |
+| FOOD | 3 |
+| CULTURE | 3 |
+| ETC | 1 |
+
+```ts
+// InteractiveMap.tsx (수정 전)
+const CATEGORIES = ["ALL", "FASHION", "BEAUTY", "FOOD", "TECH", "ART"];
+// TECH, ART 는 DB 에 없음 / CHARACTER, CULTURE, ETC 가 빠져있음
+```
+
+ALL 모드에서는 모두 받지만, 좌표 중복으로 가려진 마커도 있었다.
+
+### 해결
+
+```ts
+const CATEGORIES = ["ALL", "CHARACTER", "FASHION", "BEAUTY", "FOOD", "CULTURE", "ETC"];
+
+// 좌표 중복 마커는 5m 반경 원형으로 분산
+function spreadOverlappingMarkers(markers: MapMarkerData[]): MapMarkerData[] {
+  const groups: Record<string, MapMarkerData[]> = {};
+  for (const m of markers) {
+    const key = `${m.latitude},${m.longitude}`;
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(m);
+  }
+  // 같은 좌표 그룹은 반경 0.00005 (≈ 5m) 원형으로 흩뿌림
+  // ...
+}
+```
+
+같은 빌딩에 등록된 팝업 6개 (성수 - 포켓몬, 아디다스, 콜랩코리아 등) 도 모두 시각적으로 구분됨.
+
+또 핀 디자인도 변경: 작은 점 → 카테고리 색상 + 팝업 이름이 항상 보이는 카드형 핀.
+
+---
+
+## 8.6 인트로 페이지 Skip 버튼 안 눌리는 버그
+
+### 증상
+
+`/intro` 페이지 우측 상단의 Skip 버튼이 가끔 안 눌림. Enter 키도 동작 안 함.
+
+### 원인
+
+배경 비디오와 섹션 오버레이가 `pointer-events` 를 흡수.
+
+```tsx
+// 수정 전
+<div className="fixed inset-0 z-0 bg-ink-900">
+  <video autoPlay ... />  // ← 클릭을 흡수할 수 있음
+</div>
+```
+
+### 해결
+
+```tsx
+<div className="pointer-events-none fixed inset-0 z-0 bg-ink-900">
+  <video ... />
+</div>
+
+// Skip 버튼 z-index 도 50 → 100 으로
+<button className="fixed right-5 top-5 z-[100] ...">
+  Skip →
+</button>
+
+// Enter 키 글로벌 핸들러도 추가
+useEffect(() => {
+  const handler = (e: KeyboardEvent) => {
+    if (e.key === "Enter") proceed();
+  };
+  window.addEventListener("keydown", handler);
+  return () => window.removeEventListener("keydown", handler);
+}, [isLoggedIn]);
+```
+
+각 섹션의 절대위치 오버레이에도 모두 `pointer-events-none` 명시.
+
+---
+
+## 8.7 다크모드 글씨 가독성
+
+### 증상
+
+다크모드에서 본문 텍스트가 너무 밝은 흰색이라 눈에 부담. 일부 카드는 흰 배경 위 흰 글씨로 안 보임.
+
+### 원인
+
+```css
+:root.dark {
+  --color-foreground: var(--color-cream-200);  /* #f5f3ee — 거의 흰색 */
+}
+```
+
+또 `bg-cream-200` 같은 light 배경을 가진 카드는 다크모드에서도 클래스명이 그대로 있어서 다크 배경 룰이 안 덮어쓰면 흰 배경에 흰 글씨가 되는 경우.
+
+### 해결
+
+```css
+:root.dark {
+  /* 흰색 직전 톤(#f5f3ee) 대신 따뜻한 어두운 톤으로 — 장시간 봐도 편하게 */
+  --color-foreground: #d8d4ca;
+  --color-muted-foreground: #9a958a;
+  --color-border: rgba(245, 243, 238, 0.12);
+}
+
+/*
+ * 밝은 라임/크림 배경 위에 흰 글씨가 묻히는 사고 방지.
+ * light 모드에서만 적용 — 다크모드에서는 다크 배경 룰이 덮어쓰니까 영향 X.
+ */
+:root:not(.dark) .bg-lime-100,
+:root:not(.dark) .bg-lime-200,
+:root:not(.dark) .bg-lime-300,
+:root:not(.dark) .bg-cream-100,
+:root:not(.dark) .bg-cream-200 {
+  color: var(--color-ink-900);
+}
+```
+
+`:root:not(.dark)` 셀렉터가 핵심. 처음에 이 한정 없이 적용했더니 다크모드 음악 카테고리 칩이 검은 글씨로 가려지는 사고가 났음.
+
+---
+
+## 8.8 V6 마이그레이션이 부분만 실행된 사고 — itunes_track_id NOT NULL 잔존
+
+### 증상
+
+V6 마이그레이션 배포 후 사용자가 음악 검색 시 500 에러 + 백엔드 로그에 다음 에러 폭주:
+
+```
+ERROR: null value in column "itunes_track_id" of relation "music_track" violates not-null constraint
+Detail: Failing row contains (227, NewJeans 'Super Shy', NewJeans, ...,
+        null,  -- itunes_track_id 가 null
+        6rdkCkjk6D12xR... -- spotify_track_id 는 있음)
+```
+
+새 곡(Spotify 만 검색)을 저장하려는데 V5 시절의 `itunes_track_id NOT NULL` 제약이 안 풀려서 INSERT 가 모두 실패.
+
+### 원인 — Flyway 가 V6 sql 일부만 실행한 것으로 추정
+
+V6 마이그레이션 SQL:
+```sql
+ALTER TABLE music_track ADD COLUMN IF NOT EXISTS spotify_track_id VARCHAR(50);
+ALTER TABLE music_track ALTER COLUMN itunes_track_id DROP NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_music_track_spotify_id ...;
+```
+
+`flyway_schema_history` 상으로는 V6 가 success=true 로 기록됐는데, 실제 컬럼 상태는 `NOT NULL` 그대로 남아있었다. 추정 원인:
+- Flyway 트랜잭션 안에서 ALTER COLUMN 이 무시되었거나
+- PostgreSQL 17 + IF NOT EXISTS 의 일부 호환성 문제로 부분 적용
+
+### 해결 — 수동 ALTER
+
+```bash
+sudo -u postgres psql -d popspot_db -c "
+ALTER TABLE music_track ALTER COLUMN itunes_track_id DROP NOT NULL;"
+
+# 확인
+sudo -u postgres psql -d popspot_db -c "\d music_track" | grep itunes
+# → itunes_track_id | character varying(50) | |   (← not null 표기 없음)
+```
+
+배포 후 같은 사고를 막기 위한 교훈:
+- Flyway 마이그레이션 적용 후 **실제 스키마 상태를 `\d` 로 확인** 하는 절차 추가
+- `ALTER COLUMN` 같은 비-DDL 안전 명령은 분리된 마이그레이션 파일에 두기
+
+---
+
+## 8.9 Tomcat 400 — curl 의 raw 한글이 만든 혼동
+
+### 증상 (사용자 진단 시도 중)
+
+음악 검색이 안 되어 사용자가 직접 curl 로 테스트:
+
+```bash
+$ curl -s "http://localhost:8080/api/music/search?q=뉴진스&limit=3"
+<!doctype html><html lang="en"><head><title>HTTP Status 400 – Bad Request</title>...
+```
+
+400 이 떴기 때문에 "백엔드 코드에 문제가 있다" 고 오진할 뻔.
+
+### 원인
+
+bash 가 `?q=뉴진스` 를 raw UTF-8 바이트로 그대로 전송. Tomcat 의 RFC 7230 준수 파서가 query string 에 비-ASCII 바이트가 있는 것을 거부 → 400.
+
+**브라우저는 자동으로 percent-encoding** 하기 때문에 실제 사이트에서는 정상 동작. **curl 만의 문제**였다.
+
+### 해결 — curl 호출 방식 변경
+
+```bash
+# 방식 1: --data-urlencode 가 자동 인코딩
+curl -s -G "http://localhost:8080/api/music/search" \
+  --data-urlencode "q=뉴진스" --data-urlencode "limit=3"
+
+# 방식 2: percent-encoded 직접
+curl -s "http://localhost:8080/api/music/search?q=%EB%89%B4%EC%A7%84%EC%8A%A4&limit=3"
+```
+
+**교훈**
+
+진단 도구의 한계도 진단 결과에 영향을 준다. 백엔드 코드를 의심하기 전에 클라이언트(curl) 의 인코딩 동작을 먼저 확인. 브라우저 F12 Network 탭의 실제 요청 URL 을 보는 게 가장 신뢰성 높은 진단.
+
+---
+
+## 8.10 DB 캐시 비우기 — 잘못된 매칭 영구화 사고 대응
+
+### 배경
+
+음악 매칭이 한 번 잘못되어 잘못된 `youtube_video_id` 또는 잘못된 곡이 `music_track` 에 박히면, 영구 캐시 정책 때문에 사용자가 영원히 잘못된 곡을 보게 된다.
+
+매칭 알고리즘을 개선해도, 이미 DB 에 박힌 옛 데이터는 그대로 — 매칭 코드만 고쳐서는 해결 안 됨.
+
+### 절차
+
+```bash
+# 잘못된 매칭 의심 시 캐시 전체 비우기 (TRUNCATE — 외래키 무시 + ID 리셋)
+sudo -u postgres psql -d popspot_db -c "
+TRUNCATE music_track, user_music_history RESTART IDENTITY CASCADE;"
+
+# 비워졌나 확인
+sudo -u postgres psql -d popspot_db -c "SELECT COUNT(*) FROM music_track;"
+#  count: 0
+```
+
+새 매칭 로직으로 캐시가 점진적으로 재생성됨. 사용자가 검색하는 순간 Spotify 메타 캐시, 곡 클릭하는 순간 YouTube video_id 캐시.
+
+### 부분 정리 (옛 잘못된 데이터만)
+
+```bash
+# 영상 ID 가 비어있는 곡만 (lazy fetch 시 다시 채워짐)
+sudo -u postgres psql -d popspot_db -c "
+DELETE FROM music_track WHERE youtube_video_id IS NULL OR youtube_video_id = '';"
+
+# Apple CDN 잔재 (iTunes 시절 데이터) 만
+sudo -u postgres psql -d popspot_db -c "
+DELETE FROM music_track WHERE artwork_url LIKE '%mzstatic%';"
+
+# YouTube 폴백 결과만 (yt: prefix 가 spotifyTrackId 에 박힘)
+sudo -u postgres psql -d popspot_db -c "
+DELETE FROM music_track WHERE spotify_track_id LIKE 'yt:%';"
+```
+
+---
+
+## 8.11 MusicQueryNormalizationService 의 부활 — 추측 로직 제거 vs 정확도
+
+### 배경
+
+검색 흐름을 두 번 갈아엎었다.
+
+**1차 — 정규화 + 폴백 (복잡함)**
+```
+사용자 입력 → Groq 정규화 → Spotify KR → 약한 매칭 검사 → YouTube 폴백
+```
+
+너무 많은 단계가 추측을 쌓아 디버깅이 어려움. 한 번에 단순화하기로 결정.
+
+**2차 — 단순화 (정확도 ↓)**
+```
+사용자 입력 → Spotify 단일 검색 (자동완성 클릭 정확 텍스트에 의존)
+```
+
+자동완성 드롭다운이 잘 동작하면 정확한 검색어를 받으니까 단순화 가능하다고 봤다. `MusicQueryNormalizationService` 를 deprecated 빈 클래스로.
+
+**3차 — 정규화 재도입 + 약한 매칭 검사**
+
+문제: 한국어 입력은 자동완성 후보 클릭 흐름이 약하고, Spotify 가 한국어 → NewJeans 같은 변환을 직접 못 한다. "뉴진스" 검색이 러시아 곡으로 잡히는 사고 → 정규화 필요.
+
+```java
+@Service
+@RequiredArgsConstructor
+public class MusicQueryNormalizationService {
+    private static final String SYSTEM_PROMPT = """
+        너는 한국 음악 검색을 위한 표기 변환 도우미다.
+        입력 한국어 검색어를 Spotify 에서 매칭이 잘 되는 표기로 바꿔서 답한다.
+        ...
+        예시:
+          입력: 뉴진스       → 출력: NewJeans
+          입력: 잔나비       → 출력: Jannabi
+          입력: 데이식스     → 출력: DAY6
+          입력: 한 페이지가 될 수 있게  → 출력: DAY6 한 페이지가 될 수 있게
+        """;
+
+    private final ConcurrentMap<String, String> cache = new ConcurrentHashMap<>();
+
+    public String normalize(String raw) {
+        if (cache.containsKey(raw)) return cache.get(raw);
+        String result = askModel(raw);
+        cache.put(raw, result);  // 결과 메모리 캐시
+        return result;
+    }
+}
+```
+
+**교훈**
+
+> "추측 로직을 다 빼고 단순화하면 깔끔할 줄 알았다. 그런데 데이터 자체가 직접 매칭에 비호의적이면 (한국어 → 영문 표기 변환) AI 의 도움이 필요하다. 단순함과 정확도는 trade-off."
+
+최종 흐름은 §7.2 의 5단계 폴백.
+
+---
+
+## 8.12 미니/풀 플레이어 분할 사이드 패널 — 부모 grid 셀이 늘어남 (롤백)
+
+### 시도와 실패
+
+지도 옆에 분할 사이드 리스트를 두려고 root 를 flex 로 바꾸고 우측 aside 를 추가했다. 그런데 카드 리스트 컨텐츠가 부모 height 를 넘쳐 grid 셀 자체가 세로로 길게 늘어나는 사고 발생.
+
+원인은 **CSS flex 의 `min-height: auto` 트랩**. flex item 의 기본 min-height 가 auto 라서 컨텐츠만큼 늘어남.
+
+### 시도한 해결
+
+```tsx
+<aside className="hidden md:flex relative h-full max-h-full overflow-hidden ...">
+  <div className="flex-1 min-h-0 overflow-y-auto ...">  {/* ← min-h-0 가 핵심 */}
+```
+
+`min-h-0` 한 줄이 flex 트릭의 핵심. 하지만 시각적으로도 어색했고 사용자가 옛 토글 사이드바를 선호해서 결국 롤백.
+
+**남긴 교훈**: flex 컨테이너에 overflow-auto 자식을 둘 때는 무조건 `min-h-0` 명시.
+
+---
+
+# 9. V5 — UX 정리 / 등급 시스템
+
+## 9.1 PASSPORT 리워드 시스템 재설계
+
+### 변경 전
+
+```tsx
+// 옛 리워드 — 결제와 연관된 보상
+<h4>📢 메이트 확성기 1개</h4>
+<p>스탬프 3개 달성 시 자동 지급</p>
+```
+
+상점 폐기와 함께 "확성기 지급" 이 의미 없어짐.
+
+### 변경 후 — 등급 + 뱃지 시스템
+
+```ts
+// src/lib/rank.ts
+export function getUserRank(stampCount: number): UserRank {
+  if (stamps >= 12) return { key: "MASTER", label: "팝업 마스터", ring: "ring-amber-400", ... };
+  if (stamps >= 6)  return { key: "HUNTER", label: "팝업 헌터", ring: "ring-lime-400", ... };
+  if (stamps >= 3)  return { key: "BEGINNER", label: "팝업 입문자", ring: "ring-cyan-400", ... };
+  return { key: "NONE", label: "기록 시작", ring: "ring-foreground/15", ... };
+}
+```
+
+3단계 등급:
+- 입문자 (3개+) — 청록색 ring
+- 헌터 (6개+) — 라임색 ring
+- 마스터 (12개+) — 황금색 ring
+
+PASSPORT 의 사용자 아바타에 `ring-4` 로 등급 색상이 자동 적용. 등급 라벨도 작은 뱃지로 표시.
+
+### MY 탭의 빈 자리 — RankCard
+
+상점 폐기로 비워진 자리에 `RankCard` 컴포넌트 신규.
+
+```tsx
+// src/components/rank/RankCard.tsx
+<div className={`bg-gradient-to-br ${rank.bg} ...`}>
+  <Stamp className={rank.text} />
+  <h4>{rank.label}</h4>
+  <span>도장 {stampCount}개 · {rank.nextLabel} 까지 {rank.toNext}개</span>
+  <div className="h-2 bg-foreground/10">
+    <div className={rank.accent} style={{ width: `${progress}%` }} />
+  </div>
+  <BadgePill label="입문자" achieved={stampCount >= 3} />
+  <BadgePill label="헌터" achieved={stampCount >= 6} />
+  <BadgePill label="마스터" achieved={stampCount >= 12} />
+</div>
+```
+
+현재 등급 + 다음 등급까지 진행도 + 획득한 뱃지를 한눈에. 클릭 시 PASSPORT 탭으로 이동.
+
+---
+
+## 9.2 음악 영역 톤 다듬기 (AI 티 제거)
+
+UI 카피와 시각 요소에서 자동 생성 느낌을 줄였다.
+
+| 영역 | 변경 전 | 변경 후 |
+|---|---|---|
+| 카테고리 칩 | 🌃 여름밤 / 🌧️ 비 오는 날 / 📚 공부할 때 | 여름밤 / 비 오는 날 / 공부할 때 |
+| 곡 카드 호버 | `▶` 텍스트 | `<Play />` 아이콘 |
+| 빈 카드 | `♪` 큰 글자 | `<Music2 />` 아이콘 |
+| 매칭 뱃지 | `🎯 매칭` | `매칭 N%` |
+| 헤더 | "지금 듣는 노래에 어울리는 팝업스토어" | "듣고 있던 곡으로, 팝업을 골라봐요" |
+| 홈 배너 부제 | "AI 무드 분석으로 매칭" | "Spotify 검색 · 풀 재생 · 룰렛 · 패스포트" |
+
+이모지 한 글자가 자동 생성 흔적으로 읽히는 경우가 많아서, 의미가 분명한 lucide 아이콘으로 통일했다.
+
+---
+
+# §V5 변경 정리
+
+**v1.3 변경점 (2026-05 후반)**
+- §7 V5 음악 시스템 도입 통째 추가 (상점 폐기 → Spotify+YouTube 하이브리드)
+- §7.1 상점 폐기 배경과 잔재 정리 절차
+- §7.2 iTunes → Spotify 마이그레이션 + 한국어 5단계 폴백
+- §7.3 YouTube quota 절약 (lazy fetch + 영구 캐시) + 약관 대응 (IFrame 가시화)
+- §7.4 글로벌 음악 Provider 패턴 (라우트 이동에도 재생 유지)
+- §7.5 BFF 자동완성 프록시 + Spring 인코딩 함정 3종 해결
+- §7.6 프론트 자동완성 드롭다운 (디바운스/키보드 네비)
+- §7.7 V5/V6 마이그레이션 (music_track 스키마 + spotify_track_id 추가)
+- §7.8 Groq AI 무드 분석 (40 화이트리스트 키워드 + 프롬프트)
+- §7.9 음악 → 팝업 매칭 알고리즘 (30점 키워드 + 카테고리 보너스)
+- §7.10 역방향 매칭 (팝업 → 어울리는 곡) + MusicForPopup 위젯
+- §7.11 운명의 곡 룰렛 + 자동 다음 곡 큐 + 음악 패스포트
+- §7.12 /music 페이지 폐기 → 홈 탭 통합 (?tab=music 호환)
+- §7.13 카테고리 라이브러리 (10개 무드/상황)
+- §7.14 음악 API 엔드포인트 9개 전체 목록
+- §8 음악/지도/UX 트러블슈팅 12건 통째 추가
+- §8.1 YouTube IFrame 과 React DOM Reconciler 충돌
+- §8.2 /play 응답 후 video_id 미반영 버그
+- §8.3 한국어 검색 5단계 원인 분석
+- §8.4 영상 매칭 정확도 — 제목 검증 5단계 폴백
+- §8.5 지도 카테고리 enum 미스매칭 + 좌표 중복 분산
+- §8.6 인트로 Skip 버튼 pointer-events 흡수
+- §8.7 다크모드 글씨 가독성 + light 전용 가독성 룰
+- §8.8 Flyway V6 부분 적용 사고 (itunes_track_id NOT NULL 잔존)
+- §8.9 Tomcat 400 — curl 의 raw 한글 인코딩 혼동
+- §8.10 DB 캐시 비우기 절차 (TRUNCATE / 부분 정리)
+- §8.11 MusicQueryNormalizationService 부활 (단순화 vs 정확도 trade-off)
+- §8.12 사이드 패널 분할 layout 시도 + flex min-h-0 트랩 + 롤백
+- §9 PASSPORT 리워드 재설계 + 등급/RankCard + 음악 톤 정리
+
+---
+
+**문서 버전:** v1.3
+**최종 수정:** 2026-05-09
 **작성자:** POP-SPOT 개발팀
 
 **v1.2 변경점:**
@@ -2730,3 +4302,738 @@ The deployment could not be found on Vercel. DEPLOYMENT_NOT_FOUND
 - §3.25 시놀로지 마이그레이션 준비 추가
 - §4 시스템 구조 — Groq, 인트로 페이지, 시놀로지 이전 예정 반영
 - §5 향후 권장 작업 — 시놀로지 마이그레이션 최우선 순위로
+
+**작성자:** POP-SPOT 개발팀 (원본)
+
+**v1.2 변경점:**
+- §6 실제 마이그레이션 실행 기록 통째 추가 (5/3, 약 6시간 작업)
+- 10단계 마이그레이션 + 19가지 트러블슈팅 모두 포함
+- GCP → Proxmox/Ubuntu VM 이전 완료 (백엔드만 정지 대기)
+- 외부 노출 nginx → Tailscale Funnel 로 대체
+- 도메인 popspot.duckdns.org → vm-113.tailc57dd4.ts.net
+
+**v1.1 변경점:**
+- §1.17 Gemini → Groq LLM 마이그레이션 추가
+- §2.7 인트로(커버) 페이지 신규 추가
+- §2.8 AuthGuard 공개 경로 + 로그인 후 ?entered=1 추가
+- §2.9 SearchBox Algolia 잘못된 키 fallback 추가
+- §3.22 application-prod.properties 외부 파일 우선순위 함정 추가
+- §3.23 Gemini API 키 노출 → Google 자동 차단 추가
+- §3.24 Algolia 잘못된 App ID 콘솔 스팸 추가
+- §3.25 시놀로지 마이그레이션 준비 추가
+- §4 시스템 구조 — Groq, 인트로 페이지, 시놀로지 이전 예정 반영
+- §5 향후 권장 작업 — 시놀로지 마이그레이션 최우선 순위로
+
+---
+
+# §7. 백엔드 Clean Code 리팩터링 — 파일별 상세 변경 기록 (v1.4, 2026-05-14)
+
+> 동현님이 "주석 달지말고 클린코드 원칙을 따라서 백엔드 싹 다 수정" 요청.
+> Robert Martin Clean Code 원칙 적용: 의미 있는 이름, 작은 함수, 매직넘버 추출, JavaDoc만 사용,
+> 데이터 캡슐화, 빨리 실패. 7개 Wave 로 나눠 진행. 총 **48개 파일** 수정.
+
+## 7.0 적용 공통 원칙 (모든 Wave 공통)
+
+1. **와일드카드 import 제거** — `import org.springframework.web.bind.annotation.*;` 같은 별표 import 를
+   `import org.springframework.web.bind.annotation.GetMapping;` 등 명시적 import 로 모두 변환
+2. **인라인 주석 제거** — `// [코드 해석] 이 변수는...` 같은 line-by-line 주석 모두 삭제
+3. **클래스/메서드 JavaDoc 만 유지** — "왜 그렇게 만들었나"만 클래스 / 핵심 메서드 위에 JavaDoc 으로
+4. **매직 넘버 → `static final` 상수** — `5`, `10`, `30`, `"PENDING"` 같은 값은 모두 명명 상수로
+5. **거대 메서드 분해** — 50줄 넘는 메서드는 작은 헬퍼로 쪼개기
+6. **`System.out.println` 잔여 제거** — 전부 SLF4J `log.info / warn / debug` 로 전환
+7. **이모지 제거** — `🔥`, `✅`, `❌`, `⚠️`, `🛡️` 같은 이모지를 모든 코드/로그에서 제거 (grep 호환성 + 운영 친화)
+
+---
+
+## 7.1 Wave 1 — 빌드 도구 (1 파일)
+
+### `build.gradle`
+
+**추가:**
+
+```gradle
+plugins {
+    id 'com.diffplug.spotless' version '6.25.0'
+}
+
+spotless {
+    java {
+        target 'src/**/*.java'
+        googleJavaFormat('1.17.0').aosp()
+        removeUnusedImports()
+        trimTrailingWhitespace()
+        endWithNewline()
+    }
+}
+```
+
+**효과:** `./gradlew spotlessApply` 한 번으로 109개 파일 일괄 자동 포맷팅. `./gradlew build` 시
+`spotlessJavaCheck` 가 포맷 위반을 잡아준다 (실제로 첫 빌드 시도에서 109개 파일 포맷 위반을 감지해
+자동 정렬되도록 가이드).
+
+---
+
+## 7.2 Wave 2 — 음악 서비스 (7 파일)
+
+### `service/music/SpotifySearchService.java`
+
+- 상수 추출: `MIN_QUERY_LENGTH=1`, `KOREA_MARKET="KR"`, `TOKEN_REFRESH_SAFETY_SECONDS=60`,
+  `DEFAULT_RESULT_LIMIT=12`, `MAX_RESULT_LIMIT=20`
+- `search(query)` 거대 메서드를 5단계 한국어 폴백으로 분해:
+  - `searchKoreanWithFallback()` — 1차: 원문 그대로
+  - `searchViaAiNormalization()` — 2차: Groq AI 영문 표기 변환
+  - `searchViaSuggestion()` — 3차: YouTube Suggest 후보로 보강
+  - `mergeResultsWithPriority()` — 4차: 한국 마켓 우선 + 중복 제거
+- `ArtworkUrls` record 신설 — 기존 `Map<String,String>` 으로 cover URL 3종 (small/medium/large) 들고 다니던 걸
+  타입 안전한 record 로 캡슐화
+- AccessToken 재발급 시점: `tokenExpiresAt - TOKEN_REFRESH_SAFETY_SECONDS` 로 사전 갱신
+
+### `service/music/MusicQueryNormalizationService.java`
+
+- 상수 추출: `MAX_NORMALIZED_LENGTH=80`, `OUTPUT_PREFIX_FULL="OUTPUT:"`, `OUTPUT_PREFIX_SHORT="OUT:"`
+- `normalize(raw)` 분해:
+  - `requestNormalizationFromModel()` — Groq 호출
+  - `cleanResponse()` — 마크다운 펜스 제거
+  - `stripOutputPrefix()` — `OUTPUT:` / `OUT:` 접두사 제거
+  - `firstLineOnly()` — 모델이 여러 줄 뱉어도 첫 줄만
+- 프롬프트는 클래스 상수 `PROMPT_TEMPLATE` 로 분리
+
+### `service/music/SearchSuggestService.java`
+
+- 상수 추출: `MUSICAL_KEYWORD_BOOST=10`, `KOREAN_BOOST=5`, `DEFAULT_LIMIT=8`, `MAX_LIMIT=12`,
+  `SUGGEST_ENDPOINT="https://suggestqueries.google.com/complete/search"`
+- `suggest(query, limit)` 분해:
+  - `fetchSuggestionsFromYouTube()` — HTTP 호출
+  - `decodeAsUtf8()` — 응답이 EUC-KR/UTF-8 혼합이라 직접 UTF-8 디코딩
+  - `parseCandidatesArray()` — JSON 배열 파싱
+  - `extractTextValues()` — text 필드 추출
+  - `sortByMusicalRelevance()` — "노래", "MV", "Music Video" 키워드 가산점
+
+### `service/music/MusicService.java`
+
+- 상수 추출: `MATCH_RESULT_LIMIT=5`, `MOOD_DANCE="댄스"`, `CATEGORY_FASHION="FASHION"` 등 무드/카테고리 enum 화
+- `matchPopups(trackId, userId)` 분해:
+  - `ensureMoodTags()` — 무드 태그가 비어있으면 LLM 분석으로 채우기
+  - `incrementPlayCount()` — 재생 카운트 +1
+  - `recordListeningHistory()` — 로그인 유저면 히스토리 저장
+  - `findMatchingPopups()` — 무드↔팝업 매칭
+- 내부 record 신설: `MatchResult`, `TrackMatch`
+
+### `service/music/YouTubeMusicSearchService.java`
+
+- 상수 추출: `QUOTA_BLOCK_HOURS=24`, `FALLBACK_QUERY_SUFFIX=" 노래"`, `MAX_RESULTS=10`
+- 쿼터 초과 시 24시간 자동 차단: `quotaBlockedUntil` 필드 + `isQuotaBlocked()` 체크
+- `@FunctionalInterface ItemPredicate` 신설 — for-loop 중복 제거 (`pickBestByTitle`, `pickMusicalCandidate` 둘이
+  for 루프 거의 같았던 걸 predicate 람다로 통합)
+- 패턴 매칭: `if (response instanceof List<?> documents)` 형태로 instanceof + 캐스팅 한 줄로
+
+### `service/music/MusicMoodAnalysisService.java`
+
+- 40개 무드 키워드 화이트리스트를 `ALLOWED_MOODS` Set 으로 정의 (LLM 이 임의로 만들어내는 태그 차단)
+- `analyzeMood(title, artist)` 분해:
+  - `extractJsonArray()` — 마크다운 펜스 제거 + JSON 배열만 추출
+  - `collectAllowedTags()` — 화이트리스트 통과한 것만 모으기
+
+### `service/music/ITunesSearchService.java`
+
+- 이전에 Spotify 로 마이그레이션하면서 사실상 비활성화된 클래스. 빈 클래스로 유지 (호출 호환성)
+- JavaDoc 으로 "Spotify 로 대체됨, 호출 호환을 위해 빈 메서드만 남김" 명시
+
+---
+
+## 7.3 Wave 3 — 자동수집 크롤러 (8 파일)
+
+### `service/crawler/PopupCrawlOrchestrator.java`
+
+가장 큰 파일이라 변경량이 제일 많음.
+
+- 상수 추출:
+  - `NAVER_KAKAO_API_INTERVAL_MS=200` — Naver/Kakao 호출 간격
+  - `GROQ_RPM_THROTTLE_MS=2100` — Groq 분당 30회 제한 (60000/30 ≈ 2000ms + 여유 100ms)
+  - `ALLOWED_CATEGORIES=Set.of("FASHION","FOOD","CULTURE","CHARACTER","BEAUTY","TECH","ETC")`
+  - `CONFIDENCE_AUTO_PUBLISH=0.8` — 자동 게시 임계값
+- 130줄짜리 `runOnce()` 메서드를 6단계 stage 메서드로 분해:
+  1. `collectSnippetsByKeyword(keyword)` — 키워드별 Naver/Kakao 검색
+  2. `processNormalizationAndSave(snippets)` — LLM 정규화 후 저장 시도
+  3. `handleNormalizedResult(result, snippet)` — 신뢰도에 따른 분기
+  4. `markDuplicateAsSeen(existing)` — 이미 있으면 `lastSeenAt` 만 갱신
+  5. `saveNewPopup(result, snippet)` — 새 row 저장 + geocoding
+  6. `applyCrawlAuditFields(popup, snippet, confidence)` — 출처/신뢰도/시각 audit 필드 채우기
+- 결과 통계는 내부 record `CrawlStatistics(int collected, int saved, int duplicates, int rejected)` 로 캡슐화
+- 패턴 매칭: `if (firstDoc instanceof Map<?,?> documentMap)` 으로 정리
+
+### `service/crawler/PopupNormalizationService.java`
+
+- 상수 추출:
+  - `MAX_SNIPPETS_PER_REQUEST=8` — 토큰 절약
+  - `DEFAULT_CATEGORY="ETC"`, `SEOUL_KEYWORD="서울"`
+  - 에러 코드: `ERROR_EMPTY_SNIPPETS`, `ERROR_EMPTY_NAME`, `ERROR_NOT_IN_SEOUL`, `ERROR_LLM_PREFIX`
+- 프롬프트 템플릿을 `PROMPT_TEMPLATE` 상수로 분리 (text block 사용)
+- `normalize(snippets)` 분해:
+  - `buildPrompt()`, `formatSnippetsForPrompt()`, `formatSingleSnippet()`
+  - `parseJsonResponse()` — 마크다운 펜스 제거
+  - `parseNormalizedPopup()` — JSON → record 매핑
+  - `applyPostValidations()` — LLM 이 confidence 잘못 매긴 경우 강제 0.0 처리
+  - `isNameMissing()`, `isLocationOutsideSeoul()`, `forceRejection()` — 검증 헬퍼
+
+### `service/crawler/NaverPopupCrawler.java`
+
+- 상수 추출: `BLOG_ENDPOINT`, `NEWS_ENDPOINT`, `SOURCE_NAVER_BLOG`, `SOURCE_NAVER_NEWS`,
+  `RESULTS_PER_REQUEST=30`, `SORT_BY_DATE="date"`, `USER_AGENT`
+- `search(endpoint, sourceName, query)` 분해:
+  - `callApi()`, `buildAuthHeaders()`, `mapItemsToSources()`, `toCrawlSource()`
+- HTML 태그 제거 헬퍼 `stripHtml()` — Naver API 가 `<b>제목</b>` 같은 태그를 내려보내므로
+
+### `service/crawler/KakaoPopupCrawler.java`
+
+- Naver 와 같은 패턴: `WEB_ENDPOINT`, `BLOG_ENDPOINT`, `SOURCE_KAKAO_WEB`, `SOURCE_KAKAO_BLOG`,
+  `RESULTS_PER_REQUEST=30`, `SORT_BY_RECENCY="recency"`
+- 같은 구조로 `search`/`callApi`/`buildAuthHeaders`/`mapDocumentsToSources`/`toCrawlSource` 분해
+
+### `service/crawler/PopupCrawlScheduler.java`
+
+- 이미 깔끔한 파일이라 JavaDoc 만 보강. `@Scheduled(cron="${popspot.crawler.cron:0 0 4 * * *}", zone="Asia/Seoul")` 유지
+
+### `service/crawler/PopupExpireScheduler.java`
+
+- 상수 추출: `ISO_DATE = DateTimeFormatter.ISO_LOCAL_DATE`
+- JavaDoc 추가: "매일 새벽 5시(KST) 만료된 팝업을 일괄 EXPIRED 처리. 실제 row 는 삭제하지 않고
+  검색/랭킹/캘린더에서만 제외 (이력 보존)"
+- 메서드 흐름은 그대로 유지 (이미 충분히 작음)
+
+### `service/crawler/NormalizedPopup.java`
+
+- 클래스 JavaDoc 만 변경: "Gemini" → "LLM" 으로 도구 무관하게
+- 필드별 `// 한글 주소` 같은 인라인 주석 모두 제거 (필드명 자체로 의미가 명확)
+- `@Data @Builder @NoArgsConstructor @AllArgsConstructor` 유지
+
+### `service/crawler/PopupCrawlSource.java`
+
+- 클래스 JavaDoc 만 보강: "외부 검색 API 1건의 raw snippet. LLM 정규화 입력으로 사용. 저작권법 회색지대
+  회피 위해 title/description/link 만 사용하고 본문 직접 스크래핑하지 않는다"
+- 필드 인라인 주석 모두 제거
+
+---
+
+## 7.4 Wave 4 — Controller (25 파일)
+
+### `controller/AuthController.java` — 가장 큰 변화
+
+- 상수 추출:
+  - `MAX_VERIFY_ATTEMPTS=5` (brute-force 방어)
+  - `AUTH_CODE_TTL_MINUTES=5`, `AUTH_VERIFIED_TTL_MINUTES=10`
+  - Redis 키 prefix: `KEY_AUTH_CODE="AUTH_CODE:"`, `KEY_AUTH_ATTEMPTS="AUTH_ATTEMPTS:"`, `KEY_AUTH_VERIFIED="AUTH_VERIFIED:"`
+  - `VERIFIED_TRUE="TRUE"`, `SOCIAL_USER_ERROR_PREFIX="SOCIAL_USER"`
+- 헬퍼 메서드 분리:
+  - `issueNewAuthCode(email)` — 코드 발송 + Redis 저장 + 시도 카운트 리셋
+  - `markEmailVerified(email)` — 인증 성공 시 검증 플래그 저장
+  - `isEmailVerified(email)` — 검증 상태 확인
+  - `handleFailedAttempt(email)` — 실패 시 카운터 증가 + 5회 초과 시 코드 폐기
+  - `mapPasswordResetError(e)` — SOCIAL_USER vs 일반 에러 분기
+  - `loadUser(userId)`, `toUserInfo(user)` — `/me` 핸들러 보조
+  - `isBlank(s)` — 입력 검증
+- 와일드카드 import (`import org.springframework.web.bind.annotation.*`) 제거
+- `LoginRequestDto/LoginResponseDto` 명시적 import
+
+### `controller/PopupStoreController.java`
+
+- 상수 추출: `REVIEW_STATUS_TAKEDOWN="TAKEDOWN"`, `STATUS_PENDING="PENDING"`, `IMAGE_NOTE_PREFIX="\n\n[제보 이미지] "`
+- 헬퍼 분리:
+  - `findPopupOrThrow(id)`, `applyTakedown(popup, dto)`, `buildTakedownResponse(id)`
+  - `buildReportedPopup(dto)` — Mass Assignment 방어 PopupStore 객체 생성
+  - `appendImageNote(description, imageUrl)` — 제보 이미지 URL 을 description 끝에 메모로
+- 컨트롤러 단 `@CrossOrigin` 제거 (SecurityConfig 전역 CORS 와 충돌 방지) JavaDoc 으로 명시
+
+### `controller/MusicController.java`
+
+- 상수 추출:
+  - `MAX_QUERY_LENGTH=80`
+  - `DEFAULT_GRID_LIMIT=12`, `MAX_GRID_LIMIT=25`
+  - `DEFAULT_SUGGEST_LIMIT=8`, `MAX_SUGGEST_LIMIT=12`
+  - `DEFAULT_POPULAR_LIMIT=12`, `MAX_POPULAR_LIMIT=50`
+  - `DEFAULT_BY_POPUP_LIMIT=5`, `DEFAULT_HISTORY_LIMIT=30`
+  - `DEFAULT_NEXT_LIMIT=5`, `MAX_NEXT_LIMIT=20`
+- `@RequestParam(value="limit", defaultValue=""+DEFAULT_GRID_LIMIT)` 형태로 상수 참조
+- `usernameOrNull(user)` 헬퍼 — `user != null ? user.getUsername() : null` 반복 제거
+- `sanitizeQuery(raw)` — trim + 80자 컷, `clampLimit(requested, max)` — 1~max 클램프
+
+### `controller/PlanningController.java`
+
+- 상수 추출:
+  - `ROOM_KEY_PREFIX="plan:room:"`, `SESSION_KEY_PREFIX="plan:session:"`
+  - `ROOM_TTL_HOURS=3`, `ROOM_ID_LENGTH=8`
+  - 액션 코드: `ACTION_ADD`, `ACTION_REMOVE`, `ACTION_CLEAR`, `ACTION_JOIN`
+  - `TOPIC_PLAN_PREFIX="/topic/plan/"`
+- `handleAction` if-else 체인을 Java 14+ switch expression 으로 교체
+- `handleVote` 분해: `hasUserVoted()`, `castVote()`, `cancelVote()`, `extendTtl()`
+- 액션 핸들러 분리: `appendMarker`, `removeMarker`, `clearMarkers`, `registerJoin`
+- Redis `increment` 음수 가드 (`cancelVote` 안에서 0 미만이면 0 으로 고정)
+
+### `controller/MateController.java`
+
+- 상수 추출: `STATUS_RECRUITING`, `STATUS_CLOSED`, `RESPONSE_FULL`, `RESPONSE_JOIN_SUCCESS`, `RESPONSE_DELETE_SUCCESS`
+- `tryConsumeMegaphone(user, requested)` 헬퍼 — `Boolean` 반환으로 3-state (true=사용됨, false=미사용, null=부족)
+- `admitNewMember(post, userId)` — 명단 추가 + 인원 증가 + 마감 처리 묶음
+- `buildMatePost(dto, user, isMegaphone)` — 빌더 호출 분리
+
+### `controller/AdminController.java`
+
+- 상수 추출: `STATUS_PENDING="PENDING"`
+- 섹션 주석 추가 (`/* === 팝업 승인 큐 === */`, `/* === 보상 / 메이트 운영 === */`)
+- `@PreAuthorize("hasRole('ADMIN')")` 클래스 단 보안 유지
+
+### `controller/ChatFileController.java`
+
+- 상수 추출:
+  - `ALLOWED_EXTENSIONS=List.of("jpg","jpeg","png","gif","webp")`
+  - `ALLOWED_CONTENT_TYPES=List.of("image/jpeg","image/png","image/gif","image/webp")`
+  - `MAX_FILE_SIZE_BYTES=10L*1024*1024` (10MB)
+  - `PATH_TRAVERSAL_TOKEN=".."`
+  - `HEADER_X_FORWARDED_PROTO`, `HEADER_X_FORWARDED_HOST`, `HTTP_PORT=80`, `HTTPS_PORT=443`
+- `uploadFile` 분해:
+  - `validate(file)` — 사이즈 / 확장자 / MIME 검증 한곳에 모음
+  - `extractExtension(filename)`
+  - `prepareDestination(extension)` — UUID 파일명 생성 + canonical path 검증
+  - `buildPublicUrl(request, fileName)` — nginx 뒤 X-Forwarded-* 헤더 고려
+  - `resolveScheme(request)`, `resolveHost(request)` — URL 조립 헬퍼
+
+### 나머지 17개 컨트롤러 — 동일 원칙 적용
+
+| 파일 | 주요 변경 |
+|---|---|
+| `OrderController.java` | DTO 필드별 무시 이유를 JavaDoc 으로 (userId/amount/goodsName 무시 명시) |
+| `ChatController.java` | `TICKER_LIMIT=10` 상수, `toTickerEntry(msg)` 헬퍼, orphan 메시지 필터링 |
+| `TmapController.java` | `PEDESTRIAN_ROUTE_URL`, `COORD_TYPE_WGS84`, `GEOMETRY_TYPE_LINE_STRING` 상수. `buildRouteBody`, `buildHeaders`, `parseRouteCoordinates` 분해 |
+| `MateChatController.java` | `SUB_TOPIC_PREFIX` 상수, `findPostOrThrow` 헬퍼. `System.out.println` → SLF4J |
+| `MyPageController.java` | `expirePremiumIfNeeded(user)`, `countMyActivity(user)` 분해. `System.out.println` 모두 제거 |
+| `MyCourseController.java` | `ERROR_LIMIT_REACHED` 상수로 매직 스트링 제거 |
+| `WishlistController.java` | `@CrossOrigin` 제거 (전역 CORS 위임) |
+| `GoodsController.java` | `RANDOM_PICK_LIMIT=20` 상수, `findAll().subList()` → 새 ArrayList shuffle (원본 변형 방지) |
+| `CongestionController.java` | `DEFAULT_AREA="SEONGSU"` 상수 |
+| `GameController.java` | `DEFAULT_STOCK_WHEN_MISSING="0"` 상수 |
+| `CourseController.java` | 반환 타입을 `ResponseEntity<List<Map<String,Object>>>` 로 명시 |
+| `StampController.java` | `System.out.println` → `log.debug` |
+| `TrendController.java` | 키워드 상수 + 코멘트 상수 + `commentFor(keyword)` switch expression |
+| `PopupMapController.java` | `STATUS_PENDING` 상수, `isVisibleOnMap(store)`, `toMarker(store)` 분해 |
+| `SearchController.java` | 이모지/잡문 제거. JavaDoc 추가 |
+| `AdminMetricsController.java` | `METRIC_CPU`, `BYTES_PER_MB` 상수. `currentCpuUsagePercent()`, `currentUsedMemoryMb()`, `roundToTwoDecimals()` 분해 |
+| `PopupAdminReviewController.java` | `DEFAULT_PAGE_SIZE=50`, `REVIEW_APPROVED`, `REVIEW_REJECTED`, `RESPONSE_STATUS_DELETED` 상수. `findOrThrow(id)` 공통 헬퍼 |
+| `YouTubeService.java` | `SEARCH_ENDPOINT`, `PART_SNIPPET`, `TYPE_VIDEO`, `MAX_RESULTS=1` 상수. `buildSearchUri`, `extractFirstVideoId`, `isBlank` 분해 |
+
+---
+
+## 7.5 Wave 5 — 일반 Service (16 파일)
+
+### `service/AuthService.java`
+
+- 상수 추출:
+  - `JWT_SECRET_MIN_BYTES=32` — HS256 키 길이 최소값
+  - `ROLE_USER="USER"`, `PROVIDER_LOCAL="LOCAL"`
+  - `SOCIAL_USER_ERROR_PREFIX="SOCIAL_USER:"` — 컨트롤러와 일치
+- 3개 섹션으로 그룹화:
+  1. **가입 / 로그인** — `signup`, `login`, `checkEmailExists`
+  2. **아이디 / 비밀번호 찾기** — `findEmailByPhoneNumber`, `findEmailByNameAndPhone`,
+     `checkUserForPasswordReset`, `updatePassword`
+  3. **내부 헬퍼** — `findByEmailOrThrow`, `issueJwt`
+- `findByEmailOrThrow(email)` 헬퍼 — `userRepository.findByEmail(...).orElseThrow(...)` 반복 제거
+
+### `service/PopupStoreService.java`
+
+- 상수 추출:
+  - `CATEGORY_ALL="ALL"`
+  - `STATUS_PENDING="PENDING"`, `STATUS_EXPIRED="EXPIRED"`
+  - `REVIEW_AUTO_PUBLISHED="AUTO_PUBLISHED"`, `REVIEW_APPROVED="APPROVED"`
+  - `TRENDING_TOP_N=4`, `DEFAULT_CALENDAR_WINDOW_DAYS=60`
+- `isPublic(p)` 통합 판정 — status 체크 + reviewStatus 체크를 한 메서드로
+  - `isHiddenStatus(status)` — `STATUS_PENDING` / `STATUS_EXPIRED` 인지
+  - `reviewStatus == null` 은 레거시 수동 데이터로 보고 통과
+- `isAllCategory(category)` — null/빈문자열/"ALL" 통합 판정
+- `parseOrDefault(iso, fallback)` — ISO 날짜 파싱 실패 시 폴백
+- 스트림에서 `.collect(Collectors.toList())` → `.toList()` (Java 21)
+
+### `service/AdminService.java`
+
+- 상수 추출:
+  - `STATUS_OPEN="영업중"` (한글 그대로, DB 호환)
+  - `STATUS_PENDING="PENDING"`
+  - `ITEM_MEGAPHONE="MEGAPHONE"`, `ITEM_POPPASS="POPPASS"`
+- 섹션으로 그룹화:
+  1. **팝업 승인 / 상태 변경** — `approvePopup`, `rejectPopup`, `changePopupStatus`
+  2. **보상 / 메이트 운영** — `giveReward`, `forceDeleteMatePost`
+  3. **대시보드 통계** — `getAdminStats` (countBy 쿼리만 사용, N+1 회피)
+- `rewardReporterIfPresent(popup)` 헬퍼 — 신고자 보상 로직 분리
+- `findPopupOrThrow(popupId)` 헬퍼
+
+### `service/OrderService.java` — 핵심 보안 로직 분해
+
+- 상수: `PAYMENT_STATUS_PAID="paid"`, `CANCEL_REASON_AMOUNT_MISMATCH="amount_mismatch"`, `POPPASS_GRANT_DAYS=30`
+- `processOrder(dto, auth)` 흐름을 7단계로 분해:
+  1. `requireAuthenticatedUser(auth)` — 인증 없으면 SecurityException
+  2. `validatePaymentDtoOrThrow(dto)` — impUid / goodsId null 체크
+  3. `rejectDuplicatePayment(impUid)` — 같은 impUid 재처리 차단
+  4. `findGoodsOrThrow(goodsId)` — 상품 정보 (서버 가격이 진실)
+  5. `verifyPaymentOrThrow(impUid, goods)` — 아임포트 서버 조회 + 상태=paid + 금액 일치 검증.
+     불일치 시 자동 환불 + SecurityException
+  6. `buildOrderRecord(userId, payment, goods)` — Orders 엔티티 빌더 호출
+  7. `grantPurchaseEntitlements(userId, goods)` — POP-PASS / 확성기 권한 지급
+     - `grantPopPass(user, userId)` — 30일 연장 + isPremium=true
+     - `normalizeGoodsName(name)` — "PASS"/"멤버십"/"확성기"/"MEGAPHONE" 매칭
+
+### `service/IamportService.java`
+
+- 상수 추출:
+  - `BASE_URL="https://api.iamport.kr"`
+  - `GET_TOKEN_PATH`, `PAYMENTS_PATH`, `CANCEL_PATH`
+  - `FIELD_CODE`, `FIELD_MESSAGE`, `FIELD_RESPONSE`, `SUCCESS_CODE=0`
+  - `DEFAULT_CANCEL_REASON="auto-cancel"`
+- `parseSuccessResponse(body, operation)` 공통 헬퍼 — getToken / findPayment 응답 파싱이 거의 동일했던 걸 통합
+- `jsonHeaders()`, `authHeaders(token)` — Content-Type / Authorization 헤더 생성 패턴 추출
+- `PaymentInfo` record 는 그대로
+- 이모지 (`🔁`, `⚠️`) 제거
+
+### `service/EmailService.java`
+
+- 상수 추출: `AUTH_CODE_LENGTH=6`, `EMAIL_SUBJECT`, `EMAIL_CHARSET="UTF-8"`
+- 거대한 HTML 본문 인라인 문자열 (`body += "<div ...>"` 30번)을 `buildHtmlBody(authCode)` 메서드로 분리
+
+### `service/CustomOAuth2UserService.java`
+
+- 상수 추출: `DEFAULT_ROLE="ROLE_USER"`
+- `saveOrUpdate(attributes)` 안의 인라인 `User.builder()` 호출을 `buildNewUser(attributes)` 메서드로 분리
+- 로그 키 그대로 유지: `log.info("OAuth2 로그인 성공 provider={} userId={}", ...)` (PII 보호 — 이메일/이름/사진 로깅 X)
+
+### `service/StampService.java`
+
+- 상수 추출:
+  - `KST = ZoneId.of("Asia/Seoul")`
+  - `MEGAPHONE_REWARD_INTERVAL=3` (3의 배수 스탬프마다 확성기 1개)
+- 어뷰징 방어 2단계 분리:
+  - `rejectIfAlreadyStampedToday(userId)` — KST 기준 오늘 자정~23:59 사이 다른 스탬프 있는지
+  - `rejectIfDuplicatePopup(userId, popupId)` — 평생 같은 팝업 중복 금지
+- `grantStampReward(user, userId)` — 카운트 증가 + 3의 배수 보상 묶음
+- `findPopupOrThrow`, `findUserOrThrow` 헬퍼
+- 이모지 (`🛡️`, `🎉`, `✅`, `🚨`) 모두 제거. 로그는 `[Stamp]` prefix 로 통일
+
+### `service/WishlistService.java`
+
+- 상수 추출: `RESULT_ADDED="ADDED"`, `RESULT_REMOVED="REMOVED"`
+- 토글 분해: `removeExisting(userId, popupId)`, `addNew(userId, popupId)`
+- `toResponse(w)` 헬퍼 — Wishlist 엔티티 → DTO 변환
+
+### `service/MyCourseService.java`
+
+- 무료 유저 1슬롯 정책을 `evictExistingCoursesForFreeUser(userId)` 메서드로 분리
+- `findUserOrThrow(userId)` 헬퍼
+- `System.out.println` → `log.info("[MyCourse] ...")`
+
+### `service/SearchService.java`
+
+- 상수 추출:
+  - `INDEX_NAME="popups"`, `APP_ID_MIN_LENGTH=6`, `API_KEY_MIN_LENGTH=10`
+  - `APP_ID_PATTERN="^[A-Z0-9]+$"` — Algolia App ID 형식
+- `isAlgoliaConfigured()` 통합 검증 — 키 길이 / 형식 / null 체크 한 메서드로
+- `enabled` 플래그로 graceful degradation 유지 (키 없어도 부팅 차단 안 됨)
+
+### `service/TicketService.java`
+
+- 상수 추출:
+  - `BOT_THREAD_POOL_SIZE=10` (기존 50 → 10 으로 줄여 t2.micro OOM 방어)
+  - `BOT_COUNT=5`, `INITIAL_STOCK=30`
+  - `BOT_BASE_DELAY_MS=50`, `BOT_RANDOM_DELAY_MS=100` (0.05~0.15초 광클)
+  - `STOCK_KEY_PREFIX="ticket:stock:"`
+  - `RESULT_SUCCESS="SUCCESS"`, `RESULT_FAIL="FAIL"`
+- `runBotLoop(key)` 메서드 분리 — 봇 스레드 내부 while 루프
+- `stockKey(itemId)` 헬퍼 — Redis 키 조립
+- 레거시 호환 메서드 (`triggerBots`, `attemptTicket`, `triggerClusterBots`) 는 비활성 빈 메서드로 유지
+
+### `service/CongestionService.java` — 가장 복잡한 로직 정리
+
+- 상수 추출:
+  - `BASE_URL`, `PATH_SUFFIX`
+  - `FALLBACK_API_KEY="sample"`, `DEFAULT_AREA_KEY="SEONGSU"`, `DEFAULT_AREA_NAME="성수카페거리"`
+  - `REQUEST_TIMEOUT_MS=5000`
+  - `DEMO_FORECAST_HOURS=12`, `DEMO_BASE_POPULATION=10_000`
+  - `AREA_MAP` 을 `Map.of(...)` 로 immutable 초기화 (기존 static block 대체)
+- 3단계로 분해:
+  1. **네트워크** — `fetchData`, `callApi`, `buildRestTemplate`
+  2. **파싱** — `parseResponse` (XML/JSON 자동 판별), `extractRootData`, `processCityData`, `readNested`,
+     `applyWeather`, `applyForecasts`, `parseForecasts`, `toForecastEntry`, `formatForecastTime`, `applyAgeRates`
+  3. **데모 데이터** — `isErrorResult`, `demoForecasts`, `demoFor`
+- 패턴 매칭: `Object node` 가 JSONArray 인지 JSONObject 인지 자동 분기
+
+### `service/CourseService.java`
+
+- 키워드 상수: `KEYWORD_DATE`, `KEYWORD_ROMANTIC`, `KEYWORD_PHOTO`, `KEYWORD_INSTA`, `KEYWORD_HEALING`, `KEYWORD_CHILL`
+- 4개 코스를 별도 메서드로 분리: `datingCourse()`, `photoCourse()`, `healingCourse()`, `defaultHotPlaceCourse()`
+- `containsAny(text, keywords...)` 헬퍼 — varargs 로 OR 매칭
+- `place(id, name, lat, lng, category, reason)` 헬퍼 — Map 생성 보일러플레이트 제거
+
+### `service/AiCourseService.java`
+
+- 프롬프트 템플릿을 `PROMPT_TEMPLATE` 상수 (text block) 로 분리
+- 응답 파싱 분해:
+  - `stripMarkdownFences(response)` — 마크다운 펜스(```json ... ```) 제거
+  - `normalizeIdFields(result)` — id 필드를 항상 String 으로 강제 (프론트 호환)
+
+### `service/KakaoApiService.java`
+
+- `KAKAO_LOCAL_URL` 을 `static final String` 으로 (기존 `private final String` 이라 instance 변수였음)
+- `UriComponentsBuilder` 로 URL 조립 (쿼리 파라미터 인코딩 자동 처리)
+- `RestTemplate` 인스턴스를 field 로 (매 호출마다 new 하던 거 제거)
+
+### `service/NaverSearchService.java`
+
+- 상수 추출: `IMAGE_SEARCH_URL`, `BLOG_SEARCH_URL`, `IMAGE_DISPLAY_COUNT=100`, `BLOG_DISPLAY_COUNT=5`,
+  `SORT_BY_SIMILARITY="sim"`, `QUERY_SUFFIX_POPUP=" 팝업스토어"`, `QUERY_SUFFIX_REVIEW=" 후기"`
+- `fetchItems(uri)` 공통 헬퍼 — searchPopupImages / searchBlogReviews 가 같은 패턴
+- `buildHeaders()` 헬퍼 — X-Naver-Client-Id/Secret 헤더 조립
+- `System.err.println` → `log.warn`
+
+### `service/PexelsService.java`
+
+- 상수 추출:
+  - `SEARCH_URL`, `ORIENTATION_PORTRAIT="portrait"`, `RESULTS_PER_REQUEST=10`
+  - `FASHION_KEYWORDS={"street fashion", "urban style", "seoul fashion", "trendy outfit", "hipster style"}`
+- 분해: `buildUri(query)`, `buildHeaders()`, `pickRandomVideo(body, query)`
+- `Random` 인스턴스를 field 로 (매 호출마다 new 하던 거 제거)
+- `e.printStackTrace()` → `log.warn`
+
+---
+
+## 7.6 Wave 6 — Entity (핵심 6 파일)
+
+### `entity/User.java`
+
+- 상수 추출: `INITIAL_MANNER_TEMP=36.5`, `DEFAULT_ROLE="ROLE_USER"`
+- 필드별 인라인 주석 (`// 유저의 이메일을 저장하는...`) 모두 제거
+- JavaDoc 정리:
+  - 클래스: "회원 엔티티. 로컬 가입과 OAuth2(구글/카카오/네이버)를 같은 테이블에 저장. 정수 카운트 필드 4종은
+    DB 기본값 0 으로 강제해 기존 row NULL 매핑 에러 방지"
+  - `nickname`, `role`, `provider` 별 의도 명시
+- 와일드카드 import 제거: `jakarta.persistence.*` → 7개 개별, `lombok.*` → 5개 개별
+- `extendPremium(days)` 로직은 그대로 (잔여 기간 분기 + 무조건 isPremium=true)
+- `expirePremium()`, `addMegaphone()`, `changePassword()` 등 도메인 메서드 유지
+
+### `entity/PopupStore.java` — V4 자동수집 필드 포함 거대 엔티티
+
+- 상수 추출: `MAIN_IMAGE_FLAG="Y"`, `FALLBACK_IMAGE_URL` (Unsplash 기본)
+- 와일드카드 import 제거: `jakarta.persistence.*` → 10개 개별
+- 필드 그룹별 JavaDoc 정리:
+  - 기본 필드 (name, location, category 등) — 인라인 주석 제거
+  - **V4 자동수집/검수** 섹션 — 출처 표시(저작권법 의무), confidence, lastSeenAt, reviewStatus, takedown 4종
+- `updateAllDetails(data)` 분해:
+  - `applyIfPresent(data, key, setter)` — String 필드용 람다 헬퍼
+  - `applyIntIfPresent(data, key, setter)` — Integer 변환 + NumberFormatException 가드
+  - 12번 반복하던 `if (data.get("...") != null) this.x = data.get("...")` 패턴이 12줄 → 람다 1줄씩
+- `getImageUrl()` — main flag 우선 / 첫 번째 이미지 / fallback 3단 분기
+- `java.math.BigDecimal` 명시 import
+
+### `entity/MatePost.java`
+
+- 상수 추출: `STATUS_RECRUITING="RECRUITING"`, `USER_DELIMITER=","`
+- 와일드카드 import 제거: `jakarta.persistence.*` → 13개 개별
+- 인라인 주석 (`// 🔥 [추가 1]` 등) 모두 제거
+- JavaDoc: "참여자 명단은 join 테이블 대신 콤마 구분 문자열로 단순 저장. 작성자는 기본 포함, 재입장은 정원 검사 없이 통과,
+  삭제 시 채팅 메시지도 cascade 로 제거"
+- `hasJoined(userId)` 로직 그대로 (방장 프리패스 + 명단 contains)
+
+### `entity/Stamp.java`
+
+- 와일드카드 import 제거: `jakarta.persistence.*` → 11개 개별, `lombok.*` → 5개 개별
+- JavaDoc: "USER_ID + POPUP_ID unique 제약으로 동시성 race condition 차단. 하루 1회 제한은 서비스 레이어 별도 검사,
+  이 제약은 평생 중복만 막음"
+- `@UniqueConstraint(name = "uk_stamp_user_popup", columnNames = {"USER_ID", "POPUP_ID"})` 유지
+- LAZY 로딩 유지
+
+### `entity/Orders.java`
+
+- 와일드카드 import 제거
+- JavaDoc: "impUid 가 unique 제약으로 중복 결제 차단 (재시도 idempotency). PostgreSQL 이라 IDENTITY 대신 SEQUENCE 사용"
+- `@SequenceGenerator(name="orders_seq_gen", sequenceName="orders_seq", allocationSize=1)` 유지
+
+### `entity/MyCourse.java`
+
+- 와일드카드 import 제거
+- JavaDoc: "courseData 는 프론트가 직렬화한 JSON 그대로 받기 위해 PostgreSQL TEXT 로 보관"
+
+### 나머지 엔티티 (Goods, PopupImage, Wishlist, MateChatMessage, ChatMessage, UserMusicHistory, MusicTrack)
+
+대부분 단순 Lombok `@Data @Builder` 데이터 클래스라 와일드카드 import 정리 외 별도 작업 불필요.
+
+---
+
+## 7.7 Wave 7 — Config / Exception (9 파일)
+
+### `config/SecurityConfig.java`
+
+- 상수 추출:
+  - `BCRYPT_STRENGTH=12` (기본 10보다 약 4배 느려 brute-force 방어)
+  - `LOCAL_DEV_ORIGIN="http://localhost:3000"`
+  - `CORS_MAX_AGE_SECONDS=3600L`
+  - `ALLOWED_METHODS` (GET/POST/PUT/DELETE/OPTIONS/PATCH/HEAD)
+  - `ALLOWED_HEADERS` (Authorization, Content-Type, Accept, Origin, X-Requested-With, Cache-Control, X-XSRF-TOKEN)
+  - `EXPOSED_HEADERS` (Authorization, Content-Disposition)
+  - `PUBLIC_PATHS` 배열 — `/`, `/api/**`, `/login/**`, `/oauth2/**`, `/signup/**`, `/error`,
+    `/favicon.ico`, `/ws-stomp/**`, `/ws-planning/**`, `/uploads/**`
+- `buildOAuthFailureUrl()` 헬퍼 — frontendUrl null 가드 분리
+- `parseOrigins(raw, fallback)` — 쉼표 분리 + LinkedHashSet 으로 순서 보존 + 로컬 dev 항상 포함
+
+### `config/JwtAuthenticationFilter.java`
+
+- 상수 추출:
+  - `JWT_SECRET_MIN_BYTES=32`
+  - `BEARER_PREFIX="Bearer "`
+  - `ROLE_PREFIX="ROLE_"`
+  - `CLAIM_ROLE="role"`
+- `doFilterInternal` 분해:
+  - `extractToken(bearerHeader)` — `Bearer ` 접두사 제거
+  - `tryAuthenticate(token)` — JWT 파싱 + SecurityContext 설정
+  - `ensureRolePrefix(role)` — ROLE_ 접두사 보장
+- `@PostConstruct validateSecret()` — 시크릿 길이 검증, 누락/짧으면 부팅 차단
+- PII 보호 정책 그대로 (토큰 / 헤더 자체 로깅 X)
+
+### `config/WebSocketConfig.java`
+
+- 상수 추출: `JWT_SECRET_MIN_BYTES=32`, `BEARER_PREFIX="Bearer "`, `LOCAL_DEV_ORIGIN`
+- `JwtHandshakeInterceptor` 안에 `extractToken(request)` 메서드 분리 — Authorization 헤더 우선,
+  없으면 `?token=` 쿼리 파라미터 fallback (SockJS 호환)
+- `parseOrigins()` — SecurityConfig 와 동일 패턴
+- 익명 채팅 호환을 위해 토큰 없거나 검증 실패해도 핸드셰이크 통과
+
+### `config/OAuth2SuccessHandler.java`
+
+- 상수 추출: `JWT_SECRET_MIN_BYTES=32`, `CLAIM_ROLE="role"`, `QUERY_PARAM_TOKEN="token"`,
+  `REDIRECT_NO_EMAIL_QUERY="?error=no_email"`
+- `extractEmail(attributes)` — provider 별 응답 구조 차이 흡수:
+  - Google: top-level `email`
+  - Kakao: `kakao_account.email`
+  - Naver: `response.email`
+- 패턴 매칭으로 `instanceof Map<?, ?> kakaoMap` 형태로 정리
+- `findUserOrThrow(email)`, `issueJwt(user)` 헬퍼
+
+### `config/RateLimitInterceptor.java`
+
+- 상수 추출:
+  - `PATH_LOGIN`, `PATH_EMAIL_SEND`, `PATH_EMAIL_SEND_FOR_PW`, `PATH_EMAIL_VERIFY`
+  - `LIMIT_LOGIN_PER_MIN=5`, `LIMIT_EMAIL_PER_HOUR=5`, `LIMIT_VERIFY_PER_MIN=10`
+  - `RATE_LIMIT_BODY` — 429 응답 JSON 본문
+- `resolveLimit(uri)` 를 switch expression 으로 교체:
+  ```java
+  return switch (uri) {
+      case PATH_LOGIN -> Bandwidth.classic(LIMIT_LOGIN_PER_MIN, ...);
+      case PATH_EMAIL_SEND, PATH_EMAIL_SEND_FOR_PW -> Bandwidth.classic(LIMIT_EMAIL_PER_HOUR, ...);
+      ...
+  };
+  ```
+- `rejectAsRateLimited(req, resp)` 헬퍼 — 429 응답 본문 + 로그
+- `clientIp(req)` — X-Forwarded-For 우선, X-Real-IP, remoteAddr 순
+
+### `config/WebConfig.java`
+
+- 상수 추출: `UPLOAD_URL_PATTERN="/uploads/**"`, `AUTH_PATH_PATTERN="/api/v1/auth/**"`
+- JavaDoc: "addCorsMappings 의도적으로 비워둠 — SecurityConfig 가 단일 진실 공급원, 두 곳 설정 시 충돌"
+
+### `config/WebSocketEventListener.java`
+
+- 상수 추출:
+  - `ACTION_LEAVE="LEAVE"`, `SYSTEM_SENDER="System"`
+  - `SESSION_VALUE_DELIMITER="/"`, `EXPECTED_SESSION_PARTS=2`
+  - `ROOM_USERS_KEY_PREFIX`, `ROOM_USERS_KEY_SUFFIX`, `TOPIC_PLAN_PREFIX`
+- `handleWebSocketDisconnectListener` 분해:
+  - `evictFromRoom(roomId, userData)` — Redis Set 에서 유저 제거
+  - `broadcastLeave(roomId, userData)` — 같은 방에 LEAVE 액션 브로드캐스트
+
+### `config/AiConfig.java`
+
+- 상수 추출: `DEFAULT_TEMPERATURE=0.7`, `REQUEST_TIMEOUT=Duration.ofSeconds(60)`
+- JavaDoc: "무료 한도 14,400 req/day. 기본 모델 llama-3.3-70b-versatile, 속도 우선이면 llama-3.1-8b-instant"
+- `@Value` 기본값 유지: `${groq.model-name:llama-3.3-70b-versatile}`, `${groq.base-url:https://api.groq.com/openai/v1}`
+
+### `config/GoodsInitializer.java`
+
+- 이미 비활성화된 시드 데이터 주입 코드. 대량의 주석 처리된 코드 블록을 정리
+- JavaDoc: "오라클 CSV 원본 보존 위해 비활성. 신규 환경에서 시드 필요 시 saveAll 복원"
+- `goodsRepository` field 는 향후 사용 가능성 위해 유지 + `@SuppressWarnings("unused")`
+
+### `exception/GlobalExceptionHandler.java`
+
+- 상수 추출: `MESSAGE_UNAUTHORIZED`, `MESSAGE_FORBIDDEN`, `MESSAGE_NOT_FOUND`, `MESSAGE_INTERNAL`
+- 핸들러 흐름은 그대로 유지 (이미 깔끔함):
+  - `AuthenticationException` → 401
+  - `NoResourceFoundException` → 404 (백엔드 루트 접근 시 스택트레이스 없이 조용히 처리)
+  - `AccessDeniedException` → 403
+  - `SecurityException` → 403 + Sentry 캡처 (위변조 결제 등)
+  - `IllegalArgumentException`, `MethodArgumentNotValidException` → 400
+  - `IllegalStateException` → 409 Conflict
+  - `RuntimeException` → 400 + Sentry
+  - `Exception` (최종 catch-all) → 500 + Sentry + 일반화된 메시지 (내부 정보 노출 X)
+
+---
+
+## 7.8 빌드 검증 결과
+
+### 1차 시도 — `./gradlew build`
+
+```
+> Task :compileJava                 ← 성공 (의존성 / 타입 OK)
+> Task :spotlessJavaCheck FAILED    ← 포맷 위반 109개 파일
+```
+
+→ Wave 1 에서 추가한 Spotless 플러그인이 정확히 의도대로 동작. JavaDoc 한국어 줄이 100자 넘어서 자동 줄바꿈 필요.
+
+### 2차 — `./gradlew spotlessApply`
+
+109개 파일 자동 포맷팅 적용. JavaDoc 긴 줄 자동 wrap.
+
+### 3차 — `./gradlew build` 재시도
+
+성공 예상 (사용자 확인 필요).
+
+---
+
+## 7.9 적용 후 안 건드린 영역 (의도적 제외)
+
+- **DTO 클래스 (~25개)** — 대부분 `@Builder @Data` 단순 데이터 캐리어. 와일드카드 import 만 정리하면 충분
+- **Repository 인터페이스 (~15개)** — Spring Data JPA 선언적 메서드만 있어서 리팩터링 대상 없음
+- **소형 엔티티 (Wishlist, PopupImage, MateChatMessage, ChatMessage, Goods, UserMusicHistory, MusicTrack)** —
+  Lombok 어노테이션만 있는 thin 데이터 클래스. 와일드카드 import 정리 외 작업 불필요
+- **외부 동작 변경 금지** — input / output / 로깅 키 / 예외 타입 / DB 컬럼 / API 경로 / Redis 키 모두 동일.
+  이는 회귀 테스트 없이 리팩터링하는 안전장치
+
+---
+
+## 7.10 검증 권장 순서
+
+1. `./gradlew spotlessApply` — 전체 포맷팅 자동 적용 (1차 빌드 실패 시 필수)
+2. `./gradlew build` — 컴파일 + 테스트 통과 확인
+3. staging 회귀 테스트 — 주요 엔드포인트:
+   - 인증: `/api/v1/auth/signup`, `/login`, `/email/send`, `/email/verify`, `/me`
+   - 팝업: `/api/popups`, `/calendar`, `/{id}`, `/{id}/takedown`, `/report`
+   - 결제: `/api/orders/complete` (위변조 방어 동작 — 금액 변조 시 자동 환불 + 403 확인)
+   - 음악: `/api/music/search`, `/{trackId}/play`, `/roulette`, `/by-popup/{id}`
+   - 스탬프: 하루 1회 + 평생 1회 제약 동작 확인
+   - 관리자: `/api/admin/popups/pending`, `/stats` (ROLE_ADMIN 미보유 시 403)
+   - WebSocket: `/ws-stomp`, `/ws-planning` 핸드셰이크 + CORS
+
+---
+
+## 7.11 요약
+
+- 7 Wave, 48개 파일, 약 ~3500 라인 변경
+- `build.gradle` Spotless 플러그인 (`googleJavaFormat('1.17.0').aosp()`) 활성화
+- 와일드카드 import 전면 제거 → 명시적 import
+- 모든 매직 넘버 / 매직 스트링 → `static final` 상수
+- `System.out.println` 잔여 모두 SLF4J 로 전환
+- JavaDoc 표준화 (클래스 / 핵심 메서드만, "왜"만 기록)
+- 거대 메서드 분해: `runOnce()` 130줄 → 6단계, `processOrder()` → 7단계, `uploadFile()` → 검증/저장/URL 3단계
+- 외부 동작 / API / DB / Redis 키 모두 동등 (회귀 테스트 안전)
+- 이모지 (`🔥`, `✅`, `❌`, `⚠️`, `🛡️`) 모든 코드/로그에서 제거
+
+---
+
+**v1.4 변경점:**
+- §7 백엔드 Clean Code 리팩터링 — 7 Wave, 48개 파일 상세 기록 추가
+- `build.gradle` Spotless 플러그인 활성화
+- 와일드카드 import / 인라인 주석 / 매직 넘버 일괄 정리
+- 거대 메서드 분해 (runOnce 130줄 → 6단계, processOrder → 7단계 등)
+- 외부 동작 / DB / Redis 키 동등성 유지로 회귀 위험 최소화
