@@ -101,18 +101,22 @@ export default function IntroPage() {
     }
   };
 
-  // Enter / Space 키로도 진입할 수 있게 글로벌 키 핸들러 등록
+  // Enter 키로도 진입할 수 있게 글로벌 키 핸들러 등록.
+  // proceed 를 deps 에 안 넣고 안에 인라인한 이유: proceed 는 매 렌더마다 새 함수라
+  // deps 로 넣으면 이벤트 리스너가 매 렌더마다 다시 붙는다. router/isLoggedIn 만 보면 충분.
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        proceed();
+      if (e.key !== "Enter") return;
+      e.preventDefault();
+      if (isLoggedIn) {
+        router.push("/?entered=1");
+      } else {
+        router.push("/login");
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoggedIn]);
+  }, [isLoggedIn, router]);
 
   return (
     <>

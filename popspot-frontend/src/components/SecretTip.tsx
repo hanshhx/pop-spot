@@ -9,7 +9,6 @@ interface Props {
 
 export default function SecretTip({ isPremium, tip }: Props) {
   return (
-    // 🔥 반응형 마진, 패딩, 라운딩 조절
     <div className="mt-4 md:mt-6 p-4 md:p-6 rounded-xl md:rounded-2xl border bg-gray-50 dark:bg-white/5 border-gray-200 dark:border-white/10 relative overflow-hidden group">
       
       {/* 헤더 영역 반응형 갭 조절 */}

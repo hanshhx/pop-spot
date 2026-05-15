@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, User, Phone, Mail, KeyRound, ChevronRight, Lock } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-// 🔥 [수정] API 헬퍼 함수 import
 import { apiFetch } from "../../src/lib/api";
 import { notify, notifyError } from "@/lib/notify";
 
@@ -38,17 +37,14 @@ export default function FindAccountPage() {
     setProviderInfo("");
   };
 
-  // 🟢 [아이디 찾기] JSON 파싱 수정 완료
   const handleFindId = async () => {
     if (!name || !phone) return notify("이름과 휴대폰 번호를 입력해주세요.");
     
     setLoading(true);
     try {
-      // 🔥 [수정] apiFetch 사용
       const res = await apiFetch(`/api/v1/auth/find-email?nickname=${name}&phoneNumber=${phone}`);
       
       if (res.ok) {
-        // 🔥 [수정 핵심] text()가 아니라 json()으로 받아야 합니다!
         const data = await res.json(); 
         if (data.provider && data.provider !== "LOCAL") {
             setProviderInfo(data.provider);
@@ -72,7 +68,6 @@ export default function FindAccountPage() {
 
     setLoading(true);
     try {
-      // 🔥 [수정] apiFetch 사용
       const res = await apiFetch("/api/v1/auth/email/send-for-pw", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -83,7 +78,6 @@ export default function FindAccountPage() {
         notify("인증번호가 메일로 발송되었습니다!");
         setPwStep(2);
       } else {
-        // 🔥 [수정] 400 에러(소셜회원)도 여기서 처리됩니다.
         const msg = await res.text();
         
         if (msg.includes("SOCIAL_USER")) {
@@ -107,7 +101,6 @@ export default function FindAccountPage() {
 
     setLoading(true);
     try {
-      // 🔥 [수정] apiFetch 사용
       const res = await apiFetch("/api/v1/auth/email/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -132,7 +125,6 @@ export default function FindAccountPage() {
 
     setLoading(true);
     try {
-      // 🔥 [수정] apiFetch 사용
       const res = await apiFetch("/api/v1/auth/reset-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -179,7 +171,6 @@ export default function FindAccountPage() {
         </div>
 
         <AnimatePresence mode="wait">
-            {/* 🟢 아이디 찾기 폼 */}
             {activeTab === 'id' && !foundEmail && (
                 <motion.div key="find-id-form" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} className="space-y-3 md:space-y-4">
                     <div className="space-y-1">
@@ -204,7 +195,6 @@ export default function FindAccountPage() {
                 </motion.div>
             )}
 
-            {/* 🟢 아이디 찾기 결과 */}
             {activeTab === 'id' && foundEmail && (
                 <motion.div key="find-id-result" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="text-center py-4 md:py-6 space-y-4 md:space-y-6">
                     <div className="w-16 h-16 md:w-20 md:h-20 bg-green-500/10 rounded-full flex items-center justify-center mx-auto text-green-500 border border-green-500/20"><Mail className="w-8 h-8 md:w-10 md:h-10"/></div>

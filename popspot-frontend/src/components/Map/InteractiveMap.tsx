@@ -13,7 +13,6 @@ declare global {
   }
 }
 
-// 🔥 [11번 과제] 부모 컴포넌트(page.tsx)에서 onMarkerClick 함수를 받을 수 있도록 타입을 선언합니다.
 interface InteractiveMapProps {
   places?: { 
     id: string | number; 
@@ -81,7 +80,6 @@ function spreadOverlappingMarkers(markers: MapMarkerData[]): MapMarkerData[] {
   return result;
 }
 
-// 🔥 [11번 과제] 매개변수에서 onMarkerClick을 받아오도록 수정했습니다.
 export default function InteractiveMap({ places, showPath = false, center, mode = "DEFAULT", routePaths = [], onMarkerClick }: InteractiveMapProps) {
   const [markers, setMarkers] = useState<MapMarkerData[]>([]);
   const [selectedMarker, setSelectedMarker] = useState<MapMarkerData | null>(null);
@@ -310,7 +308,7 @@ export default function InteractiveMap({ places, showPath = false, center, mode 
         onClick={() => setSelectedMarker(null)}
         onCreate={setMap}
       >
-        {/* 🔥 [핵심 로직] 상세 경로(Polyline) 그리기 */}
+        
         {(showPath || mode === "PLAN") && routePaths.length > 0 ? (
             // 1. 실제 경로 데이터가 있으면 '실선(Solid)'으로 그립니다 (네비게이션 스타일)
             routePaths.map((path, idx) => (
@@ -357,7 +355,7 @@ export default function InteractiveMap({ places, showPath = false, center, mode 
                     moveToMarker(marker);
                   }}
                 >
-                  {/* 🔥 [모드 분기] PLAN 모드이거나 showPath일 때는 숫자+이름표 마커 표시 */}
+                  
                   {showPath || mode === "PLAN" ? (
                       <div className="relative flex flex-col items-center hover:z-50">
                           {/* 1. 이름표 (항상 보임) - 모바일 텍스트 및 패딩 조정 */}
@@ -378,7 +376,7 @@ export default function InteractiveMap({ places, showPath = false, center, mode 
                           <div className="w-6 h-1.5 md:w-8 md:h-2 bg-black/20 blur-sm rounded-full mt-1"></div>
                       </div>
                   ) : (
-                      // 🟢 [기본 모드] 항상 카테고리 색상 + 이름이 보이는 작은 카드 핀
+                      // 기본 모드 — 카테고리 색상 + 이름이 항상 보이는 작은 카드 핀.
                       <div className="relative flex flex-col items-center hover:z-50">
                           {/* 이름 카드 — 항상 보임. 카테고리 색상으로 강조 */}
                           <div
@@ -423,7 +421,7 @@ export default function InteractiveMap({ places, showPath = false, center, mode 
             yAnchor={showPath || mode === "PLAN" ? 1.6 : 1.4}
             zIndex={100}
           >
-            {/* 🔥 [11번] 이 박스를 클릭하면 부모(page.tsx)에서 받은 onMarkerClick 함수를 실행합니다. */}
+            
             <motion.div 
               initial={{ opacity: 0, y: 10, scale: 0.9 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}

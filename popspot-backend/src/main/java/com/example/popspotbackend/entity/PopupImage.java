@@ -1,27 +1,38 @@
 package com.example.popspotbackend.entity;
 
-import jakarta.persistence.*;
-import lombok.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
+/**
+ * 팝업스토어 이미지 갤러리의 개별 사진.
+ *
+ * <p>{@code mainYn} = "Y" 인 row 가 대표 이미지로 노출. 한 팝업당 정확히 하나만 Y 이도록 서비스 레이어에서 보장한다.
+ */
 @Entity
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@Table(name = "POPUP_IMAGE") // DB 테이블 이름
+@Table(name = "POPUP_IMAGE")
 public class PopupImage {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY) // 이미 IDENTITY 사용 중 -> OK
-    private Long id; // 이미지 고유 ID (예: 51, 52...)
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
     @Column(name = "IMAGE_URL")
-    private String imageUrl; // 이미지 주소
+    private String imageUrl;
 
-    @Column(name = "MAIN_YN") // 대표 이미지 여부 (Y/N)
+    @Column(name = "MAIN_YN")
     private String mainYn;
-
-    // 만약 DB 컬럼명이 단순히 'YN' 이라면 @Column(name="YN")으로 바꾸세요.
-    // 사용자님 데이터(Y)를 보니 컬럼명이 MAIN_YN 또는 IS_MAIN 일 것 같습니다.
 }

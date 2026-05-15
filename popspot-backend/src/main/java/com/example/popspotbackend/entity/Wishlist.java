@@ -1,11 +1,24 @@
 package com.example.popspotbackend.entity;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+/**
+ * 찜한 팝업 (사용자 ↔ 팝업 매핑).
+ *
+ * <p>{@code (user_id, popup_store_id)} 복합 유니크 제약으로 같은 팝업 중복 찜 방지.
+ */
 @Entity
 @Getter
 @Builder
@@ -13,9 +26,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Table(
         name = "WISHLIST",
-        uniqueConstraints = {
-            @UniqueConstraint(columnNames = {"user_id", "popup_store_id"}) // 중복 방지
-        })
+        uniqueConstraints = {@UniqueConstraint(columnNames = {"user_id", "popup_store_id"})})
 public class Wishlist {
 
     @Id
@@ -26,7 +37,6 @@ public class Wishlist {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    // 🔥 [수정됨] 프로젝트에 있는 'PopupStore' 클래스 사용
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "popup_store_id", nullable = false)
     private PopupStore popupStore;

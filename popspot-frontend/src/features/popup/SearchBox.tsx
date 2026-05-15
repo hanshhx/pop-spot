@@ -41,9 +41,12 @@ function CustomSearchBox(props: UseSearchBoxProps) {
   const { query, refine } = useSearchBox(props);
   const [inputValue, setInputValue] = useState(query);
 
+  // Algolia 의 query 가 외부에서 바뀌면 input value 도 따라가게 한다.
+  // inputValue 를 deps 에 넣으면 input → state → effect → setInputValue → input 무한루프가
+  // 생기므로 의도적으로 query 만 dep 으로 둔다.
   useEffect(() => {
     if (query !== inputValue) setInputValue(query);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- inputValue 는 의도적으로 deps 제외
   }, [query]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {

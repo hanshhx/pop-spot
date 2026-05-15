@@ -1,56 +1,76 @@
-// [로직] 배포 환경에서는 환경변수를 쓰고, 로컬에서는 8080을 쓰도록 유연하게 대처합니다.
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
-// SOCKET_BASE_URL: 별도 설정이 가능. 기본은 API_BASE_URL 과 동일.
-//   운영에서 wss:// 별도 도메인을 쓰려면 NEXT_PUBLIC_SOCKET_URL 로 override.
+/**
+ * API / WebSocket Base URL.
+ *
+ * 운영에서는 환경변수 `NEXT_PUBLIC_API_URL` / `NEXT_PUBLIC_SOCKET_URL` 로 주입한다.
+ * 로컬에서는 8080 으로 폴백. WebSocket 도메인을 분리하려면 `NEXT_PUBLIC_SOCKET_URL`
+ * 만 따로 지정하면 된다 (예: `wss://...` 별도 도메인).
+ */
+const LOCAL_FALLBACK = 'http://localhost:8080';
+
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? LOCAL_FALLBACK;
 export const SOCKET_BASE_URL =
-  process.env.NEXT_PUBLIC_SOCKET_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+  process.env.NEXT_PUBLIC_SOCKET_URL ?? process.env.NEXT_PUBLIC_API_URL ?? LOCAL_FALLBACK;
+
+const TOKEN_STORAGE_KEY = 'token';
+const HEADER_AUTHORIZATION = 'Authorization';
+const HEADER_CONTENT_TYPE = 'Content-Type';
+const CONTENT_TYPE_JSON = 'application/json';
+
+type FetchOptions = RequestInit & { headers?: HeadersInit };
 
 /**
- * [구조 해석] apiFetch 유틸리티
- * 1. 상대 경로만 넣어도 자동으로 도메인을 붙여줍니다.
- * 2. 로컬스토리지의 토큰을 자동으로 헤더에 심어줍니다.
- * 3. 크로스 도메인 환경에서 인증 정보를 포함하도록 설정합니다.
+ * 인증 토큰 + 도메인 자동 부착 fetch 래퍼.
+ *
+ * <p>주요 동작:
+ * <ul>
+ *   <li>상대 경로 → API_BASE_URL 자동 prefix
+ *   <li>localStorage 토큰 → `Authorization: Bearer ...` 자동 부착
+ *   <li>FormData 전송 시 Content-Type 헤더 제거 (브라우저가 boundary 포함해 자동 설정하도록)
+ *   <li>{@code credentials: 'include'} — 도메인이 달라도 쿠키/인증 정보 유지
+ * </ul>
  */
-export const apiFetch = async (endpoint: string, options: RequestInit = {}) => {
-  // 1. URL 구성
-  const url = endpoint.startsWith("http") ? endpoint : `${API_BASE_URL}${endpoint}`;
-  
-  // 2. 토큰 획득 (SSR 환경 고려)
-  const token = typeof window !== 'undefined' ? localStorage.getItem("token") : null;
-  
-  // 3. 기본 헤더 설정
-  const defaultHeaders: Record<string, string> = { 
-    "Content-Type": "application/json" 
-  };
+export const apiFetch = async (endpoint: string, options: FetchOptions = {}): Promise<Response> => {
+  const url = buildUrl(endpoint);
+  const headers = buildHeaders(options);
 
-  // 4. [핵심] 토큰이 있다면 Authorization 헤더에 Bearer 방식으로 추가
-  if (token) {
-    defaultHeaders["Authorization"] = `Bearer ${token}`;
-  }
-
-  // 5. 헤더 병합 (options에서 추가로 들어온 헤더가 있으면 덮어씌움)
-  const headers = { ...defaultHeaders, ...(options.headers as Record<string, string>) };
-  
-  // 6. FormData 전송 시 Content-Type 자동 설정을 위해 삭제
-  if (options.body instanceof FormData) {
-    delete headers["Content-Type"];
-  }
   try {
-    const res = await fetch(url, { 
-      ...options, 
+    const response = await fetch(url, {
+      ...options,
       headers,
-      // 🔥 [핵심 추가] 도메인이 달라도(co.kr ↔ duckdns.org) 인증 정보와 헤더가 유실되지 않게 함
-      credentials: "include" 
+      credentials: 'include',
     });
 
-    if (!res.ok) {
-      // 401, 403 에러 등의 상태를 확인하기 위해 로그 출력
-      console.error(`❌ API Error (${res.status}): ${url}`);
+    if (!response.ok) {
+      console.error(`API Error (${response.status}): ${url}`);
     }
-    
-    return res;
+    return response;
   } catch (error) {
-    console.error(`🚨 Network Error: ${url}`, error);
+    console.error(`Network Error: ${url}`, error);
     throw error;
   }
+};
+
+/* ============================== 내부 헬퍼 ============================== */
+
+const buildUrl = (endpoint: string): string =>
+  endpoint.startsWith('http') ? endpoint : `${API_BASE_URL}${endpoint}`;
+
+const buildHeaders = (options: FetchOptions): Record<string, string> => {
+  const headers: Record<string, string> = { [HEADER_CONTENT_TYPE]: CONTENT_TYPE_JSON };
+
+  const token = readToken();
+  if (token) headers[HEADER_AUTHORIZATION] = `Bearer ${token}`;
+
+  Object.assign(headers, options.headers as Record<string, string> | undefined);
+
+  // FormData 는 브라우저가 multipart boundary 를 자동 생성해야 하므로 직접 지정한 Content-Type 을 비운다.
+  if (options.body instanceof FormData) {
+    delete headers[HEADER_CONTENT_TYPE];
+  }
+  return headers;
+};
+
+const readToken = (): string | null => {
+  if (typeof window === 'undefined') return null;
+  return window.localStorage.getItem(TOKEN_STORAGE_KEY);
 };

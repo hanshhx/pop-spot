@@ -1,10 +1,11 @@
-package com.example.popspotbackend.dto; // ✅ 패키지 경로 변경됨
+package com.example.popspotbackend.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+/** 마이페이지 찜 목록의 각 행. */
 @Data
 @Builder
 @NoArgsConstructor

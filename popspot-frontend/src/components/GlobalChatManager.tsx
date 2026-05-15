@@ -5,7 +5,6 @@ import { useChatStore } from "../store/useChatStore";
 import MateChatModal from "./MateChatModal"; 
 import { notify } from "@/lib/notify";
 
-// 🔥 [해결 로직] 
 // TypeScript가 MateChatModal에 어떤 값이 들어가는지 명확히 알 수 있도록 
 // 컴포넌트 내부에서 사용하는 Props 타입을 인터페이스로 정의합니다.
 interface MateChatModalProps {
@@ -43,7 +42,6 @@ export default function GlobalChatManager() {
     return null; 
   }
 
-  // 🔥 [해결] 넘겨주는 데이터 형식을 인터페이스와 일치시킵니다.
   return (
     <MateChatModal
       postId={activeChat.postId}
