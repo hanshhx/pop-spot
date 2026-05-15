@@ -2,7 +2,7 @@
 
 # POP-SPOT
 
-성수동 팝업스토어 검색 · 자동수집 · 음악 매칭 서비스
+서울 팝업스토어 검색 · 자동수집 · 음악 매칭 서비스
 
 **[popspot.co.kr](https://popspot.co.kr/)**
 
