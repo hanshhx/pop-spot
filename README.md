@@ -8,9 +8,9 @@
 
 [![Java](https://img.shields.io/badge/Java-21-ED8B00?logo=openjdk&logoColor=white)](https://openjdk.org/)
 [![Spring](https://img.shields.io/badge/Spring_Boot-4.0-6DB33F?logo=springboot&logoColor=white)](https://spring.io/)
-[![Next.js](https://img.shields.io/badge/Next.js-14-000?logo=nextdotjs&logoColor=white)](https://nextjs.org/)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
-[![Redis](https://img.shields.io/badge/Redis-7-DC382D?logo=redis&logoColor=white)](https://redis.io/)
+[![Next.js](https://img.shields.io/badge/Next.js-16-000?logo=nextdotjs&logoColor=white)](https://nextjs.org/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-14-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![Redis](https://img.shields.io/badge/Redis-6-DC382D?logo=redis&logoColor=white)](https://redis.io/)
 [![Groq](https://img.shields.io/badge/Groq_LLM-llama3.3_70B-F55036)](https://groq.com/)
 
 </div>
@@ -38,7 +38,7 @@
     <td align="center">→</td>
     <td align="center">
       <img src="https://cdn.simpleicons.org/nextdotjs/000000" width="44"/><br/>
-      <b>Next.js 14</b><br/>
+      <b>Next.js 16</b><br/>
       <sub>Vercel · Tailwind</sub>
     </td>
     <td align="center">→</td>
@@ -58,7 +58,7 @@
 
 <table align="center">
   <tr>
-    <th colspan="6" align="center">Data Layer</th>
+    <th colspan="5" align="center">Data Layer</th>
   </tr>
   <tr>
     <td width="160" align="center">
@@ -70,11 +70,6 @@
       <img src="https://cdn.simpleicons.org/redis/DC382D" width="40"/><br/>
       <b>Redis</b><br/>
       <sub>인증 TTL · Rate Limit</sub>
-    </td>
-    <td width="160" align="center">
-      <img src="https://cdn.simpleicons.org/algolia/003DFF" width="40"/><br/>
-      <b>Algolia</b><br/>
-      <sub>한글 검색</sub>
     </td>
     <td width="160" align="center">
       <img src="https://cdn.simpleicons.org/sentry/362D59" width="40"/><br/>
@@ -96,7 +91,7 @@
 
 <table align="center">
   <tr>
-    <th colspan="6" align="center">External APIs</th>
+    <th colspan="5" align="center">External APIs</th>
   </tr>
   <tr>
     <td width="160" align="center">
@@ -123,11 +118,6 @@
       <img src="https://cdn.simpleicons.org/openai/412991" width="38"/><br/>
       <b>Groq LLM</b><br/>
       <sub>정규화 · 무드</sub>
-    </td>
-    <td width="160" align="center">
-      <img src="https://cdn.simpleicons.org/stripe/635BFF" width="38"/><br/>
-      <b>Iamport</b><br/>
-      <sub>결제 · 검증</sub>
     </td>
   </tr>
 </table>
@@ -262,7 +252,7 @@
 
 <br/>
 
-### v1.1 — 보안 정비 + AI 교체 
+### v1.1 — 보안 정비 + AI 교체
 
 > OWASP Top 10 한 번 훑고, AI 한도 부족해서 Groq 으로 갈아탔다.
 
@@ -347,8 +337,8 @@
   </tr>
   <tr>
     <td align="center"><b>AI</b></td>
-    <td align="center">Gemini (200/일)</td>
-    <td align="center">Groq llama-3.3-70b (≈14,400/일)</td>
+    <td align="center">Gemini Free · RPM 10 / RPD 1,500</td>
+    <td align="center">Groq llama-3.3-70b · RPM 30 / RPD 14,400</td>
   </tr>
   <tr>
     <td align="center"><b>검색</b></td>
@@ -421,8 +411,8 @@
   </tr>
   <tr>
     <td align="center"><b>배포 방식</b></td>
-    <td align="center">Docker compose</td>
-    <td align="center">systemd 로 직접 기동 (디버깅 단순화)</td>
+    <td align="center"><code>bash start.sh</code> + <code>nohup</code> (GCP VM)</td>
+    <td align="center"><code>start.sh</code> 유지 + systemd <code>EnvironmentFile=</code> 로 env 주입</td>
   </tr>
   <tr>
     <td align="center"><b>실행 환경</b></td>
@@ -433,7 +423,7 @@
 
 <br/>
 
-### v1.3 — 음악·자동수집·등급 
+### v1.3 — 음악·자동수집·등급
 
 > 결제(상점) 폐기 → 음악으로 코어 가치 교체. 동시에 자동수집 V4 + 등급 시스템 투입.
 > 인프라는 v1.2 와 동일, 서비스 레이어만 두꺼워졌다.
@@ -448,7 +438,7 @@
     <td align="center" width="120">
       <img src="https://cdn.simpleicons.org/vercel/000000" width="34"/><br/>
       <b>Vercel</b><br/>
-      <sub>Next.js 14</sub>
+      <sub>Next.js 16</sub>
     </td>
     <td align="center" width="20">→</td>
     <td align="center" width="120">
@@ -650,7 +640,7 @@ popspot-backend/
 - [ ] 팝업 이미지 OCR — 자동수집 정확도 더 올리기
 - [ ] AI 어시스턴트 — 사용자 취향 학습
 - [ ] 단위 테스트 커버리지 50%+ (지금 10%)
-- [ ] 시놀로지 NAS 이전 마무리
+- [x] 시놀로지 NAS 이전 완료 (Proxmox / Ubuntu VM, GCP VM 정지만 대기)
 
 ---
 
@@ -712,15 +702,13 @@ npm run dev          # http://localhost:3000
 | `JWT_SECRET` | HS256 서명 키 | **32 바이트 이상** 필수 |
 | `JWT_EXPIRATION` | 액세스 토큰 만료(ms) | 기본 1h |
 | `MAIL_USERNAME` · `MAIL_PASSWORD` | SMTP 인증 메일 | Gmail App Password |
-| `GROQ_API_KEY` · `GROQ_MODEL_NAME` | LLM (정규화 · 무드 분석) | 기본 모델 `llama-3.3-70b-versatile` |
+| `GROQ_API_KEY` · `GROQ_MODEL_NAME` · `GROQ_BASE_URL` | LLM (정규화 · 무드 분석) | 기본 모델 `llama-3.3-70b-versatile`, 기본 URL `https://api.groq.com/openai/v1` |
 | `NAVER_CLIENT_ID` · `NAVER_CLIENT_SECRET` | 검색 API + OAuth2 | 두 용도 동일 키 |
 | `KAKAO_REST_API_KEY` · `KAKAO_LOCAL_API_KEY` | 검색 / 지오코딩 | |
 | `SPOTIFY_CLIENT_ID` · `SPOTIFY_CLIENT_SECRET` | Spotify Web API | Client Credentials |
 | `YOUTUBE_API_KEY` | YouTube Data API v3 | quota 절약 위해 lazy fetch |
-| `ALGOLIA_APP_ID` · `ALGOLIA_API_KEY` · `ALGOLIA_INDEX` | 한글 검색 | 잘못된 키면 안전 fallback |
-| `IAMPORT_API_KEY` · `IAMPORT_API_SECRET` | PortOne 결제 검증 | 상점 폐기 후 미사용, 호환만 유지 |
 | `SENTRY_DSN` | 에러 모니터링 | 운영만 |
-| `CORS_ALLOWED_ORIGINS` | 패턴 화이트리스트 | 예: `https://popspot.co.kr,https://*.vercel.app` |
+| `APP_ALLOWED_ORIGINS` | CORS 패턴 화이트리스트 | 예: `https://popspot.co.kr,https://*.vercel.app` |
 | `OAUTH_GOOGLE_CLIENT_ID/SECRET` | Google OAuth2 | |
 | `OAUTH_KAKAO_CLIENT_ID/SECRET` | Kakao OAuth2 | |
 | `OAUTH_NAVER_CLIENT_ID/SECRET` | Naver OAuth2 | |
@@ -729,9 +717,8 @@ npm run dev          # http://localhost:3000
 
 | 키 | 용도 |
 |---|---|
-| `NEXT_PUBLIC_API_BASE_URL` | 백엔드 REST 베이스 (예: `https://vm-113.tailc57dd4.ts.net`) |
-| `NEXT_PUBLIC_SOCKET_BASE_URL` | STOMP 엔드포인트 (없으면 API 호스트로 폴백) |
-| `NEXT_PUBLIC_ALGOLIA_APP_ID` · `NEXT_PUBLIC_ALGOLIA_SEARCH_KEY` · `NEXT_PUBLIC_ALGOLIA_INDEX` | 클라이언트 검색 |
+| `NEXT_PUBLIC_API_URL` | 백엔드 REST 베이스 (예: `https://vm-113.tailc57dd4.ts.net`) |
+| `NEXT_PUBLIC_SOCKET_URL` | STOMP 엔드포인트 (없으면 API 호스트로 폴백) |
 | `NEXT_PUBLIC_SENTRY_DSN` | 클라이언트 에러 추적 |
 
 ---
@@ -756,7 +743,7 @@ npm run dev          # http://localhost:3000
 ```
 pop-spot/
 ├── popspot-backend/      Spring Boot 4 · Java 21 · Flyway
-├── popspot-frontend/     Next.js 14 · TypeScript · Tailwind
+├── popspot-frontend/     Next.js 16 · TypeScript · Tailwind
 ├── ARCHITECTURE.md       시스템 구성도 (상세)
 ├── PROJECT_CHANGELOG.md  버전별 변경 이력 (~5000 줄)
 └── SYNOLOGY_MIGRATION_GUIDE.md
