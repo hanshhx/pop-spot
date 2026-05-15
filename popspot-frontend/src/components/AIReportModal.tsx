@@ -3,15 +3,14 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { X, Thermometer, Users, Clock, MapPin, RefreshCw, CloudRain } from 'lucide-react';
-// [✨ 추가] 아까 만든 이쁜 차트 컴포넌트 import
 import CongestionChart from "./CongestionChart";
 
-// 🔥 [임의 수정] TypeScript 경로 에러 방지 및 중앙 관리를 위해 상대 경로로 API 주소 변수를 가져옵니다.
 import { API_BASE_URL } from "../../src/lib/api";
+import type { CongestionData } from "@/types/popup";
 
 interface Props {
-  // 초기 데이터 (처음 열었을 때 보여줄 데이터)
-  data: any; 
+  /** 모달이 처음 열릴 때 보여줄 초기 데이터. 탭 전환 시 새로 fetch 한다. */
+  data: CongestionData;
   onClose: () => void;
 }
 
@@ -29,7 +28,7 @@ export default function AIReportModal({ data: initialData, onClose }: Props) {
   // [로직] 현재 사용자가 선택한 지역 탭 상태 (기본값: 성수)
   const [activeTab, setActiveTab] = useState("SEONGSU");
   // [로직] 화면에 렌더링할 리포트 데이터 상태
-  const [reportData, setReportData] = useState<any>(initialData);
+  const [reportData, setReportData] = useState<CongestionData>(initialData);
   // [로직] API 호출 중임을 나타내는 로딩 상태
   const [loading, setLoading] = useState(false);
 
@@ -42,7 +41,6 @@ export default function AIReportModal({ data: initialData, onClose }: Props) {
     }
 
     setLoading(true);
-    // 🔥 [수정] http://localhost:8080 대신 중앙 관리 변수 API_BASE_URL을 사용합니다.
     fetch(`${API_BASE_URL}/api/congestion?area=${activeTab}`)
       .then(res => res.json())
       .then(result => {

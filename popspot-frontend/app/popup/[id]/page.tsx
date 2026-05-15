@@ -23,11 +23,12 @@ import MusicForPopup from "../../../src/components/music/MusicForPopup";
 // [코드 해석] 서버와 통신하기 위한 커스텀 API fetch 함수를 불러옵니다.
 import { apiFetch } from "../../../src/lib/api";
 import { notify, notifyError } from "@/lib/notify";
+import type { User } from "@/types/popup";
 
 // [로직 해석] TypeScript 환경에서 window 객체 안에 kakao 객체가 존재함을 전역으로 알리고 에러를 방지합니다.
 declare global {
   interface Window {
-    kakao: any;
+    kakao: import("@/types/sdk").KakaoMapsSdk;
   }
 }
 
@@ -142,7 +143,7 @@ export default function PopupDetail() {
   // [코드 해석] 로그인 인증 여부를 검사하는 중인지 확인하여 화면 깜빡임을 방지하는 상태입니다.
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   // [코드 해석] 로컬스토리지에서 가져온 유저 정보를 담아두는 상태입니다.
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
   // [V4] 권리자 takedown 신고 모달 상태
   const [takedownOpen, setTakedownOpen] = useState(false);
 
@@ -246,12 +247,16 @@ export default function PopupDetail() {
           const res = await apiFetch(`/api/stamps/my?userId=${userIdToCheck}`);
           if (res.ok) {
               // [코드 해석] 정상적으로 목록을 가져왔다면 JSON으로 변환합니다.
-              const myStamps = await res.json();
+              interface StampRow {
+                  stampDate?: string;
+                  popupStore: { popupId: number };
+              }
+              const myStamps: StampRow[] = await res.json();
               // [코드 해석] 시스템의 현재 날짜를 yyyy-mm-dd 문자열 포맷으로 추출합니다.
               const todayString = new Date().toISOString().split('T')[0];
               // [로직 해석] 배열의 요소 중, 현재 보고 있는 팝업스토어 ID와 일치하면서 날짜가 오늘인 데이터가 하나라도 있는지 검사합니다.
-              const hasStampToday = myStamps.some((s: any) => {
-                  const dbDate = s.stampDate?.split('T')[0]; 
+              const hasStampToday = myStamps.some((s) => {
+                  const dbDate = s.stampDate?.split('T')[0];
                   return s.popupStore.popupId === popupId && dbDate === todayString;
               });
               // [코드 해석] 검사 결과를 isStamped 상태에 반영하여 UI 버튼을 활성/비활성화합니다.
@@ -269,14 +274,13 @@ export default function PopupDetail() {
         const res = await apiFetch(`/api/wishlist/${userIdToCheck}`);
         if (res.ok) {
             // [코드 해석] 정상 응답 시 데이터를 파싱합니다.
-            const list = await res.json();
+            const list: { popupId: number }[] = await res.json();
             // [로직 해석] 배열을 순회하며 현재 팝업스토어 ID와 동일한 항목이 있다면 isLiked 상태를 true로 만듭니다.
-            setIsLiked(list.some((item: any) => item.popupId === popupId));
+            setIsLiked(list.some((item) => item.popupId === popupId));
         }
     } catch (e) { console.error(e); }
   };
 
-  // 🔥 [수정 1: 임의 수정 원상 복구] 동현님의 원본 코드대로 주소창 쿼리 파라미터를 통해 스탬프 POST 요청을 보냅니다.
   const handleStamp = async () => {
     // [코드 해석] 팝업스토어 데이터가 로드되지 않았다면 함수를 종료합니다.
     if (!popup) return;
@@ -295,7 +299,6 @@ export default function PopupDetail() {
     } catch (e) { notifyError("오류 발생"); }
   };
 
-  // 🔥 [수정 2: 임의 수정 원상 복구] 백엔드의 토글 로직을 존중하여, 동현님의 원본 코드대로 무조건 POST 요청만 보냅니다.
   const handleToggleLike = async () => {
     // [코드 해석] 유저나 팝업 정보가 없으면 로직을 중단합니다.
     if (!popup || !user) return;
@@ -339,7 +342,7 @@ export default function PopupDetail() {
     // [코드 해석] 뷰포트 전체 높이를 잡고 내용을 넘어설 경우 스크롤되도록 세팅된 메인 컨테이너입니다.
     <main className="min-h-screen bg-[#050505] text-white relative pb-20 overflow-x-hidden overflow-y-auto"> 
       
-      {/* 🟢 히어로 섹션: z-index를 낮게 잡아 뒤쪽 배경 역할을 하게 함 */}
+      
       <div className="relative h-[50vh] md:h-[60vh] w-full overflow-hidden flex flex-col items-center justify-center z-0">
         
         {/* [코드 해석] 애니메이션 글자가 흘러가는 배경 레이어입니다. 마우스 이벤트가 무시되도록 설정되어 있습니다. */}
@@ -381,7 +384,7 @@ export default function PopupDetail() {
         <div className="absolute bottom-0 left-0 w-full h-24 md:h-32 bg-gradient-to-t from-[#050505] to-transparent z-20"></div>
       </div>
 
-      {/* 🟢 상세 정보 컨텐츠: 히어로 섹션과 살짝 겹치게(-mt-10) 끌어올려서 시각적 깊이감을 줍니다. */}
+      
       <div className="p-4 md:p-6 max-w-3xl mx-auto space-y-6 md:space-y-10 relative z-30 -mt-6 md:-mt-10">
         
         {/* [로직 해석] 사용자가 가장 빈번하게 누르는 액션 버튼들(스탬프, 공유, 찜)을 묶어둔 컨테이너입니다. */}

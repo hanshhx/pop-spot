@@ -8,35 +8,55 @@ import {
 } from "lucide-react";
 import Swal from "sweetalert2";
 
-// 🔥 [통합] 기존 차트 + 실시간 선 그래프(LineChart) 컴포넌트 추가
 import { 
     PieChart, Pie, Cell, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, 
     BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line 
 } from 'recharts';
 
-// 🔥 apiFetch 경로를 확인해주세요!
-import { apiFetch } from "../../src/lib/api"; 
+import { apiFetch } from "../../src/lib/api";
 import { confirmAction } from "@/lib/notify";
+import type { PopupStore } from "@/types/popup";
 
-// 📊 실시간 지표 데이터 타입
 interface MetricData {
     time: string;
     cpu: number;
     memory: number;
 }
 
+interface AdminStats {
+    totalUsers?: number;
+    totalPopups?: number;
+    activePopups?: number;
+    pendingPopups?: number;
+    totalMatePosts?: number;
+    pendingReview?: number;
+    autoPublished?: number;
+    todayStamps?: number;
+}
+
+interface AdminMatePost {
+    id: number;
+    title: string;
+    content?: string;
+    author?: { nickname?: string };
+    createdAt?: string;
+    isMegaphone?: boolean;
+}
+
+// 실시간 폴링 — 3초 주기. 더 잦으면 백엔드 부하, 더 느슨하면 모니터링 가치 떨어짐.
+const SERVER_METRICS_POLL_INTERVAL_MS = 3000;
+const SERVER_METRICS_BUFFER_SIZE = 15;
+
 export default function AdminPage() {
     const router = useRouter();
     const [activeTab, setActiveTab] = useState("DASHBOARD");
     const [isLoading, setIsLoading] = useState(true);
 
-    // 데이터 상태들
-    const [stats, setStats] = useState<any>(null);
-    const [pendingPopups, setPendingPopups] = useState<any[]>([]);
-    const [allPopups, setAllPopups] = useState<any[]>([]);
-    const [matePosts, setMatePosts] = useState<any[]>([]);
+    const [stats, setStats] = useState<AdminStats | null>(null);
+    const [pendingPopups, setPendingPopups] = useState<PopupStore[]>([]);
+    const [allPopups, setAllPopups] = useState<PopupStore[]>([]);
+    const [matePosts, setMatePosts] = useState<AdminMatePost[]>([]);
     
-    // 🔥 [신규] 실시간 서버 지표 상태
     const [realtimeMetrics, setRealtimeMetrics] = useState<MetricData[]>([]);
     const [serverStatus, setServerStatus] = useState<'online' | 'offline'>('online');
 
@@ -60,7 +80,6 @@ export default function AdminPage() {
         }
     };
 
-    // 🔥 [신규] 서버 리소스 실시간 폴링 (3초 주기)
     useEffect(() => {
         if (activeTab !== "DASHBOARD") return; // 대시보드 탭일 때만 작동해서 부하 감소
 
@@ -74,7 +93,7 @@ export default function AdminPage() {
                         const now = new Date();
                         const timeStr = `${now.getHours()}:${now.getMinutes()}:${now.getSeconds()}`;
                         const updated = [...prev, { time: timeStr, cpu: newData.cpu, memory: newData.memory }];
-                        return updated.slice(-15); // 최근 15개 데이터 유지
+                        return updated.slice(-SERVER_METRICS_BUFFER_SIZE);
                     });
                 } else {
                     setServerStatus('offline');
@@ -84,7 +103,7 @@ export default function AdminPage() {
             }
         };
 
-        const interval = setInterval(fetchMetrics, 3000);
+        const interval = setInterval(fetchMetrics, SERVER_METRICS_POLL_INTERVAL_MS);
         return () => clearInterval(interval);
     }, [activeTab]);
 
@@ -230,7 +249,7 @@ export default function AdminPage() {
                 {!isLoading && activeTab === "DASHBOARD" && (
                     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
                         
-                        {/* 🔥 [핵심 추가] 0. 실시간 서버 리소스 모니터링 섹션 */}
+                        
                         <div className="bg-white dark:bg-ink-700 p-6 rounded-2xl border border-gray-200 dark:border-white/5 shadow-sm">
                             <div className="flex items-center justify-between mb-6">
                                 <div className="flex items-center gap-3">

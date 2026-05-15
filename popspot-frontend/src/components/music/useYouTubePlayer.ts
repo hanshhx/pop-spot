@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import type { YouTubeIframeSdk, YouTubePlayer, YouTubePlayerEvent } from "@/types/sdk";
 
 declare global {
   interface Window {
-    YT: any;
+    YT: YouTubeIframeSdk;
     onYouTubeIframeAPIReady?: () => void;
   }
 }
@@ -51,7 +52,7 @@ interface UsePlayerOptions {
  */
 export function useYouTubePlayer({ videoId, onEnded }: UsePlayerOptions) {
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const playerRef = useRef<any>(null);
+  const playerRef = useRef<YouTubePlayer | null>(null);
   const onEndedRef = useRef(onEnded);
 
   // onEnded 가 매 렌더마다 새 함수가 들어와도 effect 재실행 없이 최신값 참조
@@ -97,13 +98,13 @@ export function useYouTubePlayer({ videoId, onEnded }: UsePlayerOptions) {
           cc_load_policy: 0,  // 자막 자동 표시 X
         },
         events: {
-          onReady: (e: any) => {
+          onReady: (e: YouTubePlayerEvent) => {
             if (cancelled) return;
             setIsReady(true);
             setDurationSec(e.target.getDuration?.() ?? 0);
             e.target.playVideo?.();
           },
-          onStateChange: (e: any) => {
+          onStateChange: (e: YouTubePlayerEvent) => {
             if (cancelled) return;
             const state = e.data;
             // -1 unstarted, 0 ended, 1 playing, 2 paused, 3 buffering, 5 cued

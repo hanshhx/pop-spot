@@ -18,6 +18,9 @@ import { apiFetch } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input, Field } from "@/components/ui/input";
 
+// 이메일 인증번호 유효 시간 카운트다운의 틱 주기 (1초).
+const COUNTDOWN_TICK_MS = 1000;
+
 export default function SignupPage() {
   const router = useRouter();
 
@@ -68,10 +71,10 @@ export default function SignupPage() {
     isValidPhone &&
     isAllAgreed;
 
-  // 인증번호 카운트다운
+  // 인증번호 카운트다운 — 1초 단위로 timer 감소.
   useEffect(() => {
     if (!isAuthSent || isAuthVerified || timer <= 0) return;
-    const interval = setInterval(() => setTimer((p) => p - 1), 1000);
+    const interval = setInterval(() => setTimer((p) => p - 1), COUNTDOWN_TICK_MS);
     return () => clearInterval(interval);
   }, [isAuthSent, isAuthVerified, timer]);
 

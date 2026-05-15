@@ -15,7 +15,7 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 import Swal from "sweetalert2";
 
-import { apiFetch } from "@/lib/api";
+import { apiFetch, API_BASE_URL } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input, Field } from "@/components/ui/input";
 
@@ -86,8 +86,7 @@ export default function LoginPage() {
   };
 
   const handleSocialLogin = (provider: string) => {
-    const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
-    window.location.href = `${apiBase}/oauth2/authorization/${provider}`;
+    window.location.href = `${API_BASE_URL}/oauth2/authorization/${provider}`;
   };
 
   return (

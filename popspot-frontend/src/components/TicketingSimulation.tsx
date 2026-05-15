@@ -13,6 +13,10 @@ interface Props {
 // 시뮬레이션 단계 정의
 type Step = "INTRO" | "QUEUE" | "SELECT" | "PAYMENT" | "RESULT_UX" | "RESULT_REAL";
 
+// 광클 시뮬레이션 — 100ms 폴링이 실시간 티켓팅 압박감의 핵심.
+const TICKETING_POLL_INTERVAL_MS = 100;
+const FAIL_TRANSITION_DELAY_MS = 500;
+
 export default function TicketingSimulation({ userId }: Props) {
   const [step, setStep] = useState<Step>("INTRO");
   const [stock, setStock] = useState(30);
@@ -42,7 +46,6 @@ export default function TicketingSimulation({ userId }: Props) {
   const startStockPolling = () => {
     if (pollingRef.current) clearInterval(pollingRef.current);
     
-    // 🔥 100ms마다 재고 확인 (실시간 광클 느낌)
     pollingRef.current = setInterval(async () => {
       try {
         const res = await fetch(`${API_BASE_URL}/api/game/stock?itemId=${ITEM_ID}`);
@@ -59,11 +62,11 @@ export default function TicketingSimulation({ userId }: Props) {
             if (step !== "RESULT_UX" && step !== "RESULT_REAL") {
                  setResult("FAIL");
                  // 약간의 딜레이 후 실패 화면 전환 (사용자가 당황할 시간 부여)
-                 setTimeout(() => setStep("RESULT_REAL"), 500);
+                 setTimeout(() => setStep("RESULT_REAL"), FAIL_TRANSITION_DELAY_MS);
             }
         }
       } catch (e) {}
-    }, 100); // 🔥 여기가 핵심 속도 조절
+    }, TICKETING_POLL_INTERVAL_MS);
   };
 
   // 가상 대기열 시뮬레이션
@@ -114,7 +117,7 @@ export default function TicketingSimulation({ userId }: Props) {
   return (
     <div className="w-full max-w-2xl mx-auto p-4">
       
-      {/* 🟢 실시간 현황판 (항상 떠있음) */}
+      {/* 실시간 현황판 — 항상 떠있음. */}
       {step !== "INTRO" && (
           <div className="flex items-center justify-between bg-black/80 border border-lime-300/50 p-4 rounded-2xl mb-6 shadow-lg sticky top-4 z-50 backdrop-blur-md">
               <div className="flex items-center gap-2">

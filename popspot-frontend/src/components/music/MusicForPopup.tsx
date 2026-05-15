@@ -80,6 +80,7 @@ export default function MusicForPopup({ popupId }: Props) {
             >
               <div className="relative aspect-square overflow-hidden rounded-lg bg-foreground/5 ring-1 ring-[var(--color-border)] transition group-hover:ring-foreground/30">
                 {m.track.artworkUrlHires || m.track.artworkUrl ? (
+                  // Spotify/iTunes CDN 이미지 — next/image 도메인 화이트리스트 대신 <img> 사용.
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={m.track.artworkUrlHires || m.track.artworkUrl}

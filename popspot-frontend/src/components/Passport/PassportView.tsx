@@ -3,10 +3,10 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Lock, CheckCircle, Award, Gift } from "lucide-react";
-// 🔥 [수정] API 헬퍼 함수 import
 import { apiFetch } from "../../lib/api";
 import { notify } from "@/lib/notify";
 import { getUserRank } from "@/lib/rank";
+import type { User } from "@/types/popup";
 
 // [기존 유지] 백엔드에서 받아올 데이터 형태 정의
 interface StampData {
@@ -23,7 +23,7 @@ export default function PassportView() {
   const [stamps, setStamps] = useState<StampData[]>([]);
   
   // 실제 로그인 유저 정보를 담을 상태 추가
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
 
   // 컴포넌트 로드 시 로그인한 유저 정보 확인 (localStorage)
   useEffect(() => {

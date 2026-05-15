@@ -3,12 +3,14 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom"; 
 import { motion, AnimatePresence } from "framer-motion";
-import { MessageCircle, Plus, User, MapPin, X, Megaphone, Crown } from "lucide-react"; 
+import { MessageCircle, Plus, User as UserIcon, MapPin, X, Megaphone, Crown } from "lucide-react";
 import { useChatStore } from "../store/useChatStore";
 import { apiFetch } from "../lib/api";
 import { notify, notifyError, confirmAction } from "@/lib/notify";
+import type { User as DomainUser } from "@/types/popup";
+
 interface MateBoardProps {
-  user: any; 
+  user: DomainUser;
 }
 
 interface MatePost {
@@ -26,14 +28,14 @@ interface MatePost {
   };
   createdAt: string;
   isMegaphone: boolean;
-  megaphone?: boolean; // 🔥 백엔드에서 날아오는 원본 키값 방어용
+  megaphone?: boolean;
 }
 
 export default function MateBoard({ user }: MateBoardProps) {
   const [posts, setPosts] = useState<MatePost[]>([]);
   const [isWriteOpen, setIsWriteOpen] = useState(false);
   const [mounted, setMounted] = useState(false); 
-  const openChat = useChatStore((state: any) => state.openChat);
+  const openChat = useChatStore((state) => state.openChat);
   
   const [formData, setFormData] = useState({
     title: "",
@@ -48,11 +50,11 @@ export default function MateBoard({ user }: MateBoardProps) {
       const res = await apiFetch("/api/mates");
       if (res.ok) {
           const data = await res.json();
-          // 🔥 [에러 해결 핵심] 
-          // Spring Boot가 'isMegaphone'을 'megaphone'으로 바꿔서 보내는 현상 조치
-          const normalizedData = data.map((p: any) => ({
+          // Spring Boot 가 boolean 게터를 직렬화하면서 `isMegaphone` → `megaphone` 으로 키가
+          // 바뀌어 들어오는 케이스를 양쪽 다 받아 정규화.
+          const normalizedData = (data as MatePost[]).map((p) => ({
               ...p,
-              isMegaphone: p.isMegaphone === true || p.megaphone === true
+              isMegaphone: p.isMegaphone === true || p.megaphone === true,
           }));
           setPosts(normalizedData);
       }
@@ -79,7 +81,8 @@ export default function MateBoard({ user }: MateBoardProps) {
     if (!user) return notify("로그인이 필요합니다.");
     if (!formData.title) return notify("제목을 입력해주세요.");
 
-    const targetUserId = user.userId || user.id; 
+    const targetUserId = user.userId || user.id || "";
+    if (!targetUserId) return notify("사용자 정보를 확인할 수 없습니다.");
 
     try {
       const res = await apiFetch("/api/mates", {
@@ -105,14 +108,15 @@ export default function MateBoard({ user }: MateBoardProps) {
 
   const handleJoinChat = async (post: MatePost) => {
     if (!user) return notify("로그인이 필요합니다.");
-    
-    const targetUserId = user.userId || user.id;
+
+    const targetUserId = user.userId || user.id || "";
+    if (!targetUserId) return notify("사용자 정보를 확인할 수 없습니다.");
 
     if (post.author.nickname === user.nickname) {
         openChat({ postId: post.id, postTitle: post.title, nickname: user.nickname, userId: targetUserId, isAuthor: true });
         return;
     }
-    
+
     try {
         const res = await apiFetch(`/api/mates/${post.id}/join?userId=${targetUserId}`, { method: 'POST' });
         const msg = await res.text();
@@ -129,7 +133,6 @@ export default function MateBoard({ user }: MateBoardProps) {
     }
   };
 
-  // 🔥 게시글을 확성기(모집중) 글과 일반 글로 분리합니다.
   const megaphonePosts = posts.filter(post => post.isMegaphone && post.status !== 'CLOSED');
   const normalPosts = posts.filter(post => !post.isMegaphone || post.status === 'CLOSED');
 
@@ -154,7 +157,7 @@ export default function MateBoard({ user }: MateBoardProps) {
       {/* 전체 스크롤 영역 */}
       <div className="flex-1 overflow-y-auto custom-scrollbar pb-20 md:pb-4">
         
-        {/* 🔥 1. 확성기 전용 가로 스크롤 (HOT MATES) */}
+        
         {megaphonePosts.length > 0 && (
           <div className="bg-lime-300/5 dark:bg-ink-800/50 border-b border-[var(--color-border)] dark:border-white/5 py-5">
             <div className="px-4 md:px-6 mb-3 flex items-center gap-2">
@@ -169,7 +172,6 @@ export default function MateBoard({ user }: MateBoardProps) {
                     key={post.id}
                     initial={{ opacity: 0, x: 20 }}
                     animate={{ opacity: 1, x: 0 }}
-                    // 🔥 색상 완전 차별화: 핑크/로즈 그라데이션 및 특수 그림자
                     className="snap-start shrink-0 w-[280px] md:w-[320px] p-4 md:p-5 rounded-2xl border-2 border-hot-200 dark:border-hot-900/50 shadow-[0_4px_20px_rgba(236,72,153,0.15)] dark:shadow-[0_4px_20px_rgba(236,72,153,0.2)] bg-gradient-to-br from-hot-50 to-white dark:from-hot-900/30 dark:to-[#1a1a1a] relative overflow-hidden"
                 >
                     <div className="absolute top-0 left-0 w-1.5 h-full bg-hot-400"></div>
@@ -198,7 +200,7 @@ export default function MateBoard({ user }: MateBoardProps) {
                     <div className="flex justify-between items-center mt-auto pl-2 border-t border-hot-100 dark:border-hot-900/30 pt-3">
                         <div className="flex items-center gap-1.5">
                             <div className="w-6 h-6 md:w-8 md:h-8 rounded-full bg-hot-100 dark:bg-hot-900/50 flex items-center justify-center border border-hot-200 dark:border-hot-800">
-                                <User size={12} className="md:w-4 md:h-4 text-hot-400"/>
+                                <UserIcon size={12} className="md:w-4 md:h-4 text-hot-400"/>
                             </div>
                             <span className="text-[10px] md:text-xs font-bold text-gray-800 dark:text-gray-200 truncate max-w-[80px] flex items-center gap-1">
                               <span className="truncate">{post.author.nickname}</span>
@@ -220,7 +222,6 @@ export default function MateBoard({ user }: MateBoardProps) {
           </div>
         )}
 
-        {/* 🔥 2. 일반 게시글 세로 스크롤 영역 */}
         <div className="p-3 md:p-4 space-y-3 md:space-y-4">
           {normalPosts.length === 0 && megaphonePosts.length === 0 ? (
               <div className="text-center py-16 md:py-20 text-gray-400 text-xs md:text-sm">
@@ -271,7 +272,7 @@ export default function MateBoard({ user }: MateBoardProps) {
                       <div className="flex justify-between items-center border-t border-gray-100 dark:border-white/5 pt-3 md:pt-4 pl-2.5 md:pl-3">
                           <div className="flex items-center gap-1.5 md:gap-2 overflow-hidden pr-2">
                               <div className="w-6 h-6 md:w-8 md:h-8 shrink-0 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center border border-white dark:border-gray-600">
-                                  <User size={12} className="md:w-3.5 md:h-3.5 text-gray-500 dark:text-gray-400"/>
+                                  <UserIcon size={12} className="md:w-3.5 md:h-3.5 text-gray-500 dark:text-gray-400"/>
                               </div>
                               <span className="text-[10px] md:text-xs font-bold text-gray-700 dark:text-gray-300 flex items-center gap-1 truncate">
                                   <span className="truncate">{post.author.nickname}</span>

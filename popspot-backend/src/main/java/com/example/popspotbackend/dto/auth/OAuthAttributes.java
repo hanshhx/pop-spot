@@ -4,14 +4,25 @@ import java.util.Map;
 import lombok.Builder;
 import lombok.Getter;
 
+/**
+ * OAuth2 프로바이더(Google / Kakao / Naver) 가 반환한 사용자 속성 정규화.
+ *
+ * <p>프로바이더마다 응답 JSON 구조가 다르다 — Google 은 최상위, Kakao 는 {@code kakao_account.profile} 안, Naver 는
+ * {@code response} 안. {@link #of} 팩토리가 프로바이더별 분기 후 공통 형태로 통일한다.
+ */
 @Getter
 public class OAuthAttributes {
+
+    private static final String PROVIDER_GOOGLE = "google";
+    private static final String PROVIDER_KAKAO = "kakao";
+    private static final String PROVIDER_NAVER = "naver";
+
     private Map<String, Object> attributes;
     private String nameAttributeKey;
     private String name;
     private String email;
     private String picture;
-    private String provider; // kakao, naver, google
+    private String provider;
 
     @Builder
     public OAuthAttributes(
@@ -29,13 +40,12 @@ public class OAuthAttributes {
         this.provider = provider;
     }
 
-    // 소셜 서비스 구분 (Factory method)
     public static OAuthAttributes of(
             String registrationId, String userNameAttributeName, Map<String, Object> attributes) {
-        if ("naver".equals(registrationId)) {
+        if (PROVIDER_NAVER.equals(registrationId)) {
             return ofNaver("id", attributes);
         }
-        if ("kakao".equals(registrationId)) {
+        if (PROVIDER_KAKAO.equals(registrationId)) {
             return ofKakao("id", attributes);
         }
         return ofGoogle(userNameAttributeName, attributes);
@@ -49,13 +59,13 @@ public class OAuthAttributes {
                 .picture((String) attributes.get("picture"))
                 .attributes(attributes)
                 .nameAttributeKey(userNameAttributeName)
-                .provider("google")
+                .provider(PROVIDER_GOOGLE)
                 .build();
     }
 
+    @SuppressWarnings("unchecked")
     private static OAuthAttributes ofKakao(
             String userNameAttributeName, Map<String, Object> attributes) {
-        // 카카오는 구조가 다름: kakao_account 안에 email, profile 등이 있음
         Map<String, Object> kakaoAccount = (Map<String, Object>) attributes.get("kakao_account");
         Map<String, Object> profile = (Map<String, Object>) kakaoAccount.get("profile");
 
@@ -65,13 +75,13 @@ public class OAuthAttributes {
                 .picture((String) profile.get("profile_image_url"))
                 .attributes(attributes)
                 .nameAttributeKey(userNameAttributeName)
-                .provider("kakao")
+                .provider(PROVIDER_KAKAO)
                 .build();
     }
 
+    @SuppressWarnings("unchecked")
     private static OAuthAttributes ofNaver(
             String userNameAttributeName, Map<String, Object> attributes) {
-        // 네이버는 response 안에 정보가 있음
         Map<String, Object> response = (Map<String, Object>) attributes.get("response");
 
         return OAuthAttributes.builder()
@@ -80,7 +90,7 @@ public class OAuthAttributes {
                 .picture((String) response.get("profile_image"))
                 .attributes(response)
                 .nameAttributeKey(userNameAttributeName)
-                .provider("naver")
+                .provider(PROVIDER_NAVER)
                 .build();
     }
 }

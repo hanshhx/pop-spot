@@ -1,22 +1,26 @@
 package com.example.popspotbackend.dto;
 
-import com.fasterxml.jackson.annotation.JsonProperty; // 🔥 이 import 추가!
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.time.LocalDateTime;
 import lombok.Builder;
 import lombok.Data;
 
+/**
+ * 마이페이지 요약 응답.
+ *
+ * <p>{@link LoginResponseDto} 와 동일한 이유로 {@code isPremium} 키를 강제 고정.
+ */
 @Data
 @Builder
 public class MyPageDto {
     private String nickname;
 
-    // 🔥 [수정] JSON으로 나갈 때 이름을 "isPremium"으로 강제 고정
     @JsonProperty("isPremium")
     private boolean isPremium;
 
-    private LocalDateTime premiumExpiryDate; // 만료일
-    private int megaphoneCount; // 확성기 개수
-    private int stampCount; // 스탬프 개수
-    private int likeCount; // 찜한 개수
-    private int reviewCount; // 리뷰 개수
+    private LocalDateTime premiumExpiryDate;
+    private int megaphoneCount;
+    private int stampCount;
+    private int likeCount;
+    private int reviewCount;
 }

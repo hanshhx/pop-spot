@@ -5037,3 +5037,878 @@ spotless {
 - 와일드카드 import / 인라인 주석 / 매직 넘버 일괄 정리
 - 거대 메서드 분해 (runOnce 130줄 → 6단계, processOrder → 7단계 등)
 - 외부 동작 / DB / Redis 키 동등성 유지로 회귀 위험 최소화
+
+---
+
+# §8. v1.4 보강 — Wave 6 의 누락 영역 (`dto/` 통째 + 잔여 `entity/` 7개)
+
+> v1.4 의 7 Wave 가 의도적으로 비킨 영역 정리. Wave 5 (Service 16) 와 Wave 6 (Entity 핵심 6) 까지 진행했지만
+> **`dto/` 전체와 나머지 엔티티 7개는 손이 안 들어간 상태**였다. v1.4 의 동일 원칙(와일드카드 import X · 인라인 코멘트 X
+> · JavaDoc 만 유지 · 매직 상수화 · 외부 동작 동등) 을 동일하게 적용. 외부 API · DB 스키마 · 직렬화 키 모두 변경 없음.
+
+## 8.1 왜 이걸 따로 처리했나
+
+v1.4 가 끝난 뒤 코드 전수 점검을 했더니 두 영역에서 클린코드 위반이 잔존했다.
+
+```
+# 검색 결과 (v1.4 직후 시점)
+$ grep -rEn "^import [a-z.]+\.\*;" src/main/java/com/example/popspotbackend/entity/
+ChatMessage.java:4:        import jakarta.persistence.*;
+Goods.java:4:              import jakarta.persistence.*;
+Goods.java:5:              import lombok.*;
+MateChatMessage.java:3:    import jakarta.persistence.*;
+MateChatMessage.java:5:    import lombok.*;
+MusicTrack.java:3:         import jakarta.persistence.*;
+MusicTrack.java:5:         import lombok.*;
+PopupImage.java:3:         import jakarta.persistence.*;
+PopupImage.java:4:         import lombok.*;
+UserMusicHistory.java:3:   import jakarta.persistence.*;
+UserMusicHistory.java:5:   import lombok.*;
+Wishlist.java:3:           import jakarta.persistence.*;
+
+$ grep -rEcl "🔥|\[수정\]|\[임의 수정\]|\[추가\]" src/main/java/com/example/popspotbackend/dto/
+SignupRequestDto.java       (5건)
+LoginResponseDto.java       (2건)
+MyPageDto.java              (2건)
+MateDto.java                (1건)
+PlanningPlace.java          (3건)
+PopupSearchDto.java         (1건)
+```
+
+v1.4 의 Wave 6 가 `entity/` 13개 중 **핵심 6개 (User, PopupStore, MatePost, Stamp, Orders, MyCourse)** 만 손댔고
+나머지 7개는 "외관만 클린" 수준에서 통과시킨 것. `dto/` 는 통째로 Wave 범위 밖이었음.
+
+면접 / 코드 리뷰 시점에서 같은 폴더 안에 정리된 파일과 안 된 파일이 섞여있는 게 더 어색하므로, v1.4 와 같은 기준으로
+22 파일을 추가 정리.
+
+## 8.2 DTO 폴더 — 15 파일
+
+### 공통 패턴
+
+대부분 파일에 다음 두 종류의 노이즈가 누적돼 있었다.
+
+1. **AI/사람 편집 흔적** — `// 🔥 [13번 임의 수정]`, `// 🔥 [14번 임의 수정]`, `// 🔥 [수정] getMainImageUrl() -> getImageUrl()로 변경` 같은
+   히스토리 코멘트. git 히스토리에 이미 다 들어있으니 코드 안에서는 의미 없음.
+2. **필드 끝 트레일링 코멘트** — `private LocalDateTime premiumExpiryDate; // 만료일` 같은
+   필드명만 다시 반복하는 코멘트. 필드 이름 자체가 충분히 설명적.
+
+### `SignupRequestDto.java`
+
+**변경 전 — 5건의 편집 흔적 + 매직 regex 인라인**
+
+```java
+// 🔥 [임의 수정] 데이터 유효성 검증을 위한 라이브러리 추가
+
+@Getter @Setter @NoArgsConstructor
+public class SignupRequestDto {
+
+    // 🔥 [13번 임의 수정] 빈 문자열 방지 및 이메일 형식 검증 추가
+    @NotBlank @Email private String email;
+
+    // 🔥 [14번 임의 수정] 비밀번호 강도 검증 (영문, 숫자, 특수문자 포함 8~20자)
+    @NotBlank
+    @Pattern(
+            regexp = "^(?=.*[A-Za-z])(?=.*\\d)(?=.*[@$!%*#?&])[A-Za-z\\d@$!%*#?&]{8,20}$",
+            message = "비밀번호는 8~20자리이며, 영문, 숫자, 특수문자를 반드시 포함해야 합니다.")
+    private String password;
+
+    // 🔥 [13번 임의 수정] 닉네임 빈칸 가입 방지
+    @NotBlank private String nickname;
+
+    // 🔥 [13번 임의 수정] 전화번호 형식 통일 (010으로 시작하는 11자리 숫자)
+    @NotBlank
+    @Pattern(regexp = "^010\\d{8}$", message = "전화번호 형식이 올바르지 않습니다. (예: 01012345678)")
+    private String phoneNumber;
+}
+```
+
+**변경 후 — JavaDoc + 매직 regex 두 개를 `static final` 로 추출**
+
+```java
+/**
+ * 회원가입 요청 DTO.
+ *
+ * <p>Bean Validation 으로 각 필드의 형식·강도·필수 여부를 컨트롤러 진입 직후 검증한다.
+ * 검증 실패 시 GlobalExceptionHandler 가 400 응답으로 변환.
+ */
+@Getter @Setter @NoArgsConstructor
+public class SignupRequestDto {
+
+    private static final String PASSWORD_REGEX =
+            "^(?=.*[A-Za-z])(?=.*\\d)(?=.*[@$!%*#?&])[A-Za-z\\d@$!%*#?&]{8,20}$";
+    private static final String PHONE_REGEX = "^010\\d{8}$";
+
+    @NotBlank @Email private String email;
+
+    @NotBlank
+    @Pattern(regexp = PASSWORD_REGEX, message = "...")
+    private String password;
+
+    @NotBlank private String nickname;
+
+    @NotBlank
+    @Pattern(regexp = PHONE_REGEX, message = "...")
+    private String phoneNumber;
+}
+```
+
+**왜 바꿨나** — regex 가 두 군데에 인라인된 매직 스트링이라 정책이 바뀌면 양쪽 모두 수정해야 함. `static final`
+로 끌어내면 한 곳만 손대면 되고, 이름으로 의도가 드러남 (`PASSWORD_REGEX` / `PHONE_REGEX`).
+
+### `LoginResponseDto.java` · `MyPageDto.java`
+
+`@JsonProperty("isPremium")` 트릭이 왜 필요한지 인라인 코멘트로 어수선했음 (`// 🔥 이거 import 필수!` /
+`// [🔥 수정] JSON으로 나갈 때 이름을 "isPremium"으로 강제 고정`). 클래스 JavaDoc 한 줄로 옮김.
+
+```java
+/**
+ * 로그인 성공 응답.
+ *
+ * <p>{@code isPremium} 은 boolean 이라 Jackson 이 기본적으로 {@code premium} 으로 직렬화한다.
+ * 프론트가 {@code isPremium} 키를 기대하므로 {@link JsonProperty} 로 키 이름을 강제 고정.
+ */
+```
+
+**왜 바꿨나** — 같은 트릭이 두 DTO 에 똑같이 들어있는데 한 군데는 "이거 import 필수!", 다른 곳은 "JSON 으로 나갈 때
+이름 강제 고정" 식으로 코멘트가 달라 한쪽만 보면 의도 파악이 어려웠다. JavaDoc 으로 통일하면 IDE 가 hover 로 그대로
+보여주고 grep 검색에도 잡힌다.
+
+### `MateDto.java`
+
+`@NoArgsConstructor // 🔥 중요: JSON 파싱을 위해 기본 생성자 필수` → 어노테이션 옆 인라인 제거, 같은 내용을
+클래스 JavaDoc 으로:
+
+```java
+/**
+ * 메이트(동행) 게시글 작성 DTO.
+ *
+ * <p>{@code @NoArgsConstructor} 는 JSON 역직렬화용. Jackson 이 setter 호출 전 빈 인스턴스를 만든다.
+ */
+```
+
+### `PlanningPlace.java` — 트레일링 코멘트 6건 + 편집 흔적 1건
+
+**변경 전**
+
+```java
+public class PlanningPlace {
+    private String id;        // 장소 ID (Kakao Map ID 등)
+    private String name;      // 장소 이름
+    private double lat;       // 위도
+    private double lng;       // 경도
+    private String category;  // 카테고리
+
+    // 🔥 [추가됨] 투표 카운트
+    @Builder.Default private int likeCount = 0; // 👍 좋아요
+    @Builder.Default private int fireCount = 0; // 🔥 가자
+}
+```
+
+**변경 후**
+
+```java
+/**
+ * 계획 보드(Planning) 의 장소 카드.
+ *
+ * <p>{@code likeCount} / {@code fireCount} 는 동행자들의 투표 카운트 (좋아요 / "가자!").
+ * 클라이언트가 STOMP 로 실시간 증분을 받는다.
+ */
+public class PlanningPlace {
+    private String id;
+    private String name;
+    private double lat;
+    private double lng;
+    private String category;
+
+    @Builder.Default private int likeCount = 0;
+    @Builder.Default private int fireCount = 0;
+}
+```
+
+**왜 바꿨나** — `private double lat; // 위도` 같은 코멘트는 필드 이름과 동의어다. 의미 있는 정보 (이 두 값이 동행자
+투표용이고 STOMP 로 증분이 들어온다) 를 클래스 JavaDoc 으로 끌어올렸음.
+
+### `PopupSearchDto.java`
+
+`// 🔥 [수정] getMainImageUrl() -> getImageUrl()로 변경` 같은 PR 디스크립션 수준의 코멘트 제거. `objectID` 필드
+앞에 있던 `// Algolia 필수 필드` 코멘트는 클래스 JavaDoc 으로 격상:
+
+```java
+/**
+ * Algolia 인덱싱용 경량 DTO.
+ *
+ * <p>Algolia 는 ID 필드를 반드시 {@code objectID} (대소문자 포함) 라는 이름의 String 으로 받는다.
+ */
+```
+
+### `CongestionDto.java`
+
+**변경 전** — 파일 첫 줄에 의미 없는 `// 👇 [중요] 여기도 패키지 이름을 맞췄습니다.` + 9개 필드 끝에 모두 트레일링
+코멘트.
+
+**변경 후** — 첫 줄 제거 + `forecast` / `ageRates` 같이 형식이 자명하지 않은 두 필드만 클래스 JavaDoc 에 형태
+설명을 모아둠 (`{"time": "14:00", "pop": "3200"}` 형태). 나머지 필드는 이름만으로 자명.
+
+### `VoteRequest.java` · `WishlistResponseDto.java`
+
+VoteRequest 는 `voteType` 의 허용 값 ("LIKE" / "FIRE") 을 JavaDoc 으로 명시. WishlistResponseDto 의 1행 코멘트
+`package com.example.popspotbackend.dto; // ✅ 패키지 경로 변경됨` 제거.
+
+### `auth/OAuthAttributes.java`
+
+**변경 전** — 매직 스트링 `"naver"`, `"kakao"`, `"google"` 이 분기문에서 직접 비교됐고, `(Map<String, Object>) attributes.get("kakao_account")`
+같은 unchecked cast 가 컴파일러 경고를 띄우고 있었음.
+
+**변경 후**
+
+```java
+private static final String PROVIDER_GOOGLE = "google";
+private static final String PROVIDER_KAKAO = "kakao";
+private static final String PROVIDER_NAVER = "naver";
+
+@SuppressWarnings("unchecked")
+private static OAuthAttributes ofKakao(...) { ... }
+```
+
+**왜 바꿨나** — 프로바이더 이름이 5군데에서 매직 스트링으로 비교되고 있었다. 한 곳만 오타 내도 OAuth 로그인이 조용히
+실패. 상수화로 컴파일 시 잡히게 함. unchecked cast 는 SDK 응답 구조가 정해진 형태라 `@SuppressWarnings("unchecked")`
+로 의도를 명시했음 (안 그러면 build 출력 시 경고로 묻힘).
+
+### 나머지 6 개 DTO — `CalendarPopupDto`, `CourseSaveRequestDto`, `LoginRequestDto`, `PopupReportRequestDto`,
+### `PopupTakedownRequestDto`, `StampRequest`
+
+이미 깨끗했음. 손 안 댐.
+
+## 8.3 잔여 entity 7 파일
+
+`entity/` 13개 중 v1.4 Wave 6 가 핵심 6개만 정리하고 통과시킨 나머지:
+`ChatMessage`, `Goods`, `MateChatMessage`, `MusicTrack`, `PopupImage`, `UserMusicHistory`, `Wishlist`.
+
+### 와일드카드 import 제거
+
+7 파일 × 평균 2개 = 약 12 라인의 와일드카드를 명시적 import 로 풀어냄. 예 — `MusicTrack.java`:
+
+```java
+// 변경 전
+import jakarta.persistence.*;
+import lombok.*;
+
+// 변경 후
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.Table;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+```
+
+**왜 바꿨나** — Spotless `googleJavaFormat.aosp()` 가 와일드카드 import 자체를 금지하지는 않지만, 클린코드 관점에서
+"이 파일이 실제로 무엇을 쓰는지" 가 import 만 보면 드러나야 함. JPA 어노테이션을 잘못 import (`jakarta.persistence.Table`
+vs `org.springframework.data.relational.core.mapping.Table`) 한 실수도 와일드카드 상태에선 잘 안 보임.
+
+### `ChatMessage.java` · `MateChatMessage.java` — 시퀀스 전략 + 코멘트 정리
+
+두 채팅 메시지 엔티티 모두 `GenerationType.SEQUENCE` 를 쓴다 (Oracle → PostgreSQL 이전 시 채팅 메시지 저장에서
+ID NULL 사고가 있어 시퀀스로 우회한 흔적). 이 결정을 JavaDoc 으로 명시:
+
+```java
+/**
+ * 메이트(동행) 게시글의 1:1/그룹 채팅 메시지.
+ *
+ * <p>{@link ChatMessage} 와 동일한 이유로 SEQUENCE 전략을 쓴다 — 채팅 메시지 저장 시 ID 가
+ * NULL 로 들어가던 사고가 SEQUENCE 로 우회된 적이 있어 그대로 유지.
+ */
+```
+
+**왜 바꿨나** — 이 시퀀스 전략은 코드만 봐서는 왜 다른 엔티티들과 다른지 알 수 없다. 다음 사람이 "통일성 없다"는
+이유로 IDENTITY 로 바꾸면 사고가 재현된다. JavaDoc 에 결정 배경을 박아두는 게 안전망.
+
+### `Goods.java` — 폐기된 SEQUENCE 코멘트 제거
+
+```java
+// 변경 전
+@Id
+// 🔥 [수정] Oracle Sequence 제거 -> MySQL Identity 사용
+// @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "GOODS_SEQ_GEN")
+@GeneratedValue(strategy = GenerationType.IDENTITY)
+@Column(name = "GOODS_ID")
+private Long id;
+
+// 변경 후
+@Id
+@GeneratedValue(strategy = GenerationType.IDENTITY)
+@Column(name = "GOODS_ID")
+private Long id;
+```
+
+폐기된 어노테이션을 주석으로 살려두는 패턴 제거. git 히스토리에 있음.
+
+### `MusicTrack.java` — `mood_tags` 필드 형식 JavaDoc 격상
+
+`@Column(name = "mood_tags", columnDefinition = "TEXT") private String moodTags; // JSON 배열 문자열` →
+필드 위 JavaDoc 으로 옮기면서 화이트리스트 한도까지 명시:
+
+```java
+/** Groq 가 분석한 무드 태그 JSON 배열 (40개 화이트리스트 중 최대 5개). */
+@Column(name = "mood_tags", columnDefinition = "TEXT")
+private String moodTags;
+```
+
+### `PopupImage.java` — 의문스러운 트레일링 코멘트 제거
+
+```java
+// 변경 전
+@Column(name = "MAIN_YN") // 대표 이미지 여부 (Y/N)
+private String mainYn;
+
+// 만약 DB 컬럼명이 단순히 'YN' 이라면 @Column(name="YN")으로 바꾸세요.
+// 사용자님 데이터(Y)를 보니 컬럼명이 MAIN_YN 또는 IS_MAIN 일 것 같습니다.
+```
+
+마지막 두 줄은 LLM 응답을 그대로 코드에 박아둔 흔적 — 결정 완료된 상태에서 자해성 코멘트가 코드 안에 박혀 있는 게
+가장 어색했다. 제거 + JavaDoc 으로 "한 팝업당 정확히 하나만 Y" 같은 운영 불변식을 명시.
+
+### `Wishlist.java` — 매직 스트링 인라인 코멘트 제거
+
+```java
+@UniqueConstraint(columnNames = {"user_id", "popup_store_id"}) // 중복 방지
+```
+→ `// 중복 방지` 제거. JavaDoc 으로 격상.
+
+## 8.4 검증
+
+```bash
+# 1) 와일드카드 import 제로 확인
+$ grep -rEn "^import [a-z.]+\.\*;" src/main/java/com/example/popspotbackend/
+# (출력 없음)
+
+# 2) DTO 폴더 편집 흔적 제로 확인
+$ grep -rEcl "🔥|\[수정\]|\[임의 수정\]|\[추가\]" src/main/java/com/example/popspotbackend/dto/
+# (출력 없음)
+
+# 3) ./gradlew spotlessCheck && ./gradlew build
+# spotless 통과, 컴파일 통과 (API · 엔티티 매핑 변경 없음)
+```
+
+외부 동작은 100% 동일. DB 컬럼명·인덱스·시퀀스 이름 모두 그대로 유지.
+
+---
+
+# §9. v1.5 — 프론트엔드 Clean Code 리팩터링
+
+> v1.4 가 백엔드만 정리하고 끝났던 게 부자연스러워서 같은 원칙으로 프론트엔드 한 바퀴 돌림.
+> 백엔드 7 Wave 와 비교해 프론트의 회귀 리스크가 더 크기 때문에 (단위 테스트 부재 + 시각적 회귀)
+> **Wave 별로 위험도를 분리해 안전한 것부터 적용**. Wave 5·6 (대형 컴포넌트 분해 + Tailwind variant 추출) 은
+> 회귀 테스트가 마련된 다음 별도로 진행하기로 의도적으로 미뤘다.
+
+## 9.0 적용 공통 원칙
+
+v1.4 의 7대 원칙을 프론트엔드 식으로 번역:
+
+1. **편집 흔적 0건** — `🔥 [수정]`, `🔥 [임의 수정]`, `🔥 [13번 임의 수정]`, `🟢 [수정 핵심]` 같은
+   히스토리 코멘트 제거
+2. **`any` 타입 0건** (`src/types/sdk.ts` 의 SDK 경계는 예외 + 명시적 eslint-disable)
+3. **API URL 일원화** — `process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080"` 같은
+   문자열 폴백 금지. `src/lib/api.ts` 의 `API_BASE_URL` 만 사용
+4. **매직 넘버 → 명명 상수** — `setTimeout(..., 2000)`, `setInterval(..., 3000)` 같은 리터럴은
+   파일 상단 `const FOO_MS = 2000` 으로
+5. **`eslint-disable` 는 이유 코멘트 필수** — disable 자체를 금지하지 않지만 왜 disable 하는지
+   바로 윗줄에 한 줄로 명시
+6. **편집 흔적은 코드에 박지 말고 git 메시지로** — 본인이 작업한 히스토리를 코드 안에 남기지 않음
+
+## 9.1 Wave 1 — 편집 흔적 일괄 제거 (21 파일 · 84 군데)
+
+### 변경 전 — 21 파일에 84건 박혀 있던 노이즈
+
+```bash
+$ grep -rEn "🔥|\[수정\]|\[임의 수정\]" app/ src/ | grep -v node_modules | wc -l
+84
+```
+
+대표 사례 — `app/find-account/page.tsx` 한 파일에만 6건:
+
+```tsx
+// 🔥 [수정] API 헬퍼 함수 import
+// 🔥 [수정] apiFetch 사용
+// 🔥 [수정 핵심] text()가 아니라 json()으로 받아야 합니다!
+// 🔥 [수정] apiFetch 사용
+// 🔥 [수정] 400 에러(소셜회원)도 여기서 처리됩니다.
+// 🔥 [수정] apiFetch 사용
+```
+
+`app/admin/page.tsx`:
+
+```tsx
+// 🔥 [통합] 기존 차트 + 실시간 선 그래프(LineChart) 컴포넌트 추가
+// 🔥 apiFetch 경로를 확인해주세요!
+// 🔥 [신규] 실시간 서버 지표 상태
+// 🔥 [신규] 서버 리소스 실시간 폴링 (3초 주기)
+{/* 🔥 [핵심 추가] 0. 실시간 서버 리소스 모니터링 섹션 */}
+```
+
+### 처리 방식 — sed 일괄 변환 + 잔존 5건 수동 처리
+
+```bash
+for f in $(grep -rEl "🔥|\[수정\]|\[임의 수정\]" app/ src/); do
+  # 1) 통째 라인 // 🔥 ... 삭제
+  sed -i -E '/^\s*\/\/.*🔥/d' "$f"
+  # 2) 통째 라인 // [수정] ... [임의 수정] ... 삭제 (🔥 없어도)
+  sed -i -E '/^\s*\/\/.*\[(수정|임의 수정|...)\]/d' "$f"
+  # 3) 트레일링 // 🔥 ... 부분 strip
+  sed -i -E 's@\s*\/\/\s*🔥.*$@@' "$f"
+  # 4) JSX 코멘트 {/* 🔥 ... */} 통째 라인이면 삭제
+  sed -i -E '/^\s*\{\/\*\s*🔥.*\*\/\}\s*$/d' "$f"
+  # 5) JSX 코멘트 인라인 {/* 🔥 ... */} 부분 제거
+  sed -i -E 's@\{/\*\s*🔥[^*]*\*/\}@@g' "$f"
+done
+```
+
+sed 가 못 잡은 5건은 수동 정리:
+
+1. `app/oauth/callback/page.tsx:10` — `// 🔥 [추가]` (sed 가 `[추가]` 패턴은 안 잡게 했음)
+2. `src/components/DigitalTicket.tsx:139` — `{/* 🟢 [수정 핵심] ... */}` (🔥 가 아닌 🟢 마커)
+3. `src/components/MateBoard.tsx:376` — `"🔥 확성기로 등록하기"` UI 텍스트 → **의도된 UI 라 유지**
+4. `src/components/MateChatModal.tsx:407` — `/* 🔥 [수정] ... */` (JSX 가 아닌 일반 블록 코멘트)
+5. `src/components/TicketingSimulation.tsx:65` — `}, 100); // 🔥 여기가 핵심 속도 조절` →
+   매직 넘버 상수화 (Wave 4 와 같이 처리)
+
+### `DigitalTicket.tsx` — 의미 있던 코멘트는 일반 코멘트로 변환
+
+마커가 박힌 코멘트 중 진짜 정보가 있는 것은 마커만 떼고 보존:
+
+```tsx
+// 변경 전
+{/* 🟢 [수정 핵심] Portal 사용: 모달을 body 바로 아래로 이동시켜 겹침(z-index) 문제 완벽 해결 */}
+
+// 변경 후
+{/* Portal 사용 — 모달을 body 바로 아래로 이동시켜 z-index 겹침 회피. */}
+```
+
+### 결과
+
+```bash
+$ grep -rEn "🔥|\[수정\]" app/ src/ | grep -v node_modules | grep -v "MateBoard.tsx:376"
+# (출력 없음)
+```
+
+UI 텍스트의 🔥 (확성기 등록 버튼) 만 의도적 잔존. 84건 → 1건 (UI 의도).
+
+## 9.2 Wave 2 — 타입 안전성 (`any` 15건 제거)
+
+### 9.2.1 SDK 경계 타입 신설 — `src/types/sdk.ts`
+
+Kakao Maps SDK · YouTube IFrame Player 둘 다 공식 `@types` 가 부실하거나 없어서 코드 곳곳에 `kakao: any` /
+`YT: any` 가 박혀 있었다. 한 곳에 모으는 SDK 타입 파일을 신설:
+
+```ts
+/**
+ * 외부 SDK 글로벌 타입.
+ *
+ * <p>Kakao Maps · YouTube IFrame Player 둘 다 공식 @types 패키지가 부실하거나 없다. 우리가 실제로
+ * 쓰는 표면만 최소한으로 선언해 두고, 타입 단정(assertion) 이 필요한 호출 지점에서는 보다 구체적인
+ * 헬퍼 타입을 따로 정의해 쓴다.
+ */
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
+/** Kakao Maps SDK 의 글로벌 진입점. 실제 표면이 매우 넓어 컨테이너만 정의. */
+export type KakaoMapsSdk = any;
+
+/** YouTube IFrame Player API 의 글로벌 진입점. */
+export type YouTubeIframeSdk = any;
+
+/** YouTube Player 이벤트 객체. `onReady` / `onStateChange` 콜백이 받는 인자. */
+export interface YouTubePlayerEvent {
+    target: YouTubePlayer;
+    data?: number;
+}
+
+/** YouTube Player 인스턴스 — 우리가 실제로 호출하는 메서드만 모았다. */
+export interface YouTubePlayer {
+    playVideo(): void;
+    pauseVideo(): void;
+    seekTo(seconds: number, allowSeekAhead?: boolean): void;
+    getCurrentTime(): number;
+    getDuration(): number;
+    getPlayerState(): number;
+    setVolume(volume: number): void;
+    mute(): void;
+    unMute(): void;
+    destroy(): void;
+}
+```
+
+**왜 이렇게 만들었나** — Kakao Maps 의 모든 표면을 일일이 타이핑하는 건 유지보수 비용이 너무 크다 (Kakao 가 자주
+바꿈). 그렇다고 `any` 를 코드 곳곳에 뿌리면 의도가 안 보인다. **"여기는 의도적으로 SDK 경계라 any"** 라는 신호를
+한 곳 (`sdk.ts`) 에 모아두고 거기서만 eslint-disable 하는 방식이 안전망 + 코드 가독성 양쪽 다 잡음.
+
+### 9.2.2 컴포넌트별 `any` → 도메인 타입
+
+| # | 파일 / 라인 | 변경 전 | 변경 후 |
+|:--:|---|---|---|
+| 1 | `app/planning/page.tsx:196` | `.then((data: any) => ...)` | `interface PlanningRoomState { markers?, users?, votes? }; .then((data: PlanningRoomState) => ...)` |
+| 2 | `app/popup/[id]/page.tsx:30` | `kakao: any` | `kakao: import("@/types/sdk").KakaoMapsSdk` |
+| 3 | `app/popup/[id]/page.tsx:145` | `useState<any>(null)` | `useState<User \| null>(null)` (+ import User from types/popup) |
+| 4 | `app/popup/[id]/page.tsx:253` | `myStamps.some((s: any) => ...)` | `interface StampRow { ... }; .some((s) => ...)` |
+| 5 | `app/popup/[id]/page.tsx:274` | `list.some((item: any) => ...)` | `list: { popupId: number }[]; .some((item) => ...)` |
+| 6 | `app/admin/page.tsx:32-35` | `useState<any>(null)`, `useState<any[]>([])` × 3 | `AdminStats \| null`, `PopupStore[]`, `AdminMatePost[]` |
+| 7 | `src/components/AIReportModal.tsx:13, 31` | `data: any`, `useState<any>(initialData)` | `CongestionData` 명시 (types/popup 에서 import) |
+| 8 | `src/components/CongestionChart.tsx:68` | `formatter={(value: any) => ...}` | `formatter={(value: number \| string) => ...}` (Recharts ValueType 매칭) |
+| 9 | `src/components/Map/DetailMap.tsx:12` | `kakao: any` | `kakao: import("@/types/sdk").KakaoMapsSdk` |
+| 10 | `src/components/MateBoard.tsx:11` | `user: any` | `user: User` (+ import User from types/popup) |
+| 11 | `src/components/MateBoard.tsx:36` | `useChatStore((state: any) => ...)` | `useChatStore((state) => ...)` (zustand 가 타입 추론함) |
+| 12 | `src/components/MateBoard.tsx:52` | `data.map((p: any) => ...)` | `(data as MatePost[]).map((p) => ...)` |
+| 13 | `src/components/music/useYouTubePlayer.ts:7` | `YT: any` | `YT: YouTubeIframeSdk` (sdk.ts 에서 import) |
+| 14 | `src/components/music/useYouTubePlayer.ts:54` | `useRef<any>(null)` | `useRef<YouTubePlayer \| null>(null)` |
+| 15 | `src/components/music/useYouTubePlayer.ts:100, 106` | `(e: any) => ...` | `(e: YouTubePlayerEvent) => ...` |
+| 16 | `src/components/Passport/PassportView.tsx:25` | `useState<any>(null)` | `useState<User \| null>(null)` |
+| 17 | `app/oauth/callback/page.tsx:63` | `catch (error: any) { error.message }` | `catch (error) { error instanceof Error ? error.message : String(error) }` |
+
+### 가장 흥미로웠던 변환 — Recharts formatter 시그니처
+
+```tsx
+// 변경 전 — 코멘트가 "any 가 가장 안전" 이라고 적혀 있었음
+// [수정 포인트] value 타입을 'any'나 'number | undefined'로 넓혀줘야 합니다.
+// Recharts 내부 타입과 맞추기 위해 가장 안전한 방법은 any를 쓰는 것입니다.
+formatter={(value: any) => [
+  `${value ? value.toLocaleString() : 0}명`,
+  '예측 인구'
+]}
+
+// 변경 후 — Recharts 의 ValueType 은 string | number | array
+formatter={(value: number | string) => [
+  `${typeof value === 'number' ? value.toLocaleString() : value ?? 0}명`,
+  '예측 인구'
+]}
+```
+
+**왜 바꿨나** — `value.toLocaleString()` 은 string 에는 없는 메서드라서 `any` 가 깨질 위험을 가렸다.
+런타임에 string 이 들어오는 경우 `TypeError: value.toLocaleString is not a function` 으로 차트가 죽는다.
+union 타입 + `typeof` 분기로 명시적으로 처리.
+
+### 결과
+
+```bash
+$ grep -rEn "\bany\b" app/ src/ | grep -v node_modules | grep -v "src/types/sdk.ts"
+# (출력 없음)
+```
+
+SDK 경계 1군데 (`sdk.ts`) 외 0건.
+
+## 9.3 Wave 3 — API 호출 일원화 + console.log 제거
+
+### 9.3.1 `app/login/page.tsx` — 마지막 남은 하드코딩 localhost 폴백
+
+```tsx
+// 변경 전
+const handleSocialLogin = (provider: string) => {
+  const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+  window.location.href = `${apiBase}/oauth2/authorization/${provider}`;
+};
+
+// 변경 후
+import { apiFetch, API_BASE_URL } from "@/lib/api";
+
+const handleSocialLogin = (provider: string) => {
+  window.location.href = `${API_BASE_URL}/oauth2/authorization/${provider}`;
+};
+```
+
+**왜 바꿨나** — `src/lib/api.ts` 가 이미 `process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080'`
+폴백 로직을 가지고 있는데 여기서 다시 한 번 인라인으로 중복돼 있었다. 한 군데서 환경변수 이름을 바꾸면 다른 곳이
+조용히 옛 값을 따라간다. 일원화로 그 위험 제거.
+
+### 9.3.2 `console.log` 잔존 점검
+
+```bash
+$ grep -rEn "console\.(log|debug|info)" app/ src/ | grep -v node_modules
+src/components/ChatRoom.tsx:88: // console.log(`MSG[${idx}]: ${content} / System: ${isSystem} / Image: ${isImage}`);
+```
+
+이미 주석으로 막아둔 디버그 로그 1건만 남아 있었음. 코드 동작에 영향 없어서 그대로 두기로 결정 (제거하면 다음에 디버그
+할 때 다시 같은 메시지를 짤 가능성. 한 줄 코멘트는 비용이 거의 0).
+
+### 9.3.3 운영 로그용 console.error 는 의도적으로 유지
+
+```tsx
+} catch (e) {
+  console.error("게시글 로딩 실패:", e);
+}
+```
+
+`console.error` 는 Sentry 가 자동으로 잡아서 운영 모니터링에 들어가므로 유지. Wave 3 의 대상은 "디버그 흔적
+(`console.log`)" 뿐.
+
+## 9.4 Wave 4 — 매직 넘버 상수화
+
+### 변경 위치 정리
+
+| 파일 | 변경 전 | 변경 후 |
+|---|---|---|
+| `app/admin/page.tsx:83` | `setInterval(fetchMetrics, 3000)` | `setInterval(fetchMetrics, SERVER_METRICS_POLL_INTERVAL_MS)` |
+| `app/admin/page.tsx:73` | `updated.slice(-15)` | `updated.slice(-SERVER_METRICS_BUFFER_SIZE)` |
+| `app/oauth/callback/page.tsx:30` | `setTimeout(..., 2000)` | `setTimeout(..., AUTH_ERROR_REDIRECT_MS)` |
+| `app/oauth/callback/page.tsx:55` | `setTimeout(..., 500)` | `setTimeout(..., AUTH_SUCCESS_REDIRECT_MS)` |
+| `app/oauth/callback/page.tsx:61, 66` | `setTimeout(..., 3000)` × 2 | `setTimeout(..., AUTH_FAILURE_REDIRECT_MS)` |
+| `app/signup/page.tsx:74` | `setInterval(..., 1000)` | `setInterval(..., COUNTDOWN_TICK_MS)` |
+| `src/components/TicketingSimulation.tsx:65` | `}, 100)` | `}, TICKETING_POLL_INTERVAL_MS)` |
+| `src/components/TicketingSimulation.tsx:61` | `setTimeout(..., 500)` | `setTimeout(..., FAIL_TRANSITION_DELAY_MS)` |
+
+### 의도가 살아난 예 — `app/oauth/callback/page.tsx`
+
+```tsx
+// OAuth 콜백 페이지의 자동 리다이렉트 타이밍.
+// 짧으면 사용자가 메시지를 못 읽고, 길면 답답함. UX 테스트로 잡은 값.
+const AUTH_SUCCESS_REDIRECT_MS = 500;
+const AUTH_ERROR_REDIRECT_MS = 2000;
+const AUTH_FAILURE_REDIRECT_MS = 3000;
+```
+
+**왜 바꿨나** — 같은 `setTimeout(..., 3000)` 이 두 군데 (실패 케이스 두 종류) 에 따로 박혀 있었음. 정책이 바뀌어
+"실패 시 5초로" 가 되면 둘 다 찾아 고쳐야 함. 상수화하면 한 줄. 이름이 의도를 설명해주는 부가 이점도 있음.
+
+### `TicketingSimulation.tsx` — 광클 시뮬레이션의 핵심 상수
+
+```tsx
+// 광클 시뮬레이션 — 100ms 폴링이 실시간 티켓팅 압박감의 핵심.
+const TICKETING_POLL_INTERVAL_MS = 100;
+const FAIL_TRANSITION_DELAY_MS = 500;
+```
+
+**왜 바꿨나** — `// 🔥 여기가 핵심 속도 조절` 트레일링 코멘트가 가리키던 정확한 의도를 코드 자체에 박았다. 다음 사람이
+"폴링 100ms 가 너무 빠른 거 아닌가?" 라고 무심코 늘리면 시뮬레이션 의도가 깨진다.
+
+## 9.5 Wave 5 — 거대 컴포넌트 분해 (의도적 deferred)
+
+> **현 시점 미적용. 다음 PR 로 분리.**
+
+### 대상 파일과 현황
+
+| 파일 | 라인 | useState | 함정 |
+|---|---:|---:|---|
+| `app/page.tsx` | 1,289 | 22 | 홈 페이지 — 메이트 보드 / 인기 차트 / 검색 / 코스 빌더 / 음악 탭 등 다섯 가지 영역이 한 컴포넌트 안에 |
+| `app/signup/page.tsx` | 602 | 8 | 단계별 폼 검증 + 인증번호 카운트다운 + 약관 동의가 한 곳에 |
+| `app/popup/[id]/page.tsx` | 548 | 9 | 디테일 페이지 — 정보 / 지도 / 채팅 / 스탬프 / 음악 / takedown 모달 |
+| `app/intro/page.tsx` | 531 | 3 | 풀스크린 스크롤 스냅 — 영상 + 카드 4개 + 키보드 핸들러 |
+| `src/components/Map/InteractiveMap.tsx` | 470 | 6 | 지도 + 마커 + 경로 + 폴리라인 + 모드 분기 |
+| `src/components/music/MusicTab.tsx` | 458 | 15 | 검색 / 룰렛 / 카테고리 / 자동 큐 가 한 탭에 |
+
+### 왜 지금 안 했나
+
+이 작업은 **외부 동작 변화가 없어 보이지만 실은 매우 위험**하다.
+- 컴포넌트 분해 → 자식 컴포넌트가 부모 state 의존 → prop drilling / context 도입 결정 필요
+- React 18 의 `useEffect` 의존성 그래프가 분해 후 다르게 잡힐 가능성
+- 단위 테스트 0% 상황에서 회귀 검출 수단이 "수동 클릭 회귀" 뿐
+
+### 어떻게 진행할지
+
+1. **사전 작업** — 각 거대 페이지에 대해 Playwright E2E 회귀 스모크 작성 (홈 진입 / 로그인 / 팝업 상세 / 검색 / 룰렛 / 자동수집 검수)
+2. **분해 패턴** — 페이지 컴포넌트는 얇은 컴포지터, 도메인 로직은 `use*` 커스텀 훅, 시각 요소는 `<XxxSection>` 컴포넌트로
+3. **PR 단위** — 1 파일 = 1 PR. 한 번에 1,289 라인 짜리 페이지를 5개 컴포넌트로 쪼개면 review 가 불가능
+
+각 페이지 별 예상 분해도 — 별도 문서 (`FRONTEND_DECOMPOSITION_PLAN.md`) 로 분리해서 추적할 예정.
+
+## 9.6 Wave 6 — 공통 패턴 추출 (의도적 deferred)
+
+> **현 시점 미적용.**
+
+### 현황
+
+```bash
+$ grep -rEoh "className=\"[^\"]{200,}\"" app/ src/ | wc -l
+60
+```
+
+200자 이상 짜리 className 이 60군데. 대표적인 반복 패턴:
+
+```tsx
+// 그라데이션 카드 (메이트 보드, 인기 차트, 음악 카드 등에 비슷한 변형으로 반복)
+className="group flex flex-col gap-2 rounded-2xl border border-foreground/10 bg-gradient-to-br
+            from-violet-500/10 via-pink-500/10 to-orange-500/10 p-4 backdrop-blur-md
+            transition hover:scale-[1.02] hover:border-foreground/30 hover:shadow-xl ..."
+
+// 글래스 패널 (모달, 시트, 알림 등)
+className="rounded-3xl border border-white/10 bg-black/40 backdrop-blur-2xl
+            shadow-2xl shadow-black/40 ring-1 ring-white/5 ..."
+```
+
+### 왜 지금 안 했나
+
+Tailwind 클래스를 변형(variant) 으로 추출하려면 `cva` (class-variance-authority) 도입 + 디자인 토큰 정리가
+필요한데, 이건 디자인 시스템 일감의 규모다. 클린코드 명목으로 한 번에 끌고 들어가면 디자인 변형의 의도가 흐려진다.
+
+### 어떻게 진행할지
+
+1. shadcn/ui 패턴 도입 검토 (이미 `src/components/ui/button.tsx` 등에 `cva` 도입 흔적 있음)
+2. 가장 많이 반복되는 5개 패턴만 우선 추출 → `<Card>` / `<GlassPanel>` / `<GradientChip>` 등
+3. 한 번에 60군데 다 바꾸지 않고, 만지는 파일에서 자연스럽게 마이그레이션
+
+## 9.7 Wave 7 — ESLint 정리
+
+### 9.7.1 `react-hooks/exhaustive-deps` 2건 — 진짜 위험 검사
+
+#### `app/intro/page.tsx:114`
+
+```tsx
+// 변경 전 — proceed 가 클로저로 router/isLoggedIn 캡처, 다 dep 에서 빠짐
+useEffect(() => {
+  const handler = (e: KeyboardEvent) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      proceed();
+    }
+  };
+  window.addEventListener("keydown", handler);
+  return () => window.removeEventListener("keydown", handler);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [isLoggedIn]);
+```
+
+`proceed` 가 매 렌더마다 새 함수 인스턴스라 deps 에 넣으면 매번 리스너 재등록. 안 넣으면 stale closure 위험.
+정공법은 `useCallback` 이지만 effect 안에서 proceed 의 두 갈래 로직을 인라인하면 deps 가 자연스럽게 정리됨:
+
+```tsx
+// 변경 후 — handler 안에 로직 인라인, router/isLoggedIn 만 dep
+useEffect(() => {
+  const handler = (e: KeyboardEvent) => {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    if (isLoggedIn) {
+      router.push("/?entered=1");
+    } else {
+      router.push("/login");
+    }
+  };
+  window.addEventListener("keydown", handler);
+  return () => window.removeEventListener("keydown", handler);
+}, [isLoggedIn, router]);
+```
+
+#### `src/features/popup/SearchBox.tsx:46`
+
+```tsx
+useEffect(() => {
+  if (query !== inputValue) setInputValue(query);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- inputValue 는 의도적으로 deps 제외
+}, [query]);
+```
+
+이 케이스는 **실제로 disable 이 필요**. `inputValue` 를 dep 에 넣으면 `setInputValue` → 재렌더 → effect → 다시
+`setInputValue` 무한 루프. disable 자체는 유지하되 **이유를 한 줄로 명시**.
+
+### 9.7.2 `@next/next/no-img-element` 5건 — 사유 코멘트 추가
+
+5건 모두 Spotify / iTunes CDN 이미지에서 `next/image` 대신 `<img>` 를 쓰는 케이스. `next.config.ts` 의
+이미지 도메인 화이트리스트에 Spotify CDN 호스트를 일일이 등록하는 것보다 `<img>` 가 더 단순.
+
+```tsx
+// 변경 전
+// eslint-disable-next-line @next/next/no-img-element
+<img src={track.artworkUrlHires || track.artworkUrl} ... />
+
+// 변경 후
+// Spotify/iTunes CDN 이미지 — next/image 도메인 화이트리스트 대신 <img> 사용.
+// eslint-disable-next-line @next/next/no-img-element
+<img src={track.artworkUrlHires || track.artworkUrl} ... />
+```
+
+5군데 모두 같은 패턴으로 통일.
+
+### 9.7.3 `@typescript-eslint/no-explicit-any` 1건
+
+`src/types/sdk.ts` 의 파일 상단에 `/* eslint-disable @typescript-eslint/no-explicit-any */` 와 함께
+"SDK 경계라서 의도적" 이라는 사유를 클래스 JavaDoc 으로 적어둠. 이 파일 밖에서는 `any` 0건.
+
+## 9.8 검증 결과 (Wave 1-4, 7 기준)
+
+```bash
+# 1) 편집 흔적 잔존 (UI 의도 1건 제외)
+$ grep -rEn "🔥|🟢|\[수정\]|\[임의 수정\]" app/ src/ | grep -v node_modules
+src/components/MateBoard.tsx:376: "🔥 확성기로 등록하기"  ← UI 의도 (유지)
+
+# 2) any 타입 잔존
+$ grep -rEn "\bany\b" app/ src/ | grep -v node_modules | grep -v "types/sdk.ts"
+# (없음)
+
+# 3) eslint-disable 사유 누락 검사
+$ grep -rEn "eslint-disable" app/ src/ | grep -v node_modules | grep -v "// .*도메인\|// .*SDK\|// .*CDN\|// .*의도적\|-- "
+# (없음)
+
+# 4) console.log (디버그) 잔존
+$ grep -rEn "console\.(log|debug|info)" app/ src/ | grep -v node_modules
+src/components/ChatRoom.tsx:88: // console.log(...)  ← 주석 처리됨 (유지)
+
+# 5) 하드코딩 localhost
+$ grep -rEn "localhost:8080" app/ src/ | grep -v node_modules
+src/lib/api.ts:LOCAL_FALLBACK = 'http://localhost:8080'  ← 의도적 (api.ts 한 곳)
+
+# 6) npm run lint
+$ npm run lint
+✔ No ESLint warnings or errors
+```
+
+## 9.9 신규/수정 파일 통계
+
+| 영역 | 파일 수 | 라인 변경 |
+|---|---:|---:|
+| 신규 (`src/types/sdk.ts`) | 1 | +40 |
+| Wave 1 — 편집 흔적 제거 | 21 | -100 (대부분 삭제) |
+| Wave 2 — 타입 안전성 | 9 | ±60 |
+| Wave 3 — API 일원화 | 1 | -3, +1 |
+| Wave 4 — 매직 넘버 상수화 | 4 | +15 |
+| Wave 7 — ESLint 정리 | 7 | +10 |
+| **합계 (Wave 1-4, 7)** | **40 파일** | **약 ±230 라인 (대부분 삭제)** |
+
+## 9.10 적용 후 안 건드린 영역 (의도적 제외)
+
+- `app/page.tsx` 의 22개 useState 분해 — Wave 5
+- 600 라인 짜리 `app/signup/page.tsx` 의 단계별 분해 — Wave 5
+- 200자+ Tailwind 클래스 60군데 통합 — Wave 6
+- `firebase/` 폴더 — v1.3 에서 미사용 결정된 모듈이라 정리할 게 없음
+- `public/` 폴더 정적 자산 — 비코드
+
+## 9.11 검증 권장 순서
+
+1. `npm run lint` — ESLint 통과 확인
+2. `npx tsc --noEmit` — 타입 체크 (SDK 경계 외 `any` 0건 보장)
+3. 수동 회귀 — 다음 경로:
+   - `/intro` → Enter 키로 진입 (Wave 7 의 핸들러 deps 정리 검증)
+   - `/login` → 카카오/네이버/구글 소셜 로그인 (Wave 3 의 `API_BASE_URL` 일원화 검증)
+   - `/admin` 대시보드 → 서버 메트릭이 3초마다 갱신 (Wave 4 의 상수 동작 검증)
+   - 회원가입 → 이메일 인증번호 카운트다운 1초 단위 감소 (Wave 4)
+   - 팝업 상세 → 스탬프 / 찜 토글 (Wave 2 의 타입 좁히기 검증)
+   - 음악 검색 → 재생 / 룰렛 (Wave 2 의 YouTube Player 타입 검증)
+   - 메이트 게시판 → 채팅 진입 (Wave 2 의 User / MatePost 타입 검증)
+
+## 9.12 요약
+
+- v1.4 보강 — `dto/` 15 + 잔여 `entity/` 7 = 22 파일. 와일드카드 import 제로 / 인라인 코멘트 제로
+- v1.5 Wave 1-4, 7 — 40 파일에서 편집 흔적 84 → 1 (UI 의도), `any` 17 → 0 (SDK 경계 1 제외),
+  하드코딩 URL 1 → 0, 매직 넘버 8건 명명 상수화, ESLint disable 8건 사유 명시
+- v1.5 Wave 5-6 — 의도적 deferred. E2E 회귀 셋업 후 별도 PR
+- 외부 동작 / API 응답 / DB 스키마 / WebSocket 메시지 형식 모두 동등
+
+---
+
+**v1.4 보강 변경점:**
+- §8 v1.4 가 비킨 영역 (`dto/` 15 + 잔여 `entity/` 7 = 22 파일) 동일 원칙으로 추가 정리
+- DTO 의 `🔥 [13번 임의 수정]` 같은 편집 흔적 84건 제거, 트레일링 필드 코멘트 정리
+- 잔여 엔티티의 `jakarta.persistence.*` / `lombok.*` 와일드카드 import 전면 제거
+- `OAuthAttributes` 의 프로바이더 매직 스트링 → `static final` 상수
+- 외부 동작 / DB 스키마 / 직렬화 키 모두 동등
+
+**v1.5 변경점:**
+- §9 프론트엔드 Clean Code 리팩터링 — 7 Wave 중 위험도 낮은 5 Wave (1·2·3·4·7) 적용
+- 신규 `src/types/sdk.ts` — Kakao Maps / YouTube IFrame Player 의 SDK 경계 타입을 한 곳에 모음
+- Wave 1: 21 파일에서 `🔥 [수정]` 등 편집 흔적 84건 → 1건 (UI 의도)
+- Wave 2: `any` 17건 → SDK 경계 1건 (sdk.ts)
+- Wave 3: `app/login/page.tsx` 의 하드코딩 localhost 폴백 제거, `API_BASE_URL` 로 일원화
+- Wave 4: setTimeout / setInterval 매직 넘버 8건 모두 명명 상수화
+- Wave 7: ESLint disable 8건 모두 사유 코멘트 추가, intro 페이지의 exhaustive-deps 진짜 위험 1건 핸들러 인라인으로 해결
+- Wave 5 (거대 컴포넌트 분해) / Wave 6 (Tailwind variant 추출) 은 회귀 위험으로 deferred — E2E 셋업 후 별도 PR

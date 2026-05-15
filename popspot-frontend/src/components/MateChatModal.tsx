@@ -49,7 +49,6 @@ export default function MateChatModal({
   const [showPromiseForm, setShowPromiseForm] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   
-  // 🔥 [새 로직] 안 읽은 메시지 카운트 상태
   const [unreadCount, setUnreadCount] = useState(0);
   
   const dragControls = useDragControls();
@@ -65,7 +64,6 @@ export default function MateChatModal({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const constraintsRef = useRef(null);
 
-  // 🔥 [새 로직] 브라우저 탭 타이틀 알림 효과
   useEffect(() => {
     if (unreadCount > 0) {
       const originalTitle = document.title;
@@ -74,7 +72,6 @@ export default function MateChatModal({
     }
   }, [unreadCount]);
 
-  // 🔥 [새 로직] 채팅창을 열면 안 읽은 카운트 초기화
   useEffect(() => {
     if (!isMinimized) {
       setUnreadCount(0);
@@ -117,7 +114,6 @@ export default function MateChatModal({
           const newMsg = JSON.parse(res.body);
           setMessages((prev) => [...prev, newMsg]);
 
-          // 🔥 [핵심 알림 로직]
           // 창이 최소화되어 있고, 내가 보낸 메시지가 아닐 때만 카운트 증가
           // useRef를 쓰지 않고 useState 상태를 직접 참조하기 위해 함수형 업데이트 내 로직 활용은 어려우므로
           // 이 콜백이 불리는 시점의 isMinimized를 클로저로 잡거나 전역 상태를 씁니다. 
@@ -408,7 +404,7 @@ export default function MateChatModal({
             </div>
           </motion.div>
         ) : (
-          /* 🔥 [수정] 최소화 상태 버튼 (알림 배지 추가) */
+          /* 최소화 상태 버튼 — 안 읽은 메시지 배지 포함. */
           <motion.div 
             key="minimized"
             initial={{ opacity: 0, scale: 0.5 }}
@@ -419,7 +415,6 @@ export default function MateChatModal({
           >
             <MessageCircle size={24} className="sm:w-7 sm:h-7" />
             
-            {/* 🔥 [새 로직] 안 읽은 메시지 배지 숫자 */}
             {unreadCount > 0 ? (
                <div className="absolute -top-1 -right-1 bg-hot-400 text-white text-[10px] sm:text-xs font-black w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center border-2 border-white dark:border-[#1e1e1e] animate-bounce shadow-lg">
                  {unreadCount > 99 ? '99+' : unreadCount}
