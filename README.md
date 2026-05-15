@@ -2,7 +2,7 @@
 
 # POP-SPOT
 
-서울 팝업스토어 검색 · 자동수집 · 음악 매칭 서비스
+성수동 팝업스토어 검색 · 자동수집 · 음악 매칭 서비스
 
 **[popspot.co.kr](https://popspot.co.kr/)**
 
@@ -176,6 +176,19 @@
 
 > 본문 스크래핑 X — 검색 API 가 주는 title/desc/link 만 사용 (저작권법 §35의5 공정이용)
 
+**규모** — 매일 60 키워드 × (Naver 블로그·뉴스 + Kakao 웹·블로그 각 30건) · 호출 간 800 ms · LLM 호출 간 2.2 초 (RPM 30 활용) · 풀크롤 약 5 분.
+**중복 제거** — `external_id = SHA-256(name+loc+date)` 유니크 인덱스. confidence ≥ 0.8 자동 게시, 미만은 admin 검수 큐.
+
+**7대 운영 안전장치**
+
+1. **TOS** — 공식 검색 API 만, User-Agent 명시, 일일 한도 1% 미만, 800 ms 간격
+2. **저작권** — snippet + source_url 만 저장, AI paraphrase, 이미지 직접 호스팅 X
+3. **개인정보** — LLM 프롬프트에서 PII (휴대폰·이메일·실명·닉네임) 제외 + 약관 §13
+4. **정확성 면책** — 신뢰도 점수 · AI 뱃지 · Footer 안내 · 약관 §10③
+5. **Takedown** — 24h SLA · 즉시 차단 · `POST /api/popups/{id}/takedown` · 약관 §11
+6. **만료 자동처리** — 매일 05:00 KST 에 `end_date < today` 일괄 `EXPIRED`
+7. **약관 가시성** — `/terms` 페이지 + Footer 링크 + 가입 동의 체크
+
 ---
 
 ## 음악 → 팝업 매칭
@@ -206,6 +219,24 @@
 
 ---
 
+## 주요 기능
+
+| 영역 | 기능 |
+|---|---|
+| **진입** | `/intro` 풀스크린 스크롤 스냅 + 영상 배경 (middleware 강제 리다이렉트) |
+| **음악 검색·재생** | Spotify Web API · 한국어 5단계 폴백 (Groq 영문 변환) · YouTube IFrame 풀 재생 · lazy fetch + 영구 캐시 (quota 10,000/day 보호) |
+| **음악 매칭** | Groq 무드 분석 40 화이트리스트 → 30점 키워드 + 카테고리 보너스 → 상위 5개 팝업 반환 (외부 호출 0회, DB 만) |
+| **음악 보조** | 운명의 곡 룰렛 (`POST /api/music/roulette`) · 자동 다음 곡 큐 · 음악 패스포트 (`/music/passport` 청취 기록+통계) · 카테고리 라이브러리 10종 |
+| **글로벌 플레이어** | Provider 패턴 — 라우트 이동에도 재생·큐 유지 (root layout) |
+| **검색 자동완성** | BFF 프록시 (Spring 인코딩 함정 3종 우회) + 디바운스/키보드 네비 |
+| **팝업 자동수집 V4** | Naver/Kakao 검색 API → Groq 정규화 → confidence ≥ 0.8 자동 게시 |
+| **지도** | Kakao Local API geocoding → lat/lng |
+| **등급** | BEGINNER (3) · HUNTER (6) · MASTER (12) — PASSPORT 아바타 ring + RankCard 진행도 |
+| **실시간** | STOMP — `/ws-stomp` 채팅 · `/ws-planning` 일정 협업 |
+| **운영** | Takedown 24h SLA · `/terms` 약관 · 7대 정책 안전장치 · graceful fallback |
+
+---
+
 ## 버전별 시스템 아키텍처
 
 각 버전이 어떻게 생겼었고, 다음 버전에서 무엇이 잘려나갔는지 그림으로 정리한다.
@@ -229,15 +260,15 @@
     </td>
     <td align="center" width="20">→</td>
     <td align="center" width="120">
-      <img src="https://cdn.simpleicons.org/amazonec2/FF9900" width="34"/><br/>
-      <b>AWS EC2</b><br/>
+      <img src="https://cdn.simpleicons.org/googlecloud/4285F4" width="34"/><br/>
+      <b>GCP Compute Engine</b><br/>
       <sub>Spring Boot</sub>
     </td>
     <td align="center" width="20">+</td>
     <td align="center" width="120">
-      <img src="https://cdn.simpleicons.org/h2database/1021FF" width="34"/><br/>
-      <b>H2</b><br/>
-      <sub>in-memory</sub>
+      <img src="https://cdn.simpleicons.org/oracle/F80000" width="34"/><br/>
+      <b>Oracle DB</b><br/>
+      <sub>Sequence 수동</sub>
     </td>
     <td align="center" width="20">+</td>
     <td align="center" width="120">
@@ -248,13 +279,13 @@
   </tr>
 </table>
 
-<sub><b>그땐 이랬다</b> — 시크릿은 <code>application.properties</code> 에 평문 커밋, <code>CORS *</code> 전부 허용, JWT 시크릿은 <code>"default_secret"</code>. H2 in-memory 라 재배포 한 번이면 데이터 0. Gemini 무료 200/일. BCrypt strength 기본값(10). 외부 트래픽은 EC2 8080 노출.</sub>
+<sub><b>그땐 이랬다</b> — GCP Compute Engine 위 모놀리식 Spring Boot. DB 는 Oracle (정적 데이터 안정성 목적, 시퀀스는 수동). 시크릿은 <code>application.properties</code> 에 평문 커밋, <code>CORS *</code> 전부 허용, JWT 시크릿은 <code>"default_secret"</code>. Gemini Free RPM 10 / RPD 1,500. BCrypt strength 기본값(10). 외부 트래픽은 인스턴스 8080 직접 노출.</sub>
 
 <br/>
 
 ### v1.1 — 보안 정비 + AI 교체
 
-> OWASP Top 10 한 번 훑고, AI 한도 부족해서 Groq 으로 갈아탔다.
+> OWASP Top 10 정비. 실시간 채팅 ID 생성에서 Oracle 시퀀스 사고(`ORA-01400`) 터져서 PostgreSQL `IDENTITY` 로 이전. AI 한도 부족해 Groq 으로 갈아탔다.
 
 <table align="center">
   <tr>
@@ -297,8 +328,8 @@
   </tr>
   <tr>
     <td align="center"><b>DB</b></td>
-    <td align="center">H2 in-memory</td>
-    <td align="center">PostgreSQL + Flyway (validate)</td>
+    <td align="center">Oracle (Sequence 수동 · 채팅 저장 시 <code>ORA-01400</code>)</td>
+    <td align="center">PostgreSQL <code>IDENTITY</code> 자동 생성 + Flyway (validate)</td>
   </tr>
   <tr>
     <td align="center"><b>시크릿</b></td>
@@ -339,11 +370,6 @@
     <td align="center"><b>AI</b></td>
     <td align="center">Gemini Free · RPM 10 / RPD 1,500</td>
     <td align="center">Groq llama-3.3-70b · RPM 30 / RPD 14,400</td>
-  </tr>
-  <tr>
-    <td align="center"><b>검색</b></td>
-    <td align="center">Postgres <code>ILIKE</code> (≈3s)</td>
-    <td align="center">Algolia (≈200ms)</td>
   </tr>
 </table>
 
@@ -402,7 +428,7 @@
   <tr>
     <td align="center"><b>외부 노출</b></td>
     <td align="center">nginx + certbot (Let's Encrypt)</td>
-    <td align="center">Tailscale Funnel 한 줄 (<code>tailscale funnel 8080</code>)</td>
+    <td align="center">Tailscale Funnel 한 줄 (<code>sudo tailscale funnel --bg 8080</code>)</td>
   </tr>
   <tr>
     <td align="center"><b>도메인</b></td>
@@ -455,9 +481,8 @@
     <td align="center" width="20">→</td>
     <td align="center" width="120">
       <img src="https://cdn.simpleicons.org/postgresql/4169E1" width="30"/>
-      <img src="https://cdn.simpleicons.org/redis/DC382D" width="30"/>
-      <img src="https://cdn.simpleicons.org/algolia/003DFF" width="30"/><br/>
-      <sub>PG · Redis · Algolia</sub>
+      <img src="https://cdn.simpleicons.org/redis/DC382D" width="30"/><br/>
+      <sub>PG · Redis</sub>
     </td>
   </tr>
   <tr>
@@ -528,7 +553,7 @@
 
 <br/>
 
-### v1.4 — 백엔드 Clean Code 정리 
+### v1.4 — 백엔드 Clean Code 정리
 
 > 외부 동작은 100% 동일. 내부 코드만 7 Wave 에 걸쳐 갈았다. 회귀 테스트로 동등성 검증.
 
@@ -622,15 +647,16 @@ popspot-backend/
 
 ---
 
-## 트러블슈팅 
+## 트러블슈팅
 
 | # | 문제 | 해결 |
 |:--:|---|---|
-| 1 | `LazyInitializationException` 갑자기 터짐 | EAGER → LAZY + fetch join |
-| 2 | PostgreSQL ILIKE 한글 검색 3초 | Algolia 붙여서 200ms |
+| 1 | Oracle 채팅 메시지 저장 시 `ORA-01400` (ID NULL) | 수동 SEQUENCE 코드 제거 + PostgreSQL `IDENTITY` 자동 생성으로 전환 |
+| 2 | `LazyInitializationException` 갑자기 터짐 | EAGER → LAZY + fetch join |
 | 3 | Spotify 가 "아이유 좋은날" 못 찾음 | Groq 로 영문 표기 변환 ("IU good day") |
 | 4 | application-prod.properties 우선순위 함정 | 외부 파일 → 환경변수만 사용 |
 | 5 | Gemini 키 GitHub 노출 → 자동 차단 | 시크릿 스캔 GitHub Action 추가 |
+| 6 | Algolia 키 누락 시 `@PostConstruct` 실패 → 부팅 자체 불가 | enabled 플래그 + graceful fallback (검색은 비활성) |
 
 ---
 
@@ -743,11 +769,28 @@ npm run dev          # http://localhost:3000
 ```
 pop-spot/
 ├── popspot-backend/      Spring Boot 4 · Java 21 · Flyway
-├── popspot-frontend/     Next.js 16 · TypeScript · Tailwind
+├── popspot-frontend/     Next.js 16 · TypeScript · Tailwind · middleware.ts
 ├── ARCHITECTURE.md       시스템 구성도 (상세)
 ├── PROJECT_CHANGELOG.md  버전별 변경 이력 (~5000 줄)
 └── SYNOLOGY_MIGRATION_GUIDE.md
 ```
+
+---
+
+## 기여
+
+개인 포트폴리오 프로젝트라 외부 PR 은 받지 않는다.
+버그 / 데이터 오류 / takedown 요청은 GitHub Issues 에 남겨 주세요. takedown 은 24h SLA.
+
+---
+
+## 라이선스
+
+소스 코드는 비공개 (All rights reserved).
+브랜드명 "POP-SPOT" · 도메인 `popspot.co.kr` · 로고 · UI 디자인은 별도 권리로 보호된다.
+포트폴리오 열람 목적의 코드 읽기는 환영하지만, 재배포·재호스팅·상표 사용은 사전 동의가 필요하다.
+
+---
 
 ## 만든 사람
 
