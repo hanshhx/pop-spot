@@ -620,9 +620,121 @@
     <td align="center"><b>Wave 7</b></td>
     <td>Config / Exception 9 — Security, JWT Filter, WebSocket, RateLimit, GlobalExceptionHandler</td>
   </tr>
+  <tr>
+    <td align="center"><b>보강</b></td>
+    <td>DTO 15 + 잔여 엔티티 7 — Wave 가 비킨 영역까지 동일 원칙 적용 (와일드카드 import 0건 · 인라인 코멘트 0건)</td>
+  </tr>
 </table>
 
-<sub><b>공통 원칙</b> — 와일드카드 import 전면 제거 · 인라인 주석 제거 (JavaDoc 만 유지) · 매직 넘버 <code>static final</code> 상수화 · <code>System.out.println</code> → SLF4J · 50줄 넘는 메서드 분해 · 운영 로그·코드에서 이모지 제거. 48개 파일 · 약 3,500 라인. API · DB 스키마 · Redis 키 동등.</sub>
+<sub><b>공통 원칙</b> — 와일드카드 import 전면 제거 · 인라인 주석 제거 (JavaDoc 만 유지) · 매직 넘버 <code>static final</code> 상수화 · <code>System.out.println</code> → SLF4J · 50줄 넘는 메서드 분해 · 운영 로그·코드에서 이모지 제거. 48 + 22 (보강) 파일 · 약 3,700 라인. API · DB 스키마 · Redis 키 동등.</sub>
+
+<br/>
+
+### v1.5 — 프론트엔드 Clean Code 정리
+
+> v1.4 와 같은 원칙을 프론트에 적용. 7 Wave 중 위험도 낮은 5 Wave (1·2·3·4·7) 만 우선 적용. 인프라는 v1.2 와 동일.
+
+<table align="center">
+  <tr>
+    <td align="center" width="110">
+      <img src="https://cdn.simpleicons.org/googlechrome/4285F4" width="34"/><br/>
+      <b>Browser</b>
+    </td>
+    <td align="center" width="20">→</td>
+    <td align="center" width="160">
+      <img src="https://cdn.simpleicons.org/nextdotjs/000000" width="34"/><br/>
+      <b>Next.js 16 (정리됨)</b><br/>
+      <sub>TypeScript strict</sub>
+    </td>
+    <td align="center" width="20">→</td>
+    <td align="center" width="120">
+      <img src="https://cdn.simpleicons.org/tailscale/242424" width="34"/><br/>
+      <b>Tailscale Funnel</b>
+    </td>
+    <td align="center" width="20">→</td>
+    <td align="center" width="120">
+      <img src="https://cdn.simpleicons.org/springboot/6DB33F" width="34"/><br/>
+      <b>Spring Boot</b>
+    </td>
+  </tr>
+</table>
+
+<table align="center">
+  <tr>
+    <th align="center" width="140">Wave</th>
+    <th align="center" width="380">범위 · 핵심 변화</th>
+  </tr>
+  <tr>
+    <td align="center"><b>Wave 1</b></td>
+    <td>편집 흔적 일괄 제거 — 21 파일에서 <code>🔥 [수정]</code>, <code>[임의 수정]</code>, <code>🟢 [수정 핵심]</code> 등 84건 → 1건 (UI 의도)</td>
+  </tr>
+  <tr>
+    <td align="center"><b>Wave 2</b></td>
+    <td>타입 안전성 — <code>any</code> 17건 → SDK 경계 1건. 신규 <code>src/types/sdk.ts</code> — Kakao Maps / YouTube IFrame 타입 격리</td>
+  </tr>
+  <tr>
+    <td align="center"><b>Wave 3</b></td>
+    <td>API 호출 일원화 — <code>app/login/page.tsx</code> 의 하드코딩 <code>localhost:8080</code> 폴백 제거, <code>API_BASE_URL</code> 한 곳만 참조</td>
+  </tr>
+  <tr>
+    <td align="center"><b>Wave 4</b></td>
+    <td>매직 넘버 상수화 — <code>SERVER_METRICS_POLL_INTERVAL_MS</code>, <code>AUTH_SUCCESS_REDIRECT_MS</code>, <code>TICKETING_POLL_INTERVAL_MS</code> 등 8건</td>
+  </tr>
+  <tr>
+    <td align="center"><b>Wave 7</b></td>
+    <td>ESLint 정리 — disable 8건 모두 사유 코멘트, <code>intro/page.tsx</code> 의 exhaustive-deps 진짜 위험은 핸들러 인라인으로 정공법 해결</td>
+  </tr>
+  <tr>
+    <td align="center"><b>Wave 5·6</b></td>
+    <td><b>의도적 deferred</b> — 거대 컴포넌트 분해 (<code>app/page.tsx</code> 1,289 라인) + Tailwind variant 추출 60군데. E2E 회귀 셋업 후 별도 PR</td>
+  </tr>
+</table>
+
+<sub><b>공통 원칙</b> — 편집 흔적 0건 (UI 의도 1건 제외) · <code>any</code> 0건 (SDK 경계 1건 제외) · 하드코딩 URL 0건 · 매직 넘버 명명 상수 · <code>console.log</code> 디버그 0건 · ESLint disable 사유 코멘트 필수. 40 파일 · 약 ±230 라인 (대부분 삭제). 외부 동작 · API · WebSocket 메시지 형식 동등.</sub>
+
+<br/>
+
+### v1.5.1 — 빌드 검증 + 핫픽스
+
+> v1.5 의 Wave 2 가 `any` 를 도메인 타입으로 좁히면서 **숨어 있던 타입 불일치 16건**이 빌드 단계에서 드러남.
+> 모두 외부 동작 변화 0건으로 수정. 클린코드 원칙 100% 유지.
+
+<table align="center">
+  <tr>
+    <th align="center" width="180">패턴</th>
+    <th align="center" width="400">증상 · 수정</th>
+  </tr>
+  <tr>
+    <td align="center"><b>이름 충돌</b></td>
+    <td>lucide-react <code>User</code> 아이콘 ↔ 도메인 <code>User</code> 타입 → <code>User as UserIcon</code> / <code>User as DomainUser</code> alias</td>
+  </tr>
+  <tr>
+    <td align="center"><b>Null 가드</b></td>
+    <td><code>User | null</code> 을 non-null prop 으로 → JSX 에서 <code>{user && &lt;MateBoard user={user} /&gt;}</code></td>
+  </tr>
+  <tr>
+    <td align="center"><b>도메인 타입 보강</b></td>
+    <td><code>User.id/megaphoneCount</code> · <code>PopupStore.reporterId/description/imageUrl</code> · <code>CongestionData.areaName/forecasts</code> 추가 (모두 optional + JavaDoc 사유)</td>
+  </tr>
+  <tr>
+    <td align="center"><b>인덱스 시그니처 제거</b></td>
+    <td><code>AdminStats</code>, <code>AdminMatePost</code> 의 <code>[key: string]: unknown</code> 제거 — JSX 에서 <code>unknown → ReactNode</code> 막힘. 실제 필드만 명시</td>
+  </tr>
+  <tr>
+    <td align="center"><b>Recharts 시그니처</b></td>
+    <td>Tooltip formatter <code>value</code> 타입 — 라이브러리 표준에 맞춰 inferred, 내부에서 <code>typeof === 'number'</code> 좁힘</td>
+  </tr>
+  <tr>
+    <td align="center"><b>error 가드</b></td>
+    <td><code>catch (error: any)</code> → <code>catch (error)</code> + <code>instanceof Error</code> 분기 (Wave 2 일관 패턴)</td>
+  </tr>
+  <tr>
+    <td align="center"><b>잠재 버그 발견</b></td>
+    <td><code>targetUserId = user.userId || user.id</code> 가 <code>undefined</code> 일 때 <code>?userId=undefined</code> 로 API 호출되던 버그 — empty fallback + early return 으로 차단</td>
+  </tr>
+</table>
+
+<sub><b>검증</b> — 백엔드 <code>./gradlew compileJava spotlessCheck</code> ✓ · 프론트 <code>npm run typecheck</code> ✓ (16건 → 0). 와일드카드 import 0 · 인라인 한국어 코멘트 0 · <code>System.out</code> 0 · <code>console.log</code> 디버그 0 · <code>any</code> 0 (SDK 경계 1 제외) · 편집 흔적 0 (UI 의도 1 제외) — 모두 유지.</sub>
 
 ---
 
@@ -657,6 +769,7 @@ popspot-backend/
 | 4 | application-prod.properties 우선순위 함정 | 외부 파일 → 환경변수만 사용 |
 | 5 | Gemini 키 GitHub 노출 → 자동 차단 | 시크릿 스캔 GitHub Action 추가 |
 | 6 | Algolia 키 누락 시 `@PostConstruct` 실패 → 부팅 자체 불가 | enabled 플래그 + graceful fallback (검색은 비활성) |
+| 7 | `targetUserId = user.userId \|\| user.id` 가 `undefined` 일 때 `?userId=undefined` 로 API 호출 | v1.5 의 `any` → 도메인 타입 좁힘 과정에서 발견. empty string fallback + early-return notify 로 차단 |
 
 ---
 
