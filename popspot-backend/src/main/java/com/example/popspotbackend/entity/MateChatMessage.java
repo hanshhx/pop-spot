@@ -1,12 +1,32 @@
 package com.example.popspotbackend.entity;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.SequenceGenerator;
+import jakarta.persistence.Table;
 import java.time.LocalDateTime;
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
+/**
+ * 메이트(동행) 게시글의 1:1/그룹 채팅 메시지.
+ *
+ * <p>{@link ChatMessage} 와 동일한 이유로 SEQUENCE 전략을 쓴다 — 채팅 메시지 저장 시 ID 가 NULL 로 들어가던 사고가 SEQUENCE 로
+ * 우회된 적이 있어 그대로 유지.
+ */
 @Entity
 @Getter
-@Setter // Lombok이 작동하지 않을 경우를 대비해 아래에 직접 추가합니다.
+@Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
@@ -14,10 +34,6 @@ import lombok.*;
 public class MateChatMessage {
 
     @Id
-    // 🔥 [수정] Oracle Sequence 제거 -> MySQL Identity 사용
-    // 🚨 [임의 수정 - PostgreSQL 대응]
-    // 채팅 전송 시 발생하는 null identifier 에러를 해결하기 위해,
-    // PostgreSQL이 정상적으로 ID를 생성할 수 있도록 SEQUENCE 전략으로 변경했습니다.
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "chat_msg_seq_gen")
     @SequenceGenerator(name = "chat_msg_seq_gen", sequenceName = "chat_msg_seq", allocationSize = 1)
     @Column(name = "MESSAGE_ID")
@@ -33,15 +49,6 @@ public class MateChatMessage {
     private String message;
 
     private LocalDateTime sendTime;
-
-    // 🔥 [수정] 에러 해결을 위한 직접 Setter 추가
-    public void setMatePost(MatePost matePost) {
-        this.matePost = matePost;
-    }
-
-    public void setSendTime(LocalDateTime sendTime) {
-        this.sendTime = sendTime;
-    }
 
     @PrePersist
     public void prePersist() {

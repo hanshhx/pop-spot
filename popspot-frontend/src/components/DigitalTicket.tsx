@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { QrCode, Sparkles, MapPin, Calendar, User, Eye, X } from "lucide-react";
-// 🔥 [수정 1] createPortal 추가 (모달을 body로 탈출시키기 위함)
 import { createPortal } from "react-dom";
 // 경로 확인 필수: src/components/Map/KakaoRoadview.tsx
 import KakaoRoadview from "./Map/KakaoRoadview";
@@ -22,7 +21,6 @@ interface TicketProps {
 export default function DigitalTicket({ name, date, address, category, userName, status, lat, lng }: TicketProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   
-  // 🔥 [수정 2] 클라이언트 렌더링 확인용 (Next.js SSR 에러 방지)
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -64,7 +62,7 @@ export default function DigitalTicket({ name, date, address, category, userName,
           {/* 상단 장식 포인트 바 */}
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-lime-300 via-lime-400 to-hot-400 z-20"></div>
 
-          {/* 🟢 왼쪽 섹션: 메인 컨텐츠 (모바일 패딩 축소) */}
+          {/* 왼쪽 섹션 — 메인 컨텐츠 (모바일 패딩 축소). */}
           <div className="flex-1 p-5 md:p-8 lg:p-12 flex flex-col justify-between relative z-10 border-b md:border-b-0 md:border-r border-dashed border-white/20">
               {/* 티켓 절취선 홈 (모바일은 가로선, PC는 세로선에 맞게 배치) */}
               <div className="absolute -right-3 top-1/2 w-6 h-6 bg-[#050505] rounded-full hidden md:block transform -translate-y-1/2 shadow-inner"></div>
@@ -105,7 +103,7 @@ export default function DigitalTicket({ name, date, address, category, userName,
                   </div>
                   <div className="space-y-1 md:space-y-1.5">
                       <p className="text-[8px] md:text-[10px] text-white/30 uppercase tracking-widest font-bold leading-none">Pass Holder</p>
-                      {/* 🔥 [확인] 여기가 이름을 표시하는 부분입니다. userName이 있으면 닉네임, 없으면 VIP GUEST */}
+                      
                       <div className="flex items-center gap-1.5 md:gap-2 text-white font-bold text-sm md:text-lg leading-none">
                           <User className="w-3.5 h-3.5 md:w-4 md:h-4 text-hot-400"/> {userName || "VIP GUEST"}
                       </div>
@@ -113,7 +111,7 @@ export default function DigitalTicket({ name, date, address, category, userName,
               </div>
           </div>
 
-          {/* 🟢 오른쪽 섹션: 로드뷰 진입 버튼 영역 (모바일 패딩 축소) */}
+          {/* 오른쪽 섹션 — 로드뷰 진입 버튼 영역 (모바일 패딩 축소). */}
           <div className="w-full md:w-64 lg:w-80 bg-black/40 p-6 md:p-8 flex flex-col items-center justify-center relative z-10 py-8 md:py-0">
                {/* 반대편 절취선 홈 */}
                <div className="absolute -left-3 top-1/2 w-6 h-6 bg-[#050505] rounded-full hidden md:block transform -translate-y-1/2 shadow-inner z-20"></div>
@@ -138,7 +136,7 @@ export default function DigitalTicket({ name, date, address, category, userName,
         </motion.div>
       </div>
 
-      {/* 🟢 [수정 핵심] Portal 사용: 모달을 body 바로 아래로 이동시켜 겹침(z-index) 문제 완벽 해결 */}
+      {/* Portal 사용 — 모달을 body 바로 아래로 이동시켜 z-index 겹침 회피. */}
       {mounted && createPortal(
         <AnimatePresence>
           {isModalOpen && (

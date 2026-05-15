@@ -36,7 +36,6 @@ export function SortableItem({ id, place, index }: Props) {
     <div
       ref={setNodeRef}
       style={style}
-      // 🔥 [반응형 수정] 패딩, 마진, 갭, 둥글기 조절
       className="bg-white dark:bg-ink-800 p-3 md:p-4 rounded-lg md:rounded-xl border border-gray-200 dark:border-white/10 flex items-center gap-2.5 md:gap-4 shadow-sm mb-2 md:mb-3 group touch-none hover:border-lime-300 transition-colors"
     >
       {/* ✋ 드래그 핸들 (모바일 아이콘 크기 및 여백 축소) */}

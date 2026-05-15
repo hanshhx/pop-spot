@@ -5,7 +5,6 @@ import { Client } from "@stomp/stompjs";
 import SockJS from "sockjs-client";
 import { Send, User } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-// 🔥 [수정 1] apiFetch 및 SOCKET_BASE_URL import
 import { apiFetch, SOCKET_BASE_URL, API_BASE_URL } from "../lib/api";
 
 interface Message {
@@ -66,7 +65,6 @@ export default function ChatRoom({ roomId, nickname }: Props) {
   };
 
   return (
-    // 🔥 반응형 높이 및 라운딩 적용 (h-[450px] md:h-[600px])
     <div className="flex flex-col h-[450px] md:h-[600px] bg-[#bacee0] dark:bg-[#1e1e1e] rounded-2xl md:rounded-3xl overflow-hidden border border-gray-200 dark:border-white/10 shadow-xl">
       <div className="bg-[#a9bdce] dark:bg-[#2a2a2a] p-3 md:p-4 flex items-center justify-between shadow-sm z-10">
         <h3 className="font-bold text-sm md:text-base text-gray-800 dark:text-white flex items-center gap-1.5 md:gap-2">💬 실시간 톡방</h3>
@@ -79,7 +77,6 @@ export default function ChatRoom({ roomId, nickname }: Props) {
             const isMe = msg.sender === nickname;
             const content = msg.message || ""; // null 방지
 
-            // 🔥 [강제 확인 로직] 조건을 아주 단순하게 변경
             // 1. "입장" 또는 "퇴장"이라는 글자가 포함되면 무조건 시스템 메시지
             const isSystem = content.includes("입장") || content.includes("퇴장");
 
@@ -122,14 +119,14 @@ export default function ChatRoom({ roomId, nickname }: Props) {
                   </div>
                 )}
                 
-                {/* 🔥 모바일에서는 말풍선 허용 길이를 80%로 살짝 늘림 */}
+                
                 <div className={`max-w-[80%] md:max-w-[70%] flex flex-col ${isMe ? "items-end" : "items-start"}`}>
                   {!isMe && <span className="text-[9px] md:text-[10px] text-gray-600 dark:text-gray-400 mb-0.5 md:mb-1 ml-1">{msg.sender}</span>}
                   
                   {isImage ? (
                     // 🖼️ 이미지 표시 (크기 반응형 조절)
                     <div className={`overflow-hidden rounded-lg md:rounded-xl border-[3px] md:border-4 ${isMe ? "border-[#ffeb33]" : "border-white dark:border-[#333]"} shadow-sm`}>
-                         {/* 🔥 [수정 4] 이미지 경로도 API_BASE_URL을 사용하여 배포 환경 대응 */}
+                         
                          <img
                             src={`${API_BASE_URL}/uploads/${content.trim()}`}
                             alt="공유된 이미지"

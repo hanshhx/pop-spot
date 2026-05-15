@@ -394,6 +394,7 @@ function TrackCard({
     >
       <div className="relative aspect-square overflow-hidden rounded-xl bg-foreground/5 ring-1 ring-[var(--color-border)] transition group-hover:ring-foreground/30">
         {track.artworkUrlHires || track.artworkUrl ? (
+          // Spotify/iTunes CDN 이미지 — next/image 도메인 화이트리스트 대신 <img> 사용.
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={track.artworkUrlHires || track.artworkUrl}

@@ -1246,7 +1246,7 @@ export default function Home() {
         {currentTab === "MATE" && (
             <motion.section aria-label="Mate Board" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} 
                         className="min-h-[60vh] rounded-xl border border-[var(--color-border)] bg-surface text-surface-foreground mb-16 relative overflow-hidden shadow-md">
-                <MateBoard user={user} />
+                {user && <MateBoard user={user} />}
             </motion.section>
         )}
 

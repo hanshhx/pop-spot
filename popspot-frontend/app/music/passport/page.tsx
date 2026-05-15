@@ -135,6 +135,7 @@ export default function MusicPassportPage() {
                     disabled={!t}
                   >
                     {t?.artworkUrl || t?.artworkUrlHires ? (
+                      // Spotify/iTunes CDN 이미지 — next/image 도메인 화이트리스트 대신 <img> 사용.
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
                         src={t.artworkUrl || t.artworkUrlHires}

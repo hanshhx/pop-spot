@@ -8,7 +8,7 @@ import { MusicPlayerProvider } from "@/components/music/MusicPlayerProvider";
 import { GlobalMusicPlayer } from "@/components/music/GlobalMusicPlayer";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://pop-spot.app"),
+  metadataBase: new URL("https://popspot.co.kr"),
   title: {
     default: "POP-SPOT — 서울 팝업스토어 인텔리전스",
     template: "%s · POP-SPOT",

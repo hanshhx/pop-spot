@@ -12,7 +12,6 @@ import { motion, AnimatePresence } from "framer-motion";
 
 import InteractiveMap from "../../src/components/Map/InteractiveMap"; 
 
-// 🔥 [임의 수정] TypeScript 경로 에러 방지를 위해 상대 경로로 API 주소 관리 파일을 가져옵니다.
 import { API_BASE_URL, SOCKET_BASE_URL } from "../../src/lib/api";
 import { notify, confirmAction } from "@/lib/notify";
 
@@ -192,10 +191,15 @@ export default function PlanningPage() {
     const myNickname = userData.nickname || "Unknown";
     setMyInfo(prev => ({ ...prev, name: myNickname }));
 
-    // 🔥 [수정] http://localhost:8080 대신 API_BASE_URL 변수 사용
+    interface PlanningRoomState {
+      markers?: string[];
+      users?: string[];
+      votes?: Record<string, number>;
+    }
+
     fetch(`${API_BASE_URL}/api/planning/${roomId}/state`)
       .then(res => res.json())
-      .then((data: any) => {
+      .then((data: PlanningRoomState) => {
         if (data.markers) {
             setMarkers(data.markers.map((str: string) => {
                 const [name, lat, lng] = str.split("|");
@@ -213,7 +217,6 @@ export default function PlanningPage() {
         }
       });
 
-    // 🔥 [수정] 웹소켓 주소를 SOCKET_BASE_URL 변수로 교체하여 배포 환경에 대응합니다.
     const socket = new SockJS(`${SOCKET_BASE_URL}/ws-planning`);
     const client = new Client({
       webSocketFactory: () => socket,
@@ -256,7 +259,6 @@ export default function PlanningPage() {
       if (!searchQuery.trim()) return;
       setIsSearching(true);
       try {
-        // 🔥 [수정] 검색 API 호출 주소를 API_BASE_URL로 변경했습니다.
         const res = await fetch(`${API_BASE_URL}/api/popups/search?keyword=${searchQuery}`);
         if (res.ok) setSearchResults(await res.json());
       } catch (e) {

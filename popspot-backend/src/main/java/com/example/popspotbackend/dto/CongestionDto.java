@@ -1,4 +1,3 @@
-// 👇 [중요] 여기도 패키지 이름을 맞췄습니다.
 package com.example.popspotbackend.dto;
 
 import java.util.List;
@@ -7,18 +6,24 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+/**
+ * 성수동 실시간 혼잡도 + 날씨 응답.
+ *
+ * <p>{@code level} 은 "여유 / 보통 / 약간 붐빔 / 붐빔" 4단계. {@code forecast} 는 12시간 시간별 예측 인구 ({"time":
+ * "14:00", "pop": "3200"} 형태). {@code ageRates} 는 연령대별 점유 비율.
+ */
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
 public class CongestionDto {
-    private String level; // 혼잡도 등급 (여유, 붐빔 등)
-    private String message; // 상세 메시지
-    private int minPop; // 최소 인구
-    private int maxPop; // 최대 인구
+    private String level;
+    private String message;
+    private int minPop;
+    private int maxPop;
 
-    private String temp; // 기온
-    private String sky; // 하늘 상태 (맑음, 흐림)
-    private String rainChance; // 강수 확률
-    private List<Map<String, String>> forecast; // 12시간 예측 (시간, 인구수)
-    private Map<String, Double> ageRates; // 연령별 비율
+    private String temp;
+    private String sky;
+    private String rainChance;
+    private List<Map<String, String>> forecast;
+    private Map<String, Double> ageRates;
 }

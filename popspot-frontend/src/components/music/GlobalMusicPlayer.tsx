@@ -90,6 +90,7 @@ function MiniPlayerBar() {
             className="flex flex-1 items-center gap-3 text-left"
             aria-label="전체화면으로 보기"
           >
+            {/* Spotify CDN 호스트가 next.config.ts 이미지 도메인에 없어 next/image 대신 <img> 사용. */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={current.artworkUrl || current.artworkUrlHires}
@@ -331,6 +332,7 @@ function FullScreenPlayer() {
                 onClick={collapse}
                 className="group flex gap-3 rounded-xl bg-white/5 p-3 backdrop-blur transition hover:bg-white/10"
               >
+                {/* 팝업 이미지 호스트가 외부 CDN 다양 — next.config 이미지 도메인 화이트리스트 등록보다 <img> 가 더 단순. */}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={popup.imageUrl}

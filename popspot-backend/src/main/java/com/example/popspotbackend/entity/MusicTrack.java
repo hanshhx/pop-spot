@@ -1,13 +1,24 @@
 package com.example.popspotbackend.entity;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.Table;
 import java.time.LocalDateTime;
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 /**
- * 음악 트랙 캐시. iTunes 메타데이터 + YouTube 재생 ID + Groq 가 분석한 분위기 태그.
+ * 음악 트랙 캐시. Spotify 메타데이터 + YouTube 재생 ID + Groq 가 분석한 분위기 태그.
  *
- * <p>캐시 TTL: 24시간 (YouTube TOS 준수). 24시간 지나면 last_searched_at 갱신 + 메타데이터 refresh.
+ * <p>한 번 YouTube 영상 ID 가 박힌 행은 영구 캐시로 간주한다. 매번 외부 API 를 재호출하면 quota(YouTube 10,000/day) 가 빠르게 닳기
+ * 때문. 메타데이터 갱신이 필요할 때만 별도 배치로 처리.
  */
 @Entity
 @Table(name = "music_track")
@@ -22,11 +33,11 @@ public class MusicTrack {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    /** 레거시 — iTunes 시대의 트랙 ID. 새로 만드는 곡은 비어 있다 */
+    /** 레거시 — iTunes 시대의 트랙 ID. 새로 만드는 곡은 비어 있다. */
     @Column(name = "itunes_track_id", unique = true, length = 50)
     private String itunesTrackId;
 
-    /** 현재 검색 소스인 Spotify 의 track ID */
+    /** 현재 검색 소스인 Spotify 의 track ID. */
     @Column(name = "spotify_track_id", unique = true, length = 50)
     private String spotifyTrackId;
 
@@ -57,8 +68,9 @@ public class MusicTrack {
     @Column(name = "is_official")
     private Boolean isOfficial;
 
+    /** Groq 가 분석한 무드 태그 JSON 배열 (40개 화이트리스트 중 최대 5개). */
     @Column(name = "mood_tags", columnDefinition = "TEXT")
-    private String moodTags; // JSON 배열 문자열
+    private String moodTags;
 
     @Column(name = "duration_ms")
     private Integer durationMs;
@@ -86,10 +98,7 @@ public class MusicTrack {
     /**
      * 외부 API 재호출이 필요 없는 상태인지 판단한다.
      *
-     * <p>정책: - YouTube 영상 ID 가 박혀 있으면 영구 캐시로 본다 (재호출 없음) - 아직 못 박은 곡만 다시 시도한다
-     *
-     * <p>24시간 TTL 을 들었다 풀었던 이력이 있는데, 한 번 매칭된 영상 ID 는 변경될 일이 거의 없고 매번 재호출하면 quota 가 빠르게 닳기 때문에 영구
-     * 캐시로 변경. 메타데이터 갱신이 필요할 때는 별도 배치로 돌린다.
+     * <p>YouTube 영상 ID 가 박혀 있으면 영구 캐시로 본다. 한 번 매칭된 영상 ID 는 바뀔 일이 거의 없고 매번 재호출하면 quota 가 빠르게 닳기 때문.
      */
     public boolean isCacheFresh() {
         return youtubeVideoId != null && !youtubeVideoId.isBlank();

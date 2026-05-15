@@ -29,7 +29,6 @@ export default function KakaoRoadview({ lat, lng, name }: KakaoRoadviewProps) {
           rv.setPanoId(panoId, position);
 
           // ✅ RoadviewCustomOverlay는 존재하지 않는 생성자이므로 CustomOverlay 사용
-          // 🔥 [수정] 모바일과 PC에서 오버레이 크기가 다르게 보이도록 CSS 미디어 쿼리를 적용했습니다!
           const content = `
             <div class="roadview-overlay">
               <div class="pulse-dot"></div>
@@ -102,7 +101,6 @@ export default function KakaoRoadview({ lat, lng, name }: KakaoRoadviewProps) {
 
   if (isError) {
     return (
-      // 🔥 [수정] 에러창 반응형 적용 (최소 높이 보장, 패딩 및 폰트 사이즈 조정)
       <div className="w-full h-full min-h-[200px] md:min-h-[300px] bg-gray-900 flex flex-col items-center justify-center text-gray-400 p-4 md:p-6 text-center rounded-2xl md:rounded-3xl overflow-hidden">
         <AlertCircle className="w-8 h-8 md:w-12 md:h-12 mb-2 md:mb-4 text-red-500 opacity-80" />
         <p className="text-sm md:text-lg font-bold">로드뷰를 표시할 수 없는 구역입니다.</p>
@@ -112,7 +110,6 @@ export default function KakaoRoadview({ lat, lng, name }: KakaoRoadviewProps) {
   }
 
   return (
-    // 🔥 [수정] 정상 로드뷰 반응형 적용 (최소 높이 보장, 터치 아웃라인 제거, 뱃지 사이즈 조절)
     <div className="w-full h-full min-h-[250px] md:min-h-[350px] relative rounded-2xl md:rounded-3xl overflow-hidden">
       <div ref={containerRef} className="w-full h-full outline-none" />
       <div className="absolute top-3 md:top-4 left-3 md:left-4 z-10 bg-yellow-400 text-black px-2 md:px-3 py-1 rounded-full text-[8px] md:text-[10px] font-black shadow-xl flex items-center gap-1">
