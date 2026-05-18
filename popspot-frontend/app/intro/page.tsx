@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
+import { useTheme } from "next-themes";
 import {
   Calendar,
   MapPin,
@@ -18,8 +19,24 @@ import {
   Map as MapIcon,
   Play,
   Pause,
+  Sun,
+  Moon,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+
+/**
+ * 라이트 모드 배경 — SK 스타일 파스텔 그라데이션 blob 3개를 겹쳐서 부드러운 3D 무드.
+ * filter:blur 로 외부 자산 없이 흐릿한 색 덩어리를 만든다.
+ */
+function LightModeBackground() {
+  return (
+    <div className="absolute inset-0 overflow-hidden bg-gradient-to-br from-cream-100 via-cream-200/60 to-white">
+      <div className="pointer-events-none absolute right-[-10%] top-[10%] h-[500px] w-[500px] rounded-full bg-hot-300/40 blur-3xl" />
+      <div className="pointer-events-none absolute left-[-10%] top-[40%] h-[450px] w-[450px] rounded-full bg-lime-300/35 blur-3xl" />
+      <div className="pointer-events-none absolute right-[20%] bottom-[10%] h-[380px] w-[380px] rounded-full bg-blue-300/30 blur-3xl" />
+    </div>
+  );
+}
 
 /* -------------------------------------------------------------------------- */
 /*  POP-SPOT — Cover / Intro Page (Persistent Video Background)               */
@@ -85,10 +102,16 @@ const MOTION_PREF_KEY = "popspot:intro:motion";
 
 export default function IntroPage() {
   const router = useRouter();
+  const { resolvedTheme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
   const [videoReady, setVideoReady] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   // 모션 ON/OFF — 기본 ON, 사용자가 끄면 localStorage 에 저장돼 다음 방문에도 유지.
   const [motionOn, setMotionOn] = useState(true);
+
+  // SSR 시점엔 테마 미정. mount 후에만 실제 테마 반영해서 hydration mismatch 회피.
+  useEffect(() => setMounted(true), []);
+  const isDark = mounted && resolvedTheme === "dark";
 
   useEffect(() => {
     try {
@@ -139,43 +162,56 @@ export default function IntroPage() {
 
   return (
     <>
-      {/* 페이지 전체 고정 배경 비디오 — pointer-events-none 으로 클릭 흡수 차단 */}
-      <div className="pointer-events-none fixed inset-0 z-0 bg-ink-900">
-        {motionOn ? (
-          <video
-            autoPlay
-            loop
-            muted
-            playsInline
-            preload="auto"
-            onCanPlay={() => setVideoReady(true)}
-            className={`h-full w-full object-cover transition-opacity duration-700 ${
-              videoReady ? "opacity-100" : "opacity-0"
-            }`}
-          >
-            <source src={VIDEO_SRC} type="video/mp4" />
-          </video>
+      {/* 페이지 전체 고정 배경 — 다크일 땐 영상 (또는 정적 다크 그라데이션), 라이트일 땐 파스텔 blob. */}
+      <div className="pointer-events-none fixed inset-0 z-0">
+        {isDark ? (
+          motionOn ? (
+            <video
+              autoPlay
+              loop
+              muted
+              playsInline
+              preload="auto"
+              onCanPlay={() => setVideoReady(true)}
+              className={`h-full w-full object-cover bg-ink-900 transition-opacity duration-700 ${
+                videoReady ? "opacity-100" : "opacity-0"
+              }`}
+            >
+              <source src={VIDEO_SRC} type="video/mp4" />
+            </video>
+          ) : (
+            <div className="h-full w-full bg-gradient-to-br from-ink-900 via-ink-800 to-hot-900/30" />
+          )
         ) : (
-          /* 모션 OFF 모드 — 정지 이미지 톤의 그라데이션으로 영상 대체. */
-          <div className="h-full w-full bg-gradient-to-br from-ink-900 via-ink-800 to-hot-900/30" />
+          <LightModeBackground />
         )}
       </div>
 
-      {/* 상단 고정 컨트롤 — 모션 토글 + Skip/Login 을 같은 영역에 묶어둠. */}
+      {/* 상단 고정 컨트롤 — 테마 토글 + 모션 토글 + Skip/Login.
+          기본 클래스 = 라이트 모드, dark: 프리픽스 = 다크 모드 (next-themes 의 .dark 클래스 토글 기반). */}
       <div className="fixed right-5 top-5 z-[100] flex items-center gap-2 sm:right-6 sm:top-6">
+        <button
+          type="button"
+          onClick={() => setTheme(isDark ? "light" : "dark")}
+          aria-label={isDark ? "라이트 모드" : "다크 모드"}
+          title={isDark ? "라이트 모드" : "다크 모드"}
+          className="inline-flex size-9 items-center justify-center rounded-full bg-ink-900/10 text-ink-900 ring-1 ring-ink-900/20 backdrop-blur-md transition hover:bg-ink-900/20 active:scale-95 dark:bg-white/15 dark:text-cream-100 dark:ring-white/25 dark:hover:bg-white/25"
+        >
+          {mounted ? (isDark ? <Sun className="size-4" aria-hidden /> : <Moon className="size-4" aria-hidden />) : null}
+        </button>
         <button
           type="button"
           onClick={toggleMotion}
           aria-label={motionOn ? "배경 영상 끄기" : "배경 영상 켜기"}
           title={motionOn ? "배경 영상 끄기" : "배경 영상 켜기"}
-          className="inline-flex size-9 items-center justify-center rounded-full bg-white/15 text-cream-100 backdrop-blur-md ring-1 ring-white/25 transition hover:bg-white/25 active:scale-95"
+          className="inline-flex size-9 items-center justify-center rounded-full bg-ink-900/10 text-ink-900 ring-1 ring-ink-900/20 backdrop-blur-md transition hover:bg-ink-900/20 active:scale-95 dark:bg-white/15 dark:text-cream-100 dark:ring-white/25 dark:hover:bg-white/25"
         >
           {motionOn ? <Pause className="size-4" aria-hidden /> : <Play className="size-4" aria-hidden />}
         </button>
         <button
           type="button"
           onClick={proceed}
-          className="rounded-full bg-white/15 px-4 py-2 text-xs font-semibold text-cream-100 backdrop-blur-md ring-1 ring-white/25 transition hover:bg-white/25 active:scale-95"
+          className="rounded-full bg-ink-900/10 px-4 py-2 text-xs font-semibold text-ink-900 ring-1 ring-ink-900/20 backdrop-blur-md transition hover:bg-ink-900/20 active:scale-95 dark:bg-white/15 dark:text-cream-100 dark:ring-white/25 dark:hover:bg-white/25"
           aria-label="인트로 건너뛰기"
         >
           {isLoggedIn ? "Skip →" : "Login →"}
@@ -210,10 +246,10 @@ export default function IntroPage() {
               transition={{ duration: 0.8, ease: "easeOut" }}
               className="mb-3"
             >
-              <h1 className="text-5xl font-black tracking-tight text-white sm:text-7xl md:text-8xl">
+              <h1 className="text-5xl font-black tracking-tight text-ink-900 dark:text-white sm:text-7xl md:text-8xl">
                 POP<span className="text-lime-300">·</span>SPOT
               </h1>
-              <p className="mt-2 text-sm text-cream-200/80 sm:text-base">
+              <p className="mt-2 text-sm text-ink-700/80 dark:text-cream-200/80 sm:text-base">
                 서울 팝업스토어, 한 곳에서.
               </p>
             </motion.div>
@@ -222,7 +258,7 @@ export default function IntroPage() {
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.4 }}
-              className="mt-6 text-xl font-semibold text-white sm:text-2xl md:text-3xl"
+              className="mt-6 text-xl font-semibold text-ink-900 dark:text-white sm:text-2xl md:text-3xl"
             >
               서울 팝업, <span className="text-hot-400">여기서 찾아요</span>
             </motion.h2>
@@ -231,7 +267,7 @@ export default function IntroPage() {
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 1.2 }}
-              className="mt-5 max-w-xl space-y-1 text-sm text-cream-100/85 sm:text-base"
+              className="mt-5 max-w-xl space-y-1 text-sm text-ink-700/85 dark:text-cream-100/85 sm:text-base"
             >
               <p>성수에서 한남, 압구정까지 — 흩어진 팝업 정보를 모아뒀어요.</p>
               <p>줄 길이 보고 가고, 친구랑 코스 짜고, 다녀온 곳은 도장으로 남기고.</p>
@@ -256,8 +292,8 @@ export default function IntroPage() {
                   className="flex flex-col items-center"
                 >
                   <Icon className="h-7 w-7 text-lime-300 sm:h-8 sm:w-8" strokeWidth={2} />
-                  <div className="mt-2 text-sm font-semibold text-white sm:text-base">{label}</div>
-                  <div className="mt-0.5 text-[11px] text-cream-200/70 sm:text-xs">{sub}</div>
+                  <div className="mt-2 text-sm font-semibold text-ink-900 dark:text-white sm:text-base">{label}</div>
+                  <div className="mt-0.5 text-[11px] text-ink-700/70 dark:text-cream-200/70 sm:text-xs">{sub}</div>
                 </motion.div>
               ))}
             </motion.div>
@@ -269,7 +305,7 @@ export default function IntroPage() {
               transition={{ duration: 0.6, delay: 1.6 }}
               whileHover={{ scale: 1.04 }}
               whileTap={{ scale: 0.97 }}
-              className="group mt-16 inline-flex items-center gap-3 rounded-full bg-lime-300 px-9 py-4 text-base font-bold text-ink-900 shadow-2xl shadow-lime-300/30 ring-2 ring-white/20 transition hover:bg-lime-200 hover:shadow-lime-300/50 sm:mt-20 sm:px-12 sm:py-5 sm:text-lg"
+              className="group mt-16 inline-flex items-center gap-3 rounded-full bg-lime-300 px-9 py-4 text-base font-bold text-ink-900 shadow-2xl shadow-lime-300/30 ring-2 ring-ink-900/20 dark:ring-white/20 transition hover:bg-lime-200 hover:shadow-lime-300/50 sm:mt-20 sm:px-12 sm:py-5 sm:text-lg"
               aria-label={isLoggedIn ? "POP-SPOT 메인 페이지로 이동" : "로그인 페이지로 이동"}
             >
               {isLoggedIn ? (
@@ -290,7 +326,7 @@ export default function IntroPage() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.8, delay: 2.0 }}
-                className="mt-5 text-sm text-cream-100/80"
+                className="mt-5 text-sm text-ink-700/80 dark:text-cream-100/80"
               >
                 처음 오셨나요?{" "}
                 <button
@@ -313,7 +349,7 @@ export default function IntroPage() {
             <motion.div
               animate={{ y: [0, 10, 0] }}
               transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-              className="flex flex-col items-center gap-1 text-cream-200/70"
+              className="flex flex-col items-center gap-1 text-ink-700/70 dark:text-cream-200/70"
             >
               <span className="text-xs">스크롤</span>
               <ChevronDown className="h-5 w-5" />
@@ -329,7 +365,7 @@ export default function IntroPage() {
           style={{ scrollSnapAlign: "start" }}
         >
           {/* 배경 — 라임 후광이 보이도록 어둡지만 영상은 비치게 */}
-          <div className="pointer-events-none absolute inset-0 bg-ink-900/65 backdrop-blur-[2px]" />
+          <div className="pointer-events-none absolute inset-0 bg-cream-100/65 dark:bg-ink-900/65 backdrop-blur-[2px]" />
           <div className="pointer-events-none absolute left-1/2 top-1/2 h-[500px] w-[500px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-lime-300/15 blur-3xl" />
 
           <motion.div
@@ -349,13 +385,13 @@ export default function IntroPage() {
               왜 만들었냐면요
             </motion.span>
 
-            <h2 className="mt-6 text-4xl font-black leading-tight tracking-tight text-white drop-shadow-2xl sm:text-5xl md:text-7xl">
+            <h2 className="mt-6 text-4xl font-black leading-tight tracking-tight text-ink-900 dark:text-white drop-shadow-2xl sm:text-5xl md:text-7xl">
               팝업 정보,
               <br />
               <span className="text-lime-300">한 군데서</span> 끝내자.
             </h2>
 
-            <p className="mx-auto mt-6 max-w-2xl text-base text-cream-100/90 drop-shadow-lg sm:text-lg">
+            <p className="mx-auto mt-6 max-w-2xl text-base text-ink-700/90 dark:text-cream-100/90 drop-shadow-lg sm:text-lg">
               팝업 정보 찾겠다고 인스타 계정 30개 팔로우 안 해도 돼요.
               <br className="hidden sm:inline" />
               매일 열리는 서울 팝업, 여기 하나만 보면 충분해요.
@@ -366,12 +402,12 @@ export default function IntroPage() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: false }}
               transition={{ duration: 0.6, delay: 0.3 }}
-              className="mt-12 inline-flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-cream-100/85 sm:text-base"
+              className="mt-12 inline-flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-ink-700/85 dark:text-cream-100/85 sm:text-base"
             >
               <span>매일 새벽 4시에 새 팝업 수집</span>
-              <span className="text-cream-100/30">·</span>
+              <span className="text-ink-700/30 dark:text-cream-100/30">·</span>
               <span>1~2달치 일정 미리보기</span>
-              <span className="text-cream-100/30">·</span>
+              <span className="text-ink-700/30 dark:text-cream-100/30">·</span>
               <span>신고는 24시간 안에</span>
             </motion.div>
           </motion.div>
@@ -385,7 +421,7 @@ export default function IntroPage() {
           style={{ scrollSnapAlign: "start" }}
         >
           {/* 어두운 오버레이 — 카드 가독성 확보 */}
-          <div className="pointer-events-none absolute inset-0 bg-ink-900/70 backdrop-blur-[2px]" />
+          <div className="pointer-events-none absolute inset-0 bg-cream-100/70 dark:bg-ink-900/70 backdrop-blur-[2px]" />
 
           <div className="relative z-10 mx-auto max-w-6xl">
             <motion.div
@@ -395,13 +431,13 @@ export default function IntroPage() {
               transition={{ duration: 0.7 }}
               className="text-center"
             >
-              <span className="inline-block rounded-full bg-white/10 px-4 py-1.5 text-sm font-medium text-cream-100/90 ring-1 ring-white/20">
+              <span className="inline-block rounded-full bg-white/10 px-4 py-1.5 text-sm font-medium text-ink-700/90 dark:text-cream-100/90 ring-1 ring-ink-900/20 dark:ring-white/20">
                 주요 기능
               </span>
-              <h2 className="mt-5 text-3xl font-black tracking-tight text-white drop-shadow-2xl sm:text-5xl md:text-6xl">
+              <h2 className="mt-5 text-3xl font-black tracking-tight text-ink-900 dark:text-white drop-shadow-2xl sm:text-5xl md:text-6xl">
                 주로 이렇게들 <span className="text-hot-400">써요</span>
               </h2>
-              <p className="mx-auto mt-4 max-w-xl text-sm text-cream-100/85 drop-shadow-lg sm:text-base">
+              <p className="mx-auto mt-4 max-w-xl text-sm text-ink-700/85 dark:text-cream-100/85 drop-shadow-lg sm:text-base">
                 찾고, 가고, 기록하기 — 세 가지면 충분하더라고요.
               </p>
             </motion.div>
@@ -415,13 +451,13 @@ export default function IntroPage() {
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: false, amount: 0.3 }}
                   transition={{ duration: 0.6, delay: i * 0.15 }}
-                  className={`rounded-2xl bg-ink-900/85 p-6 ring-1 ring-white/10 transition hover:-translate-y-1 hover:ring-white/20 ${
+                  className={`rounded-2xl bg-white dark:bg-ink-900/85 p-6 ring-1 ring-ink-900/10 dark:ring-white/10 transition hover:-translate-y-1 hover:ring-ink-900/20 dark:ring-white/20 ${
                     i === 0 ? "sm:col-span-2 sm:p-8" : ""
                   }`}
                 >
                   <f.Icon className={`h-7 w-7 ${f.accent}`} strokeWidth={2.2} />
-                  <h3 className="mt-5 text-xl font-bold tracking-tight text-white">{f.title}</h3>
-                  <p className="mt-2 text-sm leading-relaxed text-cream-100/75">{f.desc}</p>
+                  <h3 className="mt-5 text-xl font-bold tracking-tight text-ink-900 dark:text-white">{f.title}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-ink-700/75 dark:text-cream-100/75">{f.desc}</p>
                 </motion.div>
               ))}
             </div>
@@ -435,7 +471,7 @@ export default function IntroPage() {
           className="relative flex min-h-screen w-full items-center justify-center overflow-hidden px-6 py-16"
           style={{ scrollSnapAlign: "start" }}
         >
-          <div className="absolute inset-0 bg-ink-900/75" />
+          <div className="absolute inset-0 bg-cream-100/75 dark:bg-ink-900/75" />
           <div className="pointer-events-none absolute -right-20 top-1/4 h-[400px] w-[400px] rounded-full bg-hot-400/12 blur-3xl" />
 
           <div className="relative z-10 mx-auto max-w-6xl">
@@ -449,10 +485,10 @@ export default function IntroPage() {
               <span className="inline-block rounded-full bg-hot-400/15 px-4 py-1.5 text-sm font-medium text-hot-400 ring-1 ring-hot-400/40">
                 여기에만 있는 것
               </span>
-              <h2 className="mt-5 text-3xl font-black tracking-tight text-white drop-shadow-2xl sm:text-5xl md:text-6xl">
+              <h2 className="mt-5 text-3xl font-black tracking-tight text-ink-900 dark:text-white drop-shadow-2xl sm:text-5xl md:text-6xl">
                 이건 <span className="text-hot-400">여기에만</span> 있어요
               </h2>
-              <p className="mx-auto mt-4 max-w-xl text-sm text-cream-100/85 drop-shadow-lg sm:text-base">
+              <p className="mx-auto mt-4 max-w-xl text-sm text-ink-700/85 dark:text-cream-100/85 drop-shadow-lg sm:text-base">
                 직접 다녀보면서 "이건 좀 있었으면" 했던 것들.
               </p>
             </motion.div>
@@ -465,12 +501,12 @@ export default function IntroPage() {
                   whileInView={{ opacity: 1, x: 0 }}
                   viewport={{ once: false, amount: 0.3 }}
                   transition={{ duration: 0.6, delay: i * 0.1 }}
-                  className="flex gap-4 rounded-2xl bg-ink-900/85 p-6 ring-1 ring-white/10 transition hover:ring-white/20"
+                  className="flex gap-4 rounded-2xl bg-white dark:bg-ink-900/85 p-6 ring-1 ring-ink-900/10 dark:ring-white/10 transition hover:ring-ink-900/20 dark:ring-white/20"
                 >
                   <p.Icon className="h-7 w-7 shrink-0 text-hot-400" strokeWidth={2.2} />
                   <div>
-                    <h3 className="text-lg font-bold text-white">{p.title}</h3>
-                    <p className="mt-1 text-sm leading-relaxed text-cream-100/75">{p.desc}</p>
+                    <h3 className="text-lg font-bold text-ink-900 dark:text-white">{p.title}</h3>
+                    <p className="mt-1 text-sm leading-relaxed text-ink-700/75 dark:text-cream-100/75">{p.desc}</p>
                   </div>
                 </motion.div>
               ))}
@@ -500,14 +536,14 @@ export default function IntroPage() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: false, amount: 0.4 }}
             transition={{ duration: 0.8 }}
-            className="relative z-10 mx-auto max-w-3xl text-center text-white"
+            className="relative z-10 mx-auto max-w-3xl text-center text-ink-900 dark:text-white"
           >
-            <Clock className="mx-auto h-12 w-12 text-white/95 drop-shadow-lg" strokeWidth={1.8} />
+            <Clock className="mx-auto h-12 w-12 text-ink-900 dark:text-white/95 drop-shadow-lg" strokeWidth={1.8} />
 
             <h2 className="mt-6 text-4xl font-black leading-tight tracking-tight drop-shadow-2xl sm:text-6xl md:text-7xl">
               한번 둘러볼래요?
             </h2>
-            <p className="mx-auto mt-5 max-w-xl text-base text-white/95 drop-shadow-lg sm:text-lg">
+            <p className="mx-auto mt-5 max-w-xl text-base text-ink-700 dark:text-white/95 drop-shadow-lg sm:text-lg">
               지금 이 순간에도 서울 어딘가에서 팝업이 열리고 있어요.
               <br className="hidden sm:inline" />
               먼저 와본 사람한테 들켜도 모르는 척, 슬쩍 들어와요.
