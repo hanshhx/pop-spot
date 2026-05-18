@@ -2,8 +2,6 @@ package com.example.popspotbackend.controller;
 
 import com.example.popspotbackend.entity.MatePost;
 import com.example.popspotbackend.entity.PopupStore;
-import com.example.popspotbackend.repository.MatePostRepository;
-import com.example.popspotbackend.repository.PopupStoreRepository;
 import com.example.popspotbackend.service.AdminService;
 import java.util.List;
 import java.util.Map;
@@ -24,7 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
  * 관리자 운영 콘솔 API.
  *
  * <p>클래스 단 {@code @PreAuthorize("hasRole('ADMIN')")} 로 SecurityConfig URL 매칭과 이중 방어를 건다. 라우트 패턴이
- * 바뀌어도 권한 체크가 누락되지 않도록 하는 안전장치다.
+ * 바뀌어도 권한 체크가 누락되지 않도록 하는 안전장치다. 모든 도메인 로직은 {@link AdminService} 에 위임한다.
  */
 @RestController
 @RequestMapping("/api/admin")
@@ -32,17 +30,13 @@ import org.springframework.web.bind.annotation.RestController;
 @PreAuthorize("hasRole('ADMIN')")
 public class AdminController {
 
-    private static final String STATUS_PENDING = "PENDING";
-
-    private final PopupStoreRepository popupStoreRepository;
-    private final MatePostRepository matePostRepository;
     private final AdminService adminService;
 
     /* ============================== 팝업 승인 큐 ============================== */
 
     @GetMapping("/popups/pending")
     public ResponseEntity<List<PopupStore>> getPendingPopups() {
-        return ResponseEntity.ok(popupStoreRepository.findByStatus(STATUS_PENDING));
+        return ResponseEntity.ok(adminService.findPendingPopups());
     }
 
     @PostMapping("/popups/{id}/approve")
@@ -64,10 +58,9 @@ public class AdminController {
         return ResponseEntity.ok(adminService.getAdminStats());
     }
 
-    /** 관리자는 PENDING/영업중/종료 구분 없이 모든 팝업을 본다. */
     @GetMapping("/popups/all")
     public ResponseEntity<List<PopupStore>> getAllPopupsForAdmin() {
-        return ResponseEntity.ok(popupStoreRepository.findAll());
+        return ResponseEntity.ok(adminService.findAllPopups());
     }
 
     @PatchMapping("/popups/{id}/status")
@@ -95,7 +88,7 @@ public class AdminController {
 
     @GetMapping("/mate-posts")
     public ResponseEntity<List<MatePost>> getAllMatePosts() {
-        return ResponseEntity.ok(matePostRepository.findAllByOrderByIsMegaphoneDescCreatedAtDesc());
+        return ResponseEntity.ok(adminService.findAllMatePostsOrdered());
     }
 
     @DeleteMapping("/mate-posts/{id}")

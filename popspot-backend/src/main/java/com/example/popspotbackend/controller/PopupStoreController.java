@@ -4,7 +4,6 @@ import com.example.popspotbackend.dto.CalendarPopupDto;
 import com.example.popspotbackend.dto.PopupReportRequestDto;
 import com.example.popspotbackend.dto.PopupTakedownRequestDto;
 import com.example.popspotbackend.entity.PopupStore;
-import com.example.popspotbackend.repository.PopupStoreRepository;
 import com.example.popspotbackend.service.PopupStoreService;
 import jakarta.validation.Valid;
 import java.time.LocalDateTime;
@@ -40,7 +39,6 @@ public class PopupStoreController {
 
     private final PopupStoreService popupStoreService;
     private final YouTubeService youTubeService;
-    private final PopupStoreRepository popupStoreRepository;
 
     @GetMapping
     public ResponseEntity<List<PopupStore>> getAllPopups(
@@ -90,9 +88,9 @@ public class PopupStoreController {
     @PostMapping("/{id}/takedown")
     public ResponseEntity<Map<String, Object>> requestTakedown(
             @PathVariable Long id, @Valid @RequestBody PopupTakedownRequestDto dto) {
-        PopupStore popup = findPopupOrThrow(id);
+        PopupStore popup = popupStoreService.findOrThrow(id);
         applyTakedown(popup, dto);
-        popupStoreRepository.save(popup);
+        popupStoreService.save(popup);
 
         log.warn(
                 "[Takedown] 팝업 id={} name='{}' 요청자={} 사유='{}' → 노출 즉시 차단",
@@ -108,7 +106,7 @@ public class PopupStoreController {
     @PostMapping("/report")
     public ResponseEntity<Map<String, Object>> reportPopup(
             @Valid @RequestBody PopupReportRequestDto dto) {
-        PopupStore saved = popupStoreRepository.save(buildReportedPopup(dto));
+        PopupStore saved = popupStoreService.save(buildReportedPopup(dto));
 
         Map<String, Object> resp = new HashMap<>();
         resp.put("id", saved.getId());
@@ -118,12 +116,6 @@ public class PopupStoreController {
     }
 
     /* ============================== 내부 헬퍼 ============================== */
-
-    private PopupStore findPopupOrThrow(Long id) {
-        return popupStoreRepository
-                .findById(id)
-                .orElseThrow(() -> new RuntimeException("팝업을 찾을 수 없습니다. id=" + id));
-    }
 
     private void applyTakedown(PopupStore popup, PopupTakedownRequestDto dto) {
         popup.setReviewStatus(REVIEW_STATUS_TAKEDOWN);

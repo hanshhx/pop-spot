@@ -1,0 +1,315 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1500 1320" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI','Apple SD Gothic Neo','Malgun Gothic',sans-serif">
+  <!-- defs: arrow markers, drop shadow -->
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#1a1a1a"/>
+    </marker>
+    <marker id="arrowRed" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#dc2626"/>
+    </marker>
+    <filter id="shadow" x="-5%" y="-5%" width="110%" height="115%">
+      <feDropShadow dx="0" dy="2" stdDeviation="2" flood-opacity="0.08"/>
+    </filter>
+  </defs>
+
+  <!-- background -->
+  <rect width="1500" height="1320" fill="#fafafa"/>
+
+  <!-- header -->
+  <text x="750" y="50" text-anchor="middle" font-size="34" font-weight="800" fill="#0f172a" letter-spacing="2">POP<tspan fill="#dc2626">·</tspan>SPOT</text>
+  <text x="750" y="78" text-anchor="middle" font-size="12" fill="#64748b" letter-spacing="6">SYSTEM   ARCHITECTURE</text>
+
+  <!-- ============ CLIENT 섹션 ============ -->
+  <text x="60" y="125" font-size="11" font-weight="700" fill="#94a3b8" letter-spacing="3">CLIENT</text>
+  <line x1="60" y1="138" x2="1440" y2="138" stroke="#e2e8f0" stroke-dasharray="3,3"/>
+
+  <g filter="url(#shadow)">
+    <rect x="580" y="155" width="340" height="80" rx="8" fill="#fff" stroke="#1a1a1a" stroke-width="2.5"/>
+    <text x="750" y="185" text-anchor="middle" font-size="16" font-weight="700" fill="#0f172a">User Browser / Mobile</text>
+    <text x="750" y="208" text-anchor="middle" font-size="11" fill="#64748b">popspot.co.kr</text>
+    <text x="750" y="223" text-anchor="middle" font-size="10" fill="#94a3b8">Next.js (Vercel) · iOS · Android</text>
+  </g>
+  <!-- arrow down -->
+  <path d="M 680 235 L 680 265" stroke="#1a1a1a" stroke-width="2" marker-end="url(#arrow)"/>
+  <path d="M 820 235 L 820 265" stroke="#1a1a1a" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- ============ EDGE · FRONTEND 섹션 ============ -->
+  <text x="60" y="290" font-size="11" font-weight="700" fill="#94a3b8" letter-spacing="3">EDGE · FRONTEND</text>
+  <line x1="60" y1="303" x2="1440" y2="303" stroke="#e2e8f0" stroke-dasharray="3,3"/>
+
+  <!-- 좌측: External APIs 그룹 -->
+  <text x="60" y="335" font-size="10" font-weight="700" fill="#94a3b8" letter-spacing="2">EXTERNAL APIs</text>
+
+  <!-- Naver -->
+  <g filter="url(#shadow)">
+    <rect x="60" y="345" width="280" height="56" rx="6" fill="#fff" stroke="#cbd5e1"/>
+    <rect x="74" y="361" width="24" height="24" rx="4" fill="#03C75A"/>
+    <text x="86" y="378" text-anchor="middle" font-size="14" font-weight="900" fill="#fff">N</text>
+    <text x="112" y="368" font-size="13" font-weight="700" fill="#0f172a">Naver Search</text>
+    <text x="112" y="385" font-size="10" fill="#64748b">Blog · News snippet</text>
+  </g>
+  <!-- Kakao Search -->
+  <g filter="url(#shadow)">
+    <rect x="60" y="412" width="280" height="56" rx="6" fill="#fff" stroke="#cbd5e1"/>
+    <rect x="74" y="428" width="24" height="24" rx="4" fill="#FFCD00"/>
+    <text x="86" y="445" text-anchor="middle" font-size="13" font-weight="900" fill="#391B1B">K</text>
+    <text x="112" y="435" font-size="13" font-weight="700" fill="#0f172a">Kakao Search/Local/Map</text>
+    <text x="112" y="452" font-size="10" fill="#64748b">Web · Geocode · MapSDK</text>
+  </g>
+  <!-- Groq (강조) -->
+  <g filter="url(#shadow)">
+    <rect x="60" y="479" width="280" height="56" rx="6" fill="#fff" stroke="#dc2626" stroke-width="2"/>
+    <rect x="74" y="495" width="24" height="24" rx="4" fill="#F55036"/>
+    <text x="86" y="513" text-anchor="middle" font-size="14" font-weight="900" fill="#fff">⚡</text>
+    <text x="112" y="502" font-size="13" font-weight="700" fill="#dc2626">Groq AI (LLM)</text>
+    <text x="112" y="519" font-size="10" fill="#64748b">llama-3.3-70b-versatile</text>
+  </g>
+  <!-- PortOne -->
+  <g filter="url(#shadow)">
+    <rect x="60" y="546" width="280" height="56" rx="6" fill="#fff" stroke="#cbd5e1"/>
+    <rect x="74" y="562" width="24" height="24" rx="4" fill="#3b82f6"/>
+    <text x="86" y="580" text-anchor="middle" font-size="14" font-weight="900" fill="#fff">P</text>
+    <text x="112" y="569" font-size="13" font-weight="700" fill="#0f172a">PortOne (iamport)</text>
+    <text x="112" y="586" font-size="10" fill="#64748b">결제 검증 + 자동 환불</text>
+  </g>
+  <!-- Kakao OAuth2 -->
+  <g filter="url(#shadow)">
+    <rect x="60" y="613" width="280" height="56" rx="6" fill="#fff" stroke="#cbd5e1"/>
+    <rect x="74" y="629" width="24" height="24" rx="4" fill="#FFCD00"/>
+    <text x="86" y="646" text-anchor="middle" font-size="13" font-weight="900" fill="#391B1B">K</text>
+    <text x="112" y="636" font-size="13" font-weight="700" fill="#0f172a">OAuth2 Providers</text>
+    <text x="112" y="653" font-size="10" fill="#64748b">Google · Kakao · Naver</text>
+  </g>
+  <!-- Sentry -->
+  <g filter="url(#shadow)">
+    <rect x="60" y="680" width="280" height="56" rx="6" fill="#fff" stroke="#cbd5e1"/>
+    <rect x="74" y="696" width="24" height="24" rx="4" fill="#362D59"/>
+    <text x="86" y="714" text-anchor="middle" font-size="14" font-weight="900" fill="#fff">S</text>
+    <text x="112" y="703" font-size="13" font-weight="700" fill="#0f172a">Sentry</text>
+    <text x="112" y="720" font-size="10" fill="#64748b">에러 모니터링</text>
+  </g>
+
+  <!-- 가운데: Vercel + Tailscale 박스 -->
+  <g filter="url(#shadow)">
+    <rect x="400" y="345" width="320" height="135" rx="10" fill="#fff" stroke="#7c3aed" stroke-width="2.5"/>
+    <rect x="416" y="361" width="28" height="28" rx="6" fill="#000"/>
+    <path d="M 422 376 L 430 369 L 438 376 L 430 383 Z" fill="#fff"/>
+    <text x="455" y="383" font-size="16" font-weight="800" fill="#0f172a">Vercel (Frontend)</text>
+
+    <text x="420" y="412" font-size="11" font-weight="600" fill="#64748b">▲</text>
+    <text x="440" y="412" font-size="11" font-weight="700" fill="#0f172a">Next.js 14</text>
+    <text x="540" y="412" font-size="11" font-weight="600" fill="#64748b">⚛</text>
+    <text x="558" y="412" font-size="11" font-weight="700" fill="#0f172a">React 19</text>
+
+    <text x="420" y="432" font-size="11" font-weight="600" fill="#06b6d4">≈</text>
+    <text x="440" y="432" font-size="11" fill="#475569">Tailwind v4</text>
+    <text x="540" y="432" font-size="11" fill="#475569">framer-motion</text>
+
+    <text x="420" y="465" font-size="11" font-weight="700" fill="#7c3aed">/intro · / · /popup · /admin · /map · /music · /mypage</text>
+  </g>
+  <!-- arrow Vercel → Tailscale -->
+  <text x="775" y="405" font-size="10" font-weight="700" fill="#64748b">REST · WebSocket</text>
+  <path d="M 720 412 L 800 412" stroke="#1a1a1a" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <g filter="url(#shadow)">
+    <rect x="800" y="345" width="320" height="135" rx="10" fill="#fff" stroke="#16a34a" stroke-width="2.5"/>
+    <circle cx="828" cy="380" r="16" fill="#000"/>
+    <text x="828" y="386" text-anchor="middle" font-size="12" font-weight="900" fill="#fff">ts</text>
+    <text x="855" y="385" font-size="16" font-weight="800" fill="#0f172a">Tailscale Funnel</text>
+
+    <text x="820" y="415" font-size="11" fill="#475569">HTTPS 자동 · 무료 외부 노출</text>
+    <text x="820" y="432" font-size="11" fill="#475569">443 (TLS) · 인증서 자동 갱신</text>
+
+    <text x="820" y="465" font-size="11" font-weight="700" fill="#16a34a">vm-113.tailc57dd4.ts.net → popspot.co.kr</text>
+  </g>
+  <!-- arrow down to Spring Boot -->
+  <path d="M 960 480 L 960 540" stroke="#1a1a1a" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- 우측: DEPLOY · INFRA -->
+  <text x="1160" y="335" font-size="10" font-weight="700" fill="#94a3b8" letter-spacing="2">DEPLOY · INFRA</text>
+
+  <g filter="url(#shadow)">
+    <rect x="1160" y="345" width="280" height="56" rx="6" fill="#fff" stroke="#cbd5e1"/>
+    <rect x="1174" y="361" width="24" height="24" rx="4" fill="#000"/>
+    <path d="M 1180 376 L 1186 369 L 1192 376 L 1186 383 Z" fill="#fff"/>
+    <text x="1210" y="368" font-size="13" font-weight="700" fill="#0f172a">Vercel</text>
+    <text x="1210" y="385" font-size="10" fill="#64748b">Frontend 자동 배포 · CDN</text>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="1160" y="412" width="280" height="56" rx="6" fill="#fff" stroke="#cbd5e1"/>
+    <rect x="1174" y="428" width="24" height="24" rx="4" fill="#7c3aed"/>
+    <text x="1186" y="446" text-anchor="middle" font-size="13" font-weight="900" fill="#fff">P</text>
+    <text x="1210" y="435" font-size="13" font-weight="700" fill="#0f172a">Proxmox VM</text>
+    <text x="1210" y="452" font-size="10" fill="#64748b">Ubuntu 22 · systemd · 집 서버</text>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="1160" y="479" width="280" height="56" rx="6" fill="#fff" stroke="#dc2626" stroke-width="2"/>
+    <rect x="1174" y="495" width="24" height="24" rx="4" fill="#11C7E1"/>
+    <text x="1186" y="513" text-anchor="middle" font-size="13" font-weight="900" fill="#fff">S</text>
+    <text x="1210" y="502" font-size="13" font-weight="700" fill="#dc2626">Synology NAS</text>
+    <text x="1210" y="519" font-size="10" fill="#64748b">이전 예정 · Docker Compose</text>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="1160" y="546" width="280" height="56" rx="6" fill="#fff" stroke="#cbd5e1"/>
+    <rect x="1174" y="562" width="24" height="24" rx="4" fill="#181717"/>
+    <text x="1186" y="580" text-anchor="middle" font-size="13" font-weight="900" fill="#fff">G</text>
+    <text x="1210" y="569" font-size="13" font-weight="700" fill="#0f172a">GitHub</text>
+    <text x="1210" y="586" font-size="10" fill="#64748b">Source · CI 트리거</text>
+  </g>
+
+  <!-- SCHEDULE / SECURITY 텍스트 박스 -->
+  <text x="1160" y="638" font-size="11" font-weight="700" fill="#94a3b8" letter-spacing="2">SCHEDULE</text>
+  <text x="1160" y="658" font-size="11" fill="#475569">• 04:00 KST · 자동수집 cron</text>
+  <text x="1160" y="675" font-size="11" fill="#475569">• 05:00 KST · 만료 Expire</text>
+
+  <text x="1160" y="703" font-size="11" font-weight="700" fill="#94a3b8" letter-spacing="2">SECURITY</text>
+  <text x="1160" y="723" font-size="11" fill="#475569">• JWT (HS256 · 32B+)</text>
+  <text x="1160" y="740" font-size="11" fill="#475569">• Rate Limit (Bucket4j)</text>
+  <text x="1160" y="757" font-size="11" fill="#475569">• @PreAuthorize · BCrypt 12</text>
+
+  <!-- ============ APP 섹션 (Spring Boot 큰 박스) ============ -->
+  <text x="60" y="565" font-size="11" font-weight="700" fill="#94a3b8" letter-spacing="3">APP</text>
+  <line x1="60" y1="578" x2="1100" y2="578" stroke="#e2e8f0" stroke-dasharray="3,3"/>
+
+  <g filter="url(#shadow)">
+    <rect x="400" y="540" width="720" height="320" rx="12" fill="#fff" stroke="#1a1a1a" stroke-width="2.5"/>
+    <rect x="420" y="558" width="32" height="32" rx="6" fill="#6DB33F"/>
+    <path d="M 428 580 Q 432 572 436 580 Q 440 588 444 580" stroke="#fff" stroke-width="2" fill="none"/>
+    <text x="464" y="572" font-size="18" font-weight="800" fill="#0f172a">Spring Boot 4.0.2</text>
+    <text x="464" y="590" font-size="12" fill="#64748b">Java 21 · Gradle · Spotless googleJavaFormat aosp</text>
+
+    <!-- 3 inner boxes top row -->
+    <g>
+      <rect x="420" y="610" width="220" height="80" rx="8" fill="#f8fafc" stroke="#cbd5e1"/>
+      <text x="530" y="632" text-anchor="middle" font-size="13" font-weight="700" fill="#0f172a">🔐 Security Layer</text>
+      <text x="530" y="652" text-anchor="middle" font-size="10" fill="#64748b">Spring Security 7 · JWT Filter</text>
+      <text x="530" y="668" text-anchor="middle" font-size="10" fill="#64748b">OAuth2 · CORS · Bucket4j</text>
+      <text x="530" y="684" text-anchor="middle" font-size="10" fill="#64748b">@PreAuthorize · BCrypt12</text>
+    </g>
+    <g>
+      <rect x="650" y="610" width="220" height="80" rx="8" fill="#f8fafc" stroke="#cbd5e1"/>
+      <text x="760" y="632" text-anchor="middle" font-size="13" font-weight="700" fill="#0f172a">🧩 Domain Logic</text>
+      <text x="760" y="652" text-anchor="middle" font-size="10" fill="#64748b">Popup · Course · Stamp</text>
+      <text x="760" y="668" text-anchor="middle" font-size="10" fill="#64748b">Mate · Music · Payment</text>
+      <text x="760" y="684" text-anchor="middle" font-size="10" fill="#64748b">25 Controller · 31 Service</text>
+    </g>
+    <g>
+      <rect x="880" y="610" width="220" height="80" rx="8" fill="#f8fafc" stroke="#cbd5e1"/>
+      <text x="990" y="632" text-anchor="middle" font-size="13" font-weight="700" fill="#0f172a">🔌 Realtime</text>
+      <text x="990" y="652" text-anchor="middle" font-size="10" fill="#64748b">WebSocket · STOMP</text>
+      <text x="990" y="668" text-anchor="middle" font-size="10" fill="#64748b">/ws-stomp · /ws-planning</text>
+      <text x="990" y="684" text-anchor="middle" font-size="10" fill="#64748b">채팅 · 일정 협업 룸</text>
+    </g>
+
+    <!-- 2 inner boxes bottom row -->
+    <g>
+      <rect x="420" y="705" width="335" height="135" rx="8" fill="#f8fafc" stroke="#cbd5e1"/>
+      <text x="587" y="728" text-anchor="middle" font-size="13" font-weight="700" fill="#0f172a">💾 Persistence</text>
+      <text x="587" y="750" text-anchor="middle" font-size="10" fill="#64748b">Hibernate 7.2 · Spring Data JPA · Flyway</text>
+      <text x="587" y="767" text-anchor="middle" font-size="10" fill="#64748b">13 Entity · 15 Repository</text>
+      <text x="587" y="787" text-anchor="middle" font-size="10" fill="#475569">@Transactional · @Scheduled (KST)</text>
+      <text x="587" y="803" text-anchor="middle" font-size="10" fill="#475569">ddl-auto=validate (운영 안전)</text>
+      <text x="587" y="822" text-anchor="middle" font-size="10" font-weight="700" fill="#16a34a">📊 Algolia Search Sync</text>
+    </g>
+    <g>
+      <rect x="765" y="705" width="335" height="135" rx="8" fill="#fff7ed" stroke="#dc2626" stroke-width="2"/>
+      <text x="932" y="728" text-anchor="middle" font-size="13" font-weight="700" fill="#dc2626">⚡ Auto-Collection Pipeline (V4)</text>
+      <text x="932" y="750" text-anchor="middle" font-size="10" fill="#64748b">PopupCrawlOrchestrator · 6 stage</text>
+      <text x="932" y="767" text-anchor="middle" font-size="10" fill="#64748b">Naver + Kakao → LangChain4j → Groq</text>
+      <text x="932" y="787" text-anchor="middle" font-size="10" fill="#475569">title/desc/link 만 사용 (저작권법 §35의5)</text>
+      <text x="932" y="803" text-anchor="middle" font-size="10" fill="#475569">confidence ≥ 0.8 자동게시</text>
+      <text x="932" y="822" text-anchor="middle" font-size="11" font-weight="800" fill="#dc2626">llama-3.3-70b · 14,400 req/day</text>
+    </g>
+  </g>
+
+  <!-- 좌측 External APIs → Spring Boot 점선 화살표 -->
+  <path d="M 340 507 Q 380 600 415 670" stroke="#dc2626" stroke-width="1.5" fill="none" stroke-dasharray="4,3" marker-end="url(#arrowRed)" opacity="0.6"/>
+  <path d="M 340 440 Q 380 540 415 650" stroke="#94a3b8" stroke-width="1.5" fill="none" stroke-dasharray="4,3" marker-end="url(#arrow)" opacity="0.6"/>
+
+  <!-- arrows down Spring Boot → DB -->
+  <path d="M 587 860 L 587 920" stroke="#1a1a1a" stroke-width="2" marker-end="url(#arrow)"/>
+  <path d="M 932 860 L 932 920" stroke="#1a1a1a" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- ============ DATA 섹션 ============ -->
+  <text x="60" y="900" font-size="11" font-weight="700" fill="#94a3b8" letter-spacing="3">DATA</text>
+  <line x1="60" y1="913" x2="1440" y2="913" stroke="#e2e8f0" stroke-dasharray="3,3"/>
+
+  <g filter="url(#shadow)">
+    <rect x="430" y="930" width="340" height="110" rx="10" fill="#fff" stroke="#16a34a" stroke-width="2.5"/>
+    <rect x="455" y="956" width="36" height="36" rx="4" fill="#4169E1"/>
+    <ellipse cx="473" cy="966" rx="10" ry="3" fill="#fff" opacity="0.5"/>
+    <ellipse cx="473" cy="974" rx="10" ry="3" fill="#fff" opacity="0.5"/>
+    <ellipse cx="473" cy="982" rx="10" ry="3" fill="#fff" opacity="0.5"/>
+    <text x="500" y="970" font-size="17" font-weight="800" fill="#0f172a">PostgreSQL 15</text>
+    <text x="500" y="990" font-size="11" fill="#475569">popspot_db · :5432</text>
+    <text x="500" y="1010" font-size="10" fill="#64748b">User · Popup · Course · Stamp · Orders · Music</text>
+    <text x="500" y="1026" font-size="10" font-weight="600" fill="#16a34a">+ V4 audit 필드 · Flyway 마이그레이션</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="800" y="930" width="340" height="110" rx="10" fill="#fff" stroke="#dc2626" stroke-width="2.5"/>
+    <rect x="825" y="956" width="36" height="36" rx="4" fill="#DC382D"/>
+    <path d="M 843 966 L 838 980 L 843 994 L 848 980 Z" fill="#fff"/>
+    <text x="870" y="970" font-size="17" font-weight="800" fill="#0f172a">Redis 7</text>
+    <text x="870" y="990" font-size="11" fill="#475569">Cache · TTL · :6379</text>
+    <text x="870" y="1010" font-size="10" fill="#64748b">인증코드 (5min) · Rate Limit · 일정 협업 룸</text>
+    <text x="870" y="1026" font-size="10" font-weight="600" fill="#dc2626">+ WebSocket Session · Bucket4j 카운터</text>
+  </g>
+
+  <!-- ============ AUTO-COLLECTION PIPELINE 가로 flow ============ -->
+  <text x="60" y="1080" font-size="11" font-weight="700" fill="#94a3b8" letter-spacing="3">AUTO-COLLECTION PIPELINE  ·  04:00 KST  ·  DAILY</text>
+  <line x1="60" y1="1093" x2="1440" y2="1093" stroke="#e2e8f0" stroke-dasharray="3,3"/>
+
+  <g>
+    <!-- step 1: cron -->
+    <rect x="60" y="1130" width="170" height="60" rx="8" fill="#fef3c7" stroke="#d97706" stroke-width="2"/>
+    <text x="145" y="1156" text-anchor="middle" font-size="13" font-weight="700" fill="#78350f">⏰ @Scheduled cron</text>
+    <text x="145" y="1175" text-anchor="middle" font-size="10" fill="#92400e">매일 04:00 KST</text>
+    <path d="M 230 1160 L 275 1160" stroke="#1a1a1a" stroke-width="2" marker-end="url(#arrow)"/>
+
+    <!-- step 2: keyword pool -->
+    <rect x="275" y="1130" width="170" height="60" rx="8" fill="#fff" stroke="#1a1a1a" stroke-width="2"/>
+    <text x="360" y="1156" text-anchor="middle" font-size="13" font-weight="700" fill="#0f172a">🔑 키워드 60개</text>
+    <text x="360" y="1175" text-anchor="middle" font-size="10" fill="#64748b">성수·홍대·강남 ...</text>
+    <path d="M 445 1160 L 490 1160" stroke="#1a1a1a" stroke-width="2" marker-end="url(#arrow)"/>
+
+    <!-- step 3: naver/kakao -->
+    <rect x="490" y="1130" width="200" height="60" rx="8" fill="#fff" stroke="#1a1a1a" stroke-width="2"/>
+    <rect x="505" y="1146" width="22" height="22" rx="4" fill="#03C75A"/>
+    <text x="516" y="1162" text-anchor="middle" font-size="12" font-weight="900" fill="#fff">N</text>
+    <rect x="530" y="1146" width="22" height="22" rx="4" fill="#FFCD00"/>
+    <text x="541" y="1162" text-anchor="middle" font-size="12" font-weight="900" fill="#391B1B">K</text>
+    <text x="615" y="1156" text-anchor="middle" font-size="12" font-weight="700" fill="#0f172a">Naver/Kakao snippets</text>
+    <text x="615" y="1175" text-anchor="middle" font-size="10" fill="#64748b">title · desc · link</text>
+    <path d="M 690 1160 L 735 1160" stroke="#dc2626" stroke-width="2" marker-end="url(#arrowRed)"/>
+
+    <!-- step 4: groq normalize -->
+    <rect x="735" y="1130" width="240" height="60" rx="8" fill="#fef2f2" stroke="#dc2626" stroke-width="2"/>
+    <rect x="750" y="1146" width="22" height="22" rx="4" fill="#F55036"/>
+    <text x="761" y="1163" text-anchor="middle" font-size="12" font-weight="900" fill="#fff">⚡</text>
+    <text x="868" y="1156" text-anchor="middle" font-size="12" font-weight="700" fill="#dc2626">Groq 정규화 + 신뢰도 산출</text>
+    <text x="868" y="1175" text-anchor="middle" font-size="10" fill="#7f1d1d">name · location · date · category · confidence</text>
+    <path d="M 975 1160 L 1020 1160" stroke="#1a1a1a" stroke-width="2" marker-end="url(#arrow)"/>
+
+    <!-- step 5: auto publish -->
+    <rect x="1020" y="1130" width="180" height="60" rx="8" fill="#dcfce7" stroke="#16a34a" stroke-width="2"/>
+    <text x="1110" y="1156" text-anchor="middle" font-size="13" font-weight="700" fill="#166534">≥0.8 자동게시</text>
+    <text x="1110" y="1175" text-anchor="middle" font-size="10" fill="#15803d">reviewStatus=AUTO_PUBLISHED</text>
+    <path d="M 1200 1160 L 1245 1160" stroke="#94a3b8" stroke-width="2" marker-end="url(#arrow)"/>
+
+    <!-- step 6: review queue -->
+    <rect x="1245" y="1130" width="195" height="60" rx="8" fill="#fff" stroke="#94a3b8" stroke-width="2" stroke-dasharray="4,2"/>
+    <text x="1342" y="1156" text-anchor="middle" font-size="13" font-weight="700" fill="#475569">&lt;0.8 검수큐</text>
+    <text x="1342" y="1175" text-anchor="middle" font-size="10" fill="#64748b">관리자 승인 후 게시</text>
+  </g>
+
+  <!-- footer -->
+  <text x="60" y="1250" font-size="10" fill="#94a3b8">v1.4 · 2026-05-14 · made by 동현 · design help by @hanshhx</text>
+  <text x="1440" y="1250" text-anchor="end" font-size="10" fill="#94a3b8">popspot.co.kr</text>
+
+  <!-- 외부 API 그룹 → Spring Boot 점선 표시 (시각적으로 연결됨을 보여줌) -->
+  <line x1="340" y1="373" x2="395" y2="373" stroke="#cbd5e1" stroke-dasharray="2,2"/>
+  <line x1="340" y1="574" x2="395" y2="574" stroke="#cbd5e1" stroke-dasharray="2,2"/>
+  <line x1="340" y1="641" x2="395" y2="641" stroke="#cbd5e1" stroke-dasharray="2,2"/>
+  <line x1="340" y1="708" x2="395" y2="708" stroke="#cbd5e1" stroke-dasharray="2,2"/>
+</svg>

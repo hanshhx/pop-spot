@@ -4,7 +4,6 @@ import com.example.popspotbackend.dto.LoginRequestDto;
 import com.example.popspotbackend.dto.LoginResponseDto;
 import com.example.popspotbackend.dto.SignupRequestDto;
 import com.example.popspotbackend.entity.User;
-import com.example.popspotbackend.repository.UserRepository;
 import com.example.popspotbackend.service.AuthService;
 import com.example.popspotbackend.service.EmailService;
 import jakarta.validation.Valid;
@@ -49,7 +48,6 @@ public class AuthController {
     private final AuthService authService;
     private final EmailService emailService;
     private final StringRedisTemplate redisTemplate;
-    private final UserRepository userRepository;
 
     @PostMapping("/signup")
     public ResponseEntity<String> signup(@Valid @RequestBody SignupRequestDto requestDto) {
@@ -200,9 +198,7 @@ public class AuthController {
     }
 
     private User loadUser(String userId) {
-        return userRepository
-                .findById(userId)
-                .orElseThrow(() -> new RuntimeException("유저를 찾을 수 없습니다."));
+        return authService.findUser(userId);
     }
 
     private Map<String, Object> toUserInfo(User user) {

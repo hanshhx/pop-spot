@@ -16,8 +16,8 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * 동행 모집 게시판 도메인 서비스.
  *
- * <p>{@link com.example.popspotbackend.controller.MateController} 의 비즈니스 로직(확성기 소비 · 정원 검사 ·
- * 자동 마감 · 멤버 admit)을 모아서 라우팅과 분리. 트랜잭션 경계도 이 클래스에서만 정의한다.
+ * <p>{@link com.example.popspotbackend.controller.MateController} 의 비즈니스 로직(확성기 소비 · 정원 검사 · 자동 마감
+ * · 멤버 admit)을 모아서 라우팅과 분리. 트랜잭션 경계도 이 클래스에서만 정의한다.
  */
 @Service
 @RequiredArgsConstructor
@@ -36,6 +36,19 @@ public class MateService {
 
     public List<MateChatMessage> findChatMessages(Long postId) {
         return mateChatMessageRepository.findByMatePostIdOrderBySendTimeAsc(postId);
+    }
+
+    /**
+     * STOMP 채널에서 받은 메시지를 게시글에 묶어 저장.
+     *
+     * @return 영속화된 채팅 메시지 (브로드캐스트 용도)
+     */
+    @Transactional
+    public MateChatMessage persistChatMessage(Long postId, MateChatMessage message) {
+        MatePost post = findPostOrThrow(postId);
+        message.setMatePost(post);
+        message.setSendTime(java.time.LocalDateTime.now());
+        return mateChatMessageRepository.save(message);
     }
 
     /**

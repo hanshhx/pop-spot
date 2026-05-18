@@ -1,11 +1,14 @@
 package com.example.popspotbackend.service;
 
+import com.example.popspotbackend.entity.MatePost;
 import com.example.popspotbackend.entity.PopupStore;
 import com.example.popspotbackend.entity.User;
+import com.example.popspotbackend.exception.ResourceNotFoundException;
 import com.example.popspotbackend.repository.MatePostRepository;
 import com.example.popspotbackend.repository.PopupStoreRepository;
 import com.example.popspotbackend.repository.UserRepository;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -33,6 +36,22 @@ public class AdminService {
     private final MatePostRepository matePostRepository;
 
     /* ============================== 팝업 승인 / 상태 변경 ============================== */
+
+    @Transactional(readOnly = true)
+    public List<PopupStore> findPendingPopups() {
+        return popupStoreRepository.findByStatus(STATUS_PENDING);
+    }
+
+    /** 관리자는 PENDING / 영업중 / 종료 구분 없이 모든 팝업을 본다. */
+    @Transactional(readOnly = true)
+    public List<PopupStore> findAllPopups() {
+        return popupStoreRepository.findAll();
+    }
+
+    @Transactional(readOnly = true)
+    public List<MatePost> findAllMatePostsOrdered() {
+        return matePostRepository.findAllByOrderByIsMegaphoneDescCreatedAtDesc();
+    }
 
     /** 제보된 팝업 승인 — 상태를 "영업중" 으로 바꾸고 신고자에게 확성기 1개를 보상으로 지급. */
     @Transactional
@@ -96,7 +115,7 @@ public class AdminService {
     private PopupStore findPopupOrThrow(Long popupId) {
         return popupStoreRepository
                 .findById(popupId)
-                .orElseThrow(() -> new RuntimeException("존재하지 않는 팝업입니다."));
+                .orElseThrow(() -> ResourceNotFoundException.popup(popupId));
     }
 
     private void rewardReporterIfPresent(PopupStore popup) {

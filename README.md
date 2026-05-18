@@ -246,6 +246,10 @@
 
 ### v1.0 — 첫 배포
 
+> **상황** — 학부 캡스톤 과제로 시작. "가입 → 로그인 → 팝업 조회" 흐름만 돌면 충분했던 시기.
+> **그래서 이렇게 만들었다** — GCP Compute Engine 위에 모놀리식 Spring Boot 한 덩어리, DB 는 정적 데이터 안정성 보고 Oracle 선택, 시크릿은 빠르게 돌리려고 `application.properties` 에 평문, CORS 는 로컬 개발 편의로 `*` 전부 허용, JWT 시크릿은 임시값 `"default_secret"`.
+> **나중에 후회한 것** — 이 모든 결정이 v1.1 에서 한 번에 부메랑으로 돌아옴. 시크릿은 GitHub 시크릿 스캐너에 잡혀 노출, Oracle 은 채팅 메시지 저장에서 ID NULL 에러 (`ORA-01400`), 보안 감사에서 OWASP Top 10 거의 다 위배.
+
 <table align="center">
   <tr>
     <td align="center" width="110">
@@ -285,7 +289,21 @@
 
 ### v1.1 — 보안 정비 + AI 교체
 
-> OWASP Top 10 정비. 실시간 채팅 ID 생성에서 Oracle 시퀀스 사고(`ORA-01400`) 터져서 PostgreSQL `IDENTITY` 로 이전. AI 한도 부족해 Groq 으로 갈아탔다.
+> **본격 운영 직전, v1.0 의 빚을 한 번에 갚은 단계.**
+>
+> **보안 정비 (OWASP Top 10 기준)**
+> - 모든 시크릿을 환경변수 `${ENV:}` 로 빼고 **누락 시 부팅 실패**로 강제 (실수로 빠뜨려도 운영 사고 X)
+> - JWT 시크릿에 **32 바이트 이상 강제 검증** — HS256 의 보안 강도는 키 길이 비례, 짧은 키는 brute-force 로 토큰 위조 가능
+> - CORS `*` → **패턴 화이트리스트**, 알 수 없는 도메인의 prefllight 차단
+> - BCrypt strength **10 → 12** (해싱 비용 4배 = brute-force 비용 4배, 사용자 체감 ms 영향은 무시 가능)
+> - Rate Limit (Bucket4j) 도입 — **로그인 5/min, 이메일 5/h** 로 무차별 시도 차단
+> - 결제 검증을 **클라 검증만 → 서버가 PortOne API 직접 조회** 로 (이전엔 사용자가 결제창 닫고 가짜 응답 만들어 보낼 수 있었음)
+>
+> **DB 이전 — Oracle → PostgreSQL**
+> 채팅 메시지 저장할 때 Oracle 이 자동으로 ID 안 만들어줘서 SEQUENCE 수동 설정. 한 번 빠뜨려서 `ORA-01400` (NULL ID) 사고 → PostgreSQL `IDENTITY` 는 ID 자동 생성이라 SEQUENCE 코드 자체가 사라짐. 스탬프(Stamp) 기능 새로 만들 때 깨끗하게 IDENTITY 로 시작.
+>
+> **AI 이전 — Gemini → Groq llama-3.3-70b**
+> Gemini Free 한도가 RPM 10 / RPD 1,500. 자동수집 (60 키워드 × 2.2초 간격 LLM 호출) 한 번 돌리면 거의 다 씀. 게다가 키가 GitHub 채팅에 노출되니 Google 시크릿 스캐너가 quota 를 0 으로 강제 변경 — 같은 프로젝트의 새 키도 다 죽음. Groq 는 **RPM 30 / RPD 14,400** 로 자동수집 + 코스 추천 동시에 여유, 비용 0.
 
 <table align="center">
   <tr>
@@ -377,7 +395,13 @@
 
 ### v1.2 — 집서버 이전 + nginx 제거
 
-> GCP 무료 크레딧이 5/28 만료. 친구 NAS 빌려서 옮겼다. 옮기면서 nginx 도 같이 뺐다.
+> **왜 옮겼나** — GCP Free Tier 가 2026-05-28 에 만료 예정. 사이드 프로젝트라 유료 결제 부담 + 마침 친구가 시놀로지 NAS 를 빌려줌. **친구 NAS → Proxmox VE → Ubuntu VM** 안에 옮김. 월 0원.
+>
+> **왜 Tailscale Funnel 로 갔나** — GCP 에선 nginx + Let's Encrypt(certbot) 로 HTTPS 처리했음. 친구 NAS 환경에선 친구 공유기 포트 포워딩을 건드리고 싶지 않았고, certbot 갱신 세팅도 부담. Tailscale Funnel 은 `sudo tailscale funnel --bg 8080` **한 줄로 인증서 발급 + 자동 갱신 + 외부 노출** 다 해결. 셋업 30분 짜리가 5초로 끝남.
+>
+> **왜 Docker 안 썼나** — 시놀로지 DSM 의 Container Manager (Docker Compose) 가 옵션이었지만, 백엔드 1개 + DB 1개 짜리 시스템에 컨테이너 격리는 과잉. `bash start.sh + nohup` 으로 GCP 시절 방식 그대로 — `tail -f nohup.out` 한 줄로 로그 확인, `bash start.sh` 한 줄로 재시작. 디버깅이 압도적으로 단순.
+>
+> **결과** — 호스팅 비용 0원 / 외부 노출 5초 셋업 / 운영 환경 GCP 시절과 99% 동일 (재학습 비용 0).
 
 <table align="center">
   <tr>
@@ -451,8 +475,28 @@
 
 ### v1.3 — 음악·자동수집·등급
 
-> 결제(상점) 폐기 → 음악으로 코어 가치 교체. 동시에 자동수집 V4 + 등급 시스템 투입.
-> 인프라는 v1.2 와 동일, 서비스 레이어만 두꺼워졌다.
+> **프로젝트 인생에서 가장 큰 방향 전환.** 결제 페이지 (POP-PASS 멤버십 + 메이트 확성기) 통째 폐기 → 음악 매칭을 코어 가치로.
+>
+> **왜 결제를 폐기했나**
+> - 사이드 프로젝트 단계에서 결제는 **운영 책임 (환불 처리 · 세금계산서 · 소비자보호법)** 이 너무 크다
+> - 사용자가 팝업 정보 보러 왔는데 결제창이 뜨는 것 자체가 가치 제안과 어긋남
+> - 포트폴리오에서 "왜 굳이 결제?" 질문 받았을 때 답이 약했음
+>
+> **왜 음악이었나** — "오늘 어떤 팝업에 갈지" 정할 때 듣고 있는 노래가 가장 강한 입력값. 매일 자연스럽게 하는 행동이라 진입 장벽 0. 다른 팝업 정보 앱에 없는 차별점.
+>
+> **음악 검색 — Spotify 5단계 한국어 폴백**
+> Spotify Web API 가 메인. "아이유 좋은날" 같은 한국어 검색이 잘 안 잡혀서 Groq 가 영문 표기로 변환 ("IU good day") 후 재시도. 5단계 (한글 그대로 → 영문 변환 → 아티스트만 → 곡명만 → YouTube 폴백) 폴백 체인.
+>
+> **음악 재생 — YouTube IFrame**
+> Spotify Preview 는 30초만 들려줌. 풀 재생은 Premium API 가 필요한데 개인 개발자는 못 씀. **YouTube IFrame 으로 풀곡 재생**, 약관 III.E.4.b 에 따라 영상 화면을 보이게 노출 (오디오 분리 사용 X). quota 10,000/day 짜리라 한 번 매칭된 영상 ID 는 **영구 캐시**해서 재호출 0.
+>
+> **무드 매칭 — Groq 가 40 화이트리스트 안에서만**
+> AI 가 자유 응답하면 "여름밤" / "한여름밤" / "여름의 밤" 같은 변형이 무한 → 매칭이 비결정적. **40 개 고정 키워드 안에서 정확히 5개 고르도록 강제** → 결정적 매칭. 키워드 1개 = 30점, 카테고리 보너스 더해서 상위 5개 팝업 반환. 외부 API 호출 0회, DB 만 사용.
+>
+> **자동수집 V4 — 매일 새벽 4시**
+> 60 키워드 × (Naver 블로그·뉴스 + Kakao 웹·블로그 각 30건) × 800ms rate limit. Groq 가 검색 API 가 주는 title/desc/link 만 보고 구조화 (본문 직접 크롤링은 저작권법 위배). **confidence ≥ 0.8 자동 게시, 미만은 admin 검수**. 풀크롤 ~5분, 사용자 트래픽 시간대 완전 회피.
+>
+> **등급 시스템** — 결제 보상 (확성기) 사라진 자리를 채움. BEGINNER (3 스탬프) / HUNTER (6) / MASTER (12). 진행도 표시 + 색상 ring.
 
 <table align="center">
   <tr>
@@ -555,7 +599,30 @@
 
 ### v1.4 — 백엔드 Clean Code 정리
 
-> 외부 동작은 100% 동일. 내부 코드만 7 Wave 에 걸쳐 갈았다. 회귀 테스트로 동등성 검증.
+> **기능은 그대로 두고 코드 품질만 정리한 단계. 외부 동작 (API 응답·DB 스키마·Redis 키) 100% 동일.**
+>
+> **왜 했나** — 기능 빨리 만들다 보니 코드에 다음 같은 빚이 쌓여 있었다:
+> - `import jakarta.persistence.*` 같은 와일드카드 import 가 JPA `@Table` vs Spring Data `@Table` 같은 잘못 import 사고를 가림
+> - `// 🔥 [13번 임의 수정] 닉네임 빈칸 가입 방지` 같은 작업 흔적이 코드 곳곳에 박혀 있어서 다른 사람이 보면 진입 장벽
+> - `setInterval(fetch, 3000)`, `BCrypt strength = 12` 같은 매직 넘버가 5군데 6군데 흩어져 있어서 정책 변경 시 사고 위험
+> - `processOrder()` 가 130 줄 짜리라 결제 검증 + 위변조 방어 + 환불을 한 함수에 — 한 부분 고치다 다른 곳 깨질 위험
+>
+> **어떻게 했나** — 7 Wave 로 영역을 끊어서 진행. 한 PR 에 48 파일은 review 불가능이라 영역별로 1 PR.
+>
+> **7 Wave 단위**
+> 1. `build.gradle` — Spotless 플러그인 (`googleJavaFormat('1.17.0').aosp()`) 활성화. 이후 모든 파일이 자동 포맷
+> 2. 음악 서비스 7 파일 (SpotifySearch, MusicQueryNormalization 등)
+> 3. 자동수집 크롤러 8 파일 (Orchestrator, Normalization, Naver/Kakao 등)
+> 4. Controller 25 파일 — 와일드카드 import 제거, ResponseEntity 일관성
+> 5. 일반 Service 16 파일 — `processOrder()` 130줄 → 7단계 분해, `runOnce()` → 6단계
+> 6. Entity 핵심 6 (User, PopupStore, MatePost, Stamp, Orders, MyCourse)
+> 7. Config / Exception 9 (Security, JWT Filter, WebSocket, RateLimit 등)
+>
+> **공통 원칙** — 와일드카드 import 전면 제거 / 인라인 한국어 코멘트 제거 (JavaDoc 만 유지) / 매직 넘버 `static final` 상수화 / `System.out.println` → SLF4J / 50줄+ 메서드 분해 / 운영 로그·코드에서 이모지 제거.
+>
+> **보강 작업** — 7 Wave 가 비킨 DTO 폴더 15개 + 잔여 엔티티 7개 도 같은 원칙으로 추가 정리.
+>
+> **결과** — 48 + 22 (보강) = 70 파일, 약 3,700 라인 변경. **API 응답·DB 스키마·Redis 키 모두 동일**. Spotless 자동 포맷 + 컴파일 통과로 회귀 위험 0.
 
 <table align="center">
   <tr>
@@ -632,7 +699,27 @@
 
 ### v1.5 — 프론트엔드 Clean Code 정리
 
-> v1.4 와 같은 원칙을 프론트에 적용. 7 Wave 중 위험도 낮은 5 Wave (1·2·3·4·7) 만 우선 적용. 인프라는 v1.2 와 동일.
+> **백엔드 v1.4 가 끝나니 프론트가 그대로 방치된 게 더 거슬려서 같은 작업.** 7 Wave 중 위험도 낮은 5 Wave (1·2·3·4·7) 만 우선 적용. 인프라 동일.
+>
+> **Wave 1 — 작업 흔적 84건 일괄 제거 (21 파일)**
+> `// 🔥 [수정] apiFetch 사용`, `// 🔥 [13번 임의 수정] 닉네임 빈칸 가입 방지`, `{/* 🟢 [수정 핵심] Portal 사용 */}` 같은 코드 곳곳의 마커 84건. git 히스토리에 있는 정보를 코드 안에 박아두면 노이즈만 됨. sed 일괄 변환 + 잔존 5건 수동 정리. UI 텍스트의 의도된 이모지 1건 (`"🔥 확성기로 등록하기"`) 만 유지.
+>
+> **Wave 2 — `any` 타입 17건 → SDK 경계 1건**
+> 가장 임팩트 큰 작업. `any` 는 컴파일러 안전망 무효화 — 잠재 버그가 빌드를 통과하고 런타임에 터짐. 도메인 타입 (`User`, `PopupStore`, `CongestionData`, `YouTubePlayer` 등) 으로 좁힘. 외부 SDK (Kakao Maps · YouTube IFrame) 는 `src/types/sdk.ts` 한 곳에 모아 `eslint-disable` + 사유 코멘트로 격리. **이 작업이 실제로 잠재 버그 1건 발견** (v1.5.1 참조).
+>
+> **Wave 3 — API 호출 일원화**
+> `app/login/page.tsx:89` 의 `const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080"` 같은 인라인 폴백 제거. `src/lib/api.ts` 의 `API_BASE_URL` 이 이미 같은 폴백 로직을 가지고 있는데 여기서 또 중복. 한 군데서 환경변수 이름 바꾸면 다른 곳이 조용히 옛 값을 따라가던 위험 제거.
+>
+> **Wave 4 — 매직 넘버 명명 상수화 (8건)**
+> `setInterval(fetchMetrics, 3000)` 의 `3000` 이 왜 3초인지 코드만 보면 모름. 다음 사람이 "100ms 로 더 빠르게" 라고 무심코 바꾸면 백엔드 부하. `const SERVER_METRICS_POLL_INTERVAL_MS = 3000` 으로 의도 + 단위 명시. `AUTH_SUCCESS_REDIRECT_MS`, `TICKETING_POLL_INTERVAL_MS`, `COUNTDOWN_TICK_MS` 등.
+>
+> **Wave 7 — ESLint disable 사유 명시 + 진짜 위험 1건 정공법 해결**
+> 8건 모두 사유 코멘트 추가 — `// Spotify/iTunes CDN 이미지 — next/image 도메인 화이트리스트 대신 <img> 사용` 식. 그 중 `intro/page.tsx` 의 `react-hooks/exhaustive-deps` disable 은 진짜 stale closure 위험이었음 → 핸들러 로직 인라인 + deps 정리로 정공법 해결.
+>
+> **의도적으로 미룬 것 — Wave 5·6**
+> 거대 컴포넌트 분해 (`app/page.tsx` 1,289 라인 / useState 22개) + Tailwind variant 추출 (200자+ className 60군데) 은 회귀 검출 수단 (E2E 테스트) 이 없어 deferred. 한 번에 다 하면 review 불가능 + 회귀 검출 0. E2E 스모크 셋업 후 1 파일 = 1 PR 로 진행 예정.
+>
+> **결과** — 40 파일 · 약 ±230 라인 변경 (대부분 삭제). 외부 동작 · API 호출 · WebSocket 메시지 형식 모두 동일.
 
 <table align="center">
   <tr>
@@ -696,8 +783,24 @@
 
 ### v1.5.1 — 빌드 검증 + 핫픽스
 
-> v1.5 의 Wave 2 가 `any` 를 도메인 타입으로 좁히면서 **숨어 있던 타입 불일치 16건**이 빌드 단계에서 드러남.
-> 모두 외부 동작 변화 0건으로 수정. 클린코드 원칙 100% 유지.
+> **v1.5 의 Wave 2 가 진짜 가치를 보여준 단계.** `any` → 도메인 타입 좁히기가 끝나자마자 TypeScript 컴파일러가 그동안 가려져 있던 **타입 불일치 16건**을 한꺼번에 토해냄. 즉, **컴파일러가 잠재 버그를 미리 잡아준 것** — Wave 2 가 없었으면 사용자 화면에서 런타임 에러로 터졌을 케이스들.
+>
+> **가장 큰 발견 — `?userId=undefined` 잠재 버그**
+> `const targetUserId = user.userId || user.id` 가 둘 다 옵셔널이라 결과 타입이 `string | undefined`. 이전엔 `user: any` 였어서 컴파일러가 안 잡았는데, 도메인 타입 (`User`) 으로 좁히니 빌드 단계에서 발견. 둘 다 undefined 면 백엔드에 `POST /api/mates/{id}/join?userId=undefined` 같은 요청이 갔을 거. **early-return + notify 가드로 차단**. → "v1.5 의 Wave 2 자체가 회귀 테스트보다 더 안정적인 안전망" 이라는 걸 입증.
+>
+> **다른 6가지 패턴 — 모두 외부 동작 변화 0건으로 수정**
+> 1. **이름 충돌** — lucide-react 의 `User` 아이콘 ↔ 도메인 `User` 타입이 같은 식별자라 빌드 실패. `User as UserIcon` / `User as DomainUser` alias 로 의도를 명시
+> 2. **null 가드** — `app/page.tsx` 의 `user` 가 `User | null` 인데 MateBoard 가 non-null 요구. JSX 에서 `{user && <MateBoard user={user} />}` 가드. 컴포넌트 내부 invariant ("user 는 반드시 있다") 가 깔끔해짐
+> 3. **도메인 타입 필드 보강** — `User.id/megaphoneCount`, `PopupStore.reporterId/description/imageUrl`, `CongestionData.areaName/forecasts` 등 추가 (모두 optional + JavaDoc 으로 "어떤 백엔드 케이스에서 들어오는지" 명시)
+> 4. **인덱스 시그니처 제거** — `AdminStats` 의 `[key: string]: unknown` 이 "모름의 표현" 으로 안전망인 줄 알았는데, JSX 에서 `{stats.activePopups}` 렌더할 때 `unknown → ReactNode` 변환 거부. 실제 사용 필드만 명시하니 컴파일러가 백엔드 응답 변경을 잡아주는 안전망으로 바뀜
+> 5. **Recharts formatter 시그니처 정정** — `(value: number | string) => ...` 로 좁혔는데 라이브러리는 `ValueType | undefined`. 시그니처 inferred 로 풀고 내부에서 `typeof === 'number'` 분기. 이전엔 `value.toLocaleString()` 이 string 케이스에서 런타임 TypeError 였을 가능성
+> 6. **error 가드** — `catch (error: any) { error.message }` 가 throw 된 게 Error 인스턴스가 아닐 때 `undefined` 찍히던 거. `catch (error) { error instanceof Error ? ... : String(error) }` 패턴으로 통일
+>
+> **트러블슈팅 — 샌드박스 mount 캐시 버그**
+> 본 작업 중 Windows ↔ Linux mount 사이 cache coherency 버그로 일부 파일 끝에 NULL byte (`\x00`) 가 패딩되거나 캐시된 옛 view 가 보이는 사고. `xxd` 로 NULL trail 검사 후 `truncate`, 손상 부분은 Edit tool 로 재작성. admin/page.tsx 의 중복 닫는 태그 6줄은 사용자 PC 의 `npm run typecheck` 가 잡아내서 정리.
+>
+> **클린코드 원칙 — 100% 유지 확인**
+> 패치 7개 모두 외부 동작 변화 0건. 와일드카드 import 0 · 인라인 한국어 코멘트 0 · `System.out` 0 · `console.log` 디버그 0 · `any` 0 (SDK 경계 1 제외) · 편집 흔적 0 (UI 의도 1 제외).
 
 <table align="center">
   <tr>
