@@ -49,6 +49,18 @@ public class GlobalExceptionHandler {
         return body(HttpStatus.FORBIDDEN, "Forbidden", MESSAGE_FORBIDDEN);
     }
 
+    /**
+     * 도메인 리소스(User · PopupStore · MatePost 등)를 못 찾았을 때. 404 로 변환.
+     *
+     * <p>{@code RuntimeException("유저 없음")} 패턴을 {@link ResourceNotFoundException} 으로 격상한 결과 — 잘못된 ID 요청
+     * 시 일관된 404 응답을 보장하고, 운영 로그 노이즈를 줄인다.
+     */
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleNotFound(ResourceNotFoundException ex) {
+        log.debug("ResourceNotFound: {}", ex.getMessage());
+        return body(HttpStatus.NOT_FOUND, "Not Found", ex.getMessage());
+    }
+
     /** 위변조 결제 등 보안 정책 위반. */
     @ExceptionHandler(SecurityException.class)
     public ResponseEntity<Map<String, Object>> handleSecurity(SecurityException ex) {
