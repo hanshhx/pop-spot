@@ -55,72 +55,164 @@ const FEATURES = [
 ];
 
 /**
- * 폴라로이드 스타일 카드 — HM Group 의 사진 콜라주 + Greencar 의 회전된 사진 배치를 흉내.
- * 실제 사진 자산이 없어 그라데이션 + 카테고리 라벨로 대체. 살짝 회전해 손으로 흩뿌린 느낌.
+ * 폴라로이드 스타일 카드 — 메인 페이지의 팝업 카드 미니 프리뷰. 실제 팝업 브랜드명을 라벨로 사용.
+ * 회전 + 그림자로 손으로 흩뿌린 콜라주 느낌. 그라데이션은 사진 자리 placeholder.
  */
 const HERO_POLAROIDS: Array<{
-  label: string;
+  name: string;
+  location: string;
   gradient: string;
   rotate: string;
   position: string;
 }> = [
   {
-    label: "성수동 카페",
-    gradient: "from-hot-400/80 to-hot-300/60",
+    name: "젠틀몬스터",
+    location: "성수동 · 카페",
+    gradient: "from-hot-400/80 to-hot-300/50",
     rotate: "-rotate-6",
-    position: "left-[5%] top-[12%]",
+    position: "left-[4%] top-[10%]",
   },
   {
-    label: "한남 패션",
-    gradient: "from-lime-300/80 to-lime-200/50",
+    name: "마뗑킴",
+    location: "한남 · 패션",
+    gradient: "from-lime-300/80 to-lime-200/40",
     rotate: "rotate-3",
-    position: "right-[8%] top-[18%]",
+    position: "right-[6%] top-[14%]",
   },
   {
-    label: "압구정 캐릭터",
-    gradient: "from-blue-400/70 to-violet-300/50",
-    rotate: "-rotate-3",
-    position: "left-[10%] bottom-[10%]",
-  },
-  {
-    label: "코엑스 굿즈",
+    name: "포켓몬스터",
+    location: "압구정 · 캐릭터",
     gradient: "from-amber-300/80 to-hot-300/40",
+    rotate: "-rotate-3",
+    position: "left-[8%] bottom-[12%]",
+  },
+  {
+    name: "디스이즈네버댓",
+    location: "성수 · 굿즈",
+    gradient: "from-ink-700/70 to-ink-500/40",
     rotate: "rotate-6",
-    position: "right-[6%] bottom-[14%]",
+    position: "right-[5%] bottom-[16%]",
   },
 ];
 
-/**
- * 플로팅 태그 — 폴라로이드 사이 빈 공간을 채우는 작은 라벨들.
- * Greencar 식 "흩어진 요소" 패턴으로 허전함 해소.
- */
-const HERO_FLOATING_TAGS: Array<{ label: string; position: string; rotate: string; delay: number }> = [
-  { label: "#오늘오픈", position: "left-[28%] top-[8%]", rotate: "-rotate-3", delay: 0.9 },
-  { label: "#마감임박", position: "right-[26%] top-[10%]", rotate: "rotate-2", delay: 1.0 },
-  { label: "#신상팝업", position: "left-[24%] bottom-[8%]", rotate: "rotate-4", delay: 1.1 },
-  { label: "#위클리픽", position: "right-[28%] bottom-[6%]", rotate: "-rotate-2", delay: 1.2 },
-];
+type FeaturePreview = "calendar" | "map" | "ranking";
 
-const BIG_FEATURES = [
+const BIG_FEATURES: Array<{
+  Icon: typeof Calendar;
+  title: string;
+  desc: string;
+  accent: string;
+  preview: FeaturePreview;
+}> = [
   {
     Icon: Calendar,
     title: "팝업 캘린더",
     desc: "이번 달, 다음 달 팝업을 한 화면에 펼쳐놨어요. 가고 싶은 거 미리 찜해두면 돼요.",
-    accent: "text-lime-300",
+    accent: "text-lime-500 dark:text-lime-300",
+    preview: "calendar",
   },
   {
     Icon: MapIcon,
     title: "지도",
     desc: "성수·한남·압구정 — 핀 찍힌 곳 클릭하면 길찾기까지 바로 연결돼요.",
-    accent: "text-cream-100",
+    accent: "text-ink-900 dark:text-cream-100",
+    preview: "map",
   },
   {
     Icon: Crown,
     title: "랭킹",
     desc: "지금 사람들이 많이 보는 팝업 순위. 뭐가 뜨고 있는지 궁금할 때.",
-    accent: "text-hot-400",
+    accent: "text-hot-500 dark:text-hot-400",
+    preview: "ranking",
   },
 ];
+
+/** 미니 캘린더 그리드 — 6주 × 7일 도트. 일부 날짜에 컬러 도트로 "팝업 예정" 표시. */
+function MiniCalendarPreview() {
+  const eventDays = new Set([3, 7, 8, 14, 17, 22, 23, 28]);
+  return (
+    <div className="grid grid-cols-7 gap-1.5">
+      {Array.from({ length: 28 }, (_, i) => {
+        const day = i + 1;
+        const isEvent = eventDays.has(day);
+        return (
+          <div
+            key={day}
+            className={`aspect-square rounded-sm ${
+              isEvent
+                ? "bg-lime-500 dark:bg-lime-300"
+                : "bg-ink-900/8 dark:bg-white/8"
+            }`}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
+/** 미니 지도 프리뷰 — SVG 격자 위에 핀 5개. */
+function MiniMapPreview() {
+  const pins = [
+    { x: 25, y: 30 },
+    { x: 50, y: 20 },
+    { x: 70, y: 45 },
+    { x: 35, y: 65 },
+    { x: 80, y: 75 },
+  ];
+  return (
+    <svg viewBox="0 0 100 90" className="w-full">
+      {/* 격자 배경 */}
+      <defs>
+        <pattern id="grid-light" width="10" height="10" patternUnits="userSpaceOnUse">
+          <path d="M 10 0 L 0 0 0 10" fill="none" stroke="currentColor" strokeOpacity="0.08" strokeWidth="0.5" />
+        </pattern>
+      </defs>
+      <rect width="100" height="90" fill="url(#grid-light)" className="text-ink-900 dark:text-white" />
+      {/* 핀들 */}
+      {pins.map((pin, i) => (
+        <g key={i}>
+          <circle cx={pin.x} cy={pin.y} r="3" className="fill-hot-500 dark:fill-hot-400" />
+          <circle cx={pin.x} cy={pin.y} r="6" className="fill-hot-500/20 dark:fill-hot-400/20" />
+        </g>
+      ))}
+    </svg>
+  );
+}
+
+/** 미니 랭킹 프리뷰 — TOP 3 행. */
+function MiniRankingPreview() {
+  const items = [
+    { rank: 1, name: "젠틀몬스터", view: "4.2k" },
+    { rank: 2, name: "마뗑킴", view: "3.1k" },
+    { rank: 3, name: "디스이즈네버댓", view: "2.8k" },
+  ];
+  return (
+    <div className="space-y-2">
+      {items.map((item) => (
+        <div
+          key={item.rank}
+          className="flex items-center gap-3 rounded-md bg-ink-900/5 px-3 py-2 dark:bg-white/8"
+        >
+          <span
+            className={`text-xs font-black ${
+              item.rank === 1
+                ? "text-hot-500 dark:text-hot-400"
+                : "text-ink-900/40 dark:text-white/40"
+            }`}
+          >
+            {item.rank}
+          </span>
+          <span className="flex-1 text-xs font-medium text-ink-900 dark:text-cream-100">
+            {item.name}
+          </span>
+          <span className="text-[10px] text-ink-700/50 dark:text-cream-100/50">
+            {item.view}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 const UNIQUE_POINTS = [
   {
@@ -318,36 +410,26 @@ export default function IntroPage() {
             </span>
           </motion.div>
 
-          {/* 회전된 폴라로이드 카드 콜라주 (HM Group + Greencar 풍) — 양쪽 모드 모두 노출. */}
+          {/* 폴라로이드 카드 콜라주 — 실제 팝업 브랜드 미니 프리뷰. 양쪽 모드 모두 노출. */}
           <div className="pointer-events-none absolute inset-0 hidden sm:block">
             {HERO_POLAROIDS.map((card, idx) => (
               <motion.div
-                key={card.label}
-                initial={{ opacity: 0, y: 30, rotate: 0 }}
+                key={card.name}
+                initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.8, delay: 0.6 + idx * 0.15 }}
                 className={`absolute ${card.position} ${card.rotate} w-32 rounded-md bg-white p-2 shadow-xl shadow-ink-900/15 ring-1 ring-ink-900/10 dark:bg-ink-800 dark:shadow-black/40 dark:ring-white/15 md:w-40`}
               >
-                <div className={`aspect-[3/4] rounded-sm bg-gradient-to-br ${card.gradient}`} />
-                <div className="mt-2 px-1 pb-1 text-[10px] font-medium text-ink-900/70 dark:text-cream-100/80 md:text-xs">
-                  {card.label}
+                <div className={`aspect-[4/5] rounded-sm bg-gradient-to-br ${card.gradient}`} />
+                <div className="mt-2 px-1 pb-1">
+                  <div className="text-[11px] font-bold text-ink-900 dark:text-cream-100 md:text-xs">
+                    {card.name}
+                  </div>
+                  <div className="mt-0.5 text-[9px] text-ink-700/60 dark:text-cream-100/55 md:text-[10px]">
+                    {card.location}
+                  </div>
                 </div>
               </motion.div>
-            ))}
-          </div>
-
-          {/* 플로팅 태그 — 폴라로이드 사이 빈 공간을 채우는 작은 라벨. Greencar 식 흩어진 요소. */}
-          <div className="pointer-events-none absolute inset-0 hidden sm:block">
-            {HERO_FLOATING_TAGS.map((tag) => (
-              <motion.span
-                key={tag.label}
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.5, delay: tag.delay }}
-                className={`absolute ${tag.position} ${tag.rotate} inline-flex items-center rounded-full bg-ink-900 px-3 py-1 text-[11px] font-medium text-cream-100 shadow-md ring-1 ring-ink-900/20 dark:bg-cream-100 dark:text-ink-900 dark:ring-white/30 md:text-xs`}
-              >
-                {tag.label}
-              </motion.span>
             ))}
           </div>
 
@@ -535,7 +617,7 @@ export default function IntroPage() {
               </p>
             </motion.div>
 
-            {/* Bento 레이아웃 — 첫 번째 카드가 가로로 길게, 나머지 둘이 옆에 작게. 모든 카드 동일 크기를 깨서 AI 티 ↓ */}
+            {/* 3 카드 — 메인 페이지 위젯의 미니 프리뷰. 카드 안에 실제 UI 축소판. */}
             <div className="mt-12 grid grid-cols-1 gap-4 sm:mt-16 sm:grid-cols-3 sm:gap-5">
               {BIG_FEATURES.map((f, i) => (
                 <motion.div
@@ -546,9 +628,20 @@ export default function IntroPage() {
                   transition={{ duration: 0.6, delay: i * 0.15 }}
                   className="rounded-2xl bg-white dark:bg-ink-900/60 p-6 ring-1 ring-ink-900/10 dark:ring-white/10 transition hover:-translate-y-1 hover:ring-ink-900/20 dark:hover:ring-white/20"
                 >
-                  <f.Icon className={`h-7 w-7 ${f.accent}`} strokeWidth={2.2} />
+                  <div className="flex items-center justify-between">
+                    <f.Icon className={`h-7 w-7 ${f.accent}`} strokeWidth={2.2} />
+                    <span className="text-[10px] font-mono uppercase tracking-wider text-ink-700/40 dark:text-cream-100/40">
+                      0{i + 1}
+                    </span>
+                  </div>
                   <h3 className="mt-5 text-xl font-bold tracking-tight text-ink-900 dark:text-white">{f.title}</h3>
                   <p className="mt-2 text-sm leading-relaxed text-ink-700/75 dark:text-cream-100/75">{f.desc}</p>
+                  {/* 미니 위젯 프리뷰 — 카드 하단에 메인 페이지 UI 축소판 */}
+                  <div className="mt-5">
+                    {f.preview === "calendar" && <MiniCalendarPreview />}
+                    {f.preview === "map" && <MiniMapPreview />}
+                    {f.preview === "ranking" && <MiniRankingPreview />}
+                  </div>
                 </motion.div>
               ))}
             </div>
@@ -592,12 +685,36 @@ export default function IntroPage() {
                   whileInView={{ opacity: 1, x: 0 }}
                   viewport={{ once: false, amount: 0.3 }}
                   transition={{ duration: 0.6, delay: i * 0.1 }}
-                  className="flex gap-4 rounded-2xl bg-white dark:bg-ink-900/60 p-6 ring-1 ring-ink-900/10 dark:ring-white/10 transition hover:ring-ink-900/20 dark:ring-white/20"
+                  className="group relative overflow-hidden rounded-2xl bg-white dark:bg-ink-900/60 p-6 ring-1 ring-ink-900/10 dark:ring-white/10 transition hover:ring-ink-900/20 dark:hover:ring-white/20"
                 >
-                  <p.Icon className="h-7 w-7 shrink-0 text-hot-400" strokeWidth={2.2} />
-                  <div>
-                    <h3 className="text-lg font-bold text-ink-900 dark:text-white">{p.title}</h3>
-                    <p className="mt-1 text-sm leading-relaxed text-ink-700/75 dark:text-cream-100/75">{p.desc}</p>
+                  {/* 좌측 컬러 액센트 바 — 카드마다 다른 색 */}
+                  <div
+                    className={`absolute left-0 top-0 h-full w-1 ${
+                      ["bg-lime-300", "bg-hot-400", "bg-amber-300", "bg-blue-400"][i % 4]
+                    }`}
+                  />
+                  <div className="flex items-start gap-4">
+                    <div
+                      className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${
+                        ["bg-lime-300/10", "bg-hot-400/10", "bg-amber-300/10", "bg-blue-400/10"][i % 4]
+                      }`}
+                    >
+                      <p.Icon
+                        className={`h-6 w-6 ${
+                          ["text-lime-600 dark:text-lime-300", "text-hot-500 dark:text-hot-400", "text-amber-600 dark:text-amber-300", "text-blue-500 dark:text-blue-300"][i % 4]
+                        }`}
+                        strokeWidth={2.2}
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-lg font-bold text-ink-900 dark:text-white">{p.title}</h3>
+                        <span className="text-[10px] font-mono uppercase tracking-wider text-ink-700/40 dark:text-cream-100/40">
+                          0{i + 1}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-sm leading-relaxed text-ink-700/75 dark:text-cream-100/75">{p.desc}</p>
+                    </div>
                   </div>
                 </motion.div>
               ))}
@@ -605,14 +722,11 @@ export default function IntroPage() {
           </div>
         </section>
 
-        {/* =================================================================== */}
-        {/* SECTION 5 — Final CTA (핫핑크 틴트, 영상은 살짝 비치게)                 */}
-        {/* =================================================================== */}
+        {/* SECTION 5 — Final CTA */}
         <section
           className="relative flex min-h-screen w-full items-center justify-center overflow-hidden px-6"
           style={{ scrollSnapAlign: "start" }}
         >
-          {/* 핫핑크 틴트 오버레이 — 영상이 약간 비치도록 */}
           <div className="pointer-events-none absolute inset-0 bg-hot-500/55" />
           <div
             className="pointer-events-none absolute inset-0 opacity-15"
@@ -621,7 +735,6 @@ export default function IntroPage() {
               backgroundSize: "32px 32px",
             }}
           />
-
           <motion.div
             initial={{ opacity: 0, y: 40 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -629,17 +742,15 @@ export default function IntroPage() {
             transition={{ duration: 0.8 }}
             className="relative z-10 mx-auto max-w-3xl text-center text-white"
           >
-            <Clock className="mx-auto h-12 w-12 text-ink-900 dark:text-white/95 drop-shadow-lg" strokeWidth={1.8} />
-
+            <Clock className="mx-auto h-12 w-12 text-white/95 drop-shadow-lg" strokeWidth={1.8} />
             <h2 className="mt-6 text-4xl font-black leading-tight tracking-tight drop-shadow-2xl sm:text-6xl md:text-7xl">
               POP-SPOT 시작하기
             </h2>
-            <p className="mx-auto mt-5 max-w-xl text-base text-ink-700 dark:text-white/95 drop-shadow-lg sm:text-lg">
+            <p className="mx-auto mt-5 max-w-xl text-base text-white/95 drop-shadow-lg sm:text-lg">
               서울에서 열리는 팝업스토어, 한 곳에서 만나보세요.
               <br className="hidden sm:inline" />
               로그인 후 모든 기능을 이용할 수 있습니다.
             </p>
-
             <div className="mt-10 flex flex-col items-center gap-3 sm:flex-row sm:justify-center sm:gap-4">
               <motion.button
                 onClick={proceed}
@@ -659,7 +770,6 @@ export default function IntroPage() {
                   </>
                 )}
               </motion.button>
-
               {!isLoggedIn && (
                 <motion.button
                   onClick={() => router.push("/signup")}
@@ -672,7 +782,6 @@ export default function IntroPage() {
                 </motion.button>
               )}
             </div>
-
             <p className="mt-8 text-xs text-white/70 drop-shadow-lg">
               © {new Date().getFullYear()} POP-SPOT · 서울 팝업스토어, 한 곳에서.
             </p>
