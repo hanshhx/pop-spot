@@ -21,6 +21,55 @@ import { Input, Field } from "@/components/ui/input";
 // 이메일 인증번호 유효 시간 카운트다운의 틱 주기 (1초).
 const COUNTDOWN_TICK_MS = 1000;
 
+// 생년월일 select 옵션 — 만 14세 이상 가입 정책에 맞춰 현재 연도 - 14 까지만 노출.
+const CURRENT_YEAR = new Date().getFullYear();
+const MIN_BIRTH_YEAR = 1930;
+const MAX_BIRTH_YEAR = CURRENT_YEAR - 14;
+const BIRTH_YEAR_OPTIONS: number[] = Array.from(
+  { length: MAX_BIRTH_YEAR - MIN_BIRTH_YEAR + 1 },
+  (_, i) => MAX_BIRTH_YEAR - i,
+);
+const BIRTH_MONTH_OPTIONS: number[] = Array.from({ length: 12 }, (_, i) => i + 1);
+const BIRTH_DAY_OPTIONS: number[] = Array.from({ length: 31 }, (_, i) => i + 1);
+
+interface BirthSelectProps {
+  ariaLabel: string;
+  placeholder: string;
+  value: string;
+  onChange: (v: string) => void;
+  options: number[];
+  suffix: string;
+}
+
+/** 생년월일 연/월/일 공용 select — 다크 테마 + suffix 부착. */
+function BirthSelect({
+  ariaLabel,
+  placeholder,
+  value,
+  onChange,
+  options,
+  suffix,
+}: BirthSelectProps) {
+  return (
+    <select
+      aria-label={ariaLabel}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className="h-11 w-full rounded-md px-2 bg-ink-800 border border-cream-200/15 text-cream-200 text-sm text-center focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      <option value="" className="bg-ink-800 text-cream-200/60">
+        {placeholder}
+      </option>
+      {options.map((n) => (
+        <option key={n} value={n} className="bg-ink-800 text-cream-200">
+          {n}
+          {suffix}
+        </option>
+      ))}
+    </select>
+  );
+}
+
 export default function SignupPage() {
   const router = useRouter();
 
@@ -37,6 +86,22 @@ export default function SignupPage() {
 
   const [showPassword, setShowPassword] = useState(false);
   const [showPasswordConfirm, setShowPasswordConfirm] = useState(false);
+
+  // 생년월일 — 세 개의 select 를 분리 보관했다가 제출 직전 ISO 문자열로 합친다.
+  const [birthYear, setBirthYear] = useState("");
+  const [birthMonth, setBirthMonth] = useState("");
+  const [birthDay, setBirthDay] = useState("");
+
+  // 셋 다 선택되면 YYYY-MM-DD 형태로 formData.birthdate 동기화.
+  useEffect(() => {
+    if (birthYear && birthMonth && birthDay) {
+      const mm = String(birthMonth).padStart(2, "0");
+      const dd = String(birthDay).padStart(2, "0");
+      setFormData((prev) => ({ ...prev, birthdate: `${birthYear}-${mm}-${dd}` }));
+    } else {
+      setFormData((prev) => ({ ...prev, birthdate: "" }));
+    }
+  }, [birthYear, birthMonth, birthDay]);
 
   const [isAuthSent, setIsAuthSent] = useState(false);
   const [isAuthVerified, setIsAuthVerified] = useState(false);
@@ -61,6 +126,7 @@ export default function SignupPage() {
     formData.password !== formData.passwordConfirm;
   const isValidName = /^[a-zA-Z0-9가-힣]{2,8}$/.test(formData.name);
   const isValidPhone = /^010\d{8}$/.test(formData.phoneNumber);
+  const isValidBirthdate = formData.birthdate !== "";
   const isAllAgreed = agreements.terms && agreements.privacy;
 
   const isFormValid =
@@ -68,6 +134,7 @@ export default function SignupPage() {
     isValidPassword &&
     isPasswordMatch &&
     isValidName &&
+    isValidBirthdate &&
     isValidPhone &&
     isAllAgreed;
 
@@ -78,10 +145,25 @@ export default function SignupPage() {
     return () => clearInterval(interval);
   }, [isAuthSent, isAuthVerified, timer]);
 
+  /**
+   * 입력 필드별 sanitization.
+   *
+   * <p>이메일은 ASCII 만 (한글 입력 차단), 휴대전화는 숫자만 (붙여넣기 시에도 다른 문자 strip).
+   * 사용자 입장에선 "잘못된 키를 누르면 무시" 처럼 자연스럽게 동작.
+   */
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    let sanitized = value;
+    if (name === "email") {
+      // 이메일은 ASCII 외 문자 (한글 등) 제거 — 유효성 검사 이전에 입력 단에서 막음.
+      sanitized = value.replace(/[^\x20-\x7E]/g, "");
+    } else if (name === "phoneNumber") {
+      // 휴대전화는 숫자만 — 붙여넣기로 들어온 하이픈/공백도 제거.
+      sanitized = value.replace(/\D/g, "");
+    }
+    setFormData({ ...formData, [name]: sanitized });
   };
 
   const handleAgreeAll = () => {
@@ -203,7 +285,7 @@ export default function SignupPage() {
   return (
     <div className="min-h-screen bg-ink-900 text-cream-200 flex flex-col items-center py-8 md:py-10 px-4">
       {/* 헤더 */}
-      <div className="w-full max-w-[460px] flex items-center mb-10 relative">
+      <div className="w-full max-w-[460px] md:max-w-[540px] flex items-center mb-10 relative">
         <button
           type="button"
           onClick={() => router.back()}
@@ -223,7 +305,7 @@ export default function SignupPage() {
         </button>
       </div>
 
-      <div className="w-full max-w-[460px] space-y-5">
+      <div className="w-full max-w-[460px] md:max-w-[540px] space-y-5">
         {/* 이메일 */}
         <Field
           label={<span className="text-cream-200/70">이메일 (아이디)</span>}
@@ -325,10 +407,11 @@ export default function SignupPage() {
                 aria-label={showPassword ? "비밀번호 숨기기" : "비밀번호 보기"}
                 className="text-cream-200/50 hover:text-cream-200 transition-colors"
               >
+                {/* state-icon 컨벤션 — 눈 뜸 = 현재 보이는 상태, 눈 감김 = 현재 가려진 상태. */}
                 {showPassword ? (
-                  <EyeOff className="size-4" aria-hidden />
-                ) : (
                   <Eye className="size-4" aria-hidden />
+                ) : (
+                  <EyeOff className="size-4" aria-hidden />
                 )}
               </button>
             }
@@ -371,10 +454,11 @@ export default function SignupPage() {
                 }
                 className="text-cream-200/50 hover:text-cream-200 transition-colors"
               >
+                {/* state-icon — 눈 뜸 = 현재 보이는 상태, 눈 감김 = 현재 가려진 상태. */}
                 {showPasswordConfirm ? (
-                  <EyeOff className="size-4" aria-hidden />
-                ) : (
                   <Eye className="size-4" aria-hidden />
+                ) : (
+                  <EyeOff className="size-4" aria-hidden />
                 )}
               </button>
             }
@@ -411,34 +495,32 @@ export default function SignupPage() {
           />
         </Field>
 
-        {/* 생년월일 */}
+        {/* 생년월일 — 연 / 월 / 일 모두 select 로 통일 (유효성 사전 차단 + 입력 일관성). */}
         <Field label={<span className="text-cream-200/70">생년월일</span>}>
-          <div className="flex gap-2">
-            <Input
-              name="birthdate"
-              type="text"
-              placeholder="2000"
-              maxLength={4}
-              inputMode="numeric"
-              className="flex-[1.5] bg-ink-800 border-cream-200/15 text-cream-200 placeholder:text-cream-200/30"
+          <div className="grid grid-cols-3 gap-2">
+            <BirthSelect
+              ariaLabel="연도"
+              placeholder="연도"
+              value={birthYear}
+              onChange={setBirthYear}
+              options={BIRTH_YEAR_OPTIONS}
+              suffix="년"
             />
-            <select
-              aria-label="월"
-              className="h-11 w-20 rounded-md px-2 bg-ink-800 border border-cream-200/15 text-cream-200 text-sm text-center focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              <option className="bg-ink-800 text-cream-200">월</option>
-              {[...Array(12)].map((_, i) => (
-                <option key={i} className="bg-ink-800 text-cream-200">
-                  {i + 1}
-                </option>
-              ))}
-            </select>
-            <Input
-              type="text"
+            <BirthSelect
+              ariaLabel="월"
+              placeholder="월"
+              value={birthMonth}
+              onChange={setBirthMonth}
+              options={BIRTH_MONTH_OPTIONS}
+              suffix="월"
+            />
+            <BirthSelect
+              ariaLabel="일"
               placeholder="일"
-              maxLength={2}
-              inputMode="numeric"
-              className="flex-1 text-center bg-ink-800 border-cream-200/15 text-cream-200 placeholder:text-cream-200/30"
+              value={birthDay}
+              onChange={setBirthDay}
+              options={BIRTH_DAY_OPTIONS}
+              suffix="일"
             />
           </div>
         </Field>
