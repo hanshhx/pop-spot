@@ -628,7 +628,7 @@ export default function Home() {
                                     href={`/popup/${popup.id}`}
                                     key={popup.id}
                                     onClick={(e) => { e.preventDefault(); handleTabChange("MAP"); router.push(`/popup/${popup.id}`); }} layout initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.3 }} 
-                                                className="flex items-center justify-between p-3 md:p-4 mb-2 rounded-xl md:rounded-2xl transition-colors cursor-pointer group border bg-white hover:bg-gray-50 border-gray-100 hover:border-gray-300 dark:bg-white/5 dark:hover:bg-white/10 dark:border-transparent dark:hover:border-white/10">
+                                                className="flex items-center justify-between p-3 md:p-4 mb-2 rounded-xl md:rounded-2xl transition-all cursor-pointer group border bg-white hover:bg-gray-50 hover:scale-[1.01] active:scale-[0.99] border-gray-100 hover:border-gray-300 dark:bg-white/5 dark:hover:bg-white/10 dark:border-transparent dark:hover:border-white/10">
                                     <div className="flex items-center gap-2 md:gap-3">
                                             <div className="flex flex-col items-center w-5 md:w-6">
                                                 <span className={`text-xs md:text-sm font-black ${idx === 0 ? 'text-primary' : 'text-gray-400 dark:text-white/30'}`}>{idx + 1}</span>
@@ -685,8 +685,8 @@ export default function Home() {
                         </div>
                     </div>
 
-                    {/* AI Report Zone — solid 카드 블록. */}
-                    <div onClick={() => setIsReportOpen(true)} className="col-span-1 lg:col-span-3 md:row-span-2 rounded-[2rem] p-5 md:p-6 cursor-pointer border flex flex-col justify-between group transition-colors bg-white border-gray-200 hover:border-primary dark:bg-[#111] dark:border-white/10 dark:hover:border-primary shadow-lg shadow-black/5 dark:shadow-black/30 order-5 lg:order-none">
+                    {/* AI Report Zone — solid 카드 블록 + 클릭 피드백. */}
+                    <div onClick={() => setIsReportOpen(true)} className="col-span-1 lg:col-span-3 md:row-span-2 rounded-[2rem] p-5 md:p-6 cursor-pointer border flex flex-col justify-between group transition-all hover:scale-[1.02] active:scale-[0.99] bg-white border-gray-200 hover:border-primary dark:bg-[#111] dark:border-white/10 dark:hover:border-primary shadow-lg shadow-black/5 dark:shadow-black/30 order-5 lg:order-none">
                         <div className="flex justify-between items-start">
                             <Users size={20} className={`md:w-6 md:h-6 ${getCongestionColor(congestionData?.level || '')} group-hover:scale-110 transition-transform`}/>
                             <div className="text-right">
@@ -1127,7 +1127,7 @@ export default function Home() {
                         ) : (
                             <div className="space-y-2">
                                 {savedCourses.map((course: SavedCourse, idx: number) => (
-                                    <article key={idx} className="flex items-center justify-between p-3 rounded-md border bg-cream-300 dark:bg-ink-800 border-[var(--color-border)] hover:border-lime-300/60 transition-colors cursor-pointer"
+                                    <article key={idx} className="flex items-center justify-between p-3 rounded-md border bg-cream-300 dark:bg-ink-800 border-[var(--color-border)] hover:border-lime-300/60 hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer"
                                      onClick={() => handleLoadCourse(course.courseData)}>
                                     <div className="flex items-center gap-2 lg:gap-3">
                                             <div className="w-8 h-8 rounded-pill bg-lime-300/15 flex items-center justify-center text-lime-700 dark:text-lime-300 font-bold text-xs">
@@ -1226,7 +1226,7 @@ export default function Home() {
                                 <div className="flex-1 overflow-y-auto p-3 lg:p-4 custom-scrollbar">
                                     {allPopups.map((popup) => (
                                         <div key={popup.id} onClick={() => handleAddPlace(popup)} 
-                                             className="flex justify-between items-center p-3 mb-2 border border-[var(--color-border)] rounded-md cursor-pointer hover:bg-cream-300 dark:hover:bg-ink-800 hover:border-lime-300/60 transition-colors">
+                                             className="flex justify-between items-center p-3 mb-2 border border-[var(--color-border)] rounded-md cursor-pointer hover:bg-cream-300 dark:hover:bg-ink-800 hover:border-lime-300/60 hover:scale-[1.01] active:scale-[0.99] transition-all">
                                             <div>
                                                 <h4 className="font-semibold text-sm text-foreground">{popup.name}</h4>
                                                 <p className="text-xs text-muted-foreground mt-0.5">{popup.location}</p>
