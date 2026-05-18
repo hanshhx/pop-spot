@@ -6663,3 +6663,201 @@ Optional<Coordinates> coords = geocodingService.geocode(name, location);
 - **빌드/포맷 검증 통과** — `compileJava + spotlessCheck` 무경고 (기존 deprecation 1건 외)
 - **외부 동작 변화** — 404 가 정확히 떨어지는 것 이외엔 0건. 프론트엔드 호출 패턴 그대로 호환
 
+
+## 11.9 실전 함정 — 빌드 · 배포 · git 운영에서 만난 이슈들
+
+v1.5.2 작업 중 / 푸시 / 배포 과정에서 실제로 막혔던 지점과 해결법. 다음에 또 막힐 가능성이 있는 패턴들이라 기록.
+
+### 11.9.1 Sentry CLI Windows 차단 — `Could not start sentry-cli-3.2.0.exe`
+
+**증상:**
+```
+> ./gradlew clean build
+FAILURE: Build failed with an exception.
+A problem occurred starting process 'sentry-cli-3.2.0.exe'
+> Could not start '...\build\tmp\sentry-cli-3.2.0.exe'
+```
+
+**원인:**
+- Sentry Gradle plugin 이 빌드 시 stack trace 매핑용 소스맵을 번들링
+- Windows Defender / SmartScreen 이 다운로드한 exe 실행을 차단
+- 로컬 빌드에는 굳이 필요 없는 단계 (Sentry 운영 환경 업로드용)
+
+**해결:**
+```powershell
+./gradlew clean bootJar -x test `
+  -x sentryBundleSourcesJava `
+  -x sentryCollectSourcesJava
+```
+- `build` 대신 `bootJar` — 실행 가능한 JAR 만 만들면 충분
+- Sentry 태스크 2개 명시적 스킵
+- 영구 해결을 원하면 `build.gradle` 에 `sentry { includeSourceContext = false }` 추가
+
+### 11.9.2 SCP `dest open: No such file or directory`
+
+**증상:**
+```
+> scp app.jar reo4321@100.99.233.107:/home/reo4321/popspot/app.jar
+scp: dest open "/home/reo4321/popspot/app.jar": No such file or directory
+```
+
+**원인:** SCP 는 **목적지 디렉터리를 생성하지 않는다**. 파일 복사만 한다.
+
+**해결:**
+```powershell
+# 한 번만 디렉터리 만들고
+ssh reo4321@100.99.233.107 "mkdir -p /home/reo4321/popspot"
+
+# 그 다음 전송
+scp build/libs/popspot-backend-0.0.1-SNAPSHOT.jar `
+    reo4321@100.99.233.107:/home/reo4321/popspot/app.jar
+```
+
+**더 안전한 패턴 (기존 systemd 서비스 경로 자동 확인):**
+```powershell
+ssh reo4321@100.99.233.107 "systemctl cat popspot | grep -E 'ExecStart|WorkingDirectory'"
+# 출력된 경로 그대로 SCP 목적지로 사용
+```
+
+### 11.9.3 자기 자신에게 SSH 시도 — Tailscale IP 혼동
+
+**증상:** 서버 안에서 (`reo4321@VM-113:~$`) 자기 자신의 Tailscale IP (`100.99.233.107`) 로
+다시 SSH 들어가려다가 host key 프롬프트 등장.
+
+**원인:** 이미 서버에 들어와 있는 상태에서 SSH 한 단계 더 거칠 필요 없음 (자기 자신한테 SSH 하는 셈).
+
+**해결:** SSH 빼고 바로 명령 실행.
+```bash
+# (이미 VM-113 안에 있을 때)
+sudo systemctl restart popspot
+sudo systemctl status popspot --no-pager
+sudo journalctl -u popspot -f --since '1 minute ago'
+```
+
+### 11.9.4 git rebase 중 일반 commit → `cannot lock ref` 충돌
+
+**증상:**
+```
+> git rebase --continue
+error: update_ref failed for ref 'refs/heads/main':
+  cannot lock ref 'refs/heads/main':
+  is at 800c85... but expected a83d62...
+```
+
+**원인:**
+- `git rebase -i ...` 로 특정 커밋 `edit` 모드 진입
+- 그 상태에서 `git commit --amend` 대신 일반 `git commit` 으로 새 커밋 추가
+- rebase 메타데이터가 main 이 이전 위치에 있을 거라고 가정하고 있지만, 새 commit 이 들어가면서 main 포인터가 이미 이동
+- → rebase 가 main 을 다시 옮기려 할 때 lock 충돌
+
+**해결 (가장 안전):**
+```powershell
+git rebase --quit   # rebase 메타데이터만 지움, HEAD / working tree 안 건드림
+git status          # On branch main, clean 이어야 정상
+git log --oneline -5  # 새 커밋이 top 에 있는지 확인
+git push origin main
+```
+
+**`--quit` vs `--abort` 차이:**
+- `--quit` → rebase 상태 파일만 삭제 (HEAD 그대로). 이미 커밋이 들어가 있을 때 안전
+- `--abort` → rebase 시작 전 상태로 HEAD 리셋. 중간에 만든 커밋 잃을 위험
+
+**구버전 git 대안:**
+```powershell
+Remove-Item -Recurse -Force .git\rebase-merge -ErrorAction SilentlyContinue
+Remove-Item -Recurse -Force .git\rebase-apply -ErrorAction SilentlyContinue
+```
+
+### 11.9.5 SCP/SSH 자동화 시 host key 프롬프트 막힘
+
+**증상:** PowerShell 자동 배포 스크립트 첫 실행 때 host key 확인 프롬프트 (`Are you sure...?`)
+가 떠서 스크립트가 멈춤.
+
+**해결:** known_hosts 에 미리 등록.
+```powershell
+ssh-keyscan -H 100.99.233.107 | `
+  Out-File -Append -Encoding ASCII "$env:USERPROFILE\.ssh\known_hosts"
+```
+한 번만 하면 그 다음부터 자동.
+
+### 11.9.6 워크스페이스 마운트 캐시 stale view — 파일 truncate
+
+**증상:** Spotless 가 `error: reached end of file while parsing` 으로 빌드 실패.
+파일을 직접 열어보면 마지막 클래스 닫는 `}` 가 없고 중간에서 잘림.
+
+**원인:**
+- IDE / 파일 시스템 캐시와 디스크 fsync 사이의 불일치
+- 빠른 연속 쓰기 / 동기화 직후 파일이 0 바이트 / 부분 기록된 상태로 mount 에 노출됨
+- 빈 공간을 NULL byte (`\x00`) 로 padding 한 채로 저장
+
+**해결:**
+1. Trailing NULL 스트립 + 잘린 파일 재기록 (가장 마지막 신뢰할 수 있는 본을 다시 Write)
+2. 검출 스크립트:
+```python
+import os
+for root, _, files in os.walk('popspot-backend/src'):
+    for f in files:
+        if not f.endswith('.java'): continue
+        p = os.path.join(root, f)
+        data = open(p, 'rb').read()
+        if not data.rstrip().endswith(b'}'):
+            print(f'TRUNCATED: {p}')
+```
+3. 영향받은 파일이 발견되면 그 파일을 Write (overwrite) 로 다시 전체 기록
+
+**예방:**
+- 큰 일괄 편집 직후 `git status` 로 한 번 검증
+- 빌드 검증을 매 Wave 끝에 돌려서 조기 발견
+- Windows ↔ WSL ↔ Linux 마운트가 끼어 있으면 발생 빈도 ↑ — 가능하면 단일 환경에서 편집
+
+### 11.9.7 자동 LF→CRLF 경고 (`LF will be replaced by CRLF`)
+
+**증상:** `git add .` 직후 수십 개 파일에서 경고:
+```
+warning: in the working copy of '...', LF will be replaced by CRLF the next time Git touches it
+```
+
+**원인:** `core.autocrlf=true` (Windows 기본값) + 파일이 LF 로 저장됨.
+git 이 working tree → CRLF 변환을 안내하는 정보성 경고. **에러 아님**.
+
+**대응:**
+- 무시해도 빌드 / 푸시에 영향 없음
+- 정리하고 싶으면 프로젝트에 `.gitattributes` 추가:
+  ```
+  * text=auto eol=lf
+  *.java text eol=lf
+  *.md text eol=lf
+  ```
+  → 모든 OS 에서 LF 로 통일.
+
+### 11.9.8 요약 — 배포 권장 순서 체크리스트
+
+PowerShell 한 줄 자동화 (`deploy-to-vm.ps1`):
+
+```powershell
+$ErrorActionPreference = "Stop"
+Set-Location $PSScriptRoot
+
+# 1) 빌드 (Sentry / test 스킵)
+./gradlew clean bootJar -x test `
+  -x sentryBundleSourcesJava `
+  -x sentryCollectSourcesJava
+
+# 2) JAR 찾기 (plain.jar 제외)
+$jar = (Get-ChildItem build/libs/*.jar | `
+        Where-Object { $_.Name -notlike "*-plain.jar" } | `
+        Select-Object -First 1).FullName
+
+# 3) 디렉터리 보장 + 전송
+ssh reo4321@100.99.233.107 "mkdir -p /home/reo4321/popspot"
+scp $jar reo4321@100.99.233.107:/home/reo4321/popspot/app.jar
+
+# 4) 재시작 + 상태 확인
+ssh reo4321@100.99.233.107 `
+  "sudo systemctl restart popspot && sleep 2 && sudo systemctl status popspot --no-pager | head -15"
+
+Write-Host "Deploy complete." -ForegroundColor Green
+```
+
+이제 다음번에 동일 이슈 만나도 §11.9 참조로 막힘 없이 풀 수 있다.
+

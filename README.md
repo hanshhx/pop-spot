@@ -839,6 +839,64 @@
 
 <sub><b>검증</b> — 백엔드 <code>./gradlew compileJava spotlessCheck</code> ✓ · 프론트 <code>npm run typecheck</code> ✓ (16건 → 0). 와일드카드 import 0 · 인라인 한국어 코멘트 0 · <code>System.out</code> 0 · <code>console.log</code> 디버그 0 · <code>any</code> 0 (SDK 경계 1 제외) · 편집 흔적 0 (UI 의도 1 제외) — 모두 유지.</sub>
 
+<br/>
+
+### v1.5.2 — 백엔드 구조 개선 (Repository 디커플링 · 도메인 예외 · 외부 API 추상화)
+
+> **v1.4 까지가 "파일 안 정리" 였다면 v1.5.2 는 "클래스 간 정리".** 컨트롤러가 Repository 를 직접 잡고 있던 흔적을 모두 걷어내고 Service 한 계층으로 일원화. "리소스 없음" 패턴 30+ 곳을 도메인 예외로 격상해 일관된 404 응답을 보장. 크롤러가 직접 다루던 Kakao 응답 파싱을 어댑터로 떼어내 단일 책임을 회복.
+>
+> **P1 — Controller 10개에서 Repository 직접 의존 제거**
+> 기존엔 컨트롤러가 `PopupStoreRepository.findByStatus(...)` 같은 호출을 직접 했다. 결과: 트랜잭션 경계가 컨트롤러로 새고, 같은 조회 로직이 컨트롤러마다 미세하게 다른 형태로 중복. v1.5.2 에서 신규 도메인 서비스 4개 (`MyPageService` · `MateService` · `ChatService` · `GoodsService`) 를 만들고, 기존 `AdminService` · `AuthService` · `PopupStoreService` 에 메서드를 보강해 **컨트롤러 디렉터리에 Repository import / 필드 0건** 달성 (`grep -r Repository controller/` 무매치).
+>
+> **P2 — 도메인 예외 `ResourceNotFoundException` 도입**
+> `RuntimeException("팝업 없음")` / `RuntimeException("유저 없음")` 같은 패턴이 30+ 곳에 흩어져 있었고 `GlobalExceptionHandler` 가 전부 400 Bad Request 로 변환했다 — 잘못된 ID 요청은 사실 404 가 맞다. 정적 팩토리 `ResourceNotFoundException.user(id)` / `.popup(id)` / `.matePost(id)` 로 메시지 통일 + `@ExceptionHandler` 추가로 **일관된 404 응답** 보장. Sentry 로는 안 보내고 `log.debug` 만 — "정상 흐름의 일부".
+>
+> **P4 — Geocoding 책임 분리: `GeocodingService` 인터페이스 + `KakaoGeocodingService` 구현**
+> `PopupCrawlOrchestrator` 가 크롤 파이프라인 조율과 Kakao API 응답 파싱을 동시에 하고 있었다 (50+ 라인의 인라인 파싱 + fallback 로직). 신규 패키지 `service/geocoding/` 에 인터페이스 + Kakao 구현 + `Coordinates` record 를 분리. 크롤러는 `Optional<Coordinates>` 만 받고, "어떻게 받는지" 는 어댑터에 위임. 새 공급자 (Naver / Google) 추가가 인터페이스 구현 한 클래스로 끝나고, 단위 테스트에서 mock 으로 교체 가능.
+>
+> **트랜잭션 경계 정리 — `@Transactional` 컨트롤러 단 0건**
+> 모든 영속화 흐름이 Service 단위 트랜잭션으로 통일. 컨트롤러는 라우팅 + DTO 매핑 + 상태 코드 변환만 책임진다.
+>
+> **빌드/포맷 검증**
+> `./gradlew compileJava spotlessCheck` BUILD SUCCESSFUL (JDK 21 Temurin). 신규 도입 deprecation 0건 (기존 `RateLimitInterceptor.WebMvcConfigurer` 1건은 그대로). 스팟리스가 JavaDoc 줄바꿈만 일부 재정렬 — 의미 변경 0건. **외부 동작 변화는 잘못된 ID 요청이 400 → 404 로 바뀌는 것 단 1건.** 프론트엔드 호출 패턴 그대로 호환.
+
+<table align="center">
+  <tr>
+    <th align="center" width="180">분류</th>
+    <th align="center" width="400">변경 · 효과</th>
+  </tr>
+  <tr>
+    <td align="center"><b>P1 — Repository 디커플링</b></td>
+    <td>컨트롤러 10개에서 Repository 직접 의존 제거 → Service 경유 일원화. 신규 서비스 <code>MyPageService</code> · <code>MateService</code> · <code>ChatService</code> · <code>GoodsService</code></td>
+  </tr>
+  <tr>
+    <td align="center"><b>P2 — 도메인 예외</b></td>
+    <td><code>ResourceNotFoundException</code> 도입 + <code>@ExceptionHandler</code> 등록. <code>RuntimeException("리소스 없음")</code> 30+ 곳 → 일관된 404 응답</td>
+  </tr>
+  <tr>
+    <td align="center"><b>P4 — Geocoding 분리</b></td>
+    <td><code>GeocodingService</code> 인터페이스 + <code>KakaoGeocodingService</code> 구현 + <code>Coordinates</code> record. 크롤러는 인터페이스에만 의존</td>
+  </tr>
+  <tr>
+    <td align="center"><b>트랜잭션 경계</b></td>
+    <td>컨트롤러 <code>@Transactional</code> 0건, 모든 트랜잭션이 Service 단위로 통일</td>
+  </tr>
+  <tr>
+    <td align="center"><b>중복 엔드포인트 정리</b></td>
+    <td><code>MateChatController</code> 에 부모 <code>@RequestMapping</code> 없이 떠있던 <code>@DeleteMapping("/{id}")</code> 제거 (<code>MateController.deletePost</code> 와 중복)</td>
+  </tr>
+  <tr>
+    <td align="center"><b>빌드 검증</b></td>
+    <td><code>./gradlew compileJava spotlessCheck</code> ✓ (JDK 21 Temurin). 신규 도입 deprecation 0건</td>
+  </tr>
+</table>
+
+<sub><b>지표</b> — 컨트롤러 디렉터리 <code>Repository</code> 의존 <b>0건</b> · 신규 서비스 <b>4개</b> + 기존 서비스 메서드 보강 <b>3개</b> · 신규 패키지 <code>service.geocoding/</code> <b>3파일</b> · 총 <b>+340 / -213 라인</b>. 외부 동작 변화 <b>1건 (잘못된 ID 응답이 400 → 404)</b>, 프론트 호환성 그대로.</sub>
+
+<br/>
+
+<sub><b>v1.5.2 실전 함정 — 배포/푸시 과정에서 만난 8가지 (PROJECT_CHANGELOG §11.9 상세):</b> ① Sentry CLI Windows 차단 (<code>-x sentryBundleSourcesJava -x sentryCollectSourcesJava</code> 로 회피) · ② SCP <code>No such file or directory</code> (<code>mkdir -p</code> 선행 필수) · ③ Tailscale IP 로 자기 자신 SSH 시도 · ④ rebase 도중 일반 commit → <code>cannot lock ref</code> → <code>git rebase --quit</code> 으로 안전 복구 · ⑤ SSH host key 프롬프트 회피 (<code>ssh-keyscan</code>) · ⑥ 마운트 캐시 stale view 로 파일 truncate · ⑦ <code>LF will be replaced by CRLF</code> 경고 처리 · ⑧ 한 줄 자동 배포 스크립트 (<code>deploy-to-vm.ps1</code>) 템플릿.</sub>
+
 ---
 
 ## 폴더 구조 (백엔드)
@@ -873,6 +931,9 @@ popspot-backend/
 | 5 | Gemini 키 GitHub 노출 → 자동 차단 | 시크릿 스캔 GitHub Action 추가 |
 | 6 | Algolia 키 누락 시 `@PostConstruct` 실패 → 부팅 자체 불가 | enabled 플래그 + graceful fallback (검색은 비활성) |
 | 7 | `targetUserId = user.userId \|\| user.id` 가 `undefined` 일 때 `?userId=undefined` 로 API 호출 | v1.5 의 `any` → 도메인 타입 좁힘 과정에서 발견. empty string fallback + early-return notify 로 차단 |
+| 8 | `./gradlew build` 가 Windows 에서 `Could not start sentry-cli-3.2.0.exe` 로 실패 | Defender / SmartScreen 차단. `-x sentryBundleSourcesJava -x sentryCollectSourcesJava` 로 우회 (로컬 빌드엔 불필요한 단계) |
+| 9 | SCP 가 `dest open: No such file or directory` | SCP 는 디렉터리 생성 안 함. `ssh user@host "mkdir -p /path"` 선행 필수 |
+| 10 | `git rebase --continue` 가 `cannot lock ref: is at X but expected Y` | rebase `edit` 모드에서 `--amend` 대신 일반 `git commit` 한 경우. `git rebase --quit` (HEAD/working tree 유지) 으로 안전 복구 |
 
 ---
 
