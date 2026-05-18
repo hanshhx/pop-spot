@@ -8,6 +8,7 @@ import {
   Crown,
   ArrowRight,
   LogIn,
+  UserPlus,
   ChevronDown,
   Sparkles,
   Users,
@@ -15,6 +16,8 @@ import {
   Zap,
   Clock,
   Map as MapIcon,
+  Play,
+  Pause,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -80,18 +83,37 @@ const UNIQUE_POINTS = [
   },
 ];
 
+// 배경 영상 + 모션 토글 상태 localStorage 키 — prefers-reduced-motion OS 설정과 별개로 사용자가 직접 끌 수 있게.
+const MOTION_PREF_KEY = "popspot:intro:motion";
+
 export default function IntroPage() {
   const router = useRouter();
   const [videoReady, setVideoReady] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  // 모션 ON/OFF — 기본 ON, 사용자가 끄면 localStorage 에 저장돼 다음 방문에도 유지.
+  const [motionOn, setMotionOn] = useState(true);
 
   useEffect(() => {
     try {
       setIsLoggedIn(!!localStorage.getItem("user"));
+      const saved = localStorage.getItem(MOTION_PREF_KEY);
+      if (saved === "off") setMotionOn(false);
     } catch {
       setIsLoggedIn(false);
     }
   }, []);
+
+  const toggleMotion = () => {
+    setMotionOn((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem(MOTION_PREF_KEY, next ? "on" : "off");
+      } catch {
+        /* localStorage 비활성 환경 — 무시 */
+      }
+      return next;
+    });
+  };
 
   const proceed = () => {
     if (isLoggedIn) {
@@ -122,30 +144,46 @@ export default function IntroPage() {
     <>
       {/* 페이지 전체 고정 배경 비디오 — pointer-events-none 으로 클릭 흡수 차단 */}
       <div className="pointer-events-none fixed inset-0 z-0 bg-ink-900">
-        <video
-          autoPlay
-          loop
-          muted
-          playsInline
-          preload="auto"
-          onCanPlay={() => setVideoReady(true)}
-          className={`h-full w-full object-cover transition-opacity duration-700 ${
-            videoReady ? "opacity-100" : "opacity-0"
-          }`}
-        >
-          <source src={VIDEO_SRC} type="video/mp4" />
-        </video>
+        {motionOn ? (
+          <video
+            autoPlay
+            loop
+            muted
+            playsInline
+            preload="auto"
+            onCanPlay={() => setVideoReady(true)}
+            className={`h-full w-full object-cover transition-opacity duration-700 ${
+              videoReady ? "opacity-100" : "opacity-0"
+            }`}
+          >
+            <source src={VIDEO_SRC} type="video/mp4" />
+          </video>
+        ) : (
+          /* 모션 OFF 모드 — 정지 이미지 톤의 그라데이션으로 영상 대체. */
+          <div className="h-full w-full bg-gradient-to-br from-ink-900 via-ink-800 to-hot-900/30" />
+        )}
       </div>
 
-      {/* 상단 고정: SKIP / Login 버튼 — z-index 최상위로 고정 */}
-      <button
-        type="button"
-        onClick={proceed}
-        className="fixed right-5 top-5 z-[100] rounded-full bg-white/15 px-4 py-2 text-xs font-semibold text-cream-100 backdrop-blur-md ring-1 ring-white/25 transition hover:bg-white/25 active:scale-95 sm:right-6 sm:top-6"
-        aria-label="인트로 건너뛰기"
-      >
-        {isLoggedIn ? "Skip →" : "Login →"}
-      </button>
+      {/* 상단 고정 컨트롤 — 모션 토글 + Skip/Login 을 같은 영역에 묶어둠. */}
+      <div className="fixed right-5 top-5 z-[100] flex items-center gap-2 sm:right-6 sm:top-6">
+        <button
+          type="button"
+          onClick={toggleMotion}
+          aria-label={motionOn ? "배경 영상 끄기" : "배경 영상 켜기"}
+          title={motionOn ? "배경 영상 끄기" : "배경 영상 켜기"}
+          className="inline-flex size-9 items-center justify-center rounded-full bg-white/15 text-cream-100 backdrop-blur-md ring-1 ring-white/25 transition hover:bg-white/25 active:scale-95"
+        >
+          {motionOn ? <Pause className="size-4" aria-hidden /> : <Play className="size-4" aria-hidden />}
+        </button>
+        <button
+          type="button"
+          onClick={proceed}
+          className="rounded-full bg-white/15 px-4 py-2 text-xs font-semibold text-cream-100 backdrop-blur-md ring-1 ring-white/25 transition hover:bg-white/25 active:scale-95"
+          aria-label="인트로 건너뛰기"
+        >
+          {isLoggedIn ? "Skip →" : "Login →"}
+        </button>
+      </div>
 
       {/* =================================================================== */}
       {/* 스냅 스크롤 컨테이너                                                    */}
@@ -237,7 +275,7 @@ export default function IntroPage() {
               transition={{ duration: 0.6, delay: 1.6 }}
               whileHover={{ scale: 1.04 }}
               whileTap={{ scale: 0.97 }}
-              className="group mt-12 inline-flex items-center gap-3 rounded-full bg-lime-300 px-9 py-4 text-base font-bold text-ink-900 shadow-2xl shadow-lime-300/30 ring-2 ring-white/20 transition hover:bg-lime-200 hover:shadow-lime-300/50 sm:px-12 sm:py-5 sm:text-lg"
+              className="group mt-16 inline-flex items-center gap-3 rounded-full bg-lime-300 px-9 py-4 text-base font-bold text-ink-900 shadow-2xl shadow-lime-300/30 ring-2 ring-white/20 transition hover:bg-lime-200 hover:shadow-lime-300/50 sm:mt-20 sm:px-12 sm:py-5 sm:text-lg"
               aria-label={isLoggedIn ? "POP-SPOT 메인 페이지로 이동" : "로그인 페이지로 이동"}
             >
               {isLoggedIn ? (
@@ -518,8 +556,9 @@ export default function IntroPage() {
                   whileTap={{ scale: 0.97 }}
                   className="inline-flex items-center gap-2 rounded-full bg-ink-900/25 px-9 py-4 text-base font-bold text-white backdrop-blur-md ring-2 ring-white/40 transition hover:bg-ink-900/35 sm:px-12 sm:py-5 sm:text-lg"
                 >
-                  회원가입
-                  <ArrowRight className="h-5 w-5" />
+                  {/* 아이콘-텍스트 순서를 로그인 버튼과 통일. */}
+                  <UserPlus className="h-5 w-5" />
+                  <span>회원가입</span>
                 </motion.button>
               )}
             </div>

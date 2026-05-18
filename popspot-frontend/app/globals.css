@@ -158,6 +158,8 @@ html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+  /* 스크롤바 자리를 항상 예약해 좌우 여백 점프를 방지 (스크롤 생기는 페이지/안 생기는 페이지 사이 layout shift 차단). */
+  scrollbar-gutter: stable;
 }
 
 body {
