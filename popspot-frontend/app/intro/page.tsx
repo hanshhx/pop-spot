@@ -42,10 +42,11 @@ function LightModeBackground() {
 /*  POP-SPOT — Cover / Intro Page (Persistent Video Background)               */
 /*                                                                            */
 /*  비디오는 페이지 전체에 fixed 로 깔리고, 각 섹션은 반투명 오버레이만 갖습니다.    */
-/*    옵션 1) "/14385-256955049.mp4"                                           */
-/*    옵션 2) "/215246.mp4"                                                    */
+/*  현재: "/212404.mp4" (12초 loop, 2160x1440) — 5초짜리 4K 보다 반복 덜 티남    */
+/*    옵션) "/14385-256955049.mp4" (4K · 5초)                                  */
+/*    옵션) "/215246.mp4"                                                     */
 /* -------------------------------------------------------------------------- */
-const VIDEO_SRC = "/14385-256955049.mp4";
+const VIDEO_SRC = "/212404.mp4";
 
 const FEATURES = [
   { Icon: Calendar, label: "캘린더", sub: "이번 달 일정" },
@@ -338,35 +339,35 @@ export default function IntroPage() {
               성수 · 한남 · 압구정
             </motion.div>
 
-            {/* 거대 한글 메인 슬로건 — Greencar 스타일 큰 한글 타이포 */}
+            {/* 거대 브랜드 메인 — 프로젝트 이름을 영문 그대로 노출 */}
             <motion.h1
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.3 }}
-              className="mt-6 text-5xl font-black leading-[1.1] tracking-tight text-ink-900 drop-shadow-md dark:text-white dark:drop-shadow-2xl sm:text-7xl md:text-8xl"
+              className="mt-6 text-6xl font-black leading-[1] tracking-tighter text-ink-900 drop-shadow-md dark:text-white dark:drop-shadow-2xl sm:text-8xl md:text-9xl"
             >
-              오늘 어디로<br />
-              <span className="text-hot-500 dark:text-hot-400">갈래요?</span>
+              POP<span className="text-hot-500 dark:text-hot-400">·</span>SPOT
             </motion.h1>
 
-            {/* Greencar 식 영문 보조 카피 (italic) */}
+            {/* 영문 부제 — Greencar 의 'Create a Better Life' 스타일 */}
             <motion.p
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.8, delay: 0.7 }}
-              className="mt-6 font-serif text-base italic text-ink-700/70 dark:text-cream-100/70 sm:text-lg"
+              className="mt-5 font-serif text-base italic text-ink-700/70 dark:text-cream-100/70 sm:text-lg"
             >
-              find your pop-up in seoul.
+              Seoul Popup Store Platform
             </motion.p>
 
-            {/* 간단한 한 줄 설명 */}
+            {/* 한 줄 소개 — 마케팅 톤 줄이고 사실 그대로 */}
             <motion.p
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.8, delay: 0.9 }}
-              className="mt-2 max-w-md text-sm text-ink-700/75 dark:text-cream-100/75 sm:text-base"
+              className="mt-6 max-w-md text-sm leading-relaxed text-ink-700/80 dark:text-cream-100/80 sm:text-base"
             >
-              매일 새벽 4시, 서울 팝업 정보를 모읍니다.
+              성수·한남·압구정에서 열리는 팝업을 한 곳에 모아 검색·매칭·기록까지
+              제공하는 서울 팝업스토어 플랫폼입니다.
             </motion.p>
 
             {/* CTA 버튼 그룹 */}
@@ -432,7 +433,7 @@ export default function IntroPage() {
           style={{ scrollSnapAlign: "start" }}
         >
           {/* 배경 — 라임 후광이 보이도록 어둡지만 영상은 비치게 */}
-          <div className="pointer-events-none absolute inset-0 bg-cream-100/65 dark:bg-ink-900/65 backdrop-blur-[2px]" />
+          <div className="pointer-events-none absolute inset-0 bg-cream-100/65 dark:bg-ink-900/40" />
           <div className="pointer-events-none absolute left-1/2 top-1/2 h-[500px] w-[500px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-lime-300/15 blur-3xl" />
 
           <motion.div
@@ -449,19 +450,19 @@ export default function IntroPage() {
               transition={{ delay: 0.1 }}
               className="inline-block rounded-full bg-lime-300/15 px-4 py-1.5 text-sm font-medium text-lime-300 ring-1 ring-lime-300/40"
             >
-              왜 만들었냐면요
+              서비스 소개
             </motion.span>
 
             <h2 className="mt-6 text-4xl font-black leading-tight tracking-tight text-ink-900 dark:text-white drop-shadow-2xl sm:text-5xl md:text-7xl">
-              팝업 정보,
+              서울 팝업 정보를
               <br />
-              <span className="text-lime-300">한 군데서</span> 끝내자.
+              <span className="text-lime-300">한 곳에서</span>
             </h2>
 
             <p className="mx-auto mt-6 max-w-2xl text-base text-ink-700/90 dark:text-cream-100/90 drop-shadow-lg sm:text-lg">
-              팝업 정보 찾겠다고 인스타 계정 30개 팔로우 안 해도 돼요.
+              매일 새로 열리는 서울 팝업스토어 정보를 자동으로 수집하고 정리해
               <br className="hidden sm:inline" />
-              매일 열리는 서울 팝업, 여기 하나만 보면 충분해요.
+              한 화면에서 검색·매칭·기록할 수 있도록 만든 서비스입니다.
             </p>
 
             <motion.div
@@ -488,7 +489,7 @@ export default function IntroPage() {
           style={{ scrollSnapAlign: "start" }}
         >
           {/* 어두운 오버레이 — 카드 가독성 확보 */}
-          <div className="pointer-events-none absolute inset-0 bg-cream-100/70 dark:bg-ink-900/70 backdrop-blur-[2px]" />
+          <div className="pointer-events-none absolute inset-0 bg-cream-100/70 dark:bg-ink-900/45" />
 
           <div className="relative z-10 mx-auto max-w-6xl">
             <motion.div
@@ -502,10 +503,10 @@ export default function IntroPage() {
                 주요 기능
               </span>
               <h2 className="mt-5 text-3xl font-black tracking-tight text-ink-900 dark:text-white drop-shadow-2xl sm:text-5xl md:text-6xl">
-                주로 이렇게들 <span className="text-hot-400">써요</span>
+                <span className="text-hot-500 dark:text-hot-400">3가지</span> 핵심 기능
               </h2>
               <p className="mx-auto mt-4 max-w-xl text-sm text-ink-700/85 dark:text-cream-100/85 drop-shadow-lg sm:text-base">
-                찾고, 가고, 기록하기 — 세 가지면 충분하더라고요.
+                팝업을 찾고, 가고, 기록할 때 가장 자주 쓰는 기능입니다.
               </p>
             </motion.div>
 
@@ -518,9 +519,7 @@ export default function IntroPage() {
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: false, amount: 0.3 }}
                   transition={{ duration: 0.6, delay: i * 0.15 }}
-                  className={`rounded-2xl bg-white dark:bg-ink-900/85 p-6 ring-1 ring-ink-900/10 dark:ring-white/10 transition hover:-translate-y-1 hover:ring-ink-900/20 dark:ring-white/20 ${
-                    i === 0 ? "sm:col-span-2 sm:p-8" : ""
-                  }`}
+                  className="rounded-2xl bg-white dark:bg-ink-900/60 p-6 ring-1 ring-ink-900/10 dark:ring-white/10 transition hover:-translate-y-1 hover:ring-ink-900/20 dark:hover:ring-white/20"
                 >
                   <f.Icon className={`h-7 w-7 ${f.accent}`} strokeWidth={2.2} />
                   <h3 className="mt-5 text-xl font-bold tracking-tight text-ink-900 dark:text-white">{f.title}</h3>
@@ -538,7 +537,7 @@ export default function IntroPage() {
           className="relative flex min-h-screen w-full items-center justify-center overflow-hidden px-6 py-16"
           style={{ scrollSnapAlign: "start" }}
         >
-          <div className="absolute inset-0 bg-cream-100/75 dark:bg-ink-900/75" />
+          <div className="absolute inset-0 bg-cream-100/75 dark:bg-ink-900/50" />
           <div className="pointer-events-none absolute -right-20 top-1/4 h-[400px] w-[400px] rounded-full bg-hot-400/12 blur-3xl" />
 
           <div className="relative z-10 mx-auto max-w-6xl">
@@ -550,13 +549,13 @@ export default function IntroPage() {
               className="text-center"
             >
               <span className="inline-block rounded-full bg-hot-400/15 px-4 py-1.5 text-sm font-medium text-hot-400 ring-1 ring-hot-400/40">
-                여기에만 있는 것
+                차별점
               </span>
               <h2 className="mt-5 text-3xl font-black tracking-tight text-ink-900 dark:text-white drop-shadow-2xl sm:text-5xl md:text-6xl">
-                이건 <span className="text-hot-400">여기에만</span> 있어요
+                다른 곳엔 없는 <span className="text-hot-400">4가지</span>
               </h2>
               <p className="mx-auto mt-4 max-w-xl text-sm text-ink-700/85 dark:text-cream-100/85 drop-shadow-lg sm:text-base">
-                직접 다녀보면서 "이건 좀 있었으면" 했던 것들.
+                팝업 정보 사이트에서 보기 어려운, POP-SPOT 만의 부가 기능입니다.
               </p>
             </motion.div>
 
@@ -568,7 +567,7 @@ export default function IntroPage() {
                   whileInView={{ opacity: 1, x: 0 }}
                   viewport={{ once: false, amount: 0.3 }}
                   transition={{ duration: 0.6, delay: i * 0.1 }}
-                  className="flex gap-4 rounded-2xl bg-white dark:bg-ink-900/85 p-6 ring-1 ring-ink-900/10 dark:ring-white/10 transition hover:ring-ink-900/20 dark:ring-white/20"
+                  className="flex gap-4 rounded-2xl bg-white dark:bg-ink-900/60 p-6 ring-1 ring-ink-900/10 dark:ring-white/10 transition hover:ring-ink-900/20 dark:ring-white/20"
                 >
                   <p.Icon className="h-7 w-7 shrink-0 text-hot-400" strokeWidth={2.2} />
                   <div>
@@ -589,7 +588,7 @@ export default function IntroPage() {
           style={{ scrollSnapAlign: "start" }}
         >
           {/* 핫핑크 틴트 오버레이 — 영상이 약간 비치도록 */}
-          <div className="pointer-events-none absolute inset-0 bg-hot-500/75 backdrop-blur-[1px]" />
+          <div className="pointer-events-none absolute inset-0 bg-hot-500/55" />
           <div
             className="pointer-events-none absolute inset-0 opacity-15"
             style={{
@@ -608,12 +607,12 @@ export default function IntroPage() {
             <Clock className="mx-auto h-12 w-12 text-ink-900 dark:text-white/95 drop-shadow-lg" strokeWidth={1.8} />
 
             <h2 className="mt-6 text-4xl font-black leading-tight tracking-tight drop-shadow-2xl sm:text-6xl md:text-7xl">
-              한번 둘러볼래요?
+              POP-SPOT 시작하기
             </h2>
             <p className="mx-auto mt-5 max-w-xl text-base text-ink-700 dark:text-white/95 drop-shadow-lg sm:text-lg">
-              지금 이 순간에도 서울 어딘가에서 팝업이 열리고 있어요.
+              서울에서 열리는 팝업스토어, 한 곳에서 만나보세요.
               <br className="hidden sm:inline" />
-              먼저 와본 사람한테 들켜도 모르는 척, 슬쩍 들어와요.
+              로그인 후 모든 기능을 이용할 수 있습니다.
             </p>
 
             <div className="mt-10 flex flex-col items-center gap-3 sm:flex-row sm:justify-center sm:gap-4">
