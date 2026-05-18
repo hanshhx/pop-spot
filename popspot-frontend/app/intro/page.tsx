@@ -199,28 +199,28 @@ export default function IntroPage() {
 
   return (
     <>
-      {/* 페이지 전체 고정 배경 — 다크일 땐 영상, 라이트일 땐 파스텔 blob. */}
+      {/* 페이지 전체 고정 배경 — 다크일 땐 영상, 라이트일 땐 파스텔 blob.
+          중요: video 는 display:none → block 토글로 autoplay 가 안 살아나니, isDark 일 때만 fresh mount.
+          mounted 가드를 두는 이유는 SSR 시점엔 테마 미확정이라 hydration mismatch 회피용. */}
       <div className="pointer-events-none fixed inset-0 z-0">
-        {/* 다크 모드 영상 — 항상 렌더하고 라이트 모드일 때만 숨김. 페이드인 가드 없애서 첫 프레임 즉시 노출. */}
-        {motionOn && (
+        {mounted && isDark && motionOn && (
           <video
+            key="intro-bg-video"
             autoPlay
             loop
             muted
             playsInline
             preload="auto"
             onCanPlay={() => setVideoReady(true)}
-            className={`h-full w-full object-cover bg-ink-900 ${isDark ? "block" : "hidden"}`}
+            className="h-full w-full object-cover bg-ink-900"
           >
             <source src={VIDEO_SRC} type="video/mp4" />
           </video>
         )}
-        {/* 다크 모드 + 모션 OFF — 정적 다크 그라데이션 */}
-        {isDark && !motionOn && (
+        {mounted && isDark && !motionOn && (
           <div className="h-full w-full bg-gradient-to-br from-ink-900 via-ink-800 to-hot-900/30" />
         )}
-        {/* 라이트 모드 배경 */}
-        {!isDark && <LightModeBackground />}
+        {(!mounted || !isDark) && <LightModeBackground />}
       </div>
 
       {/* 상단 고정 컨트롤 — 테마 토글 + 모션 토글 + Skip/Login.
