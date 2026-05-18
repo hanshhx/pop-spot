@@ -53,6 +53,42 @@ const FEATURES = [
   { Icon: Crown,    label: "랭킹",   sub: "사람들이 보는 곳" },
 ];
 
+/**
+ * 폴라로이드 스타일 카드 — HM Group 의 사진 콜라주 + Greencar 의 회전된 사진 배치를 흉내.
+ * 실제 사진 자산이 없어 그라데이션 + 카테고리 라벨로 대체. 살짝 회전해 손으로 흩뿌린 느낌.
+ */
+const HERO_POLAROIDS: Array<{
+  label: string;
+  gradient: string;
+  rotate: string;
+  position: string;
+}> = [
+  {
+    label: "성수동 카페",
+    gradient: "from-hot-400/80 to-hot-300/60",
+    rotate: "-rotate-6",
+    position: "left-[5%] top-[12%]",
+  },
+  {
+    label: "한남 패션",
+    gradient: "from-lime-300/80 to-lime-200/50",
+    rotate: "rotate-3",
+    position: "right-[8%] top-[18%]",
+  },
+  {
+    label: "압구정 캐릭터",
+    gradient: "from-blue-400/70 to-violet-300/50",
+    rotate: "-rotate-3",
+    position: "left-[10%] bottom-[10%]",
+  },
+  {
+    label: "코엑스 굿즈",
+    gradient: "from-amber-300/80 to-hot-300/40",
+    rotate: "rotate-6",
+    position: "right-[6%] bottom-[14%]",
+  },
+];
+
 const BIG_FEATURES = [
   {
     Icon: Calendar,
@@ -236,107 +272,138 @@ export default function IntroPage() {
           className="relative flex min-h-screen w-full items-center justify-center overflow-hidden"
           style={{ scrollSnapAlign: "start" }}
         >
-          {/* Hero 전용 그라데이션 (투명 → 어두움) — 클릭 흡수 차단 */}
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/30 via-black/20 to-black/60" />
+          {/* 다크 모드용 그라데이션 오버레이 (라이트에선 LightModeBackground 가 이미 처리) */}
+          <div className="pointer-events-none absolute inset-0 hidden bg-gradient-to-b from-black/30 via-black/20 to-black/60 dark:block" />
 
-          <div className="relative z-10 mx-auto flex max-w-5xl flex-col items-center px-6 py-12 text-center">
-            <motion.div
-              initial={{ opacity: 0, y: -24 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, ease: "easeOut" }}
-              className="mb-3"
+          {/* 좌측 거대 outline 영문 — DU 70주년 스타일 (라이트만 노출, 다크에선 영상이 보여야 하니 숨김) */}
+          <motion.div
+            initial={{ opacity: 0, x: -40 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 1, delay: 0.2 }}
+            className="pointer-events-none absolute left-[-2vw] top-[15%] hidden select-none sm:block dark:hidden"
+            aria-hidden
+          >
+            <span
+              className="block text-[14vw] font-black leading-none tracking-tighter text-transparent"
+              style={{ WebkitTextStroke: "1.5px rgba(30,30,30,0.15)" }}
             >
-              <h1 className="text-5xl font-black tracking-tight text-ink-900 dark:text-white sm:text-7xl md:text-8xl">
-                POP<span className="text-lime-300">·</span>SPOT
-              </h1>
-              <p className="mt-2 text-sm text-ink-700/80 dark:text-cream-200/80 sm:text-base">
-                서울 팝업스토어, 한 곳에서.
-              </p>
-            </motion.div>
+              POP
+            </span>
+          </motion.div>
 
-            <motion.h2
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.4 }}
-              className="mt-6 text-xl font-semibold text-ink-900 dark:text-white sm:text-2xl md:text-3xl"
+          {/* 우측 거대 outline 영문 */}
+          <motion.div
+            initial={{ opacity: 0, x: 40 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 1, delay: 0.4 }}
+            className="pointer-events-none absolute right-[-2vw] bottom-[15%] hidden select-none sm:block dark:hidden"
+            aria-hidden
+          >
+            <span
+              className="block text-[14vw] font-black leading-none tracking-tighter text-transparent"
+              style={{ WebkitTextStroke: "1.5px rgba(30,30,30,0.15)" }}
             >
-              서울 팝업, <span className="text-hot-400">여기서 찾아요</span>
-            </motion.h2>
+              SPOT
+            </span>
+          </motion.div>
 
-            <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 1.2 }}
-              className="mt-5 max-w-xl space-y-1 text-sm text-ink-700/85 dark:text-cream-100/85 sm:text-base"
-            >
-              <p>성수에서 한남, 압구정까지 — 흩어진 팝업 정보를 모아뒀어요.</p>
-              <p>줄 길이 보고 가고, 친구랑 코스 짜고, 다녀온 곳은 도장으로 남기고.</p>
-            </motion.div>
-
-            <motion.div
-              initial="hidden"
-              animate="show"
-              variants={{
-                hidden: {},
-                show: { transition: { staggerChildren: 0.12, delayChildren: 0.8 } },
-              }}
-              className="mt-10 grid grid-cols-3 gap-4 sm:gap-8"
-            >
-              {FEATURES.map(({ Icon, label, sub }) => (
-                <motion.div
-                  key={label}
-                  variants={{
-                    hidden: { opacity: 0, y: 20 },
-                    show: { opacity: 1, y: 0, transition: { duration: 0.6 } },
-                  }}
-                  className="flex flex-col items-center"
-                >
-                  <Icon className="h-7 w-7 text-lime-300 sm:h-8 sm:w-8" strokeWidth={2} />
-                  <div className="mt-2 text-sm font-semibold text-ink-900 dark:text-white sm:text-base">{label}</div>
-                  <div className="mt-0.5 text-[11px] text-ink-700/70 dark:text-cream-200/70 sm:text-xs">{sub}</div>
-                </motion.div>
-              ))}
-            </motion.div>
-
-            <motion.button
-              onClick={proceed}
-              initial={{ opacity: 0, scale: 0.92 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.6, delay: 1.6 }}
-              whileHover={{ scale: 1.04 }}
-              whileTap={{ scale: 0.97 }}
-              className="group mt-16 inline-flex items-center gap-3 rounded-full bg-lime-300 px-9 py-4 text-base font-bold text-ink-900 shadow-2xl shadow-lime-300/30 ring-2 ring-ink-900/20 dark:ring-white/20 transition hover:bg-lime-200 hover:shadow-lime-300/50 sm:mt-20 sm:px-12 sm:py-5 sm:text-lg"
-              aria-label={isLoggedIn ? "POP-SPOT 메인 페이지로 이동" : "로그인 페이지로 이동"}
-            >
-              {isLoggedIn ? (
-                <>
-                  <span>들어가기</span>
-                  <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
-                </>
-              ) : (
-                <>
-                  <LogIn className="h-5 w-5" />
-                  <span>로그인</span>
-                </>
-              )}
-            </motion.button>
-
-            {!isLoggedIn && (
-              <motion.p
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.8, delay: 2.0 }}
-                className="mt-5 text-sm text-ink-700/80 dark:text-cream-100/80"
+          {/* 라이트 모드 — 회전된 폴라로이드 카드 콜라주 (HM Group + Greencar 풍). 다크에선 숨김. */}
+          <div className="pointer-events-none absolute inset-0 hidden sm:block dark:hidden">
+            {HERO_POLAROIDS.map((card, idx) => (
+              <motion.div
+                key={card.label}
+                initial={{ opacity: 0, y: 30, rotate: 0 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.8, delay: 0.6 + idx * 0.15 }}
+                className={`absolute ${card.position} ${card.rotate} w-32 rounded-md bg-white p-2 shadow-xl shadow-ink-900/15 ring-1 ring-ink-900/10 md:w-40`}
               >
-                처음 오셨나요?{" "}
+                <div className={`aspect-[3/4] rounded-sm bg-gradient-to-br ${card.gradient}`} />
+                <div className="mt-2 px-1 pb-1 text-[10px] font-medium text-ink-900/70 md:text-xs">
+                  {card.label}
+                </div>
+              </motion.div>
+            ))}
+          </div>
+
+          {/* 중앙 컨텐츠 — 컬러 pill + 거대 한글 슬로건 + CTA */}
+          <div className="relative z-10 mx-auto flex max-w-3xl flex-col items-center px-6 py-12 text-center">
+            {/* DU 70주년 컬러 pill 스타일 — 위치/지역 강조 */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.6, delay: 0.1 }}
+              className="inline-flex items-center gap-2 rounded-full bg-ink-900 px-5 py-2 text-sm font-medium text-cream-100 shadow-lg dark:bg-lime-300 dark:text-ink-900"
+            >
+              <span className="size-1.5 rounded-full bg-lime-300 dark:bg-ink-900" />
+              성수 · 한남 · 압구정
+            </motion.div>
+
+            {/* 거대 한글 메인 슬로건 — Greencar 스타일 큰 한글 타이포 */}
+            <motion.h1
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.3 }}
+              className="mt-6 text-5xl font-black leading-[1.1] tracking-tight text-ink-900 drop-shadow-md dark:text-white dark:drop-shadow-2xl sm:text-7xl md:text-8xl"
+            >
+              오늘 어디로<br />
+              <span className="text-hot-500 dark:text-hot-400">갈래요?</span>
+            </motion.h1>
+
+            {/* Greencar 식 영문 보조 카피 (italic) */}
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.8, delay: 0.7 }}
+              className="mt-6 font-serif text-base italic text-ink-700/70 dark:text-cream-100/70 sm:text-lg"
+            >
+              find your pop-up in seoul.
+            </motion.p>
+
+            {/* 간단한 한 줄 설명 */}
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.8, delay: 0.9 }}
+              className="mt-2 max-w-md text-sm text-ink-700/75 dark:text-cream-100/75 sm:text-base"
+            >
+              매일 새벽 4시, 서울 팝업 정보를 모읍니다.
+            </motion.p>
+
+            {/* CTA 버튼 그룹 */}
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 1.1 }}
+              className="mt-12 flex flex-col items-center gap-3 sm:flex-row sm:gap-4"
+            >
+              <button
+                onClick={proceed}
+                className="group inline-flex items-center gap-2 rounded-full bg-ink-900 px-8 py-3.5 text-sm font-bold text-cream-100 shadow-lg shadow-ink-900/20 transition hover:scale-[1.03] hover:bg-ink-800 active:scale-[0.98] dark:bg-lime-300 dark:text-ink-900 dark:shadow-lime-300/30 dark:hover:bg-lime-200 sm:text-base"
+                aria-label={isLoggedIn ? "메인 페이지로 이동" : "로그인 페이지로 이동"}
+              >
+                {isLoggedIn ? (
+                  <>
+                    <span>들어가기</span>
+                    <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                  </>
+                ) : (
+                  <>
+                    <LogIn className="h-4 w-4" />
+                    <span>로그인</span>
+                  </>
+                )}
+              </button>
+
+              {!isLoggedIn && (
                 <button
                   onClick={() => router.push("/signup")}
-                  className="font-semibold text-lime-300 underline-offset-4 transition hover:underline"
+                  className="inline-flex items-center gap-2 rounded-full border-2 border-ink-900/15 bg-transparent px-8 py-3.5 text-sm font-bold text-ink-900 transition hover:scale-[1.03] hover:border-ink-900/30 hover:bg-ink-900/5 active:scale-[0.98] dark:border-white/25 dark:text-cream-100 dark:hover:border-white/50 dark:hover:bg-white/10 sm:text-base"
                 >
-                  회원가입
+                  <UserPlus className="h-4 w-4" />
+                  <span>회원가입</span>
                 </button>
-              </motion.p>
-            )}
+              )}
+            </motion.div>
           </div>
 
           {/* 스크롤 인디케이터 */}
@@ -536,7 +603,7 @@ export default function IntroPage() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: false, amount: 0.4 }}
             transition={{ duration: 0.8 }}
-            className="relative z-10 mx-auto max-w-3xl text-center text-ink-900 dark:text-white"
+            className="relative z-10 mx-auto max-w-3xl text-center text-white"
           >
             <Clock className="mx-auto h-12 w-12 text-ink-900 dark:text-white/95 drop-shadow-lg" strokeWidth={1.8} />
 
@@ -576,7 +643,6 @@ export default function IntroPage() {
                   whileTap={{ scale: 0.97 }}
                   className="inline-flex items-center gap-2 rounded-full bg-ink-900/25 px-9 py-4 text-base font-bold text-white backdrop-blur-md ring-2 ring-white/40 transition hover:bg-ink-900/35 sm:px-12 sm:py-5 sm:text-lg"
                 >
-                  {/* 아이콘-텍스트 순서를 로그인 버튼과 통일. */}
                   <UserPlus className="h-5 w-5" />
                   <span>회원가입</span>
                 </motion.button>
