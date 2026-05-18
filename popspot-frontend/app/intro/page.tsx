@@ -31,32 +31,29 @@ import { useEffect, useState } from "react";
 const VIDEO_SRC = "/14385-256955049.mp4";
 
 const FEATURES = [
-  { Icon: Calendar, label: "캘린더", sub: "이번 달 팝업 한눈에" },
-  { Icon: MapPin,   label: "지도",   sub: "성수 · 한남 · 압구정" },
-  { Icon: Crown,    label: "랭킹",   sub: "지금 핫한 팝업 TOP" },
+  { Icon: Calendar, label: "캘린더", sub: "이번 달 일정" },
+  { Icon: MapPin,   label: "지도",   sub: "성수·한남·압구정" },
+  { Icon: Crown,    label: "랭킹",   sub: "사람들이 보는 곳" },
 ];
 
 const BIG_FEATURES = [
   {
     Icon: Calendar,
-    title: "한 달 팝업 캘린더",
-    desc: "이번 달과 다음 달 팝업을 캘린더에 펼쳐서 보고, 가고 싶은 곳을 미리 체크하세요.",
+    title: "팝업 캘린더",
+    desc: "이번 달, 다음 달 팝업을 한 화면에 펼쳐놨어요. 가고 싶은 거 미리 찜해두면 돼요.",
     accent: "text-lime-300",
-    glow: "ring-lime-300/30",
   },
   {
     Icon: MapIcon,
-    title: "위치 기반 지도",
-    desc: "성수 · 한남 · 압구정 등 핫스팟을 지도에서 확인. 클릭 한 번에 길찾기까지.",
-    accent: "text-violet-300",
-    glow: "ring-violet-300/30",
+    title: "지도",
+    desc: "성수·한남·압구정 — 핀 찍힌 곳 클릭하면 길찾기까지 바로 연결돼요.",
+    accent: "text-cream-100",
   },
   {
     Icon: Crown,
-    title: "실시간 랭킹",
-    desc: "지금 가장 인기 있는 팝업 TOP 10. 트렌드를 놓치지 않는 가장 빠른 방법.",
+    title: "랭킹",
+    desc: "지금 사람들이 많이 보는 팝업 순위. 뭐가 뜨고 있는지 궁금할 때.",
     accent: "text-hot-400",
-    glow: "ring-hot-400/30",
   },
 ];
 
@@ -64,22 +61,22 @@ const UNIQUE_POINTS = [
   {
     Icon: Sparkles,
     title: "AI 코스 추천",
-    desc: "오늘 데이트 분위기에 맞춰 AI 가 자동으로 팝업 코스를 짜드려요.",
+    desc: "분위기랑 인원 알려주면 그날 가기 좋은 코스 만들어 줘요.",
   },
   {
     Icon: Users,
-    title: "친구와 동선 계획",
-    desc: "친구를 초대해 같이 가고 싶은 팝업을 정하고, 동선까지 함께 짜요.",
+    title: "친구랑 같이 짜기",
+    desc: "링크 보내서 같이 갈 친구랑 가고 싶은 곳 골라요.",
   },
   {
     Icon: Stamp,
-    title: "팝업 스탬프 패스포트",
-    desc: "다녀온 팝업을 인증하고 도장을 모아 나만의 팝업 패스포트를 완성하세요.",
+    title: "스탬프 패스포트",
+    desc: "다녀온 팝업에 도장 찍으면 나만의 기록이 쌓여요.",
   },
   {
     Icon: Zap,
-    title: "실시간 혼잡도",
-    desc: "지금 그 팝업, 줄이 얼마나 길까? 가기 전에 미리 확인하세요.",
+    title: "혼잡도 정보",
+    desc: "줄이 얼마나 긴지 가기 전에 확인하고 출발해요.",
   },
 ];
 
@@ -216,8 +213,8 @@ export default function IntroPage() {
               <h1 className="text-5xl font-black tracking-tight text-white sm:text-7xl md:text-8xl">
                 POP<span className="text-lime-300">·</span>SPOT
               </h1>
-              <p className="mt-2 font-mono text-xs uppercase tracking-[0.3em] text-cream-200/80 sm:text-sm">
-                Seoul Popup Store Intelligence
+              <p className="mt-2 text-sm text-cream-200/80 sm:text-base">
+                서울 팝업스토어, 한 곳에서.
               </p>
             </motion.div>
 
@@ -227,7 +224,7 @@ export default function IntroPage() {
               transition={{ duration: 0.8, delay: 0.4 }}
               className="mt-6 text-xl font-semibold text-white sm:text-2xl md:text-3xl"
             >
-              서울의 모든 팝업, <span className="text-hot-400">한 화면에</span>
+              서울 팝업, <span className="text-hot-400">여기서 찾아요</span>
             </motion.h2>
 
             <motion.div
@@ -236,9 +233,8 @@ export default function IntroPage() {
               transition={{ duration: 0.8, delay: 1.2 }}
               className="mt-5 max-w-xl space-y-1 text-sm text-cream-100/85 sm:text-base"
             >
-              <p>성수 · 한남 · 압구정 — 서울 모든 팝업을 한 곳에서</p>
-              <p>실시간 혼잡도와 AI 코스 추천으로 똑똑한 팝업 투어</p>
-              <p>친구와 함께 동선을 짜고, 같이 도장을 모으세요</p>
+              <p>성수에서 한남, 압구정까지 — 흩어진 팝업 정보를 모아뒀어요.</p>
+              <p>줄 길이 보고 가고, 친구랑 코스 짜고, 다녀온 곳은 도장으로 남기고.</p>
             </motion.div>
 
             <motion.div
@@ -259,9 +255,7 @@ export default function IntroPage() {
                   }}
                   className="flex flex-col items-center"
                 >
-                  <div className="rounded-2xl bg-white/10 p-3 backdrop-blur-md ring-1 ring-white/20 transition hover:bg-white/15 sm:p-4">
-                    <Icon className="h-6 w-6 text-lime-300 sm:h-7 sm:w-7" strokeWidth={2} />
-                  </div>
+                  <Icon className="h-7 w-7 text-lime-300 sm:h-8 sm:w-8" strokeWidth={2} />
                   <div className="mt-2 text-sm font-semibold text-white sm:text-base">{label}</div>
                   <div className="mt-0.5 text-[11px] text-cream-200/70 sm:text-xs">{sub}</div>
                 </motion.div>
@@ -280,13 +274,13 @@ export default function IntroPage() {
             >
               {isLoggedIn ? (
                 <>
-                  <span>ENTER</span>
+                  <span>들어가기</span>
                   <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
                 </>
               ) : (
                 <>
                   <LogIn className="h-5 w-5" />
-                  <span>로그인하러 가기</span>
+                  <span>로그인</span>
                 </>
               )}
             </motion.button>
@@ -298,7 +292,7 @@ export default function IntroPage() {
                 transition={{ duration: 0.8, delay: 2.0 }}
                 className="mt-5 text-sm text-cream-100/80"
               >
-                아직 회원이 아니신가요?{" "}
+                처음 오셨나요?{" "}
                 <button
                   onClick={() => router.push("/signup")}
                   className="font-semibold text-lime-300 underline-offset-4 transition hover:underline"
@@ -321,7 +315,7 @@ export default function IntroPage() {
               transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
               className="flex flex-col items-center gap-1 text-cream-200/70"
             >
-              <span className="font-mono text-[10px] uppercase tracking-widest">Scroll</span>
+              <span className="text-xs">스크롤</span>
               <ChevronDown className="h-5 w-5" />
             </motion.div>
           </motion.div>
@@ -350,44 +344,36 @@ export default function IntroPage() {
               whileInView={{ opacity: 1 }}
               viewport={{ once: false }}
               transition={{ delay: 0.1 }}
-              className="inline-block rounded-full bg-lime-300/15 px-4 py-1.5 font-mono text-xs uppercase tracking-widest text-lime-300 ring-1 ring-lime-300/40 backdrop-blur-md"
+              className="inline-block rounded-full bg-lime-300/15 px-4 py-1.5 text-sm font-medium text-lime-300 ring-1 ring-lime-300/40"
             >
-              Why POP-SPOT
+              왜 만들었냐면요
             </motion.span>
 
             <h2 className="mt-6 text-4xl font-black leading-tight tracking-tight text-white drop-shadow-2xl sm:text-5xl md:text-7xl">
-              서울 팝업,
+              팝업 정보,
               <br />
-              <span className="text-lime-300">더 이상</span> 놓치지 마세요.
+              <span className="text-lime-300">한 군데서</span> 끝내자.
             </h2>
 
             <p className="mx-auto mt-6 max-w-2xl text-base text-cream-100/90 drop-shadow-lg sm:text-lg">
-              인스타그램 수십 개 계정을 팔로우하지 않아도,
+              팝업 정보 찾겠다고 인스타 계정 30개 팔로우 안 해도 돼요.
               <br className="hidden sm:inline" />
-              매일 새로 열리는 서울 팝업을 한 화면에서.
+              매일 열리는 서울 팝업, 여기 하나만 보면 충분해요.
             </p>
 
-            <div className="mt-14 grid grid-cols-3 gap-4 sm:gap-12">
-              {[
-                { num: "60+", label: "추적 키워드" },
-                { num: "1~2", label: "달치 캘린더" },
-                { num: "24h", label: "신고 처리" },
-              ].map((s, i) => (
-                <motion.div
-                  key={s.label}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: false }}
-                  transition={{ duration: 0.6, delay: 0.3 + i * 0.15 }}
-                  className="rounded-2xl bg-black/30 p-4 backdrop-blur-md ring-1 ring-white/10 sm:p-6"
-                >
-                  <div className="text-3xl font-black text-lime-300 sm:text-5xl md:text-6xl">{s.num}</div>
-                  <div className="mt-1 font-mono text-[10px] uppercase tracking-widest text-cream-100/80 sm:text-xs">
-                    {s.label}
-                  </div>
-                </motion.div>
-              ))}
-            </div>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: false }}
+              transition={{ duration: 0.6, delay: 0.3 }}
+              className="mt-12 inline-flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-cream-100/85 sm:text-base"
+            >
+              <span>매일 새벽 4시에 새 팝업 수집</span>
+              <span className="text-cream-100/30">·</span>
+              <span>1~2달치 일정 미리보기</span>
+              <span className="text-cream-100/30">·</span>
+              <span>신고는 24시간 안에</span>
+            </motion.div>
           </motion.div>
         </section>
 
@@ -409,18 +395,19 @@ export default function IntroPage() {
               transition={{ duration: 0.7 }}
               className="text-center"
             >
-              <span className="inline-block rounded-full bg-white/10 px-4 py-1.5 font-mono text-xs uppercase tracking-widest text-cream-100/90 ring-1 ring-white/20 backdrop-blur-md">
-                Core Features
+              <span className="inline-block rounded-full bg-white/10 px-4 py-1.5 text-sm font-medium text-cream-100/90 ring-1 ring-white/20">
+                주요 기능
               </span>
               <h2 className="mt-5 text-3xl font-black tracking-tight text-white drop-shadow-2xl sm:text-5xl md:text-6xl">
-                가장 많이 쓰는 <span className="text-hot-400">3가지 기능</span>
+                주로 이렇게들 <span className="text-hot-400">써요</span>
               </h2>
               <p className="mx-auto mt-4 max-w-xl text-sm text-cream-100/85 drop-shadow-lg sm:text-base">
-                팝업을 찾고, 가고, 기록하는 모든 단계를 한 앱에서.
+                찾고, 가고, 기록하기 — 세 가지면 충분하더라고요.
               </p>
             </motion.div>
 
-            <div className="mt-12 grid grid-cols-1 gap-5 sm:mt-16 sm:grid-cols-3 sm:gap-6">
+            {/* Bento 레이아웃 — 첫 번째 카드가 가로로 길게, 나머지 둘이 옆에 작게. 모든 카드 동일 크기를 깨서 AI 티 ↓ */}
+            <div className="mt-12 grid grid-cols-1 gap-4 sm:mt-16 sm:grid-cols-3 sm:gap-5">
               {BIG_FEATURES.map((f, i) => (
                 <motion.div
                   key={f.title}
@@ -428,13 +415,13 @@ export default function IntroPage() {
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: false, amount: 0.3 }}
                   transition={{ duration: 0.6, delay: i * 0.15 }}
-                  className={`rounded-3xl bg-white/10 p-7 backdrop-blur-xl ring-1 ${f.glow} transition hover:-translate-y-1 hover:bg-white/15`}
+                  className={`rounded-2xl bg-ink-900/85 p-6 ring-1 ring-white/10 transition hover:-translate-y-1 hover:ring-white/20 ${
+                    i === 0 ? "sm:col-span-2 sm:p-8" : ""
+                  }`}
                 >
-                  <div className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/20 backdrop-blur-md">
-                    <f.Icon className={`h-7 w-7 ${f.accent}`} strokeWidth={2.2} />
-                  </div>
-                  <h3 className="mt-5 text-xl font-black tracking-tight text-white">{f.title}</h3>
-                  <p className="mt-2 text-sm leading-relaxed text-cream-100/85">{f.desc}</p>
+                  <f.Icon className={`h-7 w-7 ${f.accent}`} strokeWidth={2.2} />
+                  <h3 className="mt-5 text-xl font-bold tracking-tight text-white">{f.title}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-cream-100/75">{f.desc}</p>
                 </motion.div>
               ))}
             </div>
@@ -448,9 +435,8 @@ export default function IntroPage() {
           className="relative flex min-h-screen w-full items-center justify-center overflow-hidden px-6 py-16"
           style={{ scrollSnapAlign: "start" }}
         >
-          <div className="absolute inset-0 bg-ink-900/70 backdrop-blur-[2px]" />
-          <div className="pointer-events-none absolute -left-20 top-1/2 h-[500px] w-[500px] -translate-y-1/2 rounded-full bg-violet-400/15 blur-3xl" />
-          <div className="pointer-events-none absolute -right-20 top-1/4 h-[400px] w-[400px] rounded-full bg-hot-400/15 blur-3xl" />
+          <div className="absolute inset-0 bg-ink-900/75" />
+          <div className="pointer-events-none absolute -right-20 top-1/4 h-[400px] w-[400px] rounded-full bg-hot-400/12 blur-3xl" />
 
           <div className="relative z-10 mx-auto max-w-6xl">
             <motion.div
@@ -460,18 +446,18 @@ export default function IntroPage() {
               transition={{ duration: 0.7 }}
               className="text-center"
             >
-              <span className="inline-block rounded-full bg-violet-400/15 px-4 py-1.5 font-mono text-xs uppercase tracking-widest text-violet-300 ring-1 ring-violet-400/40 backdrop-blur-md">
-                Only on POP-SPOT
+              <span className="inline-block rounded-full bg-hot-400/15 px-4 py-1.5 text-sm font-medium text-hot-400 ring-1 ring-hot-400/40">
+                여기에만 있는 것
               </span>
               <h2 className="mt-5 text-3xl font-black tracking-tight text-white drop-shadow-2xl sm:text-5xl md:text-6xl">
-                다른 곳엔 없는 <span className="text-violet-300">4가지</span>
+                이건 <span className="text-hot-400">여기에만</span> 있어요
               </h2>
               <p className="mx-auto mt-4 max-w-xl text-sm text-cream-100/85 drop-shadow-lg sm:text-base">
-                단순한 리스트가 아닌, 진짜 팝업 투어를 위한 도구.
+                직접 다녀보면서 "이건 좀 있었으면" 했던 것들.
               </p>
             </motion.div>
 
-            <div className="mt-12 grid grid-cols-1 gap-5 sm:mt-16 sm:grid-cols-2 sm:gap-6">
+            <div className="mt-12 grid grid-cols-1 gap-4 sm:mt-16 sm:grid-cols-2 sm:gap-5">
               {UNIQUE_POINTS.map((p, i) => (
                 <motion.div
                   key={p.title}
@@ -479,14 +465,12 @@ export default function IntroPage() {
                   whileInView={{ opacity: 1, x: 0 }}
                   viewport={{ once: false, amount: 0.3 }}
                   transition={{ duration: 0.6, delay: i * 0.1 }}
-                  className="flex gap-4 rounded-2xl bg-white/8 p-6 backdrop-blur-xl ring-1 ring-white/15 transition hover:bg-white/12"
+                  className="flex gap-4 rounded-2xl bg-ink-900/85 p-6 ring-1 ring-white/10 transition hover:ring-white/20"
                 >
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-violet-400/20 ring-1 ring-violet-400/40 backdrop-blur-md">
-                    <p.Icon className="h-6 w-6 text-violet-300" strokeWidth={2.2} />
-                  </div>
+                  <p.Icon className="h-7 w-7 shrink-0 text-hot-400" strokeWidth={2.2} />
                   <div>
                     <h3 className="text-lg font-bold text-white">{p.title}</h3>
-                    <p className="mt-1 text-sm leading-relaxed text-cream-100/85">{p.desc}</p>
+                    <p className="mt-1 text-sm leading-relaxed text-cream-100/75">{p.desc}</p>
                   </div>
                 </motion.div>
               ))}
@@ -521,12 +505,12 @@ export default function IntroPage() {
             <Clock className="mx-auto h-12 w-12 text-white/95 drop-shadow-lg" strokeWidth={1.8} />
 
             <h2 className="mt-6 text-4xl font-black leading-tight tracking-tight drop-shadow-2xl sm:text-6xl md:text-7xl">
-              지금 바로 시작하세요
+              한번 둘러볼래요?
             </h2>
             <p className="mx-auto mt-5 max-w-xl text-base text-white/95 drop-shadow-lg sm:text-lg">
-              오늘도 새로운 팝업이 서울 어딘가에서 열리고 있어요.
+              지금 이 순간에도 서울 어딘가에서 팝업이 열리고 있어요.
               <br className="hidden sm:inline" />
-              POP-SPOT 과 함께 가장 먼저 만나보세요.
+              먼저 와본 사람한테 들켜도 모르는 척, 슬쩍 들어와요.
             </p>
 
             <div className="mt-10 flex flex-col items-center gap-3 sm:flex-row sm:justify-center sm:gap-4">
@@ -563,8 +547,8 @@ export default function IntroPage() {
               )}
             </div>
 
-            <p className="mt-8 font-mono text-[11px] uppercase tracking-widest text-white/70 drop-shadow-lg sm:text-xs">
-              © {new Date().getFullYear()} POP-SPOT · Seoul Popup Store Intelligence
+            <p className="mt-8 text-xs text-white/70 drop-shadow-lg">
+              © {new Date().getFullYear()} POP-SPOT · 서울 팝업스토어, 한 곳에서.
             </p>
           </motion.div>
         </section>
