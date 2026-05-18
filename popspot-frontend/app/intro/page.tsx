@@ -199,29 +199,28 @@ export default function IntroPage() {
 
   return (
     <>
-      {/* 페이지 전체 고정 배경 — 다크일 땐 영상 (또는 정적 다크 그라데이션), 라이트일 땐 파스텔 blob. */}
+      {/* 페이지 전체 고정 배경 — 다크일 땐 영상, 라이트일 땐 파스텔 blob. */}
       <div className="pointer-events-none fixed inset-0 z-0">
-        {isDark ? (
-          motionOn ? (
-            <video
-              autoPlay
-              loop
-              muted
-              playsInline
-              preload="auto"
-              onCanPlay={() => setVideoReady(true)}
-              className={`h-full w-full object-cover bg-ink-900 transition-opacity duration-700 ${
-                videoReady ? "opacity-100" : "opacity-0"
-              }`}
-            >
-              <source src={VIDEO_SRC} type="video/mp4" />
-            </video>
-          ) : (
-            <div className="h-full w-full bg-gradient-to-br from-ink-900 via-ink-800 to-hot-900/30" />
-          )
-        ) : (
-          <LightModeBackground />
+        {/* 다크 모드 영상 — 항상 렌더하고 라이트 모드일 때만 숨김. 페이드인 가드 없애서 첫 프레임 즉시 노출. */}
+        {motionOn && (
+          <video
+            autoPlay
+            loop
+            muted
+            playsInline
+            preload="auto"
+            onCanPlay={() => setVideoReady(true)}
+            className={`h-full w-full object-cover bg-ink-900 ${isDark ? "block" : "hidden"}`}
+          >
+            <source src={VIDEO_SRC} type="video/mp4" />
+          </video>
         )}
+        {/* 다크 모드 + 모션 OFF — 정적 다크 그라데이션 */}
+        {isDark && !motionOn && (
+          <div className="h-full w-full bg-gradient-to-br from-ink-900 via-ink-800 to-hot-900/30" />
+        )}
+        {/* 라이트 모드 배경 */}
+        {!isDark && <LightModeBackground />}
       </div>
 
       {/* 상단 고정 컨트롤 — 테마 토글 + 모션 토글 + Skip/Login.
@@ -273,8 +272,8 @@ export default function IntroPage() {
           className="relative flex min-h-screen w-full items-center justify-center overflow-hidden"
           style={{ scrollSnapAlign: "start" }}
         >
-          {/* 다크 모드용 그라데이션 오버레이 (라이트에선 LightModeBackground 가 이미 처리) */}
-          <div className="pointer-events-none absolute inset-0 hidden bg-gradient-to-b from-black/30 via-black/20 to-black/60 dark:block" />
+          {/* 다크 모드용 그라데이션 오버레이 — 영상이 비치되 텍스트 가독성은 확보. 이전 60% → 30% 로 낮춤. */}
+          <div className="pointer-events-none absolute inset-0 hidden bg-gradient-to-b from-black/20 via-black/10 to-black/30 dark:block" />
 
           {/* 좌측 거대 outline 영문 — DU 70주년 스타일 (라이트만 노출, 다크에선 영상이 보여야 하니 숨김) */}
           <motion.div
