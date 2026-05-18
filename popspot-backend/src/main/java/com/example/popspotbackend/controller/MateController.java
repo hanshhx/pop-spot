@@ -23,8 +23,8 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * 동행 모집 게시판 API.
  *
- * <p>실제 비즈니스 로직 (확성기 소비 · 정원 검사 · 자동 마감) 은 {@link MateService} 가 처리하며, 컨트롤러는 URL 매핑 + 결과 코드를
- * HTTP 응답으로 변환하는 역할만 한다.
+ * <p>실제 비즈니스 로직 (확성기 소비 · 정원 검사 · 자동 마감) 은 {@link MateService} 가 처리하며, 컨트롤러는 URL 매핑 + 결과 코드를 HTTP
+ * 응답으로 변환하는 역할만 한다.
  */
 @RestController
 @RequestMapping("/api/mates")

@@ -509,6 +509,10 @@ export default function SignupPage() {
 
         {/* 약관 동의 */}
         <div className="bg-ink-800 p-4 rounded-md border border-cream-200/15 space-y-3 mt-6">
+          <p className="text-xs text-cream-200/60 pb-2 leading-relaxed">
+            POP-SPOT 은 <strong className="text-cream-200">만 14세 이상</strong>만 가입할 수 있습니다.
+            가입을 진행하면 본인이 만 14세 이상임을 확인한 것으로 봅니다.
+          </p>
           <label className="flex items-center gap-3 cursor-pointer pb-3 border-b border-cream-200/10 select-none">
             <input
               type="checkbox"
@@ -539,9 +543,8 @@ export default function SignupPage() {
             },
             {
               key: "privacy" as const,
-              label: "[필수] 개인정보 수집 및 이용",
-              // 별도의 /privacy 페이지가 없으면 /terms 안의 §개인정보 단원으로 통합
-              href: "/terms",
+              label: "[필수] 개인정보 수집 및 이용 (만 14세 이상)",
+              href: "/privacy",
             },
           ].map((item) => (
             <div

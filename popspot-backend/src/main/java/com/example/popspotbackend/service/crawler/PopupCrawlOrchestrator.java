@@ -2,7 +2,8 @@ package com.example.popspotbackend.service.crawler;
 
 import com.example.popspotbackend.entity.PopupStore;
 import com.example.popspotbackend.repository.PopupStoreRepository;
-import com.example.popspotbackend.service.KakaoApiService;
+import com.example.popspotbackend.service.geocoding.Coordinates;
+import com.example.popspotbackend.service.geocoding.GeocodingService;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
@@ -121,7 +122,7 @@ public class PopupCrawlOrchestrator {
     private final KakaoPopupCrawler kakaoCrawler;
     private final PopupNormalizationService normalizer;
     private final PopupStoreRepository popupStoreRepository;
-    private final KakaoApiService kakaoApiService;
+    private final GeocodingService geocodingService;
 
     @Value("${popspot.crawler.confidence-threshold:0.8}")
     private double confidenceThreshold;
@@ -271,7 +272,8 @@ public class PopupCrawlOrchestrator {
     private void saveNewPopup(
             NormalizedPopup result, List<PopupCrawlSource> snippets, String externalId) {
         PopupCrawlSource primarySource = snippets.get(0);
-        String[] coordinates = geocode(result.getName(), result.getLocation());
+        Optional<Coordinates> coordinates =
+                geocodingService.geocode(result.getName(), result.getLocation());
 
         PopupStore newPopup =
                 PopupStore.builder()
@@ -283,8 +285,8 @@ public class PopupCrawlOrchestrator {
                         .startDate(result.getStartDate())
                         .endDate(result.getEndDate())
                         .viewCount(0)
-                        .latitude(coordinates != null ? coordinates[0] : null)
-                        .longitude(coordinates != null ? coordinates[1] : null)
+                        .latitude(coordinates.map(Coordinates::latitude).orElse(null))
+                        .longitude(coordinates.map(Coordinates::longitude).orElse(null))
                         .sourceType(SOURCE_TYPE_CRAWLED)
                         .sourceUrl(primarySource.getLink())
                         .sourceName(primarySource.getSourceName())
@@ -300,64 +302,15 @@ public class PopupCrawlOrchestrator {
         popupStoreRepository.save(newPopup);
     }
 
-    /* =========================== Geocoding =========================== */
-
-    /**
-     * Kakao 로컬 키워드 검색으로 좌표 변환.
-     *
-     * <ol>
-     *   <li>1차: 이름 + 위치 함께 검색 — 정확도 ↑
-     *   <li>2차: 1차 실패 시 위치만 — fallback
-     * </ol>
-     */
-    private String[] geocode(String name, String location) {
-        try {
-            String trimmedName = name == null ? "" : name.trim();
-            String trimmedLoc = location == null ? "" : location.trim();
-
-            String combinedQuery = (trimmedName + " " + trimmedLoc).trim();
-            if (!combinedQuery.isBlank()) {
-                String[] result = tryGeocodeOnce(combinedQuery);
-                if (result != null) return result;
-            }
-
-            if (!trimmedLoc.isBlank() && !trimmedLoc.equals(combinedQuery)) {
-                return tryGeocodeOnce(trimmedLoc);
-            }
-            return null;
-        } catch (Exception e) {
-            log.debug("[Geocode] '{}' 실패: {}", name, e.toString());
-            return null;
-        }
-    }
-
-    private String[] tryGeocodeOnce(String query) {
-        try {
-            Map<String, Object> response = kakaoApiService.searchPopups(query);
-            if (response == null) return null;
-
-            Object documentsRaw = response.get("documents");
-            if (!(documentsRaw instanceof List<?> documents) || documents.isEmpty()) return null;
-
-            Object firstDocRaw = documents.get(0);
-            if (!(firstDocRaw instanceof Map<?, ?> firstDoc)) return null;
-
-            Object longitude = firstDoc.get("x");
-            Object latitude = firstDoc.get("y");
-            if (longitude == null || latitude == null) return null;
-
-            return new String[] {String.valueOf(latitude), String.valueOf(longitude)};
-        } catch (Exception e) {
-            return null;
-        }
-    }
+    /* =========================== Geocoding backfill =========================== */
 
     private boolean fillCoordinates(PopupStore popup) {
-        String[] coords = geocode(popup.getName(), popup.getLocation());
-        if (coords == null) return false;
+        Optional<Coordinates> coords =
+                geocodingService.geocode(popup.getName(), popup.getLocation());
+        if (coords.isEmpty()) return false;
 
-        popup.setLatitude(coords[0]);
-        popup.setLongitude(coords[1]);
+        popup.setLatitude(coords.get().latitude());
+        popup.setLongitude(coords.get().longitude());
         popupStoreRepository.save(popup);
         return true;
     }
