@@ -599,8 +599,8 @@ export default function Home() {
                         <SearchZone />
                     </div>
                     
-                    {/* Map Zone */}
-                    <div className="col-span-1 lg:col-span-7 md:row-span-4 rounded-[2rem] relative overflow-hidden border border-gray-200 dark:border-white/5 group bg-gray-100 dark:bg-[#111]/80 backdrop-blur-md min-h-[400px] md:min-h-0 order-2 lg:order-none">
+                    {/* Map Zone — 배경 분리를 위해 solid 배경 + shadow 로 카드 블록 강화. */}
+                    <div className="col-span-1 lg:col-span-7 md:row-span-4 rounded-[2rem] relative overflow-hidden border border-gray-200 dark:border-white/10 group bg-white dark:bg-[#111] shadow-lg shadow-black/5 dark:shadow-black/30 min-h-[400px] md:min-h-0 order-2 lg:order-none">
                         <InteractiveMap onMarkerClick={handleMarkerClickToDetail} />
                         <div className="absolute bottom-4 md:bottom-6 left-4 md:left-6 flex gap-2 z-20">
                             <span className="backdrop-blur px-3 py-1.5 md:px-4 md:py-2 rounded-full border text-[10px] md:text-xs font-bold flex items-center gap-1.5 md:gap-2 bg-white/80 border-gray-200 text-gray-900 dark:bg-black/60 dark:border-white/10 dark:text-white">
@@ -609,8 +609,8 @@ export default function Home() {
                         </div>
                     </div>
 
-                    {/* Real-time Ranking Zone */}
-                    <div className="col-span-1 lg:col-span-5 md:row-span-4 rounded-[2rem] p-5 md:p-6 border flex flex-col backdrop-blur-md transition-colors bg-white/80 border-gray-200 dark:bg-[#111]/80 dark:border-white/5 order-3 lg:order-none h-[300px] md:h-auto">
+                    {/* Real-time Ranking Zone — solid 카드 블록 (배경 겹침 가독성 개선). */}
+                    <div className="col-span-1 lg:col-span-5 md:row-span-4 rounded-[2rem] p-5 md:p-6 border flex flex-col transition-colors bg-white border-gray-200 dark:bg-[#111] dark:border-white/10 shadow-lg shadow-black/5 dark:shadow-black/30 order-3 lg:order-none h-[300px] md:h-auto">
                         <header className="flex items-center justify-between mb-4 md:mb-6 pb-3 md:pb-4 border-b border-gray-200 dark:border-white/5">
                             <div className="flex items-center gap-2">
                                 <Flame size={18} className="text-secondary animate-pulse md:w-5 md:h-5"/>
@@ -665,10 +665,10 @@ export default function Home() {
                         </div>
                     </div>
 
-                    {/* Calendar Zone */}
-                    <div 
+                    {/* Calendar Zone — primary 컬러 solid + shadow 강화. */}
+                    <div
                         onClick={() => setIsCalendarOpen(true)}
-                        className="col-span-1 lg:col-span-4 md:row-span-2 bg-primary/90 backdrop-blur-md text-black rounded-[2rem] p-5 md:p-6 transition-all hover:scale-[1.02] cursor-pointer shadow-lg relative overflow-hidden group order-4 lg:order-none flex flex-col justify-between"
+                        className="col-span-1 lg:col-span-4 md:row-span-2 bg-primary text-black rounded-[2rem] p-5 md:p-6 transition-all hover:scale-[1.02] cursor-pointer shadow-xl shadow-primary/20 dark:shadow-primary/10 relative overflow-hidden group order-4 lg:order-none flex flex-col justify-between"
                     >
                         <div className="relative z-10">
                             <Calendar size={28} className="md:w-8 md:h-8 group-hover:rotate-12 transition-transform" />
@@ -685,8 +685,8 @@ export default function Home() {
                         </div>
                     </div>
 
-                    {/* AI Report Zone */}
-                    <div onClick={() => setIsReportOpen(true)} className="col-span-1 lg:col-span-3 md:row-span-2 rounded-[2rem] p-5 md:p-6 cursor-pointer border flex flex-col justify-between group backdrop-blur-md transition-colors bg-white/80 border-gray-200 hover:border-primary dark:bg-[#111]/80 dark:border-white/5 dark:hover:border-primary order-5 lg:order-none">
+                    {/* AI Report Zone — solid 카드 블록. */}
+                    <div onClick={() => setIsReportOpen(true)} className="col-span-1 lg:col-span-3 md:row-span-2 rounded-[2rem] p-5 md:p-6 cursor-pointer border flex flex-col justify-between group transition-colors bg-white border-gray-200 hover:border-primary dark:bg-[#111] dark:border-white/10 dark:hover:border-primary shadow-lg shadow-black/5 dark:shadow-black/30 order-5 lg:order-none">
                         <div className="flex justify-between items-start">
                             <Users size={20} className={`md:w-6 md:h-6 ${getCongestionColor(congestionData?.level || '')} group-hover:scale-110 transition-transform`}/>
                             <div className="text-right">
