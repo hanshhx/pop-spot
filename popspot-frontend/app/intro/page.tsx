@@ -90,6 +90,17 @@ const HERO_POLAROIDS: Array<{
   },
 ];
 
+/**
+ * 플로팅 태그 — 폴라로이드 사이 빈 공간을 채우는 작은 라벨들.
+ * Greencar 식 "흩어진 요소" 패턴으로 허전함 해소.
+ */
+const HERO_FLOATING_TAGS: Array<{ label: string; position: string; rotate: string; delay: number }> = [
+  { label: "#오늘오픈", position: "left-[28%] top-[8%]", rotate: "-rotate-3", delay: 0.9 },
+  { label: "#마감임박", position: "right-[26%] top-[10%]", rotate: "rotate-2", delay: 1.0 },
+  { label: "#신상팝업", position: "left-[24%] bottom-[8%]", rotate: "rotate-4", delay: 1.1 },
+  { label: "#위클리픽", position: "right-[28%] bottom-[6%]", rotate: "-rotate-2", delay: 1.2 },
+];
+
 const BIG_FEATURES = [
   {
     Icon: Calendar,
@@ -275,16 +286,16 @@ export default function IntroPage() {
           {/* 다크 모드용 그라데이션 오버레이 — 영상이 비치되 텍스트 가독성은 확보. 이전 60% → 30% 로 낮춤. */}
           <div className="pointer-events-none absolute inset-0 hidden bg-gradient-to-b from-black/20 via-black/10 to-black/30 dark:block" />
 
-          {/* 좌측 거대 outline 영문 — DU 70주년 스타일 (라이트만 노출, 다크에선 영상이 보여야 하니 숨김) */}
+          {/* 좌측 거대 outline 영문 — DU 70주년 스타일. 다크/라이트 양쪽 모두 노출, stroke 색만 분기. */}
           <motion.div
             initial={{ opacity: 0, x: -40 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 1, delay: 0.2 }}
-            className="pointer-events-none absolute left-[-2vw] top-[15%] hidden select-none sm:block dark:hidden"
+            className="pointer-events-none absolute left-[-2vw] top-[10%] hidden select-none sm:block"
             aria-hidden
           >
             <span
-              className="block text-[14vw] font-black leading-none tracking-tighter text-transparent"
+              className="block text-[14vw] font-black leading-none tracking-tighter text-transparent dark:[-webkit-text-stroke:1.5px_rgba(255,255,255,0.18)]"
               style={{ WebkitTextStroke: "1.5px rgba(30,30,30,0.15)" }}
             >
               POP
@@ -296,32 +307,47 @@ export default function IntroPage() {
             initial={{ opacity: 0, x: 40 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 1, delay: 0.4 }}
-            className="pointer-events-none absolute right-[-2vw] bottom-[15%] hidden select-none sm:block dark:hidden"
+            className="pointer-events-none absolute right-[-2vw] bottom-[12%] hidden select-none sm:block"
             aria-hidden
           >
             <span
-              className="block text-[14vw] font-black leading-none tracking-tighter text-transparent"
+              className="block text-[14vw] font-black leading-none tracking-tighter text-transparent dark:[-webkit-text-stroke:1.5px_rgba(255,255,255,0.18)]"
               style={{ WebkitTextStroke: "1.5px rgba(30,30,30,0.15)" }}
             >
               SPOT
             </span>
           </motion.div>
 
-          {/* 라이트 모드 — 회전된 폴라로이드 카드 콜라주 (HM Group + Greencar 풍). 다크에선 숨김. */}
-          <div className="pointer-events-none absolute inset-0 hidden sm:block dark:hidden">
+          {/* 회전된 폴라로이드 카드 콜라주 (HM Group + Greencar 풍) — 양쪽 모드 모두 노출. */}
+          <div className="pointer-events-none absolute inset-0 hidden sm:block">
             {HERO_POLAROIDS.map((card, idx) => (
               <motion.div
                 key={card.label}
                 initial={{ opacity: 0, y: 30, rotate: 0 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.8, delay: 0.6 + idx * 0.15 }}
-                className={`absolute ${card.position} ${card.rotate} w-32 rounded-md bg-white p-2 shadow-xl shadow-ink-900/15 ring-1 ring-ink-900/10 md:w-40`}
+                className={`absolute ${card.position} ${card.rotate} w-32 rounded-md bg-white p-2 shadow-xl shadow-ink-900/15 ring-1 ring-ink-900/10 dark:bg-ink-800 dark:shadow-black/40 dark:ring-white/15 md:w-40`}
               >
                 <div className={`aspect-[3/4] rounded-sm bg-gradient-to-br ${card.gradient}`} />
-                <div className="mt-2 px-1 pb-1 text-[10px] font-medium text-ink-900/70 md:text-xs">
+                <div className="mt-2 px-1 pb-1 text-[10px] font-medium text-ink-900/70 dark:text-cream-100/80 md:text-xs">
                   {card.label}
                 </div>
               </motion.div>
+            ))}
+          </div>
+
+          {/* 플로팅 태그 — 폴라로이드 사이 빈 공간을 채우는 작은 라벨. Greencar 식 흩어진 요소. */}
+          <div className="pointer-events-none absolute inset-0 hidden sm:block">
+            {HERO_FLOATING_TAGS.map((tag) => (
+              <motion.span
+                key={tag.label}
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.5, delay: tag.delay }}
+                className={`absolute ${tag.position} ${tag.rotate} inline-flex items-center rounded-full bg-ink-900 px-3 py-1 text-[11px] font-medium text-cream-100 shadow-md ring-1 ring-ink-900/20 dark:bg-cream-100 dark:text-ink-900 dark:ring-white/30 md:text-xs`}
+              >
+                {tag.label}
+              </motion.span>
             ))}
           </div>
 
