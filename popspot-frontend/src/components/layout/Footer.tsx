@@ -20,6 +20,7 @@ const PLATFORM_LINKS: ReadonlyArray<{ label: string; href: string }> = [
   { label: 'AI 혼잡도 분석', href: '/' },
   { label: '매거진', href: '/' },
   { label: '이용약관', href: '/terms' },
+  { label: '개인정보 처리방침', href: '/privacy' },
 ];
 
 const PARTNER_LINKS: ReadonlyArray<{ label: string; href: string }> = [

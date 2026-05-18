@@ -2,10 +2,8 @@ package com.example.popspotbackend.controller;
 
 import com.example.popspotbackend.entity.Goods;
 import com.example.popspotbackend.entity.PopupStore;
-import com.example.popspotbackend.repository.GoodsRepository;
-import com.example.popspotbackend.repository.PopupStoreRepository;
-import java.util.ArrayList;
-import java.util.Collections;
+import com.example.popspotbackend.service.GoodsService;
+import com.example.popspotbackend.service.PopupStoreService;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -20,26 +18,22 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class GoodsController {
 
-    private static final int RANDOM_PICK_LIMIT = 20;
-
-    private final GoodsRepository goodsRepository;
-    private final PopupStoreRepository popupStoreRepository;
+    private final GoodsService goodsService;
+    private final PopupStoreService popupStoreService;
 
     @GetMapping("/{popupId}")
     public ResponseEntity<List<Goods>> getGoodsByPopup(@PathVariable Long popupId) {
-        return ResponseEntity.ok(goodsRepository.findByPopupStore_Id(popupId));
+        return ResponseEntity.ok(goodsService.findByPopup(popupId));
     }
 
-    /** 메인 화면용 랜덤 굿즈. 데이터가 부족하면 그대로 전부 반환한다. */
     @GetMapping("/random")
     public ResponseEntity<List<Goods>> getRandomGoods() {
-        List<Goods> shuffled = new ArrayList<>(goodsRepository.findAll());
-        Collections.shuffle(shuffled);
-        return ResponseEntity.ok(shuffled.subList(0, Math.min(shuffled.size(), RANDOM_PICK_LIMIT)));
+        return ResponseEntity.ok(goodsService.findRandomPicks());
     }
 
+    /** 굿즈 등록 페이지에서 팝업 선택을 위해 사용. */
     @GetMapping("/stores")
     public ResponseEntity<List<PopupStore>> getPopupStores() {
-        return ResponseEntity.ok(popupStoreRepository.findAll());
+        return ResponseEntity.ok(popupStoreService.findAll());
     }
 }

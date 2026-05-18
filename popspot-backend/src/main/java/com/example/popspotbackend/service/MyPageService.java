@@ -16,8 +16,8 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * 마이페이지 도메인 서비스.
  *
- * <p>{@link com.example.popspotbackend.controller.MyPageController} 가 5개 Repository 를 직접 호출하던 패턴을
- * 한 곳으로 모아 컨트롤러는 라우팅만 담당하게 한다. 트랜잭션 경계도 이 클래스에서만 가짐.
+ * <p>{@link com.example.popspotbackend.controller.MyPageController} 가 5개 Repository 를 직접 호출하던 패턴을 한
+ * 곳으로 모아 컨트롤러는 라우팅만 담당하게 한다. 트랜잭션 경계도 이 클래스에서만 가짐.
  *
  * <p>책임 — ① 사용자 조회 + 누락 시 도메인 예외, ② 프리미엄 만료 lazy expire, ③ 활동량(스탬프·찜·채팅·게시글) 카운트 집계.
  */

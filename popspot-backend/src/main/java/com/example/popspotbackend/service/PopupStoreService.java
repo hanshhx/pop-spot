@@ -2,6 +2,7 @@ package com.example.popspotbackend.service;
 
 import com.example.popspotbackend.dto.CalendarPopupDto;
 import com.example.popspotbackend.entity.PopupStore;
+import com.example.popspotbackend.exception.ResourceNotFoundException;
 import com.example.popspotbackend.repository.PopupStoreRepository;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -34,6 +35,53 @@ public class PopupStoreService {
 
     private final PopupStoreRepository popupStoreRepository;
 
+    /** id 로 팝업 조회 → 없으면 404. */
+    public PopupStore findOrThrow(Long id) {
+        return popupStoreRepository
+                .findById(id)
+                .orElseThrow(() -> ResourceNotFoundException.popup(id));
+    }
+
+    /** 저장 (takedown / report 후속 처리에서 컨트롤러가 호출하지 않도록 위임). */
+    @Transactional
+    public PopupStore save(PopupStore popup) {
+        return popupStoreRepository.save(popup);
+    }
+
+    /** 전체 팝업 (필터 없음). admin / 굿즈 매핑 같은 부가 화면에서만 사용. */
+    @Transactional(readOnly = true)
+    public List<PopupStore> findAll() {
+        return popupStoreRepository.findAll();
+    }
+
+    /** 자동수집 검수 대기 큐 (신뢰도 < 임계값). */
+    @Transactional(readOnly = true)
+    public List<PopupStore> findPendingReview(int pageSize) {
+        return popupStoreRepository.findPendingReview(PageRequest.of(0, pageSize));
+    }
+
+    /** 검수 결과로 reviewStatus 갱신 후 저장. */
+    @Transactional
+    public PopupStore updateReviewStatus(Long id, String reviewStatus) {
+        PopupStore popup = findOrThrow(id);
+        popup.setReviewStatus(reviewStatus);
+        return popupStoreRepository.save(popup);
+    }
+
+    /** Takedown 검토 완료 후 영구 삭제. */
+    @Transactional
+    public void deleteById(Long id) {
+        PopupStore popup = findOrThrow(id);
+        popupStoreRepository.delete(popup);
+    }
+
+    /** 지도 마커에 표시할 팝업 목록. PENDING 은 제외 (status 가 null 인 레거시 row 는 통과). */
+    public List<PopupStore> findVisibleMapMarkers() {
+        return popupStoreRepository.findAll().stream()
+                .filter(p -> p.getStatus() == null || !STATUS_PENDING.equals(p.getStatus()))
+                .toList();
+    }
+
     /** 카테고리 필터링이 들어오면 해당 카테고리만, 아니면 전체 공개 팝업. */
     public List<PopupStore> getAllPopups(String category) {
         List<PopupStore> popups =
@@ -64,7 +112,7 @@ public class PopupStoreService {
         PopupStore popup =
                 popupStoreRepository
                         .findById(id)
-                        .orElseThrow(() -> new RuntimeException("팝업을 찾을 수 없습니다. ID: " + id));
+                        .orElseThrow(() -> ResourceNotFoundException.popup(id));
         int currentViews = popup.getViewCount() != null ? popup.getViewCount() : 0;
         popup.setViewCount(currentViews + 1);
         return popup;

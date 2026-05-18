@@ -1,7 +1,7 @@
 package com.example.popspotbackend.controller;
 
 import com.example.popspotbackend.entity.PopupStore;
-import com.example.popspotbackend.repository.PopupStoreRepository;
+import com.example.popspotbackend.service.PopupStoreService;
 import java.util.List;
 import lombok.Builder;
 import lombok.Getter;
@@ -16,21 +16,11 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class PopupMapController {
 
-    private static final String STATUS_PENDING = "PENDING";
-
-    private final PopupStoreRepository popupStoreRepository;
+    private final PopupStoreService popupStoreService;
 
     @GetMapping("/markers")
     public List<MapMarkerResponse> getMapMarkers() {
-        return popupStoreRepository.findAll().stream()
-                .filter(this::isVisibleOnMap)
-                .map(this::toMarker)
-                .toList();
-    }
-
-    /** 승인 전(PENDING) 팝업은 지도에 노출하지 않는다. status 가 null 이면 레거시 데이터로 보고 통과. */
-    private boolean isVisibleOnMap(PopupStore store) {
-        return store.getStatus() == null || !STATUS_PENDING.equals(store.getStatus());
+        return popupStoreService.findVisibleMapMarkers().stream().map(this::toMarker).toList();
     }
 
     private MapMarkerResponse toMarker(PopupStore store) {

@@ -4,6 +4,7 @@ import com.example.popspotbackend.dto.LoginRequestDto;
 import com.example.popspotbackend.dto.LoginResponseDto;
 import com.example.popspotbackend.dto.SignupRequestDto;
 import com.example.popspotbackend.entity.User;
+import com.example.popspotbackend.exception.ResourceNotFoundException;
 import com.example.popspotbackend.repository.UserRepository;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
@@ -150,6 +151,13 @@ public class AuthService {
         return userRepository
                 .findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("가입되지 않은 이메일입니다."));
+    }
+
+    /** userId 로 User 엔티티 조회. 없으면 {@link ResourceNotFoundException} 으로 변환 (컨트롤러 → 404). */
+    public User findUser(String userId) {
+        return userRepository
+                .findById(userId)
+                .orElseThrow(() -> ResourceNotFoundException.user(userId));
     }
 
     /** OAuth2SuccessHandler 와 동일한 형식의 JWT 발급. */
