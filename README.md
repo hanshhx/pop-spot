@@ -246,9 +246,7 @@
 
 ### v1.0 — 첫 배포
 
-> **상황** — 학부 캡스톤 과제로 시작. "가입 → 로그인 → 팝업 조회" 흐름만 돌면 충분했던 시기.
-> **그래서 이렇게 만들었다** — GCP Compute Engine 위에 모놀리식 Spring Boot 한 덩어리, DB 는 정적 데이터 안정성 보고 Oracle 선택, 시크릿은 빠르게 돌리려고 `application.properties` 에 평문, CORS 는 로컬 개발 편의로 `*` 전부 허용, JWT 시크릿은 임시값 `"default_secret"`.
-> **나중에 후회한 것** — 이 모든 결정이 v1.1 에서 한 번에 부메랑으로 돌아옴. 시크릿은 GitHub 시크릿 스캐너에 잡혀 노출, Oracle 은 채팅 메시지 저장에서 ID NULL 에러 (`ORA-01400`), 보안 감사에서 OWASP Top 10 거의 다 위배.
+> 학부 캡스톤 과제. 가입 / 로그인 / 팝업 조회만 돌면 됐다. GCP VM + Oracle + Gemini, 시크릿 평문 커밋, CORS `*`, JWT `"default_secret"`. v1.1 에서 한꺼번에 갚게 된 빚.
 
 <table align="center">
   <tr>
@@ -283,27 +281,18 @@
   </tr>
 </table>
 
-<sub><b>그땐 이랬다</b> — GCP Compute Engine 위 모놀리식 Spring Boot. DB 는 Oracle (정적 데이터 안정성 목적, 시퀀스는 수동). 시크릿은 <code>application.properties</code> 에 평문 커밋, <code>CORS *</code> 전부 허용, JWT 시크릿은 <code>"default_secret"</code>. Gemini Free RPM 10 / RPD 1,500. BCrypt strength 기본값(10). 외부 트래픽은 인스턴스 8080 직접 노출.</sub>
+<sub>GCP VM + Oracle + Gemini Free (RPM 10) · BCrypt 10 · 8080 직접 노출.</sub>
 
 <br/>
 
 ### v1.1 — 보안 정비 + AI 교체
 
-> **본격 운영 직전, v1.0 의 빚을 한 번에 갚은 단계.**
->
-> **보안 정비 (OWASP Top 10 기준)**
-> - 모든 시크릿을 환경변수 `${ENV:}` 로 빼고 **누락 시 부팅 실패**로 강제 (실수로 빠뜨려도 운영 사고 X)
-> - JWT 시크릿에 **32 바이트 이상 강제 검증** — HS256 의 보안 강도는 키 길이 비례, 짧은 키는 brute-force 로 토큰 위조 가능
-> - CORS `*` → **패턴 화이트리스트**, 알 수 없는 도메인의 prefllight 차단
-> - BCrypt strength **10 → 12** (해싱 비용 4배 = brute-force 비용 4배, 사용자 체감 ms 영향은 무시 가능)
-> - Rate Limit (Bucket4j) 도입 — **로그인 5/min, 이메일 5/h** 로 무차별 시도 차단
-> - 결제 검증을 **클라 검증만 → 서버가 PortOne API 직접 조회** 로 (이전엔 사용자가 결제창 닫고 가짜 응답 만들어 보낼 수 있었음)
->
-> **DB 이전 — Oracle → PostgreSQL**
-> 채팅 메시지 저장할 때 Oracle 이 자동으로 ID 안 만들어줘서 SEQUENCE 수동 설정. 한 번 빠뜨려서 `ORA-01400` (NULL ID) 사고 → PostgreSQL `IDENTITY` 는 ID 자동 생성이라 SEQUENCE 코드 자체가 사라짐. 스탬프(Stamp) 기능 새로 만들 때 깨끗하게 IDENTITY 로 시작.
->
-> **AI 이전 — Gemini → Groq llama-3.3-70b**
-> Gemini Free 한도가 RPM 10 / RPD 1,500. 자동수집 (60 키워드 × 2.2초 간격 LLM 호출) 한 번 돌리면 거의 다 씀. 게다가 키가 GitHub 채팅에 노출되니 Google 시크릿 스캐너가 quota 를 0 으로 강제 변경 — 같은 프로젝트의 새 키도 다 죽음. Groq 는 **RPM 30 / RPD 14,400** 로 자동수집 + 코스 추천 동시에 여유, 비용 0.
+> v1.0 의 빚을 한 번에 갚았다.
+> - 시크릿 전부 환경변수로 빼고 누락 시 부팅 실패
+> - JWT 32B 이상 강제, CORS 화이트리스트, BCrypt 12, Bucket4j Rate Limit
+> - 결제 검증을 서버 측 PortOne 재조회로 전환
+> - Oracle → PostgreSQL (SEQUENCE 수동 제거, IDENTITY 자동)
+> - Gemini → Groq (Free 한도 부족 + 키 노출로 quota 0 사고)
 
 <table align="center">
   <tr>
@@ -346,18 +335,18 @@
   </tr>
   <tr>
     <td align="center"><b>DB</b></td>
-    <td align="center">Oracle (Sequence 수동 · 채팅 저장 시 <code>ORA-01400</code>)</td>
-    <td align="center">PostgreSQL <code>IDENTITY</code> 자동 생성 + Flyway (validate)</td>
+    <td align="center">Oracle (Sequence 수동)</td>
+    <td align="center">PostgreSQL <code>IDENTITY</code> + Flyway</td>
   </tr>
   <tr>
     <td align="center"><b>시크릿</b></td>
     <td align="center">하드코딩 · 깃 커밋</td>
-    <td align="center">전부 <code>${ENV:}</code>, 누락 시 부팅 실패</td>
+    <td align="center"><code>${ENV:}</code>, 누락 시 부팅 실패</td>
   </tr>
   <tr>
     <td align="center"><b>JWT</b></td>
     <td align="center"><code>default_secret</code></td>
-    <td align="center">HS256 · 32B 이상 강제 검증</td>
+    <td align="center">HS256 · 32B+ 강제</td>
   </tr>
   <tr>
     <td align="center"><b>CORS</b></td>
@@ -367,17 +356,17 @@
   <tr>
     <td align="center"><b>Rate Limit</b></td>
     <td align="center">없음</td>
-    <td align="center">Bucket4j (로그인 5/min, 메일 5/h)</td>
+    <td align="center">Bucket4j</td>
   </tr>
   <tr>
-    <td align="center"><b>비밀번호</b></td>
-    <td align="center">BCrypt strength 10</td>
+    <td align="center"><b>BCrypt</b></td>
+    <td align="center">strength 10</td>
     <td align="center">strength 12</td>
   </tr>
   <tr>
     <td align="center"><b>결제</b></td>
     <td align="center">클라 검증만</td>
-    <td align="center">Iamport 서버 재검증 + 변조 시 자동 환불</td>
+    <td align="center">서버 재검증 + 자동 환불</td>
   </tr>
   <tr>
     <td align="center"><b>관측</b></td>
@@ -386,8 +375,8 @@
   </tr>
   <tr>
     <td align="center"><b>AI</b></td>
-    <td align="center">Gemini Free · RPM 10 / RPD 1,500</td>
-    <td align="center">Groq llama-3.3-70b · RPM 30 / RPD 14,400</td>
+    <td align="center">Gemini Free (RPM 10)</td>
+    <td align="center">Groq llama-3.3-70b (RPM 30)</td>
   </tr>
 </table>
 
@@ -395,13 +384,9 @@
 
 ### v1.2 — 집서버 이전 + nginx 제거
 
-> **왜 옮겼나** — GCP Free Tier 가 2026-05-28 에 만료 예정. 사이드 프로젝트라 유료 결제 부담 + 마침 친구가 시놀로지 NAS 를 빌려줌. **친구 NAS → Proxmox VE → Ubuntu VM** 안에 옮김. 월 0원.
->
-> **왜 Tailscale Funnel 로 갔나** — GCP 에선 nginx + Let's Encrypt(certbot) 로 HTTPS 처리했음. 친구 NAS 환경에선 친구 공유기 포트 포워딩을 건드리고 싶지 않았고, certbot 갱신 세팅도 부담. Tailscale Funnel 은 `sudo tailscale funnel --bg 8080` **한 줄로 인증서 발급 + 자동 갱신 + 외부 노출** 다 해결. 셋업 30분 짜리가 5초로 끝남.
->
-> **왜 Docker 안 썼나** — 시놀로지 DSM 의 Container Manager (Docker Compose) 가 옵션이었지만, 백엔드 1개 + DB 1개 짜리 시스템에 컨테이너 격리는 과잉. `bash start.sh + nohup` 으로 GCP 시절 방식 그대로 — `tail -f nohup.out` 한 줄로 로그 확인, `bash start.sh` 한 줄로 재시작. 디버깅이 압도적으로 단순.
->
-> **결과** — 호스팅 비용 0원 / 외부 노출 5초 셋업 / 운영 환경 GCP 시절과 99% 동일 (재학습 비용 0).
+> GCP Free Tier 만료 예정 → 친구 NAS 의 Proxmox VE / Ubuntu VM 으로 이전. 호스팅 비용 0원.
+> nginx + certbot 대신 Tailscale Funnel 한 줄로 HTTPS 자동 발급·갱신.
+> Docker 없이 systemd + `start.sh` 유지 — 디버깅 단순.
 
 <table align="center">
   <tr>
@@ -446,28 +431,28 @@
   </tr>
   <tr>
     <td align="center"><b>호스팅</b></td>
-    <td align="center">GCP VM (월 ~$30 무료크레딧)</td>
-    <td align="center">친구 Synology NAS · Proxmox VE · Ubuntu VM (월 0원)</td>
+    <td align="center">GCP VM (월 ~$30)</td>
+    <td align="center">친구 NAS · Proxmox · Ubuntu (월 0원)</td>
   </tr>
   <tr>
     <td align="center"><b>외부 노출</b></td>
-    <td align="center">nginx + certbot (Let's Encrypt)</td>
-    <td align="center">Tailscale Funnel 한 줄 (<code>sudo tailscale funnel --bg 8080</code>)</td>
+    <td align="center">nginx + certbot</td>
+    <td align="center">Tailscale Funnel 한 줄</td>
   </tr>
   <tr>
     <td align="center"><b>도메인</b></td>
     <td align="center">popspot.duckdns.org</td>
-    <td align="center">vm-113.tailc57dd4.ts.net (Funnel) · popspot.co.kr (Vercel)</td>
+    <td align="center">vm-113.tailc57dd4.ts.net · popspot.co.kr</td>
   </tr>
   <tr>
-    <td align="center"><b>배포 방식</b></td>
-    <td align="center"><code>bash start.sh</code> + <code>nohup</code> (GCP VM)</td>
-    <td align="center"><code>start.sh</code> 유지 + systemd <code>EnvironmentFile=</code> 로 env 주입</td>
+    <td align="center"><b>배포</b></td>
+    <td align="center"><code>start.sh + nohup</code></td>
+    <td align="center">systemd <code>EnvironmentFile</code></td>
   </tr>
   <tr>
-    <td align="center"><b>실행 환경</b></td>
-    <td align="center">Spring Boot 3.x · PostgreSQL 14</td>
-    <td align="center">Spring Boot 4.0.2 · PostgreSQL 14 · Redis 6</td>
+    <td align="center"><b>스택</b></td>
+    <td align="center">Spring Boot 3.x · PG 14</td>
+    <td align="center">Spring Boot 4.0.2 · PG 14 · Redis 6</td>
   </tr>
 </table>
 
@@ -475,28 +460,13 @@
 
 ### v1.3 — 음악·자동수집·등급
 
-> **프로젝트 인생에서 가장 큰 방향 전환.** 결제 페이지 (POP-PASS 멤버십 + 메이트 확성기) 통째 폐기 → 음악 매칭을 코어 가치로.
->
-> **왜 결제를 폐기했나**
-> - 사이드 프로젝트 단계에서 결제는 **운영 책임 (환불 처리 · 세금계산서 · 소비자보호법)** 이 너무 크다
-> - 사용자가 팝업 정보 보러 왔는데 결제창이 뜨는 것 자체가 가치 제안과 어긋남
-> - 포트폴리오에서 "왜 굳이 결제?" 질문 받았을 때 답이 약했음
->
-> **왜 음악이었나** — "오늘 어떤 팝업에 갈지" 정할 때 듣고 있는 노래가 가장 강한 입력값. 매일 자연스럽게 하는 행동이라 진입 장벽 0. 다른 팝업 정보 앱에 없는 차별점.
->
-> **음악 검색 — Spotify 5단계 한국어 폴백**
-> Spotify Web API 가 메인. "아이유 좋은날" 같은 한국어 검색이 잘 안 잡혀서 Groq 가 영문 표기로 변환 ("IU good day") 후 재시도. 5단계 (한글 그대로 → 영문 변환 → 아티스트만 → 곡명만 → YouTube 폴백) 폴백 체인.
->
-> **음악 재생 — YouTube IFrame**
-> Spotify Preview 는 30초만 들려줌. 풀 재생은 Premium API 가 필요한데 개인 개발자는 못 씀. **YouTube IFrame 으로 풀곡 재생**, 약관 III.E.4.b 에 따라 영상 화면을 보이게 노출 (오디오 분리 사용 X). quota 10,000/day 짜리라 한 번 매칭된 영상 ID 는 **영구 캐시**해서 재호출 0.
->
-> **무드 매칭 — Groq 가 40 화이트리스트 안에서만**
-> AI 가 자유 응답하면 "여름밤" / "한여름밤" / "여름의 밤" 같은 변형이 무한 → 매칭이 비결정적. **40 개 고정 키워드 안에서 정확히 5개 고르도록 강제** → 결정적 매칭. 키워드 1개 = 30점, 카테고리 보너스 더해서 상위 5개 팝업 반환. 외부 API 호출 0회, DB 만 사용.
->
-> **자동수집 V4 — 매일 새벽 4시**
-> 60 키워드 × (Naver 블로그·뉴스 + Kakao 웹·블로그 각 30건) × 800ms rate limit. Groq 가 검색 API 가 주는 title/desc/link 만 보고 구조화 (본문 직접 크롤링은 저작권법 위배). **confidence ≥ 0.8 자동 게시, 미만은 admin 검수**. 풀크롤 ~5분, 사용자 트래픽 시간대 완전 회피.
->
-> **등급 시스템** — 결제 보상 (확성기) 사라진 자리를 채움. BEGINNER (3 스탬프) / HUNTER (6) / MASTER (12). 진행도 표시 + 색상 ring.
+> 결제 페이지 폐기, 음악 매칭을 코어 가치로 전환.
+> - **음악 검색** — Spotify Web API + Groq 영문 변환 5단계 폴백
+> - **음악 재생** — YouTube IFrame 풀곡, 영구 캐시로 quota 절약
+> - **무드 매칭** — Groq 가 40 화이트리스트 안에서 5개만 고르도록 강제 → 결정적 매칭, 외부 호출 0
+> - **자동수집 V4** — 매일 04:00, Naver/Kakao 검색 API + Groq 정규화, confidence ≥ 0.8 자동 게시
+> - **지오코딩** — Kakao Local API 로 lat/lng
+> - **등급** — BEGINNER (3) / HUNTER (6) / MASTER (12)
 
 <table align="center">
   <tr>
@@ -550,48 +520,48 @@
   </tr>
   <tr>
     <td align="center"><b>메인 가치</b></td>
-    <td align="center">팝업 정보 + 상점(PortOne 결제)</td>
-    <td align="center">팝업 + <b>음악 → 팝업 매칭</b> (상점 폐기, <code>/shop → /music</code> 리다이렉트)</td>
+    <td align="center">팝업 + PortOne 결제</td>
+    <td align="center">팝업 + <b>음악 → 팝업 매칭</b></td>
   </tr>
   <tr>
     <td align="center"><b>음악 검색</b></td>
     <td align="center">없음</td>
-    <td align="center">Spotify Web API · 한국어 5단계 폴백 (Groq 영문 변환 포함)</td>
+    <td align="center">Spotify + Groq 5단계 폴백</td>
   </tr>
   <tr>
     <td align="center"><b>음악 재생</b></td>
     <td align="center">없음</td>
-    <td align="center">YouTube IFrame · lazy fetch + 영구 캐시 (quota 절약)</td>
+    <td align="center">YouTube IFrame + 영구 캐시</td>
   </tr>
   <tr>
     <td align="center"><b>매칭 알고리즘</b></td>
     <td align="center">없음</td>
-    <td align="center">Groq 무드 분석(40 화이트리스트) → 30점 키워드 + 카테고리 보너스</td>
+    <td align="center">Groq 40 화이트리스트 + 키워드/카테고리 점수</td>
   </tr>
   <tr>
     <td align="center"><b>자동수집</b></td>
-    <td align="center">없음 (수동 관리만)</td>
-    <td align="center">V4 — Naver/Kakao 검색 API → Groq 정규화 → confidence ≥ 0.8 자동 게시</td>
+    <td align="center">없음</td>
+    <td align="center">V4 — 검색 API + Groq, confidence ≥ 0.8 자동 게시</td>
   </tr>
   <tr>
     <td align="center"><b>지오코딩</b></td>
     <td align="center">없음</td>
-    <td align="center">Kakao Local API → lat/lng</td>
+    <td align="center">Kakao Local API</td>
   </tr>
   <tr>
     <td align="center"><b>스케줄러</b></td>
     <td align="center">없음</td>
-    <td align="center">매일 04:00 자동수집 · 05:00 만료 처리 (KST)</td>
+    <td align="center">04:00 수집 · 05:00 만료 (KST)</td>
   </tr>
   <tr>
     <td align="center"><b>리워드</b></td>
-    <td align="center">메이트 확성기 등 소모성 보상</td>
-    <td align="center">BEGINNER / HUNTER / MASTER 3단계 등급 + 진행도</td>
+    <td align="center">확성기 소모성</td>
+    <td align="center">BEGINNER / HUNTER / MASTER</td>
   </tr>
   <tr>
     <td align="center"><b>DB 마이그레이션</b></td>
     <td align="center">V1~V3</td>
-    <td align="center">V4 (popup_store +11 컬럼) · V5 (music_track) · V6 (spotify_track_id)</td>
+    <td align="center">V4 · V5 · V6 (popup +11 · music_track · spotify_track_id)</td>
   </tr>
 </table>
 
@@ -599,30 +569,13 @@
 
 ### v1.4 — 백엔드 Clean Code 정리
 
-> **기능은 그대로 두고 코드 품질만 정리한 단계. 외부 동작 (API 응답·DB 스키마·Redis 키) 100% 동일.**
->
-> **왜 했나** — 기능 빨리 만들다 보니 코드에 다음 같은 빚이 쌓여 있었다:
-> - `import jakarta.persistence.*` 같은 와일드카드 import 가 JPA `@Table` vs Spring Data `@Table` 같은 잘못 import 사고를 가림
-> - `// 🔥 [13번 임의 수정] 닉네임 빈칸 가입 방지` 같은 작업 흔적이 코드 곳곳에 박혀 있어서 다른 사람이 보면 진입 장벽
-> - `setInterval(fetch, 3000)`, `BCrypt strength = 12` 같은 매직 넘버가 5군데 6군데 흩어져 있어서 정책 변경 시 사고 위험
-> - `processOrder()` 가 130 줄 짜리라 결제 검증 + 위변조 방어 + 환불을 한 함수에 — 한 부분 고치다 다른 곳 깨질 위험
->
-> **어떻게 했나** — 7 Wave 로 영역을 끊어서 진행. 한 PR 에 48 파일은 review 불가능이라 영역별로 1 PR.
->
-> **7 Wave 단위**
-> 1. `build.gradle` — Spotless 플러그인 (`googleJavaFormat('1.17.0').aosp()`) 활성화. 이후 모든 파일이 자동 포맷
-> 2. 음악 서비스 7 파일 (SpotifySearch, MusicQueryNormalization 등)
-> 3. 자동수집 크롤러 8 파일 (Orchestrator, Normalization, Naver/Kakao 등)
-> 4. Controller 25 파일 — 와일드카드 import 제거, ResponseEntity 일관성
-> 5. 일반 Service 16 파일 — `processOrder()` 130줄 → 7단계 분해, `runOnce()` → 6단계
-> 6. Entity 핵심 6 (User, PopupStore, MatePost, Stamp, Orders, MyCourse)
-> 7. Config / Exception 9 (Security, JWT Filter, WebSocket, RateLimit 등)
->
-> **공통 원칙** — 와일드카드 import 전면 제거 / 인라인 한국어 코멘트 제거 (JavaDoc 만 유지) / 매직 넘버 `static final` 상수화 / `System.out.println` → SLF4J / 50줄+ 메서드 분해 / 운영 로그·코드에서 이모지 제거.
->
-> **보강 작업** — 7 Wave 가 비킨 DTO 폴더 15개 + 잔여 엔티티 7개 도 같은 원칙으로 추가 정리.
->
-> **결과** — 48 + 22 (보강) = 70 파일, 약 3,700 라인 변경. **API 응답·DB 스키마·Redis 키 모두 동일**. Spotless 자동 포맷 + 컴파일 통과로 회귀 위험 0.
+> 기능 그대로, 코드만 정리. 외부 동작 100% 동일.
+> - Spotless (googleJavaFormat aosp) 도입으로 자동 포맷 강제
+> - 와일드카드 import 전면 제거, 인라인 코멘트 → JavaDoc 만 유지
+> - 매직 넘버 `static final` 상수화, `System.out` → SLF4J
+> - `processOrder()` 130줄 → 7단계 분해, `runOnce()` → 6단계
+> - 7 Wave (gradle / 음악 / 크롤러 / Controller / Service / Entity / Config) + DTO·엔티티 보강
+> - 70 파일 / 약 3,700 라인. API·DB 스키마·Redis 키 동등.
 
 <table align="center">
   <tr>
@@ -661,65 +614,52 @@
   </tr>
   <tr>
     <td align="center"><b>Wave 1</b></td>
-    <td>build.gradle — Spotless 플러그인, <code>googleJavaFormat('1.17.0').aosp()</code> 강제</td>
+    <td>build.gradle — Spotless 플러그인 도입</td>
   </tr>
   <tr>
     <td align="center"><b>Wave 2</b></td>
-    <td>음악 서비스 7 파일 — SpotifySearch, MusicQueryNormalization, SearchSuggest, Mood 등</td>
+    <td>음악 서비스 7 파일 정리</td>
   </tr>
   <tr>
     <td align="center"><b>Wave 3</b></td>
-    <td>자동수집 크롤러 8 파일 — Orchestrator/Normalization/Naver/Kakao/Scheduler 분리</td>
+    <td>크롤러 8 파일 — Orchestrator / Normalization / Naver / Kakao / Scheduler 분리</td>
   </tr>
   <tr>
     <td align="center"><b>Wave 4</b></td>
-    <td>Controller 25 파일 — 와일드카드 import 제거, ResponseEntity 일관성</td>
+    <td>Controller 25 파일 와일드카드 import 제거</td>
   </tr>
   <tr>
     <td align="center"><b>Wave 5</b></td>
-    <td>일반 Service 16 파일 — <code>processOrder()</code> 7단계 분해 등 거대 메서드 해체</td>
+    <td>Service 16 파일 — <code>processOrder()</code> 등 거대 메서드 분해</td>
   </tr>
   <tr>
     <td align="center"><b>Wave 6</b></td>
-    <td>Entity 핵심 6 — User, PopupStore(V4 필드 포함), MatePost, Stamp, Orders, MyCourse</td>
+    <td>Entity 핵심 6 (User, PopupStore, MatePost, Stamp, Orders, MyCourse)</td>
   </tr>
   <tr>
     <td align="center"><b>Wave 7</b></td>
-    <td>Config / Exception 9 — Security, JWT Filter, WebSocket, RateLimit, GlobalExceptionHandler</td>
+    <td>Config / Exception 9 (Security, JWT, WebSocket, RateLimit 등)</td>
   </tr>
   <tr>
     <td align="center"><b>보강</b></td>
-    <td>DTO 15 + 잔여 엔티티 7 — Wave 가 비킨 영역까지 동일 원칙 적용 (와일드카드 import 0건 · 인라인 코멘트 0건)</td>
+    <td>DTO 15 + 잔여 엔티티 7 동일 원칙 적용</td>
   </tr>
 </table>
 
-<sub><b>공통 원칙</b> — 와일드카드 import 전면 제거 · 인라인 주석 제거 (JavaDoc 만 유지) · 매직 넘버 <code>static final</code> 상수화 · <code>System.out.println</code> → SLF4J · 50줄 넘는 메서드 분해 · 운영 로그·코드에서 이모지 제거. 48 + 22 (보강) 파일 · 약 3,700 라인. API · DB 스키마 · Redis 키 동등.</sub>
+<sub>Spotless 자동포맷 · 와일드카드 import 0 · 인라인 코멘트 0 · 매직 넘버 상수화 · API/DB/Redis 동등.</sub>
 
 <br/>
 
 ### v1.5 — 프론트엔드 Clean Code 정리
 
-> **백엔드 v1.4 가 끝나니 프론트가 그대로 방치된 게 더 거슬려서 같은 작업.** 7 Wave 중 위험도 낮은 5 Wave (1·2·3·4·7) 만 우선 적용. 인프라 동일.
->
-> **Wave 1 — 작업 흔적 84건 일괄 제거 (21 파일)**
-> `// 🔥 [수정] apiFetch 사용`, `// 🔥 [13번 임의 수정] 닉네임 빈칸 가입 방지`, `{/* 🟢 [수정 핵심] Portal 사용 */}` 같은 코드 곳곳의 마커 84건. git 히스토리에 있는 정보를 코드 안에 박아두면 노이즈만 됨. sed 일괄 변환 + 잔존 5건 수동 정리. UI 텍스트의 의도된 이모지 1건 (`"🔥 확성기로 등록하기"`) 만 유지.
->
-> **Wave 2 — `any` 타입 17건 → SDK 경계 1건**
-> 가장 임팩트 큰 작업. `any` 는 컴파일러 안전망 무효화 — 잠재 버그가 빌드를 통과하고 런타임에 터짐. 도메인 타입 (`User`, `PopupStore`, `CongestionData`, `YouTubePlayer` 등) 으로 좁힘. 외부 SDK (Kakao Maps · YouTube IFrame) 는 `src/types/sdk.ts` 한 곳에 모아 `eslint-disable` + 사유 코멘트로 격리. **이 작업이 실제로 잠재 버그 1건 발견** (v1.5.1 참조).
->
-> **Wave 3 — API 호출 일원화**
-> `app/login/page.tsx:89` 의 `const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080"` 같은 인라인 폴백 제거. `src/lib/api.ts` 의 `API_BASE_URL` 이 이미 같은 폴백 로직을 가지고 있는데 여기서 또 중복. 한 군데서 환경변수 이름 바꾸면 다른 곳이 조용히 옛 값을 따라가던 위험 제거.
->
-> **Wave 4 — 매직 넘버 명명 상수화 (8건)**
-> `setInterval(fetchMetrics, 3000)` 의 `3000` 이 왜 3초인지 코드만 보면 모름. 다음 사람이 "100ms 로 더 빠르게" 라고 무심코 바꾸면 백엔드 부하. `const SERVER_METRICS_POLL_INTERVAL_MS = 3000` 으로 의도 + 단위 명시. `AUTH_SUCCESS_REDIRECT_MS`, `TICKETING_POLL_INTERVAL_MS`, `COUNTDOWN_TICK_MS` 등.
->
-> **Wave 7 — ESLint disable 사유 명시 + 진짜 위험 1건 정공법 해결**
-> 8건 모두 사유 코멘트 추가 — `// Spotify/iTunes CDN 이미지 — next/image 도메인 화이트리스트 대신 <img> 사용` 식. 그 중 `intro/page.tsx` 의 `react-hooks/exhaustive-deps` disable 은 진짜 stale closure 위험이었음 → 핸들러 로직 인라인 + deps 정리로 정공법 해결.
->
-> **의도적으로 미룬 것 — Wave 5·6**
-> 거대 컴포넌트 분해 (`app/page.tsx` 1,289 라인 / useState 22개) + Tailwind variant 추출 (200자+ className 60군데) 은 회귀 검출 수단 (E2E 테스트) 이 없어 deferred. 한 번에 다 하면 review 불가능 + 회귀 검출 0. E2E 스모크 셋업 후 1 파일 = 1 PR 로 진행 예정.
->
-> **결과** — 40 파일 · 약 ±230 라인 변경 (대부분 삭제). 외부 동작 · API 호출 · WebSocket 메시지 형식 모두 동일.
+> 같은 원칙을 프론트에 적용. 위험도 낮은 5 Wave (1·2·3·4·7) 만.
+> - Wave 1 — 편집 흔적 마커 84건 → UI 의도 1건만 남김
+> - Wave 2 — `any` 17건 → SDK 경계 1건, 도메인 타입으로 좁힘 (잠재 버그 1건 발견)
+> - Wave 3 — `localhost:8080` 인라인 폴백 제거, `API_BASE_URL` 한 곳만 참조
+> - Wave 4 — 매직 넘버 8건 상수화 (`SERVER_METRICS_POLL_INTERVAL_MS` 등)
+> - Wave 7 — ESLint disable 8건 사유 코멘트 + `intro/page.tsx` stale closure 정공법 해결
+> - Wave 5·6 (거대 컴포넌트·className) 은 E2E 셋업 후로 deferred
+> - 40 파일 / ±230 라인. 외부 동작·API·WS 동등.
 
 <table align="center">
   <tr>
@@ -753,54 +693,45 @@
   </tr>
   <tr>
     <td align="center"><b>Wave 1</b></td>
-    <td>편집 흔적 일괄 제거 — 21 파일에서 <code>🔥 [수정]</code>, <code>[임의 수정]</code>, <code>🟢 [수정 핵심]</code> 등 84건 → 1건 (UI 의도)</td>
+    <td>편집 흔적 마커 84건 제거 (UI 의도 1건 유지)</td>
   </tr>
   <tr>
     <td align="center"><b>Wave 2</b></td>
-    <td>타입 안전성 — <code>any</code> 17건 → SDK 경계 1건. 신규 <code>src/types/sdk.ts</code> — Kakao Maps / YouTube IFrame 타입 격리</td>
+    <td><code>any</code> 17건 → SDK 1건, <code>src/types/sdk.ts</code> 로 격리</td>
   </tr>
   <tr>
     <td align="center"><b>Wave 3</b></td>
-    <td>API 호출 일원화 — <code>app/login/page.tsx</code> 의 하드코딩 <code>localhost:8080</code> 폴백 제거, <code>API_BASE_URL</code> 한 곳만 참조</td>
+    <td>인라인 <code>localhost:8080</code> 폴백 제거, <code>API_BASE_URL</code> 일원화</td>
   </tr>
   <tr>
     <td align="center"><b>Wave 4</b></td>
-    <td>매직 넘버 상수화 — <code>SERVER_METRICS_POLL_INTERVAL_MS</code>, <code>AUTH_SUCCESS_REDIRECT_MS</code>, <code>TICKETING_POLL_INTERVAL_MS</code> 등 8건</td>
+    <td>매직 넘버 8건 상수화 (<code>SERVER_METRICS_POLL_INTERVAL_MS</code> 등)</td>
   </tr>
   <tr>
     <td align="center"><b>Wave 7</b></td>
-    <td>ESLint 정리 — disable 8건 모두 사유 코멘트, <code>intro/page.tsx</code> 의 exhaustive-deps 진짜 위험은 핸들러 인라인으로 정공법 해결</td>
+    <td>ESLint disable 사유 코멘트 + stale closure 정공법 해결</td>
   </tr>
   <tr>
     <td align="center"><b>Wave 5·6</b></td>
-    <td><b>의도적 deferred</b> — 거대 컴포넌트 분해 (<code>app/page.tsx</code> 1,289 라인) + Tailwind variant 추출 60군데. E2E 회귀 셋업 후 별도 PR</td>
+    <td>거대 컴포넌트·className 추출은 E2E 셋업 후로 deferred</td>
   </tr>
 </table>
 
-<sub><b>공통 원칙</b> — 편집 흔적 0건 (UI 의도 1건 제외) · <code>any</code> 0건 (SDK 경계 1건 제외) · 하드코딩 URL 0건 · 매직 넘버 명명 상수 · <code>console.log</code> 디버그 0건 · ESLint disable 사유 코멘트 필수. 40 파일 · 약 ±230 라인 (대부분 삭제). 외부 동작 · API · WebSocket 메시지 형식 동등.</sub>
+<sub>편집 흔적 0 · `any` 0 (SDK 1 제외) · 하드코딩 URL 0 · `console.log` 0. 40 파일 / ±230 라인.</sub>
 
 <br/>
 
 ### v1.5.1 — 빌드 검증 + 핫픽스
 
-> **v1.5 의 Wave 2 가 진짜 가치를 보여준 단계.** `any` → 도메인 타입 좁히기가 끝나자마자 TypeScript 컴파일러가 그동안 가려져 있던 **타입 불일치 16건**을 한꺼번에 토해냄. 즉, **컴파일러가 잠재 버그를 미리 잡아준 것** — Wave 2 가 없었으면 사용자 화면에서 런타임 에러로 터졌을 케이스들.
->
-> **가장 큰 발견 — `?userId=undefined` 잠재 버그**
-> `const targetUserId = user.userId || user.id` 가 둘 다 옵셔널이라 결과 타입이 `string | undefined`. 이전엔 `user: any` 였어서 컴파일러가 안 잡았는데, 도메인 타입 (`User`) 으로 좁히니 빌드 단계에서 발견. 둘 다 undefined 면 백엔드에 `POST /api/mates/{id}/join?userId=undefined` 같은 요청이 갔을 거. **early-return + notify 가드로 차단**. → "v1.5 의 Wave 2 자체가 회귀 테스트보다 더 안정적인 안전망" 이라는 걸 입증.
->
-> **다른 6가지 패턴 — 모두 외부 동작 변화 0건으로 수정**
-> 1. **이름 충돌** — lucide-react 의 `User` 아이콘 ↔ 도메인 `User` 타입이 같은 식별자라 빌드 실패. `User as UserIcon` / `User as DomainUser` alias 로 의도를 명시
-> 2. **null 가드** — `app/page.tsx` 의 `user` 가 `User | null` 인데 MateBoard 가 non-null 요구. JSX 에서 `{user && <MateBoard user={user} />}` 가드. 컴포넌트 내부 invariant ("user 는 반드시 있다") 가 깔끔해짐
-> 3. **도메인 타입 필드 보강** — `User.id/megaphoneCount`, `PopupStore.reporterId/description/imageUrl`, `CongestionData.areaName/forecasts` 등 추가 (모두 optional + JavaDoc 으로 "어떤 백엔드 케이스에서 들어오는지" 명시)
-> 4. **인덱스 시그니처 제거** — `AdminStats` 의 `[key: string]: unknown` 이 "모름의 표현" 으로 안전망인 줄 알았는데, JSX 에서 `{stats.activePopups}` 렌더할 때 `unknown → ReactNode` 변환 거부. 실제 사용 필드만 명시하니 컴파일러가 백엔드 응답 변경을 잡아주는 안전망으로 바뀜
-> 5. **Recharts formatter 시그니처 정정** — `(value: number | string) => ...` 로 좁혔는데 라이브러리는 `ValueType | undefined`. 시그니처 inferred 로 풀고 내부에서 `typeof === 'number'` 분기. 이전엔 `value.toLocaleString()` 이 string 케이스에서 런타임 TypeError 였을 가능성
-> 6. **error 가드** — `catch (error: any) { error.message }` 가 throw 된 게 Error 인스턴스가 아닐 때 `undefined` 찍히던 거. `catch (error) { error instanceof Error ? ... : String(error) }` 패턴으로 통일
->
-> **트러블슈팅 — 샌드박스 mount 캐시 버그**
-> 본 작업 중 Windows ↔ Linux mount 사이 cache coherency 버그로 일부 파일 끝에 NULL byte (`\x00`) 가 패딩되거나 캐시된 옛 view 가 보이는 사고. `xxd` 로 NULL trail 검사 후 `truncate`, 손상 부분은 Edit tool 로 재작성. admin/page.tsx 의 중복 닫는 태그 6줄은 사용자 PC 의 `npm run typecheck` 가 잡아내서 정리.
->
-> **클린코드 원칙 — 100% 유지 확인**
-> 패치 7개 모두 외부 동작 변화 0건. 와일드카드 import 0 · 인라인 한국어 코멘트 0 · `System.out` 0 · `console.log` 디버그 0 · `any` 0 (SDK 경계 1 제외) · 편집 흔적 0 (UI 의도 1 제외).
+> Wave 2 의 타입 좁히기 직후 TS 컴파일러가 타입 불일치 16건 노출 — 사용자 화면에서 터질 뻔한 케이스를 빌드 단계에서 잡았다.
+> - **잠재 버그 차단** — `targetUserId = user.userId || user.id` 가 `undefined` 면 `?userId=undefined` 로 API 호출되던 거 → empty fallback + early return
+> - **이름 충돌** — lucide `User` 아이콘 ↔ 도메인 `User` 타입 alias 처리
+> - **null 가드** — `User | null` 을 non-null prop 으로 넘기던 거 → JSX 가드
+> - **도메인 타입 보강** — `User.id/megaphoneCount`, `PopupStore.reporterId/description/imageUrl`, `CongestionData.areaName/forecasts` optional 필드 추가
+> - **인덱스 시그니처 제거** — `AdminStats` 의 `[key: string]: unknown` 으로 JSX 렌더 막히던 거 → 실제 사용 필드만 명시
+> - **Recharts formatter** 시그니처 라이브러리 표준에 맞춤
+> - **error 가드** — `catch (error: any)` → `instanceof Error` 분기 패턴으로 통일
+> - 샌드박스 mount 캐시 NULL byte 사고 1건, admin/page.tsx 중복 닫는 태그 6줄 사고 1건 별도 수정.
 
 <table align="center">
   <tr>
@@ -809,56 +740,46 @@
   </tr>
   <tr>
     <td align="center"><b>이름 충돌</b></td>
-    <td>lucide-react <code>User</code> 아이콘 ↔ 도메인 <code>User</code> 타입 → <code>User as UserIcon</code> / <code>User as DomainUser</code> alias</td>
+    <td>lucide <code>User</code> 아이콘 ↔ 도메인 <code>User</code> 타입 → alias 처리</td>
   </tr>
   <tr>
     <td align="center"><b>Null 가드</b></td>
-    <td><code>User | null</code> 을 non-null prop 으로 → JSX 에서 <code>{user && &lt;MateBoard user={user} /&gt;}</code></td>
+    <td><code>User | null</code> non-null prop 통과 → JSX 가드 추가</td>
   </tr>
   <tr>
     <td align="center"><b>도메인 타입 보강</b></td>
-    <td><code>User.id/megaphoneCount</code> · <code>PopupStore.reporterId/description/imageUrl</code> · <code>CongestionData.areaName/forecasts</code> 추가 (모두 optional + JavaDoc 사유)</td>
+    <td><code>User</code> · <code>PopupStore</code> · <code>CongestionData</code> optional 필드 추가</td>
   </tr>
   <tr>
     <td align="center"><b>인덱스 시그니처 제거</b></td>
-    <td><code>AdminStats</code>, <code>AdminMatePost</code> 의 <code>[key: string]: unknown</code> 제거 — JSX 에서 <code>unknown → ReactNode</code> 막힘. 실제 필드만 명시</td>
+    <td><code>AdminStats</code> 의 <code>[key]: unknown</code> 제거 → 실제 필드만 명시</td>
   </tr>
   <tr>
     <td align="center"><b>Recharts 시그니처</b></td>
-    <td>Tooltip formatter <code>value</code> 타입 — 라이브러리 표준에 맞춰 inferred, 내부에서 <code>typeof === 'number'</code> 좁힘</td>
+    <td>Tooltip formatter 라이브러리 표준에 맞춤</td>
   </tr>
   <tr>
     <td align="center"><b>error 가드</b></td>
-    <td><code>catch (error: any)</code> → <code>catch (error)</code> + <code>instanceof Error</code> 분기 (Wave 2 일관 패턴)</td>
+    <td><code>catch (error: any)</code> → <code>instanceof Error</code> 분기로 통일</td>
   </tr>
   <tr>
-    <td align="center"><b>잠재 버그 발견</b></td>
-    <td><code>targetUserId = user.userId || user.id</code> 가 <code>undefined</code> 일 때 <code>?userId=undefined</code> 로 API 호출되던 버그 — empty fallback + early return 으로 차단</td>
+    <td align="center"><b>잠재 버그 차단</b></td>
+    <td><code>?userId=undefined</code> 호출되던 거 empty fallback + early return 으로 차단</td>
   </tr>
 </table>
 
-<sub><b>검증</b> — 백엔드 <code>./gradlew compileJava spotlessCheck</code> ✓ · 프론트 <code>npm run typecheck</code> ✓ (16건 → 0). 와일드카드 import 0 · 인라인 한국어 코멘트 0 · <code>System.out</code> 0 · <code>console.log</code> 디버그 0 · <code>any</code> 0 (SDK 경계 1 제외) · 편집 흔적 0 (UI 의도 1 제외) — 모두 유지.</sub>
+<sub>백엔드 <code>compileJava + spotlessCheck</code> ✓ · 프론트 <code>typecheck</code> ✓ (16 → 0).</sub>
 
 <br/>
 
-### v1.5.2 — 백엔드 구조 개선 (Repository 디커플링 · 도메인 예외 · 외부 API 추상화)
+### v1.5.2 — 백엔드 구조 개선
 
-> **v1.4 까지가 "파일 안 정리" 였다면 v1.5.2 는 "클래스 간 정리".** 컨트롤러가 Repository 를 직접 잡고 있던 흔적을 모두 걷어내고 Service 한 계층으로 일원화. "리소스 없음" 패턴 30+ 곳을 도메인 예외로 격상해 일관된 404 응답을 보장. 크롤러가 직접 다루던 Kakao 응답 파싱을 어댑터로 떼어내 단일 책임을 회복.
->
-> **P1 — Controller 10개에서 Repository 직접 의존 제거**
-> 기존엔 컨트롤러가 `PopupStoreRepository.findByStatus(...)` 같은 호출을 직접 했다. 결과: 트랜잭션 경계가 컨트롤러로 새고, 같은 조회 로직이 컨트롤러마다 미세하게 다른 형태로 중복. v1.5.2 에서 신규 도메인 서비스 4개 (`MyPageService` · `MateService` · `ChatService` · `GoodsService`) 를 만들고, 기존 `AdminService` · `AuthService` · `PopupStoreService` 에 메서드를 보강해 **컨트롤러 디렉터리에 Repository import / 필드 0건** 달성 (`grep -r Repository controller/` 무매치).
->
-> **P2 — 도메인 예외 `ResourceNotFoundException` 도입**
-> `RuntimeException("팝업 없음")` / `RuntimeException("유저 없음")` 같은 패턴이 30+ 곳에 흩어져 있었고 `GlobalExceptionHandler` 가 전부 400 Bad Request 로 변환했다 — 잘못된 ID 요청은 사실 404 가 맞다. 정적 팩토리 `ResourceNotFoundException.user(id)` / `.popup(id)` / `.matePost(id)` 로 메시지 통일 + `@ExceptionHandler` 추가로 **일관된 404 응답** 보장. Sentry 로는 안 보내고 `log.debug` 만 — "정상 흐름의 일부".
->
-> **P4 — Geocoding 책임 분리: `GeocodingService` 인터페이스 + `KakaoGeocodingService` 구현**
-> `PopupCrawlOrchestrator` 가 크롤 파이프라인 조율과 Kakao API 응답 파싱을 동시에 하고 있었다 (50+ 라인의 인라인 파싱 + fallback 로직). 신규 패키지 `service/geocoding/` 에 인터페이스 + Kakao 구현 + `Coordinates` record 를 분리. 크롤러는 `Optional<Coordinates>` 만 받고, "어떻게 받는지" 는 어댑터에 위임. 새 공급자 (Naver / Google) 추가가 인터페이스 구현 한 클래스로 끝나고, 단위 테스트에서 mock 으로 교체 가능.
->
-> **트랜잭션 경계 정리 — `@Transactional` 컨트롤러 단 0건**
-> 모든 영속화 흐름이 Service 단위 트랜잭션으로 통일. 컨트롤러는 라우팅 + DTO 매핑 + 상태 코드 변환만 책임진다.
->
-> **빌드/포맷 검증**
-> `./gradlew compileJava spotlessCheck` BUILD SUCCESSFUL (JDK 21 Temurin). 신규 도입 deprecation 0건 (기존 `RateLimitInterceptor.WebMvcConfigurer` 1건은 그대로). 스팟리스가 JavaDoc 줄바꿈만 일부 재정렬 — 의미 변경 0건. **외부 동작 변화는 잘못된 ID 요청이 400 → 404 로 바뀌는 것 단 1건.** 프론트엔드 호출 패턴 그대로 호환.
+> 파일 안 정리(v1.4)에서 클래스 간 정리로.
+> - **P1** — Controller 10개에서 Repository 직접 의존 제거. 신규 서비스 4개 (`MyPageService` · `MateService` · `ChatService` · `GoodsService`), 기존 3개 보강. `grep -r Repository controller/` 무매치 달성
+> - **P2** — `ResourceNotFoundException` 도입. `RuntimeException("리소스 없음")` 30+ 곳을 도메인 예외로 격상, 400 → 404 일관화
+> - **P4** — `GeocodingService` 인터페이스 + `KakaoGeocodingService` 구현 + `Coordinates` record 분리. 크롤러는 인터페이스만 의존
+> - **트랜잭션 경계** — 컨트롤러 `@Transactional` 0건, Service 단위로 통일
+> - `compileJava + spotlessCheck` ✓ (JDK 21). 외부 동작 변화 1건 (404 정확화), 프론트 호환 그대로.
 
 <table align="center">
   <tr>
@@ -867,35 +788,35 @@
   </tr>
   <tr>
     <td align="center"><b>P1 — Repository 디커플링</b></td>
-    <td>컨트롤러 10개에서 Repository 직접 의존 제거 → Service 경유 일원화. 신규 서비스 <code>MyPageService</code> · <code>MateService</code> · <code>ChatService</code> · <code>GoodsService</code></td>
+    <td>Controller 10개 Repository 제거 + Service 4개 신규 (<code>MyPage</code> · <code>Mate</code> · <code>Chat</code> · <code>Goods</code>)</td>
   </tr>
   <tr>
     <td align="center"><b>P2 — 도메인 예외</b></td>
-    <td><code>ResourceNotFoundException</code> 도입 + <code>@ExceptionHandler</code> 등록. <code>RuntimeException("리소스 없음")</code> 30+ 곳 → 일관된 404 응답</td>
+    <td><code>ResourceNotFoundException</code> 도입 → 400 → 404 일관화</td>
   </tr>
   <tr>
     <td align="center"><b>P4 — Geocoding 분리</b></td>
-    <td><code>GeocodingService</code> 인터페이스 + <code>KakaoGeocodingService</code> 구현 + <code>Coordinates</code> record. 크롤러는 인터페이스에만 의존</td>
+    <td><code>GeocodingService</code> 인터페이스 + Kakao 구현 + <code>Coordinates</code> record</td>
   </tr>
   <tr>
     <td align="center"><b>트랜잭션 경계</b></td>
-    <td>컨트롤러 <code>@Transactional</code> 0건, 모든 트랜잭션이 Service 단위로 통일</td>
+    <td>컨트롤러 <code>@Transactional</code> 0건 → Service 단위로 통일</td>
   </tr>
   <tr>
     <td align="center"><b>중복 엔드포인트 정리</b></td>
-    <td><code>MateChatController</code> 에 부모 <code>@RequestMapping</code> 없이 떠있던 <code>@DeleteMapping("/{id}")</code> 제거 (<code>MateController.deletePost</code> 와 중복)</td>
+    <td><code>MateChatController</code> 의 잘못 매핑된 <code>@DeleteMapping("/{id}")</code> 제거</td>
   </tr>
   <tr>
     <td align="center"><b>빌드 검증</b></td>
-    <td><code>./gradlew compileJava spotlessCheck</code> ✓ (JDK 21 Temurin). 신규 도입 deprecation 0건</td>
+    <td><code>compileJava + spotlessCheck</code> ✓ (JDK 21)</td>
   </tr>
 </table>
 
-<sub><b>지표</b> — 컨트롤러 디렉터리 <code>Repository</code> 의존 <b>0건</b> · 신규 서비스 <b>4개</b> + 기존 서비스 메서드 보강 <b>3개</b> · 신규 패키지 <code>service.geocoding/</code> <b>3파일</b> · 총 <b>+340 / -213 라인</b>. 외부 동작 변화 <b>1건 (잘못된 ID 응답이 400 → 404)</b>, 프론트 호환성 그대로.</sub>
+<sub>신규 서비스 4 + 기존 보강 3 + <code>service.geocoding/</code> 3파일 · +340 / -213 라인.</sub>
 
 <br/>
 
-<sub><b>v1.5.2 실전 함정 — 배포/푸시 과정에서 만난 8가지 (PROJECT_CHANGELOG §11.9 상세):</b> ① Sentry CLI Windows 차단 (<code>-x sentryBundleSourcesJava -x sentryCollectSourcesJava</code> 로 회피) · ② SCP <code>No such file or directory</code> (<code>mkdir -p</code> 선행 필수) · ③ Tailscale IP 로 자기 자신 SSH 시도 · ④ rebase 도중 일반 commit → <code>cannot lock ref</code> → <code>git rebase --quit</code> 으로 안전 복구 · ⑤ SSH host key 프롬프트 회피 (<code>ssh-keyscan</code>) · ⑥ 마운트 캐시 stale view 로 파일 truncate · ⑦ <code>LF will be replaced by CRLF</code> 경고 처리 · ⑧ 한 줄 자동 배포 스크립트 (<code>deploy-to-vm.ps1</code>) 템플릿.</sub>
+<sub><b>실전 함정 8건 (CHANGELOG §11.9):</b> Sentry CLI Windows 차단 · SCP <code>mkdir -p</code> 누락 · 자기 자신 SSH · rebase <code>cannot lock ref</code> → <code>git rebase --quit</code> · SSH host key 프롬프트 · 마운트 캐시 truncate · LF/CRLF 경고 · 자동 배포 스크립트 템플릿.</sub>
 
 ---
 
