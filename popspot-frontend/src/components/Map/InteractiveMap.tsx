@@ -86,6 +86,8 @@ export default function InteractiveMap({ places, showPath = false, center, mode 
   const [activeCategory, setActiveCategory] = useState("ALL");
   const [map, setMap] = useState<any>(null);
   const [isListOpen, setIsListOpen] = useState(false);
+  // 사용자 현재 위치 — 브라우저 메모리에만 보관 (서버 저장 X · PIPA 부담 최소).
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
 
   // 데이터 변환 로직
   useEffect(() => {
@@ -136,18 +138,28 @@ export default function InteractiveMap({ places, showPath = false, center, mode 
     }
   }, [center, map]);
 
+  /**
+   * "내 위치" 버튼 클릭 시 호출.
+   *
+   * <p>현재 위치 좌표를 상태에 보관해 지도 위에 파란 점 마커로 표시하고, 지도 중심을 그쪽으로 이동.
+   * 좌표는 브라우저 메모리에만 살아있고 서버로 전송되지 않는다 (PIPA / 위치정보보호법 부담 최소).
+   */
   const handleMyLocation = () => {
-    if (navigator.geolocation && map) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const lat = position.coords.latitude;
-          const lng = position.coords.longitude;
-          const locPosition = new window.kakao.maps.LatLng(lat, lng);
-          map.panTo(locPosition);
-        },
-        (err) => notify("위치 정보를 가져올 수 없습니다.")
-      );
+    if (!navigator.geolocation || !map) {
+      notify("이 브라우저는 위치 정보를 지원하지 않습니다.");
+      return;
     }
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+        setUserLocation({ lat, lng });
+        const locPosition = new window.kakao.maps.LatLng(lat, lng);
+        map.panTo(locPosition);
+      },
+      () => notify("위치 정보를 가져올 수 없습니다. 브라우저 권한을 확인해주세요."),
+      { enableHighAccuracy: false, timeout: 5000, maximumAge: 60_000 },
+    );
   };
 
   const zoomIn = () => map && map.setLevel(map.getLevel() - 1);
@@ -334,6 +346,16 @@ export default function InteractiveMap({ places, showPath = false, center, mode 
             )
         )}
 
+        {/* 사용자 현재 위치 마커 — 파란 점 + pulse ring. 클릭 X (단순 표시용). */}
+        {userLocation && (
+          <CustomOverlayMap position={userLocation} yAnchor={0.5} xAnchor={0.5}>
+            <div className="relative" aria-label="내 위치">
+              <span className="absolute inset-0 -m-3 rounded-full bg-blue-400/30 animate-ping" />
+              <span className="relative block size-4 rounded-full bg-blue-500 ring-2 ring-white shadow-md" />
+            </div>
+          </CustomOverlayMap>
+        )}
+
         {markers.map((marker, index) => {
             // PLAN 모드용 스타일 계산
             const style = getCategoryStyle(marker.category);
@@ -449,7 +471,7 @@ export default function InteractiveMap({ places, showPath = false, center, mode 
                     </span>
                     <h3 className="text-white font-bold text-xs md:text-base truncate pr-4 group-hover:text-primary transition-colors">{selectedMarker.name}</h3>
                 </div>
-                
+
                 <p className="text-muted text-[9px] md:text-xs flex items-center gap-1 mb-2 md:mb-3">
                   <MapPin size={8} className="md:w-2.5 md:h-2.5 shrink-0" /> <span className="truncate">{selectedMarker.address}</span>
                 </p>
