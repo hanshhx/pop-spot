@@ -21,6 +21,7 @@ import {
   Moon,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useGuestMode } from "@/lib/useGuestMode";
 
 /* ============================================================================ */
 /*  POP-SPOT — Intro Page                                                      */
@@ -39,6 +40,15 @@ const SECTION_META = [
 ] as const;
 
 const PUBLICATION_YEAR = 2026;
+
+/**
+ * 인트로 시청 추적 — 첫 방문에서만 cinema 시퀀스를 보여주기 위한 localStorage 키.
+ * 일단 한 번 보면 다음 방문부터는 인트로를 건너뛰고 메인 페이지로 직행한다.
+ */
+const INTRO_PLAYED_KEY = "popspot:intro:played";
+
+/** 첫 방문 cinema 시퀀스 총 길이 (ms). 7초 후 자동으로 메인 페이지로 진입. */
+const CINEMA_DURATION_MS = 7000;
 
 /* ────────── 배경: 라이트 / 다크 (page-level fixed) ────────── */
 
@@ -442,20 +452,94 @@ export default function IntroPage() {
     }
   }, []);
 
-  const proceed = () => {
-    router.push(isLoggedIn ? "/?entered=1" : "/login");
+  // 게스트 모드 7일 정책 — 첫 방문 기록 + 잔여 일수 + 만료 여부.
+  const { mounted: guestReady, remainingDays, expired } = useGuestMode(isLoggedIn);
+
+  /**
+   * 사용자 상황 기반 진입 경로 — 진입 트리거 (CTA / Enter / 자동) 가 공유한다.
+   *
+   * <ul>
+   *   <li>로그인 사용자 / 게스트 미만료 → 메인 페이지 (?entered=1)</li>
+   *   <li>게스트 만료 → 회원가입 강제</li>
+   * </ul>
+   */
+  const resolveNextRoute = (): string => {
+    if (isLoggedIn) return "/?entered=1";
+    if (guestReady && expired) return "/signup";
+    return "/?entered=1";
   };
 
-  // Enter 키로도 진입 — proceed deps 회피용으로 router/isLoggedIn 만 의존.
+  const proceed = () => router.push(resolveNextRoute());
+
+  /**
+   * 첫 방문 cinema 시퀀스 — 매거진 인트로를 한 번 본 사용자는 재방문 시 즉시 메인으로 우회.
+   *
+   * <p>동작:
+   * <ol>
+   *   <li>이미 인트로를 본 적이 있거나 로그인된 사용자 → {@code router.replace} 로 메인 즉시 진입.</li>
+   *   <li>첫 방문 사용자 → {@link INTRO_PLAYED_KEY} 마킹 + {@link CINEMA_DURATION_MS} 타이머 시작.</li>
+   *   <li>사용자가 스크롤하면 cinema 자동 진입을 취소 — 매거진 구경 모드로 전환.</li>
+   * </ol>
+   */
+  useEffect(() => {
+    if (!mounted) return;
+
+    const alreadyPlayed = (() => {
+      try {
+        return window.localStorage.getItem(INTRO_PLAYED_KEY) === "true";
+      } catch {
+        return false;
+      }
+    })();
+
+    // 재방문자 / 이미 로그인 — 인트로 건너뛰고 즉시 메인.
+    if (alreadyPlayed || isLoggedIn) {
+      router.replace(resolveNextRoute());
+      return;
+    }
+
+    // 첫 방문 — 인트로 시청 표시 + 자동 진입 타이머.
+    try {
+      window.localStorage.setItem(INTRO_PLAYED_KEY, "true");
+    } catch {
+      /* localStorage 비활성 — 무시 */
+    }
+
+    let interrupted = false;
+    const cancelAutoEnter = () => {
+      interrupted = true;
+    };
+
+    const timerId = window.setTimeout(() => {
+      if (interrupted) return;
+      router.push(resolveNextRoute());
+    }, CINEMA_DURATION_MS);
+
+    // 스크롤 = 매거진 탐색 의지로 보고 자동 진입 취소.
+    window.addEventListener("scroll", cancelAutoEnter, { passive: true, once: true });
+
+    return () => {
+      window.clearTimeout(timerId);
+      window.removeEventListener("scroll", cancelAutoEnter);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- resolveNextRoute 는 매 렌더 새 함수라 deps 에 두면 매번 재시작됨. mount + 로그인/만료 변화만 추적.
+  }, [mounted, isLoggedIn, guestReady, expired, router]);
+
+  // Enter 키로도 진입 — 자동 진입 타이머와 동일한 라우팅 규칙 사용.
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key !== "Enter") return;
       e.preventDefault();
-      router.push(isLoggedIn ? "/?entered=1" : "/login");
+      const next = isLoggedIn
+        ? "/?entered=1"
+        : guestReady && expired
+        ? "/signup"
+        : "/?entered=1";
+      router.push(next);
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [isLoggedIn, router]);
+  }, [isLoggedIn, router, guestReady, expired]);
 
   return (
     <>
@@ -467,8 +551,19 @@ export default function IntroPage() {
       <GrainTexture />
       <DustParticles />
 
-      {/* 상단 컨트롤 — 테마 토글 + Skip 만 (Play 버튼 제거) */}
+      {/* 상단 컨트롤 — 게스트 잔여 일수 + 테마 토글 + Skip */}
       <div className="fixed right-5 top-5 z-[100] flex items-center gap-2 sm:right-6 sm:top-6">
+        {/* 게스트 모드 잔여 일수 칩 — 로그인 안 한 사용자에게만 노출. mount 후에만 표시. */}
+        {guestReady && !isLoggedIn && !expired && (
+          <span
+            className="inline-flex items-center gap-1.5 rounded-full bg-lime-500/15 px-3 py-1.5 text-[11px] font-medium text-lime-700 ring-1 ring-lime-500/40 backdrop-blur-md dark:bg-lime-300/15 dark:text-lime-300 dark:ring-lime-300/40"
+            aria-label={`게스트 모드 ${remainingDays}일 남음`}
+            title="회원가입하면 모든 기능을 이용할 수 있어요"
+          >
+            <span className="size-1.5 animate-pulse rounded-full bg-lime-500 dark:bg-lime-300" />
+            게스트 {remainingDays}일
+          </span>
+        )}
         <button
           type="button"
           onClick={() => setTheme(isDark ? "light" : "dark")}
@@ -583,7 +678,7 @@ export default function IntroPage() {
             </motion.div>
           </div>
 
-          {/* 스크롤 인디케이터 */}
+          {/* 스크롤 인디케이터 + 자동 진입 안내 */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -595,10 +690,20 @@ export default function IntroPage() {
               transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
               className="flex flex-col items-center gap-1 text-ink-700/70 dark:text-cream-200/70"
             >
-              <span className="text-xs">스크롤</span>
+              <span className="text-xs">스크롤하면 더 보기</span>
               <ChevronDown className="h-5 w-5" />
             </motion.div>
           </motion.div>
+
+          {/* 자동 진입 progress bar — 7초 후 메인 자동 진입 시각화. 사용자 스크롤 시 사라짐. */}
+          <motion.div
+            initial={{ scaleX: 0, opacity: 0 }}
+            animate={{ scaleX: 1, opacity: 1 }}
+            transition={{ scaleX: { duration: CINEMA_DURATION_MS / 1000, ease: "linear" }, opacity: { duration: 0.6, delay: 0.4 } }}
+            style={{ transformOrigin: "left" }}
+            className="absolute bottom-12 left-0 z-20 h-[2px] w-full origin-left bg-gradient-to-r from-lime-500 via-hot-500 to-blue-500 dark:from-lime-300 dark:via-hot-400 dark:to-blue-400"
+            aria-hidden
+          />
 
           <MarqueeStrip />
         </section>
