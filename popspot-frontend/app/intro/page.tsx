@@ -25,15 +25,43 @@ import {
 import { useEffect, useState } from "react";
 
 /**
- * 라이트 모드 배경 — SK 스타일 파스텔 그라데이션 blob 3개를 겹쳐서 부드러운 3D 무드.
- * filter:blur 로 외부 자산 없이 흐릿한 색 덩어리를 만든다.
+ * 라이트 모드 배경 — 파스텔 그라데이션 blob 3개를 겹쳐서 부드러운 3D 무드. filter:blur 로 흐릿한 색 덩어리.
+ * lime-300 (#c2f970) 은 눈에 강한 채도라 light 모드에선 lime-200 으로 톤다운.
  */
 function LightModeBackground() {
   return (
     <div className="absolute inset-0 overflow-hidden bg-gradient-to-br from-cream-100 via-cream-200/60 to-white">
-      <div className="pointer-events-none absolute right-[-10%] top-[10%] h-[500px] w-[500px] rounded-full bg-hot-300/40 blur-3xl" />
-      <div className="pointer-events-none absolute left-[-10%] top-[40%] h-[450px] w-[450px] rounded-full bg-lime-300/35 blur-3xl" />
-      <div className="pointer-events-none absolute right-[20%] bottom-[10%] h-[380px] w-[380px] rounded-full bg-blue-300/30 blur-3xl" />
+      <div className="pointer-events-none absolute right-[-10%] top-[10%] h-[500px] w-[500px] rounded-full bg-hot-300/30 blur-3xl" />
+      <div className="pointer-events-none absolute left-[-10%] top-[40%] h-[450px] w-[450px] rounded-full bg-lime-200/40 blur-3xl" />
+      <div className="pointer-events-none absolute right-[20%] bottom-[10%] h-[380px] w-[380px] rounded-full bg-blue-200/35 blur-3xl" />
+    </div>
+  );
+}
+
+/**
+ * 다크 모드 배경 — 영상이 없을 때 (모션 OFF) 사용하는 정적 다크 파스텔.
+ * deep navy / deep purple / deep rose 톤. 라이트와 동일한 3 orb 패턴이지만 더 차분.
+ */
+function DarkModeBackground() {
+  return (
+    <div className="absolute inset-0 overflow-hidden bg-gradient-to-br from-ink-900 via-ink-800 to-ink-900">
+      <div className="pointer-events-none absolute right-[-10%] top-[10%] h-[500px] w-[500px] rounded-full bg-hot-500/15 blur-3xl" />
+      <div className="pointer-events-none absolute left-[-10%] top-[40%] h-[450px] w-[450px] rounded-full bg-lime-500/12 blur-3xl" />
+      <div className="pointer-events-none absolute right-[20%] bottom-[10%] h-[380px] w-[380px] rounded-full bg-blue-500/12 blur-3xl" />
+    </div>
+  );
+}
+
+/**
+ * 다크 모드 영상 위 추가 컬러 오버레이 — 영상 위에 살짝 깔리는 파스텔 글로우.
+ * 영상은 회색조에 가까운데 파스텔 orb 가 살짝 비치면 라이트와 톤이 통일됨.
+ */
+function DarkVideoColorOverlay() {
+  return (
+    <div className="pointer-events-none absolute inset-0 mix-blend-overlay">
+      <div className="absolute right-[-10%] top-[5%] h-[600px] w-[600px] rounded-full bg-hot-400/25 blur-3xl" />
+      <div className="absolute left-[-10%] top-[35%] h-[500px] w-[500px] rounded-full bg-lime-400/18 blur-3xl" />
+      <div className="absolute right-[15%] bottom-[5%] h-[450px] w-[450px] rounded-full bg-blue-400/20 blur-3xl" />
     </div>
   );
 }
@@ -302,27 +330,26 @@ export default function IntroPage() {
 
   return (
     <>
-      {/* 페이지 전체 고정 배경 — 다크일 땐 영상, 라이트일 땐 파스텔 blob.
-          중요: video 는 display:none → block 토글로 autoplay 가 안 살아나니, isDark 일 때만 fresh mount.
-          mounted 가드를 두는 이유는 SSR 시점엔 테마 미확정이라 hydration mismatch 회피용. */}
+      {/* 페이지 전체 고정 배경 — 다크일 땐 영상 + 파스텔 컬러 오버레이, 라이트일 땐 파스텔 blob. */}
       <div className="pointer-events-none fixed inset-0 z-0">
         {mounted && isDark && motionOn && (
-          <video
-            key="intro-bg-video"
-            autoPlay
-            loop
-            muted
-            playsInline
-            preload="auto"
-            onCanPlay={() => setVideoReady(true)}
-            className="h-full w-full object-cover bg-ink-900"
-          >
-            <source src={VIDEO_SRC} type="video/mp4" />
-          </video>
+          <>
+            <video
+              key="intro-bg-video"
+              autoPlay
+              loop
+              muted
+              playsInline
+              preload="auto"
+              onCanPlay={() => setVideoReady(true)}
+              className="h-full w-full object-cover bg-ink-900"
+            >
+              <source src={VIDEO_SRC} type="video/mp4" />
+            </video>
+            <DarkVideoColorOverlay />
+          </>
         )}
-        {mounted && isDark && !motionOn && (
-          <div className="h-full w-full bg-gradient-to-br from-ink-900 via-ink-800 to-hot-900/30" />
-        )}
+        {mounted && isDark && !motionOn && <DarkModeBackground />}
         {(!mounted || !isDark) && <LightModeBackground />}
       </div>
 
@@ -442,7 +469,7 @@ export default function IntroPage() {
               transition={{ duration: 0.6, delay: 0.1 }}
               className="inline-flex items-center gap-2 rounded-full bg-ink-900 px-5 py-2 text-sm font-medium text-cream-100 shadow-lg dark:bg-lime-300 dark:text-ink-900"
             >
-              <span className="size-1.5 rounded-full bg-lime-300 dark:bg-ink-900" />
+              <span className="size-1.5 rounded-full bg-lime-500 dark:bg-lime-300 dark:bg-ink-900" />
               성수 · 한남 · 압구정
             </motion.div>
 
@@ -541,7 +568,7 @@ export default function IntroPage() {
         >
           {/* 배경 — 라임 후광이 보이도록 어둡지만 영상은 비치게 */}
           <div className="pointer-events-none absolute inset-0 bg-cream-100/65 dark:bg-ink-900/40" />
-          <div className="pointer-events-none absolute left-1/2 top-1/2 h-[500px] w-[500px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-lime-300/15 blur-3xl" />
+          <div className="pointer-events-none absolute left-1/2 top-1/2 h-[500px] w-[500px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-lime-500/10 dark:bg-lime-300/15 blur-3xl" />
 
           <motion.div
             initial={{ opacity: 0, y: 40 }}
@@ -555,7 +582,7 @@ export default function IntroPage() {
               whileInView={{ opacity: 1 }}
               viewport={{ once: false }}
               transition={{ delay: 0.1 }}
-              className="inline-block rounded-full bg-lime-300/15 px-4 py-1.5 text-sm font-medium text-lime-300 ring-1 ring-lime-300/40"
+              className="inline-block rounded-full bg-lime-500/10 dark:bg-lime-300/15 px-4 py-1.5 text-sm font-medium text-lime-600 dark:text-lime-300 ring-1 ring-lime-500/40 dark:ring-lime-300/40"
             >
               서비스 소개
             </motion.span>
@@ -563,7 +590,7 @@ export default function IntroPage() {
             <h2 className="mt-6 text-4xl font-black leading-tight tracking-tight text-ink-900 dark:text-white drop-shadow-2xl sm:text-5xl md:text-7xl">
               서울 팝업 정보를
               <br />
-              <span className="text-lime-300">한 곳에서</span>
+              <span className="text-lime-600 dark:text-lime-300">한 곳에서</span>
             </h2>
 
             <p className="mx-auto mt-6 max-w-2xl text-base text-ink-700/90 dark:text-cream-100/90 drop-shadow-lg sm:text-lg">
@@ -572,18 +599,59 @@ export default function IntroPage() {
               한 화면에서 검색·매칭·기록할 수 있도록 만든 서비스입니다.
             </p>
 
+            {/* 3 데이터 카드 — 메인 페이지 위젯 스타일. 숫자보다 컨텍스트 있는 표현. */}
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: false }}
-              transition={{ duration: 0.6, delay: 0.3 }}
-              className="mt-12 inline-flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-ink-700/85 dark:text-cream-100/85 sm:text-base"
+              initial="hidden"
+              whileInView="show"
+              viewport={{ once: false, amount: 0.3 }}
+              variants={{
+                hidden: {},
+                show: { transition: { staggerChildren: 0.12, delayChildren: 0.3 } },
+              }}
+              className="mt-14 grid grid-cols-1 gap-4 sm:grid-cols-3 sm:gap-5"
             >
-              <span>매일 새벽 4시에 새 팝업 수집</span>
-              <span className="text-ink-700/30 dark:text-cream-100/30">·</span>
-              <span>1~2달치 일정 미리보기</span>
-              <span className="text-ink-700/30 dark:text-cream-100/30">·</span>
-              <span>신고는 24시간 안에</span>
+              {[
+                {
+                  icon: Clock,
+                  title: "매일 새벽 4시",
+                  desc: "자동 수집",
+                  color: "lime",
+                },
+                {
+                  icon: Calendar,
+                  title: "1~2달치",
+                  desc: "일정 미리보기",
+                  color: "blue",
+                },
+                {
+                  icon: Sparkles,
+                  title: "24시간 안에",
+                  desc: "신고 응답",
+                  color: "hot",
+                },
+              ].map((item) => {
+                const colorMap = {
+                  lime: "bg-lime-100 text-lime-700 dark:bg-lime-500/15 dark:text-lime-300",
+                  blue: "bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300",
+                  hot: "bg-hot-100 text-hot-600 dark:bg-hot-500/15 dark:text-hot-300",
+                };
+                return (
+                  <motion.div
+                    key={item.title}
+                    variants={{
+                      hidden: { opacity: 0, y: 20 },
+                      show: { opacity: 1, y: 0, transition: { duration: 0.6 } },
+                    }}
+                    className="rounded-xl bg-white/80 backdrop-blur-sm p-5 text-left ring-1 ring-ink-900/8 dark:bg-ink-900/50 dark:ring-white/10"
+                  >
+                    <div className={`inline-flex h-9 w-9 items-center justify-center rounded-lg ${colorMap[item.color as keyof typeof colorMap]}`}>
+                      <item.icon className="size-4" strokeWidth={2.4} />
+                    </div>
+                    <div className="mt-3 text-lg font-bold text-ink-900 dark:text-white">{item.title}</div>
+                    <div className="mt-0.5 text-xs text-ink-700/65 dark:text-cream-100/65">{item.desc}</div>
+                  </motion.div>
+                );
+              })}
             </motion.div>
           </motion.div>
         </section>
@@ -690,7 +758,7 @@ export default function IntroPage() {
                   {/* 좌측 컬러 액센트 바 — 카드마다 다른 색 */}
                   <div
                     className={`absolute left-0 top-0 h-full w-1 ${
-                      ["bg-lime-300", "bg-hot-400", "bg-amber-300", "bg-blue-400"][i % 4]
+                      ["bg-lime-500 dark:bg-lime-300", "bg-hot-400", "bg-amber-300", "bg-blue-400"][i % 4]
                     }`}
                   />
                   <div className="flex items-start gap-4">
@@ -722,31 +790,50 @@ export default function IntroPage() {
           </div>
         </section>
 
-        {/* SECTION 5 — Final CTA */}
+        {/* SECTION 5 — Final CTA. 핫핑크 풀배경 제거하고 부드러운 cream/dark 톤으로. */}
         <section
           className="relative flex min-h-screen w-full items-center justify-center overflow-hidden px-6"
           style={{ scrollSnapAlign: "start" }}
         >
-          <div className="pointer-events-none absolute inset-0 bg-hot-500/55" />
+          {/* 부드러운 오버레이 — 라이트는 cream, 다크는 ink. 핫핑크 풀배경 제거. */}
+          <div className="pointer-events-none absolute inset-0 bg-cream-100/85 dark:bg-ink-900/55" />
+          {/* 좌상단 파스텔 글로우 */}
+          <div className="pointer-events-none absolute -left-[10%] top-[5%] h-[400px] w-[400px] rounded-full bg-lime-200/40 blur-3xl dark:bg-lime-500/15" />
+          {/* 우하단 파스텔 글로우 */}
+          <div className="pointer-events-none absolute -right-[8%] bottom-[5%] h-[450px] w-[450px] rounded-full bg-hot-200/40 blur-3xl dark:bg-hot-500/15" />
+          {/* 작은 도트 패턴 */}
           <div
-            className="pointer-events-none absolute inset-0 opacity-15"
+            className="pointer-events-none absolute inset-0 opacity-[0.06] dark:opacity-[0.10]"
             style={{
-              backgroundImage: "radial-gradient(circle, #fff 1px, transparent 1px)",
+              backgroundImage: "radial-gradient(circle, currentColor 1px, transparent 1px)",
               backgroundSize: "32px 32px",
+              color: "currentColor",
             }}
           />
+
           <motion.div
             initial={{ opacity: 0, y: 40 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: false, amount: 0.4 }}
             transition={{ duration: 0.8 }}
-            className="relative z-10 mx-auto max-w-3xl text-center text-white"
+            className="relative z-10 mx-auto max-w-3xl text-center"
           >
-            <Clock className="mx-auto h-12 w-12 text-white/95 drop-shadow-lg" strokeWidth={1.8} />
-            <h2 className="mt-6 text-4xl font-black leading-tight tracking-tight drop-shadow-2xl sm:text-6xl md:text-7xl">
-              POP-SPOT 시작하기
+            {/* 상단 미니 라벨 */}
+            <motion.span
+              initial={{ opacity: 0, scale: 0.9 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              viewport={{ once: false }}
+              transition={{ delay: 0.1 }}
+              className="inline-flex items-center gap-2 rounded-full bg-ink-900 px-4 py-1.5 text-xs font-medium text-cream-100 shadow dark:bg-cream-100 dark:text-ink-900"
+            >
+              <Clock className="size-3.5" />
+              지금 바로
+            </motion.span>
+
+            <h2 className="mt-6 text-4xl font-black leading-tight tracking-tight text-ink-900 drop-shadow-sm dark:text-white dark:drop-shadow-2xl sm:text-6xl md:text-7xl">
+              POP-SPOT <span className="text-hot-500 dark:text-hot-400">시작하기</span>
             </h2>
-            <p className="mx-auto mt-5 max-w-xl text-base text-white/95 drop-shadow-lg sm:text-lg">
+            <p className="mx-auto mt-5 max-w-xl text-base text-ink-700/80 dark:text-white/90 sm:text-lg">
               서울에서 열리는 팝업스토어, 한 곳에서 만나보세요.
               <br className="hidden sm:inline" />
               로그인 후 모든 기능을 이용할 수 있습니다.
@@ -756,7 +843,7 @@ export default function IntroPage() {
                 onClick={proceed}
                 whileHover={{ scale: 1.04 }}
                 whileTap={{ scale: 0.97 }}
-                className="inline-flex items-center gap-2 rounded-full bg-white px-9 py-4 text-base font-bold text-hot-500 shadow-2xl shadow-black/30 ring-2 ring-white/40 transition hover:bg-cream-100 sm:px-12 sm:py-5 sm:text-lg"
+                className="inline-flex items-center gap-2 rounded-full bg-ink-900 px-9 py-4 text-base font-bold text-cream-100 shadow-xl shadow-ink-900/20 transition hover:bg-ink-800 dark:bg-lime-300 dark:text-ink-900 dark:shadow-lime-300/30 dark:hover:bg-lime-200 sm:px-12 sm:py-5 sm:text-lg"
               >
                 {isLoggedIn ? (
                   <>
@@ -775,14 +862,14 @@ export default function IntroPage() {
                   onClick={() => router.push("/signup")}
                   whileHover={{ scale: 1.04 }}
                   whileTap={{ scale: 0.97 }}
-                  className="inline-flex items-center gap-2 rounded-full bg-ink-900/25 px-9 py-4 text-base font-bold text-white backdrop-blur-md ring-2 ring-white/40 transition hover:bg-ink-900/35 sm:px-12 sm:py-5 sm:text-lg"
+                  className="inline-flex items-center gap-2 rounded-full border-2 border-ink-900/15 bg-transparent px-9 py-4 text-base font-bold text-ink-900 transition hover:border-ink-900/30 hover:bg-ink-900/5 dark:border-white/25 dark:text-cream-100 dark:hover:border-white/50 dark:hover:bg-white/10 sm:px-12 sm:py-5 sm:text-lg"
                 >
                   <UserPlus className="h-5 w-5" />
                   <span>회원가입</span>
                 </motion.button>
               )}
             </div>
-            <p className="mt-8 text-xs text-white/70 drop-shadow-lg">
+            <p className="mt-8 text-xs text-ink-700/60 dark:text-white/70">
               © {new Date().getFullYear()} POP-SPOT · 서울 팝업스토어, 한 곳에서.
             </p>
           </motion.div>
