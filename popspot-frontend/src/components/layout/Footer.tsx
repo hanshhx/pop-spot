@@ -1,6 +1,23 @@
 import Link from 'next/link';
-import { Instagram, Twitter } from 'lucide-react';
+import { Instagram } from 'lucide-react';
 import { cn } from '@/lib/utils';
+
+/**
+ * X (구 Twitter) 브랜드 로고 — lucide-react 가 리브랜딩된 X 로고를 제공하지 않아 inline SVG 로 처리.
+ * viewBox 24x24, 단색 currentColor 로 부모 className 의 색상을 상속받는다.
+ */
+function XLogo({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      aria-hidden
+      className={className}
+    >
+      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+    </svg>
+  );
+}
 
 /**
  * 사이트 공통 푸터.
@@ -19,6 +36,7 @@ const PLATFORM_LINKS: ReadonlyArray<{ label: string; href: string }> = [
   { label: '팝업 캘린더', href: '/' },
   { label: 'AI 혼잡도 분석', href: '/' },
   { label: '매거진', href: '/' },
+  { label: '서비스 소개', href: '/about' },
   { label: '이용약관', href: '/terms' },
   { label: '개인정보 처리방침', href: '/privacy' },
 ];
@@ -64,13 +82,13 @@ function BrandColumn() {
         POP-SPOT<span className="text-lime-300">.</span>
       </h2>
       <p className="text-sm text-muted-foreground max-w-sm mb-6 leading-relaxed">
-        서울의 모든 팝업스토어를 연결합니다.
+        서울 팝업스토어 정보를 한곳에 모아둔 곳.
         <br className="hidden md:block" />
-        데이터 기반의 스마트한 오프라인 경험을 제공합니다.
+        매일 새로 열리는 팝업을 찾고, 가고, 기록해요.
       </p>
       <div className="flex gap-3">
         <SocialLink href="https://instagram.com" label="Instagram" icon={<Instagram className="size-4" aria-hidden />} />
-        <SocialLink href="https://twitter.com" label="Twitter" icon={<Twitter className="size-4" aria-hidden />} />
+        <SocialLink href="https://x.com" label="X" icon={<XLogo className="size-4" />} />
       </div>
     </div>
   );

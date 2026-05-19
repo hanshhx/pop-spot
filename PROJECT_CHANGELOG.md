@@ -6861,3 +6861,498 @@ Write-Host "Deploy complete." -ForegroundColor Green
 
 이제 다음번에 동일 이슈 만나도 §11.9 참조로 막힘 없이 풀 수 있다.
 
+
+---
+
+# 12. v1.6 — UX 사용자 피드백 일괄 적용 (회원가입 · 인트로 · 카드 · 인터랙션 · 위치)
+
+## 12.1 배경
+
+서비스 공개 준비 단계에서 받은 사용자 피드백 11건을 한 트랙으로 묶어 처리. 카테고리 별로 v1.6 / v1.6.1 / v1.6.2 / v1.6.3 / v1.6.4 다섯 개 sub-version 으로 끊어 1 영역 = 1 PR 원칙을 지켰다.
+
+**받은 피드백 정리**
+
+| # | 영역 | 피드백 |
+|:--:|---|---|
+| 1 | 인터랙션 | 클릭했을 때 상호작용 (hover/active) 약함 |
+| 2 | 회원가입 | 비밀번호 입력 아이콘이 직관과 반대 |
+| 3 | 회원가입 | 생년월일 — 연·일이 input, 월만 select 라 일관성 깨짐 |
+| 4 | 회원가입 | 휴대전화에 숫자 외 입력됨 |
+| 5 | 회원가입 | 이메일에 한글 입력됨 |
+| 6 | 회원가입 | 데스크탑인데 모바일 화면 느낌 |
+| 7 | 인트로 | 로그인 버튼과 타이틀 사이 여백 부족 |
+| 8 | 인트로 | 스크롤바 때문에 좌우 여백 안 맞음 |
+| 9 | 인트로 | 로그인 / 회원가입 버튼 크기 + 아이콘 순서 불일치 |
+| 10 | 메인 | 캘린더 · 지도 · 랭킹 카드 배경 겹쳐 가독성 ↓ |
+| 11 | 인트로 | 움직이는 화면 정신 사납다, 온오프 토글 필요 |
+| 12 | 지도 | 사용자 현재 위치 표시되면 편리 |
+
+게스트 모드 (인트로 페이지 → 일주일은 그냥 쓰게) + 보안 마케팅 (앱 출시 시) 은 별도 트랙으로 분리. 게스트 모드는 익명 ID 추적 + 가입 시 데이터 병합 로직이 필요해 사용자 의사결정 (Pinterest 액션 게이트 vs 일주일 게스트) 후 별도 진행.
+
+## 12.2 v1.6 — 회원가입 폼 quick wins 6건
+
+수정 파일: `popspot-frontend/app/signup/page.tsx`
+
+### 12.2.1 비밀번호 아이콘 반전 (state-icon 컨벤션)
+
+**문제**
+- 기존: `showPassword = false` (가려진 상태) → `Eye` 아이콘 (눈 뜸)
+- 사용자 직관: "지금 가려져 있는데 왜 눈이 떠있지? 클릭하면 닫히나?"
+- Material Design / Apple HIG 둘 다 **state-icon** (현재 상태 표시) 컨벤션 사용
+
+**수정**
+```tsx
+// before — action-icon (클릭하면 뜰 액션)
+{showPassword ? <EyeOff /> : <Eye />}
+
+// after — state-icon (현재 보이는지 가려진지)
+{showPassword ? <Eye /> : <EyeOff />}
+```
+
+비밀번호 + 비밀번호 확인 두 필드 모두 적용.
+
+### 12.2.2 이메일 한글 입력 차단
+
+이메일 RFC 5321 은 ASCII 전용. 한글 입력 들어가면 백엔드 valid 검사에서 실패하지만, 입력 단에서 막는 게 UX 정답.
+
+```tsx
+if (name === "email") {
+  // ASCII 외 문자 (한글 등) 제거
+  sanitized = value.replace(/[^\x20-\x7E]/g, "");
+}
+```
+
+사용자 입장에선 "잘못된 키를 누르면 무시" 처럼 자연스럽게 동작.
+
+### 12.2.3 휴대전화 숫자만 입력
+
+```tsx
+if (name === "phoneNumber") {
+  // 숫자 외 모두 제거 (붙여넣기 시 하이픈/공백도 strip)
+  sanitized = value.replace(/\D/g, "");
+}
+```
+
+`inputMode="numeric"` 만으로는 데스크탑 키보드 입력을 막을 수 없어 onChange 단에서도 정리.
+
+### 12.2.4 생년월일 — 연/월/일 모두 select 로 통일
+
+**문제** — 기존엔 연·일은 `<input type="text">`, 월만 `<select>`. 시각적 일관성 깨짐 + 사용자가 "1234년 99일" 같은 무효 값 입력 가능.
+
+**수정** — 신규 공용 컴포넌트 `BirthSelect` + 옵션 상수 분리:
+```tsx
+const CURRENT_YEAR = new Date().getFullYear();
+const MIN_BIRTH_YEAR = 1930;
+const MAX_BIRTH_YEAR = CURRENT_YEAR - 14;  // 만 14세 정책 자동 반영
+const BIRTH_YEAR_OPTIONS = Array.from(
+  { length: MAX_BIRTH_YEAR - MIN_BIRTH_YEAR + 1 },
+  (_, i) => MAX_BIRTH_YEAR - i,
+);
+const BIRTH_MONTH_OPTIONS = Array.from({ length: 12 }, (_, i) => i + 1);
+const BIRTH_DAY_OPTIONS = Array.from({ length: 31 }, (_, i) => i + 1);
+```
+
+세 select 값이 모두 채워지면 `useEffect` 가 `YYYY-MM-DD` 형식으로 `formData.birthdate` 동기화. `isValidBirthdate` 를 `isFormValid` 에 추가해 미선택 시 제출 불가.
+
+### 12.2.5 데스크탑 좁음 개선
+
+`max-w-[460px]` → `md:max-w-[540px]` 로 데스크탑에서만 살짝 넓힘. 모바일은 그대로.
+
+### 12.2.6 효과
+
+- 모든 입력 필드가 "잘못된 입력은 들어가지도 않음" 으로 통일 — 사용자 학습 비용 ↓
+- 비밀번호 토글이 직관 일치 → 첫 사용자 onboarding 마찰 감소
+- 만 14세 정책이 select 옵션 단계에서 자동 적용 — 백엔드 검증과 이중 안전망
+
+## 12.3 v1.6.1 — 인트로 페이지 정리
+
+수정 파일: `popspot-frontend/app/intro/page.tsx`, `popspot-frontend/app/globals.css`
+
+### 12.3.1 스크롤바 좌우 여백 점프 차단
+
+`globals.css` 의 `html` 셀렉터에 한 줄 추가:
+```css
+html {
+  /* 스크롤바 자리를 항상 예약해 좌우 여백 점프 방지. */
+  scrollbar-gutter: stable;
+}
+```
+
+페이지 간 이동 (스크롤 생기는 페이지 ↔ 안 생기는 페이지) 시 콘텐츠가 좌우로 튀던 layout shift 가 사라짐.
+
+### 12.3.2 로그인 / 회원가입 버튼 아이콘 순서 통일
+
+**문제** — 두 버튼 size 는 같았는데:
+- 로그인 버튼: `<LogIn /> 로그인` (icon-first)
+- 회원가입 버튼: `회원가입 <ArrowRight />` (text-first, 아이콘은 ArrowRight)
+
+**수정** — `lucide-react` 의 `UserPlus` 추가 + 회원가입 버튼도 icon-first 로:
+```tsx
+// before
+회원가입 <ArrowRight />
+
+// after — 로그인 버튼과 동일 패턴
+<UserPlus className="h-5 w-5" />
+<span>회원가입</span>
+```
+
+### 12.3.3 타이틀 ↔ CTA 버튼 여백 확장
+
+`mt-12` → `mt-16 sm:mt-20` — 데스크탑에서 시각적 여유 확보.
+
+### 12.3.4 모션 토글 — Pause / Play 버튼
+
+배경 영상이 "정신 사납다" 는 피드백에 대응. OS 의 `prefers-reduced-motion` 자동 감지 외에 사용자가 직접 끌 수 있는 토글 추가.
+
+```tsx
+const MOTION_PREF_KEY = "popspot:intro:motion";
+const [motionOn, setMotionOn] = useState(true);
+
+useEffect(() => {
+  const saved = localStorage.getItem(MOTION_PREF_KEY);
+  if (saved === "off") setMotionOn(false);
+}, []);
+
+const toggleMotion = () => {
+  setMotionOn((prev) => {
+    const next = !prev;
+    localStorage.setItem(MOTION_PREF_KEY, next ? "on" : "off");
+    return next;
+  });
+};
+```
+
+- `motionOn = true` → 배경 영상 재생, 버튼은 `<Pause />`
+- `motionOn = false` → 영상 자리에 정적 그라데이션 fallback, 버튼은 `<Play />`
+- 선호도는 `localStorage` 에 저장돼 다음 방문에도 유지
+
+상단 우측에 Skip/Login 버튼과 묶어서 동선 통합.
+
+## 12.4 v1.6.2 — 메인 페이지 카드 블록화
+
+수정 파일: `popspot-frontend/app/page.tsx`
+
+### 12.4.1 문제
+
+메인 페이지의 Map / Ranking / Calendar / AI Report 4 위젯이 `bg-white/80` `bg-[#111]/80` 같은 **반투명 배경**을 쓰고 있었다. 페이지 배경이 비치면서 카드 경계가 흐려져 가독성 저하.
+
+### 12.4.2 수정
+
+모든 4 위젯을 solid 배경 + `shadow-lg` 로 강화:
+
+| 위젯 | Before | After |
+|---|---|---|
+| Map | `bg-gray-100 dark:bg-[#111]/80 backdrop-blur-md` | `bg-white dark:bg-[#111] shadow-lg shadow-black/5 dark:shadow-black/30` |
+| Ranking | `bg-white/80 dark:bg-[#111]/80 backdrop-blur-md` | `bg-white dark:bg-[#111] shadow-lg shadow-black/5 dark:shadow-black/30` |
+| Calendar | `bg-primary/90 backdrop-blur-md shadow-lg` | `bg-primary shadow-xl shadow-primary/20 dark:shadow-primary/10` |
+| AI Report | `bg-white/80 dark:bg-[#111]/80 backdrop-blur-md` | `bg-white dark:bg-[#111] shadow-lg shadow-black/5 dark:shadow-black/30` |
+
+`backdrop-blur-md` 제거로 GPU 부하도 살짝 감소.
+
+## 12.5 v1.6.3 — 클릭 hover/active 인터랙션
+
+수정 파일: `popspot-frontend/app/page.tsx`
+
+### 12.5.1 문제
+
+카드들이 `transition-colors` 만 있어 hover 시 색만 살짝 바뀜. 사용자 입장에서 "이거 클릭할 수 있나?" 가 불명확.
+
+### 12.5.2 수정
+
+주요 클릭 가능 카드에 `hover:scale` + `active:scale` 추가:
+
+```tsx
+// before
+className="... transition-colors cursor-pointer ..."
+
+// after
+className="... transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer ..."
+```
+
+- 일반 카드 (랭킹 아이템 / saved courses / mate posts): `hover:scale-[1.01] active:scale-[0.99]`
+- 큰 카드 (AI Report): `hover:scale-[1.02] active:scale-[0.99]` — 1.01 보다 시각적으로 살아있음
+- `transition-colors` → `transition-all` 로 scale 도 부드럽게
+
+### 12.5.3 효과
+
+사용자가 마우스 올리면 카드가 살짝 떠오르고 클릭 순간 살짝 들어감 — "살아있는 사이트" 인상이 확 올라간다.
+
+## 12.6 v1.6.4 — 현재 위치 v1 (메모리 only)
+
+수정 파일: `popspot-frontend/src/components/Map/InteractiveMap.tsx`
+
+### 12.6.1 정책
+
+PIPA / 위치정보보호법 부담을 최소화하기 위해 **v1 은 브라우저 메모리에만** 보관:
+- 좌표 서버 전송 X
+- localStorage 저장 X (페이지 새로고침하면 다시 권한 요청)
+- 위치정보 별도 약관 X (v2 에서 필요시 추가)
+
+### 12.6.2 구현
+
+```tsx
+const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+
+const handleMyLocation = () => {
+  if (!navigator.geolocation || !map) {
+    notify("이 브라우저는 위치 정보를 지원하지 않습니다.");
+    return;
+  }
+  navigator.geolocation.getCurrentPosition(
+    (position) => {
+      const lat = position.coords.latitude;
+      const lng = position.coords.longitude;
+      setUserLocation({ lat, lng });
+      map.panTo(new window.kakao.maps.LatLng(lat, lng));
+    },
+    () => notify("위치 정보를 가져올 수 없습니다. 브라우저 권한을 확인해주세요."),
+    { enableHighAccuracy: false, timeout: 5000, maximumAge: 60_000 },
+  );
+};
+```
+
+지도 위 마커는 파란 점 + pulse ring (Material Design 표준 패턴):
+```tsx
+{userLocation && (
+  <CustomOverlayMap position={userLocation} yAnchor={0.5} xAnchor={0.5}>
+    <div className="relative" aria-label="내 위치">
+      <span className="absolute inset-0 -m-3 rounded-full bg-blue-400/30 animate-ping" />
+      <span className="relative block size-4 rounded-full bg-blue-500 ring-2 ring-white shadow-md" />
+    </div>
+  </CustomOverlayMap>
+)}
+```
+
+### 12.6.3 옵션 의도
+
+- `enableHighAccuracy: false` — 정확도 ~ 수십 m, 배터리 절약 (도시 단위로만 보면 충분)
+- `timeout: 5000` — 5초 안에 못 받으면 실패 처리 (사용자 대기 한계)
+- `maximumAge: 60_000` — 1분 이내 캐시된 좌표 재사용 (반복 클릭 시 즉시 응답)
+
+### 12.6.4 v2 로 미룬 것
+
+- `watchPosition` — 사용자가 걸어다닐 때 마커가 따라오는 기능 (배터리 부담 + 모바일에서만 의미)
+- 서버 저장 → 위치 기반 도착 알림 / 푸시 — 위치정보보호법 별도 약관 + 동의 체크 필요
+
+## 12.7 빌드 검증
+
+```bash
+cd popspot-frontend
+npx tsc --noEmit  # exit 0 (에러 0건)
+```
+
+각 sub-version (v1.6 / v1.6.1 / v1.6.2 / v1.6.3 / v1.6.4) 마다 typecheck 통과 확인 후 다음 단계 진행. 외부 동작 변화 0건.
+
+## 12.8 부수 작업 — 마운트 캐시 truncate 사고 (4건)
+
+작업 중 또 발생한 mount cache stale view 버그 — 편집 직후 파일 끝이 잘려나가는 사고가 4건 일어났다 (§11.9.6 동일 패턴):
+
+| 파일 | Before truncation | After 복구 |
+|---|---|---|
+| `popspot-frontend/app/signup/page.tsx` | 598 라인 (label 태그 중간 끊김) | 690 라인 |
+| `popspot-frontend/src/components/layout/Footer.tsx` | 154 라인 (마지막 p 중간 끊김) | 159 라인 |
+| `popspot-frontend/app/intro/page.tsx` | 532 라인 (div 중간 끊김) | 574 라인 |
+| `popspot-frontend/app/page.tsx` | 1276 ~ 1279 라인 (AIReportModal 중간 끊김) | 1289 라인 |
+| `popspot-frontend/src/components/Map/InteractiveMap.tsx` | 470 라인 (span 중간 끊김) | 491 라인 |
+
+복구 방법: Read 툴로 정상 콘텐츠를 받아 `python3 < 'PYEOF'` 로 bash 단에서 prefix + suffix 재조립. 이후 모든 파일이 `}` 로 정상 종료됨을 검증.
+
+## 12.9 신규/수정 파일 통계
+
+| 그룹 | 파일 | 라인 변화 |
+|---|---|---|
+| **v1.6 회원가입** | `app/signup/page.tsx` | +90 / -25 (BirthSelect + state + 검증 로직) |
+| **v1.6.1 인트로** | `app/intro/page.tsx`, `app/globals.css` | +35 / -10 (모션 토글 + 아이콘 순서 + 여백) |
+| **v1.6.2 카드** | `app/page.tsx` | ±10 (className 4건) |
+| **v1.6.3 인터랙션** | `app/page.tsx` | ±10 (className 5건) |
+| **v1.6.4 위치** | `src/components/Map/InteractiveMap.tsx` | +25 / -5 |
+| **합계** | 5 파일 | 약 +170 / -50 |
+
+외부 동작 변화 0건. 백엔드 호출 패턴 그대로 호환.
+
+## 12.10 회귀 검증 권장 순서
+
+1. `npx tsc --noEmit` — TypeScript 컴파일 ✓
+2. `npm run build` — Next.js 프로덕션 빌드 검증
+3. **수동 회귀**:
+   - `/signup` → 이메일 한글 입력 / 폰 영문 입력 시 무시 확인
+   - `/signup` → 비밀번호 아이콘 토글 시 직관 일치 확인
+   - `/signup` → 생년월일 3 select 모두 선택 후 가입 버튼 활성화 확인
+   - `/intro` → 스크롤바 좌우 여백 점프 없음 + 모션 토글 동작 + localStorage 유지 확인
+   - `/intro` → 로그인 / 회원가입 버튼 시각적 일관성 확인
+   - `/` → 4 카드 (Map / Ranking / Calendar / AI Report) solid 배경 + shadow 확인
+   - `/` → 카드 hover 시 살짝 떠오르고 active 시 살짝 들어가는 인터랙션 확인
+   - `/map` 또는 메인 지도 → Compass 버튼 → 위치 권한 prompt → 파란 점 마커 표시 확인
+   - 위치 거부 시 안내 메시지 노출 확인
+
+## 12.11 다음 트랙 (의사결정 대기)
+
+- **일주일 게스트 모드** — 사용자 선택 완료, 구현은 별도 트랙
+  - 익명 ID localStorage 발급 → 클라이언트 7일 카운트다운 → 만료 후 강제 로그인 게이트
+  - 익명 활동 (둘러보기/검색) 만 허용 vs 익명 활동 백엔드 저장 + 가입 시 병합 — 추가 결정 필요
+- **상용화 직전 보안 마케팅 카드** — README §정책 안전장치 7대 항목을 일반 사용자 언어로 풀어 about/landing 에 카드 형태로 노출
+
+## 12.12 요약
+
+- **사용자 피드백 11건 → 5 sub-version 으로 1 영역 = 1 PR** 원칙 유지
+- **외부 동작 변화 0건** — 백엔드 API · DB · WS 메시지 형식 모두 동일
+- **빌드/타입 검증 통과** — `tsc --noEmit` exit 0
+- **PIPA 부담 최소** — 현재 위치는 메모리 only 로 v1 출시, v2 에서 서버 저장 + 별도 약관 검토
+- **마운트 캐시 stale view 복구 패턴** — Python prefix+suffix 재조립으로 5 파일 truncate 사고 모두 처리
+
+
+# 13. v1.7 ~ v1.9 — 인트로 페이지 매거진 풀 리디자인
+
+## 13.1 배경
+
+v1.6 quick wins 적용 후 사용자 피드백:
+> "디자인적으로도 AI 쓴 티 많이 나, 너무 깔끔해서"
+> "다크 모드 너무 검정색이라 칙칙해"
+> "여백 너무 많고 임팩트 부족"
+> "메인페이지 디자인과 유사해야"
+
+인트로 페이지를 4 단계 (v1.7 → v1.7.1 → v1.7.4 → v1.8.1 → v1.9) 거쳐 풀 리디자인.
+
+## 13.2 v1.7 — AI 티 제거 (중간 재작업)
+
+수정 파일: `popspot-frontend/app/intro/page.tsx`
+
+### 13.2.1 AI 디자인 티 진단
+
+- 글래스모피즘 (`bg-white/10 backdrop-blur-md`) 모든 카드에 동일
+- 카드 크기 완벽 균일 (3카드 / 4카드 정확히 같은 크기)
+- 컬러 트리오 lime + hot + violet (AI 데모 90% 의 팔레트)
+- 영문 mono uppercase 라벨 ("WHY POP-SPOT", "CORE FEATURES")
+- 거대 stats 카드 (60+/1~2/24h)
+- 풀스크린 비디오 배경 + 동일 rounded + shadow
+
+### 13.2.2 해결
+
+- 영문 mono 라벨 한글화 (6곳)
+- 글래스모피즘 일괄 제거, solid 카드로 변경
+- 광고 같은 stats 카드 제거 → 인라인 텍스트 한 줄
+- violet 컬러 제거, lime + hot 만 유지
+- Section 3 bento 레이아웃 도입 (첫 카드 가로 길게)
+
+## 13.3 v1.7.1 — 다크/라이트 모드 지원
+
+`useTheme` 훅 + `mounted` 가드로 hydration mismatch 회피. 라이트 모드는 흰색 베이스 + 파스텔 blob 3개. 다크 모드는 영상 유지. 텍스트/카드 모두 `dark:` 프리픽스로 양쪽 지원.
+
+신규 컴포넌트 `LightModeBackground` — `bg-gradient-to-br from-cream-100 ... to-white` + hot/lime/blue 파스텔 orb 3개. 외부 자산 0개로 SK Talent Hub 풍 무드.
+
+## 13.4 v1.7.2 ~ v1.7.4 — Hero 섹션 전면 재작업
+
+### 13.4.1 레퍼런스 분석
+
+사용자가 7개 한국 사이트 (DU 70주년 / HM Group / Heritade / Madechiel / Greencar / Fin Sight Labs / 목헌) 공유. 분석 결과 **HM Group + Greencar + DU 70주년** 하이브리드 채택.
+
+- **DU 70주년** — 좌·우 거대 outline 영문 ("FROM"/"TO") + 가운데 컬러 pill
+- **Greencar** — 거대 한글 슬로건 + 영문 italic 부제
+- **HM Group** — 회전된 폴라로이드 사진 콜라주
+
+### 13.4.2 적용
+
+- 좌·우 거대 outline `POP` / `SPOT` (`text-[14vw]` + `WebkitTextStroke`)
+- 가운데 검정 pill "성수 · 한남 · 압구정" + 점 라임 dot
+- 회전된 폴라로이드 4장 (실제 브랜드명: 젠틀몬스터/마뗑킴/포켓몬스터/디스이즈네버댓)
+- 양쪽 모드 모두 노출 (`dark:hidden` 제거)
+
+## 13.5 v1.7.3 — 5가지 피드백 일괄 처리
+
+| 피드백 | 해결 |
+|---|---|
+| 다크 모드 너무 검정 | 섹션 오버레이 65~85% → 40~60% |
+| Section 3 카드 어색 | bento 풀고 균등 3-column |
+| "오늘 어디 갈래요?" 어색 | **POP-SPOT** 브랜드명으로 |
+| AI 티 카피 | 소개 형식으로 (5곳 재작성) |
+| 영상 비교 | 새 영상 `212404.mp4` (12초 loop) 채택 |
+
+## 13.6 v1.8 ~ v1.8.1 — 미니 위젯 + 파스텔 강화
+
+### 13.6.1 미니 위젯 프리뷰 (Section 3 카드 안)
+
+`MiniCalendarPreview`, `MiniMapPreview`, `MiniRankingPreview` — 메인 페이지 위젯의 축소판:
+- 캘린더: 28 도트 그리드, 일부 라임 색 (팝업 예정 표시)
+- 지도: SVG 격자 + 핫핑크 핀 5개
+- 랭킹: TOP 3 행 (젠틀몬스터 4.2k / 마뗑킴 3.1k / 디스이즈네버댓 2.8k)
+
+### 13.6.2 Section 4 (Unique) 컬러 액센트
+
+각 카드 좌측 1px 컬러 바 (lime/hot/amber/blue) + 컬러 아이콘 박스 + 01/02/03/04 번호.
+
+### 13.6.3 v1.8.1 파스텔/색감 종합 개선
+
+| 항목 | 변경 |
+|---|---|
+| `lime-300 (#c2f970)` 너무 밝음 | 라이트 모드 `text-lime-600 dark:text-lime-300` 패턴 (6곳) |
+| Section 5 핫핑크 풀배경 눈아픔 | 제거, `bg-cream-100/85 dark:bg-ink-900/55` + 좌상/우하 파스텔 글로우 |
+| 다크 모드 파스텔 부족 | `DarkVideoColorOverlay` 신규 — 영상 위 `mix-blend-overlay` 3 orb |
+| Section 2 빈 공간 | 인라인 텍스트 → 3 데이터 카드 (Clock 라임 / Calendar 블루 / Sparkles 핫) |
+
+## 13.7 v1.9 — 매거진 에디토리얼 풀 리디자인 (최종)
+
+사용자 피드백:
+> "다크 모드 너무 검정색이라 칙칙해"
+> "임팩트 크게 / 메인페이지처럼 / 여백 안 보이게"
+> "최소 10가지 이상 적용"
+> "라이트 + 다크 둘 다 세트로"
+
+**12 데코 레이어** 일괄 도입 + 영상/Play 토글 완전 제거 + 파일 전체 재구조화.
+
+### 13.7.1 신규 컴포넌트 (15개)
+
+배경 레이어:
+- `LightPageBackground` — cream 베이스 + 파스텔 orb 6개 (hot/lime/amber/blue/violet/rose)
+- `DarkPageBackground` — `#1a1820 → #221e2a` 따뜻한 deep purple-gray + 6 orb (채도 ↑)
+- `CornerConicRays` — 좌상/우하 conic-gradient ray (cinematic 광원)
+- `GrainTexture` — SVG fractal noise (라이트 6% / 다크 8% opacity, mix-blend)
+- `DustParticles` — 8개 도트 천천히 floating (y -6→6, opacity 0.3→0.8)
+
+에디토리얼 데코:
+- `VerticalLabel` — 섹션 좌/우 가장자리 `writingMode: vertical-rl` 매거진 라벨
+- `GhostNumber` — `text-[14~16vw]` 거대 outline `01` ~ `05`
+- `MetaChip` — "VOL.01 · 2026" 매거진 발행 칩
+- `SectionDecor` — 세로 라벨 + ghost 번호 + 메타 칩 묶음
+- `MarqueeStrip` — Hero 하단 무한 가로 스크롤 (POP·SPOT × SEOUL POPUP × ...)
+
+콘텐츠:
+- `PolaroidCard` — 그라데이션 placeholder + 브랜드명/위치 라벨
+- `OutlineBrand` — 거대 POP/SPOT outline
+- `MiniCalendarPreview` / `MiniMapPreview` / `MiniRankingPreview` — Section 3 위젯
+
+### 13.7.2 정리
+
+- `<video>` element 완전 제거
+- `VIDEO_SRC`, `motionOn`, `videoReady`, `toggleMotion`, Play/Pause 토글 모두 삭제
+- 다크 모드 베이스 순수 검정 (`ink-900`) → 따뜻한 deep purple-gray (`#1a1820 → #221e2a`)
+- 파스텔 orb 라이트 `/55-65`, 다크 `/22-30` 채도
+
+### 13.7.3 파일 구조 (857 라인)
+
+```
+1. imports
+2. 디자인 상수 (SECTION_META, PUBLICATION_YEAR)
+3. 배경 컴포넌트 5개
+4. 에디토리얼 데코 5개
+5. 폴라로이드 + Outline
+6. 미니 위젯 3개
+7. 콘텐츠 데이터 (BIG_FEATURES / UNIQUE_POINTS / STAT_CARDS)
+8. 메인 IntroPage 컴포넌트
+```
+
+## 13.8 검증
+
+```bash
+cd popspot-frontend
+npx tsc --noEmit  # exit 0
+```
+
+## 13.9 마운트 캐시 truncate 사고
+
+작업 중 `intro/page.tsx` 가 8회 이상 truncate. Python prefix+suffix 재조립 패턴으로 매번 복구. 최종 v1.9 는 파일 전체를 Python heredoc 으로 한 번에 작성하여 누적 truncation 회피.
+
+## 13.10 다음 단계
+
+- 일주일 게스트 모드 — localStorage 익명 ID + 7일 카운트다운 + 가입 게이트 (액션 기반)
+- 보안 마케팅 카드 — 7대 안전장치 (JWT/BCrypt/CORS/Rate Limit/PIPA/Takedown/Tailscale) 페이지
+

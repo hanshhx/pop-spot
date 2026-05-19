@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation"; 
 import { 
   Search, MapPin, ArrowUpRight, Flame, Calendar, Menu, Users, 
-  Instagram, Twitter, Plus, X, ArrowUp, ArrowDown, Minus, 
+  Instagram, Plus, X, ArrowUp, ArrowDown, Minus,
   Map as MapIcon, Route, Ticket, User as UserIcon, LogOut, Sparkles, Lock, ArrowRight, Loader2, RefreshCw,
   Shirt, Video, ShoppingBag, Crown, GripVertical, PlusCircle, Zap, MessageCircle, Heart, Star, Gift, Megaphone,
   FolderOpen, Save, Trash2, Store, ShieldCheck, ChevronLeft, ChevronRight, Camera, Coffee, Music

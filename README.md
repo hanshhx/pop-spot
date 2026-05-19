@@ -820,6 +820,31 @@
 
 ---
 
+<br/>
+
+### v1.6 ~ v1.9 — 사용자 피드백 일괄 반영 + 인트로 풀 리디자인
+
+> 서비스 공개 직전 사용자 피드백 11건을 받아 6 sub-version 으로 끊어 처리. 끝에는 인트로 페이지를 매거진 에디토리얼 무드로 풀 리디자인.
+> - **v1.6** — 회원가입 폼 quick wins (비번 아이콘 반전, 이메일 한글 차단, 폰 숫자만, 생년월일 select 통일, 데스크탑 max-width)
+> - **v1.6.1** — 인트로 `scrollbar-gutter: stable`, 로그인/회원가입 버튼 아이콘 순서 통일, 모션 토글 (localStorage 저장)
+> - **v1.6.2** — 메인 카드 블록화 (Map/Ranking/Calendar/AI Report 4 위젯 solid 배경 + shadow)
+> - **v1.6.3** — 클릭 hover/active scale 인터랙션
+> - **v1.6.4** — 지도 현재 위치 v1 (메모리 only · PIPA 부담 최소)
+> - **v1.6.5** — Twitter → X 로고 교체 (lucide 미제공이라 inline SVG)
+> - **v1.6.6** — 인트로 카피 AI 티 제거 (em-dash · 병렬 구조 제거, 회화체로)
+> - **v1.7 ~ v1.7.4** — 인트로 디자인 AI 티 제거 (글래스모피즘 제거 · 컬러 단순화 · bento 도입 · DU 70주년 + HM Group + Greencar 하이브리드 Hero)
+> - **v1.8 ~ v1.8.1** — Section 3 미니 위젯 프리뷰 (캘린더/지도/랭킹), Section 4 컬러 액센트 바, 다크 파스텔 강화, `lime-300` 라이트 모드 톤다운
+> - **v1.9** — 매거진 에디토리얼 풀 리디자인 — **12 데코 레이어** (라이트/다크 파스텔 6 orb · 그레인 · conic ray · dust 파티클 · 세로 매거진 라벨 · ghost 번호 · VOL 칩 · 마퀴 · bento 폴라로이드)
+> - 영상 + Play 토글 완전 제거, 다크 모드 베이스 순수 검정 → `#1a1820 → #221e2a` 따뜻한 deep purple-gray
+
+### v2.0 — 게스트 모드 + 보안 마케팅
+
+> 상용화 전 트래픽 확보 + 사용자 신뢰도 마무리.
+> - **일주일 게스트 모드** — `src/lib/guestMode.ts` + `useGuestMode` 훅. 첫 방문 timestamp 를 localStorage 에 기록, 7일 뒤 회원가입 강제. 서버 저장 0건 (PIPA 부담 X). 인트로 우상단에 `게스트 N일` pill 노출
+> - **/about 보안 마케팅 페이지** — README §정책 안전장치를 일반 사용자 언어로 풀어 7 카드 (JWT HS256 / BCrypt 12 / CORS 화이트리스트 / Bucket4j Rate Limit / PIPA 처리방침 / 24h Takedown / Tailscale HTTPS). Footer 에 `서비스 소개` 링크 추가
+
+---
+
 ## 폴더 구조 (백엔드)
 
 ```
