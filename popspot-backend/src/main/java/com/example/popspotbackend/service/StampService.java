@@ -61,8 +61,7 @@ public class StampService {
 
         if (stampRepository.existsByUserIdAndStampDateBetween(userId, startOfDay, endOfDay)) {
             log.warn("[Stamp] 어뷰징 방어 — 유저 {} 가 오늘 이미 스탬프 획득", userId);
-            throw new IllegalArgumentException(
-                    "스탬프는 하루에 딱 한 곳에서만 획득할 수 있습니다. 내일 다시 방문해주세요.");
+            throw new IllegalArgumentException("스탬프는 하루 한 곳에서만 획득 가능합니다. 내일 다시 방문해주세요.");
         }
     }
 

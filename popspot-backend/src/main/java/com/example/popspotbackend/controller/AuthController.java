@@ -66,10 +66,9 @@ public class AuthController {
     }
 
     /**
-     * 닉네임 + 전화번호로 이메일/provider 조회. 일치하는 유저가 없으면 {@link AuthService} 가
-     * {@link com.example.popspotbackend.exception.ResourceNotFoundException} 을 던지고
-     * GlobalExceptionHandler 가 404 로 변환한다. 컨트롤러에서 직접 try-catch 로 잡으면 표준 응답 포맷이
-     * 깨지고 다른 예외(서버 장애 등)까지 404 로 가려질 수 있다.
+     * 닉네임 + 전화번호로 이메일/provider 조회.
+     *
+     * <p>미일치 시 {@link AuthService} 가 ResourceNotFoundException 을 던져 404 로 변환된다.
      */
     @GetMapping("/find-email")
     public ResponseEntity<Map<String, String>> findEmail(
