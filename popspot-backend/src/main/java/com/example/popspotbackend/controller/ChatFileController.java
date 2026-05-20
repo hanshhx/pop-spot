@@ -22,13 +22,9 @@ import org.springframework.web.multipart.MultipartFile;
 /**
  * 채팅 첨부 이미지 업로드.
  *
- * <p>방어 레이어: 크기 상한 / 확장자 화이트리스트 / MIME 화이트리스트 / 파일명 traversal 차단 / canonical path 검증. 저장 시 원본 파일명을
- * 폐기하고 UUID 로 재명명해 XSS / 충돌 / 인코딩 이슈를 회피.
+ * <p>방어: 크기 / 확장자 / MIME 화이트리스트, traversal 차단, canonical path 검증, UUID 재명명.
  *
- * <p>업로드된 파일의 공개 URL 을 만들 때 {@code X-Forwarded-Host} 헤더를 그대로 신뢰하면 공격자가 헤더를 스푸핑해
- * 임의 도메인 URL 을 응답으로 받아낼 수 있다 (phishing). 따라서 허용 호스트 패턴 화이트리스트({@link
- * #ALLOWED_HOST_PATTERNS_PROP}) 와 일치할 때만 헤더 값을 사용하고, 일치하지 않으면 컨테이너가 본 실제 서버 이름으로
- * 폴백한다.
+ * <p>{@code X-Forwarded-Host} 스푸핑 방어 — {@link #ALLOWED_HOST_PATTERNS_PROP} 매칭 시에만 신뢰, 아니면 컨테이너 서버명 폴백.
  */
 @Slf4j
 @RestController
@@ -51,8 +47,7 @@ public class ChatFileController {
     /**
      * 운영에서 신뢰할 호스트 정규식 패턴 — 콤마 구분.
      *
-     * <p>예: {@code popspot\.co\.kr,.*\.vercel\.app,.*\.tailc57dd4\.ts\.net}.
-     * 비어 있으면 헤더를 일절 신뢰하지 않고 서블릿 컨테이너의 실제 서버 이름만 사용한다 (가장 보수적).
+     * <p>예: {@code popspot\.co\.kr,.*\.vercel\.app}. 비어 있으면 컨테이너 서버명만 사용 (보수적).
      */
     private static final String ALLOWED_HOST_PATTERNS_PROP = "app.upload.allowed-host-patterns";
 
@@ -170,10 +165,9 @@ public class ChatFileController {
     }
 
     /**
-     * 허용 호스트 패턴 중 하나에 정확히 매칭되면 true. 패턴이 비어 있으면 어떤 헤더도 신뢰하지 않는다.
+     * 허용 패턴 매칭 시 true. 패턴이 비어 있으면 어떤 헤더도 신뢰하지 않는다.
      *
-     * <p>{@code Pattern.matches} 는 전체 매칭이므로 부분 일치로 인한 우회 위험이 없다. host 에 포트가 붙어 와도
-     * 패턴 쪽에서 명시적으로 허용해야만 통과한다.
+     * <p>{@code Pattern.matches} 는 전체 매칭이므로 부분 일치 우회 위험 없음.
      */
     private boolean isAllowedHost(String host) {
         if (allowedHostPatterns.isEmpty()) return false;
