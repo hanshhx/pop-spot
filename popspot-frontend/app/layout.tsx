@@ -6,6 +6,7 @@ import AuthGuard from "@/components/AuthGuard";
 import GlobalChatManager from "@/components/GlobalChatManager";
 import { MusicPlayerProvider } from "@/components/music/MusicPlayerProvider";
 import { GlobalMusicPlayer } from "@/components/music/GlobalMusicPlayer";
+import { env } from "@/lib/env";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://popspot.co.kr"),
@@ -55,10 +56,12 @@ export default function RootLayout({
           </AuthGuard>
         </Providers>
 
-        <Script
-          src={`//dapi.kakao.com/v2/maps/sdk.js?appkey=${process.env.NEXT_PUBLIC_KAKAO_MAP_KEY}&autoload=false`}
-          strategy="beforeInteractive"
-        />
+        {env.kakaoMapKey && (
+          <Script
+            src={`//dapi.kakao.com/v2/maps/sdk.js?appkey=${env.kakaoMapKey}&autoload=false`}
+            strategy="beforeInteractive"
+          />
+        )}
       </body>
     </html>
   );
