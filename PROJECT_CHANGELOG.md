@@ -7719,3 +7719,219 @@ mount 캐시 stale view 문제 발생 (세 파일 모두 끝부분 truncate). `g
 1. **Dead code 는 빨리 발견하라**. v2.0 에서 만든 훅이 v2.1 이후 어디에서도 안 쓰였는데, 사용자가 "게스트모드 어디서 써?" 물어볼 때까지 몰랐다. import-graph 검사를 정기적으로 돌릴 필요.
 2. **큰 리뉴얼은 기존 기능 회귀 체크리스트와 함께**. 인트로 페이지 재작성 4번 (v2.1~v2.4) 하면서 매번 게스트 pill 복귀를 잊었다. PR 템플릿에 "기존 기능 회귀 확인" 체크박스 필요.
 3. **마운트 캐시 stale view 대응**. Edit 누적 사용 시 파일 끝부분이 truncate 되는 사고 재발. 해결책: `git checkout HEAD --` 또는 `git show HEAD:file >` 로 복원 후 Python 패치 적용.
+
+---
+
+# 18. v2.6 — Clean Code · 결합도 정리 + shop 폐기 + 가드 버그 수정
+
+> 메인 페이지(`app/page.tsx`)에 sweetalert2 직접 호출이 19곳, `process.env.NEXT_PUBLIC_*!` non-null assertion 이 5곳에 흩어져 있던 상태에서 시작. shop 라우트는 v1.3 음악 추천으로 대체된 뒤 단순 redirect 만 남아 있었고, `handleSaveCourse` 의 무료 회원 슬롯 가드는 `.then` 안 return 으로 가드가 무력화돼 있었다 — 무조건 저장되던 버그.
+
+## 18.1 동기
+
+코드 건강 감사 (Explore 에이전트) 결과 도출된 12개 항목 중, **빌드 안 깨지는 묶음** 으로 다음 4가지를 한 사이클에 처리:
+
+1. `shop` 라우트 폐기 (v1.3 이후 dead route)
+2. 환경변수 단일 진입점 모듈 (zero-dep, zod 미도입)
+3. `page.tsx` 의 sweetalert2 직접 결합 제거 — `notify.ts` 추상화로 치환
+4. 인라인 모달 1개 추출 (`AddPlaceModal`)
+
+작업 중 발견된 functional bug (코스 저장 가드 우회) 1건 동반 수정.
+
+## 18.2 적용 — 7 파일
+
+### 18.2.1 `app/shop/page.tsx` (삭제)
+
+```tsx
+// 변경 전 — 단순 redirect 페이지가 빌드 그래프에 남아 있던 상태
+export default function ShopRedirect() {
+  redirect("/music");
+}
+```
+
+`/shop` URL 은 v1.3 부터 음악 추천(`/music`)으로 대체됐는데 redirect 페이지만 남아 빌드 시 `/shop` 라우트가 계속 생성되고 있었다. `app/shop/` 디렉터리 통째로 삭제 — 외부 참조 0건 확인 (backend, middleware, 다른 컴포넌트 어디서도 import 안 함).
+
+### 18.2.2 `src/lib/env.ts` (신규)
+
+```ts
+// 모든 NEXT_PUBLIC_* 변수의 단일 진입점.
+// trim() 으로 빈 문자열 정규화 + Algolia 패턴 사전 검증.
+const isAlgoliaValid =
+  !!ALGOLIA_APP_ID &&
+  !!ALGOLIA_SEARCH_KEY &&
+  ALGOLIA_APP_ID.length >= 6 &&
+  ALGOLIA_SEARCH_KEY.length >= 10 &&
+  /^[A-Z0-9]+$/.test(ALGOLIA_APP_ID);
+
+export const env = {
+  apiUrl: API_URL ?? LOCAL_API_FALLBACK,
+  socketUrl: SOCKET_URL ?? API_URL ?? LOCAL_API_FALLBACK,
+  kakaoMapKey: KAKAO_MAP_KEY ?? '',
+  algolia: isAlgoliaValid
+    ? { appId: ALGOLIA_APP_ID!, searchKey: ALGOLIA_SEARCH_KEY! }
+    : null,
+} as const;
+```
+
+zod 가 의존성에 없어서 plain TS 로 검증 — 새 의존성 0개 추가. Next 의 빌드시 `NEXT_PUBLIC_*` 리터럴 치환 제약 때문에 동적 키 접근(`process.env[name]`) 은 사용하지 않음.
+
+### 18.2.3 `src/lib/api.ts` (수정)
+
+```ts
+// 변경 전
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? LOCAL_FALLBACK;
+export const SOCKET_BASE_URL =
+  process.env.NEXT_PUBLIC_SOCKET_URL ?? process.env.NEXT_PUBLIC_API_URL ?? LOCAL_FALLBACK;
+
+// 변경 후
+import { env } from './env';
+export const API_BASE_URL = env.apiUrl;
+export const SOCKET_BASE_URL = env.socketUrl;
+```
+
+기존 호출부 호환을 위해 상수명은 그대로 re-export.
+
+### 18.2.4 `app/layout.tsx` (수정)
+
+```tsx
+// 변경 전 — 키 없으면 ?appkey=undefined 로 SDK 요청 → 콘솔 에러
+<Script src={`...sdk.js?appkey=${process.env.NEXT_PUBLIC_KAKAO_MAP_KEY}&autoload=false`} />
+
+// 변경 후 — 키 있을 때만 스크립트 렌더
+{env.kakaoMapKey && (
+  <Script src={`...sdk.js?appkey=${env.kakaoMapKey}&autoload=false`} strategy="beforeInteractive" />
+)}
+```
+
+### 18.2.5 `src/features/popup/SearchBox.tsx` (수정)
+
+```ts
+// 변경 전 — 14 줄짜리 검증 블록이 컴포넌트 안에 직접 박혀 있음
+const ALGOLIA_APP_ID = process.env.NEXT_PUBLIC_ALGOLIA_APP_ID;
+const ALGOLIA_SEARCH_KEY = process.env.NEXT_PUBLIC_ALGOLIA_SEARCH_KEY;
+const isAlgoliaConfigured = !!ALGOLIA_APP_ID && !!ALGOLIA_SEARCH_KEY
+  && ALGOLIA_APP_ID.length >= 6 && /* ... 4 더 ... */;
+const searchClient = isAlgoliaConfigured ? algoliasearch(ALGOLIA_APP_ID!, ALGOLIA_SEARCH_KEY!) : null;
+
+// 변경 후
+const searchClient = env.algolia
+  ? algoliasearch(env.algolia.appId, env.algolia.searchKey)
+  : null;
+```
+
+env 모듈 안에서 검증을 한 번만 → 호출부는 null 체크만.
+
+### 18.2.6 `src/features/popup/AddPlaceModal.tsx` (신규)
+
+`page.tsx` 안에 인라인이던 슬라이드업 시트(27 줄 JSX) 추출. 부모 컨테이너 안에서 `absolute inset-0` 으로 채우는 로컬 시트라 Radix Dialog 가 아닌 자체 motion 래퍼 유지. 이전엔 `<div onClick={...}>` 이던 아이템들을 `<button type="button">` 으로 바꿔 키보드 접근성도 같이 정리.
+
+```tsx
+interface AddPlaceModalProps {
+  open: boolean;
+  onClose: () => void;
+  popups: PopupStore[];
+  onSelect: (popup: PopupStore) => void;
+}
+```
+
+비즈니스 로직(중복 체크/`setMyCourseItems`)은 부모에 두고 여기서는 선택 이벤트만 흘려보냄 — 결합도 낮춤.
+
+### 18.2.7 `app/page.tsx` (수정)
+
+**sweetalert2 직접 결합 19곳 제거**. import 라인에서 `Swal, SweetAlertResult` 삭제. `notify.ts` 의 5개 함수만 사용:
+
+| 패턴 | 변경 전 | 변경 후 |
+|---|---|---|
+| 정보 토스트 | `Swal.fire({ icon: 'info', text: 'X' })` | `notify('X')` |
+| 성공 토스트 | `Swal.fire({ icon: 'success', text: 'X' })` | `notifySuccess('X')` |
+| 경고 토스트 | `Swal.fire({ icon: 'warning', text: 'X' })` | `notifyWarning('X')` |
+| 에러 알림 | `Swal.fire({ icon: 'error', text: 'X' })` | `notifyError('X')` |
+| 단순 텍스트 | `Swal.fire('X')` | `notify('X')` |
+| 확인 다이얼로그 | `Swal.fire({ showCancelButton: true, ... }).then(r => if (r.isConfirmed) {...})` | `if (await confirmAction({ ... })) {...}` |
+| 삭제 확인 | `Swal.fire({ icon: 'error', showCancelButton: true })` | `confirmAction({ destructive: true })` |
+
+영향받은 핸들러: `handleCopyAiToMyCourse`, `handleAddPlace`, `handleCreateRoom`, `handleRemoveWishlist`, `handleLoadCourse`, `handleDeleteCourse`, `handleTabChange`, `handleLogout`, `handleAiRecommend`, `handleSaveCourse`.
+
+`AddPlaceModal` import 추가 + 인라인 JSX 27 줄 → 컴포넌트 호출 5 줄로 축소.
+
+## 18.3 발견·동반 수정한 버그
+
+### 18.3.1 무료 회원 슬롯 가드 우회 (`handleSaveCourse`)
+
+```tsx
+// 변경 전 — 가드가 무력화돼 무조건 저장됨
+if (!user.isPremium && savedCourses.length > 0) {
+    Swal.fire({
+        title: '무료 회원 슬롯 제한',
+        text: '무료 회원은 코스를 1개만 저장 가능합니다. 덮어쓰시겠습니까?',
+        showCancelButton: true
+    }).then((result) => {
+        if (!result.isConfirmed) return;  // ← .then 핸들러에서 return.
+                                          //    외부 handleSaveCourse 는 계속 실행됨.
+    });
+}
+// 가드 통과 여부와 무관하게 fetch POST 가 실행되던 상태.
+
+try {
+    const res = await apiFetch("/api/my-courses", { method: "POST", ... });
+    // ...
+}
+```
+
+`.then` 콜백 안의 `return` 은 콜백만 종료하지 외부 함수를 종료하지 않는다. `await confirmAction()` + `if (!confirmed) return` 으로 교체하면서 실제로 차단되도록 수정.
+
+```tsx
+// 변경 후
+if (!user.isPremium && savedCourses.length > 0) {
+    const confirmed = await confirmAction({
+        title: '무료 회원 슬롯 제한',
+        text: '무료 회원은 코스를 1개만 저장 가능합니다. 덮어쓰시겠습니까?',
+        icon: 'info',
+    });
+    if (!confirmed) return;
+}
+```
+
+### 18.3.2 `handleLogout` 의 race
+
+```tsx
+// 변경 전 — Swal toast 가 끝나기 전에 reload 될 수 있던 패턴
+Swal.fire({ icon: 'success', text: '로그아웃 되었습니다.' }).then(() => window.location.reload());
+
+// 변경 후 — 명시적 await 로 토스트 표시 완료 보장
+await notifySuccess('로그아웃 되었습니다.');
+window.location.reload();
+```
+
+`notify*` 함수가 promise 를 반환하므로 `await` 패턴이 자연스러움.
+
+## 18.4 검증
+
+```bash
+cd popspot-frontend
+rm -rf .next                 # 삭제된 /shop 라우트가 stale validator 에 남아 있어서 한 번 비움
+npm run typecheck            # exit 0
+npm run build                # ✓ Compiled successfully, 16/16 static pages, /shop 없음
+```
+
+`.next` 캐시가 삭제된 라우트를 들고 있다가 `validator.ts(132,39): error TS2307: Cannot find module '../../app/shop/page.js'` 띄움 — 캐시 비우면 정상화.
+
+ESLint 는 146건 (60 errors, 86 warnings) 남아 있으나 모두 **기존 코드의 React 19 `react-hooks/set-state-in-effect` 룰 위반** 으로, 본 패치로 새로 추가된 위반은 0건. 별도 라운드에서 처리.
+
+## 18.5 신규/수정 파일 통계
+
+| 파일 | 변경 | 라인 |
+|---|---|---|
+| `app/shop/page.tsx` | 삭제 (10 줄 redirect 파일) | -10 |
+| `src/lib/env.ts` | 신규 — 환경변수 단일 진입점 | +60 |
+| `src/features/popup/AddPlaceModal.tsx` | 신규 — 슬라이드업 시트 추출 | +75 |
+| `src/lib/api.ts` | env 모듈로 위임 | -7 / +5 |
+| `app/layout.tsx` | Kakao 스크립트 조건부 렌더 | +1 / +3 |
+| `src/features/popup/SearchBox.tsx` | Algolia 검증 블록 → env.algolia | -13 / +2 |
+| `app/page.tsx` | 19 Swal 호출 제거 + AddPlaceModal 적용 + 가드 버그 수정 | -45 / +35 |
+
+## 18.6 학습
+
+1. **추상화는 만들었는데 못 쓰던 패턴**. `notify.ts` 는 v1.5 단계에서 이미 만들어 둔 wrapper 였는데, 정작 가장 호출이 많은 `page.tsx` 는 그대로 `Swal.fire` 를 쓰고 있었다. import 만 해 두고 미사용. 추상화 도입은 호출부 마이그레이션까지 끝나야 완료된 것.
+2. **`.then(() => return)` 패턴은 가드 우회 단골**. 비동기 콜백 안의 `return` 은 콜백만 종료한다. confirm/cancel 흐름은 반드시 `await`로 받아 외부 함수에서 분기해야 한다. 코드 리뷰에서 발견 어려움 — eslint 룰 `@typescript-eslint/no-floating-promises` 활성화 검토.
+3. **Dead route 도 빌드 그래프에 흔적이 남는다**. `redirect()` 하나만 있는 파일이라 인지하기 어려웠지만 Next.js route 목록에는 계속 잡혀 있었다. v1.3 음악 추천 도입 시점에 같이 정리됐어야 함.
+4. **`.next` 캐시는 삭제된 라우트를 한 차례 끌고 다닌다**. typecheck/build 실패 시 가장 먼저 `rm -rf .next` 로 확인. CI 에는 영향 없으나 로컬 개발자에게 혼란 신호.

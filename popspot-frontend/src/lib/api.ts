@@ -1,15 +1,12 @@
 /**
  * API / WebSocket Base URL.
  *
- * 운영에서는 환경변수 `NEXT_PUBLIC_API_URL` / `NEXT_PUBLIC_SOCKET_URL` 로 주입한다.
- * 로컬에서는 8080 으로 폴백. WebSocket 도메인을 분리하려면 `NEXT_PUBLIC_SOCKET_URL`
- * 만 따로 지정하면 된다 (예: `wss://...` 별도 도메인).
+ * env 모듈에서 검증·폴백 처리 후 받아온다. 호출부 (legacy) 호환을 위해 그대로 re-export.
  */
-const LOCAL_FALLBACK = 'http://localhost:8080';
+import { env } from './env';
 
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? LOCAL_FALLBACK;
-export const SOCKET_BASE_URL =
-  process.env.NEXT_PUBLIC_SOCKET_URL ?? process.env.NEXT_PUBLIC_API_URL ?? LOCAL_FALLBACK;
+export const API_BASE_URL = env.apiUrl;
+export const SOCKET_BASE_URL = env.socketUrl;
 
 const TOKEN_STORAGE_KEY = 'token';
 const HEADER_AUTHORIZATION = 'Authorization';

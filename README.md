@@ -1173,6 +1173,52 @@
 
 ---
 
+### v2.6 — Clean Code · 결합도 정리 + shop 폐기 + 가드 버그 수정
+
+> 메인 페이지가 sweetalert2 에 19곳 직접 결합돼 있었고, 환경변수는 `process.env.X!` non-null assertion 으로 흩어져 있었다. <code>shop</code> 라우트는 v1.3 음악 추천으로 대체된 뒤로 단순 <code>/music</code> redirect 만 남아 있었고, 코스 저장 가드 한 곳은 <code>.then</code> 안 return 으로 가드가 무력화돼 무료 회원도 그냥 저장되던 버그가 있었다. 한 사이클로 정리.
+
+<table align="center">
+  <tr>
+    <th align="center" width="180">항목</th>
+    <th align="center" width="290">v2.5</th>
+    <th align="center" width="290">v2.6</th>
+  </tr>
+  <tr>
+    <td align="center"><b><code>/shop</code> 라우트</b></td>
+    <td>v1.3 부터 폐기됐지만 <code>redirect("/music")</code> 하는 페이지 파일이 남아 있어 빌드 그래프에 잔존</td>
+    <td>디렉터리 통째로 삭제. <code>npm run build</code> route 목록에서 <code>/shop</code> 제거 확인</td>
+  </tr>
+  <tr>
+    <td align="center"><b>환경변수</b></td>
+    <td><code>process.env.NEXT_PUBLIC_*!</code> 5곳에 흩어짐. Algolia 더미값 검증 로직이 <code>SearchBox.tsx</code> 안에 직접 박혀 있음</td>
+    <td><code>src/lib/env.ts</code> 단일 진입점 (zero-dep). 형 검사 + 폴백 + Algolia 패턴 검증 내장 → 호출부는 <code>env.apiUrl</code> / <code>env.algolia</code> 한 줄</td>
+  </tr>
+  <tr>
+    <td align="center"><b>Kakao 지도 스크립트</b></td>
+    <td>키 누락 시에도 <code>&lt;Script src="...appkey=undefined"&gt;</code> 박힘</td>
+    <td>키 있을 때만 <code>&lt;Script&gt;</code> 렌더. 누락 시 아예 미주입</td>
+  </tr>
+  <tr>
+    <td align="center"><b><code>page.tsx</code> 알림</b></td>
+    <td><code>Swal.fire(...)</code> 직접 호출 19곳. <code>notify.ts</code> 추상화 import 만 해놓고 정작 안 씀</td>
+    <td>19곳 전부 <code>notify</code> / <code>notifySuccess</code> / <code>notifyError</code> / <code>notifyWarning</code> / <code>confirmAction</code> 로 치환. <code>sweetalert2</code> 직접 결합 0</td>
+  </tr>
+  <tr>
+    <td align="center"><b>코스 저장 가드</b></td>
+    <td>무료 회원 슬롯 1개 초과 시 confirm 띄우지만 <code>.then</code> 안 <code>return</code> 으로 빠져 외부 함수는 계속 실행 → <b>확인 / 취소 무관하게 무조건 저장</b></td>
+    <td><code>await confirmAction()</code> → <code>if (!confirmed) return</code> 패턴으로 교체. 실제로 차단됨</td>
+  </tr>
+  <tr>
+    <td align="center"><b>모달 분리</b></td>
+    <td>코스 탭의 "장소 추가하기" 슬라이드업 시트가 <code>page.tsx</code> 안 인라인 JSX (27 줄)</td>
+    <td><code>src/features/popup/AddPlaceModal.tsx</code> 추출. <code>div onClick</code> → <code>button</code> 으로 접근성도 같이 정리</td>
+  </tr>
+</table>
+
+<sub>5 파일 수정 (<code>page.tsx</code>, <code>layout.tsx</code>, <code>api.ts</code>, <code>SearchBox.tsx</code>, +shop 폐기) · 2 파일 신규 (<code>env.ts</code>, <code>AddPlaceModal.tsx</code>) · 빌드 통과 (16/16 static pages) · 새 ESLint 위반 0건.</sub>
+
+---
+
 ## 폴더 구조 (백엔드)
 
 ```
