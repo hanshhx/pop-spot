@@ -53,7 +53,9 @@ public class EmailService {
             return authCode;
         } catch (MessagingException e) {
             log.error("메일 발송 실패: {}", e.getClass().getSimpleName());
-            throw new RuntimeException("메일 발송 실패");
+            // 외부 서비스(SMTP) 장애 → IllegalStateException 으로 격상.
+            // GlobalExceptionHandler 가 409 로 잡아 일관된 응답 포맷 유지.
+            throw new IllegalStateException("메일 발송 실패");
         }
     }
 

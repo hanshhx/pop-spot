@@ -75,11 +75,15 @@ public class PopupStoreService {
         popupStoreRepository.delete(popup);
     }
 
-    /** 지도 마커에 표시할 팝업 목록. PENDING 은 제외 (status 가 null 인 레거시 row 는 통과). */
+    /**
+     * 지도 마커에 표시할 팝업 목록. PENDING 은 제외 (status 가 null 인 레거시 row 는 통과).
+     *
+     * <p>v2.9: 메모리 필터 ({@code findAll().stream().filter()}) → DB WHERE 절로 이동.
+     * 같은 조건의 {@link PopupStoreRepository#findAllVisible} 재사용. row 수 늘어도 OOM 위험 없음.
+     */
+    @Transactional(readOnly = true)
     public List<PopupStore> findVisibleMapMarkers() {
-        return popupStoreRepository.findAll().stream()
-                .filter(p -> p.getStatus() == null || !STATUS_PENDING.equals(p.getStatus()))
-                .toList();
+        return popupStoreRepository.findAllVisible();
     }
 
     /** 카테고리 필터링이 들어오면 해당 카테고리만, 아니면 전체 공개 팝업. */
