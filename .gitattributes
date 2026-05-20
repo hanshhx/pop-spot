@@ -1,0 +1,59 @@
+# Git line-ending 정책 — 크로스플랫폼 일관성.
+#
+# 모든 텍스트 파일은 LF 로 저장. Windows 개발자가 checkout 하면 working tree 에도 LF 유지.
+# 이전엔 core.autocrlf 기본동작으로 일부 파일이 CRLF 로 변환돼 Spotless 가 120 개의 line-ending
+# violation 을 띄웠다. (build.gradle 의 spotless { lineEndings 'UNIX' } 와 짝.)
+#
+# 운영 정책: 모든 소스/설정 파일은 LF. 배치 스크립트(.bat/.cmd)만 CRLF 유지.
+
+* text=auto eol=lf
+
+# Java / Kotlin / Gradle
+*.java   text eol=lf
+*.kt     text eol=lf
+*.kts    text eol=lf
+*.gradle text eol=lf
+
+# 프론트엔드 (Next.js / TypeScript)
+*.ts   text eol=lf
+*.tsx  text eol=lf
+*.js   text eol=lf
+*.jsx  text eol=lf
+*.mjs  text eol=lf
+*.cjs  text eol=lf
+*.css  text eol=lf
+*.scss text eol=lf
+*.html text eol=lf
+
+# 설정 / 마크업
+*.json       text eol=lf
+*.yml        text eol=lf
+*.yaml       text eol=lf
+*.xml        text eol=lf
+*.properties text eol=lf
+*.toml       text eol=lf
+*.md         text eol=lf
+
+# Shell / Python
+*.sh  text eol=lf
+*.py  text eol=lf
+
+# Windows 전용 — CRLF 유지 (cmd.exe 가 LF 를 잘못 해석)
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# 바이너리 — 변환 금지
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.webp  binary
+*.ico   binary
+*.svg   text eol=lf
+*.pdf   binary
+*.zip   binary
+*.jar   binary
+*.mp4   binary
+*.woff  binary
+*.woff2 binary
