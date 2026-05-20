@@ -46,7 +46,9 @@ public class AiCourseService {
             return parseResponse(response);
         } catch (Exception e) {
             log.error("[AiCourse] LLM 호출 실패", e);
-            throw new RuntimeException("AI 서버 연결 실패: " + e.getMessage());
+            // 외부 서비스(LLM) 장애 → 5xx 가 의미상 맞지만 GlobalExceptionHandler 가 IllegalStateException
+            // 을 409 로 잡고 있어, 클라이언트는 동일한 에러 메시지를 받음. 메시지에 원인을 담아 디버깅 가능.
+            throw new IllegalStateException("AI 서버 연결 실패: " + e.getMessage());
         }
     }
 
