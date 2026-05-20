@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   ChevronLeft,
   Eye,
@@ -72,6 +72,9 @@ function BirthSelect({
 
 export default function SignupPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  /** 인트로/메인에서 게스트 7일 만료 후 강제 리다이렉트된 경우 안내 배너를 띄운다. */
+  const guestExpired = searchParams.get("reason") === "guest_expired";
 
   const [formData, setFormData] = useState({
     email: "",
@@ -304,6 +307,15 @@ export default function SignupPage() {
           </h1>
         </button>
       </div>
+
+      {guestExpired && (
+        <div className="w-full max-w-[460px] md:max-w-[540px] mb-6 rounded-2xl bg-lime-300/15 ring-1 ring-lime-300/40 px-5 py-4">
+          <p className="font-bold text-lime-300 mb-1">7일 무료 체험이 끝났어요</p>
+          <p className="text-sm leading-relaxed text-cream-200/85">
+            계속 POP-SPOT 을 이용하시려면 회원가입을 해주세요. 30초면 끝나요.
+          </p>
+        </div>
+      )}
 
       <div className="w-full max-w-[460px] md:max-w-[540px] space-y-5">
         {/* 이메일 */}

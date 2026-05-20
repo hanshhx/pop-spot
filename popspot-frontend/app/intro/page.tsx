@@ -18,9 +18,11 @@ import {
   VideoOff,
   Sun,
   Moon,
+  Clock,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
+import { useGuestMode } from "@/lib/useGuestMode";
 
 /* ============================================================================
  *  POP-SPOT — Cover / Intro Page  (v2.4)
@@ -168,6 +170,16 @@ export default function IntroPage() {
     }
   }, []);
 
+  /* 게스트 7일 카운트다운 — 비로그인 사용자 한정. */
+  const { mounted: guestMounted, remainingDays, expired: guestExpired } = useGuestMode(isLoggedIn);
+
+  /* 만료 게스트가 인트로에 머무를 일은 거의 없지만, 들어오면 즉시 가입 페이지로. */
+  useEffect(() => {
+    if (guestMounted && !isLoggedIn && guestExpired) {
+      router.replace("/signup?reason=guest_expired");
+    }
+  }, [guestMounted, isLoggedIn, guestExpired, router]);
+
   const isDark = mounted && theme === "dark";
 
   const toggleVideo = () => {
@@ -183,7 +195,8 @@ export default function IntroPage() {
 
   const proceed = () => {
     if (isLoggedIn) router.push("/?entered=1");
-    else router.push("/login");
+    else if (guestExpired) router.push("/signup?reason=guest_expired");
+    else router.push("/?entered=1"); // 게스트 7일 이내 — 메인 진입 허용
   };
 
   /* 영상 ON 일 때 카드/텍스트는 흰색 톤, OFF 일 때는 모드별 톤. */
@@ -222,8 +235,18 @@ export default function IntroPage() {
       {/* 거대 워터마크 — 영상 꺼져있을 때만 */}
       {!videoOn && <GiantWordmark isDark={isDark} />}
 
-      {/* 상단 컨트롤 — 영상 토글 / 테마 토글 / Skip */}
+      {/* 상단 컨트롤 — 게스트 카운트다운 / 영상 토글 / 테마 토글 / Skip */}
       <div className="fixed right-4 top-4 z-[60] flex items-center gap-2 sm:right-6 sm:top-6">
+        {guestMounted && !isLoggedIn && !guestExpired && (
+          <span
+            className="inline-flex items-center gap-1.5 rounded-full bg-lime-300 px-3 py-1.5 text-[11px] font-bold text-ink-900 ring-1 ring-ink-900/15 shadow-sm dark:bg-lime-400 dark:ring-ink-900/30"
+            title="7일 무료 체험 후 회원가입이 필요해요"
+            aria-label={`게스트 잔여 ${remainingDays}일`}
+          >
+            <Clock className="size-3" aria-hidden />
+            게스트 D-{remainingDays}
+          </span>
+        )}
         <IconButton
           onClick={toggleVideo}
           ariaLabel={videoOn ? "배경 영상 끄기" : "배경 영상 켜기"}
