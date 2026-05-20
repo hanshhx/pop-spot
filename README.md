@@ -831,8 +831,8 @@
 <table align="center">
   <tr>
     <th align="center" width="160">항목</th>
-    <th align="center" width="300">이전 버전</th>
-    <th align="center" width="300">현재 버전</th>
+    <th align="center" width="300">v1.5.2</th>
+    <th align="center" width="300">v1.6</th>
   </tr>
   <tr>
     <td align="center"><b>비밀번호 보기</b></td>
@@ -872,8 +872,8 @@
 <table align="center">
   <tr>
     <th align="center" width="100">버전</th>
-    <th align="center" width="240">이전 버전</th>
-    <th align="center" width="300">현재 버전</th>
+    <th align="center" width="240">v1.6</th>
+    <th align="center" width="300">v1.6.6</th>
   </tr>
   <tr>
     <td align="center"><b>v1.6.1</b></td>
@@ -918,8 +918,8 @@
 <table align="center">
   <tr>
     <th align="center" width="180">항목</th>
-    <th align="center" width="290">이전 버전</th>
-    <th align="center" width="290">현재 버전</th>
+    <th align="center" width="290">v1.6.6</th>
+    <th align="center" width="290">v1.7.4</th>
   </tr>
   <tr>
     <td align="center"><b>배경 시각</b></td>
@@ -959,8 +959,8 @@
 <table align="center">
   <tr>
     <th align="center" width="180">항목</th>
-    <th align="center" width="290">이전 버전</th>
-    <th align="center" width="290">현재 버전</th>
+    <th align="center" width="290">v1.7.4</th>
+    <th align="center" width="290">v1.8.1</th>
   </tr>
   <tr>
     <td align="center"><b>Section 3 (3 기능)</b></td>
@@ -995,8 +995,8 @@
 <table align="center">
   <tr>
     <th align="center" width="180">항목</th>
-    <th align="center" width="290">이전 버전</th>
-    <th align="center" width="290">현재 버전</th>
+    <th align="center" width="290">v1.8.1</th>
+    <th align="center" width="290">v1.9</th>
   </tr>
   <tr>
     <td align="center"><b>여백</b></td>
@@ -1036,8 +1036,8 @@
 <table align="center">
   <tr>
     <th align="center" width="180">항목</th>
-    <th align="center" width="290">이전 버전</th>
-    <th align="center" width="290">현재 버전</th>
+    <th align="center" width="290">v1.9</th>
+    <th align="center" width="290">v2.0</th>
   </tr>
   <tr>
     <td align="center"><b>비로그인 진입</b></td>
@@ -1067,8 +1067,8 @@
 <table align="center">
   <tr>
     <th align="center" width="100">버전</th>
-    <th align="center" width="240">이전 버전</th>
-    <th align="center" width="280">현재 버전</th>
+    <th align="center" width="240">v2.0</th>
+    <th align="center" width="280">v2.3</th>
   </tr>
   <tr>
     <td align="center"><b>v2.1</b></td>
@@ -1098,8 +1098,8 @@
 <table align="center">
   <tr>
     <th align="center" width="180">항목</th>
-    <th align="center" width="290">이전 버전</th>
-    <th align="center" width="290">현재 버전</th>
+    <th align="center" width="290">v2.3</th>
+    <th align="center" width="290">v2.4</th>
   </tr>
   <tr>
     <td align="center"><b>배경 영상</b></td>
@@ -1149,8 +1149,8 @@
 <table align="center">
   <tr>
     <th align="center" width="180">항목</th>
-    <th align="center" width="290">이전 버전</th>
-    <th align="center" width="290">현재 버전</th>
+    <th align="center" width="290">v2.4</th>
+    <th align="center" width="290">v2.5</th>
   </tr>
   <tr>
     <td align="center"><b>인트로 우상단</b></td>
