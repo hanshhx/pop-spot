@@ -1272,6 +1272,35 @@
 
 ---
 
+### v2.7.1 / v2.7.2 — 백엔드 빌드 통과 핫픽스
+
+> v2.7 머지 후 사용자 로컬에서 <code>./gradlew clean build</code> 가 <code>spotlessJavaCheck</code> 단계에서 두 번 실패. 본 작업과 무관한 빌드 파이프라인 이슈라 패치 두 번으로 분리해 처리.
+
+<table align="center">
+  <tr>
+    <th align="center" width="120">버전</th>
+    <th align="center" width="200">증상</th>
+    <th align="center" width="240">원인</th>
+    <th align="center" width="240">해결</th>
+  </tr>
+  <tr>
+    <td align="center"><b>v2.7.1</b></td>
+    <td>120 개 <code>.java</code> 파일이 line-ending violation</td>
+    <td>Spotless 기본값 <code>GIT_ATTRIBUTES → OS 네이티브</code> 가 Windows 빌드에서 CRLF 를 기대했는데 저장소 파일은 LF</td>
+    <td><code>build.gradle</code> 의 spotless 블록에 <code>lineEndings 'UNIX'</code> 명시 + 저장소 루트에 <code>.gitattributes</code> 추가 (Java/TS/MD 등 LF, .bat/.cmd/.ps1 만 CRLF)</td>
+  </tr>
+  <tr>
+    <td align="center"><b>v2.7.2</b></td>
+    <td>5 파일 (Game/Chat/Admin/Auth Controller + StampService) javadoc + throw wrap violation</td>
+    <td>v2.7 에서 추가한 한국어 멀티라인 JavaDoc 이 google-java-format AOSP 100-col 룰의 reflow 와 어긋남. <code>GameController</code> if 조건이 102 자로 100 초과</td>
+    <td>JavaDoc 을 콤팩트 재작성 (6 줄 → 3~4 줄), if 조건 3 줄 wrap, <code>throw new IllegalArgumentException(...)</code> 메시지 한 줄로 인라인. 사용자 로컬에서 <code>:spotlessApply</code> 가 1 라인을 추가로 자동 분리한 결과를 main 과 동기화 (<code>1fad2a7</code>)</td>
+  </tr>
+</table>
+
+<sub><code>./gradlew clean build</code> 통과 확인 후 v2.8 진행.</sub>
+
+---
+
 ### v2.8 — 게스트 탭 접근 정책 + 인트로 홍보
 
 > v2.7 에서 게스트 모드 시작점만 정리하고 끝냈더니, 정작 게스트 사용자가 마이페이지 / 동행 여권을 열려고 해도 "로그인 필요" 게이트가 막아 의미 없는 상태였다. 어떤 탭이 게스트에게 열려 있고, 어떤 탭이 회원 전용인지 한 곳에서 정의하고 모든 진입 경로(클릭 / sessionStorage 복원 / <code>?tab=</code> 쿼리)에 동일하게 적용.
