@@ -7,6 +7,11 @@ plugins {
 }
 
 spotless {
+    // 크로스플랫폼 line ending 일관성 — Windows/macOS/Linux 어디서 빌드해도 LF 로 강제.
+    // 기본값(GIT_ATTRIBUTES → OS 네이티브)은 Windows 에서 CRLF 를 원해서 LF 로 커밋된 .java 파일
+    // 120 개가 spotlessCheck 에 걸렸다. .gitattributes 의 'text eol=lf' 와 짝.
+    lineEndings 'UNIX'
+
     java {
         target 'src/**/*.java'
         googleJavaFormat('1.17.0').aosp()
