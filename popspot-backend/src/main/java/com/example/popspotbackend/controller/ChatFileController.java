@@ -24,7 +24,8 @@ import org.springframework.web.multipart.MultipartFile;
  *
  * <p>방어: 크기 / 확장자 / MIME 화이트리스트, traversal 차단, canonical path 검증, UUID 재명명.
  *
- * <p>{@code X-Forwarded-Host} 스푸핑 방어 — {@link #ALLOWED_HOST_PATTERNS_PROP} 매칭 시에만 신뢰, 아니면 컨테이너 서버명 폴백.
+ * <p>{@code X-Forwarded-Host} 스푸핑 방어 — {@link #ALLOWED_HOST_PATTERNS_PROP} 매칭 시에만 신뢰, 아니면 컨테이너 서버명
+ * 폴백.
  */
 @Slf4j
 @RestController
