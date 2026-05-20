@@ -49,7 +49,7 @@ export function Header({
       )}
     >
       <Link
-        href="/"
+        href="/?entered=1"
         onClick={onLogoClick}
         className="group inline-flex flex-col"
       >
