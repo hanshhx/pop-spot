@@ -170,8 +170,16 @@ export default function IntroPage() {
     }
   }, []);
 
-  /* 게스트 7일 카운트다운 — 비로그인 사용자 한정. */
-  const { mounted: guestMounted, remainingDays, expired: guestExpired } = useGuestMode(isLoggedIn);
+  /*
+   * 게스트 카운트다운 — v2.7 부터는 사용자가 로그인 페이지에서 명시적으로 "게스트로 로그인하기" 를 눌러야만
+   * 시작된다. 인트로는 게스트가 이미 진행 중일 때 D-N pill 만 노출 (재방문 사용자에게 잔여일 안내).
+   */
+  const {
+    mounted: guestMounted,
+    active: guestActive,
+    remainingDays,
+    expired: guestExpired,
+  } = useGuestMode(isLoggedIn);
 
   /* 만료 게스트가 인트로에 머무를 일은 거의 없지만, 들어오면 즉시 가입 페이지로. */
   useEffect(() => {
@@ -193,10 +201,27 @@ export default function IntroPage() {
     });
   };
 
+  /*
+   * 인트로 진입 분기:
+   *  - 로그인 사용자  → 메인 직행
+   *  - 게스트 활성    → 메인 직행 (D-N 카운트다운은 메인에서 노출)
+   *  - 게스트 만료    → 회원가입 강제
+   *  - 위 모두 아님   → 로그인 페이지 (거기서 일반 로그인 / 소셜 / "게스트로 둘러보기" 선택)
+   */
   const proceed = () => {
-    if (isLoggedIn) router.push("/?entered=1");
-    else if (guestExpired) router.push("/signup?reason=guest_expired");
-    else router.push("/?entered=1"); // 게스트 7일 이내 — 메인 진입 허용
+    if (isLoggedIn) {
+      router.push("/?entered=1");
+      return;
+    }
+    if (guestExpired) {
+      router.push("/signup?reason=guest_expired");
+      return;
+    }
+    if (guestActive) {
+      router.push("/?entered=1");
+      return;
+    }
+    router.push("/login");
   };
 
   /* 영상 ON 일 때 카드/텍스트는 흰색 톤, OFF 일 때는 모드별 톤. */
@@ -237,7 +262,7 @@ export default function IntroPage() {
 
       {/* 상단 컨트롤 — 게스트 카운트다운 / 영상 토글 / 테마 토글 / Skip */}
       <div className="fixed right-4 top-4 z-[60] flex items-center gap-2 sm:right-6 sm:top-6">
-        {guestMounted && !isLoggedIn && !guestExpired && (
+        {guestMounted && !isLoggedIn && guestActive && (
           <span
             className="inline-flex items-center gap-1.5 rounded-full bg-lime-300 px-3 py-1.5 text-[11px] font-bold text-ink-900 ring-1 ring-ink-900/15 shadow-sm dark:bg-lime-400 dark:ring-ink-900/30"
             title="7일 무료 체험 후 회원가입이 필요해요"
@@ -381,7 +406,7 @@ export default function IntroPage() {
               whileTap={{ scale: 0.97 }}
               className="group mt-12 inline-flex items-center gap-3 rounded-full bg-lime-400 px-9 py-4 text-base font-bold text-ink-900 shadow-lg shadow-lime-400/25 transition hover:bg-lime-300 hover:shadow-lime-300/40 sm:px-12 sm:py-5 sm:text-lg"
             >
-              {isLoggedIn ? (
+              {isLoggedIn || guestActive ? (
                 <>
                   <span>ENTER</span>
                   <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
@@ -651,7 +676,7 @@ export default function IntroPage() {
                 whileTap={{ scale: 0.97 }}
                 className="inline-flex items-center gap-2 rounded-full bg-lime-400 px-9 py-4 text-base font-bold text-ink-900 shadow-lg shadow-lime-400/25 transition hover:bg-lime-300 sm:px-12 sm:py-5 sm:text-lg"
               >
-                {isLoggedIn ? (
+                {isLoggedIn || guestActive ? (
                   <>
                     <span>POP-SPOT 시작하기</span>
                     <ArrowRight className="h-5 w-5" />

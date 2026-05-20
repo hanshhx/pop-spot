@@ -10,14 +10,16 @@ import {
   Eye,
   EyeOff,
   Check,
+  Clock,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import Link from "next/link";
-import Swal from "sweetalert2";
 
 import { apiFetch, API_BASE_URL } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input, Field } from "@/components/ui/input";
+import { notify, notifyError, notifySuccess } from "@/lib/notify";
+import { GUEST_GRACE_PERIOD_DAYS, startGuestMode } from "@/lib/guestMode";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -56,30 +58,18 @@ export default function LoginPage() {
       if (res.ok) {
         const data = await res.json();
         localStorage.setItem("user", JSON.stringify(data));
+        if (data.token) localStorage.setItem("token", data.token);
         if (saveId) localStorage.setItem("savedEmail", formData.email);
         else localStorage.removeItem("savedEmail");
 
-        await Swal.fire({
-          icon: "success",
-          title: `${data.nickname}님 환영합니다`,
-          showConfirmButton: false,
-          timer: 1200,
-        });
+        await notifySuccess(`${data.nickname}님 환영합니다`);
         // 인트로 미들웨어 우회 — 방금 인트로 거쳐서 로그인 왔으니 메인 직행
         router.push("/?entered=1");
       } else {
-        Swal.fire({
-          icon: "error",
-          title: "로그인 실패",
-          text: "아이디나 비밀번호를 확인해주세요.",
-        });
+        notifyError({ title: "로그인 실패", text: "아이디나 비밀번호를 확인해주세요." });
       }
     } catch {
-      Swal.fire({
-        icon: "error",
-        title: "서버 연결 실패",
-        text: "잠시 후 다시 시도해주세요.",
-      });
+      notifyError({ title: "서버 연결 실패", text: "잠시 후 다시 시도해주세요." });
     } finally {
       setSubmitting(false);
     }
@@ -87,6 +77,23 @@ export default function LoginPage() {
 
   const handleSocialLogin = (provider: string) => {
     window.location.href = `${API_BASE_URL}/oauth2/authorization/${provider}`;
+  };
+
+  /**
+   * 게스트로 둘러보기 시작 — 명시적 opt-in.
+   *
+   * <p>이 버튼을 눌러야만 7일 카운터가 돌기 시작한다. 인트로 자동 시작 (v2.6 까지) 폐기 후의 정상 진입점.
+   * 안내 토스트로 사용자에게 D-{@link GUEST_GRACE_PERIOD_DAYS} 카운트다운이 시작됨을 알리고 메인으로 이동.
+   */
+  const handleGuestLogin = async () => {
+    startGuestMode();
+    await notify({
+      icon: "info",
+      title: `게스트로 ${GUEST_GRACE_PERIOD_DAYS}일 동안 둘러보기`,
+      text: "기간이 끝나면 회원가입이 필요해요.",
+      timer: 1600,
+    });
+    router.push("/?entered=1");
   };
 
   return (
@@ -274,6 +281,23 @@ export default function LoginPage() {
             </svg>
             <span>Google로 시작하기</span>
           </button>
+        </div>
+
+        <div className="mt-6">
+          <button
+            type="button"
+            onClick={handleGuestLogin}
+            className="w-full h-11 rounded-pill font-semibold bg-transparent text-cream-200 border border-cream-200/25 hover:bg-cream-200/8 hover:border-cream-200/45 transition-colors flex items-center justify-center gap-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-300 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-800"
+            aria-label={`게스트로 ${GUEST_GRACE_PERIOD_DAYS}일 동안 둘러보기`}
+          >
+            <Clock className="size-4" aria-hidden />
+            <span>
+              게스트로 {GUEST_GRACE_PERIOD_DAYS}일 둘러보기
+            </span>
+          </button>
+          <p className="mt-2 text-center text-[11px] text-cream-200/45">
+            가입 없이 바로 시작. 기간이 끝나면 회원가입이 필요해요.
+          </p>
         </div>
 
         <div className="mt-6 text-center text-sm">

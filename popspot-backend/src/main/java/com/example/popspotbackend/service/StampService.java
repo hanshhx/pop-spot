@@ -61,13 +61,14 @@ public class StampService {
 
         if (stampRepository.existsByUserIdAndStampDateBetween(userId, startOfDay, endOfDay)) {
             log.warn("[Stamp] 어뷰징 방어 — 유저 {} 가 오늘 이미 스탬프 획득", userId);
-            throw new RuntimeException("스탬프는 하루에 딱 한 곳에서만 획득할 수 있습니다. 내일 다시 방문해주세요.");
+            throw new IllegalArgumentException(
+                    "스탬프는 하루에 딱 한 곳에서만 획득할 수 있습니다. 내일 다시 방문해주세요.");
         }
     }
 
     private void rejectIfDuplicatePopup(String userId, Long popupId) {
         if (stampRepository.existsByUserIdAndPopupStore_Id(userId, popupId)) {
-            throw new RuntimeException("이미 방문 인증이 완료된 팝업스토어입니다.");
+            throw new IllegalArgumentException("이미 방문 인증이 완료된 팝업스토어입니다.");
         }
     }
 
