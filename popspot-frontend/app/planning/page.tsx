@@ -4,10 +4,10 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Client } from "@stomp/stompjs";
 import SockJS from "sockjs-client";
-import { 
-  Share2, Trash2, MapPin, Users, Search, PlusCircle, X, Loader2, UserPlus, 
-  ThumbsUp, Flame, Footprints, MoveDown, Wand2, Navigation 
-} from "lucide-react"; 
+import {
+  Share2, Trash2, MapPin, Users, Search, PlusCircle, X, Loader2, UserPlus,
+  ThumbsUp, Flame, Footprints, MoveDown, Wand2, Navigation, ChevronLeft
+} from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 import InteractiveMap from "../../src/components/Map/InteractiveMap"; 
@@ -290,9 +290,18 @@ export default function PlanningPage() {
         {/* 상단 정보 패널 */}
         <div className="p-3 md:p-5 border-b border-white/10 bg-[#1a1a1a]">
             <div className="flex justify-between items-start mb-2 md:mb-4">
-                <div>
-                    <h2 className="font-bold text-base md:text-lg flex items-center gap-1.5 md:gap-2 text-lime-300"><Navigation size={16} className="md:w-[18px] md:h-[18px]"/> 작전 회의실</h2>
-                    <p className="text-[9px] md:text-[10px] text-gray-500 font-mono mt-0.5 md:mt-1">ROOM ID: {roomId}</p>
+                <div className="flex items-start gap-2">
+                    <button
+                        onClick={() => router.push("/?entered=1")}
+                        aria-label="메인으로 돌아가기"
+                        className="mt-0.5 inline-flex items-center justify-center size-7 md:size-8 rounded-full bg-white/8 hover:bg-white/15 text-gray-300 hover:text-white transition-colors ring-1 ring-white/10 hover:ring-white/20"
+                    >
+                        <ChevronLeft size={16} className="md:w-[18px] md:h-[18px]" />
+                    </button>
+                    <div>
+                        <h2 className="font-bold text-base md:text-lg flex items-center gap-1.5 md:gap-2 text-lime-300"><Navigation size={16} className="md:w-[18px] md:h-[18px]"/> 작전 회의실</h2>
+                        <p className="text-[9px] md:text-[10px] text-gray-500 font-mono mt-0.5 md:mt-1">ROOM ID: {roomId}</p>
+                    </div>
                 </div>
                 <button onClick={inviteFriend} className="px-2.5 py-1.5 md:px-3 md:py-1.5 bg-lime-300 hover:bg-lime-400 text-ink-900 rounded-full text-[10px] md:text-xs font-bold transition-all flex items-center gap-1 shadow-lg shadow-md">
                     <UserPlus size={12} className="md:w-3.5 md:h-3.5"/> 초대
