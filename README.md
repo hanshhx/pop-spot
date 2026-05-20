@@ -1342,6 +1342,52 @@
 
 ---
 
+### v2.9 — 보안 IDOR 2건 + 권한 재검증 + 남은 백엔드 부채 정리
+
+> v2.7 에서 GameController IDOR 만 봉합했더니, 같은 패턴이 MyCourse / Wishlist 두 컨트롤러에 그대로 남아 있다는 게 v2.8 재감사에서 발견. 같이 OAuth 콜백 이후 localStorage 의 role/isPremium 위조 가능 문제, 남은 RuntimeException 3건, 메모리 필터링 N+1 위험, MyCourse 엔티티 직접 노출까지 한 라운드에 정리.
+
+<table align="center">
+  <tr>
+    <th align="center" width="180">항목</th>
+    <th align="center" width="290">v2.8</th>
+    <th align="center" width="290">v2.9</th>
+  </tr>
+  <tr>
+    <td align="center"><b>위시리스트 IDOR (Critical)</b></td>
+    <td>주소창의 userId 를 검증 없이 그대로 사용 → 다른 사람 위시리스트 토글 / 조회 가능</td>
+    <td>주소창 userId 가 로그인 토큰의 userId 와 일치할 때만 통과. 다르면 거부 (403)</td>
+  </tr>
+  <tr>
+    <td align="center"><b>내 코스 IDOR (Critical)</b></td>
+    <td>코스 저장 / 조회 / 삭제 모두 클라이언트가 보낸 userId 신뢰 → 타인 코스 조작 가능</td>
+    <td>세 엔드포인트 모두 토큰 userId 와 일치 검증. 삭제는 코스 소유자 검사까지 추가</td>
+  </tr>
+  <tr>
+    <td align="center"><b>OAuth 후 권한 위조 (High)</b></td>
+    <td>로그인 직후 localStorage 에 저장된 role / isPremium 을 클라이언트가 신뢰 → devtools 로 어드민 / 프리미엄 위조 가능</td>
+    <td>비공개 페이지 진입 시마다 서버에 "내 정보 다시 알려줘" 호출해서 검증된 값으로 덮어씀. 위조해도 즉시 정정</td>
+  </tr>
+  <tr>
+    <td align="center"><b>남은 RuntimeException</b></td>
+    <td>AI 호출 실패 / 메일 발송 실패에 의미 없는 RuntimeException 사용 → 공통 에러 핸들러가 400 으로 처리 (실제론 서버 장애)</td>
+    <td>둘 다 표준 예외 (외부 서비스 장애) 로 격상해 공통 에러 핸들러가 409 로 일관 응답. AuthService 의 소셜 가입 분기는 의도적이라 유지</td>
+  </tr>
+  <tr>
+    <td align="center"><b>지도 마커 N+1 위험</b></td>
+    <td>팝업 전체를 메모리에 불러와서 자바 코드로 PENDING 만 거름 → 데이터 늘면 메모리 폭발 위험</td>
+    <td>이미 만들어둔 SQL WHERE 절 쿼리 재사용. row 수와 무관하게 안전</td>
+  </tr>
+  <tr>
+    <td align="center"><b>MyCourse 엔티티 → DTO</b></td>
+    <td><code>List&lt;MyCourse&gt;</code> JPA 엔티티 직접 JSON 직렬화 → LAZY 필드 폭탄 위험</td>
+    <td><code>MyCourseResponseDto.fromEntity()</code> 변환. 프론트 필드명은 그대로 유지 (호환성)</td>
+  </tr>
+</table>
+
+<sub>백엔드 7 파일 (Wishlist / MyCourse Controller + Service + AiCourse / Email / PopupStore Service + MyCourseResponseDto 신규) · 프론트 1 파일 (AuthGuard) · 프론트 빌드 16/16 페이지 통과. PopupStore / Admin Controller 의 엔티티 → DTO 는 영향 너무 커서 다음 라운드(v2.10) 로 분리.</sub>
+
+---
+
 ## 폴더 구조 (백엔드)
 
 ```

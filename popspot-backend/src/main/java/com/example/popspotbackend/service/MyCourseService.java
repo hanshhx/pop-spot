@@ -3,6 +3,7 @@ package com.example.popspotbackend.service;
 import com.example.popspotbackend.dto.CourseSaveRequestDto;
 import com.example.popspotbackend.entity.MyCourse;
 import com.example.popspotbackend.entity.User;
+import com.example.popspotbackend.exception.ResourceNotFoundException;
 import com.example.popspotbackend.repository.MyCourseRepository;
 import com.example.popspotbackend.repository.UserRepository;
 import java.util.List;
@@ -43,15 +44,29 @@ public class MyCourseService {
         return myCourseRepository.findAllByUserId(userId);
     }
 
+    /**
+     * 본인 코스만 삭제 가능 (v2.9 보안). 코스 소유자가 토큰 subject 와 다르면
+     * {@link SecurityException} → 403.
+     */
     @Transactional
-    public void deleteCourse(Long courseId) {
-        myCourseRepository.deleteById(courseId);
+    public void deleteCourseAsOwner(Long courseId, String tokenUserId) {
+        MyCourse course =
+                myCourseRepository
+                        .findById(courseId)
+                        .orElseThrow(
+                                () -> new ResourceNotFoundException("코스를 찾을 수 없습니다: " + courseId));
+        if (!tokenUserId.equals(course.getUserId())) {
+            throw new SecurityException("본인 코스만 삭제할 수 있습니다.");
+        }
+        myCourseRepository.delete(course);
     }
 
     /* ============================== 내부 헬퍼 ============================== */
 
     private User findUserOrThrow(String userId) {
-        return userRepository.findById(userId).orElseThrow(() -> new RuntimeException("유저 없음"));
+        return userRepository
+                .findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("유저를 찾을 수 없습니다: " + userId));
     }
 
     private void evictExistingCoursesForFreeUser(String userId) {

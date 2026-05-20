@@ -8525,3 +8525,271 @@ npm run build       # ✓ Compiled successfully, 16/16 static pages
 1. **"권한 정의" 는 한 곳에**. 같은 정책 체크가 핸들러 / 복원 / URL 분기 세 곳에서 따로 구현되어 있었고, 그래서 `sessionStorage` 우회가 가능했다. `Set<string>` 한 줄로 정의하고 `canAccessTab()` 한 줄로 검사하니 코드 줄이 늘어도 의도 파악이 즉시 된다.
 2. **게스트와 비로그인은 다른 사용자다**. 카피 한 줄 (`로그인이 필요합니다` vs `회원 전용 기능 — 회원가입`) 차이로 사용자의 다음 행동이 달라진다. 게스트는 이미 "둘러보는 중" 이므로 로그인보다 가입이 자연스러운 유도점.
 3. **빈 상태(empty state) 도 기능이다**. 게스트의 MY 탭은 0/0/0 을 보여주는데, 이 자체가 "로그인하면 이 카운터가 채워져요" 라는 메시지를 전달한다. 별도 안내 배너 추가보다 빈 카운터의 시각적 압력이 더 효과적인 가입 유도가 될 수 있다.
+
+---
+
+# 21. v2.9 — 보안 IDOR 2건 + 권한 재검증 + 남은 백엔드 부채
+
+> v2.8 종료 후 백엔드/프론트/보안 3 갈래 재감사 결과로 발견된 **새 Critical 2 건** (`MyCourseController` / `WishlistController` 의 IDOR — v2.7 에서 `GameController` 만 막고 같은 패턴 놓침) + **OAuth 후 권한 위조 가능성** + 남은 RuntimeException 3 건 + 메모리 필터링 N+1 + MyCourse 엔티티 직접 노출까지 한 사이클로 정리.
+
+## 21.1 보안 — IDOR 2 건 (Critical)
+
+### 21.1.1 `WishlistController` — `@PathVariable userId` 검증 없이 사용
+
+```java
+// 변경 전 — path 의 userId 가 인증 사용자와 일치하는지 확인 X
+@PostMapping("/{userId}/{popupId}")
+public ResponseEntity<String> toggleWishlist(
+        @PathVariable String userId, @PathVariable Long popupId) {
+    return ResponseEntity.ok(wishlistService.toggleWishlist(userId, popupId));
+}
+
+// 변경 후 — Authentication 주입 + 일치 검증
+@PostMapping("/{userId}/{popupId}")
+public ResponseEntity<String> toggleWishlist(
+        Authentication authentication,
+        @PathVariable String userId,
+        @PathVariable Long popupId) {
+    requireSelf(authentication, userId);
+    return ResponseEntity.ok(wishlistService.toggleWishlist(userId, popupId));
+}
+
+private void requireSelf(Authentication authentication, String pathUserId) {
+    if (authentication == null
+            || !authentication.isAuthenticated()
+            || authentication.getName() == null) {
+        throw new SecurityException("인증된 사용자만 위시리스트에 접근할 수 있습니다.");
+    }
+    if (!authentication.getName().equals(pathUserId)) {
+        throw new SecurityException("본인 위시리스트만 조회/수정할 수 있습니다.");
+    }
+}
+```
+
+URL 패턴(`/{userId}/{popupId}`) 은 프론트 호환성 유지를 위해 그대로 두고, path 값을 그대로 신뢰하던 부분만 검증으로 막았다. v2.10 에서 RESTful 하게 `/me/{popupId}` 같이 리네이밍 검토.
+
+### 21.1.2 `MyCourseController` — 4 엔드포인트 모두 IDOR + dead try-catch 정리
+
+```java
+// 변경 전 — 클라이언트가 보낸 userId 그대로 사용
+@PostMapping
+public ResponseEntity<String> saveCourse(@RequestBody CourseSaveRequestDto dto) {
+    try {
+        myCourseService.saveCourse(dto);
+        return ResponseEntity.ok("코스 저장 완료!");
+    } catch (RuntimeException e) {
+        if (ERROR_LIMIT_REACHED.equals(e.getMessage())) {
+            return ResponseEntity.status(403).body(ERROR_LIMIT_REACHED);
+        }
+        return ResponseEntity.status(500).body("저장 실패");
+    }
+}
+
+@GetMapping
+public ResponseEntity<List<MyCourse>> getMyCourses(@RequestParam String userId) {
+    return ResponseEntity.ok(myCourseService.getMyCourses(userId));
+}
+
+@DeleteMapping("/{courseId}")
+public ResponseEntity<String> deleteCourse(@PathVariable Long courseId) {
+    myCourseService.deleteCourse(courseId);  // ← 본인 코스 검증 없음
+    return ResponseEntity.ok("삭제 완료");
+}
+```
+
+변경 후 — Authentication 주입 + 매 엔드포인트에서 토큰 userId 일치 검증 + 삭제 시 코스 소유자 검사 + MyCourse 엔티티 → DTO + dead try-catch 제거:
+
+```java
+@PostMapping
+public ResponseEntity<String> saveCourse(
+        Authentication authentication, @RequestBody CourseSaveRequestDto dto) {
+    requireSelf(authentication, dto.getUserId());
+    myCourseService.saveCourse(dto);
+    return ResponseEntity.ok("코스 저장 완료!");
+}
+
+@GetMapping
+public ResponseEntity<List<MyCourseResponseDto>> getMyCourses(
+        Authentication authentication, @RequestParam String userId) {
+    requireSelf(authentication, userId);
+    return ResponseEntity.ok(
+            myCourseService.getMyCourses(userId).stream()
+                    .map(MyCourseResponseDto::fromEntity)
+                    .toList());
+}
+
+@DeleteMapping("/{courseId}")
+public ResponseEntity<String> deleteCourse(
+        Authentication authentication, @PathVariable Long courseId) {
+    myCourseService.deleteCourseAsOwner(courseId, requireAuthenticated(authentication));
+    return ResponseEntity.ok("삭제 완료");
+}
+```
+
+`saveCourse` 의 `LIMIT_REACHED` try-catch 는 **dead code** 였음 — `MyCourseService.saveCourse` 가 실제로는 무료 회원의 기존 코스를 자동으로 evict 하고 새로 저장할 뿐, LIMIT 예외를 던지지 않는다. v2.6 의 프론트 confirmAction 가드와 짝이 되어 흐름이 단순화됨.
+
+`deleteCourseAsOwner(courseId, tokenUserId)` 신규 — 코스 row 의 `userId` 와 토큰 subject 가 일치할 때만 삭제. 다르면 `SecurityException` → 403.
+
+## 21.2 보안 — OAuth 후 클라이언트 권한 신뢰 봉합 (High)
+
+### 21.2.1 문제
+
+`/oauth/callback` 페이지가 서버 응답의 user 객체를 그대로 `localStorage.setItem("user", ...)` 했고, 이후 클라이언트 코드가 `user.isPremium` / `user.role` 을 신뢰했다. devtools 로 localStorage 값을 수정하면 어드민 / 프리미엄 권한을 위조할 수 있었다.
+
+### 21.2.2 해결 — `AuthGuard.tsx` 가 매 진입마다 서버 재검증
+
+```tsx
+// 변경 전 — localStorage 의 user 존재 여부만 확인
+useEffect(() => {
+  if (PUBLIC_PATHS.includes(pathname)) {
+    setIsAuthorized(true);
+    return;
+  }
+  const storedUser = localStorage.getItem("user");
+  if (!storedUser) {
+    router.replace("/login");
+  } else {
+    setIsAuthorized(true);
+  }
+}, [pathname, router]);
+
+// 변경 후 — 토큰이 있으면 /me 호출해서 서버 검증된 user 로 덮어씀
+const verify = async () => {
+  if (PUBLIC_PATHS.includes(pathname)) {
+    setIsAuthorized(true);
+    return;
+  }
+  const token = localStorage.getItem(TOKEN_KEY);
+  if (!token) {
+    router.replace("/login");
+    return;
+  }
+  try {
+    const res = await apiFetch("/api/v1/auth/me");
+    if (res.status === 401) {
+      localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(USER_KEY);
+      router.replace("/login");
+      return;
+    }
+    if (!res.ok) {
+      // 5xx / 네트워크 일시 장애 → stale 캐시로 graceful fallback
+      setIsAuthorized(true);
+      return;
+    }
+    const serverUser = await res.json();
+    localStorage.setItem(USER_KEY, JSON.stringify(serverUser));
+    setIsAuthorized(true);
+  } catch {
+    setIsAuthorized(true);  // 네트워크 실패 → stale fallback
+  }
+};
+```
+
+네 가지 동작 보장:
+- 토큰 없음 → `/login` 리다이렉트
+- `/me` 401 → 토큰/유저 정리 후 `/login`
+- `/me` 200 → 서버 응답으로 localStorage user 덮어쓰기 (위조 즉시 정정)
+- 네트워크 실패 → stale 캐시로 통과 (오프라인 / 백엔드 일시 장애 UX 보호 — 진짜 권한이 필요한 API 호출은 서버가 다시 토큰 검증하므로 위조 위험 없음)
+
+## 21.3 백엔드 — 남은 RuntimeException 2 건 격상
+
+| 위치 | 변경 전 | 변경 후 |
+|---|---|---|
+| `AiCourseService:49` LLM 호출 실패 | `RuntimeException("AI 서버 연결 실패: " + e.getMessage())` | `IllegalStateException(...)` (외부 서비스 장애 → 409) |
+| `EmailService:56` SMTP 실패 | `RuntimeException("메일 발송 실패")` | `IllegalStateException("메일 발송 실패")` |
+| `MyCourseService:54` 유저 없음 | `new RuntimeException("유저 없음")` | `new ResourceNotFoundException("유저를 찾을 수 없습니다: " + userId)` (404) |
+
+`AuthService:143` 의 `RuntimeException(SOCIAL_USER_ERROR_PREFIX + provider)` 은 **의도적으로 유지** — 컨트롤러가 메시지 prefix 로 분기해 안내 메시지를 띄우는 패턴.
+
+응답 상태 코드 변화:
+- AI / 메일 실패: 400 → 409 (의미상 정확화)
+- 코스에서 유저 못 찾음: 400 → 404
+
+## 21.4 백엔드 — 메모리 필터링 N+1 위험 제거
+
+```java
+// 변경 전 — 모든 row 메모리에 끌어와서 필터링. row 수 늘면 OOM 위험.
+public List<PopupStore> findVisibleMapMarkers() {
+    return popupStoreRepository.findAll().stream()
+            .filter(p -> p.getStatus() == null || !STATUS_PENDING.equals(p.getStatus()))
+            .toList();
+}
+
+// 변경 후 — 같은 조건의 SQL WHERE 절 쿼리 재사용 (이미 존재했음)
+@Transactional(readOnly = true)
+public List<PopupStore> findVisibleMapMarkers() {
+    return popupStoreRepository.findAllVisible();
+}
+```
+
+`findAllVisible()` 는 `PopupStoreRepository` 에 이미 정의된 `@Query("SELECT p FROM PopupStore p WHERE p.status IS NULL OR p.status <> 'PENDING'")` 였음. 그저 사용하면 됐던 패턴.
+
+다른 `findAll()` 후보:
+- `AdminService:48` — 관리자 화면 전용, 데이터 수십~수백 건 예상이라 보류
+- `SearchService:64` — Algolia 풀스캔 색인 의도된 거라 보류
+- `GoodsService:34` — 굿즈 갯수 적어 보류
+
+## 21.5 백엔드 — MyCourse 엔티티 → DTO 분리
+
+`MyCourseController.getMyCourses` 가 `List<MyCourse>` JPA 엔티티를 직접 JSON 으로 직렬화하던 부분을 `MyCourseResponseDto` 로 분리. 프론트가 받는 필드명은 그대로 유지 (`id`, `userId`, `courseName`, `courseData`, `createdAt`).
+
+```java
+@Getter
+@Builder
+public class MyCourseResponseDto {
+    private final Long id;
+    private final String userId;
+    private final String courseName;
+    private final String courseData;
+    private final LocalDateTime createdAt;
+
+    public static MyCourseResponseDto fromEntity(MyCourse entity) {
+        return MyCourseResponseDto.builder()
+                .id(entity.getId())
+                .userId(entity.getUserId())
+                .courseName(entity.getCourseName())
+                .courseData(entity.getCourseData())
+                .createdAt(entity.getCreatedAt())
+                .build();
+    }
+}
+```
+
+`PopupStoreController` / `AdminController` 의 엔티티 노출은 영향 범위가 너무 커서 (필드 수 많고 프론트 호출처 다수) **v2.10 으로 분리**.
+
+## 21.6 검증
+
+```bash
+# 프론트
+cd popspot-frontend && rm -rf .next && npm run typecheck && npm run build
+# ✓ typecheck exit 0
+# ✓ build · 16/16 static pages
+# ✓ ESLint 새 위반 0 건
+
+# 백엔드 (이 환경에서 gradle 미가동 — 사용자 로컬에서 검증)
+cd popspot-backend && ./gradlew clean build
+```
+
+백엔드 변경 파일 시각 점검:
+- `MyCourseResponseDto.java` (신규) — Lombok @Builder + fromEntity, 단순
+- `MyCourseController.java` — Authentication / MyCourseResponseDto import 추가, dead try-catch 제거
+- `MyCourseService.java` — `deleteCourseAsOwner` 신규, ResourceNotFoundException import 기존
+- `WishlistController.java` — Authentication import 추가
+- `AiCourseService.java` / `EmailService.java` — IllegalStateException (java.lang, import 불필요)
+- `PopupStoreService.java` — `findVisibleMapMarkers` 한 줄로 축소, `findAllVisible()` 재사용
+
+## 21.7 v2.9 등급 변화
+
+| 영역 | v2.8 | v2.9 | 근거 |
+|---|---|---|---|
+| 백엔드 클린코드 | B | **B+** | RuntimeException 3 건 격상 / N+1 위험 1 건 제거 / MyCourse DTO 분리. PopupStore/Admin DTO 는 deferred |
+| 프론트 클린코드 | A- | **A-** (유지) | AuthGuard 강화 외 큰 변화 X — page.tsx 5탭 분리는 v2.10 |
+| 보안 | B- | **B+** | 새 Critical 2건 봉합 + High 1건 봉합 |
+
+## 21.8 학습
+
+1. **같은 패턴은 한 번에 다 찾아라**. v2.7 에서 `GameController` IDOR 만 봉합하고 끝낸 게 화근. `@RequestParam.*userId` / `@PathVariable.*userId` grep 한 번이면 5분 안에 발견할 수 있던 것을 두 라운드에 나눠 처리. **취약점 패턴은 한 곳에서 발견되면 같은 종류 전체 grep**.
+2. **dead code 는 보안 점검의 사각지대**. `MyCourseController.saveCourse` 의 `LIMIT_REACHED` 처리 try-catch 는 실제로 던져지지 않는 예외에 대한 것이었지만, **try-catch 가 있다는 사실 자체가** 리뷰어로 하여금 "이 부분은 안전하다" 는 잘못된 안심을 준다. dead code 는 보안 / 유지보수 양쪽에서 부채.
+3. **클라이언트 저장값은 절대 신뢰 단위가 아니다**. localStorage 의 user 객체를 클라이언트가 분기 조건으로 쓰는 순간 권한 위조의 길이 열린다. AuthGuard 의 `/me` 재검증 같은 layer 가 없으면, devtools 한 줄로 어드민 자임 가능.
+4. **메모리 필터링은 N+1 의 사촌**. row 수가 적을 때는 안 보이다가 데이터 증가하면 OOM 으로 갑작스럽게 폭발. 같은 결과를 내는 `@Query` 가 이미 있는데 메모리 필터 쓰는 패턴은 **무지 / 게으름 / 코드 발견 실패** 중 하나. repository 의 기존 메서드를 먼저 grep 하는 습관.
