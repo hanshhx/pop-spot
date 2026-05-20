@@ -822,46 +822,354 @@
 
 <br/>
 
-### v1.6 ~ v1.9 — 사용자 피드백 일괄 반영 + 인트로 풀 리디자인
+<br/>
 
-> 서비스 공개 직전 사용자 피드백 11건을 받아 6 sub-version 으로 끊어 처리. 끝에는 인트로 페이지를 매거진 에디토리얼 무드로 풀 리디자인.
-> - **v1.6** — 회원가입 폼 quick wins (비번 아이콘 반전, 이메일 한글 차단, 폰 숫자만, 생년월일 select 통일, 데스크탑 max-width)
-> - **v1.6.1** — 인트로 `scrollbar-gutter: stable`, 로그인/회원가입 버튼 아이콘 순서 통일, 모션 토글 (localStorage 저장)
-> - **v1.6.2** — 메인 카드 블록화 (Map/Ranking/Calendar/AI Report 4 위젯 solid 배경 + shadow)
-> - **v1.6.3** — 클릭 hover/active scale 인터랙션
-> - **v1.6.4** — 지도 현재 위치 v1 (메모리 only · PIPA 부담 최소)
-> - **v1.6.5** — Twitter → X 로고 교체 (lucide 미제공이라 inline SVG)
-> - **v1.6.6** — 인트로 카피 AI 티 제거 (em-dash · 병렬 구조 제거, 회화체로)
-> - **v1.7 ~ v1.7.4** — 인트로 디자인 AI 티 제거 (글래스모피즘 제거 · 컬러 단순화 · bento 도입 · DU 70주년 + HM Group + Greencar 하이브리드 Hero)
-> - **v1.8 ~ v1.8.1** — Section 3 미니 위젯 프리뷰 (캘린더/지도/랭킹), Section 4 컬러 액센트 바, 다크 파스텔 강화, `lime-300` 라이트 모드 톤다운
-> - **v1.9** — 매거진 에디토리얼 풀 리디자인 — **12 데코 레이어** (라이트/다크 파스텔 6 orb · 그레인 · conic ray · dust 파티클 · 세로 매거진 라벨 · ghost 번호 · VOL 칩 · 마퀴 · bento 폴라로이드)
-> - 영상 + Play 토글 완전 제거, 다크 모드 베이스 순수 검정 → `#1a1820 → #221e2a` 따뜻한 deep purple-gray
+### v1.6 — 회원가입 폼 손보기
+
+> 베타 사용자 6명이 가입하다 막힌 부분을 모아 한 번에 정리.
+
+<table align="center">
+  <tr>
+    <th align="center" width="160">항목</th>
+    <th align="center" width="300">전엔 이랬는데</th>
+    <th align="center" width="300">이렇게 바뀜</th>
+  </tr>
+  <tr>
+    <td align="center"><b>비밀번호 보기</b></td>
+    <td>눈 아이콘이 "현재 상태"를 표시 (가려져 있으면 닫힌 눈) — 일반 사이트와 반대라 헷갈림</td>
+    <td>아이콘이 "다음 동작"을 의미 (눈 = 보기, 가려진 눈 = 가리기) — 토스/네이버와 동일</td>
+  </tr>
+  <tr>
+    <td align="center"><b>이메일 입력</b></td>
+    <td>한글 입력하면 무시되긴 했는데 사용자는 자기가 친 글자가 안 보여서 당황</td>
+    <td>아예 한글 키 자체를 입력 단에서 막음. 영문/숫자/기호만 통과</td>
+  </tr>
+  <tr>
+    <td align="center"><b>휴대전화</b></td>
+    <td>"010-1234-5678" 식으로 하이픈 붙여 넣으면 유효성 검사 통과 못함</td>
+    <td>붙여넣기 시 숫자가 아닌 모든 글자(하이픈·공백·괄호) 를 자동으로 제거</td>
+  </tr>
+  <tr>
+    <td align="center"><b>생년월일</b></td>
+    <td>year/month/day 3개 select 가 너비도 다르고 placeholder 도 들쭉날쭉</td>
+    <td>공용 <code>BirthSelect</code> 컴포넌트로 통일 — "년 / 월 / 일" suffix 까지 동일한 룩</td>
+  </tr>
+  <tr>
+    <td align="center"><b>데스크탑 화면</b></td>
+    <td>모바일 폭(<code>max-w-[460px]</code>) 그대로 → 1920px 모니터에서 좌우 여백 ★★★★</td>
+    <td>md 이상 <code>max-w-[540px]</code> 로 키움 — 데스크탑에서도 적당한 폭</td>
+  </tr>
+</table>
+
+<sub>6 quick wins · <code>app/signup/page.tsx</code> 약 +80 / -45 라인.</sub>
+
+<br/>
+
+### v1.6.1 ~ v1.6.6 — 인트로/메인 잔손질 6건
+
+> 첫 인상부터 매끄럽지 않다는 피드백 6건을 sub-version 으로 끊어 처리.
+
+<table align="center">
+  <tr>
+    <th align="center" width="100">버전</th>
+    <th align="center" width="240">전엔 이랬는데</th>
+    <th align="center" width="300">이렇게 바뀜</th>
+  </tr>
+  <tr>
+    <td align="center"><b>v1.6.1</b></td>
+    <td>인트로 스크롤바가 나타나면서 콘텐츠가 살짝 왼쪽으로 점프 (CLS)</td>
+    <td><code>scrollbar-gutter: stable</code> 로 스크롤바 공간을 미리 잡아둠 + 로그인/회원가입 버튼 아이콘 순서 통일</td>
+  </tr>
+  <tr>
+    <td align="center"><b>v1.6.2</b></td>
+    <td>메인의 지도/랭킹/캘린더/AI 4개 영역이 같은 배경에 떠 있어서 구분이 안 됨</td>
+    <td>4개 위토 각각 흰 배경 + 그림자로 카드 블록화 — 한눈에 위토 단위가 보임</td>
+  </tr>
+  <tr>
+    <td align="center"><b>v1.6.3</b></td>
+    <td>카드를 눌러도 시각적 피드백이 없어 "눌린 건가?" 의심</td>
+    <td>hover 시 살짝 확대(<code>scale-1.01</code>), 누르는 순간 살짝 축소(<code>scale-0.99</code>)</td>
+  </tr>
+  <tr>
+    <td align="center"><b>v1.6.4</b></td>
+    <td>지도에 "내 위치"를 보여줄 방법이 없음</td>
+    <td>브라우저 위치 권한 받아서 파란 핀 노출 — 메모리에만 들고 있고 서버 저장 0건 (PIPA 부담 X)</td>
+  </tr>
+  <tr>
+    <td align="center"><b>v1.6.5</b></td>
+    <td>푸터에 "Twitter" 새 아이콘 (예전 파랑새) 가 그대로</td>
+    <td>"X" 로고로 교체 — lucide 라이브러리에 X 가 없어서 inline SVG 직접 그림</td>
+  </tr>
+  <tr>
+    <td align="center"><b>v1.6.6</b></td>
+    <td>인트로 카피가 "혁신적인 — 똑똑한 — 새로운" 식의 AI 티 나는 병렬 문장</td>
+    <td>"매일 새로 열리는 팝업을 한 화면에서" 처럼 회화체로. em-dash 도 제거</td>
+  </tr>
+</table>
+
+<sub>6개 sub-version · 평균 50 라인/건.</sub>
+
+<br/>
+
+### v1.7 ~ v1.7.4 — 인트로 디자인 AI 티 제거
+
+> 디자인 자체가 AI 가 짠 듯 정형화돼있다는 피드백. SK / HM Group / Greencar / DU 70주년 레퍼런스를 분석해 매거진 무드로 갈아엎음.
+
+<table align="center">
+  <tr>
+    <th align="center" width="180">항목</th>
+    <th align="center" width="290">전엔 이랬는데</th>
+    <th align="center" width="290">이렇게 바뀜</th>
+  </tr>
+  <tr>
+    <td align="center"><b>배경 시각</b></td>
+    <td>글래스모피즘 카드가 모든 섹션을 도배 — 어디를 봐도 똑같은 흐릿한 유리</td>
+    <td>섹션별로 컬러 후광 / outline 로고 / 폴라로이드 / bento 그리드로 시각 변화</td>
+  </tr>
+  <tr>
+    <td align="center"><b>색 팔레트</b></td>
+    <td>라임 + 핫핑크 + 보라 세 가지가 모든 페이지에 동시 등장 (시각 과부하)</td>
+    <td>섹션별로 한두 컬러만 강조 + 베이스는 cream/ink 톤</td>
+  </tr>
+  <tr>
+    <td align="center"><b>라이트/다크</b></td>
+    <td>다크 모드만 디자인. 라이트 모드로 전환하면 글래스가 부자연스럽게 보임</td>
+    <td>SK 톤 그라데이션 베이스 + <code>next-themes</code> 로 라이트/다크 양쪽 모두 깔끔하게</td>
+  </tr>
+  <tr>
+    <td align="center"><b>Hero 섹션</b></td>
+    <td>POP·SPOT 큰 글자 + CTA 만 띄워놓고 빈 공간이 많아 허전</td>
+    <td>HM Group 식 큼지막한 outline 로고 + 플로팅 태그 4개 + Greencar 식 메타 행으로 채움</td>
+  </tr>
+  <tr>
+    <td align="center"><b>모션 토글</b></td>
+    <td>모션 줄이고 싶은 사용자 옵션 없음 — 어지러움 호소 1건</td>
+    <td>우상단에 Play/Pause 토글, <code>prefers-reduced-motion</code> 자동 감지 + localStorage 저장</td>
+  </tr>
+</table>
+
+<sub>5 sub-version · 인트로 전 영역 재작업.</sub>
+
+<br/>
+
+### v1.8 ~ v1.8.1 — 미니 위젯 프리뷰 + 파스텔 강화
+
+> 인트로 Section 3 의 "3가지 기능" 이 텍스트만 있어서 임팩트가 약하다는 피드백.
+
+<table align="center">
+  <tr>
+    <th align="center" width="180">항목</th>
+    <th align="center" width="290">전엔 이랬는데</th>
+    <th align="center" width="290">이렇게 바뀜</th>
+  </tr>
+  <tr>
+    <td align="center"><b>Section 3 (3 기능)</b></td>
+    <td>아이콘 + 제목 + 설명만 있는 평범한 카드</td>
+    <td>카드 안에 실제 캘린더 / 지도 / 랭킹 모양의 미니 위토 프리뷰 그림이 들어감</td>
+  </tr>
+  <tr>
+    <td align="center"><b>Section 4 (Unique 4)</b></td>
+    <td>4개 카드 디자인이 다 똑같아서 시선이 안 끌림</td>
+    <td>좌측에 컬러 액센트 바 (lime/hot/violet/amber) 로 카드별 시각 차이</td>
+  </tr>
+  <tr>
+    <td align="center"><b>다크 배경</b></td>
+    <td>다크 모드 파스텔 채도가 <code>/12~15</code> 라 너무 옅어서 거의 안 보임</td>
+    <td><code>/22~30</code> 로 끌어올림 — 라이트 모드 파스텔과 톤 균형</td>
+  </tr>
+  <tr>
+    <td align="center"><b>라임 그린</b></td>
+    <td><code>#c2f970</code> (lime-300) 가 라이트 모드에서 너무 밝아서 눈 아픔</td>
+    <td>라이트 모드만 lime-500/600 으로 다운, 다크 모드는 그대로 — <code>text-lime-600 dark:text-lime-300</code></td>
+  </tr>
+</table>
+
+<sub>2 sub-version · Section 3/4 모두 시각 차별화.</sub>
+
+<br/>
+
+### v1.9 — 매거진 에디토리얼 풀 리디자인
+
+> "여백 너무 많고 임팩트 부족, 최소 10가지 적용해줘" 피드백에 맞춰 인트로 페이지를 매거진 무드로 풀 리디자인. 12개 데코 레이어 추가.
+
+<table align="center">
+  <tr>
+    <th align="center" width="180">항목</th>
+    <th align="center" width="290">전엔 이랬는데</th>
+    <th align="center" width="290">이렇게 바뀜</th>
+  </tr>
+  <tr>
+    <td align="center"><b>여백</b></td>
+    <td>섹션마다 빈 공간이 크고 한산한 느낌</td>
+    <td>파스텔 orb 6개 + 그레인 텍스처 + conic ray + dust 파티클로 시각 밀도 확보</td>
+  </tr>
+  <tr>
+    <td align="center"><b>섹션 라벨</b></td>
+    <td>섹션 제목만 가운데 한 줄</td>
+    <td>좌측 세로 매거진 라벨 + ghost 번호 (01/02/...) + VOL 칩으로 잡지 톤</td>
+  </tr>
+  <tr>
+    <td align="center"><b>Hero</b></td>
+    <td>POP·SPOT 한 단어 + CTA</td>
+    <td>거대 outline POP·SPOT + 폴라로이드 4장 + 플로팅 마퀴 스트립</td>
+  </tr>
+  <tr>
+    <td align="center"><b>다크 베이스</b></td>
+    <td>순수 검정 <code>#0a0a0a</code> 라 너무 차가움</td>
+    <td><code>#1a1820 → #221e2a</code> 따뜻한 deep purple-gray 그라데이션</td>
+  </tr>
+  <tr>
+    <td align="center"><b>영상 배경</b></td>
+    <td>17MB mp4 가 fixed 로 항상 로드 — 모바일에서 무거움</td>
+    <td>영상 제거 + 파스텔 + 데코 레이어로 대체 (이 결정은 후에 v2.4 에서 재논의됨)</td>
+  </tr>
+</table>
+
+<sub>12 데코 레이어 · 라이트/다크 모두 적용 · 857 라인.</sub>
+
+<br/>
 
 ### v2.0 — 게스트 모드 + 보안 마케팅
 
-> 상용화 전 트래픽 확보 + 사용자 신뢰도 마무리.
-> - **일주일 게스트 모드** — `src/lib/guestMode.ts` + `useGuestMode` 훅. 첫 방문 timestamp 를 localStorage 에 기록, 7일 뒤 회원가입 강제. 서버 저장 0건 (PIPA 부담 X). 인트로 우상단에 `게스트 N일` pill 노출
-> - **/about 보안 마케팅 페이지** — README §정책 안전장치를 일반 사용자 언어로 풀어 7 카드 (JWT HS256 / BCrypt 12 / CORS 화이트리스트 / Bucket4j Rate Limit / PIPA 처리방침 / 24h Takedown / Tailscale HTTPS). Footer 에 `서비스 소개` 링크 추가
+> 상용화 직전 두 가지 마무리 — 회원가입 없이도 둘러볼 수 있게 진입 장벽 낮추기 + 백엔드에 적용된 보안 안전장치를 사용자에게 보여주기.
 
-### v2.1 ~ v2.3 — 인트로 자동 진입 실험 (롤백)
+<table align="center">
+  <tr>
+    <th align="center" width="180">항목</th>
+    <th align="center" width="290">전엔 이랬는데</th>
+    <th align="center" width="290">이렇게 바뀜</th>
+  </tr>
+  <tr>
+    <td align="center"><b>비로그인 진입</b></td>
+    <td>로그인 안 하면 인트로 → 로그인 페이지로 강제. 둘러볼 수가 없음</td>
+    <td>첫 방문 시점을 브라우저에 기록, <b>7일 동안 게스트로 메인 둘러보기 가능</b>. 7일 후 회원가입 강제</td>
+  </tr>
+  <tr>
+    <td align="center"><b>보안 소개</b></td>
+    <td>JWT/BCrypt/CORS 등 백엔드 안전장치가 코드와 README 에만 존재. 사용자는 모름</td>
+    <td><code>/about</code> 페이지에 7개 안전장치 카드 (JWT HS256 · BCrypt 12 · CORS · Rate Limit · PIPA · 24h Takedown · HTTPS) — 일반 사용자 언어로</td>
+  </tr>
+  <tr>
+    <td align="center"><b>Footer 링크</b></td>
+    <td><code>/about</code> 진입 경로 없음</td>
+    <td>푸터 PLATFORM 영역에 <code>서비스 소개</code> 링크 추가</td>
+  </tr>
+</table>
 
-> 시네마처럼 자동으로 흘러가는 인트로를 두 번 시도했으나 사용자 통제권 박탈 + 인지 부하로 둘 다 롤백. 원본 비디오 인트로 (v1.7.3) 로 복원.
-> - **v2.1** — 첫 방문 7초 자동 redirect cinema. 사용자 피드백: "걍 자동으로 메인페이지 들어가는거에 불과한거잖아"
-> - **v2.2** — 한 화면에서 5 phase 자동 전환 슬라이드쇼 (~13초). 사용자 피드백: "오류 많고 역효과"
-> - **v2.3** — `git show 5890365:.../intro/page.tsx` 로 풀스크린 비디오 + 5섹션 스냅 스크롤 원본 복원
-> - **학습** — 자동 전환은 통제권을 빼앗는다. 인트로는 사용자가 스킵하거나 둘러보거나 결정하는 곳이다.
+<sub><code>src/lib/guestMode.ts</code> + <code>useGuestMode</code> 훅 + <code>app/about/page.tsx</code> 신규.</sub>
 
-### v2.4 — 영상 토글 + 파스텔 폴백 + 인트로 우회 + 작전회의실 뒤로가기
+<br/>
 
-> 17MB mp4 가 항상 로드되어 사이트가 무겁다는 피드백을 받고 영상 ON/OFF 토글 도입. 기본 OFF + 라이트/다크 파스텔 폴백 + 거대 POP·SPOT 워터마크.
-> - **인트로 영상 토글** — 우상단 `Video` / `VideoOff` 버튼, localStorage `popspot:intro:video` 저장. 기본 OFF (성능 우선)
-> - **파스텔 폴백 배경** — 라이트는 cream 그라데이션 + 파스텔 orb 6개 (hot/lime/amber/blue/violet/rose), 다크는 `#1a1820 → #221e2a` 웜 그레이-퍼플 (완전 검정 X) + 같은 위치에 어두운 orb 6개
-> - **거대 POP·SPOT 워터마크** — fixed inset-0 가운데, `clamp(7rem, 22vw, 26rem)`, opacity 5~6% 로 옅게 깔림 (영상 OFF 모드 전용)
-> - **메인 로고 인트로 우회** — `Header.tsx` 의 `<Link href="/">` → `href="/?entered=1"`. 미들웨어가 쿼리스트링 보고 `/intro` 리다이렉트 skip. 메인 내부 MAP 탭 전환 콜백은 유지
-> - **작전회의실 뒤로가기 버튼** — `/planning` 헤더 좌측에 ChevronLeft 원형 버튼 추가, `router.push("/?entered=1")` 로 메인 복귀
-> - **Section 5 빨간 풀배경 제거** — `bg-hot-500/75` + 도트 패턴 → 코너 글로우 2개 (hot-300/35, amber-300/30) 로 톤다운, 모드별 적응
-> - **AI 티 정리** — "Why POP-SPOT" / "Core Features" / "Only on POP-SPOT" uppercase mono 라벨 모두 삭제, "Seoul Popup Store Intelligence" → "서울 팝업스토어 플랫폼", `drop-shadow-2xl` 과한 그림자 제거, 글래스모피즘 일색 → 모드별 솔리드 카드
-> - **모드별 동적 클래스** — `txtPrimary` / `txtMuted` / `cardBg` 3개 변수로 통일 (videoOn × theme 분기 한 곳에 모음)
+### v2.1 ~ v2.3 — 인트로 자동 진입 실험 (전부 롤백)
+
+> 영상처럼 자동으로 흘러가는 인트로를 두 번 시도했지만 사용자 통제권을 빼앗는 결과 → 원본 비디오 인트로로 복원.
+
+<table align="center">
+  <tr>
+    <th align="center" width="100">버전</th>
+    <th align="center" width="240">시도한 것</th>
+    <th align="center" width="280">사용자 피드백 → 결정</th>
+  </tr>
+  <tr>
+    <td align="center"><b>v2.1</b></td>
+    <td>첫 방문 시 7초 동안 인트로 보여주고 자동으로 메인으로 redirect</td>
+    <td>"걍 자동으로 메인페이지 들어가는거에 불과한거잖아" → 폐기</td>
+  </tr>
+  <tr>
+    <td align="center"><b>v2.2</b></td>
+    <td>한 화면에서 5단계 (로고 → 태그라인 → 핵심 → 차별점 → CTA) 자동 슬라이드, 총 13초</td>
+    <td>"오류 많고 역효과" — 자동 전환이 답답하고 통제권 박탈 → 폐기</td>
+  </tr>
+  <tr>
+    <td align="center"><b>v2.3</b></td>
+    <td><code>git show 5890365:.../intro/page.tsx</code> 로 v1.7.3 원본 비디오 인트로 복원</td>
+    <td>OK — 풀스크린 비디오 + 5섹션 스냅 스크롤, 사용자가 직접 스크롤하며 보는 구조</td>
+  </tr>
+</table>
+
+<sub><b>학습:</b> 자동 전환은 사용자에게 통제권을 빼앗는다. 인트로는 보여주는 곳이 아니라 둘러보고 결정하는 곳.</sub>
+
+<br/>
+
+### v2.4 — 영상 토글 + 파스텔 폴백 + 메인 로고 우회 + 작전회의실 뒤로가기
+
+> 17MB mp4 가 항상 로드돼 사이트가 무겁다는 피드백 + 메인 로고 누르면 인트로가 다시 떠서 불편하다는 피드백 + 작전회의실에 뒤로가기 없음 + Section 5 빨간 배경 눈 아픔 + AI 스러운 디자인 정리.
+
+<table align="center">
+  <tr>
+    <th align="center" width="180">항목</th>
+    <th align="center" width="290">전엔 이랬는데</th>
+    <th align="center" width="290">이렇게 바뀜</th>
+  </tr>
+  <tr>
+    <td align="center"><b>배경 영상</b></td>
+    <td>17MB mp4 가 무조건 fixed 로 로드 → 모바일/저사양 PC 에서 느림</td>
+    <td>기본 OFF (영상 안 로드). 우상단 토글 버튼으로 켤 수 있고 선택은 브라우저에 저장</td>
+  </tr>
+  <tr>
+    <td align="center"><b>영상 OFF 시 배경</b></td>
+    <td>영상 없으면 그냥 까만 배경 — 너무 밋밋</td>
+    <td>라이트 모드: 아이보리 + 파스텔 6 orb. 다크 모드: 웜 그레이-퍼플 + 같은 위치 어두운 orb 6개. 둘 다 <b>거대 POP·SPOT 워터마크</b>가 배경에 옅게 깔림</td>
+  </tr>
+  <tr>
+    <td align="center"><b>다크 모드 색</b></td>
+    <td>완전 검정 <code>#000</code> 가까워서 차가움</td>
+    <td><code>#1a1820 → #221e2a</code> 따뜻한 deep purple-gray 유지</td>
+  </tr>
+  <tr>
+    <td align="center"><b>메인 로고 클릭</b></td>
+    <td>메인에서 좌상단 POP-SPOT 로고 누르면 인트로가 다시 떠서 두 번 들어가야 함</td>
+    <td>로고 링크에 <code>?entered=1</code> 쿼리 추가 — 미들웨어가 보고 인트로 건너뛰고 메인 유지</td>
+  </tr>
+  <tr>
+    <td align="center"><b>작전회의실</b></td>
+    <td><code>/planning</code> 에 뒤로가기 버튼 없음 — 메인으로 돌아가려면 브라우저 뒤로가기만 가능</td>
+    <td>좌상단에 ← 원형 버튼 추가 → <code>/?entered=1</code> 로 바로 복귀</td>
+  </tr>
+  <tr>
+    <td align="center"><b>인트로 마지막 섹션</b></td>
+    <td>핫핑크 풀 배경 + 흰 도트 패턴 — 눈 아프다는 피드백</td>
+    <td>풀 배경 제거, 코너에 부드러운 글로우 2개 (hot-300 / amber-300) 로 톤다운</td>
+  </tr>
+  <tr>
+    <td align="center"><b>AI 티 라벨</b></td>
+    <td>"Why POP-SPOT", "Core Features", "Only on POP-SPOT" 같은 영문 대문자 mono 라벨이 모든 섹션에</td>
+    <td>전부 제거. "Seoul Popup Store Intelligence" 같은 영문 부제도 "서울 팝업스토어 플랫폼" 으로 한글화</td>
+  </tr>
+</table>
+
+<sub>4 파일 (intro/planning/header/middleware 영향) · 새 컴포넌트 <code>PastelBackground</code>, <code>GiantWordmark</code>, <code>IconButton</code> 추출.</sub>
+
+<br/>
+
+### v2.5 — 게스트 모드 재배선
+
+> v2.0 에서 만든 게스트 모드가 v2.1 ~ v2.4 인트로 리뉴얼 거치며 어디에도 안 붙어있던 상태였음. 원래 의도대로 인트로/메인/회원가입 페이지에 다시 연결.
+
+<table align="center">
+  <tr>
+    <th align="center" width="180">항목</th>
+    <th align="center" width="290">전엔 이랬는데</th>
+    <th align="center" width="290">이렇게 바뀜</th>
+  </tr>
+  <tr>
+    <td align="center"><b>인트로 우상단</b></td>
+    <td>로그인 / Skip 버튼만 있고 게스트 잔여 일수가 안 보임</td>
+    <td>비로그인 사용자에게 <code>게스트 D-7</code> ~ <code>D-1</code> 라임 그린 pill 노출 (Clock 아이콘 + 툴팁)</td>
+  </tr>
+  <tr>
+    <td align="center"><b>비로그인 메인 진입</b></td>
+    <td>로그인 안 해도 <code>/?entered=1</code> 로 들어가면 무제한 둘러보기 가능 (의도 불일치)</td>
+    <td>메인 진입 시 게스트 만료 검사 — 7일 지났으면 자동으로 <code>/signup?reason=guest_expired</code> 로 보냄</td>
+  </tr>
+  <tr>
+    <td align="center"><b>회원가입 페이지</b></td>
+    <td>그냥 빈 회원가입 폼만 노출</td>
+    <td><code>?reason=guest_expired</code> 쿼리가 있으면 상단에 "7일 무료 체험이 끝났어요" 안내 배너 + "30초면 끝나요" 카피</td>
+  </tr>
+</table>
+
+<sub>3 파일 패치 (<code>intro/page.tsx</code>, <code>page.tsx</code>, <code>signup/page.tsx</code>) · 기존 <code>guestMode.ts</code> + <code>useGuestMode</code> 훅 재활용.</sub>
 
 ---
 
