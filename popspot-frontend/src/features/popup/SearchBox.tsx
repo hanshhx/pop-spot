@@ -10,6 +10,7 @@ import {
   type UseSearchBoxProps,
 } from "react-instantsearch";
 import { liteClient as algoliasearch } from "algoliasearch/lite";
+import { env } from "@/lib/env";
 
 interface AlgoliaHit {
   objectID: string;
@@ -17,24 +18,9 @@ interface AlgoliaHit {
   location?: string;
 }
 
-/* --------------------------------------------------------------------------
- * Algolia 환경변수가 비어있거나 잘못된 ID(예: 데모용 더미)면
- * 클라이언트 자체를 만들지 않고 fallback UI 를 표시한다.
- * -------------------------------------------------------------------------- */
-const ALGOLIA_APP_ID = process.env.NEXT_PUBLIC_ALGOLIA_APP_ID;
-const ALGOLIA_SEARCH_KEY = process.env.NEXT_PUBLIC_ALGOLIA_SEARCH_KEY;
-
-// App ID 형식이 너무 짧거나 명백히 잘못된 값을 사전 차단
-const isAlgoliaConfigured =
-  !!ALGOLIA_APP_ID &&
-  !!ALGOLIA_SEARCH_KEY &&
-  ALGOLIA_APP_ID.length >= 6 &&
-  ALGOLIA_SEARCH_KEY.length >= 10 &&
-  // Algolia 정식 App ID 패턴(영문 대문자 + 숫자) 외 모양은 막음
-  /^[A-Z0-9]+$/.test(ALGOLIA_APP_ID);
-
-const searchClient = isAlgoliaConfigured
-  ? algoliasearch(ALGOLIA_APP_ID!, ALGOLIA_SEARCH_KEY!)
+// env.algolia 가 null 이면 (미설정·더미값) 클라이언트 미생성 → fallback UI.
+const searchClient = env.algolia
+  ? algoliasearch(env.algolia.appId, env.algolia.searchKey)
   : null;
 
 function CustomSearchBox(props: UseSearchBoxProps) {

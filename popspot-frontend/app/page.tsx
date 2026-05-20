@@ -12,7 +12,6 @@ import {
 import { motion, Variants, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import Image from "next/image";
-import Swal, { SweetAlertResult } from "sweetalert2"; 
 
 import { 
   DndContext, 
@@ -41,12 +40,13 @@ import { Footer } from "../src/components/layout/Footer";
 import { BottomDock, type DockTab } from "../src/components/layout/BottomDock";
 import MusicTab from "@/components/music/MusicTab";
 import RankCard from "@/components/rank/RankCard";
-import { notify } from "@/lib/notify";
+import { notify, notifySuccess, notifyError, notifyWarning, confirmAction } from "@/lib/notify";
 import { ensureGuestFirstVisit, isGuestExpired } from "@/lib/guestMode";
 import { SearchZone } from "@/features/popup/SearchBox";
 import { ReportPopupModal } from "@/features/popup/ReportPopupModal";
 import { PopupCalendarModal } from "@/features/popup/PopupCalendarModal";
 import { AllTrendingModal } from "@/features/popup/AllTrendingModal";
+import { AddPlaceModal } from "@/features/popup/AddPlaceModal";
 import type {
   User,
   PopupStore,
@@ -113,12 +113,12 @@ export default function Home() {
 
   const handleCopyAiToMyCourse = () => {
       if (aiCourse.length === 0) {
-          Swal.fire({ icon: 'warning', text: '먼저 AI 추천 코스를 생성해주세요.' });
+          notifyWarning('먼저 AI 추천 코스를 생성해주세요.');
           return;
       }
-      setMyCourseItems([...aiCourse]); 
-      handleTabChange("MY"); 
-      Swal.fire({ icon: 'success', text: 'AI 추천 코스가 적용되었습니다.' });
+      setMyCourseItems([...aiCourse]);
+      handleTabChange("MY");
+      notifySuccess('AI 추천 코스가 적용되었습니다.');
   };
 
   const handleAddPlace = (popup: PopupStore) => {
@@ -132,7 +132,7 @@ export default function Home() {
       };
         
       if (myCourseItems.find(item => item.id === newItem.id)) {
-          Swal.fire({ icon: 'info', text: '이미 코스에 추가된 장소입니다.' });
+          notify('이미 코스에 추가된 장소입니다.');
           return;
       }
       setMyCourseItems([...myCourseItems, newItem]);
@@ -141,15 +141,13 @@ export default function Home() {
 
   const handleCreateRoom = async () => {
     if (!user) {
-        Swal.fire({
+        if (await confirmAction({
             title: '로그인이 필요합니다',
             text: '작전 회의실은 회원 전용 기능입니다.',
-            showCancelButton: true,
-            confirmButtonText: '로그인하기',
-            cancelButtonText: '취소'
-        }).then((result: SweetAlertResult) => { 
-            if (result.isConfirmed) router.push("/login"); 
-        });
+            confirmText: '로그인하기',
+        })) {
+            router.push("/login");
+        }
         return;
     }
     try {
@@ -157,7 +155,7 @@ export default function Home() {
         const roomId = await res.text();
         router.push(`/planning?room=${roomId}`);
     } catch (e) {
-        Swal.fire({ icon: 'error', text: '서버 연결 실패!' });
+        notifyError('서버 연결 실패!');
     }
   };
 
@@ -206,68 +204,58 @@ export default function Home() {
   const handleRemoveWishlist = async (e: React.MouseEvent, popupId: number) => {
     e.preventDefault(); e.stopPropagation();
     if (!user) return;
-    Swal.fire({
+    const confirmed = await confirmAction({
         title: '찜 삭제',
         text: '목록에서 삭제하시겠습니까?',
-        icon: 'question',
-        showCancelButton: true,
-    }).then(async (result: SweetAlertResult) => {
-        if (result.isConfirmed) {
-            try {
-                const res = await apiFetch(`/api/wishlist/${user.userId}/${popupId}`, { method: "DELETE" });
-                if (res.ok) {
-                    setMyWishlist(prev => prev.filter(item => item.popupId !== popupId));
-                    fetchMyPageData(user.userId);
-                    Swal.fire({ icon: 'success', text: '삭제되었습니다.' });
-                }
-            } catch (e) { console.error("찜 삭제 오류:", e); }
-        }
+        destructive: true,
     });
+    if (!confirmed) return;
+    try {
+        const res = await apiFetch(`/api/wishlist/${user.userId}/${popupId}`, { method: "DELETE" });
+        if (res.ok) {
+            setMyWishlist(prev => prev.filter(item => item.popupId !== popupId));
+            fetchMyPageData(user.userId);
+            notifySuccess('삭제되었습니다.');
+        }
+    } catch (e) { console.error("찜 삭제 오류:", e); }
   };
 
-  const handleLoadCourse = (courseDataStr: string) => {
-      Swal.fire({
+  const handleLoadCourse = async (courseDataStr: string) => {
+      const confirmed = await confirmAction({
           title: '코스 불러오기',
           text: '현재 편집 중인 내용은 사라집니다. 계속할까요?',
           icon: 'warning',
-          showCancelButton: true,
-      }).then((result: SweetAlertResult) => {
-          if (result.isConfirmed) {
-              setMyCourseItems(JSON.parse(courseDataStr));
-              window.scrollTo({ top: 0, behavior: 'smooth' }); 
-          }
       });
+      if (!confirmed) return;
+      setMyCourseItems(JSON.parse(courseDataStr));
+      window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   const handleDeleteCourse = async (e: React.MouseEvent, courseId: number) => {
-      e.stopPropagation(); 
-      Swal.fire({
+      e.stopPropagation();
+      const confirmed = await confirmAction({
           title: '코스 삭제',
           text: '정말 삭제하시겠습니까?',
-          icon: 'error',
-          showCancelButton: true,
-      }).then(async (result: SweetAlertResult) => {
-          if (result.isConfirmed) {
-              try {
-                  const res = await apiFetch(`/api/my-courses/${courseId}`, { method: 'DELETE' });
-                  if (res.ok) {
-                      Swal.fire('삭제 완료');
-                      if (user) fetchMyCourses(user.userId); 
-                  }
-              } catch (err) { console.error(err); }
-          }
+          destructive: true,
       });
+      if (!confirmed) return;
+      try {
+          const res = await apiFetch(`/api/my-courses/${courseId}`, { method: 'DELETE' });
+          if (res.ok) {
+              notifySuccess('삭제 완료');
+              if (user) fetchMyCourses(user.userId);
+          }
+      } catch (err) { console.error(err); }
   };
 
-  const handleTabChange = (tab: string) => {
+  const handleTabChange = async (tab: string) => {
     if ((tab === "PASSPORT" || tab === "MY" || tab === "MATE") && !user) {
-        Swal.fire({
+        if (await confirmAction({
             title: '로그인이 필요합니다',
-            showCancelButton: true,
-            confirmButtonText: '로그인'
-        }).then((res: SweetAlertResult) => { 
-            if (res.isConfirmed) router.push("/login"); 
-        });
+            confirmText: '로그인',
+        })) {
+            router.push("/login");
+        }
         return;
     }
     setCurrentTab(tab);
@@ -276,24 +264,28 @@ export default function Home() {
     if (tab === "MY" && user) {
         fetchMyPageData(user.userId);
         fetchMyCourses(user.userId);
-        fetchWishlist(user.userId); 
+        fetchWishlist(user.userId);
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     localStorage.removeItem("user");
     localStorage.removeItem("token");
-    sessionStorage.removeItem("aiCourseData"); 
+    sessionStorage.removeItem("aiCourseData");
     setUser(null);
-    Swal.fire({ icon: 'success', text: '로그아웃 되었습니다.' }).then(() => window.location.reload());
+    await notifySuccess('로그아웃 되었습니다.');
+    window.location.reload();
   };
 
   const handleAiRecommend = async (vibe: string) => {
-    if (!vibe.trim()) return Swal.fire('분위기를 입력해주세요.');
+    if (!vibe.trim()) {
+      notify('분위기를 입력해주세요.');
+      return;
+    }
     setIsAiLoading(true);
-    setAiCourse([]); 
+    setAiCourse([]);
     setSelectedVibe(vibe);
-    setShowCustomInput(false); 
+    setShowCustomInput(false);
 
     try {
       const res = await apiFetch(`/api/courses/recommend?vibe=${vibe}`);
@@ -302,7 +294,7 @@ export default function Home() {
       setAiCourse(result);
       sessionStorage.setItem("aiCourseData", JSON.stringify({ vibe: vibe, course: result }));
     } catch (e) {
-      Swal.fire({ icon: 'error', text: 'AI 연결 실패' });
+      notifyError('AI 연결 실패');
     } finally { setIsAiLoading(false); }
   };
 
@@ -313,17 +305,20 @@ export default function Home() {
   };
 
   const handleSaveCourse = async () => {
-    if (!user) return Swal.fire('로그인이 필요합니다.');
-      
+    if (!user) {
+      notify('로그인이 필요합니다.');
+      return;
+    }
+
+    // 무료 회원은 코스 슬롯이 1개뿐 — 기존 1개가 있으면 덮어쓰기 동의를 받아야 진행한다.
+    // (이전 구현은 .then 내부 return 으로 빠져나가 가드가 무력화돼 무조건 저장되던 버그.)
     if (!user.isPremium && savedCourses.length > 0) {
-        Swal.fire({
+        const confirmed = await confirmAction({
             title: '무료 회원 슬롯 제한',
             text: '무료 회원은 코스를 1개만 저장 가능합니다. 덮어쓰시겠습니까?',
             icon: 'info',
-            showCancelButton: true
-        }).then((result: SweetAlertResult) => { 
-            if (!result.isConfirmed) return; 
         });
+        if (!confirmed) return;
     }
 
     try {
@@ -338,13 +333,13 @@ export default function Home() {
         });
 
         if (res.ok) {
-            Swal.fire({ icon: 'success', text: '코스가 저장되었습니다.' });
-            fetchMyCourses(user.userId); 
+            notifySuccess('코스가 저장되었습니다.');
+            fetchMyCourses(user.userId);
         } else {
-            Swal.fire('저장 실패: 서버 오류가 발생했습니다.');
+            notifyError('저장 실패: 서버 오류가 발생했습니다.');
         }
     } catch (e) {
-        Swal.fire('저장 중 오류가 발생했습니다.');
+        notifyError('저장 중 오류가 발생했습니다.');
     }
   };
 
@@ -1222,33 +1217,12 @@ export default function Home() {
                         </button>
                     </div>
 
-                    <AnimatePresence>
-                        {isAddPlaceOpen && (
-                            <motion.div 
-                                initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
-                                className="absolute inset-0 bg-surface z-50 flex flex-col"
-                            >
-                                <header className="p-4 border-b border-[var(--color-border)] flex justify-between items-center">
-                                    <h3 className="font-bold text-lg text-foreground">장소 추가하기</h3>
-                                    <button onClick={() => setIsAddPlaceOpen(false)} aria-label="닫기" className="size-9 inline-flex items-center justify-center bg-cream-300 dark:bg-ink-700 rounded-pill hover:bg-cream-400 dark:hover:bg-ink-600 transition-colors">
-                                        <X size={16} className="lg:w-5 lg:h-5"/>
-                                    </button>
-                                </header>
-                                <div className="flex-1 overflow-y-auto p-3 lg:p-4 custom-scrollbar">
-                                    {allPopups.map((popup) => (
-                                        <div key={popup.id} onClick={() => handleAddPlace(popup)} 
-                                             className="flex justify-between items-center p-3 mb-2 border border-[var(--color-border)] rounded-md cursor-pointer hover:bg-cream-300 dark:hover:bg-ink-800 hover:border-lime-300/60 hover:scale-[1.01] active:scale-[0.99] transition-all">
-                                            <div>
-                                                <h4 className="font-semibold text-sm text-foreground">{popup.name}</h4>
-                                                <p className="text-xs text-muted-foreground mt-0.5">{popup.location}</p>
-                                            </div>
-                                            <PlusCircle size={18} className="text-lime-500" />
-                                        </div>
-                                    ))}
-                                </div>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
+                    <AddPlaceModal
+                        open={isAddPlaceOpen}
+                        onClose={() => setIsAddPlaceOpen(false)}
+                        popups={allPopups}
+                        onSelect={handleAddPlace}
+                    />
                 </div>
             </motion.section>
         )}
