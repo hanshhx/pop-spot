@@ -65,14 +65,16 @@ public class AuthController {
         return ResponseEntity.ok(authService.checkEmailExists(email));
     }
 
+    /**
+     * 닉네임 + 전화번호로 이메일/provider 조회. 일치하는 유저가 없으면 {@link AuthService} 가
+     * {@link com.example.popspotbackend.exception.ResourceNotFoundException} 을 던지고
+     * GlobalExceptionHandler 가 404 로 변환한다. 컨트롤러에서 직접 try-catch 로 잡으면 표준 응답 포맷이
+     * 깨지고 다른 예외(서버 장애 등)까지 404 로 가려질 수 있다.
+     */
     @GetMapping("/find-email")
-    public ResponseEntity<?> findEmail(
+    public ResponseEntity<Map<String, String>> findEmail(
             @RequestParam String nickname, @RequestParam String phoneNumber) {
-        try {
-            return ResponseEntity.ok(authService.findEmailByNameAndPhone(nickname, phoneNumber));
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(404).body("가입된 정보가 없습니다.");
-        }
+        return ResponseEntity.ok(authService.findEmailByNameAndPhone(nickname, phoneNumber));
     }
 
     @PostMapping("/email/send")

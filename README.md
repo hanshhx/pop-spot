@@ -1219,6 +1219,59 @@
 
 ---
 
+### v2.7 — 게스트 모드 재설계 + 보안 Critical 3건 + 백엔드 결합도 정리
+
+> 게스트 7일 카운터가 인트로 / 메인 진입만으로 자동 시작돼 사용자가 모르는 사이 만료되던 UX 결함을 잡았다.
+> 같이 보안 감사에서 발견된 Critical / High 3건 (URL 신뢰 IDOR, GameController IDOR, X-Forwarded-Host 스푸핑)
+> 과 백엔드 결합도 부채 (Controller try-catch · RuntimeException 남용) 도 정리.
+
+<table align="center">
+  <tr>
+    <th align="center" width="180">항목</th>
+    <th align="center" width="290">v2.6</th>
+    <th align="center" width="290">v2.7</th>
+  </tr>
+  <tr>
+    <td align="center"><b>게스트 모드 시작점</b></td>
+    <td>인트로 / 메인 진입만 해도 자동으로 7일 카운터 시작. 사용자가 인지 못한 채 만료</td>
+    <td><b>로그인 페이지의 "게스트로 7일 둘러보기" 버튼</b> 으로만 시작. 명시적 opt-in</td>
+  </tr>
+  <tr>
+    <td align="center"><b>D-N pill 노출 위치</b></td>
+    <td>인트로 페이지에만 표시. 메인 들어가면 안 보임 (사용자 컴플레인)</td>
+    <td>인트로 + <b>메인 페이지 헤더 바로 아래</b> 에 상시 노출. "지금 가입하기" CTA 동반</td>
+  </tr>
+  <tr>
+    <td align="center"><b>비로그인 메인 진입 차단</b></td>
+    <td>자동 게스트 시작으로 통과 (= 차단 없음)</td>
+    <td>게스트 미시작 → <code>/login</code> 리다이렉트. 만료 → <code>/signup?reason=guest_expired</code></td>
+  </tr>
+  <tr>
+    <td align="center"><b>URL 쿼리 권한 신뢰 (S1)</b></td>
+    <td><code>app/page.tsx</code> 가 <code>?isPremium=&role=&userId=&accessToken=</code> 를 그대로 읽어 localStorage 저장 → 권한 위조 가능</td>
+    <td>dead-code 통째 제거. 정식 OAuth 흐름은 <code>/oauth/callback</code> 에서 <code>GET /api/v1/auth/me</code> 호출로 서버 검증된 user 만 신뢰</td>
+  </tr>
+  <tr>
+    <td align="center"><b>GameController IDOR (S2)</b></td>
+    <td><code>@RequestParam String userId</code> 그대로 받아 티켓 예약 → 타인 ID 로 선점 가능</td>
+    <td><code>Authentication.getName()</code> 으로 토큰 subject 강제. 미인증 시 <code>SecurityException</code></td>
+  </tr>
+  <tr>
+    <td align="center"><b>X-Forwarded-Host 스푸핑 (S4)</b></td>
+    <td><code>ChatFileController</code> 가 헤더를 검증 없이 그대로 URL 빌드 → phishing 도메인 주입 가능</td>
+    <td>정규식 화이트리스트 (<code>app.upload.allowed-host-patterns</code>) 와 매칭될 때만 신뢰. 빈 설정 시 컨테이너의 실제 서버 이름만 사용</td>
+  </tr>
+  <tr>
+    <td align="center"><b>Controller 예외 결합도 (B3)</b></td>
+    <td><code>AdminController.giveReward</code> / <code>AuthController.findEmail</code> 의 try-catch 가 GlobalExceptionHandler 우회 → 표준 응답 포맷 깨짐</td>
+    <td>try-catch 제거 + <code>IllegalArgumentException</code> / <code>ResourceNotFoundException</code> 로 의미 격상. 전 예외가 GlobalExceptionHandler 한 곳에서 처리</td>
+  </tr>
+</table>
+
+<sub>프론트 8 파일 (<code>guestMode.ts</code>, <code>useGuestMode.ts</code>, <code>intro/page.tsx</code>, <code>login/page.tsx</code>, <code>page.tsx</code>, <code>admin/page.tsx</code>) · 백엔드 7 파일 (<code>GameController</code>, <code>ChatFileController</code>, <code>AdminController</code>, <code>AuthController</code>, <code>AuthService</code>, <code>StampService</code>, <code>application.properties</code>) · 프론트 빌드 16/16 static pages 통과 · 새 ESLint 위반 0건.</sub>
+
+---
+
 ## 폴더 구조 (백엔드)
 
 ```

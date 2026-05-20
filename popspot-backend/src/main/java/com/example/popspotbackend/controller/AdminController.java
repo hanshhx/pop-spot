@@ -72,17 +72,38 @@ public class AdminController {
 
     /* ============================== 보상 / 메이트 운영 ============================== */
 
-    /** 유저 nickname 으로 MEGAPHONE / POPPASS 아이템 수동 지급. */
+    /**
+     * 유저 nickname 으로 MEGAPHONE / POPPASS 아이템 수동 지급.
+     *
+     * <p>입력 검증 실패 (nickname/itemType 누락, amount 파싱 실패) 는 {@link IllegalArgumentException} 으로
+     * 격상되어 GlobalExceptionHandler 가 400 으로 응답한다. 컨트롤러에서 직접 try-catch 로 가로채면 표준
+     * 응답 포맷이 깨지고 스택트레이스 노출 위험이 있어 예외를 흘려보낸다.
+     */
     @PostMapping("/reward")
     public ResponseEntity<String> giveReward(@RequestBody Map<String, String> request) {
+        String nickname = requireField(request, "nickname");
+        String itemType = requireField(request, "itemType");
+        int amount = parseAmount(request.get("amount"));
+        adminService.giveReward(nickname, itemType, amount);
+        return ResponseEntity.ok(nickname + "님에게 보상이 지급되었습니다.");
+    }
+
+    private String requireField(Map<String, String> request, String key) {
+        String value = request.get(key);
+        if (value == null || value.isBlank()) {
+            throw new IllegalArgumentException(key + " 값이 비어 있습니다.");
+        }
+        return value;
+    }
+
+    private int parseAmount(String raw) {
+        if (raw == null || raw.isBlank()) {
+            throw new IllegalArgumentException("amount 값이 비어 있습니다.");
+        }
         try {
-            String nickname = request.get("nickname");
-            String itemType = request.get("itemType");
-            int amount = Integer.parseInt(request.get("amount"));
-            adminService.giveReward(nickname, itemType, amount);
-            return ResponseEntity.ok(nickname + "님에게 보상이 지급되었습니다.");
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body("지급 실패: " + e.getMessage());
+            return Integer.parseInt(raw);
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("amount 는 정수여야 합니다: " + raw);
         }
     }
 

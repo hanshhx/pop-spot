@@ -3,11 +3,11 @@
 import { useEffect, useState, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation"; 
 import { 
-  Search, MapPin, ArrowUpRight, Flame, Calendar, Menu, Users, 
+  Search, MapPin, ArrowUpRight, Flame, Calendar, Menu, Users,
   Instagram, Plus, X, ArrowUp, ArrowDown, Minus,
   Map as MapIcon, Route, Ticket, User as UserIcon, LogOut, Sparkles, Lock, ArrowRight, Loader2, RefreshCw,
   Shirt, Video, ShoppingBag, Crown, GripVertical, PlusCircle, Zap, MessageCircle, Heart, Star, Gift, Megaphone,
-  FolderOpen, Save, Trash2, Store, ShieldCheck, ChevronLeft, ChevronRight, Camera, Coffee, Music
+  FolderOpen, Save, Trash2, Store, ShieldCheck, ChevronLeft, ChevronRight, Camera, Coffee, Music, Clock
 } from "lucide-react";
 import { motion, Variants, AnimatePresence } from "framer-motion";
 import Link from "next/link";
@@ -41,7 +41,11 @@ import { BottomDock, type DockTab } from "../src/components/layout/BottomDock";
 import MusicTab from "@/components/music/MusicTab";
 import RankCard from "@/components/rank/RankCard";
 import { notify, notifySuccess, notifyError, notifyWarning, confirmAction } from "@/lib/notify";
-import { ensureGuestFirstVisit, isGuestExpired } from "@/lib/guestMode";
+import {
+  getGuestFirstVisit,
+  getRemainingGuestDays,
+  isGuestExpired,
+} from "@/lib/guestMode";
 import { SearchZone } from "@/features/popup/SearchBox";
 import { ReportPopupModal } from "@/features/popup/ReportPopupModal";
 import { PopupCalendarModal } from "@/features/popup/PopupCalendarModal";
@@ -91,6 +95,8 @@ export default function Home() {
   const [congestionData, setCongestionData] = useState<CongestionData | null>(null);
   const [ootd, setOotd] = useState<TrendOotd | null>(null);
   const [calendarDate, setCalendarDate] = useState(new Date());
+  /** 게스트 모드 활성 시 남은 일수. null = 비활성 (로그인 사용자거나 게스트 미시작). */
+  const [guestRemainingDays, setGuestRemainingDays] = useState<number | null>(null);
 
   const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -349,36 +355,13 @@ export default function Home() {
       router.push(`/popup/${popupId}`);
   };
 
-  /* Data Initialization Effects */
-  useEffect(() => {
-    const tokenFromUrl = searchParams.get("accessToken"); 
-    const userId = searchParams.get("userId");
-    const nickname = searchParams.get("nickname");
-    const isPremium = searchParams.get("isPremium");
-    const roleFromUrl = searchParams.get("role"); 
-
-    if (tokenFromUrl && userId) {
-      localStorage.setItem("token", tokenFromUrl);
-      const socialUser = {
-        userId: userId,
-        nickname: nickname ? decodeURIComponent(nickname) : "User",
-        isPremium: isPremium === "true",
-        role: roleFromUrl || "USER", 
-        isSocial: true
-      };
-
-      localStorage.setItem("user", JSON.stringify(socialUser));
-      setUser(socialUser);
-
-      fetchMyCourses(userId, true);
-      fetchWishlist(userId);
-      if (sessionStorage.getItem("lastTab") === "MY") {
-          fetchMyPageData(userId);
-      }
-
-      router.replace("/");
-    }
-  }, [searchParams, router]);
+  /*
+   * 보안 (v2.7): 옛 OAuth 흐름은 토큰뿐 아니라 isPremium / role / userId / nickname 까지 URL 쿼리에
+   * 그대로 박아 보냈다. 클라이언트가 그 값을 받아 localStorage 에 저장 → role/isPremium 위조 위험 (IDOR
+   * / 권한 상승). 현재 정식 OAuth 진입점은 {@code /oauth/callback} 이고, 그 페이지는 토큰만 받아
+   * {@code GET /api/v1/auth/me} 로 서버에서 user 정보를 가져온다. 따라서 메인 페이지의 URL 신뢰
+   * 코드는 dead-code 이자 보안 hole 이므로 통째로 제거했다.
+   */
 
   useEffect(() => {
     const cachedPopups = localStorage.getItem("cached_popups");
@@ -431,14 +414,29 @@ export default function Home() {
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
 
-    // 게스트 만료 게이트 — 비로그인 + 7일 경과 시 회원가입 강제.
-    // 비로그인이라도 7일 안에는 게스트로 메인 진입 허용.
+    /*
+     * 메인 진입 게이트 (v2.7 재설계):
+     *  - 로그인 사용자             → 통과
+     *  - 게스트 활성 (시작 + 미만료) → 통과
+     *  - 게스트 만료              → /signup?reason=guest_expired
+     *  - 게스트 미시작 + 비로그인    → /login (거기서 일반 로그인 또는 "게스트로 둘러보기" 선택)
+     *
+     * 이전 구현은 미시작 사용자가 메인에 들어오면 자동으로 게스트를 시작시켜 카운터가 돌게 했다 —
+     * 사용자에게 명시적 동의를 받지 않은 채 7일 카운트다운이 흐른다는 UX 결함이 있었다.
+     */
     if (!storedUser) {
-      const firstVisit = ensureGuestFirstVisit();
+      const firstVisit = getGuestFirstVisit();
+      if (firstVisit == null) {
+        router.replace("/login");
+        return;
+      }
       if (isGuestExpired(firstVisit)) {
         router.replace("/signup?reason=guest_expired");
         return;
       }
+      setGuestRemainingDays(getRemainingGuestDays(firstVisit));
+    } else {
+      setGuestRemainingDays(null);
     }
 
     if (storedUser) {
@@ -523,6 +521,27 @@ export default function Home() {
           onReportClick={() => setIsReportPopupOpen(true)}
           className="mb-6 md:mb-10"
         />
+
+        {/*
+         * 게스트 D-N 안내 — 로그인 안 한 게스트 사용자에게 잔여일을 상시 노출.
+         * "로그인하면 영구로 쓸 수 있어요" CTA 를 같이 제공해 자연스러운 가입 유도.
+         * 만료 시점에는 mount useEffect 가 이미 /signup 으로 redirect 했으므로 여기서는 D-1 까지만 노출된다.
+         */}
+        {guestRemainingDays != null && (
+          <div className="mb-4 md:mb-6 flex items-center justify-between gap-3 rounded-pill bg-lime-300/85 px-4 py-2 text-ink-900 ring-1 ring-ink-900/10 shadow-sm dark:bg-lime-400/95">
+            <span className="inline-flex items-center gap-1.5 text-xs md:text-sm font-bold">
+              <Clock className="size-3.5 md:size-4" aria-hidden />
+              게스트 모드 · D-{guestRemainingDays}
+            </span>
+            <button
+              type="button"
+              onClick={() => router.push("/signup")}
+              className="text-[11px] md:text-xs font-semibold underline-offset-2 hover:underline"
+            >
+              지금 가입하기
+            </button>
+          </div>
+        )}
 
         {/* TAB: MAP */}
         {currentTab === "MAP" && (

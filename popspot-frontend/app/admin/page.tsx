@@ -2,19 +2,19 @@
 
 import { useEffect, useState, useRef, Suspense } from "react";
 import { useRouter } from "next/navigation";
-import { 
-    Check, X, ShieldCheck, MapPin, Calendar, Store, AlertCircle, 
-    BarChart3, Users, MessageSquare, Gift, Trash2, Edit3, Activity, Cpu, HardDrive 
+import {
+    Check, X, ShieldCheck, MapPin, Calendar, Store, AlertCircle,
+    BarChart3, Users, MessageSquare, Gift, Trash2, Edit3, Activity, Cpu, HardDrive
 } from "lucide-react";
 import Swal from "sweetalert2";
 
-import { 
-    PieChart, Pie, Cell, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, 
-    BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line 
+import {
+    PieChart, Pie, Cell, Tooltip as RechartsTooltip, Legend, ResponsiveContainer,
+    BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line
 } from 'recharts';
 
 import { apiFetch } from "../../src/lib/api";
-import { confirmAction } from "@/lib/notify";
+import { confirmAction, notifyError, notifySuccess } from "@/lib/notify";
 import type { PopupStore } from "@/types/popup";
 
 interface MetricData {
@@ -138,18 +138,33 @@ export default function AdminPage() {
         if (!(await confirmAction({ text: "승인하시겠습니까?" }))) return;
         try {
             const res = await apiFetch(`/api/admin/popups/${id}/approve`, { method: "POST" });
-            if (res.ok) { Swal.fire('승인 완료!', '', 'success'); loadDashboardData(); }
-        } catch (e) { Swal.fire('오류', '', 'error'); }
+            if (res.ok) {
+                notifySuccess('승인 완료!');
+                loadDashboardData();
+            }
+        } catch (e) {
+            notifyError('승인 처리 중 오류가 발생했습니다.');
+        }
     };
 
     const handleReject = async (id: number) => {
-        if (!(await confirmAction({ text: "거절하시겠습니까?" }))) return;
+        if (!(await confirmAction({ text: "거절하시겠습니까?", destructive: true }))) return;
         try {
             const res = await apiFetch(`/api/admin/popups/${id}/reject`, { method: "DELETE" });
-            if (res.ok) { Swal.fire('삭제 완료', '', 'success'); loadDashboardData(); }
-        } catch (e) { Swal.fire('오류', '', 'error'); }
+            if (res.ok) {
+                notifySuccess('삭제 완료');
+                loadDashboardData();
+            }
+        } catch (e) {
+            notifyError('거절 처리 중 오류가 발생했습니다.');
+        }
     };
 
+    /*
+     * 상태 변경은 select 입력이 필요해 sweetalert2 의 `input: 'select'` 를 그대로 사용한다.
+     * 단순 토스트/confirm 은 notify 추상화로 일원화했지만, 커스텀 select 다이얼로그는 notify 가
+     * 아직 지원하지 않으므로 예외적으로 Swal 직접 호출을 유지한다.
+     */
     const handleChangeStatus = async (id: number, currentStatus: string) => {
         const { value: newStatus } = await Swal.fire({
             title: '상태 변경',
@@ -158,20 +173,29 @@ export default function AdminPage() {
             showCancelButton: true,
             inputValue: currentStatus
         });
-        if (newStatus) {
-            try {
-                const res = await apiFetch(`/api/admin/popups/${id}/status?status=${newStatus}`, { method: "PATCH" });
-                if (res.ok) { Swal.fire('변경 완료!', '', 'success'); loadAllPopups(); }
-            } catch (e) { Swal.fire('오류', '', 'error'); }
+        if (!newStatus) return;
+        try {
+            const res = await apiFetch(`/api/admin/popups/${id}/status?status=${newStatus}`, { method: "PATCH" });
+            if (res.ok) {
+                notifySuccess('변경 완료!');
+                loadAllPopups();
+            }
+        } catch (e) {
+            notifyError('상태 변경 중 오류가 발생했습니다.');
         }
     };
 
     const handleDeleteMatePost = async (id: number) => {
-        if (!(await confirmAction({ text: "삭제하시겠습니까?" }))) return;
+        if (!(await confirmAction({ text: "삭제하시겠습니까?", destructive: true }))) return;
         try {
             const res = await apiFetch(`/api/admin/mate-posts/${id}`, { method: "DELETE" });
-            if (res.ok) { Swal.fire('삭제 완료', '', 'success'); loadMatePosts(); }
-        } catch (e) { Swal.fire('오류', '', 'error'); }
+            if (res.ok) {
+                notifySuccess('삭제 완료');
+                loadMatePosts();
+            }
+        } catch (e) {
+            notifyError('삭제 중 오류가 발생했습니다.');
+        }
     };
 
     const handleGiveReward = async (e: React.FormEvent) => {
@@ -181,13 +205,15 @@ export default function AdminPage() {
                 method: "POST",
                 body: JSON.stringify(rewardForm)
             });
-            if (res.ok) { 
-                Swal.fire('지급 완료!', '', 'success'); 
-                setRewardForm({ nickname: "", itemType: "MEGAPHONE", amount: 1 }); 
-            } else { 
-                Swal.fire('실패', await res.text(), 'error'); 
+            if (res.ok) {
+                notifySuccess('지급 완료!');
+                setRewardForm({ nickname: "", itemType: "MEGAPHONE", amount: 1 });
+            } else {
+                notifyError({ title: '실패', text: await res.text() });
             }
-        } catch (e) { Swal.fire('오류', '', 'error'); }
+        } catch (e) {
+            notifyError('보상 지급 중 오류가 발생했습니다.');
+        }
     };
 
     // 차트 데이터 가공

@@ -64,7 +64,8 @@ public class AuthService {
     @Transactional
     public String signup(SignupRequestDto requestDto) {
         if (userRepository.existsByEmail(requestDto.getEmail())) {
-            throw new RuntimeException("이미 존재하는 이메일입니다.");
+            // 같은 이메일로 두 번 가입을 시도하는 정상 사용자 케이스 → 입력 오류 (400).
+            throw new IllegalArgumentException("이미 존재하는 이메일입니다.");
         }
         User user =
                 User.builder()
@@ -82,7 +83,8 @@ public class AuthService {
     public LoginResponseDto login(LoginRequestDto requestDto) {
         User user = findByEmailOrThrow(requestDto.getEmail());
         if (!passwordEncoder.matches(requestDto.getPassword(), user.getPassword())) {
-            throw new RuntimeException("비밀번호가 일치하지 않습니다.");
+            // 자격증명 실패 → 400 (의도적으로 "이메일/비밀번호 둘 중 어느 쪽이 틀렸는지" 알려주지 않는다).
+            throw new IllegalArgumentException("이메일 또는 비밀번호가 일치하지 않습니다.");
         }
         return LoginResponseDto.builder()
                 .userId(user.getUserId())
@@ -106,7 +108,7 @@ public class AuthService {
     public String findEmailByPhoneNumber(String phoneNumber) {
         return userRepository
                 .findByPhoneNumber(phoneNumber)
-                .orElseThrow(() -> new RuntimeException("해당 번호로 가입된 유저가 없습니다."))
+                .orElseThrow(() -> new ResourceNotFoundException("해당 번호로 가입된 유저가 없습니다."))
                 .getEmail();
     }
 
@@ -116,7 +118,7 @@ public class AuthService {
         User user =
                 userRepository
                         .findByNicknameAndPhoneNumber(nickname, phoneNumber)
-                        .orElseThrow(() -> new RuntimeException("일치하는 회원 정보가 없습니다."));
+                        .orElseThrow(() -> new ResourceNotFoundException("일치하는 회원 정보가 없습니다."));
         Map<String, String> result = new HashMap<>();
         result.put("email", user.getEmail());
         result.put("provider", user.getProvider() == null ? PROVIDER_LOCAL : user.getProvider());
@@ -131,10 +133,13 @@ public class AuthService {
     public void checkUserForPasswordReset(String email, String nickname) {
         User user = findByEmailOrThrow(email);
         if (!user.getNickname().equals(nickname)) {
-            throw new RuntimeException("이름이 일치하지 않습니다.");
+            // 이메일은 맞으나 닉네임이 안 맞을 때 — 입력 오류로 분류 (400).
+            throw new IllegalArgumentException("이름이 일치하지 않습니다.");
         }
         String provider = user.getProvider();
         if (provider != null && !PROVIDER_LOCAL.equals(provider) && !"null".equals(provider)) {
+            // 소셜 가입자라 비밀번호가 없는 경우 — 컨트롤러가 메시지 prefix 로 분기해 안내 메시지 표시.
+            // GlobalExceptionHandler 의 RuntimeException 핸들러(400) 가 그대로 잡도록 유지.
             throw new RuntimeException(SOCIAL_USER_ERROR_PREFIX + provider);
         }
     }
