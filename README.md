@@ -843,6 +843,26 @@
 > - **일주일 게스트 모드** — `src/lib/guestMode.ts` + `useGuestMode` 훅. 첫 방문 timestamp 를 localStorage 에 기록, 7일 뒤 회원가입 강제. 서버 저장 0건 (PIPA 부담 X). 인트로 우상단에 `게스트 N일` pill 노출
 > - **/about 보안 마케팅 페이지** — README §정책 안전장치를 일반 사용자 언어로 풀어 7 카드 (JWT HS256 / BCrypt 12 / CORS 화이트리스트 / Bucket4j Rate Limit / PIPA 처리방침 / 24h Takedown / Tailscale HTTPS). Footer 에 `서비스 소개` 링크 추가
 
+### v2.1 ~ v2.3 — 인트로 자동 진입 실험 (롤백)
+
+> 시네마처럼 자동으로 흘러가는 인트로를 두 번 시도했으나 사용자 통제권 박탈 + 인지 부하로 둘 다 롤백. 원본 비디오 인트로 (v1.7.3) 로 복원.
+> - **v2.1** — 첫 방문 7초 자동 redirect cinema. 사용자 피드백: "걍 자동으로 메인페이지 들어가는거에 불과한거잖아"
+> - **v2.2** — 한 화면에서 5 phase 자동 전환 슬라이드쇼 (~13초). 사용자 피드백: "오류 많고 역효과"
+> - **v2.3** — `git show 5890365:.../intro/page.tsx` 로 풀스크린 비디오 + 5섹션 스냅 스크롤 원본 복원
+> - **학습** — 자동 전환은 통제권을 빼앗는다. 인트로는 사용자가 스킵하거나 둘러보거나 결정하는 곳이다.
+
+### v2.4 — 영상 토글 + 파스텔 폴백 + 인트로 우회 + 작전회의실 뒤로가기
+
+> 17MB mp4 가 항상 로드되어 사이트가 무겁다는 피드백을 받고 영상 ON/OFF 토글 도입. 기본 OFF + 라이트/다크 파스텔 폴백 + 거대 POP·SPOT 워터마크.
+> - **인트로 영상 토글** — 우상단 `Video` / `VideoOff` 버튼, localStorage `popspot:intro:video` 저장. 기본 OFF (성능 우선)
+> - **파스텔 폴백 배경** — 라이트는 cream 그라데이션 + 파스텔 orb 6개 (hot/lime/amber/blue/violet/rose), 다크는 `#1a1820 → #221e2a` 웜 그레이-퍼플 (완전 검정 X) + 같은 위치에 어두운 orb 6개
+> - **거대 POP·SPOT 워터마크** — fixed inset-0 가운데, `clamp(7rem, 22vw, 26rem)`, opacity 5~6% 로 옅게 깔림 (영상 OFF 모드 전용)
+> - **메인 로고 인트로 우회** — `Header.tsx` 의 `<Link href="/">` → `href="/?entered=1"`. 미들웨어가 쿼리스트링 보고 `/intro` 리다이렉트 skip. 메인 내부 MAP 탭 전환 콜백은 유지
+> - **작전회의실 뒤로가기 버튼** — `/planning` 헤더 좌측에 ChevronLeft 원형 버튼 추가, `router.push("/?entered=1")` 로 메인 복귀
+> - **Section 5 빨간 풀배경 제거** — `bg-hot-500/75` + 도트 패턴 → 코너 글로우 2개 (hot-300/35, amber-300/30) 로 톤다운, 모드별 적응
+> - **AI 티 정리** — "Why POP-SPOT" / "Core Features" / "Only on POP-SPOT" uppercase mono 라벨 모두 삭제, "Seoul Popup Store Intelligence" → "서울 팝업스토어 플랫폼", `drop-shadow-2xl` 과한 그림자 제거, 글래스모피즘 일색 → 모드별 솔리드 카드
+> - **모드별 동적 클래스** — `txtPrimary` / `txtMuted` / `cardBg` 3개 변수로 통일 (videoOn × theme 분기 한 곳에 모음)
+
 ---
 
 ## 폴더 구조 (백엔드)

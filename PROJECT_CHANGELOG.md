@@ -7356,3 +7356,278 @@ npx tsc --noEmit  # exit 0
 - 일주일 게스트 모드 — localStorage 익명 ID + 7일 카운트다운 + 가입 게이트 (액션 기반)
 - 보안 마케팅 카드 — 7대 안전장치 (JWT/BCrypt/CORS/Rate Limit/PIPA/Takedown/Tailscale) 페이지
 
+
+---
+
+# §14. v2.0 — 게스트 모드 + 보안 마케팅 (2026-05)
+
+## 14.1 배경
+
+상용화 직전 두 가지 마무리: (1) **회원가입 없이도 둘러볼 수 있는 게스트 모드** 로 진입장벽 낮추기 + (2) **백엔드에 적용된 보안 안전장치를 사용자에게 보여주기**. 둘 다 README §정책 안전장치 / §개인정보 처리 항목과 정합이 맞아야 한다.
+
+## 14.2 일주일 게스트 모드
+
+### 14.2.1 정책
+
+- 첫 방문 시점을 localStorage 에 기록 (`popspot:guest:firstVisit` = epoch ms)
+- 만료까지 7일 카운트다운, 만료 후 회원가입 강제
+- 서버 저장 0건 → PIPA 동의 절차 우회 (익명 클라이언트 데이터)
+- 로그인하면 자동으로 게스트 만료 키 삭제
+
+### 14.2.2 신규 파일
+
+- **`popspot-frontend/src/lib/guestMode.ts`** (76 라인)
+  - `GUEST_FIRST_VISIT_KEY`, `GUEST_GRACE_PERIOD_DAYS = 7`
+  - `ensureGuestFirstVisit()` — 키 없으면 now 로 기록, 있으면 그대로 반환
+  - `getRemainingGuestDays(firstVisit)` — 7 − 경과일
+  - `isGuestExpired(firstVisit)` — boolean
+  - `clearGuestMode()` — 로그인 시 호출
+- **`popspot-frontend/src/lib/useGuestMode.ts`** — React 훅. mount 시점에 ensure + remaining 계산. `{ mounted, remainingDays, expired }` 반환. 로그인 상태 변하면 자동 clear.
+
+## 14.3 보안 마케팅 페이지 `/about`
+
+### 14.3.1 신규 파일
+
+**`popspot-frontend/app/about/page.tsx`** (208 라인)
+
+7개 SecurityCard:
+
+| Icon | Title | shortDesc |
+|---|---|---|
+| KeyRound | JWT 토큰 안전 발급 | HS256 · 32바이트 이상 시크릿 |
+| Lock | 비밀번호 강력 해싱 | BCrypt strength 12 |
+| Network | 허용된 도메인만 접근 | CORS 패턴 화이트리스트 |
+| Gauge | 무차별 시도 차단 | 로그인 5회/분 · 이메일 5회/시간 |
+| FileText | PIPA 준수 처리방침 | 만 14세 이상 · 별도 동의 분리 |
+| Timer | 24시간 신고 응답 | Takedown · 즉시 노출 차단 |
+| ShieldCheck | 전 구간 HTTPS | Tailscale Funnel · 자동 인증서 갱신 |
+
+레이아웃: 카드 좌측에 `accent` 컬러 바 (lime/hot/blue/amber/violet/rose/cream), 우측 상단에 번호 (01~07), framer-motion stagger.
+
+### 14.3.2 Footer 링크 추가
+
+`Footer.tsx` `PLATFORM_LINKS` 에 `{ label: '서비스 소개', href: '/about' }` 추가.
+
+## 14.4 검증
+
+```bash
+cd popspot-frontend
+npx tsc --noEmit  # exit 0
+```
+
+---
+
+# §15. v2.1 ~ v2.3 — 인트로 자동 진입 실험 (롤백)
+
+## 15.1 v2.1 — 첫 방문 자동 진입 (7초 cinema)
+
+### 시도
+
+첫 방문자에게 인트로를 자동으로 7초 보여주고 메인으로 이동시키는 cinema 모드. localStorage `popspot:intro:played` 로 첫 방문 판별, 진행 바 + 스크롤하면 타이머 취소.
+
+### 사용자 피드백
+
+> "걍 자동으로 메인페이지 들어가는거 불과한거잖아"
+
+→ 사용자는 한 화면에서 슬라이드처럼 전환되는 진짜 시네마 시퀀스를 원했음. v2.1 은 단순히 타이머 후 redirect.
+
+## 15.2 v2.2 — 5단계 시네마 슬라이드쇼
+
+### 시도
+
+`AnimatePresence mode="wait"` + setTimeout 체인으로 5 phase 자동 전환:
+
+```
+PhaseLogo (2.2s)    POP·SPOT 로고
+PhaseTagline (2.5s) "서울 팝업, 한 곳에서" + 4 폴라로이드
+PhaseCore (2.6s)    "3가지 핵심 기능" + 3 카드
+PhaseUnique (2.6s)  "다른 곳엔 없는 4가지" + 4 카드
+PhaseCta (3.0s)     "POP-SPOT 시작하기" + 로그인/회원가입
+```
+
+총 약 12.9초. Skip 버튼 + 5 도트 ProgressBar + 첫 방문만 노출 + 재방문 시 즉시 메인. 554 라인.
+
+### 사용자 피드백
+
+> "그냥 우리 맨처음에 했던 동영상만 있는 그걸로하자 지금 오류가 너무 많고 오히려 역효과 난거같아"
+
+→ 자동 슬라이드쇼가 사용자에게 통제권 상실 + 인지부하 증가. 원본 비디오 인트로가 더 좋다는 결론.
+
+## 15.3 v2.3 — 비디오 인트로 롤백
+
+`git show 5890365:popspot-frontend/app/intro/page.tsx` 로 원본을 그대로 복원. 521 라인. 풀스크린 비디오 배경 + 5섹션 스냅 스크롤. 사용자 요청대로 콘텐츠는 그대로, 처음에 POP-SPOT 로고도 살림.
+
+### 정리
+
+- v2.1/v2.2 코드는 git history 에 남김 (commit `ab757fd`, `ae65a77`)
+- `popspot-frontend/src/lib/useGuestMode.ts` / `guestMode.ts` 는 인트로에서 더 이상 사용 안 함 (dead code 로 잔존, 빌드 무영향)
+- 자동 진입 / cinema 슬라이드 패턴은 봉인. 다음부터는 사용자 통제권을 유지하는 방향만 검토.
+
+## 15.4 학습
+
+1. **자동 전환 = 통제권 박탈**. 인트로는 보여주는 곳이 아니라 사용자가 스킵하거나 둘러보거나 결정하는 곳.
+2. **시간 가속이 무겁다**. 13초 시네마는 첫 방문 사용자에게 길다. 스크롤 한 번으로 끝나는 게 낫다.
+3. **롤백은 git show 한 줄로 끝낸다**. 매번 새로 짜지 말고 원본 commit hash 를 찾아 그대로 가져오면 안전.
+
+---
+
+# §16. v2.4 — 영상 토글 + 파스텔 폴백 + 메인 로고 인트로 우회 + 작전회의실 뒤로가기 (2026-05)
+
+## 16.1 사용자 피드백 (5건)
+
+1. **사이트가 무거워서 동작이 느림** (17MB mp4 가 항상 fixed 배경으로 로드)
+2. **메인 화면 좌상단 로고** 누르면 인트로 다시 뜸 → 불편
+3. **작전회의실 (`/planning`)** 에 뒤로가기 버튼 없음
+4. **인트로 영상 on/off 토글** 되살리고, OFF 일 때 라이트모드 아이보리 + 파스텔 + 거대 POP-SPOT 워터마크 + 다크모드도 완전 검정 X
+5. **인트로 마지막 섹션 빨간 풀배경** 눈 아픔 + AI 스러운 디자인 전부 수정
+
+## 16.2 적용 — 4 파일
+
+### 16.2.1 `src/components/layout/Header.tsx` — 로고 인트로 우회
+
+```diff
+- <Link href="/" onClick={onLogoClick}>
++ <Link href="/?entered=1" onClick={onLogoClick}>
+```
+
+미들웨어 (`middleware.ts`) 가 `entered=1` 쿼리스트링이 있으면 `/intro` 리다이렉트를 skip. 메인 페이지의 `onLogoClick={() => handleTabChange("MAP")}` 콜백은 그대로 유지되어 메인에서 MAP 탭 전환은 계속 동작.
+
+### 16.2.2 `app/planning/page.tsx` — 작전회의실 뒤로가기 버튼
+
+상단 정보 패널 좌측에 ChevronLeft 원형 버튼 추가:
+
+```tsx
+<button
+  onClick={() => router.push("/?entered=1")}
+  aria-label="메인으로 돌아가기"
+  className="mt-0.5 inline-flex items-center justify-center size-7 md:size-8
+             rounded-full bg-white/8 hover:bg-white/15 text-gray-300 hover:text-white
+             transition-colors ring-1 ring-white/10 hover:ring-white/20"
+>
+  <ChevronLeft size={16} />
+</button>
+```
+
+`useRouter` 는 이미 95번째 라인에 선언되어있어 그대로 활용. ChevronLeft 만 import 추가.
+
+### 16.2.3 `app/intro/page.tsx` — v2.4 풀 리뉴얼 (695 라인)
+
+#### 영상 토글 시스템
+
+| 키 | 값 | 동작 |
+|---|---|---|
+| `popspot:intro:video` | `"on"` / `"off"` | localStorage 사용자 선호 |
+
+- 우측 상단에 `Video` / `VideoOff` 토글 버튼 (Theme 토글 옆)
+- **기본 OFF** (성능 우선) — 17MB mp4 로드 안 함
+- 토글하면 localStorage 저장 + `videoReady` 리셋
+
+#### 영상 OFF 폴백 디자인
+
+**라이트 모드**:
+```
+bg-gradient-to-br from-cream-200 via-cream-100 to-cream-200
++ 파스텔 orb 6개 (hot-300/55, lime-200/65, amber-200/55, blue-200/55, violet-200/45, rose-200/55)
++ 거대 POP·SPOT 워터마크 (rgba(26,24,32,0.05), fontSize: clamp(7rem, 22vw, 26rem))
+```
+
+**다크 모드** (완전 검정 X):
+```
+background: linear-gradient(135deg, #1a1820 0%, #221e2a 50%, #1a1820 100%)
++ 파스텔 orb 6개 (어두운 톤 — hot-500/30, lime-500/22, amber-400/22, blue-500/25, violet-500/22, rose-500/25)
++ 거대 POP·SPOT 워터마크 (rgba(252,246,235,0.06))
+```
+
+Orb 위치는 라이트/다크 동일 (right -10% top 5% / left -10% top 15% / left 30% top 42% / right 15% top 60% / left 5% bottom 8% / right -5% bottom 2%).
+
+#### Section 5 빨간 배경 제거
+
+```diff
+- <div className="absolute inset-0 bg-hot-500/75 backdrop-blur-[1px]" />
+- <div className="absolute inset-0 opacity-15" style={{ backgroundImage: "radial-gradient(circle, #fff 1px, transparent 1px)" ... }} />
++ <div className="pointer-events-none absolute -right-32 -top-32 h-[460px] w-[460px] rounded-full bg-hot-300/35 blur-3xl dark:bg-hot-500/22" />
++ <div className="pointer-events-none absolute -bottom-32 -left-32 h-[420px] w-[420px] rounded-full bg-amber-300/30 blur-3xl dark:bg-amber-500/20" />
+```
+
+풀배경 핫핑크 + 도트 패턴 → 코너 글로우 2개로 톤다운. 모드별 적응.
+
+#### AI 티 정리
+
+| 제거된 패턴 | 대체 |
+|---|---|
+| "Why POP-SPOT" / "Core Features" / "Only on POP-SPOT" uppercase mono 라벨 | 모두 삭제 (제목만 남김) |
+| "Seoul Popup Store Intelligence" 영문 부제 | "서울 팝업스토어 플랫폼" 한글 |
+| `font-mono uppercase tracking-widest` 패턴 | `tracking-widest` 만 살리고 case 통일 |
+| `drop-shadow-2xl` 과한 그림자 | 제거 (모드별 카드 톤으로 대체) |
+| `bg-white/10 backdrop-blur-xl ring-1 ring-white/15` 글래스 일색 | 영상 OFF 시 `bg-white/75 dark:bg-ink-800/55` 솔리드 카드 |
+| 큰 통계 카드 (60+ / 1~2 / 24h) | 작게 + 부드럽게 |
+
+#### 콘텐츠는 보존
+
+사용자 명시 요청 "내용은 그대로 두고". `FEATURES`, `BIG_FEATURES`, `UNIQUE_POINTS` 텍스트 그대로. 5섹션 스냅 스크롤 구조 유지.
+
+#### 모드별 동적 클래스
+
+```ts
+const txtPrimary = videoOn ? "text-white" : "text-ink-900 dark:text-cream-100";
+const txtMuted   = videoOn ? "text-cream-100/85" : "text-ink-700/75 dark:text-cream-100/75";
+const cardBg     = videoOn
+  ? "bg-white/10 backdrop-blur-xl ring-1 ring-white/15"
+  : "bg-white/75 ring-1 ring-ink-900/8 dark:bg-ink-800/55 dark:ring-white/10";
+```
+
+각 섹션이 이 3개 변수로 통일. videoOn 분기 한 곳에 모음 → 결합도 낮춤.
+
+### 16.2.4 추출된 컴포넌트
+
+```ts
+PastelBackground({ isDark })   // 6 orb 모드별
+GiantWordmark({ isDark })      // fixed inset-0 가운데 거대 POP·SPOT
+IconButton({ onClick, ariaLabel, videoOn, children })  // 영상/테마 토글 버튼 공통
+```
+
+3개 모두 상위 IntroPage 에서 모드 정보만 받음. 자체 상태 없음 → 순수 함수형.
+
+## 16.3 신규/수정 파일 통계
+
+| 파일 | 변경 | 라인 |
+|---|---|---|
+| `app/intro/page.tsx` | 풀 재작성 (v2.3 521 → v2.4 695) | +695 / -521 |
+| `app/planning/page.tsx` | 헤더에 뒤로가기 버튼 추가 | +12 / -3 |
+| `src/components/layout/Header.tsx` | 로고 href 변경 | +1 / -1 |
+
+## 16.4 검증
+
+```bash
+cd popspot-frontend
+npx tsc --noEmit  # exit 0 (PASS)
+npx eslint app/intro/page.tsx app/planning/page.tsx src/components/layout/Header.tsx
+# 신규 에러 없음 — 기존 `react-hooks/set-state-in-effect` 패턴은 이전부터 있던 것
+```
+
+샌드박스 next build 는 `.next/BUILD_ID` EPERM 권한 문제로 불가. 사용자 Windows 환경에서 자연 검증.
+
+## 16.5 git push 트러블슈팅
+
+작업 도중 `.git/index.lock` stale 파일이 남아 commit 실패:
+
+```
+fatal: Unable to create '.git/index.lock': File exists.
+```
+
+원인: 이전 git 프로세스 비정상 종료. 해결:
+
+```powershell
+Remove-Item ".git\index.lock" -Force
+git add -A
+git commit -m "..."
+git push origin main
+```
+
+또한 popspot2 가 모노레포 (popspot-backend / popspot-frontend 하위 폴더 모두 동일 `.git` 사용) 라 사용자가 `popspot-backend/` 에서 commit 했을 때도 `popspot-frontend/app/intro/page.tsx` 변경분이 정상 stage 됨 — git 은 명령 실행 폴더에서 부모로 올라가며 `.git` 을 찾으므로 모노레포에서는 어느 하위 폴더에서 작업하든 동일.
+
+## 16.6 다음 단계 (의사결정 대기)
+
+- `src/lib/guestMode.ts` / `useGuestMode.ts` dead code 제거 여부 (사용자 결정)
+- v2.4 배포 후 실제 사용자 피드백 받기 (영상 OFF 기본의 첫인상이 어떤지)
+- 작전회의실 다른 페이지에도 같은 뒤로가기 패턴 확장 검토
