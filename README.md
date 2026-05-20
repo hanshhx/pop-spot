@@ -1093,7 +1093,7 @@
 
 ### v2.4 — 영상 토글 + 파스텔 폴백 + 메인 로고 우회 + 작전회의실 뒤로가기
 
-> 17MB mp4 가 항상 로드돼 사이트가 무겁다는 피드백 + 메인 로고 누르면 인트로가 다시 떠서 불편하다는 피드백 + 작전회의실에 뒤로가기 없음 + Section 5 빨간 배경 눈 아픔 + 딱딱한 디자인 정리.
+> 17MB 짜리 배경 영상이 사이트 켜자마자 자동 다운로드돼 무겁다는 피드백 + 메인에서 로고 누르면 인트로가 또 떠서 두 번 들어가야 한다는 피드백 + 작전회의실 페이지에 뒤로가기 버튼이 없음 + 인트로 마지막 섹션 빨간 배경이 눈 아프다는 피드백 + 디자인이 딱딱하다는 피드백을 한 번에 정리.
 
 <table align="center">
   <tr>
@@ -1103,38 +1103,38 @@
   </tr>
   <tr>
     <td align="center"><b>배경 영상</b></td>
-    <td>17MB mp4 가 무조건 fixed 로 로드 → 모바일/저사양 PC 에서 느림</td>
-    <td>기본 OFF (영상 안 로드). 우상단 토글 버튼으로 켤 수 있고 선택은 브라우저에 저장</td>
+    <td>17MB 짜리 배경 영상이 사이트 켤 때마다 자동 다운로드 → 모바일이나 느린 PC 에서 사이트가 버벅임</td>
+    <td>기본은 영상 꺼짐 (다운로드 안 함). 우상단 토글 버튼으로 직접 켤 수 있고, 한 번 켜두면 브라우저가 기억함</td>
   </tr>
   <tr>
     <td align="center"><b>영상 OFF 시 배경</b></td>
-    <td>영상 없으면 그냥 까만 배경 — 너무 밋밋</td>
-    <td>라이트 모드: 아이보리 + 파스텔 6 orb. 다크 모드: 웜 그레이-퍼플 + 같은 위치 어두운 orb 6개. 둘 다 <b>거대 POP·SPOT 워터마크</b>가 배경에 옅게 깔림</td>
+    <td>영상 끄면 까만 배경만 보여서 밋밋함</td>
+    <td>라이트 모드는 아이보리 바탕에 파스텔톤 동그란 빛 6개. 다크 모드는 따뜻한 회보라색 바탕에 같은 자리에 어두운 동그라미 6개. 두 모드 모두 배경에 <b>거대한 POP·SPOT 글씨</b>가 옅게 깔려 있음</td>
   </tr>
   <tr>
     <td align="center"><b>다크 모드 색</b></td>
-    <td>완전 검정 <code>#000</code> 가까워서 차가움</td>
-    <td><code>#1a1820 → #221e2a</code> 따뜻한 deep purple-gray 유지</td>
+    <td>거의 완전 검정에 가까워서 차가운 느낌</td>
+    <td>완전 검정 대신 진한 보라-회색 톤으로 따뜻하게 (눈에 부담 ↓)</td>
   </tr>
   <tr>
     <td align="center"><b>메인 로고 클릭</b></td>
-    <td>메인에서 좌상단 POP-SPOT 로고 누르면 인트로가 다시 떠서 두 번 들어가야 함</td>
-    <td>로고 링크에 <code>?entered=1</code> 쿼리 추가 — 미들웨어가 보고 인트로 건너뛰고 메인 유지</td>
+    <td>메인에서 좌상단 POP-SPOT 로고를 누르면 인트로가 다시 떠서 메인까지 두 번 들어가야 함</td>
+    <td>로고를 누르면 인트로를 건너뛰고 바로 메인 유지하도록 처리</td>
   </tr>
   <tr>
     <td align="center"><b>작전회의실</b></td>
-    <td><code>/planning</code> 에 뒤로가기 버튼 없음 — 메인으로 돌아가려면 브라우저 뒤로가기만 가능</td>
-    <td>좌상단에 ← 원형 버튼 추가 → <code>/?entered=1</code> 로 바로 복귀</td>
+    <td>작전회의실 페이지에 뒤로가기 버튼이 없어서 메인 복귀하려면 브라우저 뒤로가기만 가능</td>
+    <td>좌상단에 ← 원형 버튼 추가 — 누르면 인트로 거치지 않고 바로 메인으로 복귀</td>
   </tr>
   <tr>
     <td align="center"><b>인트로 마지막 섹션</b></td>
-    <td>핫핑크 풀 배경 + 흰 도트 패턴 — 눈 아프다는 피드백</td>
-    <td>풀 배경 제거, 코너에 부드러운 글로우 2개 (hot-300 / amber-300) 로 톤다운</td>
+    <td>인트로 마지막 화면이 핫핑크 풀배경 + 흰 점박이 패턴 — 눈 아프다는 피드백</td>
+    <td>강한 풀배경 제거하고 양쪽 모서리에 핑크·앰버 부드러운 빛 효과 2개로 톤다운</td>
   </tr>
   <tr>
     <td align="center"><b>섹션 라벨</b></td>
-    <td>"Why POP-SPOT", "Core Features", "Only on POP-SPOT" 같은 영문 대문자 mono 라벨이 모든 섹션에</td>
-    <td>전부 제거. "Seoul Popup Store Intelligence" 같은 영문 부제도 "서울 팝업스토어 플랫폼" 으로 한글화</td>
+    <td>"Why POP-SPOT", "Core Features", "Only on POP-SPOT" 같은 영문 대문자 라벨이 모든 섹션에 박혀 있어 딱딱함</td>
+    <td>영문 라벨 전부 제거. "Seoul Popup Store Intelligence" 같은 영문 부제도 "서울 팝업스토어 플랫폼" 으로 한글화</td>
   </tr>
 </table>
 
@@ -1144,7 +1144,7 @@
 
 ### v2.5 — 게스트 모드 재배선
 
-> v2.0 에서 만든 게스트 모드가 v2.1 ~ v2.4 인트로 리뉴얼 거치며 어디에도 안 붙어있던 상태였음. 원래 의도대로 인트로/메인/회원가입 페이지에 다시 연결.
+> v2.0 에서 만들어둔 7일 게스트 모드 기능이, v2.1 ~ v2.4 인트로 리뉴얼을 거치는 동안 어느 화면에도 안 연결돼 있던 상태. 원래 의도대로 인트로 / 메인 / 회원가입 페이지에 다시 붙임.
 
 <table align="center">
   <tr>
@@ -1155,17 +1155,17 @@
   <tr>
     <td align="center"><b>인트로 우상단</b></td>
     <td>로그인 / Skip 버튼만 있고 게스트 잔여 일수가 안 보임</td>
-    <td>비로그인 사용자에게 <code>게스트 D-7</code> ~ <code>D-1</code> 라임 그린 pill 노출 (Clock 아이콘 + 툴팁)</td>
+    <td>비로그인 사용자에게 라임 그린 라벨로 "게스트 D-7" ~ "D-1" 잔여일 표시 (시계 아이콘 + 마우스 올리면 설명)</td>
   </tr>
   <tr>
     <td align="center"><b>비로그인 메인 진입</b></td>
-    <td>로그인 안 해도 <code>/?entered=1</code> 로 들어가면 무제한 둘러보기 가능 (의도 불일치)</td>
-    <td>메인 진입 시 게스트 만료 검사 — 7일 지났으면 자동으로 <code>/signup?reason=guest_expired</code> 로 보냄</td>
+    <td>로그인 안 해도 인트로만 우회하면 무제한 둘러볼 수 있어 게스트 7일 제한이 의미 없음</td>
+    <td>메인 들어올 때 게스트 시작 시점 검사 — 7일 지났으면 자동으로 회원가입 페이지로 보냄</td>
   </tr>
   <tr>
     <td align="center"><b>회원가입 페이지</b></td>
-    <td>그냥 빈 회원가입 폼만 노출</td>
-    <td><code>?reason=guest_expired</code> 쿼리가 있으면 상단에 "7일 무료 체험이 끝났어요" 안내 배너 + "30초면 끝나요" 카피</td>
+    <td>그냥 빈 회원가입 폼만 노출 — 왜 강제로 왔는지 사용자가 모름</td>
+    <td>게스트 만료로 넘어온 경우 상단에 "7일 무료 체험이 끝났어요" 안내 배너 + "30초면 끝나요" 카피 추가</td>
   </tr>
 </table>
 
@@ -1175,7 +1175,7 @@
 
 ### v2.6 — Clean Code · 결합도 정리 + shop 폐기 + 가드 버그 수정
 
-> 메인 페이지가 sweetalert2 에 19곳 직접 결합돼 있었고, 환경변수는 `process.env.X!` non-null assertion 으로 흩어져 있었다. <code>shop</code> 라우트는 v1.3 음악 추천으로 대체된 뒤로 단순 <code>/music</code> redirect 만 남아 있었고, 코스 저장 가드 한 곳은 <code>.then</code> 안 return 으로 가드가 무력화돼 무료 회원도 그냥 저장되던 버그가 있었다. 한 사이클로 정리.
+> 메인 페이지가 알림창 라이브러리(sweetalert2) 를 19곳에서 직접 호출하고 있었고, 환경 변수도 여러 파일에서 따로따로 불러오고 있었음. <code>/shop</code> 페이지는 v1.3 에서 음악 추천으로 대체된 뒤로 단순 리다이렉트만 하고 있어 청소가 필요했음. 그리고 무료 회원이 코스 1개 제한을 우회해 무제한 저장되던 버그도 같이 발견. 한 라운드에 같이 정리.
 
 <table align="center">
   <tr>
@@ -1185,45 +1185,45 @@
   </tr>
   <tr>
     <td align="center"><b><code>/shop</code> 라우트</b></td>
-    <td>v1.3 부터 폐기됐지만 <code>redirect("/music")</code> 하는 페이지 파일이 남아 있어 빌드 그래프에 잔존</td>
-    <td>디렉터리 통째로 삭제. <code>npm run build</code> route 목록에서 <code>/shop</code> 제거 확인</td>
+    <td>v1.3 부터 폐기됐지만 음악 페이지로 자동 이동시키는 빈 파일이 남아 있어서 빌드 시 페이지 목록에 계속 잡힘</td>
+    <td>폴더 통째로 삭제. 빌드 결과의 페이지 목록에서 <code>/shop</code> 사라진 것 확인</td>
   </tr>
   <tr>
     <td align="center"><b>환경변수</b></td>
-    <td><code>process.env.NEXT_PUBLIC_*!</code> 5곳에 흩어짐. Algolia 더미값 검증 로직이 <code>SearchBox.tsx</code> 안에 직접 박혀 있음</td>
-    <td><code>src/lib/env.ts</code> 단일 진입점 (zero-dep). 형 검사 + 폴백 + Algolia 패턴 검증 내장 → 호출부는 <code>env.apiUrl</code> / <code>env.algolia</code> 한 줄</td>
+    <td>환경 변수를 5개 파일에서 따로따로 직접 불러옴. 검색 키 검증 로직도 검색창 컴포넌트 안에 박혀 있음</td>
+    <td><code>src/lib/env.ts</code> 한 파일에서만 환경 변수를 관리. 값 검증·없을 때 폴백·검색 키 형식 검사까지 자동 → 다른 파일은 한 줄로 가져다 쓰면 끝</td>
   </tr>
   <tr>
     <td align="center"><b>Kakao 지도 스크립트</b></td>
-    <td>키 누락 시에도 <code>&lt;Script src="...appkey=undefined"&gt;</code> 박힘</td>
-    <td>키 있을 때만 <code>&lt;Script&gt;</code> 렌더. 누락 시 아예 미주입</td>
+    <td>카카오 지도 API 키가 비어 있어도 "appkey=undefined" 라는 잘못된 주소로 스크립트를 불러옴</td>
+    <td>키가 있을 때만 스크립트 삽입. 키 없으면 아예 안 넣음</td>
   </tr>
   <tr>
     <td align="center"><b><code>page.tsx</code> 알림</b></td>
-    <td><code>Swal.fire(...)</code> 직접 호출 19곳. <code>notify.ts</code> 추상화 import 만 해놓고 정작 안 씀</td>
-    <td>19곳 전부 <code>notify</code> / <code>notifySuccess</code> / <code>notifyError</code> / <code>notifyWarning</code> / <code>confirmAction</code> 로 치환. <code>sweetalert2</code> 직접 결합 0</td>
+    <td>메인 페이지 안에서 알림창 라이브러리(sweetalert2) 를 19곳에서 직접 호출. 정작 만들어둔 공통 알림 모듈은 import 만 해놓고 사용 안 함</td>
+    <td>19곳 전부 공통 알림 함수 (성공 / 실패 / 경고 / 확인 다이얼로그) 로 교체. 메인 페이지의 sweetalert2 직접 호출 0개</td>
   </tr>
   <tr>
     <td align="center"><b>코스 저장 가드</b></td>
-    <td>무료 회원 슬롯 1개 초과 시 confirm 띄우지만 <code>.then</code> 안 <code>return</code> 으로 빠져 외부 함수는 계속 실행 → <b>확인 / 취소 무관하게 무조건 저장</b></td>
-    <td><code>await confirmAction()</code> → <code>if (!confirmed) return</code> 패턴으로 교체. 실제로 차단됨</td>
+    <td>무료 회원이 코스 1개 이미 저장한 상태에서 또 저장하면 "덮어쓸까요?" 확인창은 뜨지만, <b>취소를 눌러도 저장이 그대로 실행</b>되던 버그 (콜백 안의 return 이 외부 함수를 종료 못 시킨 함정)</td>
+    <td>확인창 결과를 기다렸다가 외부 함수에서 직접 분기 — 사용자가 취소하면 진짜로 저장 안 됨</td>
   </tr>
   <tr>
     <td align="center"><b>모달 분리</b></td>
-    <td>코스 탭의 "장소 추가하기" 슬라이드업 시트가 <code>page.tsx</code> 안 인라인 JSX (27 줄)</td>
-    <td><code>src/features/popup/AddPlaceModal.tsx</code> 추출. <code>div onClick</code> → <code>button</code> 으로 접근성도 같이 정리</td>
+    <td>코스 탭의 "장소 추가하기" 슬라이드업 화면이 메인 페이지 파일 안에 27줄로 박혀 있음</td>
+    <td>별도 파일 (<code>AddPlaceModal.tsx</code>) 로 분리. 클릭 영역도 div → button 으로 바꿔 키보드 접근성까지 같이 개선</td>
   </tr>
 </table>
 
-<sub>5 파일 수정 (<code>page.tsx</code>, <code>layout.tsx</code>, <code>api.ts</code>, <code>SearchBox.tsx</code>, +shop 폐기) · 2 파일 신규 (<code>env.ts</code>, <code>AddPlaceModal.tsx</code>) · 빌드 통과 (16/16 static pages) · 새 ESLint 위반 0건.</sub>
+<sub>5 파일 수정 + 2 파일 신규 (환경 변수 모듈, 장소 추가 모달) · shop 폴더 삭제 · 빌드 통과 (16/16 페이지) · 새 코드 검사 위반 0건.</sub>
 
 ---
 
 ### v2.7 — 게스트 모드 재설계 + 보안 Critical 3건 + 백엔드 결합도 정리
 
-> 게스트 7일 카운터가 인트로 / 메인 진입만으로 자동 시작돼 사용자가 모르는 사이 만료되던 UX 결함을 잡았다.
-> 같이 보안 감사에서 발견된 Critical / High 3건 (URL 신뢰 IDOR, GameController IDOR, X-Forwarded-Host 스푸핑)
-> 과 백엔드 결합도 부채 (Controller try-catch · RuntimeException 남용) 도 정리.
+> 게스트 7일 카운트다운이 인트로나 메인에 들어가기만 해도 자동 시작돼서 사용자가 인지 못한 채 7일이 지나가던 UX 결함을 잡음.
+> 같이 보안 점검에서 발견된 위험 항목 3건 (주소창 권한 위조 / 티켓 예약 ID 도용 / 업로드 URL 헤더 위조) 과
+> 백엔드의 너저분한 예외 처리 (개별 try-catch · 의미 없는 RuntimeException 남용) 도 같이 정리.
 
 <table align="center">
   <tr>
@@ -1233,48 +1233,48 @@
   </tr>
   <tr>
     <td align="center"><b>게스트 모드 시작점</b></td>
-    <td>인트로 / 메인 진입만 해도 자동으로 7일 카운터 시작. 사용자가 인지 못한 채 만료</td>
-    <td><b>로그인 페이지의 "게스트로 7일 둘러보기" 버튼</b> 으로만 시작. 명시적 opt-in</td>
+    <td>인트로나 메인에 들어가기만 해도 자동으로 7일 카운트다운 시작. 사용자는 자기가 게스트로 들어왔는지 모르는 채 7일이 흐름</td>
+    <td><b>로그인 페이지의 "게스트로 7일 둘러보기" 버튼을 직접 눌렀을 때만</b> 카운트다운 시작. 사용자가 자기 의지로 선택</td>
   </tr>
   <tr>
     <td align="center"><b>D-N pill 노출 위치</b></td>
-    <td>인트로 페이지에만 표시. 메인 들어가면 안 보임 (사용자 컴플레인)</td>
-    <td>인트로 + <b>메인 페이지 헤더 바로 아래</b> 에 상시 노출. "지금 가입하기" CTA 동반</td>
+    <td>인트로 페이지에만 잔여일이 뜨고 메인에 들어가면 안 보여서 사용자 불편</td>
+    <td>인트로뿐 아니라 <b>메인 페이지 상단</b> 에도 항상 잔여일 라벨 표시. 옆에 "지금 가입하기" 버튼도 함께</td>
   </tr>
   <tr>
     <td align="center"><b>비로그인 메인 진입 차단</b></td>
-    <td>자동 게스트 시작으로 통과 (= 차단 없음)</td>
-    <td>게스트 미시작 → <code>/login</code> 리다이렉트. 만료 → <code>/signup?reason=guest_expired</code></td>
+    <td>비로그인 사용자가 메인 진입하면 자동으로 게스트가 시작돼서 사실상 차단 없음</td>
+    <td>게스트로 시작 안 한 사용자는 로그인 페이지로, 7일 지난 사용자는 회원가입 페이지로 강제 이동</td>
   </tr>
   <tr>
     <td align="center"><b>URL 쿼리 권한 신뢰 (S1)</b></td>
-    <td><code>app/page.tsx</code> 가 <code>?isPremium=&role=&userId=&accessToken=</code> 를 그대로 읽어 localStorage 저장 → 권한 위조 가능</td>
-    <td>dead-code 통째 제거. 정식 OAuth 흐름은 <code>/oauth/callback</code> 에서 <code>GET /api/v1/auth/me</code> 호출로 서버 검증된 user 만 신뢰</td>
+    <td>메인 페이지가 주소창의 "isPremium=true&role=ADMIN" 같은 값을 검증 없이 받아서 브라우저에 저장 → <b>주소만 조작해도 어드민 권한을 가져갈 수 있는 보안 구멍</b></td>
+    <td>그 코드 통째 삭제. 진짜 소셜 로그인 흐름은 OAuth 콜백 페이지에서 서버에 "내 정보 알려줘" 호출 → 서버가 검증한 정보만 사용</td>
   </tr>
   <tr>
     <td align="center"><b>GameController IDOR (S2)</b></td>
-    <td><code>@RequestParam String userId</code> 그대로 받아 티켓 예약 → 타인 ID 로 선점 가능</td>
-    <td><code>Authentication.getName()</code> 으로 토큰 subject 강제. 미인증 시 <code>SecurityException</code></td>
+    <td>티켓 예약 API 가 클라이언트가 보낸 "userId=어쩌구" 를 그대로 사용 → <b>다른 사람 ID 로 티켓 선점 가능했던 구멍</b></td>
+    <td>로그인 토큰에서 자동으로 추출한 사용자 ID 만 사용. 토큰 없으면 거부</td>
   </tr>
   <tr>
     <td align="center"><b>X-Forwarded-Host 스푸핑 (S4)</b></td>
-    <td><code>ChatFileController</code> 가 헤더를 검증 없이 그대로 URL 빌드 → phishing 도메인 주입 가능</td>
-    <td>정규식 화이트리스트 (<code>app.upload.allowed-host-patterns</code>) 와 매칭될 때만 신뢰. 빈 설정 시 컨테이너의 실제 서버 이름만 사용</td>
+    <td>이미지 업로드 결과 URL 을 만들 때 'X-Forwarded-Host' 헤더를 검증 없이 그대로 사용 → <b>헤더를 위조하면 피싱 도메인 URL 을 반환받을 수 있던 구멍</b></td>
+    <td>허용 도메인 패턴 목록과 매칭될 때만 헤더 값 신뢰. 등록 안 돼 있으면 서버 자체 도메인만 사용 (가장 보수적)</td>
   </tr>
   <tr>
     <td align="center"><b>Controller 예외 결합도 (B3)</b></td>
-    <td><code>AdminController.giveReward</code> / <code>AuthController.findEmail</code> 의 try-catch 가 GlobalExceptionHandler 우회 → 표준 응답 포맷 깨짐</td>
-    <td>try-catch 제거 + <code>IllegalArgumentException</code> / <code>ResourceNotFoundException</code> 로 의미 격상. 전 예외가 GlobalExceptionHandler 한 곳에서 처리</td>
+    <td>관리자 보상 지급 / 이메일 찾기 API 가 try-catch 로 에러를 자기가 직접 처리해서 공통 에러 응답 포맷이 깨짐</td>
+    <td>try-catch 제거하고 표준 예외 (입력 오류 / 리소스 없음) 로 던지게 변경. 모든 에러는 공통 핸들러 한 곳에서 일관되게 처리</td>
   </tr>
 </table>
 
-<sub>프론트 8 파일 (<code>guestMode.ts</code>, <code>useGuestMode.ts</code>, <code>intro/page.tsx</code>, <code>login/page.tsx</code>, <code>page.tsx</code>, <code>admin/page.tsx</code>) · 백엔드 7 파일 (<code>GameController</code>, <code>ChatFileController</code>, <code>AdminController</code>, <code>AuthController</code>, <code>AuthService</code>, <code>StampService</code>, <code>application.properties</code>) · 프론트 빌드 16/16 static pages 통과 · 새 ESLint 위반 0건.</sub>
+<sub>프론트 8 파일 (게스트 모드 모듈, 인트로 / 로그인 / 메인 / 어드민 페이지 등) · 백엔드 7 파일 (Game / Chat / Admin / Auth Controller, Auth / Stamp Service, 설정 파일) · 프론트 빌드 16/16 페이지 통과 · 새 코드 검사 위반 0건.</sub>
 
 ---
 
 ### v2.7.1 / v2.7.2 — 백엔드 빌드 통과 핫픽스
 
-> v2.7 머지 후 사용자 로컬에서 <code>./gradlew clean build</code> 가 <code>spotlessJavaCheck</code> 단계에서 두 번 실패. 본 작업과 무관한 빌드 파이프라인 이슈라 패치 두 번으로 분리해 처리.
+> v2.7 머지 후 로컬에서 백엔드 빌드 (<code>./gradlew clean build</code>) 가 코드 포맷 검사 단계에서 두 번 실패. 본 작업과는 무관한 빌드 설정 이슈라 핫픽스 두 개로 분리 처리.
 
 <table align="center">
   <tr>
@@ -1285,15 +1285,15 @@
   </tr>
   <tr>
     <td align="center"><b>v2.7.1</b></td>
-    <td>120 개 <code>.java</code> 파일이 line-ending violation</td>
-    <td>Spotless 기본값 <code>GIT_ATTRIBUTES → OS 네이티브</code> 가 Windows 빌드에서 CRLF 를 기대했는데 저장소 파일은 LF</td>
-    <td><code>build.gradle</code> 의 spotless 블록에 <code>lineEndings 'UNIX'</code> 명시 + 저장소 루트에 <code>.gitattributes</code> 추가 (Java/TS/MD 등 LF, .bat/.cmd/.ps1 만 CRLF)</td>
+    <td>Java 파일 120개가 줄바꿈 문자 불일치로 검사 실패</td>
+    <td>코드 포맷 검사기가 Windows 에서는 CRLF(윈도우식 줄바꿈) 를 기대하는데, 저장소 파일은 LF(맥/리눅스식) 로 저장돼 있어서 매번 충돌</td>
+    <td>빌드 설정에 "줄바꿈은 LF 통일" 명시 + 저장소에 <code>.gitattributes</code> 파일 추가해서 git 차원에서도 LF 고정 (윈도우 전용 스크립트만 예외)</td>
   </tr>
   <tr>
     <td align="center"><b>v2.7.2</b></td>
-    <td>5 파일 (Game/Chat/Admin/Auth Controller + StampService) javadoc + throw wrap violation</td>
-    <td>v2.7 에서 추가한 한국어 멀티라인 JavaDoc 이 google-java-format AOSP 100-col 룰의 reflow 와 어긋남. <code>GameController</code> if 조건이 102 자로 100 초과</td>
-    <td>JavaDoc 을 콤팩트 재작성 (6 줄 → 3~4 줄), if 조건 3 줄 wrap, <code>throw new IllegalArgumentException(...)</code> 메시지 한 줄로 인라인. 사용자 로컬에서 <code>:spotlessApply</code> 가 1 라인을 추가로 자동 분리한 결과를 main 과 동기화 (<code>1fad2a7</code>)</td>
+    <td>5 파일 (Game / Chat / Admin / Auth Controller + StampService) 의 주석과 코드 줄바꿈이 한 줄 100자 규칙 위반</td>
+    <td>v2.7 에서 추가한 한국어 멀티라인 주석을 자동 코드 정리 도구 (google-java-format) 가 100자 안에 맞춰 다시 줄바꿈하려고 시도 → 결과 불일치. GameController if 조건도 102자로 살짝 초과</td>
+    <td>주석을 짧게 재작성 (6줄 → 3~4줄), if 조건을 3줄로 줄바꿈, 예외 메시지를 한 줄로 합침. 마지막에 로컬에서 자동 포맷이 한 줄을 추가로 분리한 결과를 main 과 동기화</td>
   </tr>
 </table>
 
@@ -1303,7 +1303,7 @@
 
 ### v2.8 — 게스트 탭 접근 정책 + 인트로 홍보
 
-> v2.7 에서 게스트 모드 시작점만 정리하고 끝냈더니, 정작 게스트 사용자가 마이페이지 / 동행 여권을 열려고 해도 "로그인 필요" 게이트가 막아 의미 없는 상태였다. 어떤 탭이 게스트에게 열려 있고, 어떤 탭이 회원 전용인지 한 곳에서 정의하고 모든 진입 경로(클릭 / sessionStorage 복원 / <code>?tab=</code> 쿼리)에 동일하게 적용.
+> v2.7 에서 게스트 모드 시작 방식만 정리했더니, 정작 게스트 사용자가 마이페이지 / 동행 여권을 열려고 해도 "로그인 필요" 차단에 걸려서 게스트 모드가 사실상 무의미한 상태였음. 어느 탭은 게스트도 들어가고 어느 탭은 회원만 가능한지를 한 곳에서 정의하고, 모든 진입 경로 (탭 클릭 / 이전 탭 복원 / 주소창 직접 입력) 에 같은 규칙을 적용.
 
 <table align="center">
   <tr>
@@ -1313,32 +1313,32 @@
   </tr>
   <tr>
     <td align="center"><b>게스트 탭 접근</b></td>
-    <td>MY / PASSPORT / MATE 모두 차단 (의도와 어긋남 — MY/PASSPORT 도 막혀 있어 사용자 항의)</td>
-    <td>MY / PASSPORT 는 게스트도 접근 가능 (empty state 노출). COURSE / MUSIC / MATE 는 가입 후 이용</td>
+    <td>마이페이지 / 동행 여권 / 메이트 모두 차단 — 마이페이지·여권은 게스트한테도 보여줘야 의미 있는데 다 막혀서 사용자 항의</td>
+    <td>마이페이지 / 동행 여권은 게스트도 접근 가능 (데이터 없으면 빈 화면 표시). 코스 / 음악 / 메이트는 회원만 이용</td>
   </tr>
   <tr>
     <td align="center"><b>회원 전용 탭 시도 시</b></td>
-    <td>"로그인이 필요합니다" 동일 안내 (게스트와 비로그인 구분 안 함)</td>
-    <td>게스트 → "회원 전용 기능" 안내 + 회원가입 CTA. 비로그인 → 기존 로그인 안내</td>
+    <td>"로그인이 필요합니다" 한 가지 안내만 노출 (게스트와 비로그인 구분 안 함)</td>
+    <td>게스트가 시도하면 → "회원 전용 기능" 안내 + 회원가입 버튼. 비로그인 사용자는 → 기존 로그인 안내 그대로</td>
   </tr>
   <tr>
     <td align="center"><b>sessionStorage 복원</b></td>
-    <td>마지막 탭이 COURSE/MUSIC 이었으면 게스트도 그대로 진입 (gate 우회)</td>
-    <td>복원 시점에 <code>canAccessTab()</code> 으로 차단된 탭이면 MAP 으로 폴백</td>
+    <td>이전에 보던 탭이 코스 / 음악이었으면 게스트도 그대로 진입돼서 차단 우회 가능</td>
+    <td>이전 탭 복원할 때도 권한 검사 — 게스트가 못 가는 탭이면 지도 탭으로 대체</td>
   </tr>
   <tr>
     <td align="center"><b><code>?tab=music</code> URL 직접 진입</b></td>
-    <td>인증 무관하게 진입 허용 (gate 우회)</td>
-    <td>같은 <code>canAccessTab()</code> 으로 차단 → MAP 폴백</td>
+    <td>주소만으로 진입 가능해서 차단 우회 가능</td>
+    <td>같은 권한 검사 함수로 막아서 못 가면 지도 탭으로 대체</td>
   </tr>
   <tr>
     <td align="center"><b>인트로 게스트 홍보</b></td>
-    <td>인트로에서 게스트 모드 존재 자체가 안 보임 → 회원가입 부담스러운 사용자가 그냥 이탈</td>
-    <td>Hero 와 Section 5 CTA 아래에 "가입 없이 게스트로 7일 둘러보기" 미니 카피 + 로그인 페이지 링크</td>
+    <td>인트로 화면에서 게스트 모드 옵션이 안 보여서 회원가입이 부담스러운 사용자가 그냥 떠남</td>
+    <td>인트로 첫 화면과 마지막 화면 모두 "가입 없이 게스트로 7일 둘러보기" 안내 추가 + 로그인 페이지로 연결</td>
   </tr>
 </table>
 
-<sub>2 파일 수정 (<code>app/page.tsx</code>, <code>app/intro/page.tsx</code>) · 정책은 page.tsx 최상단에 <code>USER_ONLY_TABS</code> / <code>canAccessTab()</code> / <code>userOnlyTabHint()</code> 로 단일 정의 — 게이트 / 복원 / URL 쿼리 세 곳에서 같은 함수 호출. 프론트 빌드 16/16 통과.</sub>
+<sub>메인 / 인트로 2개 파일 수정. 접근 정책은 메인 페이지 최상단에 "회원 전용 탭 목록" + "탭 접근 가능 여부 검사" 로 한 번만 정의 → 탭 클릭 / 이전 탭 복원 / 주소창 진입 세 곳 모두 같은 함수를 호출하도록 통일. 프론트 빌드 16/16 페이지 통과.</sub>
 
 ---
 
