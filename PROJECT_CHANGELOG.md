@@ -7631,3 +7631,91 @@ git push origin main
 - `src/lib/guestMode.ts` / `useGuestMode.ts` dead code 제거 여부 (사용자 결정)
 - v2.4 배포 후 실제 사용자 피드백 받기 (영상 OFF 기본의 첫인상이 어떤지)
 - 작전회의실 다른 페이지에도 같은 뒤로가기 패턴 확장 검토
+
+---
+
+# §17. v2.5 — 게스트 모드 재배선 (2026-05)
+
+## 17.1 배경
+
+v2.0 에서 `guestMode.ts` + `useGuestMode` 훅을 만들고 인트로 우상단에 `게스트 N일` pill 을 붙였는데, v2.1 ~ v2.4 인트로 리뉴얼을 거치며 어디에도 연결되지 않은 상태가 됨:
+
+- v2.1 — cinema 자동 진입 인트로로 갈아엎으며 pill 제거
+- v2.2 — 5-phase 슬라이드쇼로 또 재작성, pill 복귀 누락
+- v2.3 — `git show 5890365` 로 v1.7.3 비디오 인트로 복원 (그 시점엔 게스트 모드 자체가 없던 옛 버전)
+- v2.4 — 영상 토글 + 파스텔 폴백으로 새로 짬, 역시 pill 복귀 누락
+
+`grep -rn "useGuestMode\|guestMode" --include="*.ts" --include="*.tsx" src/ app/` 결과: **0 매치**. 정의 파일 2개는 살아있지만 호출하는 곳이 어디에도 없는 dead code 상태.
+
+## 17.2 적용 — 3 파일
+
+### 17.2.1 `app/intro/page.tsx`
+
+추가:
+
+- import `Clock` 아이콘, `useGuestMode` 훅
+- 컴포넌트 안에 `useGuestMode(isLoggedIn)` 호출 — `guestMounted` / `remainingDays` / `guestExpired` 추출
+- 만료 게스트가 인트로에 들어오면 즉시 `/signup?reason=guest_expired` 로 replace (useEffect)
+- `proceed()` 3-way 분기:
+  - 로그인됨 → `/?entered=1`
+  - 만료됨 → `/signup?reason=guest_expired`
+  - 게스트 7일 이내 → `/?entered=1` (메인 진입 허용)
+- 우상단 컨트롤 row 첫 자리에 `게스트 D-N` pill (라임 그린 배경, Clock 아이콘, `title` 툴팁) — `guestMounted && !isLoggedIn && !guestExpired` 일 때만 노출
+
+### 17.2.2 `app/page.tsx`
+
+추가:
+
+- import `ensureGuestFirstVisit`, `isGuestExpired`
+- mount useEffect 맨 앞에 게이트 — `!storedUser && isGuestExpired(firstVisit)` 이면 `router.replace("/signup?reason=guest_expired")` + `return` (이후 로직 실행 안 함)
+- dependency 배열에 `router` 추가 (린트 경고 회피)
+
+### 17.2.3 `app/signup/page.tsx`
+
+추가:
+
+- import `useSearchParams`
+- 컴포넌트 상단에 `guestExpired = searchParams.get("reason") === "guest_expired"`
+- 헤더 다음 / form 시작 전 위치에 안내 배너 conditional render — "7일 무료 체험이 끝났어요" + "30초면 끝나요" 카피
+
+## 17.3 동작 플로우
+
+```
+첫 방문 (비로그인)
+  └─ ensureGuestFirstVisit() → localStorage 에 epoch ms 기록
+  └─ 인트로 우상단 「게스트 D-7」 pill 노출
+  └─ ENTER 또는 Skip → /?entered=1 (메인 진입 허용)
+  └─ 매일 카운트다운 줄어듦
+
+7일 경과 (비로그인)
+  └─ 인트로 진입 시 useEffect 게이트가 자동 redirect → /signup?reason=guest_expired
+  └─ 만약 메인 직접 진입 (/?entered=1) → app/page.tsx 의 mount useEffect 가 잡아냄 → /signup
+  └─ signup 페이지에 "7일 무료 체험이 끝났어요" 안내 배너
+
+로그인 성공
+  └─ useGuestMode 훅이 isLoggedIn 변화 감지 → clearGuestMode() 자동 호출
+  └─ pill 안 보임, 게이트 통과
+```
+
+## 17.4 검증
+
+```bash
+cd popspot-frontend
+npx tsc --noEmit  # exit 0
+```
+
+mount 캐시 stale view 문제 발생 (세 파일 모두 끝부분 truncate). `git show HEAD:..` 로 v2.4 상태로 복원 후 Python 스크립트로 정확한 위치에만 패치 삽입하여 우회. Edit 도구의 누적 truncation 회피 패턴 — 작은 변경은 Python 패치, 큰 변경은 heredoc 전체 재작성.
+
+## 17.5 신규/수정 파일 통계
+
+| 파일 | 변경 | 라인 |
+|---|---|---|
+| `app/intro/page.tsx` | 게스트 훅 + pill + proceed 분기 + 만료 redirect | +23 |
+| `app/page.tsx` | mount 게이트 + import + dependency | +11 |
+| `app/signup/page.tsx` | 만료 안내 배너 + searchParams | +12 |
+
+## 17.6 학습
+
+1. **Dead code 는 빨리 발견하라**. v2.0 에서 만든 훅이 v2.1 이후 어디에서도 안 쓰였는데, 사용자가 "게스트모드 어디서 써?" 물어볼 때까지 몰랐다. import-graph 검사를 정기적으로 돌릴 필요.
+2. **큰 리뉴얼은 기존 기능 회귀 체크리스트와 함께**. 인트로 페이지 재작성 4번 (v2.1~v2.4) 하면서 매번 게스트 pill 복귀를 잊었다. PR 템플릿에 "기존 기능 회귀 확인" 체크박스 필요.
+3. **마운트 캐시 stale view 대응**. Edit 누적 사용 시 파일 끝부분이 truncate 되는 사고 재발. 해결책: `git checkout HEAD --` 또는 `git show HEAD:file >` 로 복원 후 Python 패치 적용.
