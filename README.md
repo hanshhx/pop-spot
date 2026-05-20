@@ -831,8 +831,8 @@
 <table align="center">
   <tr>
     <th align="center" width="160">항목</th>
-    <th align="center" width="300">전엔 이랬는데</th>
-    <th align="center" width="300">이렇게 바뀜</th>
+    <th align="center" width="300">이전 버전</th>
+    <th align="center" width="300">현재 버전</th>
   </tr>
   <tr>
     <td align="center"><b>비밀번호 보기</b></td>
@@ -872,8 +872,8 @@
 <table align="center">
   <tr>
     <th align="center" width="100">버전</th>
-    <th align="center" width="240">전엔 이랬는데</th>
-    <th align="center" width="300">이렇게 바뀜</th>
+    <th align="center" width="240">이전 버전</th>
+    <th align="center" width="300">현재 버전</th>
   </tr>
   <tr>
     <td align="center"><b>v1.6.1</b></td>
@@ -902,7 +902,7 @@
   </tr>
   <tr>
     <td align="center"><b>v1.6.6</b></td>
-    <td>인트로 카피가 "혁신적인 — 똑똑한 — 새로운" 식의 AI 티 나는 병렬 문장</td>
+    <td>인트로 카피가 "혁신적인 — 똑똑한 — 새로운" 식의 딱딱한 병렬 문장</td>
     <td>"매일 새로 열리는 팝업을 한 화면에서" 처럼 회화체로. em-dash 도 제거</td>
   </tr>
 </table>
@@ -911,15 +911,15 @@
 
 <br/>
 
-### v1.7 ~ v1.7.4 — 인트로 디자인 AI 티 제거
+### v1.7 ~ v1.7.4 — 인트로 디자인 수정
 
 > 디자인 자체가 AI 가 짠 듯 정형화돼있다는 피드백. SK / HM Group / Greencar / DU 70주년 레퍼런스를 분석해 매거진 무드로 갈아엎음.
 
 <table align="center">
   <tr>
     <th align="center" width="180">항목</th>
-    <th align="center" width="290">전엔 이랬는데</th>
-    <th align="center" width="290">이렇게 바뀜</th>
+    <th align="center" width="290">이전 버전</th>
+    <th align="center" width="290">현재 버전</th>
   </tr>
   <tr>
     <td align="center"><b>배경 시각</b></td>
@@ -959,8 +959,8 @@
 <table align="center">
   <tr>
     <th align="center" width="180">항목</th>
-    <th align="center" width="290">전엔 이랬는데</th>
-    <th align="center" width="290">이렇게 바뀜</th>
+    <th align="center" width="290">이전 버전</th>
+    <th align="center" width="290">현재 버전</th>
   </tr>
   <tr>
     <td align="center"><b>Section 3 (3 기능)</b></td>
@@ -995,8 +995,8 @@
 <table align="center">
   <tr>
     <th align="center" width="180">항목</th>
-    <th align="center" width="290">전엔 이랬는데</th>
-    <th align="center" width="290">이렇게 바뀜</th>
+    <th align="center" width="290">이전 버전</th>
+    <th align="center" width="290">현재 버전</th>
   </tr>
   <tr>
     <td align="center"><b>여백</b></td>
@@ -1036,8 +1036,8 @@
 <table align="center">
   <tr>
     <th align="center" width="180">항목</th>
-    <th align="center" width="290">전엔 이랬는데</th>
-    <th align="center" width="290">이렇게 바뀜</th>
+    <th align="center" width="290">이전 버전</th>
+    <th align="center" width="290">현재 버전</th>
   </tr>
   <tr>
     <td align="center"><b>비로그인 진입</b></td>
@@ -1067,23 +1067,23 @@
 <table align="center">
   <tr>
     <th align="center" width="100">버전</th>
-    <th align="center" width="240">시도한 것</th>
-    <th align="center" width="280">사용자 피드백 → 결정</th>
+    <th align="center" width="240">이전 버전</th>
+    <th align="center" width="280">현재 버전</th>
   </tr>
   <tr>
     <td align="center"><b>v2.1</b></td>
-    <td>첫 방문 시 7초 동안 인트로 보여주고 자동으로 메인으로 redirect</td>
-    <td>"걍 자동으로 메인페이지 들어가는거에 불과한거잖아" → 폐기</td>
+    <td>정적 인트로 — 사용자가 직접 스크롤하며 둘러봄 (v2.0 기준)</td>
+    <td>첫 방문 시 7초 동안 보여주고 자동 redirect 시도 → 사용자 "걍 자동 진입에 불과" → 폐기</td>
   </tr>
   <tr>
     <td align="center"><b>v2.2</b></td>
-    <td>한 화면에서 5단계 (로고 → 태그라인 → 핵심 → 차별점 → CTA) 자동 슬라이드, 총 13초</td>
-    <td>"오류 많고 역효과" — 자동 전환이 답답하고 통제권 박탈 → 폐기</td>
+    <td>v2.1 의 7초 자동 redirect 방식 (이미 폐기됨)</td>
+    <td>한 화면에서 5단계 자동 슬라이드 (13초) 시도 → 사용자 "오류 많고 역효과" → 폐기</td>
   </tr>
   <tr>
     <td align="center"><b>v2.3</b></td>
-    <td><code>git show 5890365:.../intro/page.tsx</code> 로 v1.7.3 원본 비디오 인트로 복원</td>
-    <td>OK — 풀스크린 비디오 + 5섹션 스냅 스크롤, 사용자가 직접 스크롤하며 보는 구조</td>
+    <td>v2.2 의 5단계 슬라이드쇼 (이미 폐기됨)</td>
+    <td><code>git show 5890365</code> 로 v1.7.3 풀스크린 비디오 + 5섹션 스냅 스크롤 인트로 복원</td>
   </tr>
 </table>
 
@@ -1093,13 +1093,13 @@
 
 ### v2.4 — 영상 토글 + 파스텔 폴백 + 메인 로고 우회 + 작전회의실 뒤로가기
 
-> 17MB mp4 가 항상 로드돼 사이트가 무겁다는 피드백 + 메인 로고 누르면 인트로가 다시 떠서 불편하다는 피드백 + 작전회의실에 뒤로가기 없음 + Section 5 빨간 배경 눈 아픔 + AI 스러운 디자인 정리.
+> 17MB mp4 가 항상 로드돼 사이트가 무겁다는 피드백 + 메인 로고 누르면 인트로가 다시 떠서 불편하다는 피드백 + 작전회의실에 뒤로가기 없음 + Section 5 빨간 배경 눈 아픔 + 딱딱한 디자인 정리.
 
 <table align="center">
   <tr>
     <th align="center" width="180">항목</th>
-    <th align="center" width="290">전엔 이랬는데</th>
-    <th align="center" width="290">이렇게 바뀜</th>
+    <th align="center" width="290">이전 버전</th>
+    <th align="center" width="290">현재 버전</th>
   </tr>
   <tr>
     <td align="center"><b>배경 영상</b></td>
@@ -1132,7 +1132,7 @@
     <td>풀 배경 제거, 코너에 부드러운 글로우 2개 (hot-300 / amber-300) 로 톤다운</td>
   </tr>
   <tr>
-    <td align="center"><b>AI 티 라벨</b></td>
+    <td align="center"><b>섹션 라벨</b></td>
     <td>"Why POP-SPOT", "Core Features", "Only on POP-SPOT" 같은 영문 대문자 mono 라벨이 모든 섹션에</td>
     <td>전부 제거. "Seoul Popup Store Intelligence" 같은 영문 부제도 "서울 팝업스토어 플랫폼" 으로 한글화</td>
   </tr>
@@ -1149,8 +1149,8 @@
 <table align="center">
   <tr>
     <th align="center" width="180">항목</th>
-    <th align="center" width="290">전엔 이랬는데</th>
-    <th align="center" width="290">이렇게 바뀜</th>
+    <th align="center" width="290">이전 버전</th>
+    <th align="center" width="290">현재 버전</th>
   </tr>
   <tr>
     <td align="center"><b>인트로 우상단</b></td>
