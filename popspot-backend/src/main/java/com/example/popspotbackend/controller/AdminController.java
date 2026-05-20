@@ -75,9 +75,7 @@ public class AdminController {
     /**
      * 유저 nickname 으로 MEGAPHONE / POPPASS 아이템 수동 지급.
      *
-     * <p>입력 검증 실패 (nickname/itemType 누락, amount 파싱 실패) 는 {@link IllegalArgumentException} 으로
-     * 격상되어 GlobalExceptionHandler 가 400 으로 응답한다. 컨트롤러에서 직접 try-catch 로 가로채면 표준
-     * 응답 포맷이 깨지고 스택트레이스 노출 위험이 있어 예외를 흘려보낸다.
+     * <p>입력 검증은 {@link IllegalArgumentException} 으로 격상해 GlobalExceptionHandler 위임.
      */
     @PostMapping("/reward")
     public ResponseEntity<String> giveReward(@RequestBody Map<String, String> request) {
