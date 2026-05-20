@@ -1272,6 +1272,47 @@
 
 ---
 
+### v2.8 — 게스트 탭 접근 정책 + 인트로 홍보
+
+> v2.7 에서 게스트 모드 시작점만 정리하고 끝냈더니, 정작 게스트 사용자가 마이페이지 / 동행 여권을 열려고 해도 "로그인 필요" 게이트가 막아 의미 없는 상태였다. 어떤 탭이 게스트에게 열려 있고, 어떤 탭이 회원 전용인지 한 곳에서 정의하고 모든 진입 경로(클릭 / sessionStorage 복원 / <code>?tab=</code> 쿼리)에 동일하게 적용.
+
+<table align="center">
+  <tr>
+    <th align="center" width="180">항목</th>
+    <th align="center" width="290">v2.7</th>
+    <th align="center" width="290">v2.8</th>
+  </tr>
+  <tr>
+    <td align="center"><b>게스트 탭 접근</b></td>
+    <td>MY / PASSPORT / MATE 모두 차단 (의도와 어긋남 — MY/PASSPORT 도 막혀 있어 사용자 항의)</td>
+    <td>MY / PASSPORT 는 게스트도 접근 가능 (empty state 노출). COURSE / MUSIC / MATE 는 가입 후 이용</td>
+  </tr>
+  <tr>
+    <td align="center"><b>회원 전용 탭 시도 시</b></td>
+    <td>"로그인이 필요합니다" 동일 안내 (게스트와 비로그인 구분 안 함)</td>
+    <td>게스트 → "회원 전용 기능" 안내 + 회원가입 CTA. 비로그인 → 기존 로그인 안내</td>
+  </tr>
+  <tr>
+    <td align="center"><b>sessionStorage 복원</b></td>
+    <td>마지막 탭이 COURSE/MUSIC 이었으면 게스트도 그대로 진입 (gate 우회)</td>
+    <td>복원 시점에 <code>canAccessTab()</code> 으로 차단된 탭이면 MAP 으로 폴백</td>
+  </tr>
+  <tr>
+    <td align="center"><b><code>?tab=music</code> URL 직접 진입</b></td>
+    <td>인증 무관하게 진입 허용 (gate 우회)</td>
+    <td>같은 <code>canAccessTab()</code> 으로 차단 → MAP 폴백</td>
+  </tr>
+  <tr>
+    <td align="center"><b>인트로 게스트 홍보</b></td>
+    <td>인트로에서 게스트 모드 존재 자체가 안 보임 → 회원가입 부담스러운 사용자가 그냥 이탈</td>
+    <td>Hero 와 Section 5 CTA 아래에 "가입 없이 게스트로 7일 둘러보기" 미니 카피 + 로그인 페이지 링크</td>
+  </tr>
+</table>
+
+<sub>2 파일 수정 (<code>app/page.tsx</code>, <code>app/intro/page.tsx</code>) · 정책은 page.tsx 최상단에 <code>USER_ONLY_TABS</code> / <code>canAccessTab()</code> / <code>userOnlyTabHint()</code> 로 단일 정의 — 게이트 / 복원 / URL 쿼리 세 곳에서 같은 함수 호출. 프론트 빌드 16/16 통과.</sub>
+
+---
+
 ## 폴더 구조 (백엔드)
 
 ```

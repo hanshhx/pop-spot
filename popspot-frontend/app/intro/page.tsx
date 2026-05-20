@@ -419,21 +419,37 @@ export default function IntroPage() {
               )}
             </motion.button>
 
-            {!isLoggedIn && (
-              <motion.p
+            {!isLoggedIn && !guestActive && (
+              <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.6, delay: 1.4 }}
-                className={`mt-5 text-sm ${txtMuted}`}
+                className={`mt-5 flex flex-col items-center gap-1.5 text-sm ${txtMuted}`}
               >
-                아직 회원이 아니신가요?{" "}
-                <button
-                  onClick={() => router.push("/signup")}
-                  className="font-semibold text-lime-600 underline-offset-4 transition hover:underline dark:text-lime-300"
-                >
-                  회원가입
-                </button>
-              </motion.p>
+                <p>
+                  아직 회원이 아니신가요?{" "}
+                  <button
+                    onClick={() => router.push("/signup")}
+                    className="font-semibold text-lime-600 underline-offset-4 transition hover:underline dark:text-lime-300"
+                  >
+                    회원가입
+                  </button>
+                </p>
+                {/*
+                  v2.8 — 게스트 모드 진입점은 로그인 페이지의 명시적 버튼이지만, 인트로에서 그 존재를
+                  몰라 회원가입을 꺼리는 사용자가 떨어지는 패턴을 막기 위해 여기서 한 줄 홍보.
+                */}
+                <p className="text-[11px] sm:text-xs">
+                  가입이 부담스러우신가요?{" "}
+                  <button
+                    onClick={() => router.push("/login")}
+                    className="font-semibold underline-offset-4 transition hover:underline text-ink-900/80 dark:text-cream-100/80"
+                  >
+                    게스트로 7일 둘러보기
+                  </button>
+                  {" "}도 가능해요
+                </p>
+              </motion.div>
             )}
           </div>
 
@@ -705,6 +721,20 @@ export default function IntroPage() {
                 </motion.button>
               )}
             </div>
+
+            {/* v2.8 — Section 5 CTA 아래 게스트 모드 보조 진입점. 회원가입 부담을 완화하는 미니 카피. */}
+            {!isLoggedIn && !guestActive && (
+              <p className={`mt-5 text-[12px] sm:text-sm ${txtMuted}`}>
+                먼저 둘러보고 싶다면{" "}
+                <button
+                  onClick={() => router.push("/login")}
+                  className="font-semibold underline-offset-4 transition hover:underline text-lime-600 dark:text-lime-300"
+                >
+                  게스트로 7일 체험
+                </button>
+                도 가능해요
+              </p>
+            )}
 
             <p className={`mt-8 text-[11px] tracking-widest sm:text-xs ${txtMuted}`}>
               © {new Date().getFullYear()} POP-SPOT · 서울 팝업스토어 플랫폼

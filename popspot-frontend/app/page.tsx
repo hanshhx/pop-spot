@@ -65,6 +65,31 @@ import type {
 const INITIAL_MY_COURSE: CourseItem[] = [];
 
 /* -------------------------------------------------------------------------- */
+/* 탭 접근 정책 — 한 곳에서 관리해 게이트 / sessionStorage 복원 / ?tab= 쿼리 어디서든   */
+/* 동일 규칙이 적용된다.                                                          */
+/*                                                                            */
+/*  - USER_ONLY_TABS : 정식 회원만. 게스트는 회원가입 유도, 비로그인은 로그인 유도.    */
+/*  - 그 외 (MAP / PASSPORT / MY) : 게스트도 진입 가능. 데이터가 없으면 화면에서       */
+/*    자연스러운 empty state 노출.                                               */
+/* -------------------------------------------------------------------------- */
+const DEFAULT_TAB = "MAP";
+const USER_ONLY_TABS = new Set<string>(["COURSE", "MUSIC", "MATE"]);
+
+/** 현재 세션에서 해당 탭에 진입할 수 있는가. */
+function canAccessTab(tab: string, hasUser: boolean): boolean {
+  if (hasUser) return true;
+  return !USER_ONLY_TABS.has(tab);
+}
+
+/** USER_ONLY 탭을 게스트가 노크했을 때 보여줄 안내 문구. */
+function userOnlyTabHint(tab: string): string {
+  if (tab === "COURSE") return "AI 코스 추천은 가입 후 이용해주세요.";
+  if (tab === "MUSIC") return "음악 추천은 가입 후 이용해주세요.";
+  if (tab === "MATE") return "메이트 기능은 가입 후 이용해주세요.";
+  return "가입 후 이용해주세요.";
+}
+
+/* -------------------------------------------------------------------------- */
 /* Main Page Component                                                        */
 /* -------------------------------------------------------------------------- */
 export default function Home() {
@@ -254,14 +279,34 @@ export default function Home() {
       } catch (err) { console.error(err); }
   };
 
-  const handleTabChange = async (tab: string) => {
-    if ((tab === "PASSPORT" || tab === "MY" || tab === "MATE") && !user) {
+  /**
+   * 게스트 사용자가 USER_ONLY 탭(COURSE / MUSIC / MATE) 을 누르면 회원가입 유도,
+   * 비로그인+비게스트는 로그인 유도. 두 시나리오는 사용자 입장에서 의미가 다르므로
+   * 별도의 카피로 분리.
+   */
+  const promptUpgradeOrLogin = async (tab: string) => {
+    const isGuest = guestRemainingDays != null;
+    if (isGuest) {
         if (await confirmAction({
-            title: '로그인이 필요합니다',
-            confirmText: '로그인',
+            title: '회원 전용 기능',
+            text: userOnlyTabHint(tab),
+            confirmText: '회원가입',
         })) {
-            router.push("/login");
+            router.push("/signup");
         }
+        return;
+    }
+    if (await confirmAction({
+        title: '로그인이 필요합니다',
+        confirmText: '로그인',
+    })) {
+        router.push("/login");
+    }
+  };
+
+  const handleTabChange = async (tab: string) => {
+    if (!canAccessTab(tab, !!user)) {
+        await promptUpgradeOrLogin(tab);
         return;
     }
     setCurrentTab(tab);
@@ -460,13 +505,20 @@ export default function Home() {
       
     // 외부에서 들어올 때 ?tab=music 같은 파라미터로 직접 진입할 수 있게 한다.
     // (예: 구버전 /music 라우트가 / 로 redirect 될 때 사용)
+    //
+    // 게스트 / 비로그인 사용자가 USER_ONLY 탭으로 직접 진입하려 해도 정책 게이트로 한 번 더 막는다 —
+    // handleTabChange 가 아닌 직접 setCurrentTab 경로라서 별도 가드 필요.
+    const hasUser = !!storedUser;
     const tabParam = searchParams.get("tab");
     if (tabParam) {
-      setCurrentTab(tabParam.toUpperCase());
+      const requested = tabParam.toUpperCase();
+      setCurrentTab(canAccessTab(requested, hasUser) ? requested : DEFAULT_TAB);
       return;
     }
     const lastTab = sessionStorage.getItem("lastTab");
-    if (lastTab) setCurrentTab(lastTab);
+    if (lastTab) {
+      setCurrentTab(canAccessTab(lastTab, hasUser) ? lastTab : DEFAULT_TAB);
+    }
   }, [searchParams, router]);
 
   /* Utilities */
