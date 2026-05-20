@@ -42,6 +42,7 @@ import { BottomDock, type DockTab } from "../src/components/layout/BottomDock";
 import MusicTab from "@/components/music/MusicTab";
 import RankCard from "@/components/rank/RankCard";
 import { notify } from "@/lib/notify";
+import { ensureGuestFirstVisit, isGuestExpired } from "@/lib/guestMode";
 import { SearchZone } from "@/features/popup/SearchBox";
 import { ReportPopupModal } from "@/features/popup/ReportPopupModal";
 import { PopupCalendarModal } from "@/features/popup/PopupCalendarModal";
@@ -435,6 +436,16 @@ export default function Home() {
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
 
+    // 게스트 만료 게이트 — 비로그인 + 7일 경과 시 회원가입 강제.
+    // 비로그인이라도 7일 안에는 게스트로 메인 진입 허용.
+    if (!storedUser) {
+      const firstVisit = ensureGuestFirstVisit();
+      if (isGuestExpired(firstVisit)) {
+        router.replace("/signup?reason=guest_expired");
+        return;
+      }
+    }
+
     if (storedUser) {
         const parsedUser = JSON.parse(storedUser);
         setUser(parsedUser);
@@ -463,7 +474,7 @@ export default function Home() {
     }
     const lastTab = sessionStorage.getItem("lastTab");
     if (lastTab) setCurrentTab(lastTab);
-  }, [searchParams]);
+  }, [searchParams, router]);
 
   /* Utilities */
   const sectionVariants: Variants = {
