@@ -18,5 +18,10 @@ public class MateDto {
     private String content;
     private String targetPopup;
     private Integer maxPeople;
-    private boolean useMegaphone;
+
+    /**
+     * v2.12 — 상단 부스트 적용 요청. 등급별 월 한도 안에서만 허용.
+     * 옛 필드 {@code useMegaphone} 의 의미를 그대로 이어받았고, 프론트는 이 이름으로 보낸다.
+     */
+    private boolean useBoost;
 }

@@ -6,7 +6,7 @@ import {
   Search, MapPin, ArrowUpRight, Flame, Calendar, Menu, Users,
   Instagram, Plus, X, ArrowUp, ArrowDown, Minus,
   Map as MapIcon, Route, Ticket, User as UserIcon, LogOut, Sparkles, Lock, ArrowRight, Loader2, RefreshCw,
-  Shirt, Video, ShoppingBag, Crown, GripVertical, PlusCircle, Zap, MessageCircle, Heart, Star, Gift, Megaphone,
+  Shirt, Video, ShoppingBag, Crown, GripVertical, PlusCircle, Zap, MessageCircle, Heart, Star, Gift,
   FolderOpen, Save, Trash2, Store, ShieldCheck, ChevronLeft, ChevronRight, Camera, Coffee, Music, Clock
 } from "lucide-react";
 import { motion, Variants, AnimatePresence } from "framer-motion";
@@ -52,6 +52,7 @@ import { PopupCalendarModal } from "@/features/popup/PopupCalendarModal";
 import { AllTrendingModal } from "@/features/popup/AllTrendingModal";
 import { AddPlaceModal } from "@/features/popup/AddPlaceModal";
 import { MyFeedbackList } from "@/features/feedback/MyFeedbackList";
+import { FeedbackForm } from "@/features/feedback/FeedbackForm";
 import type {
   User,
   PopupStore,
@@ -362,16 +363,7 @@ export default function Home() {
       return;
     }
 
-    // 무료 회원은 코스 슬롯이 1개뿐 — 기존 1개가 있으면 덮어쓰기 동의를 받아야 진행한다.
-    // (이전 구현은 .then 내부 return 으로 빠져나가 가드가 무력화돼 무조건 저장되던 버그.)
-    if (!user.isPremium && savedCourses.length > 0) {
-        const confirmed = await confirmAction({
-            title: '무료 회원 슬롯 제한',
-            text: '무료 회원은 코스를 1개만 저장 가능합니다. 덮어쓰시겠습니까?',
-            icon: 'info',
-        });
-        if (!confirmed) return;
-    }
+    // v2.12: 모든 사용자가 코스를 무제한으로 저장 가능. 이전의 freemium 1개 제한은 폐지.
 
     try {
         const res = await apiFetch("/api/my-courses", {
@@ -1226,27 +1218,24 @@ export default function Home() {
                                     </button>
                                     </article>
                                 ))}
-                                {user && !user.isPremium && savedCourses.length >= 1 && (
-                                    <div className="mt-2 text-xs text-center text-danger bg-hot-400/10 border border-hot-400/20 p-2 rounded-md">
-                                        안내: 무료 회원은 코스를 1개만 저장할 수 있습니다.<br className="hidden md:block"/>새로 저장하면 이 코스는 삭제됩니다.
-                                    </div>
-                                )}
+                                {/* v2.12: 무료 회원 1개 제한 폐지 — 모든 사용자가 무제한 저장 */}
                             </div>
                         )}
                     </div>
 
-                    {/* 내가 보낸 의견 — 최근 3건만 노출. 전체는 /feedback 으로 이동. */}
+                    {/* 내가 보낸 의견 — 최근 3건만 노출. 전체는 FEEDBACK 탭으로 이동. */}
                     <div className="p-4 lg:p-6 border-b border-[var(--color-border)]">
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-base lg:text-lg font-bold flex items-center gap-2 text-foreground">
                                 <MessageCircle size={16} className="lg:w-[18px] lg:h-[18px] text-lime-500"/> 내가 보낸 의견
                             </h3>
-                            <Link
-                                href="/feedback"
+                            <button
+                                type="button"
+                                onClick={() => handleTabChange("FEEDBACK")}
                                 className="text-xs text-muted-foreground hover:text-foreground"
                             >
                                 전체 보기
-                            </Link>
+                            </button>
                         </div>
                         <MyFeedbackList
                             userId={user?.userId ?? null}
@@ -1321,9 +1310,42 @@ export default function Home() {
 
         {/* TAB: MATE */}
         {currentTab === "MATE" && (
-            <motion.section aria-label="Mate Board" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} 
+            <motion.section aria-label="Mate Board" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
                         className="min-h-[60vh] rounded-xl border border-[var(--color-border)] bg-surface text-surface-foreground mb-16 relative overflow-hidden shadow-md">
                 {user && <MateBoard user={user} />}
+            </motion.section>
+        )}
+
+        {/* TAB: FEEDBACK (v2.12) — 게스트도 진입 가능. /feedback 페이지와 동일 컴포넌트 재사용. */}
+        {currentTab === "FEEDBACK" && (
+            <motion.section
+                aria-label="Feedback"
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="min-h-[60vh] rounded-xl border border-[var(--color-border)] bg-surface text-surface-foreground mb-16 p-4 lg:p-6 shadow-md"
+            >
+                <div className="mb-4">
+                    <h2 className="text-xl font-bold text-foreground">의견 보내기</h2>
+                    <p className="text-sm text-muted-foreground mt-1">
+                        서비스를 쓰면서 느낀 점, 버그, 제안을 운영팀에 전달할 수 있습니다.
+                    </p>
+                </div>
+                <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
+                    <div className="lg:col-span-3">
+                        <div className="rounded-lg border border-[var(--color-border-strong)] bg-cream-300 dark:bg-ink-800 p-5">
+                            <h3 className="mb-4 text-base font-semibold text-foreground">새 의견</h3>
+                            <FeedbackForm userId={user?.userId ?? null} />
+                        </div>
+                    </div>
+                    <aside className="lg:col-span-2">
+                        <div className="rounded-lg border border-[var(--color-border-strong)] bg-cream-300 dark:bg-ink-800 p-5">
+                            <h3 className="mb-4 text-base font-semibold text-foreground">
+                                내가 보낸 의견
+                            </h3>
+                            <MyFeedbackList userId={user?.userId ?? null} />
+                        </div>
+                    </aside>
+                </div>
             </motion.section>
         )}
 

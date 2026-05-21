@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createPortal } from "react-dom"; 
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { MessageCircle, Plus, User as UserIcon, MapPin, X, Megaphone, Crown } from "lucide-react";
+import { MessageCircle, Plus, User as UserIcon, MapPin, X, TrendingUp, Crown } from "lucide-react";
 import { useChatStore } from "../store/useChatStore";
 import { apiFetch } from "../lib/api";
-import { notify, notifyError, confirmAction } from "@/lib/notify";
+import { notify, notifyError } from "@/lib/notify";
+import { BOOST_LIMIT_HINT, type BoostStatus } from "@/lib/boost";
+import type { RankKey } from "@/lib/rank";
 import type { User as DomainUser } from "@/types/popup";
 
 interface MateBoardProps {
@@ -34,15 +36,16 @@ interface MatePost {
 export default function MateBoard({ user }: MateBoardProps) {
   const [posts, setPosts] = useState<MatePost[]>([]);
   const [isWriteOpen, setIsWriteOpen] = useState(false);
-  const [mounted, setMounted] = useState(false); 
+  const [mounted, setMounted] = useState(false);
+  const [boostStatus, setBoostStatus] = useState<BoostStatus | null>(null);
   const openChat = useChatStore((state) => state.openChat);
-  
+
   const [formData, setFormData] = useState({
     title: "",
     content: "",
     targetPopup: "",
     maxPeople: 2,
-    useMegaphone: false
+    useBoost: false,
   });
 
   const fetchPosts = async () => {
@@ -63,6 +66,18 @@ export default function MateBoard({ user }: MateBoardProps) {
     }
   };
 
+  const fetchBoostStatus = async (userId: string) => {
+    try {
+      const res = await apiFetch(`/api/mates/boost-status?userId=${encodeURIComponent(userId)}`);
+      if (res.ok) {
+        const data = (await res.json()) as BoostStatus;
+        setBoostStatus(data);
+      }
+    } catch {
+      // 잔여 횟수 표시 실패는 글쓰기 자체를 막지 않음 — 그냥 잔여 정보 미표시.
+    }
+  };
+
   useEffect(() => {
     fetchPosts();
   }, []);
@@ -71,10 +86,15 @@ export default function MateBoard({ user }: MateBoardProps) {
     setMounted(true);
     if (isWriteOpen) {
       document.body.style.overflow = "hidden";
+      const targetUserId = user.userId || user.id || "";
+      if (targetUserId) fetchBoostStatus(targetUserId);
     } else {
       document.body.style.overflow = "auto";
     }
-    return () => { document.body.style.overflow = "auto"; };
+    return () => {
+      document.body.style.overflow = "auto";
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isWriteOpen]);
 
   const handleSubmit = async () => {
@@ -88,20 +108,24 @@ export default function MateBoard({ user }: MateBoardProps) {
       const res = await apiFetch("/api/mates", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...formData, userId: targetUserId })
+        body: JSON.stringify({ ...formData, userId: targetUserId }),
       });
-      
+
       if (res.ok) {
-        notify(formData.useMegaphone ? "📢 확성기를 사용하여 상단에 등록되었습니다!" : "모집 글이 등록되었습니다!");
+        notify(
+          formData.useBoost
+            ? "상단 부스트가 적용된 모집글이 등록되었습니다."
+            : "모집 글이 등록되었습니다.",
+        );
         setIsWriteOpen(false);
-        fetchPosts(); 
-        setFormData({ title: "", content: "", targetPopup: "", maxPeople: 2, useMegaphone: false });
-        if(formData.useMegaphone) window.location.reload();
+        fetchPosts();
+        setFormData({ title: "", content: "", targetPopup: "", maxPeople: 2, useBoost: false });
+        if (formData.useBoost) fetchBoostStatus(targetUserId);
       } else {
         const errorText = await res.text();
         notifyError(`등록 실패: ${errorText}`);
       }
-    } catch (e) {
+    } catch {
       notifyError("등록 실패");
     }
   };
@@ -161,8 +185,8 @@ export default function MateBoard({ user }: MateBoardProps) {
         {megaphonePosts.length > 0 && (
           <div className="bg-lime-300/5 dark:bg-ink-800/50 border-b border-[var(--color-border)] dark:border-white/5 py-5">
             <div className="px-4 md:px-6 mb-3 flex items-center gap-2">
-              <Megaphone size={18} className="text-hot-400 animate-pulse md:w-5 md:h-5" fill="currentColor"/>
-              <span className="font-black text-sm md:text-base text-gray-900 dark:text-white tracking-wide">HOT MATES</span>
+              <TrendingUp size={18} className="text-hot-400 md:w-5 md:h-5" />
+              <span className="font-black text-sm md:text-base text-gray-900 dark:text-white tracking-wide">상단 부스트</span>
             </div>
             
             {/* 가로 스와이프 컨테이너 */}
@@ -176,7 +200,7 @@ export default function MateBoard({ user }: MateBoardProps) {
                 >
                     <div className="absolute top-0 left-0 w-1.5 h-full bg-hot-400"></div>
                     <div className="absolute top-0 right-0 bg-hot-400 text-white text-[9px] md:text-[10px] font-bold px-2 py-1 md:px-3 md:py-1.5 rounded-bl-lg md:rounded-bl-xl flex items-center gap-1 shadow-md z-10">
-                        <Megaphone size={10} className="md:w-3 md:h-3 animate-tada" fill="currentColor" /> AD
+                        <TrendingUp size={10} className="md:w-3 md:h-3" /> 부스트
                     </div>
                     
                     <div className="flex justify-between items-start mb-3 pl-2 pr-10">
@@ -239,10 +263,10 @@ export default function MateBoard({ user }: MateBoardProps) {
                               : 'border-[var(--color-border)] dark:border-lime-300/20 hover:border-lime-300'
                           }`}
                   >
-                      {/* 기간 만료/마감된 확성기 글 처리용 */}
+                      {/* 마감된 부스트 글 처리용 */}
                       {post.isMegaphone && post.status === 'CLOSED' && (
                           <div className="absolute top-0 right-0 bg-gray-400 text-white text-[9px] md:text-[10px] font-bold px-2 py-1 md:px-3 md:py-1.5 rounded-bl-lg md:rounded-bl-xl flex items-center gap-1">
-                              마감된 광고
+                              마감된 부스트
                           </div>
                       )}
 
@@ -345,40 +369,31 @@ export default function MateBoard({ user }: MateBoardProps) {
                               value={formData.content} onChange={e => setFormData({...formData, content: e.target.value})}
                           />
                           
-                          <div className={`p-3 md:p-4 rounded-lg md:rounded-xl border flex items-center justify-between cursor-pointer transition-colors ${
-                              formData.useMegaphone 
-                              ? "bg-hot-50 border-hot-400 dark:bg-hot-900/20 dark:border-hot-400/50" 
-                              : "bg-gray-50 border-gray-200 hover:bg-gray-100 dark:bg-white/5 dark:border-white/10 dark:hover:bg-white/10"
-                          }`} onClick={() => {
-                               if ((user.megaphoneCount || 0) > 0) {
-                                   setFormData({...formData, useMegaphone: !formData.useMegaphone})
-                               } else {
-                                   notify("확성기가 없습니다. 보유한 확성기로만 사용할 수 있어요.");
-                               }
-                          }}>
-                               <div className="flex items-center gap-2 md:gap-3">
-                                   <div className={`p-1.5 md:p-2 rounded-full ${formData.useMegaphone ? 'bg-hot-100 dark:bg-hot-400/20' : 'bg-gray-200 dark:bg-white/10'}`}>
-                                      <Megaphone size={16} className={`md:w-[18px] md:h-[18px] ${formData.useMegaphone ? "text-hot-500 dark:text-hot-400" : "text-gray-500 dark:text-gray-400"}`} />
-                                   </div>
-                                   <div className="flex flex-col">
-                                       <span className={`text-xs md:text-sm font-black ${formData.useMegaphone ? "text-hot-500 dark:text-hot-400" : "text-gray-700 dark:text-gray-300"}`}>확성기 사용하기</span>
-                                       <span className="text-[10px] md:text-xs text-gray-500 mt-0.5 font-medium">내 보유량: <strong className="text-lime-500">{user.megaphoneCount || 0}</strong>개</span>
-                                   </div>
-                               </div>
-                               <div className={`w-5 h-5 md:w-6 md:h-6 rounded-full border-2 flex items-center justify-center transition-colors ${formData.useMegaphone ? "bg-hot-400 border-hot-400" : "border-gray-300 dark:border-gray-600"}`}>
-                                   {formData.useMegaphone && <div className="w-2 h-2 md:w-2.5 md:h-2.5 bg-white rounded-full"></div>}
-                               </div>
-                          </div>
+                          <BoostToggle
+                              boostStatus={boostStatus}
+                              active={formData.useBoost}
+                              onToggle={(next) => {
+                                  if (next && (!boostStatus || boostStatus.remaining <= 0)) {
+                                      notify(
+                                          boostStatus && boostStatus.rank === "NONE"
+                                              ? "입문자 등급(스탬프 3개)에 도달해야 부스트를 사용할 수 있습니다."
+                                              : "이번 달 부스트 횟수를 모두 사용했습니다.",
+                                      );
+                                      return;
+                                  }
+                                  setFormData({ ...formData, useBoost: next });
+                              }}
+                          />
 
-                          <button 
+                          <button
                               onClick={handleSubmit}
                               className={`w-full py-3.5 md:py-4 text-white font-black rounded-lg md:rounded-xl mt-4 transition-all active:scale-95 text-sm md:text-base ${
-                                  formData.useMegaphone 
-                                  ? "bg-gradient-to-r from-hot-400 to-rose-500 hover:from-hot-500 hover:to-rose-600 shadow-lg shadow-hot-400/30" 
-                                  : "bg-lime-300 hover:bg-lime-400 text-ink-900 shadow-md shadow-md"
+                                  formData.useBoost
+                                  ? "bg-gradient-to-r from-hot-400 to-rose-500 hover:from-hot-500 hover:to-rose-600 shadow-lg shadow-hot-400/30"
+                                  : "bg-lime-300 hover:bg-lime-400 text-ink-900 shadow-md"
                               }`}
                           >
-                              {formData.useMegaphone ? "🔥 확성기로 등록하기" : "동행 모집글 등록하기"}
+                              {formData.useBoost ? "상단 부스트로 등록하기" : "동행 모집글 등록하기"}
                           </button>
                       </div>
                   </motion.div>
@@ -387,6 +402,68 @@ export default function MateBoard({ user }: MateBoardProps) {
         </AnimatePresence>,
         document.body
       )}
+    </div>
+  );
+}
+
+interface BoostToggleProps {
+  boostStatus: BoostStatus | null;
+  active: boolean;
+  onToggle: (next: boolean) => void;
+}
+
+/** 글쓰기 모달의 상단 부스트 토글. 잔여 횟수가 0 이면 disabled 처럼 동작. */
+function BoostToggle({ boostStatus, active, onToggle }: BoostToggleProps) {
+  const rank: RankKey = boostStatus?.rank ?? "NONE";
+  const remaining = boostStatus?.remaining ?? 0;
+  const limit = boostStatus?.monthlyLimit ?? 0;
+  const available = remaining > 0;
+
+  return (
+    <div
+      className={`p-3 md:p-4 rounded-lg md:rounded-xl border flex items-center justify-between transition-colors ${
+        active
+          ? "bg-hot-50 border-hot-400 dark:bg-hot-900/20 dark:border-hot-400/50"
+          : "bg-gray-50 border-gray-200 hover:bg-gray-100 dark:bg-white/5 dark:border-white/10 dark:hover:bg-white/10"
+      } ${available ? "cursor-pointer" : "cursor-not-allowed opacity-80"}`}
+      onClick={() => onToggle(!active)}
+    >
+      <div className="flex items-center gap-2 md:gap-3">
+        <div
+          className={`p-1.5 md:p-2 rounded-full ${
+            active ? "bg-hot-100 dark:bg-hot-400/20" : "bg-gray-200 dark:bg-white/10"
+          }`}
+        >
+          <TrendingUp
+            size={16}
+            className={`md:w-[18px] md:h-[18px] ${
+              active ? "text-hot-500 dark:text-hot-400" : "text-gray-500 dark:text-gray-400"
+            }`}
+          />
+        </div>
+        <div className="flex flex-col">
+          <span
+            className={`text-xs md:text-sm font-black ${
+              active ? "text-hot-500 dark:text-hot-400" : "text-gray-700 dark:text-gray-300"
+            }`}
+          >
+            상단 부스트 사용하기
+          </span>
+          <span className="text-[10px] md:text-xs text-gray-500 mt-0.5 font-medium">
+            {BOOST_LIMIT_HINT[rank]} · 이번 달 남은 횟수{" "}
+            <strong className="text-lime-500">{remaining}</strong> / {limit}
+          </span>
+        </div>
+      </div>
+      <div
+        className={`w-5 h-5 md:w-6 md:h-6 rounded-full border-2 flex items-center justify-center transition-colors ${
+          active ? "bg-hot-400 border-hot-400" : "border-gray-300 dark:border-gray-600"
+        }`}
+      >
+        {active && (
+          <div className="w-2 h-2 md:w-2.5 md:h-2.5 bg-white rounded-full"></div>
+        )}
+      </div>
     </div>
   );
 }

@@ -9314,3 +9314,122 @@ npm run build
 - **검색**: 제목/내용 검색 (PostgreSQL `to_tsvector` + 한글 형태소 분석)
 - **v2.12**: Prometheus + Grafana (v2.10 plan 에서 미룬 옵션 D)
 
+---
+
+# 24. v2.12 — 의견 보내기 메인 탭 승격 + 무료 슬롯 제한 폐지 + 등급별 부스트
+
+> v2.11 에 추가한 의견 보내기 기능을 Footer 링크 + MY 카드로만 두니 "있는 줄도 모르겠다" 는 피드백을 받음. BottomDock 의 메인 탭으로 승격해 다른 핵심 기능 (지도 / 코스 / MY / 동행) 과 같은 위계로 노출. 같은 작업 차에 두 가지 정책 변경을 묶었음 — ① 무료 회원 코스 1개 저장 제한 폐지 (모든 사용자 무제한), ② 동행 게시판의 "확성기 사용하기" 아이템 모델 폐지 → 등급별 월 부스트 한도로 대체.
+
+## 24.1 의견 보내기 — BottomDock 메인 탭 승격
+
+### 변경 전 (v2.11)
+
+- Footer "의견 보내기" 링크 + MY 탭의 작은 카드 (limit=3) 만으로 노출
+- 사용자가 의견을 보내려면 Footer 까지 스크롤 + /feedback 라우트 진입 (페이지 전환 1번)
+- "있어도 안 쓸 것 같다" 는 실제 사용자 피드백
+
+### 변경 후
+
+- `BottomDock` 에 `FEEDBACK` 탭 추가 (아이콘: lucide Inbox, 라벨: "의견")
+- `app/page.tsx` 의 `currentTab === "FEEDBACK"` 블록에 `FeedbackForm` + `MyFeedbackList` 두 컴포넌트 그대로 재사용 (왼쪽 작성 / 오른쪽 본인 목록)
+- MY 탭의 "전체 보기" 버튼은 `/feedback` 라우트 대신 `handleTabChange("FEEDBACK")` — 같은 페이지에서 즉시 전환 (MY/MATE 와 동일 모델)
+- `/feedback` 라우트는 게스트 외부 진입용으로 유지 (Footer 링크 호환)
+- BottomDock 가 7개 탭이 되어 모바일에서 좁아짐 → 버튼 너비 `w-12` → `w-10` 으로 축소
+
+## 24.2 무료 회원 코스 1개 제한 폐지
+
+### 변경 전
+
+- `MyCourseService.saveCourse` 가 `!user.isPremium()` 이면 기존 코스 전부 삭제 (덮어쓰기)
+- 프론트는 "안내: 무료 회원은 코스를 1개만 저장할 수 있습니다. 새로 저장하면 이 코스는 삭제됩니다." 라벨 + `confirmAction` 으로 덮어쓰기 동의 받음
+- 포트폴리오 상 freemium 정책의 실제 효익 없음 — 결제 시스템 폐기 (shop 폐기, v2.6) 후에도 잔존했던 게이팅 로직
+
+### 변경 후
+
+- 백엔드 `MyCourseService` — `evictExistingCoursesForFreeUser` 메서드 자체 삭제. `saveCourse` 는 `User` 존재 검증만 수행 (잘못된 `userId` 보호) 후 그대로 저장
+- 프론트 `app/page.tsx` `handleSaveCourse` — `isPremium` + `savedCourses.length > 0` 가드 + `confirmAction` 삭제. "저장됨" 토스트만 노출
+- 프론트 MY 탭 — 안내 문구 div 삭제
+- 모든 사용자 무제한 저장. DB 가 일관성 위해 같은 코스 이름이 여러 개 있어도 row 단위 PK 로 구분
+
+## 24.3 확성기 → 등급별 월 부스트
+
+### 변경 전
+
+- 동행 게시판 글쓰기 모달에 "확성기 사용하기" 토글 — 사용자가 보유한 확성기 아이템 (`megaphoneCount`) 을 1개 차감해 글을 상단 부스트
+- 확성기 보유량은 OrderService (확성기 구매) / AdminService (관리자 지급) / 자동 보상 (제보 승인 시 +1) 으로 발급
+- 아이템 추적 / 부족 시 `InsufficientMegaphoneException` 처리 등 모델 복잡도 높음
+- 등급 (스탬프 누적) 시스템 (`src/lib/rank.ts`) 이 별도로 존재했지만 등급별 혜택 차등이 없어 의미가 약함
+
+### 변경 후 — 등급별 월 한도 모델
+
+| 등급 | 스탬프 누적 | 월 부스트 한도 |
+|---|---|---|
+| 팝업 마스터 (MASTER) | 12+ | 5회 |
+| 팝업 헌터 (HUNTER) | 6 ~ 11 | 3회 |
+| 팝업 입문자 (BEGINNER) | 3 ~ 5 | 1회 |
+| 등급 없음 (NONE) | 0 ~ 2 | 0회 (부스트 불가) |
+
+### 백엔드 구현
+
+| 파일 | 변경 |
+|---|---|
+| `db/migration/V8__user_boost.sql` | `users` 테이블에 `boost_used_count INTEGER DEFAULT 0` + `boost_period VARCHAR(7)` 추가 |
+| `entity/User.java` | 두 필드 매핑 추가. 기존 `megaphoneCount` / `addMegaphone` 은 호환 위해 유지 |
+| `service/mate/BoostPolicy.java` (신규) | 등급 임계값 + 한도 정의. `rankOf(stampCount)` → `Rank` enum, `monthlyLimit(Rank)` |
+| `service/MateService.java` | `tryConsumeMegaphone` → `tryConsumeBoost` 로 재작성. `resetBoostIfNewPeriod` 가 매월 시작 시 사용량 0 리셋. 한도 초과 시 `BoostQuotaExceededException` |
+| `service/MateService.java` | 신규 `getBoostStatus(userId)` — 등급/한도/사용량/잔여 응답 (`BoostStatus` record) |
+| `controller/MateController.java` | `InsufficientMegaphoneException` → `BoostQuotaExceededException` 매핑 + 신규 `GET /api/mates/boost-status?userId=...` |
+| `dto/MateDto.java` | `useMegaphone` 필드명 → `useBoost` (의미 명확화) |
+
+### 프론트엔드 구현
+
+| 파일 | 변경 |
+|---|---|
+| `src/lib/boost.ts` (신규) | `BOOST_LIMIT_BY_RANK` + `BOOST_LIMIT_HINT` + `BoostStatus` 타입. 백엔드 BoostPolicy 와 같은 임계값 |
+| `src/components/MateBoard.tsx` | `Megaphone` 아이콘 → `TrendingUp`. 확성기 모달 토글 → `BoostToggle` 하위 컴포넌트로 추출. 모달 열릴 때 `GET /api/mates/boost-status` 호출해 잔여 횟수 표시 ("팝업 마스터: 월 5회 · 이번 달 남은 횟수 4 / 5") |
+| `src/components/MateBoard.tsx` | "📢 확성기를 사용하여..." / "🔥 확성기로 등록하기" 등 이모지 + 광고 표현 모두 평서체로 치환 ("상단 부스트가 적용된 모집글이 등록되었습니다.") |
+| 정렬 컬럼명 (`isMegaphone`) 그대로 재사용 — DB 컬럼 / `MatePost` 엔티티는 의미만 "상단 부스트 적용 여부" 로 재해석 (마이그레이션 부담 0) |
+
+### 정책 / 결합도 의도
+
+- **등급 임계값 단일 진실의 원천**: 프론트 `rank.ts` + 백엔드 `BoostPolicy.java` 두 곳에 같은 값 (3 / 6 / 12). 한쪽만 바꾸면 사용자가 보는 등급과 서버 한도가 어긋날 수 있으므로 변경 시 양쪽 동시 갱신 명시 (JavaDoc / JSDoc 에 경고)
+- **월 리셋 로직**: `YearMonth.now()` 와 저장된 `boostPeriod` 비교 → 다르면 즉시 카운트 0 리셋. cron 없이도 정확히 동작 (호출 시점 lazy reset)
+- **소비 = 한도 검증 + 카운트 ++ + isMegaphone=true**: 기존 정렬 쿼리 (`findAllByOrderByIsMegaphoneDescCreatedAtDesc`) 재사용
+- **NONE 등급 사용자**: 토글 클릭 시 "입문자 등급(스탬프 3개) 도달 후 사용 가능" 안내 (`opacity-80 cursor-not-allowed`)
+
+## 24.4 검증
+
+### 프론트엔드
+
+```powershell
+cd C:\Users\kim donghyun\Documents\popspot2\popspot-frontend
+Remove-Item -Recurse -Force .next -ErrorAction SilentlyContinue
+npm run build
+```
+
+- typecheck exit 0
+- build 17/17 페이지 (v2.11 그대로, 라우트 추가 없음 — FEEDBACK 은 메인 SPA 내부 탭)
+- 새 ESLint 위반 0
+
+### 수동 검증 시나리오
+
+1. **BottomDock**: 모든 페이지에서 하단 dock 의 "의견" 탭 (Inbox 아이콘) 가시. 클릭 즉시 페이지 전환 없이 FEEDBACK 블록 노출
+2. **코스 무제한**: 무료 사용자 (`isPremium=false`) 로 코스 5개 연속 저장 → 모두 누적, 안내 다이얼로그 없음
+3. **부스트 한도**: BEGINNER 등급 사용자 (스탬프 3) → 이번 달 첫 부스트 OK, 두 번째 부스트 시 400 "이번 달 부스트 한도를 모두 사용했습니다."
+4. **월 리셋**: `boost_period = '2025-12'` 인 사용자가 2026-01-01 이후 `GET /api/mates/boost-status` 호출 → `used: 0`, `remaining: limit` 로 자동 리셋
+5. **NONE 등급**: 스탬프 0 사용자 → 토글이 회색 + 클릭 시 "입문자 등급 도달 후 사용 가능" 안내
+
+### 회귀 체크
+
+- `MatePost.isMegaphone` 정렬 동작 동일 — `findAllByOrderByIsMegaphoneDescCreatedAtDesc` 그대로
+- 옛 확성기 글 (DB 의 기존 `is_megaphone=true` row) 도 정상적으로 상단 노출
+- `User.megaphoneCount` 컬럼/필드는 호환 위해 유지 — OrderService / AdminService 의 지급 로직은 그대로 동작 (호출되어도 무해, 카운터만 +1 됨)
+- 백엔드 spotless: 본 sandbox 에서 gradle daemon loopback 제한으로 미실행. 배포 전 `./gradlew spotlessCheck build` 권장
+
+## 24.5 후속 작업
+
+- **v2.13 cleanup**: 사용처가 없어진 `User.megaphoneCount`, `User.addMegaphone`, `OrderService.grantPurchaseEntitlements` 의 확성기 분기, `AdminService.giveReward(MEGAPHONE)` 정리. DB 컬럼은 V9 migration 으로 DROP (데이터 백업 후)
+- **v2.13 cleanup**: `LoginResponseDto.megaphoneCount`, `MyPageDto.megaphoneCount` API 응답 필드 제거
+- **알림 트리거**: 사용자가 RESOLVED 답변 받았을 때 푸시 알림 (v2.11 이메일 알림과 함께 처리 가능)
+- **부스트 사용 이력**: 사용자가 자기 부스트 사용 내역을 볼 수 있는 모달 (월별 차트)
+

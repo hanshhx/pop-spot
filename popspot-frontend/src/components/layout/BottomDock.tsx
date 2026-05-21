@@ -7,10 +7,18 @@ import {
   User,
   Users,
   Music2,
+  Inbox,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export type DockTab = "MAP" | "COURSE" | "MUSIC" | "PASSPORT" | "MY" | "MATE";
+export type DockTab =
+  | "MAP"
+  | "COURSE"
+  | "MUSIC"
+  | "PASSPORT"
+  | "MY"
+  | "MATE"
+  | "FEEDBACK";
 
 interface BottomDockProps {
   currentTab: DockTab;
@@ -34,6 +42,7 @@ const ITEMS: DockItemDef[] = [
   { key: "PASSPORT", icon: Ticket, label: "여권" },
   { key: "MY", icon: User, label: "MY" },
   { key: "MATE", icon: Users, label: "동행" },
+  { key: "FEEDBACK", icon: Inbox, label: "의견" },
 ];
 
 /**
@@ -88,7 +97,7 @@ function DockButton({ icon: Icon, label, isActive, onClick }: DockButtonProps) {
       aria-label={label}
       className={cn(
         "relative flex flex-col items-center justify-center",
-        "w-12 h-12 md:w-14 md:h-14",
+        "w-10 h-12 md:w-14 md:h-14",
         "rounded-pill transition-all duration-200 shrink-0 group",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
         isActive
