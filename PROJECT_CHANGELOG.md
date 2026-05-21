@@ -9651,3 +9651,114 @@ npm run build
 3. 게스트 만료 (`localStorage` 의 `popspot:guest:firstVisit` 을 7일 전 timestamp 로 수정) → 회원가입 다이얼로그 + `/signup?reason=guest_expired` 리다이렉트
 4. 비로그인 + 비게스트 (`localStorage` 비움) → `/login` 리다이렉트
 
+---
+
+# 25b. v2.13.3 — 어드민 403 도배 + AuthorizationDeniedException 노이즈 핫픽스
+
+> 운영 로그 분석 결과 같은 사용자 (Kakao OAuth) 가 `/admin` 진입 → 메트릭 + SSE polling 이 403 받으며 매 요청마다 100+ 줄 Spring Security stack trace + "response already committed" 후속 에러 도배. 보안 우려 0 (가드는 정확히 동작) 이지만 운영 로그 크기 / Sentry 부담 / UX 가 나쁨. 두 가지 핫픽스로 해소.
+
+## 25b.1 진단 (운영 로그 popspot-log-2026-05-21T07-00-55-831Z.txt)
+
+| 시각 | 이벤트 |
+|---|---|
+| 13:39:17 | `AuthorizationDeniedException: Access Denied` + "response already committed" — 100+ 줄 stack trace |
+| 13:46:57 | OAuth2 로그인 성공 (kakao, userId=25eee764-...) |
+| 13:47:17 | 30초 후 동일 thread 에서 또 `AuthorizationDeniedException` (2회 연속, 2ms 간격) |
+| 14:01~15:31 | WebSocket heartbeat (정상) |
+| 16:00:01 | 같은 사용자 재로그인 |
+
+핵심 패턴 — **카카오 로그인한 일반 유저가 `/admin` URL 직접 입력 → 페이지가 메트릭 polling + SSE 로그 스트림을 즉시 시작 → 모두 403 → stack trace 100+ 줄씩 logback 에 풀로 출력 + "response already committed" 후속 에러까지 동반**.
+
+영향:
+- 보안: 0 (가드 정상 동작)
+- 로그 노이즈: ★★★ (요청당 100+ 줄)
+- 디스크 / Sentry quota: ★★
+- UX: ★★ (admin 페이지가 빈 화면, 콘솔 콘솔 빨갛게)
+
+## 25b.2 H1. 백엔드 — `AuthorizationDeniedException` 한 줄 핸들러
+
+### 변경 전
+
+Spring Security 6+ 의 `@PreAuthorize` 거부 시 던지는 `org.springframework.security.authorization.AuthorizationDeniedException` 이 `GlobalExceptionHandler` 의 어떤 핸들러에도 매칭되지 않아 — `RuntimeException` 핸들러로도 떨어지지 않아 (계층 다름) — 디폴트 `Exception` 핸들러 또는 Tomcat 의 default error 핸들러까지 전파. ERROR 레벨 + 풀 stack trace + 후속 ServletException 까지 도배.
+
+### 변경 후
+
+```java
+@ExceptionHandler(AuthorizationDeniedException.class)
+public ResponseEntity<Map<String, Object>> handleAuthorizationDenied(
+        AuthorizationDeniedException ex) {
+    log.warn("AccessDenied: {}", ex.getMessage());
+    return body(HttpStatus.FORBIDDEN, "Forbidden", MESSAGE_FORBIDDEN);
+}
+```
+
+- WARN 레벨 + 메시지 한 줄
+- 403 표준 응답 body
+- stack trace 미출력 → 로그 크기 100+ 줄 → 1 줄
+
+### 파일
+
+`popspot-backend/src/main/java/com/example/popspotbackend/exception/GlobalExceptionHandler.java` — `import org.springframework.security.authorization.AuthorizationDeniedException` 추가 + 핸들러 메서드 1개.
+
+## 25b.3 H2. 프론트 — admin 페이지 role 가드
+
+### 변경 전
+
+`/admin` 으로 진입하면 `useDashboardMetrics` (3초 polling) + `LogViewer` (SSE) 가 mount 즉시 시작. 일반 유저 토큰 (ROLE_USER) 이면 모두 403. 페이지 자체는 그냥 보이고 사용자는 어리둥절.
+
+### 변경 후
+
+**3-layer 가드**:
+
+1. **mount role check**: `localStorage.user.role !== "ROLE_ADMIN"` 이면 즉시 `router.replace("/")`. 토큰 없으면 `/login`
+2. **`useDashboardMetrics(..., authorized)` 4th param**: `authorized=false` 면 useEffect 가 early return — 폴링 시작 X
+3. **`<LogViewer>` 렌더 가드**: `activeTab === "LOGS" && authorized` 일 때만 렌더 → SSE EventSource 생성 X
+4. **legacy `/server-status` polling**: `if (!authorized) return` 게이트 추가
+5. **탭 변경 useEffect**: `if (!authorized) return` 게이트 추가
+
+`authorized=false` 동안에는 "권한 확인 중..." 로더만 보임. 1 paint cycle 이내 redirect 발생.
+
+### 파일
+
+- `popspot-frontend/app/admin/page.tsx` — `authorized` state + mount effect + 3개 useEffect 가드 + 렌더 가드
+- `popspot-frontend/src/components/admin/metrics/useDashboardMetrics.ts` — `enabled` 파라미터 (기본 true, 백워드 호환)
+
+## 25b.4 효과
+
+| 항목 | Before | After |
+|---|---|---|
+| 일반 유저 `/admin` 진입 시 백엔드 로그 | 매 polling (3초마다) 마다 100+ 줄 stack trace | 0 줄 (polling 자체가 시작 안 됨) |
+| 일반 유저가 정말로 admin API 직접 호출 시 | 100+ 줄 stack trace + ERROR | WARN 한 줄 + 403 |
+| "response already committed" 후속 에러 | 자주 발생 | 0 (정상 응답 흐름) |
+| Admin 페이지 UX | 빈 차트 + 403 콘솔 | 즉시 `/` 로 리다이렉트 + 로더 |
+| 보안 | 백엔드 가드 정상 동작 | **동일 (방어 깊이만 강화)** |
+
+## 25b.5 검증
+
+```powershell
+cd C:\Users\kim donghyun\Documents\popspot2\popspot-frontend
+Remove-Item -Recurse -Force .next -ErrorAction SilentlyContinue
+npm run build
+```
+
+- typecheck exit 0
+- build 17/17 페이지 통과
+
+### 수동 검증
+
+1. 일반 유저 토큰 (`localStorage.user.role = "ROLE_USER"`) 으로 `/admin` 접근 → "권한 확인 중..." → 즉시 `/` 로 리다이렉트. Network 탭에 `/api/admin/*` 호출 0
+2. 토큰 없이 `/admin` → `/login` 으로 즉시 리다이렉트
+3. ADMIN 유저로 `/admin` 진입 → 정상 동작 (메트릭 + SSE 정상 polling)
+4. ADMIN 유저로 `/api/admin/feedback` 강제 호출 (curl) 후 토큰 만료 → 401 (인증) 아니면 403 (가드). 로그에 WARN 한 줄만, stack trace 없음
+
+## 25b.6 회귀 체크
+
+- `LogViewer.active` prop 의미 동일 (LOGS 탭 활성). authorized 가드는 부모 컴포넌트 단에서 적용
+- `useDashboardMetrics` 의 `enabled` 는 4번째 옵셔널 파라미터 → 기존 호출처 호환 (admin/page.tsx 만 호출)
+- 백엔드 `GlobalExceptionHandler` 의 다른 핸들러 동작 변화 없음
+
+## 25b.7 후속 작업 (선택)
+
+- 일반 유저가 `/admin` URL 을 자주 입력하는지 운영 모니터링 (Sentry breadcrumb 또는 access log)
+- 다른 ADMIN 가드 페이지 (없으면 N/A) 에도 같은 role 가드 패턴 적용
+

@@ -14,6 +14,8 @@ import { apiFetch } from "@/lib/api";
  * @param toLinePoint 응답을 받아 차트용 점 1 개로 변환하는 함수
  * @param intervalMs 폴링 주기 (기본 3000ms)
  * @param bufferSize 차트 버퍼 크기 (기본 15)
+ * @param enabled 폴링 활성 여부 (기본 true). v2.13.3 — 일반 유저가 admin URL 진입 시
+ *     ADMIN role 검증 전까지 false 로 두어 403 도배를 차단
  */
 export interface DashboardSnapshot {
   jvm?: Record<string, number>;
@@ -33,6 +35,7 @@ export function useDashboardMetrics<P>(
   toLinePoint: (s: DashboardSnapshot, now: Date) => P,
   intervalMs = 3000,
   bufferSize = 15,
+  enabled = true,
 ): UseDashboardMetricsResult<P> {
   const [snapshot, setSnapshot] = useState<DashboardSnapshot | null>(null);
   const [series, setSeries] = useState<P[]>([]);
@@ -41,6 +44,7 @@ export function useDashboardMetrics<P>(
   toLinePointRef.current = toLinePoint;
 
   useEffect(() => {
+    if (!enabled) return;
     let cancelled = false;
 
     const tick = async () => {
@@ -67,7 +71,7 @@ export function useDashboardMetrics<P>(
       cancelled = true;
       clearInterval(timer);
     };
-  }, [intervalMs, bufferSize]);
+  }, [intervalMs, bufferSize, enabled]);
 
   return { snapshot, series, status };
 }
