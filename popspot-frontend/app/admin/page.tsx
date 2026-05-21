@@ -4,7 +4,8 @@ import { useEffect, useState, useRef, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import {
     Check, X, ShieldCheck, MapPin, Calendar, Store, AlertCircle,
-    BarChart3, Users, MessageSquare, Gift, Trash2, Edit3, Activity, Cpu, HardDrive
+    BarChart3, Users, MessageSquare, Gift, Trash2, Edit3, Activity, Cpu, HardDrive,
+    Terminal, Database, Globe, Sparkles
 } from "lucide-react";
 import Swal from "sweetalert2";
 
@@ -16,6 +17,12 @@ import {
 import { apiFetch } from "../../src/lib/api";
 import { confirmAction, notifyError, notifySuccess } from "@/lib/notify";
 import type { PopupStore } from "@/types/popup";
+import { MetricCard } from "@/components/admin/metrics/MetricCard";
+import {
+    useDashboardMetrics,
+    type DashboardSnapshot,
+} from "@/components/admin/metrics/useDashboardMetrics";
+import { LogViewer } from "@/components/admin/log/LogViewer";
 
 interface MetricData {
     time: string;
@@ -47,6 +54,19 @@ interface AdminMatePost {
 const SERVER_METRICS_POLL_INTERVAL_MS = 3000;
 const SERVER_METRICS_BUFFER_SIZE = 15;
 
+/**
+ * 통합 메트릭 (`/api/admin/metrics/dashboard`) 응답을 차트 점 1 개로 압축.
+ * useDashboardMetrics 훅이 매 폴링마다 호출한다.
+ */
+function toLinePoint(s: DashboardSnapshot, now: Date): Record<string, number | string> {
+    const time = `${now.getHours()}:${String(now.getMinutes()).padStart(2, "0")}:${String(now.getSeconds()).padStart(2, "0")}`;
+    return {
+        time,
+        heapMb: Number(s.jvm?.heapUsedMb ?? 0),
+        httpRps: Number(s.http?.requestCount ?? 0),
+    };
+}
+
 export default function AdminPage() {
     const router = useRouter();
     const [activeTab, setActiveTab] = useState("DASHBOARD");
@@ -56,6 +76,13 @@ export default function AdminPage() {
     const [pendingPopups, setPendingPopups] = useState<PopupStore[]>([]);
     const [allPopups, setAllPopups] = useState<PopupStore[]>([]);
     const [matePosts, setMatePosts] = useState<AdminMatePost[]>([]);
+
+    // v2.10 — 통합 메트릭 폴링. DASHBOARD 탭일 때만 실제 폴링 (다른 탭에선 훅이 effect cleanup).
+    const dashboard = useDashboardMetrics(
+        toLinePoint,
+        SERVER_METRICS_POLL_INTERVAL_MS,
+        SERVER_METRICS_BUFFER_SIZE,
+    );
     
     const [realtimeMetrics, setRealtimeMetrics] = useState<MetricData[]>([]);
     const [serverStatus, setServerStatus] = useState<'online' | 'offline'>('online');
@@ -253,6 +280,7 @@ export default function AdminPage() {
                             { id: "POPUPS", label: "팝업스토어 제어", icon: <Store size={16}/> },
                             { id: "MATES", label: "커뮤니티 관리", icon: <MessageSquare size={16}/> },
                             { id: "REWARDS", label: "이벤트 보상 지급", icon: <Gift size={16}/> },
+                            { id: "LOGS", label: "실시간 로그", icon: <Terminal size={16}/> },
                         ].map(tab => (
                             <button key={tab.id} onClick={() => setActiveTab(tab.id)}
                                 className={`flex items-center gap-2 px-5 py-3 rounded-xl font-bold text-sm whitespace-nowrap transition-all ${
@@ -325,6 +353,53 @@ export default function AdminPage() {
                                 </div>
                             </div>
                         )}
+
+                        {/*
+                          v2.10 — 통합 메트릭 카드. JVM / HTTP / DB / 자동수집 한 줄에 한눈에.
+                          각 카드는 MetricCard 추상화 1개로 통일 — 추후 새 카드 추가가 1줄로 끝나도록.
+                        */}
+                        <h2 className="text-xl font-bold flex items-center gap-2 pt-4 border-t border-gray-200 dark:border-white/10">
+                            <Activity className="text-lime-500"/> 시스템 메트릭
+                            <span className={`ml-2 w-2 h-2 rounded-full ${dashboard.status === 'online' ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
+                        </h2>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <MetricCard
+                                label="JVM Heap"
+                                value={Math.round(Number(dashboard.snapshot?.jvm?.heapUsedMb ?? 0))}
+                                unit="MB"
+                                sub={`최대 ${Math.round(Number(dashboard.snapshot?.jvm?.heapMaxMb ?? 0))}MB · Thread ${dashboard.snapshot?.jvm?.threadsLive ?? 0}`}
+                                icon={<Cpu size={24}/>}
+                                tone={
+                                    Number(dashboard.snapshot?.jvm?.heapUsedMb ?? 0) /
+                                        Math.max(1, Number(dashboard.snapshot?.jvm?.heapMaxMb ?? 1)) > 0.85
+                                        ? "danger"
+                                        : "ok"
+                                }
+                            />
+                            <MetricCard
+                                label="HTTP 요청"
+                                value={dashboard.snapshot?.http?.requestCount ?? 0}
+                                unit="건"
+                                sub={`p95 ${Number(dashboard.snapshot?.http?.p95Ms ?? 0).toFixed(0)}ms · 5xx ${dashboard.snapshot?.http?.status5xxCount ?? 0}`}
+                                icon={<Globe size={24}/>}
+                                tone={Number(dashboard.snapshot?.http?.errorRate ?? 0) > 0.05 ? "warning" : "neutral"}
+                            />
+                            <MetricCard
+                                label="DB Pool"
+                                value={dashboard.snapshot?.db?.active ?? 0}
+                                unit="active"
+                                sub={`idle ${dashboard.snapshot?.db?.idle ?? 0} · pending ${dashboard.snapshot?.db?.pending ?? 0} / max ${dashboard.snapshot?.db?.max ?? 0}`}
+                                icon={<Database size={24}/>}
+                                tone={Number(dashboard.snapshot?.db?.pending ?? 0) > 0 ? "warning" : "ok"}
+                            />
+                            <MetricCard
+                                label="오늘 자동수집"
+                                value={dashboard.snapshot?.crawler?.crawledToday ?? 0}
+                                unit="건"
+                                sub={`평균 신뢰도 ${dashboard.snapshot?.crawler?.avgConfidence ?? 0} · 검수 대기 ${dashboard.snapshot?.crawler?.pendingReview ?? 0}`}
+                                icon={<Sparkles size={24}/>}
+                            />
+                        </div>
 
                         {/* 2. 데이터 시각화 차트 영역 */}
                         {stats && (
@@ -452,6 +527,13 @@ export default function AdminPage() {
                             <input type="number" min="1" value={rewardForm.amount} onChange={e => setRewardForm({...rewardForm, amount: parseInt(e.target.value)})} className="w-full bg-gray-50 dark:bg-black border border-gray-200 dark:border-white/10 rounded-xl p-3 text-sm outline-none"/>
                             <button type="submit" className="w-full py-4 bg-lime-300 hover:bg-lime-400 text-ink-900 text-white font-bold rounded-xl shadow-lg transition-all active:scale-95 uppercase">Send Reward</button>
                         </form>
+                    </div>
+                )}
+
+                {/* 탭 5: 실시간 로그 (v2.10) — SSE 구독, LOGS 탭 활성일 때만 EventSource 생성 */}
+                {activeTab === "LOGS" && (
+                    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        <LogViewer active={activeTab === "LOGS"} />
                     </div>
                 )}
             </div>

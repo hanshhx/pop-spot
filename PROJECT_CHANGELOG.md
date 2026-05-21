@@ -8793,3 +8793,201 @@ cd popspot-backend && ./gradlew clean build
 2. **dead code 는 보안 점검의 사각지대**. `MyCourseController.saveCourse` 의 `LIMIT_REACHED` 처리 try-catch 는 실제로 던져지지 않는 예외에 대한 것이었지만, **try-catch 가 있다는 사실 자체가** 리뷰어로 하여금 "이 부분은 안전하다" 는 잘못된 안심을 준다. dead code 는 보안 / 유지보수 양쪽에서 부채.
 3. **클라이언트 저장값은 절대 신뢰 단위가 아니다**. localStorage 의 user 객체를 클라이언트가 분기 조건으로 쓰는 순간 권한 위조의 길이 열린다. AuthGuard 의 `/me` 재검증 같은 layer 가 없으면, devtools 한 줄로 어드민 자임 가능.
 4. **메모리 필터링은 N+1 의 사촌**. row 수가 적을 때는 안 보이다가 데이터 증가하면 OOM 으로 갑작스럽게 폭발. 같은 결과를 내는 `@Query` 가 이미 있는데 메모리 필터 쓰는 패턴은 **무지 / 게으름 / 코드 발견 실패** 중 하나. repository 의 기존 메서드를 먼저 grep 하는 습관.
+
+---
+
+# 22. v2.10 — 어드민 대시보드 확장 + 실시간 로그 (SSE)
+
+> 운영 모니터링을 SSH/xshell + `journalctl -f` 에 의존하던 상태를 **크롬 어드민 페이지 한 곳** 으로 옮김. 사용자가 외부 환경에서 폰만 들고도 서버 상태와 실시간 로그 확인 가능. 옵션 C (Spring Boot Admin) 는 D 와 기능 중복이라 스킵, 옵션 D (Prometheus + Grafana) 는 별도 v2.11 분리.
+
+## 22.1 옵션 A — 어드민 대시보드 확장
+
+### 22.1.1 핵심 설계: `MetricSnapshotProvider` 인터페이스
+
+새 메트릭 카드 추가가 **클래스 1 개 추가 + 컴포넌트 수정 X** 로 끝나도록 결합도를 낮춤. 컨트롤러가 모든 게이지를 알아야 하던 v2.9 까지의 구조를 인터페이스 + Spring 의 List 자동 주입으로 뒤집음.
+
+```java
+public interface MetricSnapshotProvider {
+    /** 응답 JSON 의 최상위 키 (예: "jvm", "http", "db", "crawler"). */
+    String key();
+
+    /** 메트릭 한 묶음. 직렬화 안전한 타입만. */
+    Map<String, Object> snapshot();
+}
+```
+
+```java
+@RestController
+@RequestMapping("/api/admin/metrics")
+@PreAuthorize("hasRole('ADMIN')")
+public class AdminMetricsController {
+    private final MeterRegistry meterRegistry;
+    private final List<MetricSnapshotProvider> providers; // Spring 자동 합성
+
+    @GetMapping("/dashboard")
+    public ResponseEntity<Map<String, Object>> getDashboard() {
+        Map<String, Object> out = new HashMap<>();
+        for (MetricSnapshotProvider p : providers) {
+            try { out.put(p.key(), p.snapshot()); }
+            catch (Exception e) { out.put(p.key(), Map.of("error", e.getClass().getSimpleName())); }
+        }
+        out.put("timestamp", System.currentTimeMillis());
+        return ResponseEntity.ok(out);
+    }
+}
+```
+
+각 Provider 가 자체 try-catch 안 해도 컨트롤러에서 한 번 감싸 5xx 가 응답 전체를 부수지 않음.
+
+### 22.1.2 4개 Provider 구현체
+
+| Provider | 메트릭 | 출처 |
+|---|---|---|
+| `JvmMetricSnapshotProvider` | heapUsedMb / heapMaxMb / nonHeapUsedMb / gcPauseSeconds / threadsLive / threadsDaemon | Micrometer `jvm.memory.used` (area=heap/nonheap 태그), `jvm.gc.pause` Timer, `jvm.threads.*` |
+| `HttpMetricSnapshotProvider` | requestCount / status5xxCount / errorRate / meanMs / p95Ms | `http.server.requests` Timer 의 count + totalTime + histogram percentile (status 태그로 5xx 분류) |
+| `DbPoolMetricSnapshotProvider` | active / idle / pending / max / total | HikariCP 자동 등록 게이지 (`hikaricp.connections.*`) |
+| `CrawlerMetricSnapshotProvider` | crawledToday / avgConfidence / pendingReview | `PopupStoreRepository` 에 신규 3 메서드 (`countCrawledSince` / `averageConfidenceSince` / `countPendingReview`) |
+
+모든 Provider 가 null-safe — Timer 미등록, area 태그 누락 등 운영 엣지 케이스 처리.
+
+### 22.1.3 프론트 카드 추출
+
+`app/admin/page.tsx` 안의 인라인 KPI 박스 / 차트 패턴을 3 컴포넌트로 추상화 — 새 카드 추가가 1 줄 JSX 로 끝남.
+
+| 컴포넌트 | 역할 |
+|---|---|
+| `MetricCard` | 라벨 + 큰 숫자 + 단위 + 보조 정보 + 아이콘 + tone (neutral/ok/warning/danger 색 자동) |
+| `LiveLineChart` | series 배열 정의만으로 멀티 라인 차트. 부모가 buffer 슬라이딩 책임 |
+| `useDashboardMetrics` 훅 | 3초 폴링 + 버퍼 + online/offline 판정. 매 폴링마다 `toLinePoint(snapshot, now)` 콜백으로 차트 점 1 개 생성 |
+
+DASHBOARD 탭 신규 행 — JVM / HTTP / DB / 자동수집 4 카드. tone 자동 분기 (예: heap 85% 초과 → danger, errorRate 5% 초과 → warning).
+
+## 22.2 옵션 B — 실시간 로그 뷰어 (SSE)
+
+### 22.2.1 백엔드: 파일 tail + 브로드캐스트
+
+logback-spring.xml 추가 없이 Spring Boot 의 표준 `logging.file.name` + `logging.logback.rollingpolicy.*` 만으로 파일 + 회전. 운영에서는 환경변수 `LOG_FILE_PATH=/var/log/popspot/popspot.log` 같이 주입.
+
+3 파일 신규 (`admin/log/` 패키지):
+
+| 파일 | 책임 |
+|---|---|
+| `LogRingBuffer` | 최근 500 줄 메모리 보관. 신규 SSE 연결 시 즉시 백필 |
+| `LogTailService` | 500ms 폴링으로 파일 끝에서 새 바이트만 읽음 → 라인 분리 → `CopyOnWriteArrayList<SseEmitter>` 브로드캐스트. 30 초마다 keepalive `event: ping`. 파일 회전 (size <= lastReadPosition) 시 자동 복귀 |
+| `LogTailController` | `@GetMapping(produces=TEXT_EVENT_STREAM_VALUE)` → `SseEmitter`. `@PreAuthorize("hasRole('ADMIN')")` |
+
+파일 미설정 시 (예: dev) `LogTailService` 가 스케줄러 시작 자체를 안 함 — 어드민 UI 는 "로그 대기 중" 표시.
+
+### 22.2.2 SSE 인증 — 쿼리 토큰 폴백
+
+`EventSource` API 가 커스텀 헤더를 못 보내는 함정. 일반 fetch 와 달리 `Authorization: Bearer` 사용 불가. 해법:
+
+`JwtAuthenticationFilter.extractToken` 보강 — 헤더 우선, 없으면 **SSE 경로 한정** `?token=` 쿼리 폴백:
+
+```java
+private String extractToken(HttpServletRequest request) {
+    String bearerHeader = request.getHeader("Authorization");
+    if (bearerHeader != null && bearerHeader.startsWith(BEARER_PREFIX)) {
+        return bearerHeader.substring(BEARER_PREFIX.length());
+    }
+    if (isSseTokenPath(request)) {
+        return request.getParameter(QUERY_TOKEN_PARAM);
+    }
+    return null;
+}
+
+private boolean isSseTokenPath(HttpServletRequest request) {
+    String path = request.getRequestURI();
+    return path != null && path.startsWith("/api/admin/logs/stream");
+}
+```
+
+경로 제한이 핵심 — 다른 엔드포인트에서 쿼리 토큰을 받으면 URL 로그 노출 위험. SSE 만 화이트리스트.
+
+### 22.2.3 프론트 — `useSseStream` + `LogViewer`
+
+`useSseStream` 훅 — `EventSource` 래퍼 + exponential backoff 재연결 (1→2→4→...→30 초 cap) + paused 플래그 (라이브 일시정지) + cleanup 시 자동 close.
+
+`LogViewer` 컴포넌트 — 정규식 / 부분문자열 필터 (정규식 깨지면 substring 폴백), 일시정지, 비우기, 다운로드 (`.txt`), 자동 스크롤 토글, 라인의 로그 레벨 (`ERROR`/`WARN`/`INFO`/`DEBUG`) 별 색.
+
+어드민 페이지 탭 배열에 `LOGS` 추가:
+
+```tsx
+{ id: "LOGS", label: "실시간 로그", icon: <Terminal size={16}/> }
+```
+
+탭 활성일 때만 `<LogViewer active={true} />` — `enabled` flag 로 EventSource 생성 자체 가드. 다른 탭에서는 SSE 연결 없음 (백엔드 부담 0).
+
+## 22.3 신규 / 수정 파일 통계
+
+| 파일 | 변경 | 라인 |
+|---|---|---|
+| **백엔드** ||||
+| `admin/metrics/MetricSnapshotProvider.java` | 신규 — 인터페이스 | +16 |
+| `admin/metrics/JvmMetricSnapshotProvider.java` | 신규 — heap/gc/thread | +60 |
+| `admin/metrics/HttpMetricSnapshotProvider.java` | 신규 — req/p95/5xx | +75 |
+| `admin/metrics/DbPoolMetricSnapshotProvider.java` | 신규 — HikariCP | +35 |
+| `admin/metrics/CrawlerMetricSnapshotProvider.java` | 신규 — 자동수집 통계 | +40 |
+| `admin/log/LogRingBuffer.java` | 신규 — 500 줄 보관 | +30 |
+| `admin/log/LogTailService.java` | 신규 — 파일 폴링 + 브로드캐스트 | +130 |
+| `admin/log/LogTailController.java` | 신규 — SSE 엔드포인트 | +25 |
+| `controller/AdminMetricsController.java` | `/dashboard` 엔드포인트 + providers 주입 | +25 / -3 |
+| `config/JwtAuthenticationFilter.java` | SSE 경로 한정 쿼리 토큰 폴백 | +22 / -5 |
+| `repository/PopupStoreRepository.java` | 자동수집 메트릭용 3 메서드 | +17 |
+| `resources/application.properties` | logging.file.name + rolling policy | +5 |
+| **프론트** ||||
+| `components/admin/metrics/MetricCard.tsx` | 신규 — 단일 카드 추상화 | +45 |
+| `components/admin/metrics/LiveLineChart.tsx` | 신규 — multi-series 라인 차트 | +60 |
+| `components/admin/metrics/useDashboardMetrics.ts` | 신규 — 폴링 + 버퍼 훅 | +60 |
+| `components/admin/log/useSseStream.ts` | 신규 — EventSource 래퍼 훅 | +80 |
+| `components/admin/log/LogViewer.tsx` | 신규 — UI + 필터 + 다운로드 | +130 |
+| `app/admin/page.tsx` | import 확장 + 탭 1개 추가 + 메트릭 카드 4개 행 추가 + LOGS 탭 렌더 | +75 / -5 |
+
+신규 14 파일 + 수정 5 파일.
+
+## 22.4 검증
+
+### 프론트
+
+```bash
+cd popspot-frontend
+rm -rf .next
+npm run typecheck   # exit 0
+npm run build       # ✓ 16/16 static pages
+```
+
+새 ESLint 위반 0건.
+
+### 백엔드 (사용자 로컬 검증 필요)
+
+```bash
+cd popspot-backend
+./gradlew clean spotlessCheck build
+```
+
+JavaDoc 함정 회피를 위해 새 JavaDoc 은 한 줄 80자 이내 원칙 적용. 그래도 또 spotless 에 잡히면 `./gradlew :spotlessApply` 한 번.
+
+### 수동 검증
+
+1. **어드민 로그인** → DASHBOARD 탭 → "시스템 메트릭" 섹션 신규 4 카드 (JVM/HTTP/DB/Crawler) 가 3 초마다 갱신
+2. **JVM Heap 사용률** 이 85% 넘으면 카드가 빨간색 (`tone="danger"`)
+3. **LOGS 탭 클릭** → 백엔드 로그가 실시간으로 흘러감 (검정 배경 + 레벨 색)
+4. **필터** 에 `WARN|ERROR` 입력 → 그 라인만 표시
+5. **일시정지** → 새 라인 안 들어옴, 다시 누르면 재개
+6. **다운로드** → `popspot-log-YYYY-MM-DDTHH-MM-SS.txt` 생성
+7. **5 분 이상 LOGS 탭 켜둬도** Chrome DevTools Performance Monitor 에서 메모리 누수 없음
+8. **어드민 권한 없는 일반 유저** 토큰으로 `/api/admin/metrics/dashboard` / `/api/admin/logs/stream` 두 엔드포인트 모두 403
+
+## 22.5 학습
+
+1. **Spring 의 `List<Interface>` 자동 주입은 OCP 의 친구**. 새 메트릭 = 새 빈 1 개. 컨트롤러 / 컴포넌트 어디도 손 안 댐. 이 패턴은 "비슷한 종류 여러 개 동등하게 합치는" 모든 곳에 쓸 만함 (Strategy / Plugin).
+2. **EventSource 의 헤더 제약은 단순한 불편이 아니라 보안 결정점**. 쿼리 토큰을 무차별 허용하면 URL 로그 → 토큰 유출. **경로 제한 화이트리스트** 없이는 쿼리 토큰 패턴을 도입 불가.
+3. **SSE 의 keepalive 는 필수**. Tailscale Funnel / 프록시 / 로드밸런서가 idle TCP 를 30~60 초에 끊는다. 30 초마다 `event: ping\ndata:\n\n` 한 줄이면 충분.
+4. **파일 회전 감지** — `lastReadPosition > fileLength` 면 파일이 잘렸거나 재생성됨. `lastReadPosition = 0` 으로 리셋해야 다음 폴링이 정상. 안 그러면 영원히 새 라인을 못 봄.
+5. **빈 상태도 메시지다**. logging.file.name 미설정 시 `LogTailService` 가 시작 자체를 안 하고, 프론트는 "로그 대기 중" 안내. 침묵 없이 의도된 비활성 상태를 사용자에게 알림.
+
+## 22.6 후속 작업
+
+- **v2.11**: 옵션 D — Prometheus + Grafana. `ops/monitoring/docker-compose.yml` + `prometheus.yml` + Grafana 대시보드 JSON. 백엔드는 `micrometer-registry-prometheus` 추가 + `/actuator/prometheus` ADMIN 토큰 인증
+- **추후 (선택)**: Sentry 최근 이벤트를 어드민 카드에 (Sentry API 토큰 + 1분 캐시)
+- **스킵**: 옵션 C (Spring Boot Admin) — D 와 기능 80% 중복, 운영 부담 +1
