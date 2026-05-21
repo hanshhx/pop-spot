@@ -73,16 +73,51 @@ export default function AdminPage() {
     const [activeTab, setActiveTab] = useState("DASHBOARD");
     const [isLoading, setIsLoading] = useState(true);
 
+    /*
+     * v2.13.3 — role 게이트.
+     *
+     * 일반 유저가 /admin URL 로 진입하면 페이지 자체는 로드되지만 메트릭 polling +
+     * SSE 로그 스트림이 모두 ADMIN 가드라 즉시 403 도배가 발생했다. 백엔드 로그에
+     * AuthorizationDeniedException 이 100+ 줄 stack trace 로 매 요청마다 찍히고,
+     * "response already committed" 후속 에러까지 동반.
+     *
+     * 핫픽스: mount 시점에 localStorage 의 user.role 을 검사해 ADMIN 이 아니면 polling/
+     * SSE 가 시작되기 전에 / 로 리다이렉트한다. 서버 권한은 별도로 토큰 검증으로 강제되어
+     * 있으므로 이 클라이언트 가드는 UX + 로그 노이즈 방지 목적.
+     */
+    const [authorized, setAuthorized] = useState(false);
+
+    useEffect(() => {
+        if (typeof window === "undefined") return;
+        try {
+            const raw = window.localStorage.getItem("user");
+            if (!raw) {
+                router.replace("/login");
+                return;
+            }
+            const parsed = JSON.parse(raw) as { role?: string };
+            if (parsed.role !== "ROLE_ADMIN") {
+                router.replace("/");
+                return;
+            }
+            setAuthorized(true);
+        } catch {
+            router.replace("/login");
+        }
+    }, [router]);
+
     const [stats, setStats] = useState<AdminStats | null>(null);
     const [pendingPopups, setPendingPopups] = useState<PopupStore[]>([]);
     const [allPopups, setAllPopups] = useState<PopupStore[]>([]);
     const [matePosts, setMatePosts] = useState<AdminMatePost[]>([]);
 
     // v2.10 — 통합 메트릭 폴링. DASHBOARD 탭일 때만 실제 폴링 (다른 탭에선 훅이 effect cleanup).
+    // v2.13.3 — authorized 가 true 가 되기 전엔 폴링 자체를 시작하지 않아 403 도배 차단.
     const dashboard = useDashboardMetrics(
         toLinePoint,
         SERVER_METRICS_POLL_INTERVAL_MS,
         SERVER_METRICS_BUFFER_SIZE,
+        authorized,
     );
     
     const [realtimeMetrics, setRealtimeMetrics] = useState<MetricData[]>([]);
@@ -109,6 +144,7 @@ export default function AdminPage() {
     };
 
     useEffect(() => {
+        if (!authorized) return; // v2.13.3 — role 검증 전엔 폴링 차단
         if (activeTab !== "DASHBOARD") return; // 대시보드 탭일 때만 작동해서 부하 감소
 
         const fetchMetrics = async () => {
@@ -133,7 +169,7 @@ export default function AdminPage() {
 
         const interval = setInterval(fetchMetrics, SERVER_METRICS_POLL_INTERVAL_MS);
         return () => clearInterval(interval);
-    }, [activeTab]);
+    }, [activeTab, authorized]);
 
     // 2. 전체 팝업 로딩
     const loadAllPopups = async () => {
@@ -155,10 +191,11 @@ export default function AdminPage() {
 
     // 탭 변경 시 데이터 로딩
     useEffect(() => {
+        if (!authorized) return; // v2.13.3 — role 검증 전엔 admin fetch 차단
         if (activeTab === "DASHBOARD") loadDashboardData();
         else if (activeTab === "POPUPS") loadAllPopups();
         else if (activeTab === "MATES") loadMatePosts();
-    }, [activeTab]);
+    }, [activeTab, authorized]);
 
     // ================= [API 기능 핸들러] =================
     // (기존 핸들러 로직 유지됨)
@@ -256,10 +293,20 @@ export default function AdminPage() {
         { name: '게시글', count: stats.totalMatePosts }
     ] : [];
 
+    if (!authorized) {
+        // v2.13.3 — role 검증 중 / 비ADMIN 사용자 진입 시. router.replace 가 곧 떠나게 만들지만,
+        // 첫 paint 에서 admin UI 가 잠깐 보이지 않도록 단순 로더로 가린다.
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-ink-900 text-gray-500">
+                <span className="text-sm">권한 확인 중...</span>
+            </div>
+        );
+    }
+
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-ink-900 p-4 md:p-8 text-gray-900 dark:text-white pb-24">
             <div className="max-w-7xl mx-auto">
-                
+
                 {/* 헤더 & 네비게이션 */}
                 <header className="mb-8">
                     <div className="flex justify-between items-center mb-6">
@@ -539,10 +586,10 @@ export default function AdminPage() {
                     </div>
                 )}
 
-                {/* 탭 5: 실시간 로그 (v2.10) — SSE 구독, LOGS 탭 활성일 때만 EventSource 생성 */}
-                {activeTab === "LOGS" && (
+                {/* 탭 5: 실시간 로그 (v2.10) — SSE 구독, LOGS 탭 + ADMIN role 일 때만 EventSource 생성 */}
+                {activeTab === "LOGS" && authorized && (
                     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                        <LogViewer active={activeTab === "LOGS"} />
+                        <LogViewer active={true} />
                     </div>
                 )}
             </div>
