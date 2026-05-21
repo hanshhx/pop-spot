@@ -1521,6 +1521,52 @@
 
 ---
 
+### v2.12 — 의견 메인 탭 승격 + 무료 슬롯 제한 폐지 + 등급별 부스트
+
+> v2.11 의 의견 보내기를 Footer + MY 카드로만 두니 "있는 줄도 모름" 이슈. BottomDock 메인 탭으로 승격해 지도/코스/MY/동행 과 같은 위계로 노출. 함께 두 가지 정책 변경 — ① 무료 회원 코스 1개 저장 제한 폐지 (모든 사용자 무제한), ② 동행 게시판의 확성기 아이템 모델 폐지 → 등급별 월 부스트 한도.
+
+<table align="center">
+  <tr>
+    <th align="center" width="180">변경</th>
+    <th align="center" width="290">v2.11 까지</th>
+    <th align="center" width="290">v2.12</th>
+  </tr>
+  <tr>
+    <td align="center"><b>의견 동선</b></td>
+    <td>Footer 링크 + MY 탭 카드 (limit=3) — 사용자가 발견하기 어려움</td>
+    <td>BottomDock 의 메인 탭으로 승격 (lucide <code>Inbox</code> · 라벨 "의견"). 클릭 즉시 페이지 전환 없이 작성 폼 + 본인 목록 노출. /feedback 라우트는 게스트 외부 진입용으로 유지</td>
+  </tr>
+  <tr>
+    <td align="center"><b>코스 저장 슬롯</b></td>
+    <td>무료 회원은 1개 — 새로 저장하면 기존 1개 자동 삭제. <code>confirmAction</code> 으로 덮어쓰기 동의</td>
+    <td>모든 사용자 무제한. <code>MyCourseService.evictExistingCoursesForFreeUser</code> 메서드 삭제. 프론트 안내 div + <code>isPremium</code> 가드 제거</td>
+  </tr>
+  <tr>
+    <td align="center"><b>동행 상단 노출</b></td>
+    <td>"확성기 사용하기" — 보유 아이템 1개 차감 (<code>megaphoneCount</code>). OrderService / AdminService 로 발급, 부족 시 <code>InsufficientMegaphoneException</code></td>
+    <td>등급별 월 한도. MASTER 5회 / HUNTER 3회 / BEGINNER 1회 / NONE 0회. 매월 자동 리셋 (호출 시점 lazy)</td>
+  </tr>
+  <tr>
+    <td align="center"><b>등급 의미</b></td>
+    <td>RankCard 표시만 — 실제 혜택 차등 없음</td>
+    <td>스탬프 누적으로 결정된 등급이 부스트 한도와 직접 연동. 사용자가 등급을 올릴 동기 부여</td>
+  </tr>
+  <tr>
+    <td align="center"><b>이모지 / 광고 표현</b></td>
+    <td>"📢", "🔥", "AD" 등 광고 톤</td>
+    <td>모두 평서체 + lucide <code>TrendingUp</code> 아이콘. 라벨 "상단 부스트" / "부스트" / "마감된 부스트"</td>
+  </tr>
+  <tr>
+    <td align="center"><b>단일 진실의 원천</b></td>
+    <td>—</td>
+    <td>등급 임계값 (3 / 6 / 12) 이 프론트 <code>src/lib/rank.ts</code> + 백엔드 <code>BoostPolicy.java</code> 두 곳에 동일. JavaDoc / JSDoc 에 동시 갱신 경고 명시</td>
+  </tr>
+</table>
+
+<sub>백엔드 V8 migration 신규 (users.boost_used_count + boost_period) · 신규 <code>BoostPolicy.java</code> · 수정 4 파일 (<code>User</code>, <code>MateService</code>, <code>MateController</code>, <code>MateDto</code>, <code>MyCourseService</code>) · 프론트 신규 <code>src/lib/boost.ts</code> · 수정 4 파일 (<code>MateBoard</code> 확성기 → BoostToggle, <code>BottomDock</code> 7번째 탭 + 너비 조정, <code>app/page.tsx</code> FEEDBACK 탭 분기 + 안내 문구 삭제 + handleSaveCourse 가드 제거) · 프론트 빌드 17/17 통과. 옛 <code>megaphoneCount</code> 컬럼/필드는 호환 위해 유지 (v2.13 cleanup 예정).</sub>
+
+---
+
 ## 폴더 구조 (백엔드)
 
 ```

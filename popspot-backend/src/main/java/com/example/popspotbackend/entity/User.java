@@ -78,6 +78,15 @@ public class User {
     @Builder.Default
     private int megaphoneCount = 0;
 
+    /** v2.12 — 이번 달 동행 게시판 상단 부스트 사용 횟수. 등급별 한도와 비교 후 차감. */
+    @Column(name = "BOOST_USED_COUNT", nullable = false, columnDefinition = "integer default 0")
+    @Builder.Default
+    private int boostUsedCount = 0;
+
+    /** v2.12 — YYYY-MM 형식. 달이 바뀌면 boostUsedCount 를 0 으로 리셋. */
+    @Column(name = "BOOST_PERIOD", length = 7)
+    private String boostPeriod;
+
     @Column(name = "STAMP_COUNT", nullable = false, columnDefinition = "integer default 0")
     @Builder.Default
     private int stampCount = 0;
