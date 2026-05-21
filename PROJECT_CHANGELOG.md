@@ -9433,3 +9433,126 @@ npm run build
 - **알림 트리거**: 사용자가 RESOLVED 답변 받았을 때 푸시 알림 (v2.11 이메일 알림과 함께 처리 가능)
 - **부스트 사용 이력**: 사용자가 자기 부스트 사용 내역을 볼 수 있는 모달 (월별 차트)
 
+---
+
+# 25. v2.13 — SearchBox 정확도 가드 + 자동수집 빈도 / 키워드 / Geocoding 자동화
+
+> SearchBox 에 정확도 낮은 옛 row 가 그대로 노출되던 회귀와, 지도 반영 건수가 너무 적은 문제를 한 번에 처리. **정확도 임계값 (0.8) 은 변경하지 않은 채** 인덱싱 가드를 강화하고, 수집 다양성 / 빈도 / 좌표 백필을 자동화해서 자동게시 통과량을 끌어올림.
+
+## 25.1 SearchBox 정확도 가드 — 백 + 프 이중 방어
+
+### 변경 전 (회귀)
+
+- `PopupSearchDto` 가 `name / location / category / content / imageUrl` 만 인덱싱 — confidence / reviewStatus / status / endDate 정보가 인덱스에 없음
+- `SearchService.addPopup(popup)` 는 무조건 push (검수 안 끝난 row, 신뢰도 미달 row 까지 인덱스에 들어감)
+- `syncAllPopups()` 는 모든 row 를 그대로 push (옛 garbage cleanup 없음)
+- 프론트 `SearchBox.tsx` 는 Algolia hit 의 `name / location` 만 표시 — 추가 검증 없음
+- 결과: 인덱스에 옛 신뢰도 미달 / EXPIRED / TAKEDOWN row 가 누적되어 검색 결과로 노출
+
+### 변경 후
+
+**백엔드 (`SearchService.java`)**
+- `INDEXABLE_REVIEW_STATUSES = {AUTO_PUBLISHED, APPROVED, null}` + `NON_INDEXABLE_STATUSES = {EXPIRED, PENDING}` + `confidence >= 0.8` (=PopupCrawlOrchestrator 와 같은 임계값) 세 조건 모두 통과한 row 만 인덱싱
+- `addPopup(popup)` 는 인덱싱 가능 여부 검증 — 부적격 (예: 검수에서 REJECTED 로 바뀐 row) 이면 인덱스에서 삭제까지 처리
+- `syncAllPopups()` 는 인덱싱 가능 row 는 push + 부적격 row 는 명시 삭제 → 옛 garbage 한 번에 정리
+- 신규 `removePopup(id)` — 어드민 영구 삭제 / 만료 처리 시 호출
+
+**Algolia 자동 동기화 연결점**
+- `PopupCrawlOrchestrator.saveNewPopup()` — 자동게시 직후 `searchService.addPopup(saved)` 호출. 기존엔 다음 admin 수동 sync 까지 검색에 안 잡혔던 latent 문제 해결
+- `PopupExpireScheduler.scheduledExpire()` — EXPIRED 로 바뀐 row 마다 `searchService.removePopup(id)` 호출
+
+**프론트엔드 (`SearchBox.tsx`)**
+- `AlgoliaHit` 인터페이스에 `reviewStatus / status / confidence / endDate` 옵셔널 필드 추가
+- `isVisibleHit(hit)` — 신뢰도 ≥ 0.8 + status not in {EXPIRED, PENDING} + reviewStatus in {AUTO_PUBLISHED, APPROVED, null} + endDate >= 어제 가드. 백엔드가 인덱싱 시점에 가드를 걸지만 옛 stale 인덱스 대비 이중 방어
+- `CustomHits` 는 `hits.filter(isVisibleHit)` 결과만 노출. 결과 0개면 "검색 결과가 없습니다."
+
+**신규 어드민 엔드포인트**
+- `POST /api/admin/search/reindex` — 옛 stale 인덱스 한 번에 청소. 백엔드 배포 직후 1회 호출 권장 (`@PreAuthorize("hasRole('ADMIN')")`)
+- 호환 위해 `GET /api/search/sync` 도 유지하지만 동일 동작 + ADMIN 가드 적용
+
+## 25.2 자동수집 다양성 / 빈도 / Geocoding 자동화
+
+### 정확도 정책은 유지 (변경 0)
+
+- LLM confidence 임계값 0.8 그대로
+- `PopupNormalizationService` 의 점수 가산 규칙 (name +0.3 / location +0.2 / startDate+endDate +0.3 / 중복 출처 +0.1 / 카테고리 +0.1) 그대로
+- 수동 등록 / 어드민 검수 정책 그대로
+
+### 변경된 부분 (반영 건수만 늘림)
+
+**a) 수집 빈도**: 하루 1회 (04:00) → 하루 2회 (04:00 + 16:00 KST)
+- `PopupCrawlScheduler.scheduledRunMorning()` + `scheduledRunAfternoon()`
+- 같은 키워드를 12시간 간격으로 다시 호출 — 오전에 새로 게재된 팝업을 같은 날 안에 캐치
+- API 호출량 약 2배 (Naver / Kakao 검색 API 호출이 늘어남) — quota 안에서 안전 (현재 5% 미만 사용)
+
+**b) 키워드 풀**: 50 → 95개
+- 신규 카테고리: 애니메이션 / 게임 IP (원신, 젠레스존제로, 니지산지, 주술회전, 지브리, 마블 등)
+- 신규 럭셔리: 디올 / 샤넬 / 루이비통 / 프라다 / 버버리
+- 신규 디저트 / F&B: 런던베이글뮤지엄, 도산공원 디저트, 프릳츠, 블루보틀
+- 신규 지역: 여의도, 신촌
+- 신규 백화점: 현대백화점, 롯데백화점, 타임스퀘어
+- 신규 K-pop: 세븐틴, 라이즈, 투바투
+- 신규 카테고리 키워드: "전시 팝업스토어 서울", "서울 팝업스토어 오픈"
+
+**c) Geocoding 자동 백필**: admin 수동 호출만 → 매일 04:30 cron
+- `PopupCrawlScheduler.scheduledGeocodeBackfill()` 추가
+- 1차 수집 (04:00) 직후 좌표 누락된 row 를 일괄 채워 지도 노출량 ↑
+- 기존 `geocodeMissing()` 로직 재사용 — 새 코드 0
+
+### 예상 효과
+
+| 지표 | v2.12 까지 | v2.13 |
+|---|---|---|
+| 일일 LLM 정규화 호출 | 약 50회 | 약 190회 (95 × 2) |
+| 일일 자동게시 통과 (추정) | 5~15건 | 20~50건 (정확도 임계값 동일 + 키워드 다양성 + 빈도 ↑) |
+| 지도 반영 latency | 24h (다음 04시까지) | 12h (04 또는 16시) |
+| Geocoding 누락 row | admin 수동 호출 전까지 누락 | 매일 04:30 자동 채움 |
+| SearchBox 정확도 노출 | 옛 인덱스의 garbage 포함 | 백+프 이중 가드, 옛 garbage 는 1회 reindex 로 정리 |
+
+## 25.3 설정 (application.properties)
+
+```properties
+# 1차 — 새벽 4시 (기존 유지)
+popspot.crawler.cron=${POPSPOT_CRAWLER_CRON:0 0 4 * * *}
+# 2차 — 오후 4시 (신규)
+popspot.crawler.cron-afternoon=${POPSPOT_CRAWLER_CRON_AFTERNOON:0 0 16 * * *}
+# Geocoding 자동 백필 (신규)
+popspot.crawler.geocode-backfill-cron=${POPSPOT_GEOCODE_BACKFILL_CRON:0 30 4 * * *}
+```
+
+cron 표현식만 환경별로 덮어쓰면 빈도 조정 가능. 개발 환경은 `popspot.crawler.enabled=false` 라 기본적으로 모두 비활성.
+
+## 25.4 검증
+
+### 프론트엔드
+
+```powershell
+cd C:\Users\kim donghyun\Documents\popspot2\popspot-frontend
+Remove-Item -Recurse -Force .next -ErrorAction SilentlyContinue
+npm run build
+```
+
+- typecheck exit 0
+- build 17/17 페이지 통과
+- 새 ESLint 위반 0
+
+### 수동 검증 시나리오 (운영)
+
+1. **배포 직후 reindex 1회**: `POST /api/admin/search/reindex` → 옛 garbage 삭제, 인덱스가 가드 통과 row 만 보유
+2. **확성기 / 부스트 등 무관**: SearchBox 결과에 EXPIRED / 신뢰도 0.7 row 없는지 확인
+3. **다음 자동수집 04:00 + 16:00 정상**: `journalctl -u popspot | grep PopupCrawlScheduler` 에서 "morning" + "afternoon" 두 줄 + Geocoding 백필 04:30 한 줄
+4. **신규 자동게시 row 가 즉시 검색됨**: 다음날 SearchBox 에 04시 / 16시 게시된 새 팝업이 바로 검색
+
+### 회귀 체크
+
+- 기존 `GET /api/search/sync` 호환 — ADMIN 가드 추가됨 (운영 스크립트 갱신 필요)
+- `PopupExpireScheduler` 의 EXPIRED 처리 동작 동일 + 인덱스 삭제만 추가
+- 자동수집 빈도 2배 — Naver / Kakao 검색 API 일일 quota 확인 권장 (현재 quota 25,000회/일, 사용량 < 1,000)
+
+## 25.5 후속 작업
+
+- **자동수집 분포 리포트**: 카테고리별 / 지역별 자동게시 건수 분포 차트 (어드민 FEEDBACK 탭과 비슷한 위치)
+- **키워드 동적 튜닝**: 통과율 낮은 키워드 자동 제거 + 통과율 높은 키워드 가중치 ↑ (v2.14)
+- **Algolia 인덱스 정렬**: createdAt DESC 가중치를 인덱스 설정에서 (현재는 기본 textual relevance)
+- **재시도 큐**: Geocoding 실패 row 를 별도 큐로 빼서 외부 데이터 (도로명 주소 API) fallback
+
