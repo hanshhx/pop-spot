@@ -49,8 +49,7 @@ public class AdminMetricsController {
     /**
      * 어드민 대시보드 통합 메트릭. 키별로 묶음 (jvm / http / db / crawler ...).
      *
-     * <p>각 Provider 가 자체 try-catch 안 하므로 한 Provider 가 던지면 응답 전체가 5xx 가 된다. 운영
-     * 안전을 위해 여기서 한 번 더 감싼다.
+     * <p>각 Provider 가 자체 try-catch 안 하므로 한 Provider 가 던지면 응답 전체가 5xx 가 된다. 운영 안전을 위해 여기서 한 번 더 감싼다.
      */
     @GetMapping("/dashboard")
     public ResponseEntity<Map<String, Object>> getDashboard() {
