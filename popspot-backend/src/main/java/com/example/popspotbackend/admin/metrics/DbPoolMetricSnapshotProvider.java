@@ -8,10 +8,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 /**
- * 데이터베이스 커넥션 풀 (HikariCP) 사용량 스냅샷.
+ * DB 커넥션 풀 (HikariCP) 사용량 스냅샷.
  *
- * <p>HikariCP 가 자동 등록하는 {@code hikaricp.connections.*} 게이지를 조회한다. pool 이름이 여러 개일
- * 수 있어 같은 metric 의 모든 인스턴스를 합산.
+ * <p>{@code hikaricp.connections.*} 게이지 합산. pool 여러 개 가능성 대비.
  */
 @Component
 @RequiredArgsConstructor

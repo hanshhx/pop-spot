@@ -10,8 +10,7 @@ import org.springframework.stereotype.Component;
 /**
  * 최근 N 줄 로그를 메모리에 보관해 새 SSE 연결 시 즉시 백필.
  *
- * <p>크기 상한 {@link #MAX_LINES} 초과 시 오래된 라인부터 제거 (FIFO). 모든 접근은
- * {@code synchronized} — 어드민 1 명 이하 동시 접속을 가정, 동시성 비용은 무의미.
+ * <p>{@link #MAX_LINES} 초과 시 FIFO. 모든 접근 synchronized (어드민 동시 접속 수가 적음).
  */
 @Component
 public class LogRingBuffer {

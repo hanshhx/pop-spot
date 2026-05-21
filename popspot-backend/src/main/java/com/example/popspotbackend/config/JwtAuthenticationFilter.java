@@ -77,11 +77,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
     }
 
-    /**
-     * Authorization 헤더 우선, 없으면 SSE 경로에 한해서만 {@code ?token=} 쿼리 폴백.
-     *
-     * <p>경로 제한이 핵심 — 다른 엔드포인트에서 쿼리 토큰을 받으면 URL 로그에 노출돼 위험.
-     */
+    /** Authorization 헤더 우선, 없으면 SSE 경로 한정 {@code ?token=} 폴백 (URL 노출 위험 차단). */
     private String extractToken(HttpServletRequest request) {
         String bearerHeader = request.getHeader("Authorization");
         if (bearerHeader != null && bearerHeader.startsWith(BEARER_PREFIX)) {
