@@ -39,6 +39,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     /** 브라우저 EventSource 가 헤더를 못 보내는 SSE 엔드포인트만 쿼리 토큰 허용. */
     private static final String SSE_TOKEN_PATH_PREFIX = "/api/admin/logs/stream";
+
     private static final String QUERY_TOKEN_PARAM = "token";
 
     @Value("${jwt.secret:}")
