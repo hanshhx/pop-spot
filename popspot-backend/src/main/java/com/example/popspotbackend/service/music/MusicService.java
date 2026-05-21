@@ -12,6 +12,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
@@ -62,6 +63,24 @@ public class MusicService {
     private final UserMusicHistoryRepository historyRepo;
     private final PopupStoreRepository popupRepo;
     private final ObjectMapper objectMapper = new ObjectMapper();
+
+    /**
+     * v2.14 — 어드민이 cover / 비공식 의심 캐시를 일괄 청소.
+     *
+     * <p>youtube_channel 에 cover/live/remix 같은 키워드가 있거나 isOfficial=false 로 저장된 row 의
+     * youtube_video_id 를 NULL 로 초기화한다. 다음 재생 시 v2.14 새 필터로 다시 매칭되어 공식
+     * 음원만 박힌다. YouTube API quota 영향: 사용자가 재생하는 시점에만 호출되므로 즉시 부담 X.
+     */
+    @Transactional
+    public Map<String, Integer> clearLikelyCoverCache() {
+        List<MusicTrack> targets = trackRepo.findLikelyNonOfficialCached();
+        if (targets.isEmpty()) return Map.of("scanned", 0, "cleared", 0);
+
+        List<Long> ids = targets.stream().map(MusicTrack::getId).toList();
+        int updated = trackRepo.clearYoutubeCacheByIds(ids);
+        log.info("[Music] cover 캐시 청소 — {} 곡 youtube_video_id 초기화", updated);
+        return Map.of("scanned", targets.size(), "cleared", updated);
+    }
 
     /**
      * 검색 그리드용 — Spotify 메타데이터만 조회하고 YouTube 는 lazy fetch. 자동완성이 사용자 의도를 정확한 텍스트로 만들어주므로 백엔드에서 추측

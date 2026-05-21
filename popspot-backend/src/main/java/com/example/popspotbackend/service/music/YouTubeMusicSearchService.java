@@ -39,6 +39,20 @@ public class YouTubeMusicSearchService {
     private static final String MUSIC_CATEGORY_ID = "10";
     private static final String FALLBACK_QUERY_SUFFIX = " 노래";
 
+    /**
+     * v2.14 — 제목에 포함되면 공식 음원이 아닌 것으로 간주해 매칭에서 제외하는 키워드.
+     * 사용자가 "공식이 아니라 cover 가 나온다" 고 보고. 5단계 매칭 알고리즘이 cover/live/
+     * remix 도 통과시키던 문제를 차단하기 위해 단어 단위 블랙리스트로 거른다.
+     */
+    private static final String[] NON_OFFICIAL_KEYWORDS = {
+        "cover", "covered", "라이브", "live", "live ver", "라이브버전",
+        "remix", "리믹스", "mashup", "매쉬업", "acoustic", "어쿠스틱",
+        "unplugged", "버스킹", "busking", "karaoke", "노래방", "mr",
+        "instrumental", "inst.", "(inst)", "reaction", "리액션",
+        "어쿠스틱버전", "ost ver", "piano ver", "guitar ver", "안무",
+        "dance practice", "쇼케이스", "showcase", "fancam", "직캠"
+    };
+
     private final RestTemplate restTemplate = new RestTemplate();
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -182,14 +196,15 @@ public class YouTubeMusicSearchService {
     /* =========================== 영상 선택 알고리즘 =========================== */
 
     /**
-     * 5단계 신뢰도 검증을 거쳐 최적 영상 선택.
+     * 5단계 신뢰도 검증을 거쳐 최적 영상 선택. 모든 단계에 v2.14 부터 비공식 키워드 (cover /
+     * live / remix / 커버 / 라이브 등) 사전 필터를 적용해 공식 음원만 통과시킨다.
      *
      * <ol>
      *   <li>제목에 아티스트 AND 트랙명 둘 다 포함 (가장 강력)
      *   <li>공식 채널 + 제목에 트랙명 포함
      *   <li>공식 채널(Topic/VEVO/Official)만
      *   <li>제목에 트랙명 포함
-     *   <li>제목에 아티스트명 포함
+     *   <li>제목에 아티스트명 포함 — 가장 마지막 보루
      * </ol>
      *
      * 어느 단계도 통과 못 하면 null — 엉뚱한 영상 박힘 방지.
@@ -201,31 +216,67 @@ public class YouTubeMusicSearchService {
 
         if (hasArtist && hasTrack) {
             JsonNode strict =
-                    findFirstMatching(items, item -> isArtistAndTrackInTitle(item, artist, track));
+                    findFirstMatching(
+                            items,
+                            item ->
+                                    !isNonOfficialVariant(item)
+                                            && isArtistAndTrackInTitle(item, artist, track));
             if (strict != null) return strict;
         }
         if (hasTrack) {
             JsonNode officialWithTrack =
-                    findFirstMatching(items, item -> isOfficialWithTrack(item, artist, track));
+                    findFirstMatching(
+                            items,
+                            item ->
+                                    !isNonOfficialVariant(item)
+                                            && isOfficialWithTrack(item, artist, track));
             if (officialWithTrack != null) return officialWithTrack;
         }
 
-        JsonNode officialOnly = findFirstMatching(items, item -> isOfficialItem(item, artist));
+        JsonNode officialOnly =
+                findFirstMatching(
+                        items,
+                        item -> !isNonOfficialVariant(item) && isOfficialItem(item, artist));
         if (officialOnly != null) return officialOnly;
 
         if (hasTrack) {
-            JsonNode trackInTitle = findFirstMatching(items, item -> isInTitle(item, track));
+            JsonNode trackInTitle =
+                    findFirstMatching(
+                            items,
+                            item -> !isNonOfficialVariant(item) && isInTitle(item, track));
             if (trackInTitle != null) return trackInTitle;
         }
         if (hasArtist) {
-            return findFirstMatching(items, item -> isInTitle(item, artist));
+            return findFirstMatching(
+                    items, item -> !isNonOfficialVariant(item) && isInTitle(item, artist));
         }
         return null;
     }
 
-    /** 음악-only 폴백 — 채널/제목에 음악성 키워드 포함된 첫 후보 반환. */
+    /**
+     * 제목에 비공식 변형 키워드 (cover / live / remix / 라이브 / 커버 ...) 가 들어 있으면 true.
+     *
+     * <p>v2.14 — 공식 음원이 아닌 영상을 사전에 모든 매칭 단계에서 차단한다. 정확도가 살짝
+     * 떨어지더라도 사용자가 "공식이 아닌 cover 가 나온다" 고 느끼는 것보다 검색 미스가 낫다는
+     * 정책 결정.
+     */
+    private boolean isNonOfficialVariant(JsonNode item) {
+        String title = item.path("snippet").path("title").asText("");
+        if (title.isEmpty()) return false;
+        String lower = title.toLowerCase(Locale.ROOT);
+        for (String keyword : NON_OFFICIAL_KEYWORDS) {
+            if (lower.contains(keyword)) return true;
+        }
+        return false;
+    }
+
+    /**
+     * 음악-only 폴백 — 채널/제목에 음악성 키워드 포함된 첫 후보 반환. v2.14 부터 cover/live
+     * 등 비공식 변형은 사전 제외.
+     */
     private JsonNode pickMusicalCandidate(JsonNode items) {
-        return findFirstMatching(items, this::hasMusicalSignal);
+        return findFirstMatching(
+                items, item -> !isNonOfficialVariant(item) && hasMusicalSignal(item));
     }
 
     private boolean hasMusicalSignal(JsonNode item) {
