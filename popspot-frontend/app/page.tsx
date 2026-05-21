@@ -51,6 +51,7 @@ import { ReportPopupModal } from "@/features/popup/ReportPopupModal";
 import { PopupCalendarModal } from "@/features/popup/PopupCalendarModal";
 import { AllTrendingModal } from "@/features/popup/AllTrendingModal";
 import { AddPlaceModal } from "@/features/popup/AddPlaceModal";
+import { MyFeedbackList } from "@/features/feedback/MyFeedbackList";
 import type {
   User,
   PopupStore,
@@ -1232,6 +1233,26 @@ export default function Home() {
                                 )}
                             </div>
                         )}
+                    </div>
+
+                    {/* 내가 보낸 의견 — 최근 3건만 노출. 전체는 /feedback 으로 이동. */}
+                    <div className="p-4 lg:p-6 border-b border-[var(--color-border)]">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-base lg:text-lg font-bold flex items-center gap-2 text-foreground">
+                                <MessageCircle size={16} className="lg:w-[18px] lg:h-[18px] text-lime-500"/> 내가 보낸 의견
+                            </h3>
+                            <Link
+                                href="/feedback"
+                                className="text-xs text-muted-foreground hover:text-foreground"
+                            >
+                                전체 보기
+                            </Link>
+                        </div>
+                        <MyFeedbackList
+                            userId={user?.userId ?? null}
+                            limit={3}
+                            emptyText="아직 보낸 의견이 없습니다. 자유롭게 의견을 남겨 주세요."
+                        />
                     </div>
 
                     {/* Current Editing Course (DND) */}
