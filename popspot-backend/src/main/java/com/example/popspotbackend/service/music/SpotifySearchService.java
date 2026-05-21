@@ -47,6 +47,16 @@ public class SpotifySearchService {
     private static final int DEFAULT_TOKEN_EXPIRY_SECONDS = 3600;
     private static final int SUGGESTION_CANDIDATE_LIMIT = 3;
 
+    /**
+     * v2.14 — 검색 정확도 / 인기도 가중 정렬용 상수.
+     *
+     * <p>"촛불 하나" 같은 한국어 검색에서 노이즈 (인기도 낮고 관련 약한 곡) 가 노출되던 문제를
+     * 막기 위해 곡의 popularity 점수와 검색어 매칭 정확도를 합산해 재정렬한다.
+     */
+    private static final int RELEVANCE_TOKEN_WEIGHT = 50;
+    private static final int RELEVANCE_FULL_MATCH_WEIGHT = 30;
+    private static final int RELEVANCE_ARTIST_MATCH_WEIGHT = 20;
+
     private final RestTemplate restTemplate = new RestTemplate();
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final SearchSuggestService suggestService;
@@ -71,9 +81,14 @@ public class SpotifySearchService {
         String token = ensureAccessToken();
         if (token == null) return List.of();
 
-        return containsHangul(query)
-                ? searchKoreanWithFallback(token, query, limit)
-                : callSearch(token, query, limit, null);
+        List<SpotifyTrack> raw =
+                containsHangul(query)
+                        ? searchKoreanWithFallback(token, query, limit)
+                        : callSearch(token, query, limit, null);
+
+        // v2.14 — 검색 정확도 + 인기도 가중 재정렬. 사용자가 "검색 결과에 이상한 음악이 나온다"
+        // 고 보고. 토큰 단위 매칭 점수 + popularity 합산으로 가장 관련 높은 곡을 상위로.
+        return rerankByRelevance(raw, query, limit);
     }
 
     /**
@@ -274,8 +289,84 @@ public class SpotifySearchService {
                 .artworkUrlHires(artwork.highResolution())
                 .previewUrl(parsePreviewUrl(item.path("preview_url")))
                 .durationMs(item.path("duration_ms").asInt(0))
+                .popularity(item.path("popularity").asInt(0))
                 .build();
     }
+
+    /**
+     * 검색 결과를 (검색어 매칭 점수 + 인기도) 합산으로 재정렬.
+     *
+     * <p>점수 산식:
+     *
+     * <ul>
+     *   <li>전체 query 가 trackName 에 그대로 포함: +30
+     *   <li>artistName 에 그대로 포함: +20
+     *   <li>query 의 각 토큰이 trackName/artistName 에 모두 분포: +50
+     *   <li>popularity (0~100) 그대로 가산
+     * </ul>
+     *
+     * <p>점수가 같으면 popularity 가 더 높은 곡이 우선. 결과를 잘라서 limit 만큼만 반환.
+     */
+    private List<SpotifyTrack> rerankByRelevance(
+            List<SpotifyTrack> tracks, String query, int limit) {
+        if (tracks == null || tracks.isEmpty()) return List.of();
+        String[] tokens = splitTokens(query);
+        String normalizedQuery = safeLower(query);
+
+        List<TrackWithScore> scored = new ArrayList<>(tracks.size());
+        for (SpotifyTrack track : tracks) {
+            scored.add(new TrackWithScore(track, scoreTrack(track, tokens, normalizedQuery)));
+        }
+        scored.sort(
+                (a, b) -> {
+                    int byScore = Integer.compare(b.score, a.score);
+                    if (byScore != 0) return byScore;
+                    int popA = a.track.getPopularity() == null ? 0 : a.track.getPopularity();
+                    int popB = b.track.getPopularity() == null ? 0 : b.track.getPopularity();
+                    return Integer.compare(popB, popA);
+                });
+
+        List<SpotifyTrack> result = new ArrayList<>(Math.min(limit, scored.size()));
+        for (TrackWithScore ts : scored) {
+            result.add(ts.track);
+            if (result.size() >= limit) break;
+        }
+        return result;
+    }
+
+    private int scoreTrack(SpotifyTrack track, String[] tokens, String normalizedQuery) {
+        int score = track.getPopularity() == null ? 0 : track.getPopularity();
+        String name = safeLower(track.getTrackName());
+        String artist = safeLower(track.getArtistName());
+
+        if (!normalizedQuery.isEmpty() && name.contains(normalizedQuery)) {
+            score += RELEVANCE_FULL_MATCH_WEIGHT;
+        }
+        if (!normalizedQuery.isEmpty() && artist.contains(normalizedQuery)) {
+            score += RELEVANCE_ARTIST_MATCH_WEIGHT;
+        }
+
+        if (tokens.length > 0) {
+            boolean allTokensCovered = true;
+            for (String token : tokens) {
+                if (token.isEmpty()) continue;
+                if (!(name.contains(token) || artist.contains(token))) {
+                    allTokensCovered = false;
+                    break;
+                }
+            }
+            if (allTokensCovered) score += RELEVANCE_TOKEN_WEIGHT;
+        }
+        return score;
+    }
+
+    private String[] splitTokens(String query) {
+        if (query == null) return new String[0];
+        String[] raw = query.trim().toLowerCase().split("\\s+");
+        return raw;
+    }
+
+    private record TrackWithScore(SpotifyTrack track, int score) {}
 
     /**
      * Spotify 응답의 images 배열은 큰 사이즈에서 작은 사이즈 순서. 0번이 보통 640x640 (hires), 1번이 300x300 (thumbnail).
@@ -349,5 +440,8 @@ public class SpotifySearchService {
         private String artworkUrlHires;
         private String previewUrl;
         private Integer durationMs;
+
+        /** v2.14 — Spotify 인기도 (0~100). 검색 결과 정렬에 활용. */
+        private Integer popularity;
     }
 }
