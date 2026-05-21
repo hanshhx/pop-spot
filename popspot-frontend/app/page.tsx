@@ -70,20 +70,22 @@ const INITIAL_MY_COURSE: CourseItem[] = [];
 /* 탭 접근 정책 — 한 곳에서 관리해 게이트 / sessionStorage 복원 / ?tab= 쿼리 어디서든   */
 /* 동일 규칙이 적용된다.                                                          */
 /*                                                                            */
-/*  - USER_ONLY_TABS : 정식 회원만. 게스트는 회원가입 유도, 비로그인은 로그인 유도.    */
-/*  - 그 외 (MAP / PASSPORT / MY) : 게스트도 진입 가능. 데이터가 없으면 화면에서       */
-/*    자연스러운 empty state 노출.                                               */
+/*  - 로그인 사용자 : 모든 탭                                                    */
+/*  - 게스트 활성  : v2.13.1 부터 모든 탭 통과 — "7일 동안 전체 기능 둘러보기"        */
+/*                  의 약속을 실제로 지키기 위함. 만료 후엔 회원가입 유도            */
+/*  - 비로그인+비게스트 : MAP / PASSPORT / MY / FEEDBACK 만 통과                  */
 /* -------------------------------------------------------------------------- */
 const DEFAULT_TAB = "MAP";
 const USER_ONLY_TABS = new Set<string>(["COURSE", "MUSIC", "MATE"]);
 
 /** 현재 세션에서 해당 탭에 진입할 수 있는가. */
-function canAccessTab(tab: string, hasUser: boolean): boolean {
+function canAccessTab(tab: string, hasUser: boolean, isGuestActive: boolean): boolean {
   if (hasUser) return true;
+  if (isGuestActive) return true; // 게스트는 7일 동안 모든 탭 자유 이용
   return !USER_ONLY_TABS.has(tab);
 }
 
-/** USER_ONLY 탭을 게스트가 노크했을 때 보여줄 안내 문구. */
+/** USER_ONLY 탭을 게스트 만료 / 비로그인 사용자가 노크했을 때 보여줄 안내 문구. */
 function userOnlyTabHint(tab: string): string {
   if (tab === "COURSE") return "AI 코스 추천은 가입 후 이용해주세요.";
   if (tab === "MUSIC") return "음악 추천은 가입 후 이용해주세요.";
@@ -282,13 +284,13 @@ export default function Home() {
   };
 
   /**
-   * 게스트 사용자가 USER_ONLY 탭(COURSE / MUSIC / MATE) 을 누르면 회원가입 유도,
-   * 비로그인+비게스트는 로그인 유도. 두 시나리오는 사용자 입장에서 의미가 다르므로
-   * 별도의 카피로 분리.
+   * USER_ONLY 탭을 게스트 만료 / 비로그인 사용자가 누르면 안내. v2.13.1 부터 게스트 활성 상태는
+   * 모든 탭이 통과하므로 이 핸들러에 도달하지 않는다 (canAccessTab 단계에서 컷). 만료된 게스트는
+   * 회원가입, 처음 보는 사용자는 로그인 유도.
    */
   const promptUpgradeOrLogin = async (tab: string) => {
-    const isGuest = guestRemainingDays != null;
-    if (isGuest) {
+    const guestExpiredOrInactive = !user; // canAccessTab 에서 hasUser=false 인 경우만 도달
+    if (guestExpiredOrInactive) {
         if (await confirmAction({
             title: '회원 전용 기능',
             text: userOnlyTabHint(tab),
@@ -307,7 +309,8 @@ export default function Home() {
   };
 
   const handleTabChange = async (tab: string) => {
-    if (!canAccessTab(tab, !!user)) {
+    const isGuestActive = guestRemainingDays != null && guestRemainingDays > 0;
+    if (!canAccessTab(tab, !!user, isGuestActive)) {
         await promptUpgradeOrLogin(tab);
         return;
     }
@@ -449,19 +452,22 @@ export default function Home() {
         .catch(err => console.error("OOTD 로딩 실패:", err));
   }, []);
 
+  /*
+   * 메인 진입 게이트 (v2.7 재설계 → v2.13.1 mount-once 분리):
+   *  - 로그인 사용자             → 통과
+   *  - 게스트 활성 (시작 + 미만료) → 통과 + D-N 1회 계산
+   *  - 게스트 만료              → /signup?reason=guest_expired
+   *  - 게스트 미시작 + 비로그인    → /login
+   *
+   * v2.13.1: 이 effect 가 [searchParams, router] 를 deps 로 갖고 있어서 BottomDock 탭
+   * 클릭이 router.replace 등을 유발할 때마다 게스트 D-N 이 다시 계산되어 사용자가 "매번
+   * 새로 시작되는 듯한" 인상을 받았다. 진짜 startGuestMode 가 호출되는 것은 아니지만
+   * setGuestRemainingDays 가 매번 호출되며 잔여일 표시가 깜빡일 수 있음. 인증/게스트
+   * 초기화는 mount 시점 1회만 수행하도록 분리한다.
+   */
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
 
-    /*
-     * 메인 진입 게이트 (v2.7 재설계):
-     *  - 로그인 사용자             → 통과
-     *  - 게스트 활성 (시작 + 미만료) → 통과
-     *  - 게스트 만료              → /signup?reason=guest_expired
-     *  - 게스트 미시작 + 비로그인    → /login (거기서 일반 로그인 또는 "게스트로 둘러보기" 선택)
-     *
-     * 이전 구현은 미시작 사용자가 메인에 들어오면 자동으로 게스트를 시작시켜 카운터가 돌게 했다 —
-     * 사용자에게 명시적 동의를 받지 않은 채 7일 카운트다운이 흐른다는 UX 결함이 있었다.
-     */
     if (!storedUser) {
       const firstVisit = getGuestFirstVisit();
       if (firstVisit == null) {
@@ -475,18 +481,15 @@ export default function Home() {
       setGuestRemainingDays(getRemainingGuestDays(firstVisit));
     } else {
       setGuestRemainingDays(null);
-    }
+      const parsedUser = JSON.parse(storedUser);
+      setUser(parsedUser);
 
-    if (storedUser) {
-        const parsedUser = JSON.parse(storedUser);
-        setUser(parsedUser);
-         
-        fetchMyCourses(parsedUser.userId, true);
-        fetchWishlist(parsedUser.userId);
+      fetchMyCourses(parsedUser.userId, true);
+      fetchWishlist(parsedUser.userId);
 
-        if (sessionStorage.getItem("lastTab") === "MY") {
-            fetchMyPageData(parsedUser.userId);
-        }
+      if (sessionStorage.getItem("lastTab") === "MY") {
+        fetchMyPageData(parsedUser.userId);
+      }
     }
 
     const savedCourse = sessionStorage.getItem("aiCourseData");
@@ -495,24 +498,31 @@ export default function Home() {
       setAiCourse(parsed.course);
       setSelectedVibe(parsed.vibe);
     }
-      
-    // 외부에서 들어올 때 ?tab=music 같은 파라미터로 직접 진입할 수 있게 한다.
-    // (예: 구버전 /music 라우트가 / 로 redirect 될 때 사용)
-    //
-    // 게스트 / 비로그인 사용자가 USER_ONLY 탭으로 직접 진입하려 해도 정책 게이트로 한 번 더 막는다 —
-    // handleTabChange 가 아닌 직접 setCurrentTab 경로라서 별도 가드 필요.
-    const hasUser = !!storedUser;
+    // 의도적으로 mount 시점 1회만 — deps 비움. router 는 stable ref 라 누락해도 안전하지만,
+    // ESLint 가 경고하면 inline 주석으로 의도 명시.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /*
+   * ?tab= 쿼리 또는 sessionStorage 의 lastTab 으로 초기 탭 복원. searchParams 변경 시마다
+   * 다시 실행되지만 게스트/유저 상태에는 영향 없음 — setCurrentTab 한 번만 호출.
+   */
+  useEffect(() => {
+    const hasUser = !!localStorage.getItem("user");
+    const firstVisit = getGuestFirstVisit();
+    const isGuestActive = firstVisit != null && !isGuestExpired(firstVisit);
+
     const tabParam = searchParams.get("tab");
     if (tabParam) {
       const requested = tabParam.toUpperCase();
-      setCurrentTab(canAccessTab(requested, hasUser) ? requested : DEFAULT_TAB);
+      setCurrentTab(canAccessTab(requested, hasUser, isGuestActive) ? requested : DEFAULT_TAB);
       return;
     }
     const lastTab = sessionStorage.getItem("lastTab");
     if (lastTab) {
-      setCurrentTab(canAccessTab(lastTab, hasUser) ? lastTab : DEFAULT_TAB);
+      setCurrentTab(canAccessTab(lastTab, hasUser, isGuestActive) ? lastTab : DEFAULT_TAB);
     }
-  }, [searchParams, router]);
+  }, [searchParams]);
 
   /* Utilities */
   const sectionVariants: Variants = {
