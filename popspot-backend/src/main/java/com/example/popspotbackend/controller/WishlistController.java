@@ -15,9 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * 위시리스트 토글 / 조회. 응답 문자열로 ADDED / REMOVED 를 구분.
  *
- * <p>v2.9 보안: path 의 {@code userId} 가 토큰 subject 와 일치하는지 검증. 불일치하면
- * {@link SecurityException} → GlobalExceptionHandler 403. 이전엔 검증 없이 path 값을 그대로
- * 서비스에 전달해 타인 위시리스트 조작이 가능했다 (IDOR).
+ * <p>v2.9 보안: path 의 {@code userId} 가 토큰 subject 와 일치할 때만 통과. 불일치는 403 (IDOR 차단).
  */
 @RestController
 @RequestMapping("/api/wishlist")

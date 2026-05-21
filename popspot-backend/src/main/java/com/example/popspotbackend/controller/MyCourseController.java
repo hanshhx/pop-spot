@@ -19,9 +19,9 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * 내 코스 저장 / 조회 / 삭제.
  *
- * <p>v2.9 보안: 모든 엔드포인트가 토큰 subject 와 요청 userId 의 일치를 검증. 불일치는
- * {@link SecurityException} → GlobalExceptionHandler 403. 무료 회원의 1 슬롯 제한은 서비스가
- * 자동으로 기존 코스를 덮어쓰는 방식으로 처리하므로 별도 예외 / 클라이언트 가드는 없다.
+ * <p>v2.9 보안: 모든 엔드포인트가 토큰 userId 와 요청 userId 일치 검증. 불일치는 403.
+ *
+ * <p>무료 회원의 1 슬롯 제한은 서비스가 자동으로 기존 코스를 덮어쓰는 방식.
  */
 @RestController
 @RequestMapping("/api/my-courses")

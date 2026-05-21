@@ -44,10 +44,7 @@ public class MyCourseService {
         return myCourseRepository.findAllByUserId(userId);
     }
 
-    /**
-     * 본인 코스만 삭제 가능 (v2.9 보안). 코스 소유자가 토큰 subject 와 다르면
-     * {@link SecurityException} → 403.
-     */
+    /** 본인 코스만 삭제 가능 (v2.9). 소유자가 토큰 subject 와 다르면 403. */
     @Transactional
     public void deleteCourseAsOwner(Long courseId, String tokenUserId) {
         MyCourse course =
