@@ -16,10 +16,9 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * 관리자 콘솔용 서버 헬스 메트릭.
  *
- * <p>{@code /server-status} — v1 형식. CPU 게이지 + JVM 힙 계산 (기존 프론트 차트 호환).
+ * <p>{@code /server-status} — v1, CPU+JVM heap (기존 차트 호환).
  *
- * <p>{@code /dashboard} — v2 형식. {@link MetricSnapshotProvider} 빈을 모두 합쳐 키별로
- * 묶어 반환. 새 메트릭 카드 추가 = Provider 1 개 추가만으로 끝.
+ * <p>{@code /dashboard} — v2, {@link MetricSnapshotProvider} 빈 합성. Provider 1 개 추가로 확장.
  */
 @RestController
 @RequestMapping("/api/admin/metrics")

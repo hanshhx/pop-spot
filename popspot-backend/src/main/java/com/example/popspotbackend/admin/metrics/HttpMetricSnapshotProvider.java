@@ -13,11 +13,9 @@ import org.springframework.stereotype.Component;
 /**
  * HTTP 서버 요청 통계 스냅샷.
  *
- * <p>Spring Boot Actuator 가 자동 등록하는 {@code http.server.requests} Timer 를 모두 합쳐서
- * 누적 요청 수, 평균 / p95 응답시간, 5xx 발생 수를 계산한다.
+ * <p>{@code http.server.requests} Timer 합산. count / mean / p95 / 5xx.
  *
- * <p>p95 는 histogram 활성화 시에만 의미가 있다 — application.properties 의
- * {@code management.metrics.distribution.percentiles*} 설정 참고.
+ * <p>p95 는 histogram 활성화 필요 (application.properties 의 percentiles 설정).
  */
 @Component
 @RequiredArgsConstructor

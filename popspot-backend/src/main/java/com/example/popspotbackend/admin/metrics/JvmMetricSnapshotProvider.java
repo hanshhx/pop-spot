@@ -9,10 +9,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 /**
- * JVM 상태 스냅샷 — Heap 사용량 / GC 누적 시간 / 활성 Thread 수.
+ * JVM 상태 스냅샷 — Heap / GC / Thread.
  *
- * <p>Micrometer 가 부팅 시 자동 등록하는 표준 게이지를 조회한다. 첫 요청 전엔 일부 게이지가 없을 수 있어
- * 모든 조회는 null-safe.
+ * <p>Micrometer 표준 게이지 조회. 첫 요청 전엔 일부 게이지가 없어 모든 조회 null-safe.
  */
 @Component
 @RequiredArgsConstructor
