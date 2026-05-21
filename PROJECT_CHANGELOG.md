@@ -9161,3 +9161,156 @@ systemd 는 root 로 EnvironmentFile 을 읽고 `User=reo4321` 로 프로세스 
 2. **scp 대상 경로 미스매치는 가장 흔한 배포 함정**. `scp` 자체는 성공해서 사용자에겐 진짜 같지만, systemd 가 보는 파일은 그대로. 검증 첫 줄은 항상 **운영 jar 의 timestamp + 새로 추가된 class 의 byte 크기**. `unzip -l <jar> | grep <NewController>` 는 5 초면 끝나는 결정적 검증.
 3. **신규 환경변수는 환경파일도 같이 PR 에 명시**. v2.10 의 `application.properties` 에 `LOG_FILE_PATH` 가 추가됐지만, 운영 환경파일에 미반영. PR 템플릿에 "신규 환경변수가 있으면 .env.example + 운영 환경파일 모두 업데이트 했는가?" 체크박스 필요.
 4. **시크릿 파일 권한은 처음부터 600 으로**. 셋업 단계에서 644 로 만들어진 환경파일은 보통 발견을 못 한 채 운영에 남는다. deploy 스크립트의 끝에 `chmod 600` 자동화. 이번에 발견했지만 다른 시크릿 파일도 같이 점검.
+
+---
+
+# 23. v2.11 — 의견 보내기 게시판 (Footer + MY + Admin 3 레이어)
+
+> 운영팀이 사용자 피드백을 받을 통로가 없었다. 카카오톡 / 이메일로 산발적으로 들어오는 의견을 정리할 곳이 마땅치 않아 분실되거나 답변 SLA 가 들쭉날쭉. 사용자 입장에서도 "여기서 의견을 어떻게 보내야 하지?" 가 모호했음. v2.11 은 **사용자 동선 3 곳 (Footer / MY 탭 / 어드민)** 에 동일 데이터 모델로 의견 보내기 기능을 심어, **로그인/게스트 모두 같은 폼** 으로 제출하고 **어드민이 한 화면에서 검수 → 답변 → 상태 변경** 까지 처리할 수 있게 한다. 옵션 D (Prometheus + Grafana) 는 v2.12 로 다시 미룸.
+
+## 23.1 왜 만들었나
+
+### 변경 전 — 모자랐던 점
+
+- 사용자 의견을 받을 공식 채널이 없음 (Footer 의 비즈니스 / 광고 mailto 만 존재)
+- 어드민이 의견 접수 / 답변 / 상태 변경을 추적할 도구가 없음
+- 게스트 사용자가 보낸 의견은 답신 받을 방법이 없음 (이메일 폴백 부재)
+
+### 왜 바꿨나
+
+- 사용자 신뢰 확보 — "버그 발견 / 기능 제안 → 즉시 보낼 곳" 이 보여야 운영 의지가 느껴짐
+- 어드민 운영 효율 — 산발적 카톡/메일 처리 → 한 화면 검수 큐
+- 게스트 친화 — 비로그인 사용자도 의견 제출 가능 (이메일 선택 입력)
+
+## 23.2 어떻게 만들었나 — 3 레이어 통합 설계
+
+### Layer 1: Footer 링크
+
+- `src/components/layout/Footer.tsx` 의 PLATFORM_LINKS 에 `{ label: '의견 보내기', href: '/feedback' }` 추가
+- 모든 페이지 하단에 노출 → 비로그인 / 게스트 / 정식 회원 동일하게 진입
+
+### Layer 2: MY 탭 카드
+
+- `app/page.tsx` MY 탭 (Saved Courses 와 Current Plan 사이) 에 "내가 보낸 의견" 카드 신규
+- `MyFeedbackList` 컴포넌트 — limit=3 으로 최근 3건만 노출, "전체 보기" 는 /feedback 으로 이동
+- 본인이 받은 답변까지 함께 표시 (어드민이 답변하면 즉시 확인)
+
+### Layer 3: 어드민 FEEDBACK 탭
+
+- `app/admin/page.tsx` 탭 배열에 `{ id: "FEEDBACK", label: "의견 보내기", icon: <Inbox/> }` 추가
+- `AdminFeedbackPanel` — 상태 카운트 (PENDING / REVIEWING / RESOLVED / WONT_FIX) + 필터 + 펼침형 답변 에디터 + 삭제
+- 클릭 → 본문 / 게스트 이메일 / 상태 변경 라디오 / 답변 textarea / 저장·삭제 버튼
+
+## 23.3 백엔드 변경
+
+### 신규 파일 (8개)
+
+| 파일 | 책임 |
+|---|---|
+| `db/migration/V7__feedback.sql` | feedback 테이블 + 시퀀스 + 인덱스 2종 (status+created_at, user_id+created_at) |
+| `entity/Feedback.java` | JPA 엔티티. userId nullable (게스트), guestEmail 답신 폴백, @PrePersist 로 createdAt + 기본 status PENDING |
+| `repository/FeedbackRepository.java` | 3 메서드 — 본인 목록 / 어드민 검수 큐 (status 필터+페이징) / 상태별 카운트 |
+| `dto/FeedbackCreateRequestDto.java` | 작성 요청 — @NotBlank + @Size + @Email 검증 |
+| `dto/FeedbackResponseDto.java` | 단건 응답 + fromEntity factory |
+| `dto/FeedbackReplyRequestDto.java` | 어드민 답변 + 상태 변경 |
+| `service/FeedbackService.java` | 화이트리스트 검증 (카테고리 4종 + 상태 4종), 게스트 userId null 처리, 답변 시 repliedAt 갱신 |
+| `controller/FeedbackController.java` | POST /api/feedback (공개), GET /api/feedback/me (인증) |
+| `controller/AdminFeedbackController.java` | /api/admin/feedback CRUD + /metrics 카운트, 클래스 단 @PreAuthorize('ADMIN') |
+
+### 보안 / 결합도
+
+- `/api/admin/feedback/**` 는 `SecurityConfig` 의 `/api/admin/**` ADMIN 가드에 자동 편입 — 신규 설정 0줄
+- `/api/feedback` 은 `/api/**` PUBLIC_PATHS 에 이미 포함 — 게스트 작성 허용
+- 컨트롤러는 URL 매핑 + 인증 추출만 담당, 비즈니스 검증은 모두 `FeedbackService` 위임
+- 게스트 식별: `authentication == null || "anonymousUser".equals(authentication.getName())` → null userId 저장
+
+## 23.4 프론트엔드 변경
+
+### 신규 파일 (5개)
+
+| 파일 | 책임 |
+|---|---|
+| `src/types/feedback.ts` | 도메인 타입 + 카테고리/상태 라벨 매핑 (CATEGORY_LABEL / STATUS_LABEL) |
+| `src/features/feedback/api.ts` | createFeedback / fetchMyFeedback / fetchAdminFeedback / fetchAdminFeedbackMetrics / replyFeedback / deleteFeedback |
+| `src/features/feedback/FeedbackForm.tsx` | 작성 폼. 게스트면 이메일 칸 노출, 카테고리 라디오 4종, 글자수 카운터 |
+| `src/features/feedback/MyFeedbackList.tsx` | 본인 목록. limit prop 으로 MY 탭은 3건만, /feedback 페이지는 전체 |
+| `src/features/feedback/AdminFeedbackPanel.tsx` | 어드민 검수 패널. 카운트 카드 4 + 상태 필터 + 펼침 에디터 + 답변/삭제 |
+| `app/feedback/page.tsx` | /feedback 전용 페이지. 왼쪽 작성 폼 + 오른쪽 본인 목록 |
+
+### 수정 파일 (3개)
+
+| 파일 | 변경 |
+|---|---|
+| `src/components/layout/Footer.tsx` | PLATFORM_LINKS 에 "의견 보내기" 항목 추가 |
+| `src/components/AuthGuard.tsx` | PUBLIC_PATHS 에 `/feedback` 추가 (게스트 진입 허용) |
+| `app/page.tsx` | MY 탭에 MyFeedbackList 카드 신규 + import |
+| `app/admin/page.tsx` | FEEDBACK 탭 + AdminFeedbackPanel 렌더, lucide Inbox 아이콘 추가 |
+
+### UX 정책 (사용자가 직접 정한 톤)
+
+- **이모티콘 사용 금지** — 카테고리/상태 라벨은 한국어 텍스트만 ("버그" / "기능 제안" / "좋은 점" / "그 외")
+- **AI 풍 카피 제거** — "정말 멋진!" / "환영합니다!" / "최고의 의견" 류 문구 일체 사용 X
+- 색상도 lucide 아이콘 한 종만 (Inbox) — 절제된 보이스
+- 한국어 본문은 "확인 후 처리 결과를 알려 드리겠습니다." 식 평서체
+
+## 23.5 데이터 모델
+
+```sql
+CREATE TABLE feedback (
+    id              BIGINT       PRIMARY KEY DEFAULT nextval('feedback_seq'),
+    user_id         VARCHAR(64)  NULL,                -- 게스트면 NULL
+    guest_email     VARCHAR(255) NULL,                -- 답신 폴백, 선택 입력
+    category        VARCHAR(32)  NOT NULL,            -- BUG / FEATURE / GOOD / OTHER
+    title           VARCHAR(200) NOT NULL,
+    content         TEXT         NOT NULL,
+    status          VARCHAR(32)  NOT NULL DEFAULT 'PENDING',
+    admin_reply     TEXT         NULL,
+    created_at      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    replied_at      TIMESTAMP    NULL
+);
+CREATE INDEX idx_feedback_status_created ON feedback (status, created_at DESC);
+CREATE INDEX idx_feedback_user_created   ON feedback (user_id, created_at DESC);
+```
+
+- **status 인덱스**: 어드민이 PENDING 만 빠르게 조회 (대시보드 검수 큐)
+- **user_id 인덱스**: MY 탭에서 본인 의견을 최신순으로 빠르게 조회
+- **category 는 enum 대신 String**: DB 마이그레이션 자유로움 — "MISC" / "PRAISE" 같은 신규 카테고리 추가 시 백엔드 코드만 화이트리스트 갱신하면 됨
+
+## 23.6 결합도 / 클린코드 점검
+
+- **컨트롤러 ≈ 30줄** — URL 매핑 + Authentication 추출만. 검증 / 저장은 서비스 위임
+- **서비스의 화이트리스트 상수** — `ALLOWED_CATEGORIES`, `ALLOWED_STATUSES` 가 한 곳. 새 값 추가 = Set 만 수정
+- **DTO ↔ Entity 변환** — `FeedbackResponseDto.fromEntity()` 정적 메서드로 한 곳에 모음
+- **프론트 features/feedback/** — api.ts / 컴포넌트 3개로 응집. 페이지는 컴포넌트 조립만
+- **타입 라벨 매핑** — `CATEGORY_LABEL` / `STATUS_LABEL` 한 객체에 모아두고 UI 는 lookup
+- **재사용** — `MyFeedbackList` 가 MY 탭과 /feedback 페이지에서 같은 컴포넌트, limit 만 다르게
+
+## 23.7 검증
+
+### 프론트엔드
+
+```powershell
+cd C:\Users\kim donghyun\Documents\popspot2\popspot-frontend
+Remove-Item -Recurse -Force .next -ErrorAction SilentlyContinue
+npm run build
+```
+
+- typecheck exit 0
+- build 17 static pages 생성 (기존 16 + /feedback 1)
+- 새 ESLint 위반 0
+
+### 수동 검증 시나리오
+
+1. **게스트 작성**: 로그아웃 상태에서 Footer → "의견 보내기" → /feedback 진입 → 카테고리/제목/내용/이메일(선택) 입력 → 보내기 → 토스트 노출
+2. **로그인 작성**: 로그인 후 MY 탭 → "내가 보낸 의견" 빈 상태 → /feedback 에서 작성 → MY 탭에 즉시 노출
+3. **어드민 검수**: 어드민 로그인 → FEEDBACK 탭 → 카운트 카드 4개 → 의견 클릭 → 답변 입력 + 상태 RESOLVED → 저장 → 사용자 MY 탭에서 답변 확인
+4. **권한 차단**: 일반 사용자가 `/api/admin/feedback` 직접 호출 → 403
+5. **카테고리 위조**: `category=HACK` 으로 POST → 400 (서비스 화이트리스트)
+
+## 23.8 후속 작업 (v2.11 범위 외)
+
+- **이메일 알림**: 어드민이 답변 작성 시 게스트 이메일이 채워진 의견은 자동 메일 발송 (Spring Mail 재사용)
+- **첨부 이미지**: 스크린샷 첨부 (S3 또는 로컬 uploads/) — 버그 제보 품질 향상
+- **검색**: 제목/내용 검색 (PostgreSQL `to_tsvector` + 한글 형태소 분석)
+- **v2.12**: Prometheus + Grafana (v2.10 plan 에서 미룬 옵션 D)
+

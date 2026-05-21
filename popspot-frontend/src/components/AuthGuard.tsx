@@ -6,7 +6,15 @@ import { Loader2 } from "lucide-react";
 
 import { apiFetch } from "@/lib/api";
 
-const PUBLIC_PATHS = ["/intro", "/login", "/signup", "/", "/find-account", "/oauth/callback"];
+const PUBLIC_PATHS = [
+  "/intro",
+  "/login",
+  "/signup",
+  "/",
+  "/find-account",
+  "/oauth/callback",
+  "/feedback",
+];
 
 const TOKEN_KEY = "token";
 const USER_KEY = "user";

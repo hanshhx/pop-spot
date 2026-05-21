@@ -1475,6 +1475,52 @@
 
 ---
 
+### v2.11 — 의견 보내기 게시판 (Footer + MY 탭 + 어드민, 3 레이어 통합)
+
+> 사용자 피드백을 받을 공식 채널이 없어서 카카오톡 / 메일로 들어오는 의견이 산발적으로 분실됐다. v2.11 은 동선 3 곳 (Footer 링크 · MY 탭 카드 · 어드민 검수 탭) 에 같은 데이터 모델로 의견 보내기 기능을 심어, 로그인 / 게스트 모두 같은 폼으로 제출하고 어드민이 한 화면에서 검수 → 답변 → 상태 변경 까지 처리할 수 있게 한다.
+
+<table align="center">
+  <tr>
+    <th align="center" width="200">레이어</th>
+    <th align="center" width="280">v2.10 까지</th>
+    <th align="center" width="280">v2.11</th>
+  </tr>
+  <tr>
+    <td align="center"><b>Footer 링크</b></td>
+    <td>의견 보낼 공식 동선 없음 (Footer 의 비즈니스 / 광고 mailto 만)</td>
+    <td><code>의견 보내기</code> 항목 추가 → <code>/feedback</code> 전용 페이지로 이동. 비로그인 / 게스트 / 정식 회원 모두 동일 진입</td>
+  </tr>
+  <tr>
+    <td align="center"><b>MY 탭 카드</b></td>
+    <td>본인이 보낸 의견 / 받은 답변을 확인할 곳이 없음</td>
+    <td><code>내가 보낸 의견</code> 카드 신규. 최근 3건 노출 + "전체 보기" 링크. 어드민 답변이 달리면 즉시 표시</td>
+  </tr>
+  <tr>
+    <td align="center"><b>어드민 검수 탭</b></td>
+    <td>이메일 / 카톡 에서 수기 추적 → 답변 SLA 들쭉날쭉</td>
+    <td>FEEDBACK 탭 신규. 상태 카운트 4 카드 + 필터 + 펼침형 답변 에디터 + 삭제. 답변 작성 시 <code>repliedAt</code> 자동 갱신</td>
+  </tr>
+  <tr>
+    <td align="center"><b>게스트 허용</b></td>
+    <td>비로그인 사용자는 의견 제출 불가능</td>
+    <td>userId nullable + guestEmail 선택 입력. <code>/api/feedback</code> 는 <code>permitAll</code> 이고 <code>/api/feedback/me</code> 만 인증 요구</td>
+  </tr>
+  <tr>
+    <td align="center"><b>결합도</b></td>
+    <td>—</td>
+    <td>컨트롤러 ≈ 30 줄 (URL + Authentication 추출만). 화이트리스트 (카테고리 4종 / 상태 4종) 는 <code>FeedbackService</code> 의 <code>Set&lt;String&gt;</code> 상수 한 곳. 신규 값 추가 = Set 만 수정</td>
+  </tr>
+  <tr>
+    <td align="center"><b>UX 톤</b></td>
+    <td>—</td>
+    <td>이모티콘 0 / AI 풍 카피 0. 라벨은 한국어 텍스트만 ("버그" / "기능 제안" / "좋은 점" / "그 외"). 평서체 ("확인 후 처리 결과를 알려 드리겠습니다.")</td>
+  </tr>
+</table>
+
+<sub>백엔드 9 파일 신규 (V7 migration · 엔티티 · 리포지토리 · DTO 3 · 서비스 · 사용자 컨트롤러 · 어드민 컨트롤러) · 프론트 6 파일 신규 (types/feedback + features/feedback/{api,FeedbackForm,MyFeedbackList,AdminFeedbackPanel} + app/feedback/page.tsx) · 수정 4 파일 (Footer / AuthGuard / app/page.tsx MY 탭 / admin/page.tsx FEEDBACK 탭) · 프론트 빌드 17/17 페이지 통과 (기존 16 + /feedback 1). Prometheus + Grafana (옵션 D) 는 v2.12 로 다시 미룸.</sub>
+
+---
+
 ## 폴더 구조 (백엔드)
 
 ```

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import {
     Check, X, ShieldCheck, MapPin, Calendar, Store, AlertCircle,
     BarChart3, Users, MessageSquare, Gift, Trash2, Edit3, Activity, Cpu, HardDrive,
-    Terminal, Database, Globe, Sparkles
+    Terminal, Database, Globe, Sparkles, Inbox
 } from "lucide-react";
 import Swal from "sweetalert2";
 
@@ -23,6 +23,7 @@ import {
     type DashboardSnapshot,
 } from "@/components/admin/metrics/useDashboardMetrics";
 import { LogViewer } from "@/components/admin/log/LogViewer";
+import { AdminFeedbackPanel } from "@/features/feedback/AdminFeedbackPanel";
 
 interface MetricData {
     time: string;
@@ -280,6 +281,7 @@ export default function AdminPage() {
                             { id: "POPUPS", label: "팝업스토어 제어", icon: <Store size={16}/> },
                             { id: "MATES", label: "커뮤니티 관리", icon: <MessageSquare size={16}/> },
                             { id: "REWARDS", label: "이벤트 보상 지급", icon: <Gift size={16}/> },
+                            { id: "FEEDBACK", label: "의견 보내기", icon: <Inbox size={16}/> },
                             { id: "LOGS", label: "실시간 로그", icon: <Terminal size={16}/> },
                         ].map(tab => (
                             <button key={tab.id} onClick={() => setActiveTab(tab.id)}
@@ -527,6 +529,13 @@ export default function AdminPage() {
                             <input type="number" min="1" value={rewardForm.amount} onChange={e => setRewardForm({...rewardForm, amount: parseInt(e.target.value)})} className="w-full bg-gray-50 dark:bg-black border border-gray-200 dark:border-white/10 rounded-xl p-3 text-sm outline-none"/>
                             <button type="submit" className="w-full py-4 bg-lime-300 hover:bg-lime-400 text-ink-900 text-white font-bold rounded-xl shadow-lg transition-all active:scale-95 uppercase">Send Reward</button>
                         </form>
+                    </div>
+                )}
+
+                {/* 탭: 의견 보내기 (v2.11) — 사용자가 보낸 의견 검수 / 답변 / 상태 변경 */}
+                {activeTab === "FEEDBACK" && (
+                    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        <AdminFeedbackPanel />
                     </div>
                 )}
 
