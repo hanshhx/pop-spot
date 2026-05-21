@@ -8,6 +8,8 @@ import com.example.popspotbackend.exception.ResourceNotFoundException;
 import com.example.popspotbackend.repository.MateChatMessageRepository;
 import com.example.popspotbackend.repository.MatePostRepository;
 import com.example.popspotbackend.repository.UserRepository;
+import com.example.popspotbackend.service.mate.BoostPolicy;
+import java.time.YearMonth;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -16,8 +18,13 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * 동행 모집 게시판 도메인 서비스.
  *
- * <p>{@link com.example.popspotbackend.controller.MateController} 의 비즈니스 로직(확성기 소비 · 정원 검사 · 자동 마감
- * · 멤버 admit)을 모아서 라우팅과 분리. 트랜잭션 경계도 이 클래스에서만 정의한다.
+ * <p>{@link com.example.popspotbackend.controller.MateController} 의 비즈니스 로직(부스트 한도 검증 ·
+ * 정원 검사 · 자동 마감 · 멤버 admit)을 모아서 라우팅과 분리. 트랜잭션 경계도 이 클래스에서만
+ * 정의한다.
+ *
+ * <p>v2.12 부터 확성기 아이템 소비 모델을 폐지하고, 등급(스탬프 누적량)별 월 한도로 상단 부스트를
+ * 제공한다. {@code MatePost.isMegaphone} 컬럼은 의미만 "상단 부스트 적용 여부" 로 재해석해 그대로
+ * 재사용.
  */
 @Service
 @RequiredArgsConstructor
@@ -55,7 +62,7 @@ public class MateService {
      * 새 동행 게시글을 만든다.
      *
      * @return 작성된 게시글
-     * @throws InsufficientMegaphoneException 확성기 사용 요청인데 보유량이 부족할 때
+     * @throws BoostQuotaExceededException 부스트 사용 요청인데 이번 달 한도를 이미 다 썼을 때
      */
     @Transactional
     public MatePost createPost(MateDto dto) {
@@ -64,9 +71,9 @@ public class MateService {
         }
 
         User user = findUserOrThrow(dto.getUserId());
-        boolean megaphoneApplied = tryConsumeMegaphone(user, dto.isUseMegaphone());
+        boolean boostApplied = tryConsumeBoost(user, dto.isUseBoost());
 
-        MatePost post = buildMatePost(dto, user, megaphoneApplied);
+        MatePost post = buildMatePost(dto, user, boostApplied);
         return matePostRepository.save(post);
     }
 
@@ -106,6 +113,25 @@ public class MateService {
         matePostRepository.delete(post);
     }
 
+    /**
+     * 사용자의 현재 등급 + 월 부스트 한도 / 잔여 횟수.
+     *
+     * <p>글쓰기 모달에서 "이번 달 N회 남음" 표시용. 호출 시점에 boost_period 가 이번 달과 다르면
+     * 즉시 리셋하고 저장한다.
+     */
+    @Transactional
+    public BoostStatus getBoostStatus(String userId) {
+        User user = findUserOrThrow(userId);
+        resetBoostIfNewPeriod(user);
+        userRepository.save(user);
+
+        BoostPolicy.Rank rank = BoostPolicy.rankOf(user.getStampCount());
+        int limit = BoostPolicy.monthlyLimit(rank);
+        int used = user.getBoostUsedCount();
+        int remaining = Math.max(limit - used, 0);
+        return new BoostStatus(rank.name(), limit, used, remaining);
+    }
+
     /* ============================== 내부 헬퍼 ============================== */
 
     private User findUserOrThrow(String userId) {
@@ -121,20 +147,35 @@ public class MateService {
     }
 
     /**
-     * 확성기 소비 시도.
+     * 부스트 소비 시도.
      *
-     * @return 확성기 사용 여부
-     * @throws InsufficientMegaphoneException 사용 요청인데 보유량 부족
+     * @return 부스트 적용 여부
+     * @throws BoostQuotaExceededException 사용 요청인데 이번 달 한도 초과 (또는 NONE 등급)
      */
-    private boolean tryConsumeMegaphone(User user, boolean requested) {
+    private boolean tryConsumeBoost(User user, boolean requested) {
         if (!requested) return false;
-        if (user.getMegaphoneCount() <= 0) throw new InsufficientMegaphoneException();
-        user.addMegaphone(-1);
+
+        resetBoostIfNewPeriod(user);
+
+        int limit = BoostPolicy.monthlyLimitFor(user.getStampCount());
+        if (user.getBoostUsedCount() >= limit) {
+            throw new BoostQuotaExceededException(limit, user.getBoostUsedCount());
+        }
+        user.setBoostUsedCount(user.getBoostUsedCount() + 1);
         userRepository.save(user);
         return true;
     }
 
-    private MatePost buildMatePost(MateDto dto, User user, boolean isMegaphone) {
+    /** boost_period 가 현재 달과 다르면 사용량 0 으로 리셋. */
+    private void resetBoostIfNewPeriod(User user) {
+        String currentPeriod = YearMonth.now().toString();
+        if (!currentPeriod.equals(user.getBoostPeriod())) {
+            user.setBoostUsedCount(0);
+            user.setBoostPeriod(currentPeriod);
+        }
+    }
+
+    private MatePost buildMatePost(MateDto dto, User user, boolean isBoosted) {
         return MatePost.builder()
                 .title(dto.getTitle())
                 .content(dto.getContent())
@@ -143,7 +184,7 @@ public class MateService {
                 .currentPeople(1)
                 .author(user)
                 .status(STATUS_RECRUITING)
-                .isMegaphone(isMegaphone)
+                .isMegaphone(isBoosted)
                 .build();
     }
 
@@ -155,7 +196,7 @@ public class MateService {
         }
     }
 
-    /* ============================== 결과 enum / 도메인 예외 ============================== */
+    /* ============================== 결과 / 도메인 예외 ============================== */
 
     public enum JoinResult {
         ALREADY_JOINED,
@@ -163,10 +204,13 @@ public class MateService {
         JOIN_SUCCESS
     }
 
-    /** 확성기 보유량이 부족할 때. 컨트롤러가 400 으로 변환. */
-    public static class InsufficientMegaphoneException extends RuntimeException {
-        public InsufficientMegaphoneException() {
-            super("확성기 아이템이 부족합니다.");
+    /** 등급별 부스트 한도 + 잔여 횟수 응답. */
+    public record BoostStatus(String rank, int monthlyLimit, int used, int remaining) {}
+
+    /** 이번 달 부스트 한도 초과. 컨트롤러가 400 으로 변환. */
+    public static class BoostQuotaExceededException extends RuntimeException {
+        public BoostQuotaExceededException(int limit, int used) {
+            super("이번 달 부스트 한도를 모두 사용했습니다. (한도: " + limit + ", 사용: " + used + ")");
         }
     }
 

@@ -5,7 +5,8 @@ import com.example.popspotbackend.entity.MateChatMessage;
 import com.example.popspotbackend.entity.MatePost;
 import com.example.popspotbackend.service.MateService;
 import com.example.popspotbackend.service.MateService.AccessDeniedToPostException;
-import com.example.popspotbackend.service.MateService.InsufficientMegaphoneException;
+import com.example.popspotbackend.service.MateService.BoostQuotaExceededException;
+import com.example.popspotbackend.service.MateService.BoostStatus;
 import com.example.popspotbackend.service.MateService.JoinResult;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -52,6 +53,12 @@ public class MateController {
         return ResponseEntity.ok(mateService.createPost(dto));
     }
 
+    /** 글쓰기 모달에서 "이번 달 N회 남음" 표시용. 등급 + 한도 + 사용량 + 잔여 횟수. */
+    @GetMapping("/boost-status")
+    public ResponseEntity<BoostStatus> getBoostStatus(@RequestParam String userId) {
+        return ResponseEntity.ok(mateService.getBoostStatus(userId));
+    }
+
     @PostMapping("/{id}/join")
     public ResponseEntity<String> joinMate(@PathVariable Long id, @RequestParam String userId) {
         JoinResult result = mateService.joinMate(id, userId);
@@ -70,8 +77,8 @@ public class MateController {
 
     /* ============================== 도메인 예외 → HTTP 매핑 ============================== */
 
-    @ExceptionHandler(InsufficientMegaphoneException.class)
-    public ResponseEntity<String> handleInsufficientMegaphone(InsufficientMegaphoneException e) {
+    @ExceptionHandler(BoostQuotaExceededException.class)
+    public ResponseEntity<String> handleBoostQuotaExceeded(BoostQuotaExceededException e) {
         return ResponseEntity.status(400).body(e.getMessage());
     }
 

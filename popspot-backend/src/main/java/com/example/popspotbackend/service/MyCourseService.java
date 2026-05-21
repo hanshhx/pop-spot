@@ -2,7 +2,6 @@ package com.example.popspotbackend.service;
 
 import com.example.popspotbackend.dto.CourseSaveRequestDto;
 import com.example.popspotbackend.entity.MyCourse;
-import com.example.popspotbackend.entity.User;
 import com.example.popspotbackend.exception.ResourceNotFoundException;
 import com.example.popspotbackend.repository.MyCourseRepository;
 import com.example.popspotbackend.repository.UserRepository;
@@ -15,7 +14,8 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * 내 코스 저장 / 조회 / 삭제.
  *
- * <p>무료 유저는 슬롯이 1개로 제한되며, 새로 저장하면 기존 코스를 덮어쓴다. 프리미엄 유저는 다중 저장 가능.
+ * <p>v2.12 부터 모든 사용자가 코스를 무제한으로 저장한다. 이전에는 무료 유저 1개 제한이 있었으나,
+ * 포트폴리오 운영 단순화 + 사용자 경험 개선을 위해 폐지.
  */
 @Slf4j
 @Service
@@ -27,10 +27,8 @@ public class MyCourseService {
 
     @Transactional
     public void saveCourse(CourseSaveRequestDto dto) {
-        User user = findUserOrThrow(dto.getUserId());
-        if (!user.isPremium()) {
-            evictExistingCoursesForFreeUser(dto.getUserId());
-        }
+        // 유저 존재 검증만 수행 (잘못된 userId 로 저장 방지). 코스 수 제한은 없음.
+        requireUserExists(dto.getUserId());
         myCourseRepository.save(
                 MyCourse.builder()
                         .userId(dto.getUserId())
@@ -60,16 +58,9 @@ public class MyCourseService {
 
     /* ============================== 내부 헬퍼 ============================== */
 
-    private User findUserOrThrow(String userId) {
-        return userRepository
-                .findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("유저를 찾을 수 없습니다: " + userId));
-    }
-
-    private void evictExistingCoursesForFreeUser(String userId) {
-        List<MyCourse> existing = myCourseRepository.findAllByUserId(userId);
-        if (existing.isEmpty()) return;
-        myCourseRepository.deleteAll(existing);
-        log.info("[MyCourse] 무료 유저 {} 의 기존 코스를 덮어쓰기 위해 삭제", userId);
+    private void requireUserExists(String userId) {
+        if (!userRepository.existsById(userId)) {
+            throw new ResourceNotFoundException("유저를 찾을 수 없습니다: " + userId);
+        }
     }
 }
