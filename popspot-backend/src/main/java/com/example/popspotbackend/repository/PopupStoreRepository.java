@@ -133,4 +133,24 @@ public interface PopupStoreRepository extends JpaRepository<PopupStore, Long> {
                    OR p.longitude IS NULL OR p.longitude = '')
            """)
     List<PopupStore> findCrawledMissingCoordinates();
+
+    /* ============================================================
+     *  어드민 대시보드 — 자동수집 메트릭 (v2.10)
+     * ============================================================ */
+
+    /** 특정 시각 이후로 자동수집된 row 갯수. */
+    @Query(
+            "SELECT COUNT(p) FROM PopupStore p "
+                    + "WHERE p.sourceType = 'CRAWLED' AND p.crawledAt >= :since")
+    long countCrawledSince(@Param("since") java.time.LocalDateTime since);
+
+    /** 특정 시각 이후 자동수집 row 의 평균 신뢰도. row 가 없으면 0. */
+    @Query(
+            "SELECT COALESCE(AVG(p.confidenceScore), 0) FROM PopupStore p "
+                    + "WHERE p.sourceType = 'CRAWLED' AND p.crawledAt >= :since")
+    java.math.BigDecimal averageConfidenceSince(@Param("since") java.time.LocalDateTime since);
+
+    /** 어드민 검수 대기열 크기. */
+    @Query("SELECT COUNT(p) FROM PopupStore p WHERE p.reviewStatus = 'PENDING_REVIEW'")
+    long countPendingReview();
 }
