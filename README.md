@@ -1567,6 +1567,57 @@
 
 ---
 
+### v2.13 — SearchBox 정확도 가드 + 자동수집 빈도/키워드/Geocoding 자동화
+
+> SearchBox 에 정확도 낮은 옛 row 가 노출되던 회귀 + 지도 반영 건수 부족 두 문제를 한 번에 처리. <b>정확도 임계값 0.8 은 그대로</b> 유지하면서 인덱싱 가드 강화 + 수집 다양성/빈도/Geocoding 자동화로 통과량을 끌어올림.
+
+<table align="center">
+  <tr>
+    <th align="center" width="180">영역</th>
+    <th align="center" width="290">v2.12 까지</th>
+    <th align="center" width="290">v2.13</th>
+  </tr>
+  <tr>
+    <td align="center"><b>Algolia 인덱싱</b></td>
+    <td><code>PopupSearchDto</code> 가 name/location/category/content/imageUrl 만 인덱싱. 검수 안 끝난 row · 신뢰도 미달 row · EXPIRED row 모두 인덱스에 들어감</td>
+    <td>DTO 에 reviewStatus/status/confidence/endDate 추가. <code>SearchService.addPopup/syncAllPopups</code> 가 인덱싱 가드 (AUTO_PUBLISHED ∪ APPROVED ∪ null + status not EXPIRED/PENDING + confidence ≥ 0.8) 강제. 부적격 row 는 인덱스에서 명시 삭제</td>
+  </tr>
+  <tr>
+    <td align="center"><b>SearchBox 클라이언트</b></td>
+    <td>Algolia hit 의 name/location 만 표시 — 추가 검증 없음</td>
+    <td><code>isVisibleHit</code> 가드 — 인덱스에 옛 stale row 가 남아 있어도 클라에서 한 번 더 신뢰도/유효기간/상태 검증 (이중 방어)</td>
+  </tr>
+  <tr>
+    <td align="center"><b>자동수집 빈도</b></td>
+    <td>매일 04:00 1회</td>
+    <td>매일 04:00 + 16:00 2회. 오전에 게재된 팝업을 같은 날 안에 반영</td>
+  </tr>
+  <tr>
+    <td align="center"><b>검색 키워드</b></td>
+    <td>50개</td>
+    <td>95개로 확장. 애니/게임 IP (원신, 지브리, 마블, 산리오 캐릭터즈) · 럭셔리 (디올, 샤넬, 루이비통) · 디저트 (런던베이글뮤지엄, 블루보틀) · K-pop 신규 그룹 (라이즈, 투바투) · 지역 (여의도, 신촌)</td>
+  </tr>
+  <tr>
+    <td align="center"><b>Geocoding 백필</b></td>
+    <td>어드민 수동 호출 (<code>POST /api/admin/popups/crawl/geocode-missing</code>) 만 좌표 채움</td>
+    <td>매일 04:30 자동 cron. 1차 수집 직후 좌표 누락된 row 일괄 채움 → 지도 노출량 ↑</td>
+  </tr>
+  <tr>
+    <td align="center"><b>자동게시 ↔ 인덱스 연결</b></td>
+    <td><code>PopupCrawlOrchestrator.saveNewPopup</code> 가 Algolia push 안 함 → 다음 admin sync 까지 검색에 안 잡힘 (latent)</td>
+    <td>saveNewPopup / scheduledExpire 가 SearchService 호출 — 신규 게시 즉시 검색에 노출, 만료된 row 는 즉시 인덱스에서 제거</td>
+  </tr>
+  <tr>
+    <td align="center"><b>옛 garbage 청소</b></td>
+    <td>—</td>
+    <td>신규 <code>POST /api/admin/search/reindex</code> — 인덱스의 부적격 row 일괄 삭제. 배포 직후 1회 호출 권장</td>
+  </tr>
+</table>
+
+<sub>백엔드 신규 0 · 수정 5 (<code>PopupSearchDto</code> 메타 필드 추가, <code>SearchService</code> 인덱싱 가드 + removePopup, <code>SearchController</code> reindex 엔드포인트, <code>PopupCrawlScheduler</code> 2회 + Geocoding cron, <code>PopupCrawlOrchestrator</code> Algolia push 연결, <code>PopupExpireScheduler</code> Algolia 삭제 연결) · <code>application.properties</code> 2 cron key 추가 · 프론트 수정 1 (<code>SearchBox.tsx</code> 가드) · 빌드 17/17 통과. 정확도 임계값 / LLM 점수 가산 규칙 / 검수 정책 모두 변경 0.</sub>
+
+---
+
 ## 폴더 구조 (백엔드)
 
 ```

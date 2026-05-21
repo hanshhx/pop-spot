@@ -16,6 +16,32 @@ interface AlgoliaHit {
   objectID: string;
   name: string;
   location?: string;
+  /** v2.13 — 백엔드가 인덱싱 시점에 가드를 걸지만 클라에서도 한 번 더 검증 (이중 방어). */
+  reviewStatus?: string | null;
+  status?: string | null;
+  confidence?: number | null;
+  endDate?: string | null;
+}
+
+const MIN_CONFIDENCE = 0.8;
+const ALLOWED_REVIEW_STATUSES: ReadonlyArray<string | null | undefined> = [
+  "AUTO_PUBLISHED",
+  "APPROVED",
+  null,
+  undefined,
+];
+const BLOCKED_STATUSES: ReadonlySet<string> = new Set(["EXPIRED", "PENDING"]);
+
+/** 인덱스에 옛 garbage 가 남아 있을 가능성 대비 — 정확도 / 유효기간 / 상태 가드. */
+function isVisibleHit(hit: AlgoliaHit): boolean {
+  if (!ALLOWED_REVIEW_STATUSES.includes(hit.reviewStatus ?? null)) return false;
+  if (hit.status && BLOCKED_STATUSES.has(hit.status)) return false;
+  if (typeof hit.confidence === "number" && hit.confidence < MIN_CONFIDENCE) return false;
+  if (hit.endDate) {
+    const end = Date.parse(hit.endDate);
+    if (!Number.isNaN(end) && end < Date.now() - 24 * 60 * 60 * 1000) return false;
+  }
+  return true;
 }
 
 // env.algolia 가 null 이면 (미설정·더미값) 클라이언트 미생성 → fallback UI.
@@ -65,14 +91,16 @@ function CustomHits() {
 
   if (!query) return null;
 
+  const visibleHits = hits.filter(isVisibleHit);
+
   return (
     <div className="absolute top-full left-0 right-0 mt-3 bg-surface border border-[var(--color-border)] rounded-lg overflow-hidden z-50 shadow-pop max-h-[400px] overflow-y-auto custom-scrollbar">
-      {hits.length === 0 ? (
+      {visibleHits.length === 0 ? (
         <div className="p-8 text-center text-muted-foreground text-sm">
           검색 결과가 없습니다.
         </div>
       ) : (
-        hits.map((hit) => (
+        visibleHits.map((hit) => (
           <Link key={hit.objectID} href={`/popup/${hit.objectID}`}>
             <article className="flex items-center gap-4 p-4 hover:bg-lime-300/10 transition-colors cursor-pointer border-b border-[var(--color-border)] last:border-none group">
               <div className="size-12 shrink-0 rounded-md bg-lime-300/15 flex items-center justify-center text-lime-500">

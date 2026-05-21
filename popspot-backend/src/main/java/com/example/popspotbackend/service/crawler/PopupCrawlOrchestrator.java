@@ -2,6 +2,7 @@ package com.example.popspotbackend.service.crawler;
 
 import com.example.popspotbackend.entity.PopupStore;
 import com.example.popspotbackend.repository.PopupStoreRepository;
+import com.example.popspotbackend.service.SearchService;
 import com.example.popspotbackend.service.geocoding.Coordinates;
 import com.example.popspotbackend.service.geocoding.GeocodingService;
 import java.math.BigDecimal;
@@ -46,7 +47,10 @@ public class PopupCrawlOrchestrator {
     private static final Set<String> ALLOWED_CATEGORIES =
             Set.of("FASHION", "FOOD", "CULTURE", "CHARACTER", "BEAUTY", "TECH", "ETC");
 
-    /** 서울 한정 다각도 검색 키워드. 구체적인 브랜드/지역명을 섞어 정확도 ↑. */
+    /**
+     * 서울 한정 다각도 검색 키워드. 구체적인 브랜드/지역명을 섞어 정확도 ↑. v2.13 부터 80+ 개로
+     * 확장 — 정확도 임계값은 그대로 유지하면서 다양성을 늘려 자동게시 통과 row 수를 끌어올림.
+     */
     private static final List<String> SEARCH_KEYWORDS =
             List.of(
                     // 일반
@@ -54,6 +58,7 @@ public class PopupCrawlOrchestrator {
                     "서울 팝업 일정",
                     "서울 신상 팝업",
                     "서울 팝업 추천",
+                    "서울 팝업스토어 오픈",
                     // 지역 (구 단위)
                     "성수동 팝업스토어",
                     "성수 팝업 카페",
@@ -69,6 +74,8 @@ public class PopupCrawlOrchestrator {
                     "명동 팝업스토어",
                     "삼청동 팝업",
                     "잠실 팝업스토어",
+                    "여의도 팝업스토어",
+                    "신촌 팝업스토어",
                     // 백화점/대형 시설
                     "더현대 팝업스토어",
                     "더현대 서울 팝업",
@@ -78,6 +85,9 @@ public class PopupCrawlOrchestrator {
                     "갤러리아 팝업",
                     "용산 아이파크몰 팝업",
                     "스타필드 팝업",
+                    "현대백화점 팝업",
+                    "롯데백화점 팝업",
+                    "타임스퀘어 팝업",
                     // K-패션 브랜드
                     "젠틀몬스터 팝업",
                     "탬버린즈 팝업",
@@ -87,6 +97,9 @@ public class PopupCrawlOrchestrator {
                     "디스이즈네버댓 팝업",
                     "아디다스 팝업스토어",
                     "나이키 팝업스토어 서울",
+                    "널디 팝업",
+                    "키르시 팝업",
+                    "마르디메크르디 팝업",
                     // 캐릭터/IP
                     "포켓몬 팝업스토어 서울",
                     "산리오 팝업스토어",
@@ -96,33 +109,59 @@ public class PopupCrawlOrchestrator {
                     "헬로키티 팝업",
                     "짱구 팝업",
                     "원피스 팝업",
+                    "지브리 팝업스토어",
+                    "마블 팝업스토어 서울",
+                    "산리오 캐릭터즈 팝업",
+                    "위베어베어스 팝업",
+                    // 애니메이션 / 게임 IP
+                    "원신 팝업 서울",
+                    "젠레스존제로 팝업",
+                    "니지산지 팝업",
+                    "주술회전 팝업",
                     // K-뷰티
                     "올리브영 팝업스토어",
                     "이니스프리 팝업",
                     "라네즈 팝업",
                     "닥터자르트 팝업",
-                    // F&B
+                    "에뛰드 팝업",
+                    "어뮤즈 팝업",
+                    // F&B / 디저트
                     "스타벅스 팝업 서울",
                     "투썸 팝업",
                     "노티드 팝업",
                     "노티드도넛 팝업",
+                    "런던베이글뮤지엄 팝업",
+                    "도산공원 디저트 팝업",
+                    "프릳츠 팝업",
+                    "블루보틀 팝업 서울",
                     // K-pop / 엔터
                     "BTS 팝업스토어",
                     "뉴진스 팝업",
                     "아이브 팝업",
                     "에스파 팝업",
                     "스트레이키즈 팝업",
+                    "세븐틴 팝업",
+                    "라이즈 팝업",
+                    "투바투 팝업",
+                    // 럭셔리 / 콜라보
+                    "디올 팝업 서울",
+                    "샤넬 팝업 서울",
+                    "루이비통 팝업스토어 서울",
+                    "프라다 팝업",
+                    "버버리 팝업스토어 서울",
                     // 카테고리
                     "패션 팝업스토어 서울",
                     "뷰티 팝업스토어 서울",
                     "캐릭터 팝업스토어 서울",
-                    "콜라보 팝업 서울");
+                    "콜라보 팝업 서울",
+                    "전시 팝업스토어 서울");
 
     private final NaverPopupCrawler naverCrawler;
     private final KakaoPopupCrawler kakaoCrawler;
     private final PopupNormalizationService normalizer;
     private final PopupStoreRepository popupStoreRepository;
     private final GeocodingService geocodingService;
+    private final SearchService searchService;
 
     @Value("${popspot.crawler.confidence-threshold:0.8}")
     private double confidenceThreshold;
@@ -299,7 +338,15 @@ public class PopupCrawlOrchestrator {
                         .reviewStatus(REVIEW_STATUS_AUTO_PUBLISHED)
                         .build();
 
-        popupStoreRepository.save(newPopup);
+        PopupStore saved = popupStoreRepository.save(newPopup);
+
+        // v2.13 — 신규 자동게시 row 는 즉시 Algolia 인덱스에 push (다음 수집 주기까지 검색에서
+        // 누락되던 문제 해소). 인덱싱 가드는 SearchService.addPopup 안에서 다시 한 번 검증.
+        try {
+            searchService.addPopup(saved);
+        } catch (Exception e) {
+            log.warn("[PopupCrawlOrchestrator] Algolia 동기화 실패 id={} err={}", saved.getId(), e.toString());
+        }
     }
 
     /* =========================== Geocoding backfill =========================== */
