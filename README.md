@@ -1434,6 +1434,47 @@
 
 ---
 
+### v2.10.1 — 빌드 통과 + 배포 운영 핫픽스 (Spotless + 배포 절차)
+
+> v2.10 머지 후 두 단계에서 막혔다. ① 빌드: 한국어 멀티라인 JavaDoc + 인라인 람다가 google-java-format AOSP 와 충돌해 spotlessJavaCheck 6 파일 violation. ② 배포: 빌드는 통과했는데 운영 NAS 에 옛 jar 가 그대로 돌고 있었고, 신규 환경변수(<code>LOG_FILE_PATH</code>) 와 로그 디렉토리가 없어서 실시간 로그가 "대기 중" 상태였다.
+
+<table align="center">
+  <tr>
+    <th align="center" width="180">단계</th>
+    <th align="center" width="290">증상</th>
+    <th align="center" width="290">해결</th>
+  </tr>
+  <tr>
+    <td align="center"><b>빌드 (Spotless)</b></td>
+    <td>6 파일 JavaDoc reflow + LogTailService 의 inline ThreadFactory 람다가 AOSP 100-col 들여쓰기와 충돌</td>
+    <td>JavaDoc 콤팩트 재작성 (한 줄 80자 이내, &lt;p&gt; 단락 분리, 멀티라인 wrap 금지) + 람다를 <code>newDaemonThread</code> helper 메서드로 추출</td>
+  </tr>
+  <tr>
+    <td align="center"><b>배포 (scp 경로)</b></td>
+    <td>새 jar 를 <code>/home/reo4321/popspot/app.jar</code> 로 올렸는데 systemd 는 <code>/home/reo4321/popspot-backend-0.0.1-SNAPSHOT.jar</code> 를 보고 있어서 옛 jar (5월 11일) 그대로 실행</td>
+    <td>scp 대상 경로를 systemd 가 실제로 보는 파일 이름과 정확히 일치시킴. 검증: <code>unzip -l ...jar | grep AdminMetricsController</code> 의 class 파일 크기 (2780 → 4450 byte) 비교</td>
+  </tr>
+  <tr>
+    <td align="center"><b>운영 (404 마스킹)</b></td>
+    <td>옛 jar 에 <code>/api/admin/metrics/dashboard</code> 엔드포인트 자체가 없어 백엔드는 404 + HTML 응답 → 프론트의 EventSource 가 "MIME 이 text/event-stream 아님" 으로 abort</td>
+    <td>새 jar 배포 후 systemd restart, journal 에서 매핑 등록 확인</td>
+  </tr>
+  <tr>
+    <td align="center"><b>실시간 로그 비활성</b></td>
+    <td>어드민 LOGS 탭이 "로그 대기 중... logging.file.name 환경변수가 설정돼야" 표시 — 환경파일에 <code>LOG_FILE_PATH</code> 누락 + <code>/var/log/popspot/</code> 디렉토리 부재</td>
+    <td><code>/var/log/popspot/</code> 생성 (소유자 reo4321), <code>/home/reo4321/popspot.env</code> 에 <code>LOG_FILE_PATH=/var/log/popspot/popspot.log</code> 추가, <code>systemctl restart popspot</code></td>
+  </tr>
+  <tr>
+    <td align="center"><b>보안 (env 권한)</b></td>
+    <td><code>popspot.env</code> 안에 JWT_SECRET / DB_PASSWORD 등 시크릿. 기본 644 권한이면 같은 VM 의 다른 사용자도 읽기 가능</td>
+    <td><code>chmod 600 /home/reo4321/popspot.env</code> — systemd 가 root 로 읽고 reo4321 로 실행하므로 600 도 정상 작동</td>
+  </tr>
+</table>
+
+<sub>v2.10.1 = spotless 핫픽스 7 파일 (<code>LogRingBuffer</code>, <code>LogTailService</code>, <code>DbPool/Http/JvmMetricSnapshotProvider</code>, <code>JwtAuthenticationFilter.extractToken</code>, <code>AdminMetricsController</code>) + spotlessApply 자동 수정 2 파일 동기화. 배포 절차 정정은 코드 변경 없음 — 운영 환경 셋업 4건.</sub>
+
+---
+
 ## 폴더 구조 (백엔드)
 
 ```
@@ -1469,6 +1510,12 @@ popspot-backend/
 | 8 | `./gradlew build` 가 Windows 에서 `Could not start sentry-cli-3.2.0.exe` 로 실패 | Defender / SmartScreen 차단. `-x sentryBundleSourcesJava -x sentryCollectSourcesJava` 로 우회 (로컬 빌드엔 불필요한 단계) |
 | 9 | SCP 가 `dest open: No such file or directory` | SCP 는 디렉터리 생성 안 함. `ssh user@host "mkdir -p /path"` 선행 필수 |
 | 10 | `git rebase --continue` 가 `cannot lock ref: is at X but expected Y` | rebase `edit` 모드에서 `--amend` 대신 일반 `git commit` 한 경우. `git rebase --quit` (HEAD/working tree 유지) 으로 안전 복구 |
+| 11 | `./gradlew clean` 이 `Unable to delete directory build/` 로 실패 (Windows) | Java 프로세스 / Gradle 데몬이 `build/classes/` 의 .class 파일을 잡고 있음. `Get-Process java \| Stop-Process -Force` + `./gradlew --stop` 후 재시도. 끝까지 안 풀리면 PC 재부팅 |
+| 12 | `./gradlew build` 의 `:test` 단계에서 `PSQLException` → contextLoads() 실패 | 로컬에 PostgreSQL 안 떠있는 상태에서 Spring Boot 풀 컨텍스트 로드 시도. `-x test` 로 스킵 (운영은 systemd 가 DB 환경변수 주입하므로 안전) |
+| 13 | scp 로 jar 올렸는데 systemd 가 옛 jar 그대로 실행 | scp 대상 경로 (`/home/reo4321/popspot/app.jar`) 와 systemd 가 보는 경로 (`/home/reo4321/popspot-backend-0.0.1-SNAPSHOT.jar`) 가 달랐음. 검증: `unzip -l <jar> \| grep <NewController>` 의 byte 크기로 옛/새 구분 |
+| 14 | 프론트 콘솔 404 + `EventSource MIME ("text/html") is not "text/event-stream"` 도배 | 운영 백엔드에 v2.10 엔드포인트 미배포 상태 (옛 jar). 새 jar 배포 + `systemctl restart` 후 해결. EventSource 의 MIME 에러는 404 의 부수효과 (404 본문이 HTML) |
+| 15 | 어드민 LOGS 탭이 "로그 대기 중..." 에서 멈춤 | `LOG_FILE_PATH` 환경변수 미설정 (LogTailService 가 시작 자체를 안 함). 환경파일에 `LOG_FILE_PATH=/var/log/popspot/popspot.log` 추가 + `mkdir -p /var/log/popspot && chown reo4321:reo4321` 선행 |
+| 16 | `popspot.env` 가 644 권한이라 시크릿 노출 위험 | `chmod 600 /home/reo4321/popspot.env`. systemd 가 root 로 읽고 reo4321 로 프로세스 실행 — 600 이어도 정상 동작 |
 
 ---
 
