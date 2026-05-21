@@ -76,10 +76,9 @@ public class PopupStoreService {
     }
 
     /**
-     * 지도 마커에 표시할 팝업 목록. PENDING 은 제외 (status 가 null 인 레거시 row 는 통과).
+     * 지도 마커용 팝업 목록 (PENDING 제외).
      *
-     * <p>v2.9: 메모리 필터 ({@code findAll().stream().filter()}) → DB WHERE 절로 이동.
-     * 같은 조건의 {@link PopupStoreRepository#findAllVisible} 재사용. row 수 늘어도 OOM 위험 없음.
+     * <p>v2.9: 메모리 필터 → SQL WHERE 절({@link PopupStoreRepository#findAllVisible}).
      */
     @Transactional(readOnly = true)
     public List<PopupStore> findVisibleMapMarkers() {

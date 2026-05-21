@@ -8,9 +8,7 @@ import lombok.Getter;
 /**
  * 내 코스 조회 응답 DTO.
  *
- * <p>JPA 엔티티를 그대로 직렬화하면 LAZY 필드 / 내부 컬럼명 노출 위험이 있어 API 경계용 DTO 로 한 번
- * 감싼다. 프론트는 기존과 동일한 필드명을 받는다 ({@code id}, {@code userId}, {@code courseName},
- * {@code courseData}, {@code createdAt}).
+ * <p>JPA 엔티티 직접 직렬화의 LAZY / 내부 컬럼 노출 위험을 API 경계에서 차단. 프론트 필드명은 유지.
  */
 @Getter
 @Builder
