@@ -1388,6 +1388,52 @@
 
 ---
 
+### v2.10 — 어드민 대시보드 확장 + 실시간 로그 (브라우저에서 보는 모니터링)
+
+> 운영 모니터링이 SSH/xshell 들어가서 `htop` / `journalctl -f` 보는 거에 의존하던 상태를 **크롬 어드민 페이지 한 곳** 으로 옮김. 운영자가 외부 환경에서 폰만 들고도 서버 상태 / 실시간 로그 확인 가능.
+
+<table align="center">
+  <tr>
+    <th align="center" width="180">항목</th>
+    <th align="center" width="290">v2.9</th>
+    <th align="center" width="290">v2.10</th>
+  </tr>
+  <tr>
+    <td align="center"><b>어드민 메트릭</b></td>
+    <td>CPU + 메모리 (실시간 라인 차트) 만 표시</td>
+    <td>+ JVM Heap/Thread, HTTP 요청수/p95/5xx, DB 커넥션 풀, 오늘 자동수집 4종 카드 신규</td>
+  </tr>
+  <tr>
+    <td align="center"><b>새 메트릭 추가 비용</b></td>
+    <td>어드민 메트릭 컨트롤러를 직접 수정 (모든 게이지를 컨트롤러가 알아야)</td>
+    <td>"메트릭 스냅샷 제공자" 인터페이스를 구현한 클래스 한 개 추가 = 끝. 컨트롤러는 자동 합성</td>
+  </tr>
+  <tr>
+    <td align="center"><b>실시간 로그 확인</b></td>
+    <td>SSH 로 서버 들어가서 <code>journalctl -fu popspot.service</code></td>
+    <td>어드민 페이지의 <b>실시간 로그 탭</b> 에서 바로. 정규식 필터 / 일시정지 / 다운로드 / 로그 레벨별 색</td>
+  </tr>
+  <tr>
+    <td align="center"><b>로그 스트림 방식</b></td>
+    <td>해당 없음</td>
+    <td>Server-Sent Events (SSE). 30초마다 keepalive 로 프록시가 끊는 거 방지. 끊기면 1→2→4초 자동 재연결</td>
+  </tr>
+  <tr>
+    <td align="center"><b>SSE 인증</b></td>
+    <td>해당 없음</td>
+    <td>EventSource 가 헤더를 못 보내므로 SSE 경로 한정 <code>?token=</code> 쿼리 폴백 (다른 경로는 차단)</td>
+  </tr>
+  <tr>
+    <td align="center"><b>어드민 KPI / 차트</b></td>
+    <td>인라인 JSX 로 다 들어있음 (관리 어려움)</td>
+    <td><code>MetricCard</code>, <code>LiveLineChart</code>, <code>useDashboardMetrics</code> 세 컴포넌트로 추출. 새 카드 추가가 한 줄로</td>
+  </tr>
+</table>
+
+<sub>백엔드 9 파일 신규 (메트릭 5 + 로그 3 + DTO ·기존 컨트롤러/필터/properties 4 수정) · 프론트 5 파일 신규 (메트릭 3 + 로그 2) · admin/page.tsx 카드 4개 + LOGS 탭 추가 · 프론트 빌드 16/16 통과. Spring Boot Admin (옵션 C) 은 D 와 기능 80% 중복이라 스킵. Prometheus/Grafana (옵션 D) 는 별도 v2.11 분리.</sub>
+
+---
+
 ## 폴더 구조 (백엔드)
 
 ```

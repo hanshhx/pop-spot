@@ -37,6 +37,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private static final String ROLE_PREFIX = "ROLE_";
     private static final String CLAIM_ROLE = "role";
 
+    /** 브라우저 EventSource 가 헤더를 못 보내는 SSE 엔드포인트만 쿼리 토큰 허용. */
+    private static final String SSE_TOKEN_PATH_PREFIX = "/api/admin/logs/stream";
+    private static final String QUERY_TOKEN_PARAM = "token";
+
     @Value("${jwt.secret:}")
     private String jwtSecret;
 
@@ -66,16 +70,32 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(
             HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
-        String token = extractToken(request.getHeader("Authorization"));
+        String token = extractToken(request);
         if (token != null) {
             tryAuthenticate(token);
         }
         filterChain.doFilter(request, response);
     }
 
-    private String extractToken(String bearerHeader) {
-        if (bearerHeader == null || !bearerHeader.startsWith(BEARER_PREFIX)) return null;
-        return bearerHeader.substring(BEARER_PREFIX.length());
+    /**
+     * Authorization 헤더 우선, 없으면 SSE 경로에 한해서만 {@code ?token=} 쿼리 폴백.
+     *
+     * <p>경로 제한이 핵심 — 다른 엔드포인트에서 쿼리 토큰을 받으면 URL 로그에 노출돼 위험.
+     */
+    private String extractToken(HttpServletRequest request) {
+        String bearerHeader = request.getHeader("Authorization");
+        if (bearerHeader != null && bearerHeader.startsWith(BEARER_PREFIX)) {
+            return bearerHeader.substring(BEARER_PREFIX.length());
+        }
+        if (isSseTokenPath(request)) {
+            return request.getParameter(QUERY_TOKEN_PARAM);
+        }
+        return null;
+    }
+
+    private boolean isSseTokenPath(HttpServletRequest request) {
+        String path = request.getRequestURI();
+        return path != null && path.startsWith(SSE_TOKEN_PATH_PREFIX);
     }
 
     private void tryAuthenticate(String token) {
