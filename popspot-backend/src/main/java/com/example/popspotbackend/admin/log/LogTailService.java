@@ -21,8 +21,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 /**
  * 로그 파일을 주기적으로 폴링해 새 라인을 SSE 구독자들에게 브로드캐스트.
  *
- * <p>로그 파일 미설정 시 (예: dev) 시작 안 함 — 어드민 UI 는 "로그 비활성" 표시. 30 초마다 keepalive
- * ping 으로 프록시가 idle 끊는 것을 방지.
+ * <p>파일 미설정 시 (dev) 시작 안 함. 30 초 keepalive ping 으로 프록시 idle 절단 방지.
  */
 @Slf4j
 @Service
@@ -48,11 +47,7 @@ public class LogTailService {
             log.info("[LogTail] logging.file.name 미설정 — SSE 로그 비활성화");
             return;
         }
-        scheduler = Executors.newScheduledThreadPool(1, r -> {
-            Thread t = new Thread(r, "log-tail");
-            t.setDaemon(true);
-            return t;
-        });
+        scheduler = Executors.newScheduledThreadPool(1, this::newDaemonThread);
         scheduler.scheduleAtFixedRate(
                 this::pollNewLines, 0, POLL_INTERVAL_MS, TimeUnit.MILLISECONDS);
         scheduler.scheduleAtFixedRate(
@@ -61,6 +56,13 @@ public class LogTailService {
                 KEEPALIVE_INTERVAL_SEC,
                 TimeUnit.SECONDS);
         log.info("[LogTail] 시작 — 파일: {}, 폴링: {}ms", logFilePath, POLL_INTERVAL_MS);
+    }
+
+    /** daemon 스레드로 띄워 JVM 종료를 막지 않도록. */
+    private Thread newDaemonThread(Runnable r) {
+        Thread t = new Thread(r, "log-tail");
+        t.setDaemon(true);
+        return t;
     }
 
     @PreDestroy
