@@ -9556,3 +9556,98 @@ npm run build
 - **Algolia 인덱스 정렬**: createdAt DESC 가중치를 인덱스 설정에서 (현재는 기본 textual relevance)
 - **재시도 큐**: Geocoding 실패 row 를 별도 큐로 빼서 외부 데이터 (도로명 주소 API) fallback
 
+---
+
+# 25a. v2.13.1 — 게스트 모드 약속 회복 (전체 탭 통과) + useEffect 재실행 깜빡임 핫픽스
+
+> "7일 동안 둘러보기" 약속이 실제로는 USER_ONLY 탭 (코스 / 음악 / 동행) 에서 막혀 있어 게스트가 비로그인 사용자와 똑같이 차단되던 회귀를 수정. 더불어 메인 useEffect 가 `[searchParams, router]` 를 deps 로 갖고 있어서 BottomDock 탭 클릭마다 `setGuestRemainingDays` 가 재호출되며 D-N 표시가 깜빡이고 "게스트 모드가 새로 시작되는 듯한 인상" 을 주던 부작용도 함께 해결.
+
+## 25a.1 게스트 모드 게이트 회복
+
+### 변경 전 회귀
+
+```typescript
+function canAccessTab(tab: string, hasUser: boolean): boolean {
+  if (hasUser) return true;
+  return !USER_ONLY_TABS.has(tab);
+}
+```
+
+- `hasUser` 가 false 면 USER_ONLY_TABS (`COURSE`, `MUSIC`, `MATE`) 거부
+- 게스트 활성 여부 무시 → 게스트도 비로그인 사용자와 동일 차단
+- `/login` 의 "게스트로 둘러보기" 버튼이 약속한 "7일 동안 전체 기능" 이 실제로는 지키지지 않음
+
+### 변경 후
+
+```typescript
+function canAccessTab(tab, hasUser, isGuestActive): boolean {
+  if (hasUser) return true;
+  if (isGuestActive) return true; // 7일 동안 전체 탭 통과
+  return !USER_ONLY_TABS.has(tab);
+}
+```
+
+- 게스트 활성 (시작 + 미만료) 이면 USER_ONLY 탭 모두 통과
+- 만료된 게스트는 회원가입 유도 (`promptUpgradeOrLogin` 카피)
+- `handleTabChange` / `?tab=` query / `sessionStorage.lastTab` 복원 세 경로 모두 동일 가드
+
+## 25a.2 useEffect 깜빡임 — mount-once 분리
+
+### 변경 전 (깜빡임 원인)
+
+```typescript
+useEffect(() => {
+  // 인증/게스트 초기화 + tab 복원 한 덩어리
+  setGuestRemainingDays(getRemainingGuestDays(firstVisit));
+  // ...
+  setCurrentTab(canAccessTab(...) ? requested : DEFAULT_TAB);
+}, [searchParams, router]);  // ← 매 nav 마다 재실행
+```
+
+`router.replace` / 외부 nav / Next.js 가 searchParams 객체를 재발급할 때마다 effect 가 통째로 다시 실행 → `getRemainingGuestDays(firstVisit)` 가 매번 계산되어 같은 값으로 setState. 사용자 인지: "게스트 모드가 클릭마다 새로 시작되는 듯". 진짜로 `startGuestMode` 가 다시 호출되는 것은 아니지만 (login 페이지에서만 호출), D-N 표시가 깜빡이고 React DevTools 에서 매번 re-render 가 보임.
+
+### 변경 후 (effect 두 개로 분리)
+
+```typescript
+// Effect A — mount-once. 인증 + 게스트 초기화 + AI 코스 복원
+useEffect(() => {
+  // ... 한 번만 실행
+}, []);
+
+// Effect B — searchParams 변경 시 탭만 재계산
+useEffect(() => {
+  const tabParam = searchParams.get("tab");
+  // ... setCurrentTab 만
+}, [searchParams]);
+```
+
+- 게스트 D-N 계산은 mount 시점 1회만
+- tab 복원 effect 는 `searchParams` 만 deps — 가벼움. localStorage 의 user / firstVisit 을 인라인으로 다시 읽지만 게스트 D-N 을 setState 하지 않음
+- 결과: BottomDock 클릭마다 D-N 표시가 깜빡이지 않고, 게스트 카운터가 일정하게 유지
+
+## 25a.3 변경 파일
+
+- `popspot-frontend/app/page.tsx` 단일 파일 수정
+  - `canAccessTab` 시그니처 + 로직
+  - `handleTabChange` 가 `isGuestActive` 계산 후 전달
+  - `promptUpgradeOrLogin` 의 안내 카피 — 게스트 활성은 더 이상 도달 안 함 (만료/비게스트만)
+  - 메인 useEffect → mount-once + searchParams-only 두 개로 분리
+
+## 25a.4 검증
+
+```powershell
+cd C:\Users\kim donghyun\Documents\popspot2\popspot-frontend
+Remove-Item -Recurse -Force .next -ErrorAction SilentlyContinue
+npm run build
+```
+
+- typecheck exit 0
+- build 17/17 페이지 통과
+
+### 수동 검증
+
+1. `/login` → "게스트로 둘러보기" → 메인 진입 → BottomDock 의 코스 / 음악 / 여권 / MY / 동행 / 의견 모두 클릭 가능 + 진입 OK
+2. 헤더의 "게스트 모드 · D-7" pill 이 탭 클릭마다 깜빡이지 않음
+3. 게스트 만료 (`localStorage` 의 `popspot:guest:firstVisit` 을 7일 전 timestamp 로 수정) → 회원가입 다이얼로그 + `/signup?reason=guest_expired` 리다이렉트
+4. 비로그인 + 비게스트 (`localStorage` 비움) → `/login` 리다이렉트
+
