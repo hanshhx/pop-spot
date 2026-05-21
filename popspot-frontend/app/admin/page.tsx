@@ -74,7 +74,7 @@ export default function AdminPage() {
     const [isLoading, setIsLoading] = useState(true);
 
     /*
-     * v2.13.3 — role 게이트.
+     * v2.13.3 — role 게이트 (v2.13.3.1 핫픽스: 강건성 + redirect 경로 수정).
      *
      * 일반 유저가 /admin URL 로 진입하면 페이지 자체는 로드되지만 메트릭 polling +
      * SSE 로그 스트림이 모두 ADMIN 가드라 즉시 403 도배가 발생했다. 백엔드 로그에
@@ -82,8 +82,14 @@ export default function AdminPage() {
      * "response already committed" 후속 에러까지 동반.
      *
      * 핫픽스: mount 시점에 localStorage 의 user.role 을 검사해 ADMIN 이 아니면 polling/
-     * SSE 가 시작되기 전에 / 로 리다이렉트한다. 서버 권한은 별도로 토큰 검증으로 강제되어
-     * 있으므로 이 클라이언트 가드는 UX + 로그 노이즈 방지 목적.
+     * SSE 가 시작되기 전에 메인으로 리다이렉트한다. 서버 권한은 별도로 토큰 검증으로
+     * 강제되어 있으므로 이 클라이언트 가드는 UX + 로그 노이즈 방지 목적.
+     *
+     * 강건성 — DB 의 role 값이 환경별로 "ROLE_ADMIN" / "ADMIN" 둘 다 존재할 수 있어
+     * 대문자화 후 두 변형 모두 통과시킨다.
+     *
+     * 리다이렉트 경로 — middleware 가 "/" 진입을 "/intro" 로 보내므로,
+     * 일반 유저는 "/?entered=1" 로 보내야 intro 페이지로 튕기지 않고 메인에 머문다.
      */
     const [authorized, setAuthorized] = useState(false);
 
@@ -96,8 +102,10 @@ export default function AdminPage() {
                 return;
             }
             const parsed = JSON.parse(raw) as { role?: string };
-            if (parsed.role !== "ROLE_ADMIN") {
-                router.replace("/");
+            const role = (parsed.role ?? "").trim().toUpperCase();
+            const isAdmin = role === "ROLE_ADMIN" || role === "ADMIN";
+            if (!isAdmin) {
+                router.replace("/?entered=1");
                 return;
             }
             setAuthorized(true);
