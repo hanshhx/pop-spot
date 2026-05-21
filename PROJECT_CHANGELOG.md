@@ -9762,3 +9762,152 @@ npm run build
 - 일반 유저가 `/admin` URL 을 자주 입력하는지 운영 모니터링 (Sentry breadcrumb 또는 access log)
 - 다른 ADMIN 가드 페이지 (없으면 N/A) 에도 같은 role 가드 패턴 적용
 
+---
+
+# 26. v2.14 — 음악 검색 정확도 강화 + Cover/Live/Remix 회피
+
+> 사용자 보고: "촛불 하나" 같은 검색 시 이상한 음악 나옴 + 재생하면 공식 음원이 아닌 cover 가 나옴. 두 문제를 한 번에 처리. 검색 정렬은 popularity + 토큰 매칭 점수 합산으로 재정렬하고, YouTube 영상 선택은 5단계 매칭 모든 단계에 비공식 키워드 사전 필터 추가. 옛 cover 캐시 일괄 청소 어드민 엔드포인트도 함께.
+
+## 26.1 진단 (`popspot-backend/.../service/music/*`)
+
+### 문제 1: 검색 정확도 낮음
+
+- `SpotifySearchService.isStrongMatch()` 가 곡명 / 아티스트 포함만 확인 — 인기도 / 유사도 검증 없음
+- 응답 정렬은 Spotify 의 기본 order 그대로
+- `popularity` 필드 (0~100) 가 응답에 있지만 파싱조차 안 함
+
+### 문제 2: 공식 음원이 아닌 cover 가 재생됨
+
+- `YouTubeMusicSearchService.searchOfficialAudio()` 의 5단계 매칭 중 4-5단계가 너무 관대
+- 4단계: 제목에 트랙명만 포함 → "BoA 촛불 하나 [cover]" 같은 row 통과
+- 5단계: 제목에 아티스트명만 포함 → 어떤 영상이든 통과
+- `hasMusicalTitleKeyword()` 는 "뮤직비디오 / 음원 / 노래 / AUDIO / OFFICIAL" 만 검사. **"COVER" / "라이브" / "리믹스" 같은 키워드는 안 봄**
+- DB 에 한 번 캐시되면 (`isCacheFresh() == youtubeVideoId != null`) 재호출 안 함 → 옛 cover 박힌 row 가 영구 유지
+
+## 26.2 수정
+
+### M1. YouTube 5단계 매칭에 비공식 사전 필터 (`YouTubeMusicSearchService`)
+
+신규 상수 `NON_OFFICIAL_KEYWORDS` 30+ 개:
+```
+cover, covered, 라이브, live, live ver, 라이브버전,
+remix, 리믹스, mashup, 매쉬업, acoustic, 어쿠스틱,
+unplugged, 버스킹, busking, karaoke, 노래방, mr,
+instrumental, inst., (inst), reaction, 리액션,
+어쿠스틱버전, ost ver, piano ver, guitar ver, 안무,
+dance practice, 쇼케이스, showcase, fancam, 직캠
+```
+
+신규 메서드 `isNonOfficialVariant(item)`:
+```java
+private boolean isNonOfficialVariant(JsonNode item) {
+    String title = item.path("snippet").path("title").asText("");
+    String lower = title.toLowerCase(Locale.ROOT);
+    for (String keyword : NON_OFFICIAL_KEYWORDS) {
+        if (lower.contains(keyword)) return true;
+    }
+    return false;
+}
+```
+
+`pickBestByTitle` 의 5단계 매칭 + 폴백 `pickMusicalCandidate` 모두 매 단계에 `!isNonOfficialVariant(item)` AND 가드 적용. 즉 어느 단계에서도 cover/live 변형은 통과 X.
+
+정책 결정 — 정확도가 살짝 떨어지더라도 "공식이 아닌 cover 가 나온다" 보다 검색 미스가 낫다는 사용자 의도 반영.
+
+### M2. Spotify 검색 정확도 강화 (`SpotifySearchService`)
+
+신규 상수:
+- `RELEVANCE_TOKEN_WEIGHT = 50` — 모든 토큰이 trackName/artistName 에 분포하면 가산
+- `RELEVANCE_FULL_MATCH_WEIGHT = 30` — query 전체가 trackName 에 포함
+- `RELEVANCE_ARTIST_MATCH_WEIGHT = 20` — query 전체가 artistName 에 포함
+
+DTO 변경 — `SpotifyTrack.popularity` 필드 추가, `parseTrack` 에서 `item.popularity` 파싱
+
+신규 메서드 `rerankByRelevance(tracks, query, limit)`:
+```java
+score = popularity (0~100)
+     + (전체 query 가 trackName 에 contains ? 30 : 0)
+     + (전체 query 가 artistName 에 contains ? 20 : 0)
+     + (모든 토큰이 trackName/artistName 에 분포 ? 50 : 0)
+```
+
+`search()` 진입점 마지막에 `rerankByRelevance` 호출 — 점수 DESC, 동점 시 popularity DESC.
+
+효과 — "촛불 하나" 검색 시 인기 곡 (BoA 의 촛불 하나, 임재범 / 트와이스 등 잘 알려진 동명 곡 우선) 이 상위로, 인지도 낮은 무명 곡은 뒤로.
+
+### M3. Cover 캐시 청소 어드민 엔드포인트
+
+#### Repository (`MusicTrackRepository`)
+
+```java
+@Query("SELECT m FROM MusicTrack m WHERE m.youtubeVideoId IS NOT NULL "
+     + "AND (LOWER(COALESCE(m.youtubeChannel, '')) LIKE '%cover%' "
+     + "  OR LOWER(COALESCE(m.youtubeChannel, '')) LIKE '%커버%' "
+     + "  OR LOWER(COALESCE(m.youtubeChannel, '')) LIKE '%remix%' "
+     + "  OR LOWER(COALESCE(m.youtubeChannel, '')) LIKE '%live%' "
+     + "  OR m.isOfficial = false)")
+List<MusicTrack> findLikelyNonOfficialCached();
+
+@Modifying @Transactional
+@Query("UPDATE MusicTrack m SET m.youtubeVideoId = NULL, m.youtubeChannel = NULL, "
+     + "m.isOfficial = false WHERE m.id IN :ids")
+int clearYoutubeCacheByIds(Collection<Long> ids);
+```
+
+#### Service (`MusicService.clearLikelyCoverCache`)
+
+`findLikelyNonOfficialCached()` 로 의심 row 조회 → `clearYoutubeCacheByIds(ids)` 로 일괄 청소. 다음 재생 시 v2.14 새 필터로 다시 매칭되어 공식 음원만 박힘.
+
+#### 신규 컨트롤러 (`AdminMusicController`)
+
+```
+POST /api/admin/music/refresh-covers
+@PreAuthorize("hasRole('ADMIN')")
+→ { "scanned": N, "cleared": M }
+```
+
+운영 배포 직후 1회 호출 권장 — 옛 cover 캐시 정리.
+
+## 26.3 변경 파일
+
+| 파일 | 변경 |
+|---|---|
+| `service/music/YouTubeMusicSearchService.java` | `NON_OFFICIAL_KEYWORDS` 상수 + `isNonOfficialVariant` 메서드 + `pickBestByTitle` / `pickMusicalCandidate` 가드 |
+| `service/music/SpotifySearchService.java` | `popularity` 파싱 + `rerankByRelevance` + DTO 필드 + 토큰 매칭 점수 상수 3개 |
+| `repository/MusicTrackRepository.java` | `findLikelyNonOfficialCached` + `clearYoutubeCacheByIds` 두 쿼리 |
+| `service/music/MusicService.java` | `clearLikelyCoverCache()` 메서드 |
+| `controller/AdminMusicController.java` (신규) | `POST /api/admin/music/refresh-covers` |
+
+## 26.4 검증
+
+### 프론트엔드
+
+```powershell
+cd C:\Users\kim donghyun\Documents\popspot2\popspot-frontend
+Remove-Item -Recurse -Force .next -ErrorAction SilentlyContinue
+npm run build
+```
+
+- typecheck exit 0
+- build 17/17 페이지 통과 (프론트 변경 0 — 백엔드 응답 모양 유지)
+
+### 수동 검증
+
+1. **"촛불 하나" 검색**: 인기도 + 매칭 점수 상위 곡이 첫 row. 무명/관련 약한 곡 후순위
+2. **공식 음원 재생**: cover/live 키워드 포함된 영상 재생 안 됨
+3. **운영 배포 직후**: `curl -X POST .../api/admin/music/refresh-covers` 1회 → `scanned: N, cleared: M`
+4. **다음 재생 시**: cover 박혔던 row 가 v2.14 필터로 공식 음원으로 자동 교체
+
+### 회귀 체크
+
+- 일반 검색 (영어 / 비한국어) 도 popularity + 매칭 점수로 정렬 → 인기 곡 상위 자연스러움
+- 공식 음원이 정말 없는 무명 곡은 매칭 실패 → null 반환 → 프론트에서 "재생 불가" 처리 (기존 동작)
+- YouTube API quota 영향: cover 청소 후 사용자가 재생하는 시점에 lazy fetch. 한꺼번에 1000곡 재생 안 하면 quota 부담 X
+- Spotify API quota: rerank 는 클라이언트 측 정렬 → API 호출 추가 0
+
+## 26.5 후속 작업 (선택)
+
+- **v2.14.1 — 캐시 갱신 정책**: `isOfficial=false` row 는 7일 후 재매칭 (TTL). 현재는 한 번 박히면 영구
+- **playCount 가중치**: 자체 재생 횟수가 높은 곡은 검색에서 더 상위로 (현재는 popularity 만)
+- **장르 / 무드 필터**: query 에 mood 키워드 (slow / dance / ballad) 가 있으면 mood 태그 매칭 가산점
+
