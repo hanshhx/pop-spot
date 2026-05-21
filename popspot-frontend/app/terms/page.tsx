@@ -3,16 +3,18 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "이용약관 | POP-SPOT",
-  description: "POP-SPOT 서비스 이용약관 — 자동수집/정보 정확성/권리자 신고 절차",
+  description:
+    "POP-SPOT 서비스 이용약관 — 자동수집 / 외부 검색 API 사용 / 정보 정확성 / 권리자 신고 절차",
 };
 
 /**
  * POP-SPOT 이용약관 페이지.
  *
  * 자동수집 기능을 운영하기 위한 법적 안전장치:
- *  §10 자동수집 출처 명시 + 정확성 면책
- *  §11 권리자 takedown 절차 (24시간 내 조치)
- *  §12 정보 보존 정책
+ *  §10   자동수집 출처 명시 + 정확성 면책
+ *  §10-2 외부 검색 API 사용 형태 / 저작권 / 약관 준수 (v2.13.2 신규)
+ *  §11   권리자 takedown 절차 (24시간 내 조치)
+ *  §12   정보 보존 정책
  *
  * 이 페이지의 텍스트는 deploy/TERMS_OF_SERVICE_CLAUSE.md 와 동일하게
  * 유지되어야 합니다 (운영 정책 일치).
@@ -32,7 +34,7 @@ export default function TermsPage() {
             POP-SPOT 이용약관
           </h1>
           <p className="text-sm text-muted-foreground mt-2">
-            최종 개정일: 2026-04-28
+            최종 개정일: 2026-05-21
           </p>
         </header>
 
@@ -86,6 +88,58 @@ export default function TermsPage() {
               <li>
                 이용자는 잘못된 정보를 발견한 경우 각 팝업 상세페이지의 신고
                 버튼을 통해 회사에 알릴 수 있습니다.
+              </li>
+            </ol>
+          </section>
+
+          <section>
+            <h2 className="text-xl font-bold mb-3 text-foreground">
+              제10조의2 (외부 검색 API 의 사용 형태와 약관 준수)
+            </h2>
+            <ol className="list-decimal list-inside space-y-2 text-foreground/90">
+              <li>
+                회사는 제10조에 따른 자동수집을 위해{" "}
+                <strong>네이버 검색 API</strong> 및{" "}
+                <strong>카카오 검색 API</strong> (이하 「외부 검색 API」) 를
+                정식 개발자 계정으로 호출합니다. 각 API 제공자의 일일 호출 한도
+                및 사용 정책을 준수합니다.
+              </li>
+              <li>
+                외부 검색 API 로 수집되는 항목은 검색 결과의 제목·요약(snippet)·
+                원문 링크·게시일에 한합니다. 회사는 위 항목을 다음 형태로
+                가공·이용합니다.
+                <ul className="list-disc list-inside ml-6 mt-2 space-y-1 text-foreground/80">
+                  <li>
+                    LLM (대규모 언어 모델) 을 통해 팝업스토어의 이름·위치·기간·
+                    카테고리만을 추출한 구조화 데이터로 변형하며,{" "}
+                    <strong>원문 텍스트를 그대로 복제·저장·노출하지 않습니다.</strong>
+                  </li>
+                  <li>
+                    추출된 데이터에는 원본 출처 (제공자명 + 원문 링크) 가 항상
+                    함께 보관되며, 팝업스토어 상세페이지에서 이용자가 원문으로
+                    이동할 수 있도록 출처 링크를 노출합니다.
+                  </li>
+                  <li>
+                    회사는 외부 검색 API 의 응답 결과를 제3자에게 재배포하거나
+                    검색 결과 페이지 자체를 본 서비스에서 재현하지 않습니다.
+                  </li>
+                </ul>
+              </li>
+              <li>
+                외부 검색 API 의 약관·이용정책이 변경되어 본 조와 충돌하는 경우,
+                회사는 즉시 본 조를 개정하고 충돌하는 수집·이용 동작을
+                중단합니다.
+              </li>
+              <li>
+                네이버·카카오 등 외부 검색 API 제공자 또는 원 콘텐츠의 저작권자가
+                자사 데이터의 본 서비스 사용 중단을 요청하는 경우, 회사는 별도
+                고지 없이 해당 데이터의 수집 및 노출을 즉시 중단합니다.
+              </li>
+              <li>
+                본 조에 따른 자동수집 결과의 저작권은 원 콘텐츠 게시자에게
+                있으며, 회사는 출처 표시와 변형 가공을 통해{" "}
+                <strong>「공정 이용 (fair use) · 인용」</strong> 의 범위 안에서
+                팝업스토어 정보 안내 목적으로만 활용합니다.
               </li>
             </ol>
           </section>
