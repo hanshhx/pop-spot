@@ -9911,3 +9911,152 @@ npm run build
 - **playCount 가중치**: 자체 재생 횟수가 높은 곡은 검색에서 더 상위로 (현재는 popularity 만)
 - **장르 / 무드 필터**: query 에 mood 키워드 (slow / dance / ballad) 가 있으면 mood 태그 매칭 가산점
 
+---
+
+# 27. v2.15 — 네이버 / 구글 사이트맵 등록 인프라 + SEO 정책
+
+> 운영 도메인을 네이버 서치어드바이저 / 구글 서치콘솔에 사이트맵 등록해 검색 노출하기로 결정. 등록 전 SEO 인프라 (robots.txt / sitemap.xml) 부재 + 비공개 페이지 noindex 부재 + 약관에 검색엔진 노출 정책 명시 없음. 정책상 큰 위반은 없으나 4가지 작업으로 안전한 운영 가능 상태로.
+
+## 27.1 진단
+
+| 항목 | 상태 | 위험도 |
+|---|---|---|
+| `app/robots.ts` / `app/sitemap.ts` | 미구현 | 🔴 등록 불가 |
+| 기본 metadata (layout) | 정상 (metadataBase / og / lang ko / viewport) | ✅ |
+| 비공개 페이지 noindex (admin/login/signup/feedback/oauth/find-account/planning) | 미설정 | ⚠️ 잠재 노출 |
+| 자동수집 팝업 상세 SSR 노출 | CSR 이라 현재 안전 | ✅ |
+| 사용자 콘텐츠 (메이트/의견) SSR 노출 | CSR 이라 현재 안전 | ✅ |
+| 약관에 검색엔진 노출 명시 | §10-2 자동수집은 있으나 SEO 정책 자체는 없음 | ⚠️ |
+
+## 27.2 S1. robots.ts + sitemap.ts
+
+### `app/robots.ts` (신규)
+
+```typescript
+export default function robots(): MetadataRoute.Robots {
+  return {
+    rules: [{
+      userAgent: "*",
+      allow: "/",
+      disallow: [
+        "/admin", "/api/", "/login", "/signup", "/find-account",
+        "/oauth/", "/feedback", "/planning"
+      ],
+    }],
+    sitemap: "https://popspot.co.kr/sitemap.xml",
+    host: "https://popspot.co.kr",
+  };
+}
+```
+
+Next.js 가 `/robots.txt` 라우트를 자동 생성. 빌드 결과에서 확인.
+
+### `app/sitemap.ts` (신규)
+
+정적 공개 페이지만 포함:
+
+| URL | priority | changeFrequency |
+|---|---|---|
+| `/` | 1.0 | daily |
+| `/intro` | 0.7 | monthly |
+| `/about` | 0.8 | monthly |
+| `/terms` | 0.3 | yearly |
+| `/privacy` | 0.3 | yearly |
+
+**자동수집 팝업 상세는 명시적으로 제외**. 약관 §10-2 의 "검색 결과 페이지 자체를 본 서비스에서 재현하지 않는다" 조항과 일관성. Naver/Kakao 검색 결과를 가공한 페이지를 다시 검색엔진에 등록하면 회색지대가 더 커지므로 보수적 결정.
+
+## 27.3 S2. 비공개 페이지 noindex
+
+각 비공개 경로 폴더에 server-side `layout.tsx` 추가 (client component 인 page.tsx 와 공존). 7 파일 신규:
+
+```typescript
+// app/admin/layout.tsx
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+};
+export default function AdminLayout({ children }) {
+  return <>{children}</>;
+}
+```
+
+대상 폴더: `admin`, `login`, `signup`, `feedback`, `find-account`, `oauth`, `planning` (총 7개)
+
+방어 깊이 — robots.txt 가 차단해도 페이지 자체에 `noindex` 메타가 있으면 직접 링크나 다른 사이트의 백링크로 진입한 봇도 색인 차단.
+
+## 27.4 S3. 약관 §14 신설 — 검색엔진 노출 정책
+
+`app/terms/page.tsx` 에 신규 7항 §14:
+
+1. 네이버 · 구글 사이트맵 등록 명시
+2. 사이트맵 포함 페이지 5개 명시 (/ /about /terms /privacy /intro)
+3. 사이트맵 제외 + robots.txt + noindex 메타 차단 경로 명시
+4. **자동수집 팝업 상세는 §10-2 정책 일관성으로 사이트맵 미포함**
+5. 사용자 게시판 (동행 / 의견 / 채팅) 은 현재 CSR 이라 검색 노출 X. **향후 SSR 전환 시 사전 공지 + 약관 개정 + 회원 재동의**
+6. **권리자 삭제 요청 시 검색엔진 캐시도 함께 제거 요청** 약속
+7. 회원이 본인 게시물의 검색 노출을 원하지 않으면 마이페이지 삭제 또는 탈퇴 안내
+
+개정일 갱신: 2026-05-21 → 2026-05-22.
+
+## 27.5 변경 파일
+
+| 파일 | 변경 |
+|---|---|
+| `app/robots.ts` (신규) | userAgent * + disallow 8개 경로 + sitemap URL |
+| `app/sitemap.ts` (신규) | 정적 공개 페이지 5개 |
+| `app/admin/layout.tsx` (신규) | metadata.robots noindex |
+| `app/login/layout.tsx` (신규) | metadata.robots noindex |
+| `app/signup/layout.tsx` (신규) | metadata.robots noindex |
+| `app/feedback/layout.tsx` (신규) | metadata.robots noindex |
+| `app/find-account/layout.tsx` (신규) | metadata.robots noindex |
+| `app/oauth/layout.tsx` (신규) | metadata.robots noindex |
+| `app/planning/layout.tsx` (신규) | metadata.robots noindex |
+| `app/terms/page.tsx` | §14 신설 (7항) + 개정일 + metadata description |
+
+신규 9 파일 + 수정 1 파일.
+
+## 27.6 검증
+
+```powershell
+cd C:\Users\kim donghyun\Documents\popspot2\popspot-frontend
+Remove-Item -Recurse -Force .next -ErrorAction SilentlyContinue
+npm run build
+```
+
+- typecheck exit 0
+- build 19 라우트 (기존 17 + `/robots.txt` + `/sitemap.xml` 신규 2개)
+- 새 ESLint 위반 0
+
+### 수동 검증
+
+배포 후:
+
+1. `curl https://popspot.co.kr/robots.txt` → `User-agent: *` 블록 + `Sitemap:` 헤더 확인
+2. `curl https://popspot.co.kr/sitemap.xml` → 5개 URL XML 응답
+3. `curl -I https://popspot.co.kr/admin` → 응답 본문에 `<meta name="robots" content="noindex,nofollow">` 포함
+4. `curl https://popspot.co.kr/feedback` 도 동일
+5. 메인 페이지 (`/`) 는 noindex 메타 없음 (정상)
+
+### 네이버 / 구글 서치 콘솔 등록 절차 (배포 후)
+
+#### 네이버 서치어드바이저
+1. [searchadvisor.naver.com](https://searchadvisor.naver.com) → 사이트 추가
+2. `https://popspot.co.kr` 입력
+3. 소유 확인 — HTML 파일 다운로드 → `public/` 에 업로드 또는 메타 태그 방식
+4. 사이트맵 제출 → `https://popspot.co.kr/sitemap.xml`
+
+#### 구글 서치콘솔
+1. [search.google.com/search-console](https://search.google.com/search-console) → 속성 추가
+2. `https://popspot.co.kr` 도메인 또는 URL prefix
+3. 소유 확인 — DNS TXT 레코드 또는 HTML 파일
+4. 사이트맵 → `https://popspot.co.kr/sitemap.xml`
+
+각 콘솔이 1~7일 안에 인덱싱 시작. 색인 상태는 콘솔에서 모니터링.
+
+## 27.7 후속 작업 (선택)
+
+- **`/about` 페이지 OG 이미지 / 메타 보강**: 현재 `/og-image.png` 한 장만 — 페이지별 OG 분리 가능
+- **JSON-LD (구조화 데이터)**: 메인 페이지에 `WebSite` + `Organization` 스키마. 검색 결과에 풍부한 정보 표시 (sitelinks search box 등)
+- **운영 도메인 인증 파일**: 네이버 / 구글 소유 확인 HTML 파일을 `public/` 에 정리
+- **검색 노출 후 모니터링**: 인덱싱된 페이지 수 / 검색 노출 키워드를 어드민 대시보드 카드로 (서치콘솔 API 연동 필요)
+- **다국어 — `hreflang` 태그**: 영문 페이지 추가 시
+

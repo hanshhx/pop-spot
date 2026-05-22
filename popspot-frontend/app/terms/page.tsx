@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "이용약관 | POP-SPOT",
   description:
-    "POP-SPOT 서비스 이용약관 — 자동수집 / 외부 검색 API 사용 / 정보 정확성 / 권리자 신고 절차",
+    "POP-SPOT 서비스 이용약관 — 자동수집 / 외부 검색 API 사용 / 정보 정확성 / 권리자 신고 절차 / 검색엔진 노출 정책",
 };
 
 /**
@@ -15,6 +15,8 @@ export const metadata: Metadata = {
  *  §10-2 외부 검색 API 사용 형태 / 저작권 / 약관 준수 (v2.13.2 신규)
  *  §11   권리자 takedown 절차 (24시간 내 조치)
  *  §12   정보 보존 정책
+ *  §13   개인정보의 수집·이용
+ *  §14   검색엔진 노출 정책 (v2.15 신규)
  *
  * 이 페이지의 텍스트는 deploy/TERMS_OF_SERVICE_CLAUSE.md 와 동일하게
  * 유지되어야 합니다 (운영 정책 일치).
@@ -34,7 +36,7 @@ export default function TermsPage() {
             POP-SPOT 이용약관
           </h1>
           <p className="text-sm text-muted-foreground mt-2">
-            최종 개정일: 2026-05-21
+            최종 개정일: 2026-05-22
           </p>
         </header>
 
@@ -288,6 +290,66 @@ export default function TermsPage() {
               <li>
                 회사는 회원의 비밀번호를 단방향 해시(BCrypt strength 12)로
                 저장하며 평문 형태로 보관하지 않습니다.
+              </li>
+            </ol>
+          </section>
+
+          <section>
+            <h2 className="text-xl font-bold mb-3 text-foreground">
+              제14조 (검색엔진 노출 정책)
+            </h2>
+            <ol className="list-decimal list-inside space-y-2 text-foreground/90">
+              <li>
+                회사는 본 서비스를 네이버 · 구글 등 검색엔진에 사이트맵 등록하여
+                일반 사용자가 검색을 통해 본 사이트의 공개 페이지에 접근할 수
+                있도록 합니다.
+              </li>
+              <li>
+                사이트맵에 포함되는 페이지는 운영자가 직접 작성한 정적 안내
+                페이지로 한정합니다.
+                <ul className="list-disc list-inside ml-6 mt-2 space-y-1 text-foreground/80">
+                  <li>서비스 메인 (지도 / 캘린더 진입)</li>
+                  <li>서비스 소개 (/about)</li>
+                  <li>이용약관 (/terms)</li>
+                  <li>개인정보 처리방침 (/privacy)</li>
+                  <li>인트로 (/intro)</li>
+                </ul>
+              </li>
+              <li>
+                다음 경로는 사이트맵에서 명시적으로 제외되며{" "}
+                <code>robots.txt</code> 와 페이지의{" "}
+                <code>noindex</code> 메타 태그를 통해 검색엔진 색인이
+                차단됩니다.
+                <ul className="list-disc list-inside ml-6 mt-2 space-y-1 text-foreground/80">
+                  <li>회원가입 / 로그인 / 계정 찾기 / OAuth 콜백</li>
+                  <li>어드민 콘솔 및 모든 어드민 API</li>
+                  <li>의견 보내기 페이지 (사용자 콘텐츠 노출 차단)</li>
+                  <li>작전 회의실 (방 ID 가 URL 에 포함되는 협업 페이지)</li>
+                </ul>
+              </li>
+              <li>
+                <strong>자동수집된 팝업스토어 상세 페이지</strong>는 제10조의2
+                의 "검색 결과 자체를 본 서비스에서 재현하지 않는다" 정책과
+                일관성을 유지하기 위해 사이트맵에 포함하지 않습니다. 페이지
+                자체는 클라이언트 측에서 렌더링되어 검색 크롤러가 본문을
+                수집하지 못합니다.
+              </li>
+              <li>
+                회원이 작성한 동행 모집글 · 의견 · 채팅 등의 게시물은 클라이언트
+                측 렌더링으로 제공되어 현재 검색엔진에 노출되지 않습니다.
+                향후 서버 사이드 렌더링으로 전환되어 검색에 노출될 가능성이
+                생기는 경우, 회사는 사전에 공지하고 약관 개정을 통해 회원의
+                재동의를 받습니다.
+              </li>
+              <li>
+                권리자가 제11조에 따라 정보 삭제를 요청하여 회사가 해당 정보를
+                삭제한 경우, 회사는 합리적 기간 안에 네이버 · 구글 등 주요
+                검색엔진에 캐시 삭제 및 색인 제거를 함께 요청합니다.
+              </li>
+              <li>
+                회원은 본인이 작성한 닉네임 · 게시물 등이 검색엔진 외부에
+                노출되는 것을 원하지 않는 경우 마이페이지의 게시물 삭제 또는
+                회원 탈퇴를 통해 노출 가능성을 차단할 수 있습니다.
               </li>
             </ol>
           </section>
