@@ -1,0 +1,18 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /admin/
+Disallow: /api/
+Disallow: /login
+Disallow: /login/
+Disallow: /signup
+Disallow: /signup/
+Disallow: /find-account
+Disallow: /find-account/
+Disallow: /oauth/
+Disallow: /feedback
+Disallow: /feedback/
+Disallow: /planning
+Disallow: /planning/
+
+Sitemap: https://popspot.co.kr/sitemap.xml
