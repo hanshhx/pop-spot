@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { MessageCircle, Plus, User as UserIcon, MapPin, X, TrendingUp, Crown } from "lucide-react";
 import { useChatStore } from "../store/useChatStore";
@@ -27,6 +28,8 @@ interface MatePost {
     userId: string;
     nickname: string;
     isPremium: boolean;
+    /** v2.16 — 작성자 프로필 사진. 백엔드 MatePost.author = User 이고 picture 컬럼 그대로. */
+    picture?: string | null;
   };
   createdAt: string;
   isMegaphone: boolean;
@@ -223,12 +226,18 @@ export default function MateBoard({ user }: MateBoardProps) {
                     
                     <div className="flex justify-between items-center mt-auto pl-2 border-t border-hot-100 dark:border-hot-900/30 pt-3">
                         <div className="flex items-center gap-1.5">
-                            <div className="w-6 h-6 md:w-8 md:h-8 rounded-full bg-hot-100 dark:bg-hot-900/50 flex items-center justify-center border border-hot-200 dark:border-hot-800">
-                                <UserIcon size={12} className="md:w-4 md:h-4 text-hot-400"/>
-                            </div>
+                            <AuthorAvatar
+                                picture={post.author.picture}
+                                fallbackBg="bg-hot-100 dark:bg-hot-900/50"
+                                fallbackIconColor="text-hot-400"
+                                size="md"
+                            />
                             <span className="text-[10px] md:text-xs font-bold text-gray-800 dark:text-gray-200 truncate max-w-[80px] flex items-center gap-1">
                               <span className="truncate">{post.author.nickname}</span>
                               {post.author.isPremium && <Crown size={10} className="text-yellow-500 fill-yellow-500 shrink-0"/>}
+                              {isMyPost(post, user) && (
+                                <span className="ml-1 px-1.5 py-0.5 rounded text-[8px] md:text-[9px] font-black bg-lime-300 text-ink-900">내 글</span>
+                              )}
                             </span>
                         </div>
                         <div className="flex items-center gap-2">
@@ -295,12 +304,18 @@ export default function MateBoard({ user }: MateBoardProps) {
 
                       <div className="flex justify-between items-center border-t border-gray-100 dark:border-white/5 pt-3 md:pt-4 pl-2.5 md:pl-3">
                           <div className="flex items-center gap-1.5 md:gap-2 overflow-hidden pr-2">
-                              <div className="w-6 h-6 md:w-8 md:h-8 shrink-0 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center border border-white dark:border-gray-600">
-                                  <UserIcon size={12} className="md:w-3.5 md:h-3.5 text-gray-500 dark:text-gray-400"/>
-                              </div>
+                              <AuthorAvatar
+                                  picture={post.author.picture}
+                                  fallbackBg="bg-gray-200 dark:bg-gray-700"
+                                  fallbackIconColor="text-gray-500 dark:text-gray-400"
+                                  size="md"
+                              />
                               <span className="text-[10px] md:text-xs font-bold text-gray-700 dark:text-gray-300 flex items-center gap-1 truncate">
                                   <span className="truncate">{post.author.nickname}</span>
                                   {post.author.isPremium && <Crown size={10} className="md:w-3 md:h-3 text-yellow-500 fill-yellow-500 shrink-0"/>}
+                                  {isMyPost(post, user) && (
+                                      <span className="ml-1 px-1.5 py-0.5 rounded text-[8px] md:text-[9px] font-black bg-lime-300 text-ink-900">내 글</span>
+                                  )}
                               </span>
                           </div>
 
@@ -404,6 +419,54 @@ export default function MateBoard({ user }: MateBoardProps) {
       )}
     </div>
   );
+}
+
+/**
+ * v2.16 — 동행 게시판 작성자 프로필 사진. 사진 없으면 lucide UserIcon fallback.
+ * 외부 OAuth 도메인 + 자체 uploads 경로 모두 지원 (unoptimized).
+ */
+function AuthorAvatar({
+  picture,
+  fallbackBg,
+  fallbackIconColor,
+  size,
+}: {
+  picture?: string | null;
+  fallbackBg: string;
+  fallbackIconColor: string;
+  size: "sm" | "md";
+}) {
+  const sizeClass = size === "sm"
+    ? "w-5 h-5 md:w-6 md:h-6"
+    : "w-6 h-6 md:w-8 md:h-8";
+  if (picture) {
+    return (
+      <Image
+        src={picture}
+        alt=""
+        width={32}
+        height={32}
+        className={`${sizeClass} shrink-0 rounded-full object-cover border border-white dark:border-gray-600`}
+        unoptimized
+      />
+    );
+  }
+  return (
+    <div
+      className={`${sizeClass} shrink-0 rounded-full ${fallbackBg} flex items-center justify-center border border-white dark:border-gray-600`}
+    >
+      <UserIcon size={12} className={`md:w-3.5 md:h-3.5 ${fallbackIconColor}`} />
+    </div>
+  );
+}
+
+/** v2.16 — 본인이 작성한 글인지 판정. userId 우선, fallback 으로 nickname 비교. */
+function isMyPost(post: MatePost, viewer: DomainUser): boolean {
+  const viewerId = viewer.userId || viewer.id || "";
+  if (post.author.userId && viewerId && post.author.userId === viewerId) {
+    return true;
+  }
+  return post.author.nickname === viewer.nickname;
 }
 
 interface BoostToggleProps {

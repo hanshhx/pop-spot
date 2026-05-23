@@ -266,7 +266,9 @@ export default function SignupPage() {
         await Swal.fire({
           icon: "success",
           title: "환영합니다",
-          text: "회원가입이 완료되었습니다.",
+          text:
+            "회원가입이 완료되었습니다. 로그인 후 헤더의 프로필을 눌러" +
+            " 닉네임과 프로필 사진을 변경하실 수 있습니다.",
           confirmButtonText: "로그인하러 가기",
         });
         router.push("/login");
