@@ -1,7 +1,8 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
-import { LogOut, ShieldCheck, Megaphone, Crown } from "lucide-react";
+import { LogOut, ShieldCheck, Megaphone, Crown, User as UserIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import ThemeToggle from "@/components/ThemeToggle";
@@ -12,6 +13,8 @@ export interface HeaderUser {
   nickname: string;
   isPremium?: boolean;
   role?: string;
+  /** v2.16 — 프로필 사진 URL. 헤더 칩에 작은 아바타로 표시. */
+  picture?: string;
 }
 
 interface HeaderProps {
@@ -19,6 +22,8 @@ interface HeaderProps {
   onLogout?: () => void;
   onReportClick?: () => void;
   onLogoClick?: () => void;
+  /** v2.16 — UserChip 클릭 시 호출. 프로필 편집 모달 열기. */
+  onProfileClick?: () => void;
   subtitle?: string;
   className?: string;
 }
@@ -34,6 +39,7 @@ export function Header({
   onLogout,
   onReportClick,
   onLogoClick,
+  onProfileClick,
   subtitle = "Seoul Popup Store Intelligence",
   className,
 }: HeaderProps) {
@@ -93,7 +99,7 @@ export function Header({
         )}
 
         {user ? (
-          <UserChip user={user} onLogout={onLogout} />
+          <UserChip user={user} onLogout={onLogout} onProfileClick={onProfileClick} />
         ) : (
           <div className="hidden md:flex items-center gap-2">
             <Button asChild variant="ghost" size="sm">
@@ -112,20 +118,19 @@ export function Header({
 function UserChip({
   user,
   onLogout,
+  onProfileClick,
 }: {
   user: HeaderUser;
   onLogout?: () => void;
+  onProfileClick?: () => void;
 }) {
-  return (
-    <div
-      className={cn(
-        "hidden md:inline-flex items-center gap-3 pl-3 pr-2 py-1.5",
-        "rounded-pill border",
-        user.isPremium
-          ? "bg-ink-900 text-cream-200 border-ink-900 dark:bg-cream-200 dark:text-ink-900 dark:border-cream-200"
-          : "bg-surface text-foreground border-[var(--color-border)]"
-      )}
-    >
+  const ChipInner = (
+    <>
+      <Avatar
+        picture={user.picture}
+        isDark={user.isPremium === true}
+        size={26}
+      />
       {user.isPremium && (
         <Badge tone="lime" size="sm" className="px-1.5">
           <Crown className="size-3" aria-hidden />
@@ -133,6 +138,31 @@ function UserChip({
         </Badge>
       )}
       <span className="text-sm font-semibold">{user.nickname}</span>
+    </>
+  );
+
+  return (
+    <div
+      className={cn(
+        "hidden md:inline-flex items-center gap-2 pl-1.5 pr-2 py-1",
+        "rounded-pill border",
+        user.isPremium
+          ? "bg-ink-900 text-cream-200 border-ink-900 dark:bg-cream-200 dark:text-ink-900 dark:border-cream-200"
+          : "bg-surface text-foreground border-[var(--color-border)]"
+      )}
+    >
+      {onProfileClick ? (
+        <button
+          type="button"
+          onClick={onProfileClick}
+          aria-label="프로필 수정"
+          className="inline-flex items-center gap-2 transition-opacity hover:opacity-80"
+        >
+          {ChipInner}
+        </button>
+      ) : (
+        <div className="inline-flex items-center gap-2">{ChipInner}</div>
+      )}
       {onLogout && (
         <button
           type="button"
@@ -144,5 +174,44 @@ function UserChip({
         </button>
       )}
     </div>
+  );
+}
+
+interface AvatarProps {
+  picture?: string;
+  isDark: boolean;
+  size: number;
+}
+
+/**
+ * v2.16 — 헤더용 작은 원형 아바타. 사진이 없으면 lime 배경 + UserIcon fallback.
+ *
+ * <p>{@code unoptimized} prop 으로 외부 OAuth 도메인의 사진도 무리 없이 표시.
+ */
+function Avatar({ picture, isDark, size }: AvatarProps) {
+  const dimension = { width: size, height: size };
+  if (picture) {
+    return (
+      <Image
+        src={picture}
+        alt=""
+        width={size}
+        height={size}
+        className="rounded-full object-cover border border-[var(--color-border)]"
+        style={dimension}
+        unoptimized
+      />
+    );
+  }
+  return (
+    <span
+      className={cn(
+        "rounded-full inline-flex items-center justify-center border border-[var(--color-border)]",
+        isDark ? "bg-cream-200/20" : "bg-lime-300/20"
+      )}
+      style={dimension}
+    >
+      <UserIcon className="size-3.5 text-lime-500" aria-hidden />
+    </span>
   );
 }
