@@ -24,6 +24,10 @@ export interface User {
   /** 호환 alias — 일부 API 응답이 {@code id} 키로 내려준다. 화면에서는 {@code userId} 우선 사용. */
   id?: string;
   nickname: string;
+  /** v2.15.3 — 회원 식별용 이메일. OAuth 첫 로그인 시 네이버/카카오/구글이 제공. */
+  email?: string;
+  /** v2.15.3 — 프로필 사진 URL. 소셜 로그인의 picture / 기본 아바타 fallback. */
+  picture?: string;
   isPremium?: boolean;
   role?: string;
   isSocial?: boolean;

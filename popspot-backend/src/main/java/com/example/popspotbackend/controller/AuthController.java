@@ -208,6 +208,9 @@ public class AuthController {
         info.put("nickname", user.getNickname());
         info.put("role", user.getRole());
         info.put("isPremium", user.isPremium());
+        // v2.15.3 — 네이버 OAuth 검수 활용처 증명 + MY 탭 "내 계정" 카드 노출용.
+        info.put("email", user.getEmail());
+        info.put("picture", user.getPicture());
         return info;
     }
 
