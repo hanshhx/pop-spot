@@ -1105,7 +1105,39 @@ export default function Home() {
 
                 {/* 2. Scrollable Dashboard Area */}
                 <div className="w-full md:w-[45%] h-[50vh] md:h-full flex flex-col bg-surface relative overflow-y-auto custom-scrollbar pb-24 md:pb-20">
-                    
+
+                    {/* v2.15.3 — 내 계정: 회원이름 / 이메일 / 프로필 사진 노출. 네이버/카카오/구글
+                        OAuth 검수 활용처 증명에 사용되며, 사용자도 "내 정보" 를 한 눈에 확인. */}
+                    <div className="p-4 lg:p-6 border-b border-[var(--color-border)]">
+                        <h3 className="text-base lg:text-lg font-bold mb-4 flex items-center gap-2 text-foreground">
+                            <UserIcon size={16} className="lg:w-[18px] lg:h-[18px] text-lime-500"/> 내 계정
+                        </h3>
+                        <div className="flex items-center gap-4 p-3 lg:p-4 rounded-md border border-[var(--color-border)] bg-cream-300 dark:bg-ink-800">
+                            {user?.picture ? (
+                                <Image
+                                    src={user.picture}
+                                    alt="프로필 사진"
+                                    width={56}
+                                    height={56}
+                                    className="rounded-full object-cover w-14 h-14 border border-[var(--color-border)]"
+                                    unoptimized
+                                />
+                            ) : (
+                                <div className="w-14 h-14 rounded-full bg-lime-300/20 flex items-center justify-center border border-[var(--color-border)]">
+                                    <UserIcon size={24} className="text-lime-500" />
+                                </div>
+                            )}
+                            <div className="min-w-0 flex-1">
+                                <p className="text-sm lg:text-base font-bold text-foreground truncate">
+                                    {user?.nickname || "회원"}
+                                </p>
+                                <p className="text-xs lg:text-sm text-muted-foreground truncate mt-0.5">
+                                    {user?.email || "이메일 정보 없음"}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
                     {/* Activity Dashboard */}
                     <div className="p-4 lg:p-6 border-b border-[var(--color-border)]">
                         <h3 className="text-base lg:text-lg font-bold mb-4 flex items-center gap-2 text-foreground">
