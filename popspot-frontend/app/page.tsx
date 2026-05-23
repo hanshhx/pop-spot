@@ -53,6 +53,7 @@ import { AllTrendingModal } from "@/features/popup/AllTrendingModal";
 import { AddPlaceModal } from "@/features/popup/AddPlaceModal";
 import { MyFeedbackList } from "@/features/feedback/MyFeedbackList";
 import { FeedbackForm } from "@/features/feedback/FeedbackForm";
+import { ProfileEditModal } from "@/features/profile/ProfileEditModal";
 import type {
   User,
   PopupStore,
@@ -108,6 +109,7 @@ export default function Home() {
   const [isReportPopupOpen, setIsReportPopupOpen] = useState(false);
   const [isAddPlaceOpen, setIsAddPlaceOpen] = useState(false);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const [isProfileEditOpen, setIsProfileEditOpen] = useState(false);
 
   const [currentTab, setCurrentTab] = useState("MAP");
   const [user, setUser] = useState<User | null>(null);
@@ -574,6 +576,7 @@ export default function Home() {
           onLogout={handleLogout}
           onLogoClick={() => handleTabChange("MAP")}
           onReportClick={() => setIsReportPopupOpen(true)}
+          onProfileClick={user ? () => setIsProfileEditOpen(true) : undefined}
           className="mb-6 md:mb-10"
         />
 
@@ -1409,6 +1412,22 @@ export default function Home() {
         onOpenChange={setIsReportPopupOpen}
         user={user}
       />
+      {user && (
+        <ProfileEditModal
+          open={isProfileEditOpen}
+          onOpenChange={setIsProfileEditOpen}
+          user={user}
+          onSaved={(next) => {
+            const updated = {
+              ...user,
+              nickname: next.nickname,
+              picture: next.picture ?? undefined,
+            };
+            setUser(updated);
+            localStorage.setItem("user", JSON.stringify(updated));
+          }}
+        />
+      )}
       <PopupCalendarModal
         open={isCalendarOpen}
         onOpenChange={setIsCalendarOpen}
