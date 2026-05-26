@@ -168,6 +168,14 @@ function DisclaimerBox() {
             {CONTACT_EMAIL}
           </a>
         </p>
+        {/* v2.18.1 — 운영자 정보. 사업자 / 통신판매업 신고는 실제 운영 시작 시 채워 넣기. */}
+        <div className="mt-4 pt-4 border-t border-[var(--color-border)] grid grid-cols-1 md:grid-cols-2 gap-1 text-[10px] text-muted-foreground/80">
+          <p>서비스 제공: POP-SPOT 운영팀</p>
+          <p>호스팅 서비스 제공자: Vercel · 자체 운영 NAS</p>
+          <p>광고 / 후원 수익: 받지 않음 (개인 비영리 운영)</p>
+          <p>실제 결제 / 예매: 처리하지 않음 — 안내 서비스 한정</p>
+        </div>
+
         <p className="mt-3 opacity-60">© {new Date().getFullYear()} POP-SPOT. All rights reserved.</p>
       </div>
     </div>

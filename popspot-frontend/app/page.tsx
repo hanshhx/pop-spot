@@ -56,6 +56,7 @@ import {
   useGlobalSearchHotkey,
 } from "@/features/popup/GlobalSearchModal";
 import { OnboardingModal } from "@/features/onboarding/OnboardingModal";
+import { NotificationCenter } from "@/features/notifications/NotificationCenter";
 import { MyFeedbackList } from "@/features/feedback/MyFeedbackList";
 import { FeedbackForm } from "@/features/feedback/FeedbackForm";
 import { ProfileEditModal } from "@/features/profile/ProfileEditModal";
@@ -116,6 +117,7 @@ export default function Home() {
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [isProfileEditOpen, setIsProfileEditOpen] = useState(false);
   const [isGlobalSearchOpen, setIsGlobalSearchOpen] = useState(false);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   useGlobalSearchHotkey(setIsGlobalSearchOpen);
 
   const [currentTab, setCurrentTab] = useState("MAP");
@@ -632,6 +634,7 @@ export default function Home() {
           onReportClick={() => setIsReportPopupOpen(true)}
           onProfileClick={user ? () => setIsProfileEditOpen(true) : undefined}
           onSearchClick={() => setIsGlobalSearchOpen(true)}
+          onBellClick={() => setIsNotificationsOpen(true)}
           className="mb-6 md:mb-10"
         />
 
@@ -1485,6 +1488,10 @@ export default function Home() {
         onOpenChange={setIsGlobalSearchOpen}
       />
       <OnboardingModal />
+      <NotificationCenter
+        open={isNotificationsOpen}
+        onOpenChange={setIsNotificationsOpen}
+      />
       {user && (
         <ProfileEditModal
           open={isProfileEditOpen}

@@ -75,6 +75,16 @@ public class MatePost {
     @Builder.Default
     private boolean isMegaphone = false;
 
+    /** v2.18.1 — 누적 신고 수. 임계값 도달 시 isHidden 자동 true. */
+    @Column(name = "REPORT_COUNT", nullable = false, columnDefinition = "integer default 0")
+    @Builder.Default
+    private int reportCount = 0;
+
+    /** v2.18.1 — 신고 누적으로 자동 차단된 글. 목록 조회에서 제외. */
+    @Column(name = "IS_HIDDEN", nullable = false)
+    @Builder.Default
+    private boolean isHidden = false;
+
     /** 콤마 구분 참가자 ID 명단 (조회 단순화를 위해 정규화하지 않는다). */
     @Column(name = "JOINED_USERS", length = 2000)
     @Builder.Default
