@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -86,6 +86,16 @@ export default function SignupPage() {
     phoneNumber: "",
     authCode: "",
   });
+
+  /**
+   * v2.20 — 봇 차단 honeypot.
+   *
+   * <p>가벼운 봇은 모든 input 을 채워서 제출한다. 시각적으로 숨긴 honeypot 필드 (실제 사용자는
+   * 채울 수 없음) 가 비어 있으면 사람, 채워져 있으면 봇으로 간주. 외부 reCAPTCHA 없이도 일반
+   * 봇 90% 차단 가능. 정교한 봇은 못 막지만 외부 의존성 0 으로 가장 가벼운 트레이드오프.
+   */
+  const [honeypot, setHoneypot] = useState("");
+  const formMountAtRef = useRef<number>(Date.now());
 
   const [showPassword, setShowPassword] = useState(false);
   const [showPasswordConfirm, setShowPasswordConfirm] = useState(false);
@@ -252,6 +262,17 @@ export default function SignupPage() {
       });
       return;
     }
+    // v2.20 — 봇 차단 honeypot.
+    //  1. 숨김 필드가 채워져 있으면 봇 (사람은 못 봄)
+    //  2. 폼 mount 부터 3초 미만이면 봇 (사람은 입력에 최소 수십 초)
+    if (honeypot.length > 0 || Date.now() - formMountAtRef.current < 3000) {
+      // 메시지 노출 없이 조용히 실패 처리 — 진짜 봇이면 실패 사실 자체를 숨김.
+      await Swal.fire({
+        icon: "info",
+        title: "잠시 후 다시 시도해 주세요",
+      });
+      return;
+    }
     try {
       const res = await apiFetch("/api/v1/auth/signup", {
         method: "POST",
@@ -322,6 +343,18 @@ export default function SignupPage() {
       )}
 
       <div className="w-full max-w-[460px] md:max-w-[540px] space-y-5">
+        {/* v2.20 — Honeypot 봇 차단 필드 (시각적으로 숨김, autocomplete 차단). 사람은 못 채움. */}
+        <input
+          type="text"
+          name="company-website"
+          tabIndex={-1}
+          autoComplete="off"
+          value={honeypot}
+          onChange={(e) => setHoneypot(e.target.value)}
+          className="absolute -left-[9999px] w-0 h-0 opacity-0 pointer-events-none"
+          aria-hidden="true"
+        />
+
         {/* 이메일 */}
         <Field
           label={<span className="text-cream-200/70">이메일 (아이디)</span>}
