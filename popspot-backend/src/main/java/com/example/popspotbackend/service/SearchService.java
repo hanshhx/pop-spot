@@ -20,9 +20,8 @@ import org.springframework.stereotype.Service;
  *
  * <p>키 미설정 / 형식 오류 시 graceful 하게 비활성화되어 백엔드 부팅을 막지 않는다.
  *
- * <p>v2.13 부터 인덱싱 시점에 "AUTO_PUBLISHED 또는 APPROVED + confidence ≥ 임계값" row 만
- * 인덱싱하도록 가드한다. 정확도 낮은 row 가 SearchBox 에 노출되던 문제를 백엔드 단에서 차단.
- * 만료/검수 대기 row 는 인덱스에 올라가지 않으므로 프론트 추가 분기 없이도 자동으로 가려진다.
+ * <p>v2.13 부터 인덱싱 시점에 "AUTO_PUBLISHED 또는 APPROVED + confidence ≥ 임계값" row 만 인덱싱하도록 가드한다. 정확도 낮은 row
+ * 가 SearchBox 에 노출되던 문제를 백엔드 단에서 차단. 만료/검수 대기 row 는 인덱스에 올라가지 않으므로 프론트 추가 분기 없이도 자동으로 가려진다.
  */
 @Slf4j
 @Service
@@ -72,8 +71,8 @@ public class SearchService {
     }
 
     /**
-     * DB → Algolia 전체 동기화. v2.13 부터 인덱싱 가능 row 만 push 하고, 그 외 row 는 인덱스에서
-     * 명시 삭제한다 (옛 garbage cleanup).
+     * DB → Algolia 전체 동기화. v2.13 부터 인덱싱 가능 row 만 push 하고, 그 외 row 는 인덱스에서 명시 삭제한다 (옛 garbage
+     * cleanup).
      */
     public int syncAllPopups() {
         if (!enabled) {
@@ -105,10 +104,7 @@ public class SearchService {
         return indexable.size();
     }
 
-    /**
-     * 신규 또는 갱신된 팝업 1건 push. 인덱싱 가능 여부 검증 후, 부적격이면 인덱스에서 삭제까지
-     * 처리한다 (예: 검수에서 REJECTED 로 바뀐 row).
-     */
+    /** 신규 또는 갱신된 팝업 1건 push. 인덱싱 가능 여부 검증 후, 부적격이면 인덱스에서 삭제까지 처리한다 (예: 검수에서 REJECTED 로 바뀐 row). */
     public void addPopup(PopupStore popup) {
         if (!enabled) return;
         String id = String.valueOf(popup.getId());
@@ -128,9 +124,7 @@ public class SearchService {
     /* ============================== 인덱싱 정책 ============================== */
 
     private boolean isIndexable(PopupStore popup) {
-        return passesReviewStatus(popup)
-                && passesStatus(popup)
-                && passesConfidence(popup);
+        return passesReviewStatus(popup) && passesStatus(popup) && passesConfidence(popup);
     }
 
     private boolean passesReviewStatus(PopupStore popup) {

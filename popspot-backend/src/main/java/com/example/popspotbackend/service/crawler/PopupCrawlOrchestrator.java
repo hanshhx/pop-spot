@@ -48,8 +48,8 @@ public class PopupCrawlOrchestrator {
             Set.of("FASHION", "FOOD", "CULTURE", "CHARACTER", "BEAUTY", "TECH", "ETC");
 
     /**
-     * 서울 한정 다각도 검색 키워드. 구체적인 브랜드/지역명을 섞어 정확도 ↑. v2.13 부터 80+ 개로
-     * 확장 — 정확도 임계값은 그대로 유지하면서 다양성을 늘려 자동게시 통과 row 수를 끌어올림.
+     * 서울 한정 다각도 검색 키워드. 구체적인 브랜드/지역명을 섞어 정확도 ↑. v2.13 부터 80+ 개로 확장 — 정확도 임계값은 그대로 유지하면서 다양성을 늘려
+     * 자동게시 통과 row 수를 끌어올림.
      */
     private static final List<String> SEARCH_KEYWORDS =
             List.of(
@@ -345,7 +345,10 @@ public class PopupCrawlOrchestrator {
         try {
             searchService.addPopup(saved);
         } catch (Exception e) {
-            log.warn("[PopupCrawlOrchestrator] Algolia 동기화 실패 id={} err={}", saved.getId(), e.toString());
+            log.warn(
+                    "[PopupCrawlOrchestrator] Algolia 동기화 실패 id={} err={}",
+                    saved.getId(),
+                    e.toString());
         }
     }
 

@@ -51,13 +51,12 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Spring Security 6.x 부터 {@code @PreAuthorize} 거부 시 던지는 새 예외 타입. 옛
-     * {@link AccessDeniedException} 과 의미는 같지만 클래스 위치가 다르다.
+     * Spring Security 6.x 부터 {@code @PreAuthorize} 거부 시 던지는 새 예외 타입. 옛 {@link
+     * AccessDeniedException} 과 의미는 같지만 클래스 위치가 다르다.
      *
-     * <p>v2.13.3: 일반 유저가 어드민 엔드포인트 (대시보드 / 메트릭 / SSE 로그) 를 호출하면 매 요청마다
-     * 100+ 줄 stack trace 가 Tomcat 단까지 propagate 되어 운영 로그 / Sentry 가 도배되던 문제 해결.
-     * 본 핸들러가 잡아 한 줄 WARN + 403 응답으로 단순화한다. SSE/비동기 응답이 이미 commit 된 후
-     * 발생하던 "response already committed" 후속 에러도 함께 해소.
+     * <p>v2.13.3: 일반 유저가 어드민 엔드포인트 (대시보드 / 메트릭 / SSE 로그) 를 호출하면 매 요청마다 100+ 줄 stack trace 가 Tomcat
+     * 단까지 propagate 되어 운영 로그 / Sentry 가 도배되던 문제 해결. 본 핸들러가 잡아 한 줄 WARN + 403 응답으로 단순화한다. SSE/비동기
+     * 응답이 이미 commit 된 후 발생하던 "response already committed" 후속 에러도 함께 해소.
      */
     @ExceptionHandler(AuthorizationDeniedException.class)
     public ResponseEntity<Map<String, Object>> handleAuthorizationDenied(
