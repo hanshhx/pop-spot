@@ -87,6 +87,10 @@ public class User {
     @Column(name = "BOOST_PERIOD", length = 7)
     private String boostPeriod;
 
+    /** v2.19 — 사용자가 마지막으로 동의한 약관 버전. 현재 버전과 다르면 재동의 강제. */
+    @Column(name = "AGREED_TERMS_VERSION", length = 10)
+    private String agreedTermsVersion;
+
     @Column(name = "STAMP_COUNT", nullable = false, columnDefinition = "integer default 0")
     @Builder.Default
     private int stampCount = 0;
