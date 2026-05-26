@@ -124,8 +124,8 @@ public class AuthService {
     }
 
     /**
-     * v2.17 — 잠금 검사. {@link #LOGIN_MAX_ATTEMPTS} 회 연속 실패 시 {@link #LOGIN_LOCK_MINUTES}
-     * 분 동안 잠금. 잠금이 만료되면 카운터를 0 으로 리셋.
+     * v2.17 — 잠금 검사. {@link #LOGIN_MAX_ATTEMPTS} 회 연속 실패 시 {@link #LOGIN_LOCK_MINUTES} 분 동안 잠금. 잠금이
+     * 만료되면 카운터를 0 으로 리셋.
      */
     private void ensureNotLocked(String email) {
         if (email == null) return;

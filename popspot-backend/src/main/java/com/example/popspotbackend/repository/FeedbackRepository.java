@@ -25,6 +25,5 @@ public interface FeedbackRepository extends JpaRepository<Feedback, Long> {
 
     /** v2.17 — SLA 알림용. 지정 상태 + cutoff 시각 이전 (= 더 오래된) row 카운트. */
     @Query("SELECT COUNT(f) FROM Feedback f WHERE f.status = :status AND f.createdAt < :cutoff")
-    long countOlderThan(
-            @Param("status") String status, @Param("cutoff") LocalDateTime cutoff);
+    long countOlderThan(@Param("status") String status, @Param("cutoff") LocalDateTime cutoff);
 }

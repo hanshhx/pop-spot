@@ -18,8 +18,8 @@ import lombok.Setter;
 /**
  * 사용자가 운영팀에 보낸 의견 한 건.
  *
- * <p>{@code userId} 는 비로그인 사용자가 보낼 때 NULL 이며, 이 경우 답신을 받고 싶으면
- * {@code guestEmail} 을 채워 보낸다. 상태는 어드민이 직접 갱신한다.
+ * <p>{@code userId} 는 비로그인 사용자가 보낼 때 NULL 이며, 이 경우 답신을 받고 싶으면 {@code guestEmail} 을 채워 보낸다. 상태는 어드민이
+ * 직접 갱신한다.
  */
 @Entity
 @Getter
@@ -32,7 +32,10 @@ public class Feedback {
 
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "feedback_generator")
-    @SequenceGenerator(name = "feedback_generator", sequenceName = "feedback_seq", allocationSize = 1)
+    @SequenceGenerator(
+            name = "feedback_generator",
+            sequenceName = "feedback_seq",
+            allocationSize = 1)
     @Column(name = "ID")
     private Long id;
 

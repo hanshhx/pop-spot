@@ -18,8 +18,8 @@ import org.springframework.stereotype.Component;
 /**
  * v2.17 — PostgreSQL 자동 백업 cron.
  *
- * <p>매일 03:00 KST 에 {@code pg_dump} 를 ProcessBuilder 로 호출해 {@code backups/} 폴더에
- * 압축 파일 (.sql.gz) 로 저장한다. 7일 보관 후 자동 삭제.
+ * <p>매일 03:00 KST 에 {@code pg_dump} 를 ProcessBuilder 로 호출해 {@code backups/} 폴더에 압축 파일 (.sql.gz) 로
+ * 저장한다. 7일 보관 후 자동 삭제.
  *
  * <p>설정 키:
  *
@@ -31,8 +31,8 @@ import org.springframework.stereotype.Component;
  *   <li>{@code popspot.backup.pg-dump-path} — pg_dump 실행 경로 (기본 PATH 안)
  * </ul>
  *
- * <p>운영 환경에서는 본 백업과 별개로 NAS / Proxmox 의 시스템 백업 (스냅샷 / RAID) 을 함께
- * 운영할 것을 권장. 본 cron 은 application-level 백업 (논리 dump) 이라 빠른 복구에 유리.
+ * <p>운영 환경에서는 본 백업과 별개로 NAS / Proxmox 의 시스템 백업 (스냅샷 / RAID) 을 함께 운영할 것을 권장. 본 cron 은
+ * application-level 백업 (논리 dump) 이라 빠른 복구에 유리.
  */
 @Slf4j
 @Component
@@ -87,8 +87,7 @@ public class DatabaseBackupScheduler {
     private File runPgDump() throws IOException, InterruptedException {
         ensureBackupDirExists();
         String timestamp = LocalDateTime.now().format(TIMESTAMP_FORMAT);
-        File outputFile =
-                new File(backupDir, BACKUP_FILE_PREFIX + timestamp + BACKUP_FILE_SUFFIX);
+        File outputFile = new File(backupDir, BACKUP_FILE_PREFIX + timestamp + BACKUP_FILE_SUFFIX);
 
         String dbName = extractDatabaseName(datasourceUrl);
         String dbHost = extractHost(datasourceUrl);
@@ -111,7 +110,8 @@ public class DatabaseBackupScheduler {
         pb.redirectErrorStream(true);
 
         Process process = pb.start();
-        boolean finished = process.waitFor(PROCESS_TIMEOUT_SECONDS, java.util.concurrent.TimeUnit.SECONDS);
+        boolean finished =
+                process.waitFor(PROCESS_TIMEOUT_SECONDS, java.util.concurrent.TimeUnit.SECONDS);
         if (!finished) {
             process.destroyForcibly();
             throw new IOException("pg_dump 타임아웃 (30분 초과)");
@@ -128,8 +128,7 @@ public class DatabaseBackupScheduler {
         File[] files = dir.listFiles((d, name) -> name.startsWith(BACKUP_FILE_PREFIX));
         if (files == null) return;
 
-        long cutoff =
-                System.currentTimeMillis() - retentionDays * 24L * 60 * 60 * 1000;
+        long cutoff = System.currentTimeMillis() - retentionDays * 24L * 60 * 60 * 1000;
         Arrays.stream(files)
                 .filter(f -> f.lastModified() < cutoff)
                 .sorted(Comparator.comparingLong(File::lastModified))
@@ -151,9 +150,7 @@ public class DatabaseBackupScheduler {
         }
     }
 
-    /**
-     * jdbc:postgresql://host:port/dbname → dbname.
-     */
+    /** jdbc:postgresql://host:port/dbname → dbname. */
     private String extractDatabaseName(String url) {
         if (url == null) return "";
         int lastSlash = url.lastIndexOf('/');
@@ -190,9 +187,7 @@ public class DatabaseBackupScheduler {
         return value.replace("'", "'\\''");
     }
 
-    /**
-     * Mover 메서드가 실제로 호출되었는지 단위 테스트에서 검증할 때 사용. 운영에서는 호출 안 함.
-     */
+    /** Mover 메서드가 실제로 호출되었는지 단위 테스트에서 검증할 때 사용. 운영에서는 호출 안 함. */
     @SuppressWarnings("unused")
     void moveFileForTesting(Path src, Path dest) throws IOException {
         Files.move(src, dest, StandardCopyOption.REPLACE_EXISTING);

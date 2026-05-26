@@ -8,8 +8,7 @@ import lombok.Data;
 /**
  * 의견 보내기 작성 요청.
  *
- * <p>로그인 사용자는 userId 가 토큰에서 채워지므로 본 DTO 에 담지 않는다. 게스트는 답신용 이메일을
- * 선택 입력으로 채울 수 있고, 입력 시 형식 검증만 수행한다.
+ * <p>로그인 사용자는 userId 가 토큰에서 채워지므로 본 DTO 에 담지 않는다. 게스트는 답신용 이메일을 선택 입력으로 채울 수 있고, 입력 시 형식 검증만 수행한다.
  */
 @Data
 public class FeedbackCreateRequestDto {

@@ -7,15 +7,14 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
  * Algolia 검색 인덱스 동기화 트리거.
  *
- * <p>v2.13: 정확도 / 유효 가드를 인덱싱 시점에 적용하도록 정책을 강화했고, 옛 인덱스에 들어가 있는
- * 부적격 row 를 한 번에 청소하려면 {@code POST /api/admin/search/reindex} 를 호출한다. 그 외 옛
- * {@code GET /api/search/sync} 경로도 호환을 위해 유지하지만 동일 동작이며 ADMIN 가드가 적용된다.
+ * <p>v2.13: 정확도 / 유효 가드를 인덱싱 시점에 적용하도록 정책을 강화했고, 옛 인덱스에 들어가 있는 부적격 row 를 한 번에 청소하려면 {@code POST
+ * /api/admin/search/reindex} 를 호출한다. 그 외 옛 {@code GET /api/search/sync} 경로도 호환을 위해 유지하지만 동일 동작이며
+ * ADMIN 가드가 적용된다.
  */
 @RestController
 @RequiredArgsConstructor

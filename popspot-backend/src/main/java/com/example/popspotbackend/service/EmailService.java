@@ -62,8 +62,7 @@ public class EmailService {
     /**
      * v2.17 — SLA / 운영 알림 등 임의 텍스트 메일 발송. 인증번호와 분리해 운영 알림 용도로만 사용.
      *
-     * <p>실패 시 IllegalStateException 으로 격상하지 않고 false 만 반환 — 알림 실패가 cron 전체를
-     * 중단시키지 않게.
+     * <p>실패 시 IllegalStateException 으로 격상하지 않고 false 만 반환 — 알림 실패가 cron 전체를 중단시키지 않게.
      */
     public boolean sendNotification(String toEmail, String subject, String plainTextBody) {
         if (toEmail == null || toEmail.isBlank()) {

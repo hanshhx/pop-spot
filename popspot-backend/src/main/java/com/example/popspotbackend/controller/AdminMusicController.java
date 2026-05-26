@@ -12,8 +12,8 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * v2.14 — 음악 캐시 운영용 어드민 API.
  *
- * <p>{@code POST /api/admin/music/refresh-covers} — cover / live / remix 의심 row 의 캐시된 youtube
- * id 를 일괄 초기화한다. 다음 재생 시 v2.14 새 필터로 다시 매칭되어 공식 음원만 박힌다.
+ * <p>{@code POST /api/admin/music/refresh-covers} — cover / live / remix 의심 row 의 캐시된 youtube id 를
+ * 일괄 초기화한다. 다음 재생 시 v2.14 새 필터로 다시 매칭되어 공식 음원만 박힌다.
  */
 @RestController
 @RequestMapping("/api/admin/music")

@@ -9,9 +9,8 @@ import org.springframework.stereotype.Component;
 /**
  * 자동수집 cron job.
  *
- * <p>v2.13 부터 하루 2회 실행 (04:00 + 16:00 KST). 정확도 임계값은 그대로 유지하면서 새로 등장한
- * 팝업을 빨리 캐치해 지도 반영 건수를 늘린다. cron 표현식 / 임계값 / 자동게시 상한은 모두
- * {@code application.properties} 에서 덮어쓸 수 있다.
+ * <p>v2.13 부터 하루 2회 실행 (04:00 + 16:00 KST). 정확도 임계값은 그대로 유지하면서 새로 등장한 팝업을 빨리 캐치해 지도 반영 건수를 늘린다.
+ * cron 표현식 / 임계값 / 자동게시 상한은 모두 {@code application.properties} 에서 덮어쓸 수 있다.
  *
  * <p>설정 키:
  *
@@ -43,10 +42,7 @@ public class PopupCrawlScheduler {
         runIfEnabled("afternoon");
     }
 
-    /**
-     * 좌표 누락된 자동수집 row 일괄 백필. 매일 04:30 — 본 수집 직후라 새로 들어온 row 중 좌표가
-     * 빠진 것들을 따로 채워 지도 노출량을 늘린다.
-     */
+    /** 좌표 누락된 자동수집 row 일괄 백필. 매일 04:30 — 본 수집 직후라 새로 들어온 row 중 좌표가 빠진 것들을 따로 채워 지도 노출량을 늘린다. */
     @Scheduled(cron = "${popspot.crawler.geocode-backfill-cron:0 30 4 * * *}", zone = "Asia/Seoul")
     public void scheduledGeocodeBackfill() {
         if (!enabled) {
