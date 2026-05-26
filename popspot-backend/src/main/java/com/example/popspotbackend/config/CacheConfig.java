@@ -12,20 +12,15 @@ import org.springframework.context.annotation.Configuration;
 /**
  * v2.19 — Caffeine in-memory 캐시 설정. v2.20.1 — 실제 wiring 적용.
  *
- * <p>자주 호출되는 GET 응답을 5분 캐싱해 DB 부하 ↓. 인증 / 검수 / 실시간 데이터는 캐싱 안 함 —
- * stale 응답이 사용자 경험에 직격타가 되므로.
+ * <p>자주 호출되는 GET 응답을 5분 캐싱해 DB 부하 ↓. 인증 / 검수 / 실시간 데이터는 캐싱 안 함 — stale 응답이 사용자 경험에 직격타가 되므로.
  *
  * <p>캐시 이름 / 정책:
  *
  * <ul>
- *   <li>{@code popups-visible} — 지도용 노출 가능 팝업 (5분). 어드민 쓰기 시 evict. {@code
- *       PopupStoreService#findVisibleMapMarkers} 에 적용
- *   <li>{@code popups-hot} — 인기 팝업 (5분). 어드민 쓰기 시 evict. v2.21 DTO 변환 후 적용 예정 —
- *       현재는 evict 만 wired (Jackson lazy 직렬화 위험으로 보류)
- *   <li>{@code popup-detail} — 팝업 상세 (10분). v2.21 viewCount 비동기화 후 적용 예정 — 현재는
- *       부수효과(viewCount++) 때문에 미적용
- *   <li>{@code mypage} — 사용자 마이페이지 요약 (1분). v2.21 premium 만료 lazy expire 분리 후 적용
- *       예정 — 현재는 부수효과 때문에 미적용
+ *   <li>{@code popups-visible} — 지도용 노출 가능 팝업 (5분). 어드민 쓰기 시 evict. PopupStoreService#findVisibleMapMarkers 에 적용.
+ *   <li>{@code popups-hot} — 인기 팝업 (5분). 어드민 쓰기 시 evict. v2.21 DTO 변환 후 적용 예정 — 현재는 evict 만 wired (Jackson lazy 직렬화 위험 보류).
+ *   <li>{@code popup-detail} — 팝업 상세 (10분). v2.21 viewCount 비동기화 후 적용 예정 — 현재는 부수효과(viewCount++) 때문에 미적용.
+ *   <li>{@code mypage} — 사용자 마이페이지 요약 (1분). v2.21 premium 만료 lazy expire 분리 후 적용 예정 — 현재는 부수효과 때문에 미적용.
  * </ul>
  *
  * <p>운영 환경에서 캐시가 부담스러우면 {@code spring.cache.type=none} 으로 비활성 가능.
@@ -43,11 +38,7 @@ public class CacheConfig {
     public CacheManager cacheManager() {
         CaffeineCacheManager manager = new CaffeineCacheManager();
         manager.setCacheNames(
-                List.of(
-                        CACHE_POPUPS_VISIBLE,
-                        CACHE_POPUPS_HOT,
-                        CACHE_POPUP_DETAIL,
-                        CACHE_MYPAGE));
+                List.of(CACHE_POPUPS_VISIBLE, CACHE_POPUPS_HOT, CACHE_POPUP_DETAIL, CACHE_MYPAGE));
         manager.setCaffeine(
                 Caffeine.newBuilder()
                         .expireAfterWrite(5, TimeUnit.MINUTES)
