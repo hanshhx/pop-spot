@@ -682,7 +682,7 @@ export default function IntroPage() {
             >
               오늘도 새로운 팝업이 서울 어딘가에서 열리고 있어요.
               <br className="hidden sm:inline" />
-              POP-SPOT 과 함께 가장 먼저 만나보세요.
+              POP-SPOT 에서 한 화면에 모아 봅니다.
             </p>
 
             <div className="mt-10 flex flex-col items-center gap-3 sm:flex-row sm:justify-center sm:gap-4">

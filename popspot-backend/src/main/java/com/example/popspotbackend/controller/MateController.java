@@ -75,6 +75,18 @@ public class MateController {
         return ResponseEntity.ok(RESPONSE_DELETE_SUCCESS);
     }
 
+    /**
+     * v2.18.1 — 게시글 신고. 임계값 도달 시 자동 isHidden. 본인 글 신고는 거부.
+     *
+     * <p>응답으로 누적 신고 수를 돌려줘 프론트가 사용자에게 "n번째 신고가 접수됐습니다" 안내 가능.
+     */
+    @PostMapping("/{id}/report")
+    public ResponseEntity<java.util.Map<String, Object>> reportPost(
+            @PathVariable Long id, @RequestParam String userId) {
+        int reportCount = mateService.reportPost(id, userId);
+        return ResponseEntity.ok(java.util.Map.of("status", "REPORTED", "reportCount", reportCount));
+    }
+
     /* ============================== 도메인 예외 → HTTP 매핑 ============================== */
 
     @ExceptionHandler(BoostQuotaExceededException.class)

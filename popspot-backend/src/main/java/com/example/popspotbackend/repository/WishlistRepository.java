@@ -5,6 +5,8 @@ import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 public interface WishlistRepository extends JpaRepository<Wishlist, Long> {
 
@@ -21,4 +23,14 @@ public interface WishlistRepository extends JpaRepository<Wishlist, Long> {
 
     // 🔥 [22번 임의 수정] 찜 개수 역시 전체 데이터를 가져오지 않고 DB에서 숫자만 카운트합니다.
     int countByUser_UserId(String userId);
+
+    /**
+     * v2.18.1 — 위시 만료 D-3 알림 cron 용.
+     *
+     * <p>특정 ISO 날짜 (yyyy-MM-dd) 에 종료되는 팝업을 찜한 모든 위시리스트 + 사용자 정보를 한
+     * 번에 가져온다. EntityGraph 로 popupStore + user 까지 fetch — 메일 발송 시 LazyInit 방지.
+     */
+    @EntityGraph(attributePaths = {"popupStore", "user"})
+    @Query("SELECT w FROM Wishlist w WHERE w.popupStore.endDate = :targetDate")
+    List<Wishlist> findWithUserAndPopupByEndDate(@Param("targetDate") String targetDate);
 }

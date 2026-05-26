@@ -43,6 +43,20 @@ interface MapMarkerData {
 const CATEGORIES = ["ALL", "CHARACTER", "FASHION", "BEAUTY", "FOOD", "CULTURE", "ETC"];
 
 /**
+ * v2.18.1 — 사용자 표시용 한국어 라벨. 카테고리 값은 영문(DB 매칭) 그대로 두고
+ * UI 만 한글로 바꿔 가독성 ↑.
+ */
+const CATEGORY_LABEL_KO: Record<string, string> = {
+  ALL: "전체",
+  CHARACTER: "캐릭터",
+  FASHION: "패션",
+  BEAUTY: "뷰티",
+  FOOD: "푸드",
+  CULTURE: "문화",
+  ETC: "기타",
+};
+
+/**
  * 같은 좌표(같은 빌딩 등)에 박힌 마커들을 작은 원형으로 분산시킨다.
  * 자동수집 geocoding 결과 동일 좌표가 자주 발생해서 시각적으로 1개만 보이는 문제를 해결.
  *
@@ -217,7 +231,7 @@ export default function InteractiveMap({ places, showPath = false, center, mode 
                     : 'bg-black/40 text-white/70 border-white/10 hover:bg-white/10'
                 }`}
               >
-                {cat}
+                {CATEGORY_LABEL_KO[cat] ?? cat}
               </button>
             ))}
           </div>

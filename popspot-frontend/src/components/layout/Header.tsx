@@ -1,11 +1,13 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { LogOut, ShieldCheck, Megaphone, Crown, User as UserIcon, Search } from "lucide-react";
+import { LogOut, ShieldCheck, Megaphone, Crown, User as UserIcon, Search, Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import ThemeToggle from "@/components/ThemeToggle";
+import { unreadCount as readUnread } from "@/lib/notifications";
 import { cn } from "@/lib/utils";
 
 export interface HeaderUser {
@@ -26,6 +28,8 @@ interface HeaderProps {
   onProfileClick?: () => void;
   /** v2.18 — 글로벌 검색 모달 열기. */
   onSearchClick?: () => void;
+  /** v2.18.1 — 알림 센터 모달 열기. */
+  onBellClick?: () => void;
   subtitle?: string;
   className?: string;
 }
@@ -43,9 +47,19 @@ export function Header({
   onLogoClick,
   onProfileClick,
   onSearchClick,
+  onBellClick,
   subtitle = "Seoul Popup Store Intelligence",
   className,
 }: HeaderProps) {
+  // v2.18.1 — 미확인 알림 개수 (localStorage 기반).
+  const [unread, setUnread] = useState(0);
+  useEffect(() => {
+    const sync = () => setUnread(readUnread());
+    sync();
+    window.addEventListener("popspot:notifications-changed", sync);
+    return () =>
+      window.removeEventListener("popspot:notifications-changed", sync);
+  }, []);
   const isAdmin = user?.role?.includes("ADMIN");
 
   return (
@@ -86,6 +100,28 @@ export function Header({
           >
             <Search className="size-4" aria-hidden />
           </Button>
+        )}
+
+        {onBellClick && (
+          <button
+            type="button"
+            onClick={onBellClick}
+            aria-label={unread > 0 ? `알림 ${unread}건` : "알림"}
+            className={cn(
+              "relative inline-flex items-center justify-center h-10 w-10 rounded-pill",
+              "text-foreground hover:bg-foreground/5 transition-colors"
+            )}
+          >
+            <Bell className="size-4" aria-hidden />
+            {unread > 0 && (
+              <span
+                className="absolute top-1.5 right-1.5 min-w-[16px] h-[16px] px-1 rounded-full bg-hot-400 text-white text-[9px] font-black flex items-center justify-center"
+                aria-hidden
+              >
+                {unread > 9 ? "9+" : unread}
+              </span>
+            )}
+          </button>
         )}
 
         {user && onReportClick && (
