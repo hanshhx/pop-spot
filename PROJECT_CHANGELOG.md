@@ -10060,3 +10060,176 @@ npm run build
 - **검색 노출 후 모니터링**: 인덱싱된 페이지 수 / 검색 노출 키워드를 어드민 대시보드 카드로 (서치콘솔 API 연동 필요)
 - **다국어 — `hreflang` 태그**: 영문 페이지 추가 시
 
+---
+
+# 28. v2.17 — 운영 출시 직전 종합 핫픽스 (1차 라운드 12개 항목)
+
+> 출시 종합 점검에서 진단된 55개 개선점 중 **가장 시급한 12개 항목** 묶음. 회원 탈퇴 + DB 자동 백업 + SLA 알림 + 보안 헤더 + SEO + 모바일 UI + 푸터 톤. 이후 v2.18 ~ v2.20 으로 단계적 추가.
+
+## 28.1 묶음 매트릭스
+
+| 영역 | 항목 | 효과 |
+|---|---|---|
+| **H4** 컴플라이언스 | 회원 탈퇴 API + UI (2단계 확인) | PIPA § 17 권리 보장 |
+| **D1** 운영 안정성 | PostgreSQL 자동 백업 cron (매일 03:00) | DB 사고 시 복구 |
+| **D3+D4** 모니터링 | Takedown / Feedback 24h SLA 알림 (매시간) | 약관 §11 + v2.11 약속 추적 |
+| **E2** 보안 | CSP / X-Frame / Permissions-Policy / HSTS | XSS / clickjacking 차단 |
+| **E5** 보안 | 로그인 5회 실패 → 15분 잠금 | brute-force 방어 |
+| **C1** SEO | JSON-LD (WebSite + Organization) | sitelinks search box |
+| **C2** SEO | 페이지별 metadata (4 페이지) | 검색 결과 풍부도 |
+| **C3** SEO | canonical URL | 중복 콘텐츠 방지 |
+| **B1** UI | 모바일 BottomDock 가로 스크롤 | 7탭 좁아짐 해소 |
+| **B7** UI | 모바일 헤더 UserChip 노출 (아바타만) | 모바일 프로필 편집 진입 |
+| **B14** UI | 푸터 "포트폴리오" → "정보 안내" | 운영 톤 정상화 |
+| **H3** 컴플라이언스 | privacy DPO 박스 강조 | 개인정보보호책임자 명시 |
+
+## 28.2 회원 탈퇴 (H4 / 핵심 컴플라이언스)
+
+### 백엔드 — `UserProfileController.deleteMe`
+- `DELETE /api/v1/users/me`
+- 식별 정보 즉시 익명화 (이메일 / 닉네임 / 휴대전화 / 사진)
+- 비밀번호 사용 불가 토큰으로 → 재로그인 차단
+- 작성 게시물 / 코스 / 위시리스트는 데이터 무결성 유지 (닉네임만 익명)
+- 30일 후 영구 삭제는 별도 cron 으로 확장 가능
+
+### 프론트 — MY 탭 "내 계정" 카드 우측 하단 "회원 탈퇴" 텍스트 링크
+- **2단계 확인**: "정말 탈퇴할까요?" → "마지막 확인"
+- 성공 시 localStorage / sessionStorage 정리 → `/intro` 리다이렉트
+
+## 28.3 DB 자동 백업 (D1)
+
+신규 `service/backup/DatabaseBackupScheduler.java`:
+- 매일 03:00 KST cron
+- ProcessBuilder 로 `pg_dump | gzip > backups/popspot-{timestamp}.sql.gz`
+- 7일 보관 후 자동 삭제
+- 30분 timeout
+- 운영 환경에서만 `POPSPOT_BACKUP_ENABLED=true`
+
+```properties
+popspot.backup.enabled=${POPSPOT_BACKUP_ENABLED:false}
+popspot.backup.cron=${POPSPOT_BACKUP_CRON:0 0 3 * * *}
+popspot.backup.dir=${POPSPOT_BACKUP_DIR:./backups}
+popspot.backup.retention-days=${POPSPOT_BACKUP_RETENTION_DAYS:7}
+popspot.backup.pg-dump-path=${POPSPOT_PG_DUMP_PATH:pg_dump}
+```
+
+운영 NAS 의 시스템 백업 (Proxmox 스냅샷 / RAID) 과 함께 운영 권장.
+
+## 28.4 SLA 24h 알림 (D3 + D4)
+
+신규 `service/sla/SlaNotificationScheduler.java`:
+- 매시간 cron
+- `Feedback.countOlderThan("PENDING", now - 24h)`
+- `PopupStore.countTakedownOlderThan(now - 24h)`
+- 둘 중 하나라도 0 이 아니면 운영 메일 알림
+- 수신처 비어 있으면 자동 비활성
+
+신규 `EmailService.sendNotification(to, subject, body)` — 인증번호와 분리. 발송 실패 시 false 반환 (cron 중단 X).
+
+```properties
+popspot.sla.notify-email=${POPSPOT_SLA_NOTIFY_EMAIL:}
+popspot.sla.cron=${POPSPOT_SLA_CRON:0 0 * * * *}
+```
+
+## 28.5 보안 헤더 + 로그인 잠금 (E2 + E5)
+
+### 프론트 `next.config.ts` headers()
+- CSP: 외부 OAuth / Kakao Map SDK / Algolia / YouTube / Spotify embed 화이트리스트
+- X-Frame-Options: SAMEORIGIN
+- X-Content-Type-Options: nosniff
+- Referrer-Policy: strict-origin-when-cross-origin
+- Permissions-Policy: geolocation self, 마이크/카메라/결제 차단
+- HSTS: 1년
+
+### 백엔드 `AuthService.login`
+- `ConcurrentHashMap` 으로 email 별 실패 횟수 추적 (process-local)
+- 5회 실패 → 15분 잠금
+- 잠금 메시지: "로그인 시도가 너무 많습니다. N분 후 다시 시도해 주세요."
+- 잠금 만료 후 자동 리셋
+- 성공 시 카운터 즉시 초기화
+
+## 28.6 SEO 보강 (C1 + C2 + C3)
+
+### JSON-LD (`app/layout.tsx` `<head>`)
+WebSite + Organization 스키마. sitelinks search box 노출 가능.
+
+### 페이지별 metadata
+- `app/about/layout.tsx` — "서비스 소개"
+- `app/terms/layout.tsx` — "이용약관"
+- `app/privacy/layout.tsx` — "개인정보 처리방침"
+- `app/intro/layout.tsx` — "시작하기"
+
+각각 description / openGraph (article/website) / canonical URL.
+
+### root layout
+- canonical: `https://popspot.co.kr`
+- twitter: summary_large_image
+- openGraph: url + siteName
+
+## 28.7 모바일 UI (B1 + B7)
+
+### BottomDock
+- `overflow-x-auto md:overflow-visible` — 모바일은 가로 스크롤
+- 스크롤바 숨김 (`[&::-webkit-scrollbar]:hidden`)
+- 버튼 너비 `w-10` → `w-11`
+- 데스크탑 변화 없음
+
+### Header UserChip
+- `hidden md:inline-flex` → `inline-flex` — 모바일에도 노출
+- 닉네임 / PRO 뱃지는 `hidden md:inline` 으로 모바일 숨김 → **모바일은 아바타만**
+- 작은 아바타 탭으로 프로필 편집 모달 진입
+
+## 28.8 푸터 + DPO (B14 + H3)
+
+### Footer DisclaimerBox
+- 헤드라인: "[포트폴리오 안내] 본 사이트는 상업적 목적이 없는 개인 개발용..." → **"[정보 안내] 서울 팝업스토어 정보를 모아 안내하는 서비스입니다."**
+- 결제 경고 문구 톤 조정 — "처리하지 않는다" 사실 진술
+- "Contact" → **"개인정보 보호 / 권리자 문의"** 명시
+- 카피라이트 "POP-SPOT Portfolio Project" → "POP-SPOT"
+
+### Privacy §11 DPO 강조 박스
+- lime 테두리 박스 안에 DPO 정보 별도 강조
+- 직책 / 대표 연락처 / 응답 시간 3 영업일 명시
+
+## 28.9 변경 파일 (총 18개)
+
+### 백엔드 (2 신규 + 6 수정)
+- `service/backup/DatabaseBackupScheduler.java` 신규
+- `service/sla/SlaNotificationScheduler.java` 신규
+- `controller/UserProfileController.java` — `deleteMe`
+- `service/AuthService.java` — 로그인 잠금
+- `service/EmailService.java` — `sendNotification`
+- `repository/FeedbackRepository.java` — `countOlderThan`
+- `repository/PopupStoreRepository.java` — `countTakedownOlderThan`
+- `application.properties` — backup + sla 설정
+
+### 프론트엔드 (4 신규 + 6 수정)
+- `app/about/layout.tsx`, `terms/layout.tsx`, `privacy/layout.tsx`, `intro/layout.tsx` 4 신규
+- `app/layout.tsx` — JSON-LD + canonical + twitter card
+- `app/page.tsx` — handleDeleteAccount + MY 카드 회원 탈퇴 링크
+- `app/signup/page.tsx` — 다크 컨테이너 주석
+- `app/privacy/page.tsx` — DPO 박스
+- `src/components/layout/Footer.tsx` — DisclaimerBox 톤
+- `src/components/layout/BottomDock.tsx` — 모바일 가로 스크롤
+- `src/components/layout/Header.tsx` — UserChip 모바일 노출
+- `next.config.ts` — 보안 헤더 6개
+
+## 28.10 검증
+
+- 프론트 build 통과 (typecheck exit 0)
+- 백엔드 spotless: sandbox 의 gradle daemon loopback 제한으로 미실행 — 배포 전 운영에서 `./gradlew spotlessCheck build`
+
+운영 체크리스트:
+1. `curl -I https://popspot.co.kr/` → CSP / HSTS / X-Frame 헤더 확인
+2. `curl https://popspot.co.kr/about` → `<title>` + `<script type="application/ld+json">` 확인
+3. 가입 → 로그인 → MY 탭 → 회원 탈퇴 2단계 → 익명화 완료
+4. 로그인 5회 실패 → 15분 잠금 메시지
+5. DB 백업 — 운영에서 `POPSPOT_BACKUP_ENABLED=true` 설정 후 다음 새벽 3시 확인
+6. `POPSPOT_SLA_NOTIFY_EMAIL` 설정 시 다음 시각 cron 에서 미처리 row 알림
+
+## 28.11 후속 라운드 (예정)
+
+- **v2.18 (2차)** — 글로벌 검색 / 지도 카테고리 필터 / 온보딩 / 방문 기록 / 에러 일관성 / 로딩 일관성 / 메이트 신고 / 알림 센터
+- **v2.19 (3차)** — CAPTCHA / Rate Limiting 점검 / API 캐싱 / 통계 대시보드 / 다크모드 토큰화
+- **v2.20 (4차)** — 리뷰 / 다국어 / a11y 전면 / 푸시 알림 / 사용자 행동 분석
+

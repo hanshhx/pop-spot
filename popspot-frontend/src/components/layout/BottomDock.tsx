@@ -47,8 +47,9 @@ const ITEMS: DockItemDef[] = [
 
 /**
  * 화면 하단 고정 네비게이션.
- * - 탭 (MAP/COURSE/PASSPORT/MY/MATE) 은 onTabChange 호출
- * - 상점은 외부 라우트로 이동
+ *
+ * <p>v2.17 — 7개 탭이 모바일에서 너무 좁아지던 문제 해결. 모바일 (md 이하) 에선 **가로 스크롤**
+ * 가능하게 만들어 좁은 화면에서도 모든 탭 접근 가능. 데스크탑은 기존과 동일하게 한 줄 정렬.
  */
 export function BottomDock({ currentTab, onTabChange }: BottomDockProps) {
   return (
@@ -56,15 +57,20 @@ export function BottomDock({ currentTab, onTabChange }: BottomDockProps) {
       aria-label="메인 네비게이션"
       className={cn(
         "fixed bottom-4 md:bottom-6 left-1/2 -translate-x-1/2 z-50",
-        "w-[95%] max-w-[480px] md:w-auto md:max-w-none"
+        "w-[95%] max-w-[520px] md:w-auto md:max-w-none"
       )}
     >
       <div
         className={cn(
-          "flex items-center justify-between md:justify-center gap-1 md:gap-2",
+          "flex items-center gap-1 md:gap-2",
+          // v2.17 — 모바일은 가로 스크롤. 데스크탑은 중앙 정렬.
+          "overflow-x-auto md:overflow-visible",
+          "justify-start md:justify-center",
           "p-2 px-3 md:px-4",
           "rounded-pill border border-[var(--color-border)]",
-          "bg-surface/95 backdrop-blur-md shadow-pop"
+          "bg-surface/95 backdrop-blur-md shadow-pop",
+          // 스크롤바 숨김 — Tailwind 의 scrollbar-none 또는 inline style
+          "[&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
         )}
       >
         {ITEMS.map((item) => (
@@ -97,7 +103,8 @@ function DockButton({ icon: Icon, label, isActive, onClick }: DockButtonProps) {
       aria-label={label}
       className={cn(
         "relative flex flex-col items-center justify-center",
-        "w-10 h-12 md:w-14 md:h-14",
+        // v2.17 — 모바일에서 좁아지지 않도록 11 → 가로 스크롤 + 약간 여유
+        "w-11 h-12 md:w-14 md:h-14",
         "rounded-pill transition-all duration-200 shrink-0 group",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
         isActive

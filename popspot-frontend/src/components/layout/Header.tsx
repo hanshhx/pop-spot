@@ -132,19 +132,21 @@ function UserChip({
         size={26}
       />
       {user.isPremium && (
-        <Badge tone="lime" size="sm" className="px-1.5">
+        <Badge tone="lime" size="sm" className="px-1.5 hidden md:inline-flex">
           <Crown className="size-3" aria-hidden />
           PRO
         </Badge>
       )}
-      <span className="text-sm font-semibold">{user.nickname}</span>
+      {/* v2.17 — 모바일에선 아바타만, 데스크탑부터 닉네임 노출 */}
+      <span className="hidden md:inline text-sm font-semibold">{user.nickname}</span>
     </>
   );
 
   return (
     <div
       className={cn(
-        "hidden md:inline-flex items-center gap-2 pl-1.5 pr-2 py-1",
+        // v2.17 — 모바일에서도 표시. 닉네임은 모바일에서 숨겨 칩 크기 축소.
+        "inline-flex items-center gap-2 pl-1.5 pr-2 py-1",
         "rounded-pill border",
         user.isPremium
           ? "bg-ink-900 text-cream-200 border-ink-900 dark:bg-cream-200 dark:text-ink-900 dark:border-cream-200"
