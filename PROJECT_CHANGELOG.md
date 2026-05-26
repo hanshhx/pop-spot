@@ -10233,3 +10233,52 @@ WebSite + Organization 스키마. sitelinks search box 노출 가능.
 - **v2.19 (3차)** — CAPTCHA / Rate Limiting 점검 / API 캐싱 / 통계 대시보드 / 다크모드 토큰화
 - **v2.20 (4차)** — 리뷰 / 다국어 / a11y 전면 / 푸시 알림 / 사용자 행동 분석
 
+---
+
+# 29. v2.18 ~ v2.20 출시 후 보강 묶음 (요약 인덱스)
+
+> 본 챕터는 출시 후 사용자/운영 피드백을 기반으로 한 보강 작업들의 **요약 색인**. 상세 코드 변경은 git log 와 각 commit body 참고.
+
+## 29.1 v2.18 — 출시 직후 UX 1차
+
+- 공통 UI 컴포넌트 3종 (`EmptyState` / `LoadingSpinner` / `ErrorState`) — 빈 상태 / 로딩 / 오류 UI 일관성
+- `GlobalSearchTrigger` — 헤더 단일 검색창에서 팝업/뮤직/코스/메이트 통합 검색
+- 신규 사용자 온보딩 모달 (3페이지)
+- 방문 기록 (최근 본 팝업 — localStorage 10건 슬라이딩 윈도)
+- 공유 기능 (Web Share API + URL 복사 폴백)
+
+## 29.2 v2.18.1 — 출시 직후 UX 2차
+
+- 지도 카테고리 한글 라벨 (FOOD / FASHION / ART → 음식 / 패션 / 예술)
+- 메이트 신고 + 자동 차단 (3건 누적 시 `isHidden=true`)
+- 알림 센터 (헤더 종 아이콘 + localStorage 큐 + 모달)
+- 위시 만료 D-3 메일 cron (`WishlistExpiryScheduler`, 매일 09:00)
+- 푸터 운영자 정보 + 사업자 등록번호 + DPO 연락처
+
+## 29.3 v2.19 — 성능 / 통계 / 컴플라이언스
+
+- **API 응답 캐싱**: Caffeine + Spring `@EnableCaching`. `CacheConfig` 에 4종 캐시 정의 (popups-visible / popups-hot / popup-detail / mypage)
+- **DB 인덱스**: V10 마이그레이션 — popup_store / mate_post / wishlist / music_track / stamp / user_music_history 에 11개 인덱스 추가
+- **약관 재동의 시스템**: V11 마이그레이션 — `users.agreed_terms_version` 컬럼 + `TermsController` (status / accept)
+- 자동수집 정확도 어드민 카드 + 인기 검색어 추적
+- OAuth state 강화 (PKCE-like 검증) + Rate Limiting 점검
+
+## 29.4 v2.20 — 약관 재동의 UI + 봇 차단 + a11y
+
+- **`TermsReconsentModal`**: v2.19 백엔드 `TermsController` 와 연동되는 프론트 모달. `GET /api/v1/terms/status` 로 현재/동의 버전 비교 → 다르면 강제 모달. 동의 → `POST /api/v1/terms/accept` / 거절 → 로그아웃. ESC / 외부 클릭 차단.
+- **signup honeypot**: 시각적 숨김 input (사람은 못 채움) + 폼 mount 부터 제출까지 3초 미만이면 차단. 외부 reCAPTCHA 의존성 없이 일반 봇 차단.
+- a11y 기본 보강 (aria-label / role / focus ring 일관성)
+
+## 29.5 v2.20.1 — v2.19 CacheConfig 미적용 핫픽스
+
+- v2.19 에서 `CacheConfig` 빈만 만들고 `@Cacheable` 한 번도 안 붙어 캐시가 실제로는 동작하지 않던 누락 핫픽스
+- `PopupStoreService.findVisibleMapMarkers` 에 `@Cacheable(popups-visible)` 적용 — 컨트롤러가 DTO 로 매핑하므로 lazy 직렬화 위험 없음
+- save / updateReviewStatus / deleteById 에 `@CacheEvict(visible + hot)` — 어드민 쓰기 시 즉시 무효화
+- `getTrendingPopups` / `getPopupById` / `MyPageService.findMyPageData` — 엔티티 직렬화 lazy 위험 또는 부수효과로 미적용, v2.21 에서 DTO 분리 + viewCount 비동기화 후 캐싱 예정 (각 JavaDoc 에 명시)
+
+## 29.6 v2.21 예정 (미구현)
+
+- 캐시 wiring 마저 완료: `PopupStore` → DTO 분리 후 hot 캐시 + 상세 캐시 + mypage 캐시
+- 대규모 신기능 deferred: 리뷰/별점 시스템, 다른 사람 코스 갤러리, 다국어 (i18n), 푸시 알림, 위치기반 추천
+- 장기 리팩터: `app/page.tsx` (1588 라인) 분리, `AuthService` 책임 분해
+
