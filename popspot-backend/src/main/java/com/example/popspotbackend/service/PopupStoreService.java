@@ -1,5 +1,6 @@
 package com.example.popspotbackend.service;
 
+import com.example.popspotbackend.config.CacheConfig;
 import com.example.popspotbackend.dto.CalendarPopupDto;
 import com.example.popspotbackend.entity.PopupStore;
 import com.example.popspotbackend.exception.ResourceNotFoundException;
@@ -8,6 +9,9 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,6 +21,11 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <p>공개 가능 여부({@link #isPublic}) 는 두 가지 축을 모두 본다: {@code status} (PENDING / EXPIRED 제외)와 {@code
  * reviewStatus} ({@code AUTO_PUBLISHED} / {@code APPROVED} 만 허용, 레거시 수동 데이터는 null 통과).
+ *
+ * <p>v2.20.1 — 지도 마커 조회({@link #findVisibleMapMarkers}) 에 {@link Cacheable} 적용 — 컨트롤러가
+ * DTO 로 변환 후 직렬화하므로 lazy 필드 위험 없음. 쓰기 메서드(저장 / 삭제 / 검수상태 변경) 는
+ * {@link CacheEvict} 로 두 캐시(visible / hot) 를 즉시 비운다. 부수효과가 있는 {@link #getPopupById}
+ * (viewCount++) 와 lazy 필드를 직접 직렬화하는 {@link #getTrendingPopups} 는 v2.21 캐싱 대상.
  */
 @Service
 @RequiredArgsConstructor
@@ -44,6 +53,11 @@ public class PopupStoreService {
 
     /** 저장 (takedown / report 후속 처리에서 컨트롤러가 호출하지 않도록 위임). */
     @Transactional
+    @Caching(
+            evict = {
+                @CacheEvict(value = CacheConfig.CACHE_POPUPS_VISIBLE, allEntries = true),
+                @CacheEvict(value = CacheConfig.CACHE_POPUPS_HOT, allEntries = true)
+            })
     public PopupStore save(PopupStore popup) {
         return popupStoreRepository.save(popup);
     }
@@ -62,6 +76,11 @@ public class PopupStoreService {
 
     /** 검수 결과로 reviewStatus 갱신 후 저장. */
     @Transactional
+    @Caching(
+            evict = {
+                @CacheEvict(value = CacheConfig.CACHE_POPUPS_VISIBLE, allEntries = true),
+                @CacheEvict(value = CacheConfig.CACHE_POPUPS_HOT, allEntries = true)
+            })
     public PopupStore updateReviewStatus(Long id, String reviewStatus) {
         PopupStore popup = findOrThrow(id);
         popup.setReviewStatus(reviewStatus);
@@ -70,6 +89,11 @@ public class PopupStoreService {
 
     /** Takedown 검토 완료 후 영구 삭제. */
     @Transactional
+    @Caching(
+            evict = {
+                @CacheEvict(value = CacheConfig.CACHE_POPUPS_VISIBLE, allEntries = true),
+                @CacheEvict(value = CacheConfig.CACHE_POPUPS_HOT, allEntries = true)
+            })
     public void deleteById(Long id) {
         PopupStore popup = findOrThrow(id);
         popupStoreRepository.delete(popup);
@@ -79,8 +103,11 @@ public class PopupStoreService {
      * 지도 마커용 팝업 목록 (PENDING 제외).
      *
      * <p>v2.9: 메모리 필터 → SQL WHERE 절({@link PopupStoreRepository#findAllVisible}).
+     *
+     * <p>v2.20.1: 5분 캐시. 어드민 쓰기 시 즉시 invalidate.
      */
     @Transactional(readOnly = true)
+    @Cacheable(value = CacheConfig.CACHE_POPUPS_VISIBLE, sync = true)
     public List<PopupStore> findVisibleMapMarkers() {
         return popupStoreRepository.findAllVisible();
     }
@@ -103,7 +130,13 @@ public class PopupStoreService {
                 .toList();
     }
 
-    /** 인기 팝업 Top {@value #TRENDING_TOP_N}. DB 단에서 정렬 + LIMIT 으로 성능 보장. */
+    /**
+     * 인기 팝업 Top {@value #TRENDING_TOP_N}. DB 단에서 정렬 + LIMIT 으로 성능 보장.
+     *
+     * <p>v2.20.1: 본 메서드는 엔티티를 컨트롤러로 직접 반환 → Jackson 직렬화 시 lazy {@code images}
+     * 필드 접근. 캐시 hit 시 detached 엔티티가 되어 {@code LazyInitializationException} 위험. DTO
+     * 변환 후 캐싱하도록 v2.21 에서 리팩터 필요. 현재는 {@link #findVisibleMapMarkers} 만 캐시.
+     */
     @Transactional(readOnly = true)
     public List<PopupStore> getTrendingPopups() {
         return popupStoreRepository.findTrendingPublic(PageRequest.of(0, TRENDING_TOP_N));
