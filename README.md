@@ -1618,6 +1618,72 @@
 
 ---
 
+### v2.17 — 운영 출시 직전 종합 핫픽스 (12개 항목 묶음)
+
+> 출시 종합 점검에서 진단된 55개 개선점 중 가장 시급한 12개. 회원 탈퇴 (PIPA 의무) + DB 자동 백업 + SLA 알림 + 보안 헤더 + SEO 보강 + 모바일 UI + 푸터 톤. 이후 v2.18 ~ v2.20 로 단계적 추가.
+
+<table align="center">
+  <tr>
+    <th align="center" width="180">영역</th>
+    <th align="center" width="290">v2.16 까지</th>
+    <th align="center" width="290">v2.17</th>
+  </tr>
+  <tr>
+    <td align="center"><b>회원 탈퇴 (PIPA § 17)</b></td>
+    <td>기능 없음 — 운영 시작 시 법적 의무 위반 가능</td>
+    <td><code>DELETE /api/v1/users/me</code> + MY 탭 "회원 탈퇴" 2단계 확인. 식별 정보 즉시 익명화 + 재로그인 차단</td>
+  </tr>
+  <tr>
+    <td align="center"><b>DB 자동 백업</b></td>
+    <td>없음 — 사고 시 복구 불가</td>
+    <td>매일 03:00 KST <code>pg_dump | gzip → backups/</code>. 7일 보관 자동 삭제. 운영 환경에서만 활성</td>
+  </tr>
+  <tr>
+    <td align="center"><b>SLA 24h 알림</b></td>
+    <td>약관 §11 약속 했지만 추적 X</td>
+    <td>매시간 cron — Feedback PENDING / TAKEDOWN 24h 초과 row 카운트 → 운영 메일 알림</td>
+  </tr>
+  <tr>
+    <td align="center"><b>보안 헤더</b></td>
+    <td>기본값만 — CSP / HSTS / X-Frame 없음</td>
+    <td><code>next.config.ts</code> 의 <code>headers()</code> 에 CSP (외부 OAuth/Kakao Map/Algolia/YouTube/Spotify 화이트리스트) · HSTS 1년 · X-Frame SAMEORIGIN · Permissions-Policy</td>
+  </tr>
+  <tr>
+    <td align="center"><b>로그인 잠금</b></td>
+    <td>brute-force 무방어 — 비밀번호 무한 시도 가능</td>
+    <td><code>AuthService</code> 가 ConcurrentHashMap 으로 email 별 실패 카운트. 5회 실패 → 15분 잠금. 성공 시 즉시 리셋</td>
+  </tr>
+  <tr>
+    <td align="center"><b>SEO</b></td>
+    <td><code>layout.tsx</code> default metadata 만. 페이지별 분리 없음</td>
+    <td>WebSite + Organization JSON-LD (sitelinks search box 노출 가능). <code>/about /terms /privacy /intro</code> 페이지별 metadata + canonical + openGraph article/website 분리</td>
+  </tr>
+  <tr>
+    <td align="center"><b>모바일 BottomDock</b></td>
+    <td>7탭 좁아짐 (v2.12 의견 추가하며 <code>w-10</code> 으로 축소)</td>
+    <td>가로 스크롤 (<code>overflow-x-auto md:overflow-visible</code>) + 스크롤바 숨김 + 버튼 너비 <code>w-11</code> 약간 확장</td>
+  </tr>
+  <tr>
+    <td align="center"><b>모바일 헤더</b></td>
+    <td>UserChip 이 <code>hidden md:inline-flex</code> — 모바일에선 본인 정보 안 보임</td>
+    <td>모바일에도 작은 아바타 노출. 닉네임 / PRO 뱃지는 데스크탑부터. 아바타 탭으로 프로필 편집 진입</td>
+  </tr>
+  <tr>
+    <td align="center"><b>푸터 톤</b></td>
+    <td>"[포트폴리오 안내] 본 사이트는 상업적 목적이 없는 개인 개발용 포트폴리오"</td>
+    <td>"[정보 안내] 서울 팝업스토어 정보를 모아 안내하는 서비스". 카피라이트도 "Portfolio Project" 제거</td>
+  </tr>
+  <tr>
+    <td align="center"><b>DPO 강조</b></td>
+    <td>privacy §11 에 평문으로만</td>
+    <td>lime 테두리 박스로 별도 강조 — 직책 / 대표 연락처 / 응답 시간 3 영업일</td>
+  </tr>
+</table>
+
+<sub>백엔드 2 신규 (<code>DatabaseBackupScheduler</code>, <code>SlaNotificationScheduler</code>) + 6 수정 (<code>UserProfileController</code>·<code>AuthService</code>·<code>EmailService</code>·<code>FeedbackRepository</code>·<code>PopupStoreRepository</code>·<code>application.properties</code>) · 프론트 4 신규 layout (<code>about/terms/privacy/intro</code>) + 6 수정 (<code>app/layout.tsx</code>·<code>app/page.tsx</code>·<code>signup/page.tsx</code>·<code>privacy/page.tsx</code>·<code>Footer.tsx</code>·<code>BottomDock.tsx</code>·<code>Header.tsx</code>·<code>next.config.ts</code>) · 빌드 통과. 진단된 55개 중 12개 처리, 나머지 43개는 v2.18 ~ v2.20 로 분할.</sub>
+
+---
+
 ## 폴더 구조 (백엔드)
 
 ```

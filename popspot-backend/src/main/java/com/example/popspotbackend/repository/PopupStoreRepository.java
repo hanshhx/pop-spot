@@ -153,4 +153,13 @@ public interface PopupStoreRepository extends JpaRepository<PopupStore, Long> {
     /** 어드민 검수 대기열 크기. */
     @Query("SELECT COUNT(p) FROM PopupStore p WHERE p.reviewStatus = 'PENDING_REVIEW'")
     long countPendingReview();
+
+    /**
+     * v2.17 — Takedown SLA 알림용. 권리자 신고로 TAKEDOWN 차단되었지만 admin 이 24h 안에 결정
+     * (영구 삭제 / 수정 후 복구 / 부적절 신고 거부) 을 못 한 row 카운트.
+     */
+    @Query(
+            "SELECT COUNT(p) FROM PopupStore p WHERE p.reviewStatus = 'TAKEDOWN' "
+                    + "AND (p.lastSeenAt IS NULL OR p.lastSeenAt < :cutoff)")
+    long countTakedownOlderThan(@Param("cutoff") java.time.LocalDateTime cutoff);
 }

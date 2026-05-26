@@ -335,6 +335,53 @@ export default function Home() {
     window.location.reload();
   };
 
+  /**
+   * v2.17 — 회원 탈퇴. PIPA § 17 에 따라 사용자가 직접 자기 정보를 삭제할 권리 보장.
+   *
+   * 2 단계 확인:
+   *  1. "정말 탈퇴할까요?" (destructive 확인)
+   *  2. "되돌릴 수 없습니다 — 한 번 더 확인" (최종 확인)
+   * 백엔드 DELETE /api/v1/users/me 호출 → 식별 정보 즉시 익명화 → 로그아웃 → 메인.
+   */
+  const handleDeleteAccount = async () => {
+    if (!user) return;
+    const firstOk = await confirmAction({
+      title: "정말 탈퇴하시겠어요?",
+      text:
+        "탈퇴하면 본인 식별 정보 (이메일 / 닉네임 / 프로필 사진 / 휴대전화) 가 즉시 익명화되며 " +
+        "다시는 같은 계정으로 로그인할 수 없습니다.",
+      icon: "warning",
+      destructive: true,
+      confirmText: "다음 단계",
+    });
+    if (!firstOk) return;
+    const finalOk = await confirmAction({
+      title: "마지막 확인",
+      text: "되돌릴 수 없습니다. 정말 탈퇴를 진행할까요?",
+      icon: "warning",
+      destructive: true,
+      confirmText: "탈퇴 진행",
+    });
+    if (!finalOk) return;
+
+    try {
+      const res = await apiFetch("/api/v1/users/me", { method: "DELETE" });
+      if (!res.ok) {
+        const message = await res.text();
+        notifyError(message || "탈퇴 처리에 실패했습니다.");
+        return;
+      }
+      localStorage.removeItem("user");
+      localStorage.removeItem("token");
+      sessionStorage.clear();
+      setUser(null);
+      await notifySuccess("탈퇴가 완료되었습니다. 이용해 주셔서 감사합니다.");
+      router.replace("/intro");
+    } catch {
+      notifyError("탈퇴 처리 중 오류가 발생했습니다.");
+    }
+  };
+
   const handleAiRecommend = async (vibe: string) => {
     if (!vibe.trim()) {
       notify('분위기를 입력해주세요.');
@@ -1110,7 +1157,8 @@ export default function Home() {
                 <div className="w-full md:w-[45%] h-[50vh] md:h-full flex flex-col bg-surface relative overflow-y-auto custom-scrollbar pb-24 md:pb-20">
 
                     {/* v2.15.3 — 내 계정: 회원이름 / 이메일 / 프로필 사진 노출. 네이버/카카오/구글
-                        OAuth 검수 활용처 증명에 사용되며, 사용자도 "내 정보" 를 한 눈에 확인. */}
+                        OAuth 검수 활용처 증명에 사용되며, 사용자도 "내 정보" 를 한 눈에 확인.
+                        v2.17 — 회원 탈퇴 버튼 추가 (PIPA 의무). */}
                     <div className="p-4 lg:p-6 border-b border-[var(--color-border)]">
                         <h3 className="text-base lg:text-lg font-bold mb-4 flex items-center gap-2 text-foreground">
                             <UserIcon size={16} className="lg:w-[18px] lg:h-[18px] text-lime-500"/> 내 계정
@@ -1138,6 +1186,15 @@ export default function Home() {
                                     {user?.email || "이메일 정보 없음"}
                                 </p>
                             </div>
+                        </div>
+                        <div className="mt-3 flex items-center justify-end">
+                            <button
+                                type="button"
+                                onClick={handleDeleteAccount}
+                                className="text-xs text-muted-foreground hover:text-danger underline-offset-2 hover:underline transition-colors"
+                            >
+                                회원 탈퇴
+                            </button>
                         </div>
                     </div>
 

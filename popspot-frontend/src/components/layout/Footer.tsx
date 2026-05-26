@@ -145,13 +145,10 @@ function DisclaimerBox() {
     <div className="mt-12 pt-8 border-t border-[var(--color-border)] text-center max-w-[1200px] mx-auto px-6">
       <div className="rounded-lg p-5 text-xs text-muted-foreground leading-relaxed border border-[var(--color-border)] bg-surface/50">
         <p className="font-bold mb-2 text-foreground">
-          [포트폴리오 안내] 본 사이트는 상업적 목적이 없는 개인 개발용 포트폴리오입니다.
+          [정보 안내] 서울 팝업스토어 정보를 모아 안내하는 서비스입니다.
         </p>
         <p className="mb-2">
-          제공되는 모든 팝업 정보, 이미지, 혼잡도 데이터는 학습 목적으로 크롤링되거나 시뮬레이션된 데이터이며 실제와
-          다를 수 있습니다.
-          <br className="hidden md:block" />
-          실제 티켓 예매 및 결제는 이루어지지 않으며, 금전적 거래를 요구하지 않습니다.
+          본 서비스는 실제 티켓 예매 및 금전적 거래를 처리하지 않습니다. 팝업스토어 자체의 입장 / 예약 / 구매는 각 운영사의 공식 채널을 이용해 주세요.
         </p>
         <p>
           팝업스토어 정보 일부는 공개된 검색 API (네이버 · 카카오) 와 사용자 제보를 기반으로 자동 / 수동 수집 · 정리됩니다.
@@ -166,12 +163,12 @@ function DisclaimerBox() {
           주시면 <strong>접수 즉시 노출이 차단되며 24시간 내 조치</strong>됩니다.
         </p>
         <p className="mt-3 font-bold">
-          Contact:{' '}
+          개인정보 보호 / 권리자 문의:{' '}
           <a href={`mailto:${CONTACT_EMAIL}`} className="text-lime-500 hover:underline">
             {CONTACT_EMAIL}
           </a>
         </p>
-        <p className="mt-3 opacity-60">© {new Date().getFullYear()} POP-SPOT Portfolio Project. All rights reserved.</p>
+        <p className="mt-3 opacity-60">© {new Date().getFullYear()} POP-SPOT. All rights reserved.</p>
       </div>
     </div>
   );

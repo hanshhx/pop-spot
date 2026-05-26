@@ -37,6 +37,49 @@ const nextConfig: NextConfig = {
     ];
   },
 
+  /**
+   * v2.17 — 보안 헤더 (CSP / X-Frame-Options / Referrer-Policy / Permissions-Policy).
+   *
+   * <p>CSP 는 외부 OAuth (구글/카카오/네이버) + Kakao Map SDK + Algolia + Spotify embed +
+   * YouTube IFrame 등 운영 중인 외부 리소스를 화이트리스트로 둔다. Next.js + React 의 inline
+   * script 호환을 위해 'unsafe-inline' + 'unsafe-eval' 은 script-src 에 한해 임시 허용.
+   * 추후 nonce 적용으로 강화 가능.
+   */
+  async headers() {
+    const csp = [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://dapi.kakao.com https://t1.daumcdn.net https://www.googletagmanager.com https://*.algolia.net https://*.algolianet.com",
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      "img-src 'self' data: blob: https: http:",
+      "media-src 'self' blob: https:",
+      "font-src 'self' https://fonts.gstatic.com",
+      "connect-src 'self' https://*.algolia.net https://*.algolianet.com https://dapi.kakao.com https://accounts.kakao.com https://accounts.google.com https://nid.naver.com wss: ws:",
+      "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://open.spotify.com https://accounts.kakao.com",
+      "object-src 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+      "frame-ancestors 'self'",
+      "upgrade-insecure-requests",
+    ].join("; ");
+
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          { key: "Content-Security-Policy", value: csp },
+          { key: "X-Frame-Options", value: "SAMEORIGIN" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          {
+            key: "Permissions-Policy",
+            value: "geolocation=(self), microphone=(), camera=(), payment=()",
+          },
+          { key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains" },
+        ],
+      },
+    ];
+  },
+
   compiler: {
     removeConsole:
       process.env.NODE_ENV === "production"
