@@ -21,8 +21,8 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * 의견 보내기 검수 / 답변용 어드민 API.
  *
- * <p>{@code /api/admin/**} 는 {@code SecurityConfig} 에서 이미 {@code hasRole('ADMIN')} 으로 가드되어 있고,
- * 클래스 단 {@code @PreAuthorize} 로 한 번 더 명시한다. 응답 매핑/검증은 모두 {@link FeedbackService} 위임.
+ * <p>{@code /api/admin/**} 는 {@code SecurityConfig} 에서 이미 {@code hasRole('ADMIN')} 으로 가드되어 있고, 클래스
+ * 단 {@code @PreAuthorize} 로 한 번 더 명시한다. 응답 매핑/검증은 모두 {@link FeedbackService} 위임.
  */
 @RestController
 @RequestMapping("/api/admin/feedback")

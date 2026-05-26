@@ -15,8 +15,8 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * 매일 새벽 5시(KST) 만료된 팝업을 일괄 EXPIRED 처리하는 cron job.
  *
- * <p>실제 row 는 삭제하지 않는다 (이력/랭킹/방문기록 보존). 캘린더/검색/랭킹은 Repository 쿼리에서
- * EXPIRED 를 제외하므로 사용자 입장에서는 자동으로 사라진 효과.
+ * <p>실제 row 는 삭제하지 않는다 (이력/랭킹/방문기록 보존). 캘린더/검색/랭킹은 Repository 쿼리에서 EXPIRED 를 제외하므로 사용자 입장에서는 자동으로
+ * 사라진 효과.
  *
  * <p>v2.13 — EXPIRED 로 바뀐 row 는 Algolia 인덱스에서도 즉시 제거해 SearchBox 에 노출되지 않게 한다.
  */

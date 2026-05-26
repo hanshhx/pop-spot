@@ -17,8 +17,8 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * 사용자가 보내는 의견 보내기 API.
  *
- * <p>{@code POST /api/feedback} 은 비로그인 게스트도 호출할 수 있고, 로그인 사용자가 호출하면 토큰의 subject 를
- * {@code userId} 로 저장한다. {@code GET /api/feedback/me} 는 본인 인증이 있을 때만 동작.
+ * <p>{@code POST /api/feedback} 은 비로그인 게스트도 호출할 수 있고, 로그인 사용자가 호출하면 토큰의 subject 를 {@code userId} 로
+ * 저장한다. {@code GET /api/feedback/me} 는 본인 인증이 있을 때만 동작.
  */
 @RestController
 @RequestMapping("/api/feedback")

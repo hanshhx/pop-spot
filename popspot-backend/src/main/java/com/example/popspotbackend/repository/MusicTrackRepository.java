@@ -39,11 +39,11 @@ public interface MusicTrackRepository extends JpaRepository<MusicTrack, Long> {
     List<MusicTrack> findAllWithMood(Pageable pageable);
 
     /**
-     * v2.14 — 캐시된 youtube_channel 제목이 cover/live/remix 변형을 시사하는 키워드를 포함하는
-     * 모든 트랙을 한 번에 가져온다. 어드민의 cover 캐시 일괄 청소 엔드포인트가 사용.
+     * v2.14 — 캐시된 youtube_channel 제목이 cover/live/remix 변형을 시사하는 키워드를 포함하는 모든 트랙을 한 번에 가져온다. 어드민의
+     * cover 캐시 일괄 청소 엔드포인트가 사용.
      *
-     * <p>youtube_channel 은 channelTitle 이라 단순 검색이지만, 옛 데이터엔 cover 인지 분명히
-     * 알 수 있는 단어가 채널명/원본 매칭 단계에서 isOfficial=false 로 저장된 경우 함께 청소.
+     * <p>youtube_channel 은 channelTitle 이라 단순 검색이지만, 옛 데이터엔 cover 인지 분명히 알 수 있는 단어가 채널명/원본 매칭 단계에서
+     * isOfficial=false 로 저장된 경우 함께 청소.
      */
     @Query(
             "SELECT m FROM MusicTrack m WHERE m.youtubeVideoId IS NOT NULL "

@@ -50,10 +50,11 @@ public class SpotifySearchService {
     /**
      * v2.14 — 검색 정확도 / 인기도 가중 정렬용 상수.
      *
-     * <p>"촛불 하나" 같은 한국어 검색에서 노이즈 (인기도 낮고 관련 약한 곡) 가 노출되던 문제를
-     * 막기 위해 곡의 popularity 점수와 검색어 매칭 정확도를 합산해 재정렬한다.
+     * <p>"촛불 하나" 같은 한국어 검색에서 노이즈 (인기도 낮고 관련 약한 곡) 가 노출되던 문제를 막기 위해 곡의 popularity 점수와 검색어 매칭 정확도를
+     * 합산해 재정렬한다.
      */
     private static final int RELEVANCE_TOKEN_WEIGHT = 50;
+
     private static final int RELEVANCE_FULL_MATCH_WEIGHT = 30;
     private static final int RELEVANCE_ARTIST_MATCH_WEIGHT = 20;
 

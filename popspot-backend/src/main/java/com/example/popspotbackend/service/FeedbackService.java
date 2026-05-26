@@ -18,15 +18,14 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * 의견 보내기 도메인 로직.
  *
- * <p>컨트롤러는 인증 정보 추출 + URL 매핑만 담당하고, 카테고리/상태 화이트리스트 검증과 영속화는 모두 본 서비스가 처리한다.
- * 비로그인 사용자도 작성할 수 있으므로 {@code userId} 는 nullable.
+ * <p>컨트롤러는 인증 정보 추출 + URL 매핑만 담당하고, 카테고리/상태 화이트리스트 검증과 영속화는 모두 본 서비스가 처리한다. 비로그인 사용자도 작성할 수 있으므로
+ * {@code userId} 는 nullable.
  */
 @Service
 @Transactional(readOnly = true)
 public class FeedbackService {
 
-    private static final Set<String> ALLOWED_CATEGORIES =
-            Set.of("BUG", "FEATURE", "GOOD", "OTHER");
+    private static final Set<String> ALLOWED_CATEGORIES = Set.of("BUG", "FEATURE", "GOOD", "OTHER");
     private static final Set<String> ALLOWED_STATUSES =
             Set.of("PENDING", "REVIEWING", "RESOLVED", "WONT_FIX");
     private static final String STATUS_RESOLVED = "RESOLVED";
@@ -38,10 +37,7 @@ public class FeedbackService {
         this.feedbackRepository = feedbackRepository;
     }
 
-    /**
-     * 새 의견 저장. userId 가 null 이면 게스트 작성으로 처리하고, 이때는 guestEmail 형식만 (DTO 단에서)
-     * 검증한 뒤 그대로 보관.
-     */
+    /** 새 의견 저장. userId 가 null 이면 게스트 작성으로 처리하고, 이때는 guestEmail 형식만 (DTO 단에서) 검증한 뒤 그대로 보관. */
     @Transactional
     public FeedbackResponseDto submit(FeedbackCreateRequestDto dto, String userId) {
         requireCategory(dto.getCategory());
@@ -90,9 +86,7 @@ public class FeedbackService {
                 feedbackRepository
                         .findById(id)
                         .orElseThrow(
-                                () ->
-                                        new ResourceNotFoundException(
-                                                "Feedback not found: " + id));
+                                () -> new ResourceNotFoundException("Feedback not found: " + id));
 
         requireStatus(dto.getStatus());
         feedback.setStatus(dto.getStatus());

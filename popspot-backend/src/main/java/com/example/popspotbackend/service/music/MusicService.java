@@ -68,8 +68,8 @@ public class MusicService {
      * v2.14 — 어드민이 cover / 비공식 의심 캐시를 일괄 청소.
      *
      * <p>youtube_channel 에 cover/live/remix 같은 키워드가 있거나 isOfficial=false 로 저장된 row 의
-     * youtube_video_id 를 NULL 로 초기화한다. 다음 재생 시 v2.14 새 필터로 다시 매칭되어 공식
-     * 음원만 박힌다. YouTube API quota 영향: 사용자가 재생하는 시점에만 호출되므로 즉시 부담 X.
+     * youtube_video_id 를 NULL 로 초기화한다. 다음 재생 시 v2.14 새 필터로 다시 매칭되어 공식 음원만 박힌다. YouTube API quota
+     * 영향: 사용자가 재생하는 시점에만 호출되므로 즉시 부담 X.
      */
     @Transactional
     public Map<String, Integer> clearLikelyCoverCache() {

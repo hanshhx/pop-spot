@@ -14,7 +14,6 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.regex.Pattern;
 import lombok.Data;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
@@ -42,13 +41,12 @@ import org.springframework.web.multipart.MultipartFile;
  *   <li>{@code PATCH /api/v1/users/me} — nickname / picture 갱신 (JSON body)
  * </ul>
  *
- * <p>아바타 업로드는 {@link ChatFileController} 와 동일한 패턴 (UUID 재명명 + traversal 차단 +
- * 확장자/MIME 화이트리스트) 을 따른다. 저장 위치만 {@code uploads/avatar/} 하위로 분리.
+ * <p>아바타 업로드는 {@link ChatFileController} 와 동일한 패턴 (UUID 재명명 + traversal 차단 + 확장자/MIME 화이트리스트) 을
+ * 따른다. 저장 위치만 {@code uploads/avatar/} 하위로 분리.
  */
 @Slf4j
 @RestController
 @RequestMapping("/api/v1/users")
-@RequiredArgsConstructor
 public class UserProfileController {
 
     private static final List<String> ALLOWED_EXTENSIONS = List.of("jpg", "jpeg", "png", "webp");
@@ -89,10 +87,7 @@ public class UserProfileController {
         String trimmed = value == null ? "" : value.trim();
 
         if (!isValidNicknameLength(trimmed)) {
-            return ResponseEntity.ok(
-                    Map.of(
-                            "available", false,
-                            "reason", "닉네임은 2~20자여야 합니다."));
+            return ResponseEntity.ok(Map.of("available", false, "reason", "닉네임은 2~20자여야 합니다."));
         }
 
         // 본인이 이미 그 닉네임을 쓰고 있으면 OK (변경 안 함)
@@ -177,8 +172,7 @@ public class UserProfileController {
             if (!isValidNicknameLength(trimmed)) {
                 throw new IllegalArgumentException("닉네임은 2~20자여야 합니다.");
             }
-            if (!trimmed.equals(user.getNickname())
-                    && userRepository.existsByNickname(trimmed)) {
+            if (!trimmed.equals(user.getNickname()) && userRepository.existsByNickname(trimmed)) {
                 throw new IllegalArgumentException("이미 사용 중인 닉네임입니다.");
             }
             user.setNickname(trimmed);
@@ -202,10 +196,9 @@ public class UserProfileController {
     /**
      * v2.17 — PIPA 의무 회원 탈퇴.
      *
-     * <p>이메일 / 닉네임 / 휴대전화 / 프로필 사진 등 식별 정보를 즉시 익명화하고 비밀번호를
-     * 무효화한다. 사용자가 작성한 동행 글 / 의견 / 코스 등은 데이터 무결성 + 운영 통계 목적으로
-     * 닉네임만 {@code [탈퇴한 회원]} 으로 익명화한 채 유지한다. 30일 후 영구 삭제는 별도 cron 으로
-     * 처리할 수 있다 (현재는 즉시 익명화만).
+     * <p>이메일 / 닉네임 / 휴대전화 / 프로필 사진 등 식별 정보를 즉시 익명화하고 비밀번호를 무효화한다. 사용자가 작성한 동행 글 / 의견 / 코스 등은 데이터
+     * 무결성 + 운영 통계 목적으로 닉네임만 {@code [탈퇴한 회원]} 으로 익명화한 채 유지한다. 30일 후 영구 삭제는 별도 cron 으로 처리할 수 있다 (현재는
+     * 즉시 익명화만).
      *
      * <p>비밀번호 확인 본인 인증은 추후 강화 가능. 현재는 토큰 보유 자체가 본인 인증.
      */
@@ -273,8 +266,7 @@ public class UserProfileController {
 
         String extension = extractExtension(cleanedName);
         if (!ALLOWED_EXTENSIONS.contains(extension)) {
-            return ResponseEntity.badRequest()
-                    .body("허용되지 않는 파일 형식입니다. (jpg/jpeg/png/webp 만 가능)");
+            return ResponseEntity.badRequest().body("허용되지 않는 파일 형식입니다. (jpg/jpeg/png/webp 만 가능)");
         }
 
         String contentType = file.getContentType();
