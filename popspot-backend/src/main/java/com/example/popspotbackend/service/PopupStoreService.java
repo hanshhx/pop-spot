@@ -22,10 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
  * <p>공개 가능 여부({@link #isPublic}) 는 두 가지 축을 모두 본다: {@code status} (PENDING / EXPIRED 제외)와 {@code
  * reviewStatus} ({@code AUTO_PUBLISHED} / {@code APPROVED} 만 허용, 레거시 수동 데이터는 null 통과).
  *
- * <p>v2.20.1 — 지도 마커 조회({@link #findVisibleMapMarkers}) 에 {@link Cacheable} 적용 — 컨트롤러가
- * DTO 로 변환 후 직렬화하므로 lazy 필드 위험 없음. 쓰기 메서드(저장 / 삭제 / 검수상태 변경) 는
- * {@link CacheEvict} 로 두 캐시(visible / hot) 를 즉시 비운다. 부수효과가 있는 {@link #getPopupById}
- * (viewCount++) 와 lazy 필드를 직접 직렬화하는 {@link #getTrendingPopups} 는 v2.21 캐싱 대상.
+ * <p>v2.20.1 — findVisibleMapMarkers 에 Cacheable 적용 (컨트롤러가 DTO 로 매핑하므로 lazy 위험 없음). 쓰기(저장 / 삭제 / 검수상태 변경) 는 CacheEvict 로 두 캐시(visible / hot) 를 즉시 비운다. 부수효과 있는 getPopupById (viewCount++) / lazy 필드 직접 직렬화하는 getTrendingPopups 는 v2.21 대상.
  */
 @Service
 @RequiredArgsConstructor
@@ -133,9 +130,7 @@ public class PopupStoreService {
     /**
      * 인기 팝업 Top {@value #TRENDING_TOP_N}. DB 단에서 정렬 + LIMIT 으로 성능 보장.
      *
-     * <p>v2.20.1: 본 메서드는 엔티티를 컨트롤러로 직접 반환 → Jackson 직렬화 시 lazy {@code images}
-     * 필드 접근. 캐시 hit 시 detached 엔티티가 되어 {@code LazyInitializationException} 위험. DTO
-     * 변환 후 캐싱하도록 v2.21 에서 리팩터 필요. 현재는 {@link #findVisibleMapMarkers} 만 캐시.
+     * <p>v2.20.1: 엔티티를 컨트롤러로 직접 반환 → Jackson 직렬화 시 lazy images 필드 접근. 캐시 hit 시 detached 엔티티가 되어 LazyInitializationException 위험. DTO 변환 후 캐싱하도록 v2.21 에서 리팩터 필요. 현재는 findVisibleMapMarkers 만 캐시.
      */
     @Transactional(readOnly = true)
     public List<PopupStore> getTrendingPopups() {

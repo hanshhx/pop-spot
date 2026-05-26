@@ -84,7 +84,8 @@ public class MateController {
     public ResponseEntity<java.util.Map<String, Object>> reportPost(
             @PathVariable Long id, @RequestParam String userId) {
         int reportCount = mateService.reportPost(id, userId);
-        return ResponseEntity.ok(java.util.Map.of("status", "REPORTED", "reportCount", reportCount));
+        return ResponseEntity.ok(
+                java.util.Map.of("status", "REPORTED", "reportCount", reportCount));
     }
 
     /* ============================== 도메인 예외 → HTTP 매핑 ============================== */

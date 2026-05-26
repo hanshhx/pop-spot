@@ -25,8 +25,7 @@ import org.springframework.web.bind.annotation.RestController;
  *   <li>{@code POST /api/v1/terms/accept} — 본인의 동의 버전을 현재로 업데이트
  * </ul>
  *
- * <p>현재 약관 버전은 환경변수 {@code popspot.terms.current-version} 로 관리. 약관 / 개인정보
- * 처리방침을 개정할 때마다 이 값을 올리면 (예: 1.0 → 2.0) 모든 사용자에게 재동의 모달이 노출.
+ * <p>현재 약관 버전은 환경변수 {@code popspot.terms.current-version} 로 관리. 약관 / 개인정보 처리방침을 개정할 때마다 이 값을 올리면 (예: 1.0 → 2.0) 모든 사용자에게 재동의 모달이 노출.
  */
 @Slf4j
 @RestController

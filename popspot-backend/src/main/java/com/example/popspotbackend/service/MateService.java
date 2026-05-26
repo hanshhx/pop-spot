@@ -18,11 +18,9 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * 동행 모집 게시판 도메인 서비스.
  *
- * <p>{@link com.example.popspotbackend.controller.MateController} 의 비즈니스 로직(부스트 한도 검증 · 정원 검사 · 자동
- * 마감 · 멤버 admit)을 모아서 라우팅과 분리. 트랜잭션 경계도 이 클래스에서만 정의한다.
+ * <p>{@link com.example.popspotbackend.controller.MateController} 의 비즈니스 로직(부스트 한도 검증 · 정원 검사 · 자동 마감 · 멤버 admit)을 모아서 라우팅과 분리. 트랜잭션 경계도 이 클래스에서만 정의한다.
  *
- * <p>v2.12 부터 확성기 아이템 소비 모델을 폐지하고, 등급(스탬프 누적량)별 월 한도로 상단 부스트를 제공한다. {@code MatePost.isMegaphone}
- * 컬럼은 의미만 "상단 부스트 적용 여부" 로 재해석해 그대로 재사용.
+ * <p>v2.12 부터 확성기 아이템 소비 모델을 폐지하고, 등급(스탬프 누적량)별 월 한도로 상단 부스트를 제공한다. {@code MatePost.isMegaphone} 컬럼은 의미만 "상단 부스트 적용 여부" 로 재해석해 그대로 재사용.
  */
 @Service
 @RequiredArgsConstructor
@@ -112,12 +110,9 @@ public class MateService {
     }
 
     /**
-     * v2.18.1 — 게시글 신고. 누적 신고 수가 임계값 ({@link #REPORT_AUTO_HIDE_THRESHOLD}) 도달하면
-     * 자동으로 isHidden=true 처리해 사용자 화면에서 제외.
+     * v2.18.1 — 게시글 신고. 누적 신고 수가 임계값 ({@link #REPORT_AUTO_HIDE_THRESHOLD}) 도달하면 자동으로 isHidden=true 처리해 사용자 화면에서 제외.
      *
-     * <p>본인 글 신고는 무의미하므로 차단. 신고 사유는 자유 텍스트라 단순 기록 (현재는 카운터만
-     * 증가시키고 사유를 별도 저장하지 않음 — 운영 부담 줄이기 위한 트레이드오프. 추후 ReportLog
-     * 테이블 추가 가능).
+     * <p>본인 글 신고는 무의미하므로 차단. 신고 사유는 자유 텍스트라 단순 기록 (현재는 카운터만 증가시키고 사유를 별도 저장하지 않음 — 운영 부담 줄이기 위한 트레이드오프. 추후 ReportLog 테이블 추가 가능).
      */
     @Transactional
     public int reportPost(Long postId, String reporterUserId) {
