@@ -46,14 +46,26 @@ const nextConfig: NextConfig = {
    * 추후 nonce 적용으로 강화 가능.
    */
   async headers() {
+    /**
+     * v2.17.3 — CSP 화이트리스트 보강.
+     *
+     * <p>v2.17 의 초기 CSP 가 너무 strict 해서 운영에서 실제 사용 중인 두 호스트가 차단됐다:
+     *
+     * <ul>
+     *   <li>{@code cdn.jsdelivr.net} — Pretendard 폰트 (style-src + font-src)
+     *   <li>{@code *.ts.net} — Tailscale Funnel 운영 백엔드 도메인 (connect-src)
+     * </ul>
+     *
+     * <p>그 외 외부 OAuth / Kakao Map SDK / Algolia / YouTube / Spotify embed 는 v2.17 그대로.
+     */
     const csp = [
       "default-src 'self'",
       "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://dapi.kakao.com https://t1.daumcdn.net https://www.googletagmanager.com https://*.algolia.net https://*.algolianet.com",
-      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net",
       "img-src 'self' data: blob: https: http:",
       "media-src 'self' blob: https:",
-      "font-src 'self' https://fonts.gstatic.com",
-      "connect-src 'self' https://*.algolia.net https://*.algolianet.com https://dapi.kakao.com https://accounts.kakao.com https://accounts.google.com https://nid.naver.com wss: ws:",
+      "font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net",
+      "connect-src 'self' https://*.algolia.net https://*.algolianet.com https://dapi.kakao.com https://accounts.kakao.com https://accounts.google.com https://nid.naver.com https://*.ts.net wss: ws:",
       "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://open.spotify.com https://accounts.kakao.com",
       "object-src 'none'",
       "base-uri 'self'",
