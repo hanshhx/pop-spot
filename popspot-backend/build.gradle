@@ -88,6 +88,10 @@ dependencies {
     // 🔥 [추가] Rate Limiting (브루트포스/이메일 폭탄 방어)
     implementation 'com.bucket4j:bucket4j-core:8.10.1'
 
+    // v2.19 — API 응답 캐싱 (자주 호출되는 GET 5분 캐싱). in-memory Caffeine.
+    implementation 'org.springframework.boot:spring-boot-starter-cache'
+    implementation 'com.github.ben-manes.caffeine:caffeine'
+
     // 🔥 [추가] Flyway (운영에서 ddl-auto=validate 와 함께 마이그레이션 관리)
     implementation 'org.flywaydb:flyway-core'
     implementation 'org.flywaydb:flyway-database-postgresql'
