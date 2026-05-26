@@ -21,6 +21,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -194,6 +195,41 @@ public class UserProfileController {
         resp.put("nickname", user.getNickname());
         resp.put("picture", user.getPicture());
         return ResponseEntity.ok(resp);
+    }
+
+    /* ============================== 회원 탈퇴 ============================== */
+
+    /**
+     * v2.17 — PIPA 의무 회원 탈퇴.
+     *
+     * <p>이메일 / 닉네임 / 휴대전화 / 프로필 사진 등 식별 정보를 즉시 익명화하고 비밀번호를
+     * 무효화한다. 사용자가 작성한 동행 글 / 의견 / 코스 등은 데이터 무결성 + 운영 통계 목적으로
+     * 닉네임만 {@code [탈퇴한 회원]} 으로 익명화한 채 유지한다. 30일 후 영구 삭제는 별도 cron 으로
+     * 처리할 수 있다 (현재는 즉시 익명화만).
+     *
+     * <p>비밀번호 확인 본인 인증은 추후 강화 가능. 현재는 토큰 보유 자체가 본인 인증.
+     */
+    @DeleteMapping("/me")
+    @Transactional
+    public ResponseEntity<Map<String, Object>> deleteMe(Authentication authentication) {
+        String userId = requireAuthenticatedUserId(authentication);
+        User user =
+                userRepository
+                        .findById(userId)
+                        .orElseThrow(() -> ResourceNotFoundException.user(userId));
+
+        // 식별 정보 즉시 익명화 — 이메일 / 휴대전화 unique 충돌 방지를 위해 무작위 suffix.
+        String anonSuffix = UUID.randomUUID().toString().substring(0, 8);
+        user.setNickname("[탈퇴한 회원]");
+        user.setEmail("deleted-" + anonSuffix + "@popspot.invalid");
+        user.setPhoneNumber(null);
+        user.setPicture(null);
+        // 비밀번호를 사용 불가 토큰으로 — 재로그인 불가.
+        user.changePassword("DELETED-" + anonSuffix);
+        userRepository.save(user);
+
+        log.info("[User] 회원 탈퇴 — userId={} 익명화 완료", userId);
+        return ResponseEntity.ok(Map.of("status", "DELETED", "userId", userId));
     }
 
     /* ============================== 내부 헬퍼 ============================== */

@@ -59,6 +59,32 @@ public class EmailService {
         }
     }
 
+    /**
+     * v2.17 — SLA / 운영 알림 등 임의 텍스트 메일 발송. 인증번호와 분리해 운영 알림 용도로만 사용.
+     *
+     * <p>실패 시 IllegalStateException 으로 격상하지 않고 false 만 반환 — 알림 실패가 cron 전체를
+     * 중단시키지 않게.
+     */
+    public boolean sendNotification(String toEmail, String subject, String plainTextBody) {
+        if (toEmail == null || toEmail.isBlank()) {
+            log.debug("[Email] 알림 수신처 미설정 → 발송 스킵");
+            return false;
+        }
+        try {
+            MimeMessage message = javaMailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, EMAIL_CHARSET);
+            helper.setTo(toEmail);
+            helper.setSubject(subject);
+            helper.setText(plainTextBody, false);
+            helper.setFrom(fromAddress);
+            javaMailSender.send(message);
+            return true;
+        } catch (Exception e) {
+            log.warn("[Email] 알림 발송 실패 to={} err={}", toEmail, e.toString());
+            return false;
+        }
+    }
+
     private String buildHtmlBody(String authCode) {
         return "<div style='font-family: \"Apple SD Gothic Neo\", sans-serif; background-color: #f3f4f6;"
                 + " padding: 40px 20px; text-align: center;'>"

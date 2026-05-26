@@ -12,10 +12,13 @@ import io.jsonwebtoken.security.Keys;
 import jakarta.annotation.PostConstruct;
 import java.nio.charset.StandardCharsets;
 import java.security.Key;
+import java.time.LocalDateTime;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -27,11 +30,19 @@ import org.springframework.transaction.annotation.Transactional;
  * <p>로컬 로그인도 OAuth2SuccessHandler 와 동일 키로 JWT 를 발급한다 (TEMP_TOKEN 폐기). JWT 시크릿은 32 바이트 이상이어야 하며
  * {@code @PostConstruct} 에서 검증한다.
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AuthService {
 
     private static final int JWT_SECRET_MIN_BYTES = 32;
+
+    /* v2.17 — 로그인 시도 횟수 제한 (brute-force 방어). */
+    private static final int LOGIN_MAX_ATTEMPTS = 5;
+    private static final int LOGIN_LOCK_MINUTES = 15;
+
+    /** 이메일별 최근 실패 시도 — process-local in-memory. 재시작 시 초기화. */
+    private final java.util.Map<String, LoginAttempt> loginAttempts = new ConcurrentHashMap<>();
 
     private static final String ROLE_USER = "USER";
     private static final String PROVIDER_LOCAL = "LOCAL";
@@ -81,11 +92,26 @@ public class AuthService {
 
     @Transactional(readOnly = true)
     public LoginResponseDto login(LoginRequestDto requestDto) {
-        User user = findByEmailOrThrow(requestDto.getEmail());
+        String email = requestDto.getEmail();
+        ensureNotLocked(email);
+
+        User user;
+        try {
+            user = findByEmailOrThrow(email);
+        } catch (RuntimeException e) {
+            recordFailure(email);
+            throw e;
+        }
+
         if (!passwordEncoder.matches(requestDto.getPassword(), user.getPassword())) {
+            recordFailure(email);
             // 자격증명 실패 → 400 (의도적으로 "이메일/비밀번호 둘 중 어느 쪽이 틀렸는지" 알려주지 않는다).
             throw new IllegalArgumentException("이메일 또는 비밀번호가 일치하지 않습니다.");
         }
+
+        // 성공 시 카운터 초기화.
+        loginAttempts.remove(email);
+
         return LoginResponseDto.builder()
                 .userId(user.getUserId())
                 .email(user.getEmail())
@@ -96,6 +122,44 @@ public class AuthService {
                 .token(issueJwt(user))
                 .build();
     }
+
+    /**
+     * v2.17 — 잠금 검사. {@link #LOGIN_MAX_ATTEMPTS} 회 연속 실패 시 {@link #LOGIN_LOCK_MINUTES}
+     * 분 동안 잠금. 잠금이 만료되면 카운터를 0 으로 리셋.
+     */
+    private void ensureNotLocked(String email) {
+        if (email == null) return;
+        LoginAttempt attempt = loginAttempts.get(email);
+        if (attempt == null) return;
+        if (attempt.count < LOGIN_MAX_ATTEMPTS) return;
+
+        LocalDateTime unlockAt = attempt.lastFailedAt.plusMinutes(LOGIN_LOCK_MINUTES);
+        if (LocalDateTime.now().isBefore(unlockAt)) {
+            long remainingMinutes =
+                    java.time.Duration.between(LocalDateTime.now(), unlockAt).toMinutes() + 1;
+            throw new IllegalArgumentException(
+                    "로그인 시도가 너무 많습니다. " + remainingMinutes + "분 후 다시 시도해 주세요.");
+        }
+        // 잠금 만료 → 카운터 리셋.
+        loginAttempts.remove(email);
+    }
+
+    private void recordFailure(String email) {
+        if (email == null) return;
+        loginAttempts.merge(
+                email,
+                new LoginAttempt(1, LocalDateTime.now()),
+                (prev, next) -> new LoginAttempt(prev.count + 1, LocalDateTime.now()));
+        LoginAttempt now = loginAttempts.get(email);
+        if (now.count >= LOGIN_MAX_ATTEMPTS) {
+            log.warn(
+                    "[Auth] 로그인 실패 누적 {}회 → {}분 잠금 — email 마스킹된 hash",
+                    now.count,
+                    LOGIN_LOCK_MINUTES);
+        }
+    }
+
+    private record LoginAttempt(int count, LocalDateTime lastFailedAt) {}
 
     @Transactional(readOnly = true)
     public boolean checkEmailExists(String email) {

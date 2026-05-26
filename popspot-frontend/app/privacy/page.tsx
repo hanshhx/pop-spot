@@ -195,13 +195,22 @@ export default function PrivacyPage() {
           </Section>
 
           <Section title="제11조 (개인정보 보호책임자)">
-            <Ul
-              items={[
-                "성명 — POP-SPOT 운영자",
-                <>연락처 — <ContactLink subject="POP-SPOT 개인정보 문의" /></>,
-              ]}
-            />
-            <p className="mt-3">
+            <div className="rounded-md border border-lime-400/40 bg-lime-300/10 p-4 my-3">
+              <p className="font-bold text-foreground mb-2">
+                개인정보 보호책임자 (DPO)
+              </p>
+              <Ul
+                items={[
+                  "직책 — POP-SPOT 서비스 운영 책임자",
+                  <>대표 연락처 — <ContactLink subject="POP-SPOT 개인정보 문의" /></>,
+                  "응답 시간 — 영업일 기준 3일 이내",
+                ]}
+              />
+              <p className="text-xs text-muted-foreground mt-2">
+                개인정보 처리 관련 문의 · 불만 · 권리 행사 요청은 위 연락처로 보내주시면 지체 없이 답변 드립니다.
+              </p>
+            </div>
+            <p className="mt-4">
               <strong>분쟁 조정 기관:</strong>
             </p>
             <Ul

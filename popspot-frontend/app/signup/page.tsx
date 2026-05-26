@@ -288,7 +288,9 @@ export default function SignupPage() {
   };
 
   return (
-    <div className="min-h-screen bg-ink-900 text-cream-200 flex flex-col items-center py-8 md:py-10 px-4">
+    <div className="min-h-screen bg-ink-900 dark:bg-ink-900 text-cream-200 flex flex-col items-center py-8 md:py-10 px-4">
+      {/* v2.17 — 폼 내부 색상 클래스는 다크 디자인 의도 유지 (login 과 일관). 향후 v2.18 라운드에서
+          시스템 테마 토큰화 검토. */}
       {/* 헤더 */}
       <div className="w-full max-w-[460px] md:max-w-[540px] flex items-center mb-10 relative">
         <button
