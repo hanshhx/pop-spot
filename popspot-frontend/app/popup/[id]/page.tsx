@@ -230,6 +230,22 @@ export default function PopupDetail() {
         });
         // [코드 해석] 데이터를 모두 받아왔으므로 로딩 상태를 false로 풀어 화면을 렌더링하게 합니다.
         setLoading(false);
+        // v2.18 — 최근 본 팝업 자동 기록 (localStorage, 최대 10개).
+        try {
+          // dynamic import 로 SSR 시 영향 0.
+          import("@/lib/recentVisits").then(({ recordVisit }) => {
+            const popupId = Number(data.popupId || data.id);
+            if (!Number.isNaN(popupId)) {
+              recordVisit({
+                popupId,
+                popupName: data.name,
+                popupImage: data.imageUrl || data.image,
+              });
+            }
+          });
+        } catch {
+          /* 기록 실패는 무시 */
+        }
         // [로직 해석] 데이터를 성공적으로 받아온 직후, 유저의 스탬프 여부와 찜 여부를 확인하는 함수를 연달아 호출합니다.
         checkIfStamped(data.popupId || data.id);
         checkWishlistStatus(data.popupId || data.id);
@@ -403,8 +419,20 @@ export default function PopupDetail() {
                 {isStamped ? <CheckCircle size={16} className="md:w-5 md:h-5"/> : <Ticket size={16} className="md:w-5 md:h-5"/>}
                 {isStamped ? "인증됨" : "스탬프 찍기"}
             </button>
-            {/* [코드 해석] 아직 기능이 붙지 않은 순수 UI 공유 버튼입니다. */}
-            <button aria-label="공유" className="flex-1 p-3 md:p-4 bg-white/5 backdrop-blur-md border border-white/10 rounded-xl md:rounded-2xl text-white hover:bg-white/10 transition-colors flex items-center justify-center">
+            {/* v2.18 — 공유 버튼: Web Share API + 클립보드 복사 fallback */}
+            <button
+                aria-label="공유"
+                onClick={async () => {
+                    if (!popup) return;
+                    const { share } = await import("@/lib/share");
+                    await share({
+                        title: popup.name,
+                        text: `${popup.name} — ${popup.address ?? ""}`,
+                        url: typeof window !== "undefined" ? window.location.href : "",
+                    });
+                }}
+                className="flex-1 p-3 md:p-4 bg-white/5 backdrop-blur-md border border-white/10 rounded-xl md:rounded-2xl text-white hover:bg-white/10 transition-colors flex items-center justify-center"
+            >
                 <Share2 size={16} className="md:w-5 md:h-5" />
             </button>
             {/* [로직 해석] 찜하기 상태에 따라 배경색과 하트 색상이 빨갛게 채워지거나(fill-current) 투명하게 토글됩니다. */}

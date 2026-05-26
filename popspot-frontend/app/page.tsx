@@ -51,6 +51,11 @@ import { ReportPopupModal } from "@/features/popup/ReportPopupModal";
 import { PopupCalendarModal } from "@/features/popup/PopupCalendarModal";
 import { AllTrendingModal } from "@/features/popup/AllTrendingModal";
 import { AddPlaceModal } from "@/features/popup/AddPlaceModal";
+import {
+  GlobalSearchModal,
+  useGlobalSearchHotkey,
+} from "@/features/popup/GlobalSearchModal";
+import { OnboardingModal } from "@/features/onboarding/OnboardingModal";
 import { MyFeedbackList } from "@/features/feedback/MyFeedbackList";
 import { FeedbackForm } from "@/features/feedback/FeedbackForm";
 import { ProfileEditModal } from "@/features/profile/ProfileEditModal";
@@ -110,6 +115,8 @@ export default function Home() {
   const [isAddPlaceOpen, setIsAddPlaceOpen] = useState(false);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [isProfileEditOpen, setIsProfileEditOpen] = useState(false);
+  const [isGlobalSearchOpen, setIsGlobalSearchOpen] = useState(false);
+  useGlobalSearchHotkey(setIsGlobalSearchOpen);
 
   const [currentTab, setCurrentTab] = useState("MAP");
   const [user, setUser] = useState<User | null>(null);
@@ -624,6 +631,7 @@ export default function Home() {
           onLogoClick={() => handleTabChange("MAP")}
           onReportClick={() => setIsReportPopupOpen(true)}
           onProfileClick={user ? () => setIsProfileEditOpen(true) : undefined}
+          onSearchClick={() => setIsGlobalSearchOpen(true)}
           className="mb-6 md:mb-10"
         />
 
@@ -1234,6 +1242,9 @@ export default function Home() {
                         />
                     </div>
 
+                    {/* v2.18 — 최근 본 팝업 (localStorage 기반, 최대 10개). 게스트/회원 무관. */}
+                    <RecentVisitsCard />
+
                     {/* 옛 inventory 컨테이너 — 보존 (혹시 후속 카드 추가 시 재사용) */}
                     <div className="hidden">
                     </div>
@@ -1469,6 +1480,11 @@ export default function Home() {
         onOpenChange={setIsReportPopupOpen}
         user={user}
       />
+      <GlobalSearchModal
+        open={isGlobalSearchOpen}
+        onOpenChange={setIsGlobalSearchOpen}
+      />
+      <OnboardingModal />
       {user && (
         <ProfileEditModal
           open={isProfileEditOpen}
@@ -1502,5 +1518,62 @@ export default function Home() {
       </AnimatePresence>
 
     </main>
+  );
+}
+
+/**
+ * v2.18 — 최근 본 팝업 카드. localStorage 기반이라 회원/게스트 무관 표시.
+ *
+ * <p>본 컴포넌트는 mount 시점에 localStorage 를 한 번만 읽어 가벼움. 다른 페이지에서 팝업 상세 진입하면
+ * 자동으로 기록되고, 사용자가 MY 탭으로 돌아오면 다음 mount 에 갱신.
+ */
+function RecentVisitsCard() {
+  const [visits, setVisits] = useState<
+    Array<{ popupId: number; popupName: string; popupImage?: string }>
+  >([]);
+
+  useEffect(() => {
+    import("@/lib/recentVisits")
+      .then(({ readVisits }) => setVisits(readVisits()))
+      .catch(() => setVisits([]));
+  }, []);
+
+  if (visits.length === 0) return null;
+
+  return (
+    <div className="p-4 lg:p-6 border-b border-[var(--color-border)]">
+      <h3 className="text-base lg:text-lg font-bold mb-4 flex items-center gap-2 text-foreground">
+        <Clock size={16} className="lg:w-[18px] lg:h-[18px] text-lime-500" /> 최근 본 팝업
+      </h3>
+      <div className="grid grid-cols-3 gap-2">
+        {visits.slice(0, 6).map((v) => (
+          <Link
+            key={v.popupId}
+            href={`/popup/${v.popupId}`}
+            className="group block rounded-md overflow-hidden border border-[var(--color-border)] bg-cream-300 dark:bg-ink-800 aspect-square relative"
+          >
+            {v.popupImage ? (
+              <Image
+                src={v.popupImage}
+                alt={v.popupName}
+                fill
+                sizes="(max-width: 768px) 33vw, 15vw"
+                className="object-cover group-hover:scale-105 transition-transform duration-300"
+                unoptimized
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                <Store size={18} />
+              </div>
+            )}
+            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-ink-900/85 to-transparent p-1.5">
+              <span className="text-cream-200 text-[10px] font-semibold truncate block">
+                {v.popupName}
+              </span>
+            </div>
+          </Link>
+        ))}
+      </div>
+    </div>
   );
 }

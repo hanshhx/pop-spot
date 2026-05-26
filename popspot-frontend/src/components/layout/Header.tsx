@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { LogOut, ShieldCheck, Megaphone, Crown, User as UserIcon } from "lucide-react";
+import { LogOut, ShieldCheck, Megaphone, Crown, User as UserIcon, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import ThemeToggle from "@/components/ThemeToggle";
@@ -24,6 +24,8 @@ interface HeaderProps {
   onLogoClick?: () => void;
   /** v2.16 — UserChip 클릭 시 호출. 프로필 편집 모달 열기. */
   onProfileClick?: () => void;
+  /** v2.18 — 글로벌 검색 모달 열기. */
+  onSearchClick?: () => void;
   subtitle?: string;
   className?: string;
 }
@@ -40,6 +42,7 @@ export function Header({
   onReportClick,
   onLogoClick,
   onProfileClick,
+  onSearchClick,
   subtitle = "Seoul Popup Store Intelligence",
   className,
 }: HeaderProps) {
@@ -72,6 +75,18 @@ export function Header({
         className="flex items-center gap-2 md:gap-3 self-end md:self-auto"
       >
         <ThemeToggle />
+
+        {onSearchClick && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onSearchClick}
+            aria-label="팝업 검색"
+            title="팝업 검색 (Ctrl+K)"
+          >
+            <Search className="size-4" aria-hidden />
+          </Button>
+        )}
 
         {user && onReportClick && (
           <Button
