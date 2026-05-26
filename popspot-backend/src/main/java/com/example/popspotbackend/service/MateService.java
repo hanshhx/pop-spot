@@ -112,6 +112,31 @@ public class MateService {
     }
 
     /**
+     * v2.18.1 — 게시글 신고. 누적 신고 수가 임계값 ({@link #REPORT_AUTO_HIDE_THRESHOLD}) 도달하면
+     * 자동으로 isHidden=true 처리해 사용자 화면에서 제외.
+     *
+     * <p>본인 글 신고는 무의미하므로 차단. 신고 사유는 자유 텍스트라 단순 기록 (현재는 카운터만
+     * 증가시키고 사유를 별도 저장하지 않음 — 운영 부담 줄이기 위한 트레이드오프. 추후 ReportLog
+     * 테이블 추가 가능).
+     */
+    @Transactional
+    public int reportPost(Long postId, String reporterUserId) {
+        MatePost post = findPostOrThrow(postId);
+        if (post.getAuthor().getUserId().equals(reporterUserId)) {
+            throw new IllegalArgumentException("본인 게시글은 신고할 수 없습니다.");
+        }
+        int next = post.getReportCount() + 1;
+        post.setReportCount(next);
+        if (next >= REPORT_AUTO_HIDE_THRESHOLD && !post.isHidden()) {
+            post.setHidden(true);
+        }
+        matePostRepository.save(post);
+        return next;
+    }
+
+    private static final int REPORT_AUTO_HIDE_THRESHOLD = 3;
+
+    /**
      * 사용자의 현재 등급 + 월 부스트 한도 / 잔여 횟수.
      *
      * <p>글쓰기 모달에서 "이번 달 N회 남음" 표시용. 호출 시점에 boost_period 가 이번 달과 다르면 즉시 리셋하고 저장한다.

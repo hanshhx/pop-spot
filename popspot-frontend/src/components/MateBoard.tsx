@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
-import { MessageCircle, Plus, User as UserIcon, MapPin, X, TrendingUp, Crown } from "lucide-react";
+import { MessageCircle, Plus, User as UserIcon, MapPin, X, TrendingUp, Crown, Flag } from "lucide-react";
 import { useChatStore } from "../store/useChatStore";
 import { apiFetch } from "../lib/api";
 import { notify, notifyError } from "@/lib/notify";
@@ -130,6 +130,42 @@ export default function MateBoard({ user }: MateBoardProps) {
       }
     } catch {
       notifyError("등록 실패");
+    }
+  };
+
+  /**
+   * v2.18.1 — 게시글 신고. 본인 글이면 차단. 누적 신고 도달 시 백엔드가 자동 isHidden.
+   */
+  const handleReport = async (post: MatePost) => {
+    if (!user) return notify("로그인이 필요합니다.");
+    const targetUserId = user.userId || user.id || "";
+    if (post.author.userId === targetUserId || post.author.nickname === user.nickname) {
+      return notify("본인 글은 신고할 수 없습니다.");
+    }
+    const { confirmAction } = await import("@/lib/notify");
+    const ok = await confirmAction({
+      title: "이 글을 신고할까요?",
+      text: "스팸 / 욕설 / 부적절한 내용 등을 신고하면 운영자가 검토합니다.",
+      icon: "warning",
+      destructive: true,
+      confirmText: "신고",
+    });
+    if (!ok) return;
+
+    try {
+      const res = await apiFetch(
+        `/api/mates/${post.id}/report?userId=${encodeURIComponent(targetUserId)}`,
+        { method: "POST" },
+      );
+      if (res.ok) {
+        notify("신고가 접수되었습니다.");
+        fetchPosts();
+      } else {
+        const msg = await res.text();
+        notifyError(msg || "신고 처리에 실패했습니다.");
+      }
+    } catch {
+      notifyError("서버 통신 오류가 발생했습니다.");
     }
   };
 
@@ -324,7 +360,19 @@ export default function MateBoard({ user }: MateBoardProps) {
                                   <span className="text-lime-500 text-xs md:text-sm mr-0.5">{post.currentPeople}</span>
                                   / {post.maxPeople}명
                               </span>
-                              <button 
+                              {/* v2.18.1 — 본인 글이 아니면 신고 버튼 노출 */}
+                              {!isMyPost(post, user) && (
+                                  <button
+                                      type="button"
+                                      onClick={() => handleReport(post)}
+                                      aria-label="이 글 신고"
+                                      title="신고"
+                                      className="p-1.5 text-gray-400 hover:text-danger transition-colors rounded-pill hover:bg-danger/10"
+                                  >
+                                      <Flag size={12} className="md:w-3.5 md:h-3.5" />
+                                  </button>
+                              )}
+                              <button
                                   onClick={() => handleJoinChat(post)}
                                   className={`px-3 py-1.5 md:px-4 md:py-2 text-white rounded-lg md:rounded-xl text-[10px] md:text-xs font-bold flex items-center gap-1 transition-all active:scale-95 ${
                                       post.status === 'CLOSED' ? "bg-gray-500 hover:bg-gray-600" : "bg-lime-300 hover:bg-lime-400 text-ink-900"
