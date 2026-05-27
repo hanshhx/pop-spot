@@ -5,6 +5,7 @@ import com.example.popspotbackend.dto.CalendarPopupDto;
 import com.example.popspotbackend.entity.PopupStore;
 import com.example.popspotbackend.exception.ResourceNotFoundException;
 import com.example.popspotbackend.repository.PopupStoreRepository;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -37,6 +38,9 @@ public class PopupStoreService {
 
     private static final String REVIEW_AUTO_PUBLISHED = "AUTO_PUBLISHED";
     private static final String REVIEW_APPROVED = "APPROVED";
+
+    /** v2.21-S2 — 자동수집 팝업 최소 신뢰도. 미만은 사용자 화면 노출 차단 (검수 큐만 진입). */
+    private static final BigDecimal MIN_CONFIDENCE = new BigDecimal("0.80");
 
     private static final int TRENDING_TOP_N = 4;
     private static final int DEFAULT_CALENDAR_WINDOW_DAYS = 60;
@@ -108,7 +112,9 @@ public class PopupStoreService {
     @Transactional(readOnly = true)
     @Cacheable(value = CacheConfig.CACHE_POPUPS_VISIBLE, sync = true)
     public List<PopupStore> findVisibleMapMarkers() {
-        return popupStoreRepository.findAllVisible();
+        // v2.21-S2 — isPublic 필터 추가. 신뢰도 0.8 미만 자동수집 row 가 지도/BROWSE 에 노출되던
+        // 회귀를 차단. 캐시는 필터 후 결과를 그대로 보관 (5분 TTL).
+        return popupStoreRepository.findAllVisible().stream().filter(this::isPublic).toList();
     }
 
     /** 카테고리 필터링이 들어오면 해당 카테고리만, 아니면 전체 공개 팝업. */
@@ -179,8 +185,15 @@ public class PopupStoreService {
     private boolean isPublic(PopupStore p) {
         if (isHiddenStatus(p.getStatus())) return false;
         String rs = p.getReviewStatus();
-        if (rs == null) return true;
-        return REVIEW_AUTO_PUBLISHED.equals(rs) || REVIEW_APPROVED.equals(rs);
+        if (rs != null && !REVIEW_AUTO_PUBLISHED.equals(rs) && !REVIEW_APPROVED.equals(rs)) {
+            return false;
+        }
+        // v2.21-S2 — 자동수집 신뢰도 미만 차단. null (수동 입력 / 레거시) 은 통과.
+        BigDecimal confidence = p.getConfidenceScore();
+        if (confidence != null && confidence.compareTo(MIN_CONFIDENCE) < 0) {
+            return false;
+        }
+        return true;
     }
 
     private boolean isHiddenStatus(String status) {
