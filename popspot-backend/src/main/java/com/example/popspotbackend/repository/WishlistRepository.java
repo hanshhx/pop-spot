@@ -27,7 +27,8 @@ public interface WishlistRepository extends JpaRepository<Wishlist, Long> {
     /**
      * v2.18.1 — 위시 만료 D-3 알림 cron 용.
      *
-     * <p>특정 ISO 날짜 (yyyy-MM-dd) 에 종료되는 팝업을 찜한 모든 위시리스트 + 사용자 정보를 한 번에 가져온다. EntityGraph 로 popupStore + user 까지 fetch — 메일 발송 시 LazyInit 방지.
+     * <p>특정 ISO 날짜 (yyyy-MM-dd) 에 종료되는 팝업을 찜한 모든 위시리스트 + 사용자 정보를 한 번에 가져온다. EntityGraph 로
+     * popupStore + user 까지 fetch — 메일 발송 시 LazyInit 방지.
      */
     @EntityGraph(attributePaths = {"popupStore", "user"})
     @Query("SELECT w FROM Wishlist w WHERE w.popupStore.endDate = :targetDate")

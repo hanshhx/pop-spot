@@ -61,6 +61,7 @@ import { TermsReconsentModal } from "@/features/terms/TermsReconsentModal";
 import { MyFeedbackList } from "@/features/feedback/MyFeedbackList";
 import { FeedbackForm } from "@/features/feedback/FeedbackForm";
 import { ProfileEditModal } from "@/features/profile/ProfileEditModal";
+import BrowseSection from "@/components/main/BrowseSection";
 import type {
   User,
   PopupStore,
@@ -732,6 +733,9 @@ export default function Home() {
                     </div>
                     <ArrowRight size={20} className="text-foreground transition group-hover:translate-x-1" />
                 </button>
+
+                {/* v2.21 — BROWSE 섹션 (지역 / 시점 / 카테고리 슬라이스 진입점) */}
+                <BrowseSection />
 
                 {/* Dashboard Main Grid */}
                 <section aria-label="Dashboard Layout" className="grid grid-cols-1 lg:grid-cols-12 md:grid-rows-6 gap-4 min-h-[80vh] mb-16">
