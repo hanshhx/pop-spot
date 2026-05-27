@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   MapPin,
   CalendarDays,
@@ -53,7 +53,6 @@ type SliceItem = {
 };
 
 export default function BrowseSection() {
-  const router = useRouter();
   const [markers, setMarkers] = useState<Marker[] | null>(null);
   const [error, setError] = useState(false);
 
@@ -143,21 +142,18 @@ export default function BrowseSection() {
           title="지역"
           slices={regionSlices}
           isLoading={markers === null}
-          onSelect={(href) => router.push(href)}
         />
         <SliceRow
           icon={<CalendarDays size={16} className="text-lime-500" />}
           title="시점"
           slices={periodSlices}
           isLoading={markers === null}
-          onSelect={(href) => router.push(href)}
         />
         <SliceRow
           icon={<Tag size={16} className="text-lime-500" />}
           title="카테고리"
           slices={categorySlices}
           isLoading={markers === null}
-          onSelect={(href) => router.push(href)}
         />
       </div>
     </section>
@@ -169,13 +165,11 @@ function SliceRow({
   title,
   slices,
   isLoading,
-  onSelect,
 }: {
   icon: React.ReactNode;
   title: string;
   slices: SliceItem[];
   isLoading: boolean;
-  onSelect: (href: string) => void;
 }) {
   return (
     <div className="px-5 md:px-6 py-4">
@@ -201,9 +195,10 @@ function SliceRow({
         <ul className="flex flex-wrap gap-2">
           {slices.map((s) => (
             <li key={s.key}>
-              <button
-                type="button"
-                onClick={() => onSelect(s.href)}
+              {/* v2.21-S3.3 — router.push() 가 같은 페이지 query 변경 시 cache hit 으로
+                  hook 재실행 안 하는 회귀 → next/link Link 로 대체. prefetch 도 자동. */}
+              <Link
+                href={s.href}
                 aria-label={`${s.label} 팝업 ${s.count}개 보기`}
                 className="group inline-flex items-center gap-2 px-3 py-1.5 rounded-pill text-sm font-medium transition-all border bg-white text-gray-900 border-gray-200 hover:border-lime-300 hover:bg-lime-50 dark:bg-white/5 dark:text-white dark:border-white/10 dark:hover:bg-lime-300/10 dark:hover:border-lime-300/40"
               >
@@ -215,7 +210,7 @@ function SliceRow({
                   size={12}
                   className="text-gray-400 dark:text-white/40 group-hover:text-lime-600 dark:group-hover:text-lime-300 group-hover:translate-x-0.5 transition-all"
                 />
-              </button>
+              </Link>
             </li>
           ))}
         </ul>
