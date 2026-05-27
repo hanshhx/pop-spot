@@ -32,7 +32,6 @@ import {
  */
 
 const SITE_URL = "https://popspot.co.kr";
-const REVALIDATE_SECONDS = 3600; // 1시간 ISR — 카운트 신선도
 
 type Marker = {
   id: number;
@@ -48,10 +47,11 @@ type Slice =
   | { kind: "period"; slug: string; label: string }
   | { kind: "category"; slug: string; label: string };
 
-// v2.21-S3 — ISR + 알 수 없는 슬러그는 404. force-static 과 revalidate 는 Next.js 16 에서
-// 충돌하므로 (force-static = 영구 정적, revalidate = ISR 갱신) revalidate + dynamicParams 만 사용.
+// v2.21-S3 — ISR + 알 수 없는 슬러그는 404.
+// Next.js 16 segment config 는 literal 값만 받음 (const 변수 참조 X) — Vercel 빌드에서
+// "Invalid segment configuration" 으로 잡힘. 숫자 / boolean 인라인 필수.
 // generateStaticParams 로 빌드 타임에 23개 슬러그 미리 SSG, 그 후 1시간 ISR 로 갱신.
-export const revalidate = REVALIDATE_SECONDS;
+export const revalidate = 3600;
 export const dynamicParams = false;
 
 /** 모든 슬러그를 빌드 타임에 미리 생성. 신규 슬라이스 추가 시 빌드 한 번 더 돌리면 됨. */
@@ -87,7 +87,7 @@ async function fetchMarkers(): Promise<Marker[]> {
   const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? SITE_URL;
   try {
     const res = await fetch(`${apiBase}/api/map/markers`, {
-      next: { revalidate: REVALIDATE_SECONDS },
+      next: { revalidate: 3600 },
     });
     if (!res.ok) return [];
     return (await res.json()) as Marker[];
