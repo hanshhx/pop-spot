@@ -14,5 +14,8 @@ Disallow: /feedback
 Disallow: /feedback/
 Disallow: /planning
 Disallow: /planning/
+Disallow: /music/passport
+Disallow: /music/passport/
 
 Sitemap: https://popspot.co.kr/sitemap.xml
+
