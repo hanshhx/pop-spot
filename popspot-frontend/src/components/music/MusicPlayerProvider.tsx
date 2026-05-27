@@ -13,8 +13,9 @@ import {
 } from 'react';
 
 import { apiFetch } from '@/lib/api';
+import { notify } from '@/lib/notify';
 import type { MatchResult, MusicTrack } from '@/types/music';
-import { useYouTubePlayer } from './useYouTubePlayer';
+import { useYouTubePlayer, describeYouTubeError } from './useYouTubePlayer';
 
 /**
  * 글로벌 음악 플레이어 Provider.
@@ -94,9 +95,39 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
   // 추천 큐가 비어가면 미리 다음 곡들을 보충해서 끊김 없이 이어지게 한다.
   const refillingRef = useRef(false);
 
+  // v2.21-S6 — 재생 실패 시 같은 곡을 즉시 재시도하지 않도록 차단 (무한 루프 방지).
+  // current trackId 가 바뀔 때만 다시 0 으로 리셋.
+  const skippedTrackIdRef = useRef<number | null>(null);
+
   const player = useYouTubePlayer({
     videoId: current?.youtubeVideoId ?? null,
     onEnded: () => playNextFromQueue(),
+    onError: (code) => {
+      const failed = current;
+      if (!failed) return;
+      // 무한 skip 루프 방지 — 같은 trackId 가 또 실패하면 한 번만 처리.
+      if (skippedTrackIdRef.current === failed.id) return;
+      skippedTrackIdRef.current = failed.id;
+
+      const reason = describeYouTubeError(code);
+      notify({
+        icon: "info",
+        title: "다음 곡으로 넘어가요",
+        text: `"${failed.title ?? "이 곡"}" — ${reason}`,
+        timer: 2500,
+      });
+
+      // 백엔드에 실패 마킹 — 다음에 같은 트랙이 후보로 안 나오게.
+      apiFetch(`/api/music/${failed.id}/playback-failed`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code }),
+      }).catch(() => {
+        /* 마킹 실패는 무시 — 다음 트랙 진행이 더 중요 */
+      });
+
+      playNextFromQueue();
+    },
   });
 
   /* ============================== Actions ============================== */
