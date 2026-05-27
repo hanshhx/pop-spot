@@ -44,25 +44,25 @@ export const CATEGORIES: CategoryDef[] = [
     code: "fashion",
     label: "패션",
     slug: "fashion",
-    keywords: ["패션", "의류", "잡화", "fashion"],
+    keywords: ["패션", "의류", "잡화", "fashion", "FASHION"],
   },
   {
     code: "beauty",
     label: "뷰티",
     slug: "beauty",
-    keywords: ["뷰티", "화장품", "코스메틱", "beauty"],
+    keywords: ["뷰티", "화장품", "코스메틱", "beauty", "BEAUTY"],
   },
   {
     code: "character",
     label: "캐릭터",
     slug: "character",
-    keywords: ["캐릭터", "굿즈", "애니", "character"],
+    keywords: ["캐릭터", "굿즈", "애니", "character", "CHARACTER"],
   },
   {
     code: "dessert",
     label: "디저트",
     slug: "dessert",
-    keywords: ["디저트", "베이커리", "카페", "푸드", "음료", "dessert"],
+    keywords: ["디저트", "베이커리", "카페", "푸드", "음료", "dessert", "FOOD"],
   },
   {
     code: "lifestyle",
@@ -74,7 +74,7 @@ export const CATEGORIES: CategoryDef[] = [
     code: "art",
     label: "아트",
     slug: "art",
-    keywords: ["아트", "전시", "갤러리", "art"],
+    keywords: ["아트", "전시", "갤러리", "art", "CULTURE"],
   },
   {
     code: "tech",
