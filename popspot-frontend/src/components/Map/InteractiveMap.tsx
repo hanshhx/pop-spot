@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from "next/navigation";
 import { Map, CustomOverlayMap, Polyline } from "react-kakao-maps-sdk";
 import { X, MapPin, ArrowRight, Plus, Minus, Compass, List, ShoppingBag, Coffee, Camera, Zap, Sparkles } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -108,7 +107,6 @@ function spreadOverlappingMarkers(markers: MapMarkerData[]): MapMarkerData[] {
 }
 
 export default function InteractiveMap({ places, showPath = false, center, mode = "DEFAULT", routePaths = [], onMarkerClick }: InteractiveMapProps) {
-  const searchParams = useSearchParams();
   const [allMarkers, setAllMarkers] = useState<MapMarkerData[]>([]);
   const [selectedMarker, setSelectedMarker] = useState<MapMarkerData | null>(null);
   const [activeCategory, setActiveCategory] = useState("ALL");
@@ -117,24 +115,44 @@ export default function InteractiveMap({ places, showPath = false, center, mode 
   // 사용자 현재 위치 — 브라우저 메모리에만 보관 (서버 저장 X · PIPA 부담 최소).
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
 
-  // v2.21-S2 — BROWSE 섹션 deep link 쿼리 (region / period / category 슬러그).
-  // 외부 진입 (BROWSE 카드 칩 / 다른 페이지 / 검색결과) 에서 들어온 필터를 그대로 반영.
-  const regionSlug = searchParams?.get("region") ?? null;
-  const periodSlug = searchParams?.get("period") ?? null;
-  const categorySlug = searchParams?.get("category") ?? null;
+  // v2.21-S3.5 — useSearchParams 가 Suspense 없이 호출돼 production 빌드에서 마운트 실패하던
+  // 회귀 차단. window.location.search 를 useEffect 안에서 안전하게 읽고 popstate 로 변경 감지.
+  // BROWSE 가 모달 흐름으로 바뀌어 라우팅 의존성이 없어졌으므로 이걸로 충분.
+  const [filterSlugs, setFilterSlugs] = useState<{
+    region: string | null;
+    period: string | null;
+    category: string | null;
+  }>({ region: null, period: null, category: null });
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const readFromUrl = () => {
+      const params = new URLSearchParams(window.location.search);
+      setFilterSlugs({
+        region: params.get("region"),
+        period: params.get("period"),
+        category: params.get("category"),
+      });
+    };
+    readFromUrl();
+    window.addEventListener("popstate", readFromUrl);
+    return () => window.removeEventListener("popstate", readFromUrl);
+  }, []);
 
   const activeRegion: RegionCode | null = useMemo(
-    () => (regionSlug ? regionBySlug(regionSlug)?.code ?? null : null),
-    [regionSlug],
+    () => (filterSlugs.region ? regionBySlug(filterSlugs.region)?.code ?? null : null),
+    [filterSlugs.region],
   );
   const activePeriod: PeriodCode | null = useMemo(
-    () => (periodSlug ? periodBySlug(periodSlug)?.code ?? null : null),
-    [periodSlug],
+    () => (filterSlugs.period ? periodBySlug(filterSlugs.period)?.code ?? null : null),
+    [filterSlugs.period],
   );
   const activeBrowseCategory: CategoryCode | null = useMemo(
-    () => (categorySlug ? categoryBySlug(categorySlug)?.code ?? null : null),
-    [categorySlug],
+    () => (filterSlugs.category ? categoryBySlug(filterSlugs.category)?.code ?? null : null),
+    [filterSlugs.category],
   );
+  const periodSlug = filterSlugs.period;
+  const categorySlug = filterSlugs.category;
 
   // 데이터 fetch — places (코스 모드) 가 있으면 그대로, 아니면 visible markers 전부.
   // v2.21-S2 — 전 (이전 /api/popups?category=…) 클라이언트 사이드 통합 필터로 변경.
