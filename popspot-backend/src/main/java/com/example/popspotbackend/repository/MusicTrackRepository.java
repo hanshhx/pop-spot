@@ -61,4 +61,21 @@ public interface MusicTrackRepository extends JpaRepository<MusicTrack, Long> {
             "UPDATE MusicTrack m SET m.youtubeVideoId = NULL, m.youtubeChannel = NULL, "
                     + "m.isOfficial = false WHERE m.id IN :ids")
     int clearYoutubeCacheByIds(java.util.Collection<Long> ids);
+
+    /**
+     * v2.21-S7 — 재생 실패 카운터 증가. 임계값 (기본 3) 초과 시 검색 후보에서 빠진다.
+     * 같은 트랙 한 번 실패 = 1 증가, race 무관하게 단일 SQL UPDATE.
+     */
+    @Modifying
+    @Transactional
+    @Query(
+            "UPDATE MusicTrack m SET m.playbackFailedCount = COALESCE(m.playbackFailedCount, 0) + 1 "
+                    + "WHERE m.id = :id")
+    int incrementPlaybackFailed(Long id);
+
+    /** v2.21-S7 — 어드민 카드용: 임계값 이상 실패한 트랙 수 (embed 차단 통계). */
+    @Query(
+            "SELECT COUNT(m) FROM MusicTrack m "
+                    + "WHERE COALESCE(m.playbackFailedCount, 0) >= :threshold")
+    long countPlaybackBlocked(int threshold);
 }

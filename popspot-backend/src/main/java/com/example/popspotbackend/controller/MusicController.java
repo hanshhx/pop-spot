@@ -6,6 +6,7 @@ import com.example.popspotbackend.service.music.MusicService;
 import com.example.popspotbackend.service.music.SearchSuggestService;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -110,6 +111,16 @@ public class MusicController {
             @PathVariable Long trackId,
             @RequestParam(value = "limit", defaultValue = "" + DEFAULT_NEXT_LIMIT) int limit) {
         return musicService.recommendNext(trackId, clampLimit(limit, MAX_NEXT_LIMIT));
+    }
+
+    /**
+     * v2.21-S7 — 재생 실패 마킹. 프론트의 useYouTubePlayer onError (101/150 embed 차단, 100
+     * 비공개 등) 시 호출. 임계값 이상 누적되면 검색 후보에서 자동 제외.
+     */
+    @PostMapping("/{trackId}/playback-failed")
+    public ResponseEntity<Void> markPlaybackFailed(@PathVariable Long trackId) {
+        musicService.recordPlaybackFailure(trackId);
+        return ResponseEntity.noContent().build();
     }
 
     /* ============================== 입력 검증 ============================== */

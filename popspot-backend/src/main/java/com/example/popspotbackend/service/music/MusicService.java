@@ -39,6 +39,12 @@ public class MusicService {
     private static final int MATCH_RESULT_LIMIT = 5;
     private static final int RECOMMENDATION_CANDIDATE_POOL = 200;
     private static final int REVERSE_MATCH_CANDIDATE_POOL = 500;
+
+    /**
+     * v2.21-S7 — YouTube IFrame 재생 실패 누적 임계값. 이 횟수 이상 실패한 트랙은 검색 / 추천 / 역방향 매칭에서 모두 자동 제외된다. 어드민이
+     * youtube_video_id 재선택 (cover 청소 엔드포인트) 으로 복구 가능.
+     */
+    private static final int PLAYBACK_FAILURE_THRESHOLD = 3;
     private static final int FALLBACK_POPUP_SCORE = 50;
     private static final int MAX_MATCH_SCORE = 100;
 
@@ -158,6 +164,7 @@ public class MusicService {
         return trackRepo.findTopPlayed(PageRequest.of(0, RECOMMENDATION_CANDIDATE_POOL)).stream()
                 .filter(t -> !t.getId().equals(seedTrackId))
                 .filter(this::hasYoutubeVideoId)
+                .filter(this::isPlaybackHealthy)
                 .map(
                         t ->
                                 new RankedTrack(
@@ -168,6 +175,21 @@ public class MusicService {
                 .limit(limit)
                 .map(RankedTrack::track)
                 .toList();
+    }
+
+    /**
+     * v2.21-S7 — 프론트 YouTube IFrame onError 호출 시 카운터 1 증가. 누적 임계값 초과 시 isPlaybackHealthy 가
+     * false 가 되어 검색 / 추천 후보에서 자동 제외된다.
+     */
+    public void recordPlaybackFailure(Long trackId) {
+        if (trackId == null) return;
+        trackRepo.incrementPlaybackFailed(trackId);
+    }
+
+    /** v2.21-S7 — 재생 실패 임계값 미만이면 후보로 인정. null / 0 도 통과. */
+    private boolean isPlaybackHealthy(MusicTrack t) {
+        Integer count = t.getPlaybackFailedCount();
+        return count == null || count < PLAYBACK_FAILURE_THRESHOLD;
     }
 
     /** 역방향 매칭 — 팝업 ID 로 그 팝업과 분위기가 어울리는 곡 N 개 반환. */
