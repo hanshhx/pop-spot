@@ -48,8 +48,10 @@ type Slice =
   | { kind: "period"; slug: string; label: string }
   | { kind: "category"; slug: string; label: string };
 
+// v2.21-S3 — ISR + 알 수 없는 슬러그는 404. force-static 과 revalidate 는 Next.js 16 에서
+// 충돌하므로 (force-static = 영구 정적, revalidate = ISR 갱신) revalidate + dynamicParams 만 사용.
+// generateStaticParams 로 빌드 타임에 23개 슬러그 미리 SSG, 그 후 1시간 ISR 로 갱신.
 export const revalidate = REVALIDATE_SECONDS;
-export const dynamic = "force-static";
 export const dynamicParams = false;
 
 /** 모든 슬러그를 빌드 타임에 미리 생성. 신규 슬라이스 추가 시 빌드 한 번 더 돌리면 됨. */
