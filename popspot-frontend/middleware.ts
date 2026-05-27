@@ -21,7 +21,17 @@ import type { NextRequest } from "next/server";
  *   <li>matcher 가 "/" 로 한정되어 다른 경로 / API / 정적 파일에는 영향 없음.</li>
  * </ul>
  */
-const DEEP_LINK_PARAMS = ["tab", "popup", "music", "course", "mate"] as const;
+const DEEP_LINK_PARAMS = [
+  "tab",
+  "popup",
+  "music",
+  "course",
+  "mate",
+  // v2.21 — BROWSE 섹션 진입 쿼리
+  "region",
+  "period",
+  "category",
+] as const;
 
 // v2.20.3 — 주요 검색엔진 봇 User-Agent 패턴. case-insensitive.
 // Google / Naver(Yeti) / Bing / Daum / DuckDuckGo / Yandex / 카카오톡 OG 크롤러 / 페이스북.
