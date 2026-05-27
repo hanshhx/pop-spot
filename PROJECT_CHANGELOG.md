@@ -10371,3 +10371,58 @@ WebSite + Organization 스키마. sitelinks search box 노출 가능.
   → X 클릭 시 region 쿼리 제거 → 전체 마커 복귀
 ```
 
+## 29.11 v2.21-S3 — 자동수집 후 캐시 즉시 갱신 + 신뢰도 환경변수 + Long-tail SEO 랜딩 페이지
+
+운영자 요청 3종 묶음:
+
+1. **자동수집 cron (04:00 / 16:00) 후 BROWSE 가 즉시 갱신되는지** — 이전엔 5분 TTL 만료까지 대기.
+2. **신뢰도 0.8 임계값을 환경변수로** — 운영 중 코드 수정 없이 조정.
+3. **Long-tail SEO 랜딩 페이지 자동 생성** — `popups/seongsu`, `popups/this-weekend` 같은 페이지 23개.
+
+### 백엔드 변경
+
+- **`PopupStoreService`**:
+  - `MIN_CONFIDENCE` 상수 → `@Value("${popspot.popup.min-visible-confidence:0.80}") BigDecimal minVisibleConfidence` 로 변경. 운영 중 조정 가능.
+  - 신규 `evictPopupCaches()` public 메서드 — `@Caching(evict = popups-visible + popups-hot)` 만 적용된 no-op 메서드. 외부에서 명시적 호출 가능.
+- **`PopupCrawlScheduler`**:
+  - `PopupStoreService` 주입.
+  - `runIfEnabled` 끝에 `popupStoreService.evictPopupCaches()` 호출. 자동수집 cron 완료 시 즉시 BROWSE / 지도 캐시 무효화.
+  - 이전 문제: `PopupCrawlOrchestrator` 가 `popupStoreRepository.save()` 직접 호출 → `@CacheEvict` 우회 → 5분 TTL 만료까지 BROWSE 가 옛 데이터.
+- **`application.properties`**: `popspot.popup.min-visible-confidence=${POPSPOT_MIN_VISIBLE_CONFIDENCE:0.80}` 추가. 자동수집의 `confidence-threshold` (자동게시 vs 검수큐 분기) 와는 별개 — 이건 사용자 화면 노출 마지막 게이트.
+
+### 프론트 변경
+
+- **`app/popups/[slug]/page.tsx` (신규)** — Long-tail SEO 랜딩 페이지:
+  - `generateStaticParams` 로 23개 슬러그 (REGIONS 11 + PERIODS 5 + CATEGORIES 7) 빌드 타임 미리 생성.
+  - `export const dynamic = "force-static"; export const dynamicParams = false;` — SSG 보장, 알 수 없는 슬러그는 404.
+  - `revalidate = 3600` (ISR 1시간) — 카운트 신선도 유지.
+  - 슬라이스별 키워드 풍부 metadata (title / description / canonical / OG).
+  - 본문 H1 (`성수 팝업스토어 N곳`) + 진행 중 팝업 목록 (최대 30개) + CTA ("지도에서 성수 팝업 보기") + 다른 슬라이스 cloud + FAQ 섹션.
+  - JSON-LD 2종 (`ItemList` + `FAQPage`) — 검색결과 풍부도 ↑.
+  - 약관 §10-2 일관성: 자동수집 팝업 상세 페이지로 링크 X. 메인 지도로만 회유.
+- **`app/sitemap.ts`**: REGIONS / PERIODS / CATEGORIES 의 모든 슬러그를 동적으로 sitemap 에 등록 (총 5 정적 + 23 슬라이스 = 28개 페이지).
+
+### 효과
+
+- **즉시 갱신**: 새벽 4시 / 오후 4시 자동수집 → BROWSE / 지도가 즉시 신규 팝업 반영.
+- **운영 유연성**: `POPSPOT_MIN_VISIBLE_CONFIDENCE=0.75` 같은 환경변수로 임계값 조정 후 재배포만 하면 적용 (소스 수정 X).
+- **Long-tail SEO**: Naver / Google 이 "성수동 팝업 추천", "주말 팝업", "패션 팝업스토어" 같은 long-tail 키워드로 진입 가능. 1-4주 내 검색 결과 노출 증가 예상.
+
+### 검증
+
+```bash
+# 1. 환경변수 동작 확인
+# application.properties 에서 0.80 → 0.75 변경 후 재기동 → 0.75 적용 확인
+
+# 2. 자동수집 후 캐시 evict 로그 확인
+sudo journalctl -u popspot.service --since "today" | grep "자동수집 완료 — 캐시 evict"
+
+# 3. SSG 랜딩 페이지
+curl -I https://popspot.co.kr/popups/seongsu
+# HTTP/2 200, x-vercel-cache: PRERENDER 또는 HIT
+
+# 4. sitemap 28개 등록 확인
+curl -s https://popspot.co.kr/sitemap.xml | grep -c "<url>"
+# 28 출력되어야 함
+```
+
