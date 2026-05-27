@@ -1,11 +1,21 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from "next/navigation";
 import { Map, CustomOverlayMap, Polyline } from "react-kakao-maps-sdk";
 import { X, MapPin, ArrowRight, Plus, Minus, Compass, List, ShoppingBag, Coffee, Camera, Zap, Sparkles } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { notify } from "@/lib/notify";
+import { classifyRegion, regionBySlug, regionLabel, type RegionCode } from "@/lib/regions";
+import {
+  classifyCategory,
+  matchesPeriod,
+  periodBySlug,
+  categoryBySlug,
+  type PeriodCode,
+  type CategoryCode,
+} from "@/lib/popupSlices";
 
 declare global {
   interface Window {
@@ -33,10 +43,13 @@ interface MapMarkerData {
   popupId: number;
   name: string;
   address: string;
-  latitude: string; 
+  latitude: string;
   longitude: string;
   status?: string;
   category?: string;
+  // v2.21-S2 — BROWSE 슬라이스 필터링용
+  startDate?: string;
+  endDate?: string;
 }
 
 // DB 의 실제 카테고리 값과 일치 (자동수집 팝업까지 모두 매칭되도록)
@@ -95,7 +108,8 @@ function spreadOverlappingMarkers(markers: MapMarkerData[]): MapMarkerData[] {
 }
 
 export default function InteractiveMap({ places, showPath = false, center, mode = "DEFAULT", routePaths = [], onMarkerClick }: InteractiveMapProps) {
-  const [markers, setMarkers] = useState<MapMarkerData[]>([]);
+  const searchParams = useSearchParams();
+  const [allMarkers, setAllMarkers] = useState<MapMarkerData[]>([]);
   const [selectedMarker, setSelectedMarker] = useState<MapMarkerData | null>(null);
   const [activeCategory, setActiveCategory] = useState("ALL");
   const [map, setMap] = useState<any>(null);
@@ -103,7 +117,27 @@ export default function InteractiveMap({ places, showPath = false, center, mode 
   // 사용자 현재 위치 — 브라우저 메모리에만 보관 (서버 저장 X · PIPA 부담 최소).
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
 
-  // 데이터 변환 로직
+  // v2.21-S2 — BROWSE 섹션 deep link 쿼리 (region / period / category 슬러그).
+  // 외부 진입 (BROWSE 카드 칩 / 다른 페이지 / 검색결과) 에서 들어온 필터를 그대로 반영.
+  const regionSlug = searchParams?.get("region") ?? null;
+  const periodSlug = searchParams?.get("period") ?? null;
+  const categorySlug = searchParams?.get("category") ?? null;
+
+  const activeRegion: RegionCode | null = useMemo(
+    () => (regionSlug ? regionBySlug(regionSlug)?.code ?? null : null),
+    [regionSlug],
+  );
+  const activePeriod: PeriodCode | null = useMemo(
+    () => (periodSlug ? periodBySlug(periodSlug)?.code ?? null : null),
+    [periodSlug],
+  );
+  const activeBrowseCategory: CategoryCode | null = useMemo(
+    () => (categorySlug ? categoryBySlug(categorySlug)?.code ?? null : null),
+    [categorySlug],
+  );
+
+  // 데이터 fetch — places (코스 모드) 가 있으면 그대로, 아니면 visible markers 전부.
+  // v2.21-S2 — 전 (이전 /api/popups?category=…) 클라이언트 사이드 통합 필터로 변경.
   useEffect(() => {
     if (places && places.length > 0) {
       // (A) 코스 모드 / 작전 모드
@@ -120,29 +154,58 @@ export default function InteractiveMap({ places, showPath = false, center, mode 
           category: p.category || "COURSE"
         };
       });
-      setMarkers(convertedMarkers);
-    } else {
-      // (B) 일반 모드
-      let url = '/api/popups';
-      if (activeCategory !== "ALL") {
-        url += `?category=${activeCategory}`;
-      }
-
-      fetch(url)
-        .then((res) => {
-          if (!res.ok) throw new Error('네트워크 응답 실패');
-          return res.json();
-        })
-        .then((data: MapMarkerData[]) => {
-          // 같은 좌표에 여러 팝업이 박힌 경우 (자동수집 geocoding 동일 빌딩 등)
-          // 시각적으로 마커가 겹쳐 안 보이는 걸 막기 위해 미세하게 흩뿌린다.
-          // 약 5m 반경의 작은 원형 분산이라 실제 위치 인식에는 영향 없음.
-          const spread = spreadOverlappingMarkers(data || []);
-          setMarkers(spread);
-        })
-        .catch((err) => console.error("❌ API 호출 에러:", err));
+      setAllMarkers(convertedMarkers);
+      return;
     }
-  }, [activeCategory, places]);
+
+    // (B) 일반 모드 — v2.21-S2 /api/map/markers 로 통일. category/startDate/endDate 포함.
+    fetch('/api/map/markers')
+      .then((res) => {
+        if (!res.ok) throw new Error('네트워크 응답 실패');
+        return res.json();
+      })
+      .then((data: Array<{ id: number; name: string; location: string | null; latitude: string; longitude: string; category: string | null; startDate: string | null; endDate: string | null }>) => {
+        const mapped: MapMarkerData[] = (data ?? []).map((m) => ({
+          popupId: m.id,
+          name: m.name,
+          address: m.location ?? "",
+          latitude: m.latitude,
+          longitude: m.longitude,
+          category: m.category ?? undefined,
+          startDate: m.startDate ?? undefined,
+          endDate: m.endDate ?? undefined,
+        }));
+        setAllMarkers(mapped);
+      })
+      .catch((err) => console.error("❌ API 호출 에러:", err));
+  }, [places]);
+
+  // v2.21-S2 — 모든 필터를 클라이언트 사이드에서 적용.
+  // 우선순위: category (지도 상단 칩) > BROWSE deep link 카테고리 (없을 때 fallback)
+  // region / period 는 BROWSE deep link 만 활성.
+  const markers = useMemo(() => {
+    let filtered = allMarkers;
+
+    // 카테고리 — 지도 상단 칩이 ALL 일 때만 BROWSE 카테고리 반영.
+    if (activeCategory !== "ALL") {
+      filtered = filtered.filter(
+        (m) => (m.category ?? "").toUpperCase() === activeCategory,
+      );
+    } else if (activeBrowseCategory) {
+      filtered = filtered.filter((m) => classifyCategory(m.category) === activeBrowseCategory);
+    }
+
+    if (activeRegion) {
+      filtered = filtered.filter((m) => classifyRegion(m.address) === activeRegion);
+    }
+    if (activePeriod) {
+      filtered = filtered.filter((m) =>
+        matchesPeriod(m.startDate, m.endDate, activePeriod),
+      );
+    }
+
+    return spreadOverlappingMarkers(filtered);
+  }, [allMarkers, activeCategory, activeBrowseCategory, activeRegion, activePeriod]);
 
   // center prop 변경 시 지도 이동
   useEffect(() => {
@@ -212,6 +275,33 @@ export default function InteractiveMap({ places, showPath = false, center, mode 
         }
         #map { background-color: #1a1a1a !important; }
       `}</style>
+
+      {/* v2.21-S2 — 활성 BROWSE 필터 배지 (좌측 상단). 사용자가 어떤 필터가 적용됐는지 즉시 인지. */}
+      {!showPath && mode !== "PLAN" && (activeRegion || activePeriod || activeBrowseCategory) && (
+        <div className="absolute top-12 md:top-14 left-3 md:left-4 z-30 flex flex-wrap items-center gap-1.5 max-w-[calc(100%-1.5rem)]">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-white/60 mr-1">
+            필터:
+          </span>
+          {activeRegion && (
+            <FilterBadge label={regionLabel(activeRegion)} paramKey="region" />
+          )}
+          {activePeriod && (
+            <FilterBadge
+              label={periodBySlug(periodSlug ?? "")?.label ?? activePeriod}
+              paramKey="period"
+            />
+          )}
+          {activeBrowseCategory && (
+            <FilterBadge
+              label={categoryBySlug(categorySlug ?? "")?.label ?? activeBrowseCategory}
+              paramKey="category"
+            />
+          )}
+          <span className="text-[10px] font-bold text-lime-300 ml-1">
+            {markers.length}건
+          </span>
+        </div>
+      )}
 
       {/* PLAN 모드가 아니고 showPath도 아닐 때만 카테고리/사이드바 표시 */}
       {!showPath && mode !== "PLAN" && (
@@ -501,5 +591,34 @@ export default function InteractiveMap({ places, showPath = false, center, mode 
         )}
       </Map>
     </div>
+  );
+}
+
+/**
+ * v2.21-S2 — 활성 BROWSE 필터 배지. X 버튼 클릭 시 해당 쿼리만 URL 에서 제거.
+ * router.replace 로 history 더럽히지 않게 처리.
+ */
+function FilterBadge({ label, paramKey }: { label: string; paramKey: string }) {
+  function handleRemove() {
+    if (typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    url.searchParams.delete(paramKey);
+    window.history.replaceState({}, "", url.toString());
+    // searchParams 변경을 React 가 감지하도록 강제 navigation
+    window.location.replace(url.toString());
+  }
+
+  return (
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-lime-300 text-ink-900 shadow-md">
+      {label}
+      <button
+        type="button"
+        onClick={handleRemove}
+        aria-label={`${label} 필터 해제`}
+        className="opacity-70 hover:opacity-100 transition-opacity"
+      >
+        <X size={10} strokeWidth={3} />
+      </button>
+    </span>
   );
 }

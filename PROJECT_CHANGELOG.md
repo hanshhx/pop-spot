@@ -10331,8 +10331,43 @@ WebSite + Organization 스키마. sitelinks search box 노출 가능.
 - **`app/page.tsx`**: 음악 추천 버튼 다음에 `<BrowseSection />` 한 줄 삽입.
 - **`middleware.ts`**: deep link 쿼리 화이트리스트에 `region` / `period` / `category` 3개 추가.
 
-### 다음 단계 (v2.21-S2 예정)
+### 다음 단계 (v2.21-S2 에서 처리)
 
-- **InteractiveMap 필터 적용**: 지도가 region/period/category 쿼리 읽고 마커 필터링.
-- **Long-tail SEO 랜딩 페이지**: `/popups/[slug]` 동적 라우트 SSG. `popups/seongsu`, `popups/this-weekend`, `popups/fashion` 같은 페이지 자동 생성. sitemap.ts 등록.
+- ~~**InteractiveMap 필터 적용**: 지도가 region/period/category 쿼리 읽고 마커 필터링.~~ → 29.10 에서 처리
+- **Long-tail SEO 랜딩 페이지**: `/popups/[slug]` 동적 라우트 SSG. `popups/seongsu`, `popups/this-weekend`, `popups/fashion` 같은 페이지 자동 생성. sitemap.ts 등록. (별도 작업으로 분리)
+
+## 29.10 v2.21-S2 — BROWSE 칩 → 지도 필터 연동 + 자동수집 신뢰도 0.8 필터
+
+**문제 1**: v2.21-S1 BROWSE 섹션 칩을 클릭해도 지도가 반응 안 함. InteractiveMap 가 `/api/popups?category=` 를 호출하고 region/period 쿼리는 무시.
+
+**문제 2**: 운영 중 신뢰도 0.8 미만 자동수집 팝업이 지도에 노출되는 회귀 발견. 백엔드 `isPublic` 필터에 신뢰도 조건이 없었음.
+
+### 백엔드 변경
+
+- **`PopupStoreService.isPublic`**: 신뢰도 0.8 미만 자동수집 row 차단 조건 추가. `confidenceScore == null` (수동 입력 / 레거시) 은 통과.
+- **`PopupStoreService.findVisibleMapMarkers`**: 이전엔 `Repository.findAllVisible()` 결과를 그대로 반환 → 신뢰도 필터 우회되던 버그. 이제 `.stream().filter(isPublic).toList()` 거쳐 캐시. 다른 메서드 (`getAllPopups` / `searchPopups` / `getCalendar`) 는 이미 `isPublic` 거치므로 영향 X.
+- 새 상수 `MIN_CONFIDENCE = 0.80` (BigDecimal).
+
+### 프론트 변경
+
+- **`src/lib/popupSlices.ts`**: 카테고리 키워드에 백엔드 영문 카테고리 (FASHION / BEAUTY / CHARACTER / FOOD / CULTURE) 추가 — 자동수집 데이터의 영문 카테고리 매칭 가능하도록.
+- **`src/components/Map/InteractiveMap.tsx`** (큰 변경):
+  - `useSearchParams` 도입. `region` / `period` / `category` 쿼리 읽음.
+  - fetch URL `/api/popups?category=` → `/api/map/markers` 로 통일 (v2.21-S1 DTO 확장과 일관). 모든 필터를 클라이언트 사이드에서 적용.
+  - `allMarkers` (전체) / `markers` (필터 결과) 분리. `useMemo` 로 활성 필터 적용.
+  - 지역 필터: `classifyRegion(m.address) === activeRegion`
+  - 시점 필터: `matchesPeriod(m.startDate, m.endDate, activePeriod)`
+  - 카테고리: 지도 상단 칩(activeCategory) 이 우선, ALL 일 때만 BROWSE deep link 카테고리 반영 (충돌 방지).
+  - 활성 필터 배지 (`FilterBadge`): 라임색 pill 형태로 좌측 상단 노출. X 버튼 클릭 시 해당 쿼리 제거 + 즉시 재필터. 매칭 건수 (`12건`) 동시 표시.
+
+### 사용자 흐름
+
+```
+메인 BROWSE "성수 12" 클릭
+  → /?tab=MAP&region=seongsu
+  → InteractiveMap searchParams.get("region") → "seongsu"
+  → 마커 필터: classifyRegion(address) === "seongsu" 만 통과
+  → 좌측 상단 "필터: 성수 12건" 배지 노출
+  → X 클릭 시 region 쿼리 제거 → 전체 마커 복귀
+```
 
