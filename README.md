@@ -1684,6 +1684,50 @@
 
 ---
 
+### v2.18 ~ v2.20 — 출시 후 보강 묶음 (요약)
+
+운영 출시 직후 사용자 피드백 + 자체 점검에서 도출된 항목들을 짧은 사이클로 패치. 자세한 변경 내역은 `PROJECT_CHANGELOG.md` 의 Chapter 29 참고.
+
+- **v2.18 (UX 1차)** — 공통 UI 컴포넌트 (EmptyState / LoadingSpinner / ErrorState) · 글로벌 검색 헤더 · 온보딩 모달 · 방문 기록 · 카카오 공유
+- **v2.18.1 (UX 2차)** — 지도 카테고리 필터 · 메이트 신고 + 자동 차단 · 알림 센터 · 위시 만료 D-3 메일
+- **v2.19 (성능 / 컴플라이언스)** — Caffeine API 캐싱 · DB 인덱스 V10 · 약관 재동의 시스템 · 자동수집 정확도 어드민 카드 · OAuth state 강화
+- **v2.20 (a11y + UI 폴리쉬)** — UI 토큰 정착 · 약관 재동의 모달 · signup honeypot 봇 차단 · a11y aria-label/focus 일관성
+- **v2.20.1 / v2.20.2** — CacheConfig wiring 핫픽스 (v2.19 누락) · Spotless JavaDoc reflow 5번째 핫픽스
+
+---
+
+### v2.20.3 — SEO 봇 인덱싱 함정 제거 + RSS 2.0 + 키워드 보강
+
+> **문제**: 운영자가 Naver 검색 결과 확인 중 메인 페이지가 0건 색인. 추적 결과 `middleware.ts` 가 봇/사용자 구분 없이 `/` 를 `/intro` 로 server-side redirect 하고 있어 봇이 메인 본문을 영원히 못 봄.
+
+| 변경 | 효과 |
+|---|---|
+| `middleware.ts` 에 봇 UA 패턴 예외 | Googlebot / Naver Yeti / Bingbot / Daum / KakaoTalk 등은 메인 SSR HTML 그대로 노출 |
+| `app/feed.xml/route.ts` 신규 (RSS 2.0) | Naver SearchAdvisor 등록용. 약관 §10-2 일관성으로 자동수집 팝업 제외, 운영자 작성 페이지만 노출 |
+| `app/layout.tsx` keywords 5→31개, description 키워드 풍부 톤 | 검색 결과 노출 향상 |
+| `public/robots.txt` 음악 패스포트 차단 추가 | 회원 전용 페이지 인덱싱 방지 |
+
+운영 검증 (curl 실측): Googlebot/Yeti UA → `HTTP/2 200` + 메인 HTML / 일반 사용자 → `HTTP/2 307 location: /intro` (의도대로).
+
+---
+
+### v2.21-S1 — 메인 BROWSE 섹션 (지역 / 시점 / 카테고리 슬라이스)
+
+> **의도**: SEO 키워드 다양화 + 사용자가 메인에서 관심 슬라이스로 빠르게 진입. 자동수집된 팝업 데이터를 클라이언트 사이드에서 슬라이싱하여 "성수 12 / 한남 5 / 압구정 8" 같은 카운트 칩 노출.
+
+| 변경 | 책임 |
+|---|---|
+| `PopupMapController.MapMarkerResponse` DTO 확장 | `category` / `startDate` / `endDate` 추가. 모든 scalar 라 캐시 안전 |
+| `src/lib/regions.ts` 신규 | 11개 동네 분류 (성수 / 한남 / 압구정 / 홍대 / 강남 / 이태원 / 잠실 / 여의도 / 명동 / 성북 / 마포). priority + keyword 길이 매칭으로 "성수동 한남대로" 같은 케이스에서도 더 좁은 동네 우선 |
+| `src/lib/popupSlices.ts` 신규 | 시점 (오늘 / 내일 / 이번 주 / 주말 / 이번 달) + 카테고리 (패션 / 뷰티 / 캐릭터 / 디저트 / 라이프 / 아트 / 테크) 분류 |
+| `src/components/main/BrowseSection.tsx` 신규 | 메인 BROWSE 카드. popspot 디자인 토큰 (`rounded-2xl` + lime hover) |
+| `app/page.tsx` | `<BrowseSection />` 음악 추천 버튼 다음 삽입 |
+| `middleware.ts` | deep link 쿼리 화이트리스트에 `region` / `period` / `category` 추가 |
+
+**v2.21-S2 예정**: InteractiveMap 의 필터 적용 + Long-tail SEO 랜딩 페이지 (`/popups/[slug]` 동적 라우트 SSG).
+
+---
+
 ## 폴더 구조 (백엔드)
 
 ```

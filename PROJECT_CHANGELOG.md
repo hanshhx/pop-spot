@@ -10276,9 +10276,63 @@ WebSite + Organization 스키마. sitelinks search box 노출 가능.
 - save / updateReviewStatus / deleteById 에 `@CacheEvict(visible + hot)` — 어드민 쓰기 시 즉시 무효화
 - `getTrendingPopups` / `getPopupById` / `MyPageService.findMyPageData` — 엔티티 직렬화 lazy 위험 또는 부수효과로 미적용, v2.21 에서 DTO 분리 + viewCount 비동기화 후 캐싱 예정 (각 JavaDoc 에 명시)
 
-## 29.6 v2.21 예정 (미구현)
+## 29.6 v2.21 장기 deferred (지속 보류)
 
 - 캐시 wiring 마저 완료: `PopupStore` → DTO 분리 후 hot 캐시 + 상세 캐시 + mypage 캐시
 - 대규모 신기능 deferred: 리뷰/별점 시스템, 다른 사람 코스 갤러리, 다국어 (i18n), 푸시 알림, 위치기반 추천
 - 장기 리팩터: `app/page.tsx` (1588 라인) 분리, `AuthService` 책임 분해
+
+## 29.7 v2.20.2 — Spotless JavaDoc reflow 5번째 핫픽스
+
+- googleJavaFormat AOSP 100-col 이 멀티라인 `<p>` 와 `<li>` 를 단일 라인으로 reflow 하는 함정에 다시 걸림 (v2.7.2 / v2.9.1 / v2.10.1 / v2.20.2 — 5번째 재발)
+- 8개 파일 수동 정리: `CacheConfig` / `PopupStoreService` / `MateController` / `TermsController` / `MatePostRepository` / `WishlistRepository` / `MateService` / `WishlistExpiryScheduler`
+- JavaDoc 작성 규칙: 한 줄 80자 이내, `<p>` 단독 줄, 멀티라인 wrap 금지
+
+## 29.8 v2.20.3 — SEO 봇 인덱싱 활성화 + RSS 2.0 + 키워드 보강
+
+**문제 진단** — 운영자 직접 추적 결과: Naver 검색에 인트로 페이지만 색인되고 메인 페이지는 0건. 원인은 `middleware.ts` 가 봇/사용자 구분 없이 모든 `/` 요청을 `/intro` 로 server-side redirect — 봇이 메인 본문을 영원히 못 보는 SEO 함정.
+
+### 백엔드 변경 없음
+
+### 프론트 변경
+
+- **`middleware.ts`**: 검색엔진 봇 (Googlebot / Yeti / Bingbot / Daum / KakaoTalk / Slackbot / Facebookexternalhit / etc.) User-Agent 시 인트로 redirect 건너뛰고 메인 SSR HTML 그대로 통과. 일반 사용자는 기존 인트로 → ENTER 흐름 유지. UA spoofing 위험은 메인이 어차피 public 메타라 무관.
+- **`app/feed.xml/route.ts` (신규)**: RSS 2.0 피드. Naver SearchAdvisor / RSS 리더용. 약관 §10-2 (Naver/Kakao 검색 결과 재현 금지) 일관성으로 자동수집 팝업 / 사용자 게시판 (메이트 / 피드백) 은 제외, 운영자 직접 작성한 정적 페이지 (about / intro / terms / privacy) 만 노출. ISR 1시간 캐시.
+- **`app/layout.tsx`**: alternates 통합 (canonical + RSS 자동 발견). `<link rel="alternate" type="application/rss+xml">` 자동 head 삽입.
+- **`app/layout.tsx`** (계속): `keywords` 5개 → 31개 (브랜드 / 지역 / 시점 / 카테고리 / 기능). `description` 키워드 + 클릭 유도 톤으로 재작성 (`"성수 · 한남 · 압구정. 서울 모든 팝업을 한 화면에서..."` → `"서울 팝업스토어 정보를 지도로 모아보세요. 성수 · 한남 · 압구정 · 홍대 · 강남 팝업 일정, 위시리스트, D-3 마감 알림, 같이 갈 동행 매칭까지. 무료로 시작하세요."`).
+- **`public/robots.txt`**: 회원 전용 음악 패스포트 (`/music/passport`) 차단 2줄 추가.
+
+### 검증 결과 (운영 도메인 실측)
+
+| User-Agent | 응답 | 결과 |
+|---|---|---|
+| `Googlebot/2.1` | HTTP/2 200, `text/html`, `x-vercel-cache: PRERENDER` | 메인 SSR 노출 OK |
+| `Yeti/1.1` (Naver) | HTTP/2 200, 동일 etag, `x-vercel-cache: HIT` | Naver 인덱싱 가능 |
+| 일반 사용자 | HTTP/2 307, `location: /intro` | 게스트 UX 그대로 |
+
+### 부수 효과
+
+- 카카오톡 OG 미리보기도 같이 살아남 (`kakaotalk` UA 도 봇 패턴에 포함). 이전엔 카톡 공유 시 인트로 메타가 떴음.
+- Naver SearchAdvisor 수집 요청 + RSS 등록 완료 → 24-72h 안에 메인 페이지 재인덱스 예정.
+
+## 29.9 v2.21-S1 — 메인 BROWSE 섹션 (지역 / 시점 / 카테고리 슬라이스)
+
+**의도**: SEO 키워드 다양화 + 사용자가 메인에서 관심 슬라이스로 빠르게 진입. 자동수집된 팝업 데이터를 클라이언트 사이드에서 슬라이싱하여 메인 페이지에 "성수 12 / 한남 5 / 압구정 8" 같은 카운트 칩을 노출. 클릭 시 지도 탭으로 deep link 이동 (`?tab=MAP&region=seongsu`).
+
+### 백엔드 변경
+
+- **`PopupMapController.MapMarkerResponse`**: DTO 에 `category` / `startDate` / `endDate` 추가. 모든 필드 scalar 라 Jackson lazy 직렬화 위험 없음 → v2.20.1 의 `findVisibleMapMarkers` 캐시 그대로 안전. 별도 엔드포인트 만들지 않고 visible markers 만으로 모든 슬라이싱 가능.
+
+### 프론트 변경
+
+- **`src/lib/regions.ts` (신규)**: 11개 지역 분류 유틸 (성수 / 한남 / 압구정 / 홍대 / 강남 / 이태원 / 잠실 / 여의도 / 명동 / 성북 / 마포). priority + keyword 길이 둘 다 비교하는 매칭 알고리즘으로 "성수동 한남대로" 같은 케이스에서도 더 좁은 동네 (성수) 우선. 행정구역 단독 ("성동구") 은 매칭 안 함.
+- **`src/lib/popupSlices.ts` (신규)**: 시점 (오늘 / 내일 / 이번 주 / 주말 / 이번 달) + 카테고리 (패션 / 뷰티 / 캐릭터 / 디저트 / 라이프 / 아트 / 테크) 분류. 시점은 클라이언트 로컬 시간 (KST) 기준, 카테고리는 백엔드 `category` 필드 substring 매칭.
+- **`src/components/main/BrowseSection.tsx` (신규)**: 메인 페이지 BROWSE 카드. 다크/라이트 모두 popspot 표준 토큰 (`rounded-2xl`, `bg-white dark:bg-[#111]`, `border-gray-200 dark:border-white/10`, lime 강조). 카운트 0 인 슬라이스는 자동 숨김.
+- **`app/page.tsx`**: 음악 추천 버튼 다음에 `<BrowseSection />` 한 줄 삽입.
+- **`middleware.ts`**: deep link 쿼리 화이트리스트에 `region` / `period` / `category` 3개 추가.
+
+### 다음 단계 (v2.21-S2 예정)
+
+- **InteractiveMap 필터 적용**: 지도가 region/period/category 쿼리 읽고 마커 필터링.
+- **Long-tail SEO 랜딩 페이지**: `/popups/[slug]` 동적 라우트 SSG. `popups/seongsu`, `popups/this-weekend`, `popups/fashion` 같은 페이지 자동 생성. sitemap.ts 등록.
 
