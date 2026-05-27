@@ -78,6 +78,14 @@ public class MusicTrack {
     @Column(name = "play_count")
     private Integer playCount;
 
+    /**
+     * v2.21-S7 — YouTube IFrame 재생 실패 누적 횟수. 클라이언트가 onError (101/150 embed 차단,
+     * 100 비공개/삭제 등) 받을 때마다 1 증가. 임계값 초과 시 검색 후보에서 자동 제외해 사용자가
+     * 같은 막힌 곡을 또 만나는 회귀를 차단한다.
+     */
+    @Column(name = "playback_failed_count", columnDefinition = "integer default 0")
+    private Integer playbackFailedCount;
+
     @Column(name = "last_searched_at")
     private LocalDateTime lastSearchedAt;
 
