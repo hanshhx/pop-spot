@@ -1728,6 +1728,31 @@
 
 ---
 
+### v2.21-S2 — BROWSE 칩 → 지도 필터 연동 + 자동수집 신뢰도 0.8 필터
+
+| 변경 | 내용 |
+|---|---|
+| `PopupStoreService.isPublic` | `confidenceScore < 0.80` 차단. `null` (수동 / 레거시) 은 통과 |
+| `PopupStoreService.findVisibleMapMarkers` | Repository 결과 raw → `.filter(isPublic)` 거치도록 보강 |
+| `InteractiveMap.tsx` | `useSearchParams` 도입. fetch URL `/api/map/markers` 로 통일 + region/period/category 클라이언트 필터 + 활성 필터 배지 (`FilterBadge`) |
+
+---
+
+### v2.21-S3 — 자동수집 후 캐시 즉시 갱신 + 신뢰도 환경변수 + Long-tail SEO 랜딩 페이지
+
+운영자 요청 3종 묶음 처리.
+
+| 변경 | 효과 |
+|---|---|
+| `PopupCrawlScheduler` → `popupStoreService.evictPopupCaches()` | 자동수집 cron (04시 / 16시) 완료 시 즉시 BROWSE / 지도 갱신. 5분 TTL 만료 대기 X |
+| `popspot.popup.min-visible-confidence` (기본 0.80) | 신뢰도 임계값 환경변수화. 운영 중 코드 수정 없이 조정 |
+| `app/popups/[slug]/page.tsx` 신규 (SSG) | 23개 슬라이스 랜딩 페이지 자동 생성 (지역 11 + 시점 5 + 카테고리 7). 키워드 풍부 metadata + 본문 H1/H2 + ItemList/FAQPage JSON-LD |
+| `app/sitemap.ts` 확장 | 정적 5 + 슬라이스 23 = 28개 페이지 등록. Naver/Google 이 long-tail 키워드 진입 |
+
+**효과**: 새벽 수집 → BROWSE 즉시 갱신. `popspot.co.kr/popups/seongsu` 같은 URL 이 "성수동 팝업 추천" 검색에 잡힘.
+
+---
+
 ## 폴더 구조 (백엔드)
 
 ```

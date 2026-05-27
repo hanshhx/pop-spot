@@ -10,6 +10,7 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
@@ -39,13 +40,23 @@ public class PopupStoreService {
     private static final String REVIEW_AUTO_PUBLISHED = "AUTO_PUBLISHED";
     private static final String REVIEW_APPROVED = "APPROVED";
 
-    /** v2.21-S2 — 자동수집 팝업 최소 신뢰도. 미만은 사용자 화면 노출 차단 (검수 큐만 진입). */
-    private static final BigDecimal MIN_CONFIDENCE = new BigDecimal("0.80");
-
     private static final int TRENDING_TOP_N = 4;
     private static final int DEFAULT_CALENDAR_WINDOW_DAYS = 60;
 
     private final PopupStoreRepository popupStoreRepository;
+
+    /**
+     * v2.21-S3 — 자동수집 팝업 최소 신뢰도 (사용자 화면 노출 기준). 운영 중 application.properties
+     * 에서 조정 가능. 미만은 검수 큐만 진입하고 지도/BROWSE/검색 결과에 노출되지 않는다.
+     *
+     * <p>{@code popspot.popup.min-visible-confidence} (기본 0.80)
+     *
+     * <p>자동수집 시 {@code popspot.crawler.confidence-threshold} 와는 별개. 그건 자동게시 vs
+     * 검수큐 분기용, 이건 검수 통과 / 레거시 데이터까지 포함해 "신뢰도 낮은 수집 row 는 영원히
+     * 안 보이게" 차단하는 최후의 게이트.
+     */
+    @Value("${popspot.popup.min-visible-confidence:0.80}")
+    private BigDecimal minVisibleConfidence;
 
     /** id 로 팝업 조회 → 없으면 404. */
     public PopupStore findOrThrow(Long id) {
@@ -100,6 +111,20 @@ public class PopupStoreService {
     public void deleteById(Long id) {
         PopupStore popup = findOrThrow(id);
         popupStoreRepository.delete(popup);
+    }
+
+    /**
+     * v2.21-S3 — 자동수집 cron 완료 후 명시적 캐시 무효화. PopupCrawlOrchestrator 가
+     * Repository.save() 를 직접 호출 (Service.save 우회) 하기 때문에 @CacheEvict 가 안 걸리는
+     * 회귀를 보강. 5분 TTL 만료까지 기다리지 않고 즉시 BROWSE / 지도가 새 수집 결과 반영.
+     */
+    @Caching(
+            evict = {
+                @CacheEvict(value = CacheConfig.CACHE_POPUPS_VISIBLE, allEntries = true),
+                @CacheEvict(value = CacheConfig.CACHE_POPUPS_HOT, allEntries = true)
+            })
+    public void evictPopupCaches() {
+        // annotation 효과만 활용 — body 비워둠.
     }
 
     /**
@@ -188,9 +213,10 @@ public class PopupStoreService {
         if (rs != null && !REVIEW_AUTO_PUBLISHED.equals(rs) && !REVIEW_APPROVED.equals(rs)) {
             return false;
         }
-        // v2.21-S2 — 자동수집 신뢰도 미만 차단. null (수동 입력 / 레거시) 은 통과.
+        // v2.21-S2/S3 — 자동수집 신뢰도 미만 차단. null (수동 입력 / 레거시) 은 통과.
+        // 임계값은 popspot.popup.min-visible-confidence 환경변수로 운영 중 조정 가능.
         BigDecimal confidence = p.getConfidenceScore();
-        if (confidence != null && confidence.compareTo(MIN_CONFIDENCE) < 0) {
+        if (confidence != null && confidence.compareTo(minVisibleConfidence) < 0) {
             return false;
         }
         return true;

@@ -1,5 +1,6 @@
 package com.example.popspotbackend.service.crawler;
 
+import com.example.popspotbackend.service.PopupStoreService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -28,6 +29,7 @@ import org.springframework.stereotype.Component;
 public class PopupCrawlScheduler {
 
     private final PopupCrawlOrchestrator orchestrator;
+    private final PopupStoreService popupStoreService;
 
     @Value("${popspot.crawler.enabled:false}")
     private boolean enabled;
@@ -66,6 +68,10 @@ public class PopupCrawlScheduler {
         log.info("[PopupCrawlScheduler] === {} 자동수집 시작 ===", slot);
         try {
             orchestrator.runOnce();
+            // v2.21-S3 — Orchestrator 가 Repository.save() 직접 호출이라 @CacheEvict 미발동.
+            // 명시적으로 popups-visible / popups-hot 캐시 비워 BROWSE / 지도 즉시 갱신.
+            popupStoreService.evictPopupCaches();
+            log.info("[PopupCrawlScheduler] {} 자동수집 완료 — 캐시 evict", slot);
         } catch (Exception e) {
             log.error("[PopupCrawlScheduler] {} 실행 실패", slot, e);
         }
