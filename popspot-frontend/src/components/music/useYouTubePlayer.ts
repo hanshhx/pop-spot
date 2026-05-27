@@ -33,9 +33,39 @@ function loadYouTubeApi(cb: () => void) {
   };
 }
 
+/**
+ * v2.21-S6 — YouTube IFrame Player onError 코드 매핑.
+ *
+ * <ul>
+ *   <li>2: 잘못된 영상 ID
+ *   <li>5: HTML5 플레이어 내부 에러
+ *   <li>100: 영상 비공개 / 삭제됨
+ *   <li>101 / 150: 업로더가 embed 차단 (가장 흔한 원인 — VEVO / 공식 채널 다수)
+ * </ul>
+ */
+export type YouTubePlayerErrorCode = 2 | 5 | 100 | 101 | 150;
+
+export function describeYouTubeError(code: YouTubePlayerErrorCode | number): string {
+  switch (code) {
+    case 2:
+      return "잘못된 영상 ID";
+    case 5:
+      return "재생기 내부 오류";
+    case 100:
+      return "영상이 비공개 또는 삭제됨";
+    case 101:
+    case 150:
+      return "업로더가 외부 재생을 차단한 영상";
+    default:
+      return `알 수 없는 오류 (코드 ${code})`;
+  }
+}
+
 interface UsePlayerOptions {
   videoId: string | null;
   onEnded?: () => void;
+  /** v2.21-S6 — 재생 실패 (embed 차단 / 삭제 / 잘못된 ID). 호출자가 다음 트랙으로 skip 권장. */
+  onError?: (code: YouTubePlayerErrorCode | number) => void;
 }
 
 /**
@@ -50,15 +80,19 @@ interface UsePlayerOptions {
  *   그 inner div 를 YouTube 에 넘긴다. inner 가 iframe 으로 바뀌든 우리가 직접
  *   destroy/remove 하기 때문에 React 트리는 항상 안정적으로 wrapper 만 본다.
  */
-export function useYouTubePlayer({ videoId, onEnded }: UsePlayerOptions) {
+export function useYouTubePlayer({ videoId, onEnded, onError }: UsePlayerOptions) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const playerRef = useRef<YouTubePlayer | null>(null);
   const onEndedRef = useRef(onEnded);
+  const onErrorRef = useRef(onError);
 
-  // onEnded 가 매 렌더마다 새 함수가 들어와도 effect 재실행 없이 최신값 참조
+  // onEnded / onError 가 매 렌더마다 새 함수여도 effect 재실행 없이 최신값 참조
   useEffect(() => {
     onEndedRef.current = onEnded;
   }, [onEnded]);
+  useEffect(() => {
+    onErrorRef.current = onError;
+  }, [onError]);
 
   const [isReady, setIsReady] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -110,6 +144,15 @@ export function useYouTubePlayer({ videoId, onEnded }: UsePlayerOptions) {
             // -1 unstarted, 0 ended, 1 playing, 2 paused, 3 buffering, 5 cued
             setIsPlaying(state === 1);
             if (state === 0) onEndedRef.current?.();
+          },
+          // v2.21-S6 — 재생 실패 (embed 차단 / 삭제 / 지역 제한 / 잘못된 ID).
+          // 가장 흔한 원인: 코드 101/150 = "업로더가 외부 사이트 임베드 차단".
+          // 백엔드가 search 단계에서 videoEmbeddable=true 필터를 적용하지만 그 사이
+          // 정책이 바뀐 영상은 통과해 들어옴 → 여기서 자동 skip 으로 graceful 처리.
+          onError: (e: YouTubePlayerEvent) => {
+            if (cancelled) return;
+            const code = e.data as number;
+            onErrorRef.current?.(code);
           },
         },
       });
