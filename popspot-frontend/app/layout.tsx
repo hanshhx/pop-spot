@@ -17,9 +17,6 @@ export const metadata: Metadata = {
   description:
     "성수 · 한남 · 압구정. 서울 모든 팝업을 한 화면에서. 실시간 혼잡도, AI 코스 추천, 친구와 동선 계획까지.",
   keywords: ["팝업스토어", "서울 팝업", "성수동 팝업", "POP-SPOT", "팝업 캘린더"],
-  alternates: {
-    canonical: "https://popspot.co.kr",
-  },
   openGraph: {
     title: "POP-SPOT — 서울 팝업스토어 인텔리전스",
     description: "서울의 모든 팝업, 한 화면에.",
@@ -37,6 +34,13 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: "/icon.svg",
+  },
+  // v2.20.3 — Naver SearchAdvisor / RSS 리더가 자동 인식하도록 alternate 선언
+  alternates: {
+    canonical: "https://popspot.co.kr",
+    types: {
+      "application/rss+xml": [{ url: "/feed.xml", title: "POP-SPOT RSS" }],
+    },
   },
 };
 
