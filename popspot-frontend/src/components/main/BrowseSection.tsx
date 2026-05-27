@@ -189,17 +189,23 @@ export default function BrowseSection() {
     <>
       <section
         aria-label="둘러보기"
-        className="mb-6 rounded-2xl border bg-white border-gray-200 dark:bg-[#111] dark:border-white/10 shadow-lg shadow-black/5 dark:shadow-black/30 overflow-hidden"
+        className="relative mb-6 rounded-3xl border-2 bg-gradient-to-br from-white via-lime-50/40 to-white border-lime-300/50 dark:bg-gradient-to-br dark:from-[#111] dark:via-lime-900/20 dark:to-[#111] dark:border-lime-300/25 shadow-xl shadow-lime-500/10 dark:shadow-lime-300/5 overflow-hidden"
       >
+        {/* v2.21-S6 — 좌측 라임색 accent stripe 으로 지도/랭킹 카드와 시각적 구분 */}
+        <span
+          aria-hidden
+          className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-lime-300 via-lime-400 to-lime-300"
+        />
+
         <button
           type="button"
           onClick={toggleExpand}
           aria-expanded={isExpanded}
           aria-controls="browse-section-body"
-          className="w-full flex items-center justify-between gap-3 px-5 md:px-6 py-4 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors text-left"
+          className="w-full flex items-center justify-between gap-3 pl-6 pr-5 md:pr-6 py-4 hover:bg-lime-50/40 dark:hover:bg-lime-300/5 transition-colors text-left"
         >
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.4em] text-muted-foreground">
+            <p className="text-[10px] font-bold uppercase tracking-[0.4em] text-lime-600 dark:text-lime-300">
               BROWSE
             </p>
             <h3 className="text-base md:text-lg font-black text-gray-900 dark:text-white">
@@ -207,7 +213,7 @@ export default function BrowseSection() {
             </h3>
           </div>
           <span
-            className="shrink-0 p-1.5 rounded-full text-gray-500 dark:text-white/60"
+            className="shrink-0 p-1.5 rounded-full text-lime-600 dark:text-lime-300 bg-lime-100/50 dark:bg-lime-300/10"
             aria-hidden
           >
             {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}

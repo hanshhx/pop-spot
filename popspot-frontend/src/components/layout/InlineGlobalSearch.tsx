@@ -60,6 +60,23 @@ export default function InlineGlobalSearch() {
     };
   }, [isOpen]);
 
+  // v2.21-S6 — 전역 Ctrl+K / Cmd+K 단축키로 통합검색 열기.
+  // input 내부에서 단축키 누른 거면 무시 (다른 입력 방해 X).
+  useEffect(() => {
+    function onGlobalKey(e: KeyboardEvent) {
+      const isMod = e.ctrlKey || e.metaKey;
+      if (!isMod) return;
+      if (e.key.toLowerCase() !== "k") return;
+      const target = e.target as HTMLElement | null;
+      const tag = target?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || target?.isContentEditable) return;
+      e.preventDefault();
+      open();
+    }
+    window.addEventListener("keydown", onGlobalKey);
+    return () => window.removeEventListener("keydown", onGlobalKey);
+  }, []);
+
   // 펼침 시 input focus
   useEffect(() => {
     if (isOpen) inputRef.current?.focus();
@@ -131,14 +148,21 @@ export default function InlineGlobalSearch() {
             type="button"
             onClick={open}
             aria-label="통합검색 열기"
+            title="통합검색 (Ctrl+K)"
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
             transition={{ duration: 0.15 }}
-            className="group inline-flex items-center gap-2 h-10 pl-3 pr-4 rounded-pill border bg-lime-300 text-ink-900 border-lime-400 hover:bg-lime-400 transition-colors shadow-sm font-bold text-xs md:text-sm whitespace-nowrap"
+            className="group inline-flex items-center gap-2 h-10 pl-3 pr-3 rounded-pill border bg-lime-300 text-ink-900 border-lime-400 hover:bg-lime-400 transition-colors shadow-sm font-bold text-xs md:text-sm whitespace-nowrap"
           >
             <Search size={14} className="shrink-0" />
             <span>통합검색</span>
+            <kbd
+              aria-hidden
+              className="hidden md:inline-flex items-center justify-center min-w-[20px] h-[18px] px-1 rounded text-[9px] font-mono bg-ink-900/15 text-ink-900/70 border border-ink-900/15"
+            >
+              ⌘K
+            </kbd>
           </motion.button>
         ) : (
           <motion.form
