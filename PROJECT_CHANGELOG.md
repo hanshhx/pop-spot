@@ -10426,3 +10426,26 @@ curl -s https://popspot.co.kr/sitemap.xml | grep -c "<url>"
 # 28 출력되어야 함
 ```
 
+## 29.12 v2.21-S4 — 사용자 노출 신뢰도 게이트 제거 (운영자 결정 롤백)
+
+**배경**: v2.21-S2 에서 `isPublic` 에 추가한 신뢰도 0.8 미만 차단 + v2.21-S3 의 `popspot.popup.min-visible-confidence` 환경변수가 운영 중 핀 누락 부작용을 일으켜 사용자가 "지도 핀이 안 보인다" 보고. 운영자가 제거 결정.
+
+**판단 근거**: 자동수집 시점의 `popspot.crawler.confidence-threshold` 가 이미 자동게시 vs 검수큐 분기를 처리. 그 후 검수 통과한 row 와 레거시/수동 데이터는 신뢰도와 무관하게 노출되는 게 자연스러움. 사용자 노출 단계에서 추가 게이트는 중복 + 부작용만 큼.
+
+### 변경
+
+- **`PopupStoreService.isPublic`**: 신뢰도 검사 코드 블록 삭제 → v2.21-S1 이전 형태로 복귀. `status` (PENDING/EXPIRED 제외) + `reviewStatus` (AUTO_PUBLISHED/APPROVED/null) 두 축만 본다.
+- **`PopupStoreService`**: `MIN_CONFIDENCE` 상수 / `minVisibleConfidence` `@Value` 필드 / `BigDecimal` import / `@Value` import 모두 제거.
+- **`application.properties`**: `popspot.popup.min-visible-confidence` 키 삭제. 자리에 결정 사유 주석 남김.
+- **`findVisibleMapMarkers`**: `isPublic` 필터는 그대로 유지 (status/reviewStatus 보호는 계속).
+
+### 관계 정리 (사용자 mental model 보강 — 자주 헷갈리는 부분)
+
+| 영역 | API | 기준 | 포함 관계 |
+|---|---|---|---|
+| 메인 지도 | `/api/map/markers` | `findVisibleMapMarkers` | 가장 넓음 |
+| BROWSE 섹션 | `/api/map/markers` (같음) | 같은 데이터를 클라이언트 그룹핑 | = 지도 |
+| REAL-TIME RANKING | `/api/popups/trending` | viewCount Top 4 + isPublic | ⊂ 지도 |
+
+→ **RANK ⊂ MAP = BROWSE**. 랭크에 있는 팝업은 자동으로 지도/BROWSE 양쪽에 포함.
+
