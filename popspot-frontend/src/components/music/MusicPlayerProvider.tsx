@@ -220,6 +220,33 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
     if (current && mode === 'hidden') setMode('full');
   }, [current, mode]);
 
+  // v2.21-S9 — 백엔드가 강력 필터 (cover/live/piano/lullaby/nightcore 등 50개) 로 공식 음원
+  // 매칭에 실패하면 youtubeVideoId 가 null 인 채로 응답. 그 상태에선 YouTube IFrame 이
+  // 안 뜨고 검은 화면. 사용자에게 토스트 + 자동 skip 으로 graceful 처리.
+  const noMatchHandledRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (!current) {
+      noMatchHandledRef.current = null;
+      return;
+    }
+    if (matchLoading) return; // 백엔드가 youtube_video_id 채우는 중일 수 있음 — 기다림
+    if (current.youtubeVideoId) {
+      noMatchHandledRef.current = null;
+      return;
+    }
+    // 매칭 0 — 같은 trackId 중복 처리 방지
+    if (noMatchHandledRef.current === current.id) return;
+    noMatchHandledRef.current = current.id;
+
+    notify({
+      icon: 'info',
+      title: '공식 음원을 찾지 못했어요',
+      text: `"${current.trackName ?? '이 곡'}" — 다음 곡으로 넘어갑니다`,
+      timer: 2500,
+    });
+    playNextFromQueue();
+  }, [current, matchLoading, playNextFromQueue]);
+
   /* ============================== Context value ============================== */
 
   const value = useMemo<ContextValue>(
