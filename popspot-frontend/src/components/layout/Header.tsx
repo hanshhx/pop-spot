@@ -3,10 +3,11 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { LogOut, ShieldCheck, Megaphone, Crown, User as UserIcon, Search, Bell } from "lucide-react";
+import { LogOut, ShieldCheck, Megaphone, Crown, User as UserIcon, Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import ThemeToggle from "@/components/ThemeToggle";
+import InlineGlobalSearch from "@/components/layout/InlineGlobalSearch";
 import { unreadCount as readUnread } from "@/lib/notifications";
 import { cn } from "@/lib/utils";
 
@@ -90,17 +91,8 @@ export function Header({
       >
         <ThemeToggle />
 
-        {onSearchClick && (
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onSearchClick}
-            aria-label="팝업 검색"
-            title="팝업 검색 (Ctrl+K)"
-          >
-            <Search className="size-4" aria-hidden />
-          </Button>
-        )}
+        {/* v2.21-S5 — 모달 → 인라인 통합검색. 처음엔 라임색 칩, 클릭 시 input 으로 확장. */}
+        <InlineGlobalSearch />
 
         {onBellClick && (
           <button

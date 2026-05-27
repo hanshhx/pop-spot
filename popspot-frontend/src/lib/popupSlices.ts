@@ -13,13 +13,65 @@ export type PeriodDef = {
   slug: string;
 };
 
-export const PERIODS: PeriodDef[] = [
-  { code: "today", label: "오늘", slug: "today" },
-  { code: "tomorrow", label: "내일", slug: "tomorrow" },
-  { code: "this-week", label: "이번 주", slug: "this-week" },
-  { code: "this-weekend", label: "주말", slug: "this-weekend" },
-  { code: "this-month", label: "이번 달", slug: "this-month" },
-];
+/**
+ * v2.21-S5 — 시점 슬라이스 동적 라벨 생성.
+ *
+ * <p>호출 시점의 날짜로 라벨 갱신:
+ *
+ * <ul>
+ *   <li>오늘 → "오늘 (5/27 화)"
+ *   <li>내일 → "내일 (5/28 수)"
+ *   <li>이번 주 → "이번 주 (5/26~6/1)"
+ *   <li>주말 → "이번 주말 (5/31)" 또는 "다음 주말 (6/7)"
+ *   <li>이번 달 → "5월" → 6월 되면 자동으로 "6월"
+ * </ul>
+ *
+ * <p>SSG generateStaticParams 도 슬러그만 쓰고 라벨은 무관 — 빌드 타임에 박힌 라벨이
+ * stale 돼도 슬러그 / URL 은 안 바뀜. 메인 페이지 BROWSE 는 클라이언트 사이드 호출이라
+ * 즉시 갱신.
+ */
+export function getPeriods(now: Date = new Date()): PeriodDef[] {
+  const md = (d: Date) => `${d.getMonth() + 1}/${d.getDate()}`;
+  const dow = (d: Date) => ["일", "월", "화", "수", "목", "금", "토"][d.getDay()];
+
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+
+  // 이번 주: 월요일 ~ 일요일
+  const offsetToMon = (today.getDay() + 6) % 7;
+  const weekStart = new Date(today);
+  weekStart.setDate(weekStart.getDate() - offsetToMon);
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekEnd.getDate() + 6);
+
+  // 이번 / 다음 주말: 토요일 기준. 일요일이면 "다음 주말".
+  const offsetToSat = (6 - today.getDay() + 7) % 7;
+  const saturday = new Date(today);
+  saturday.setDate(saturday.getDate() + offsetToSat);
+  const weekendLabel =
+    today.getDay() === 0
+      ? `다음 주말 (${md(saturday)})`
+      : `이번 주말 (${md(saturday)})`;
+
+  return [
+    { code: "today", label: `오늘 (${md(today)} ${dow(today)})`, slug: "today" },
+    { code: "tomorrow", label: `내일 (${md(tomorrow)} ${dow(tomorrow)})`, slug: "tomorrow" },
+    {
+      code: "this-week",
+      label: `이번 주 (${md(weekStart)}~${md(weekEnd)})`,
+      slug: "this-week",
+    },
+    { code: "this-weekend", label: weekendLabel, slug: "this-weekend" },
+    { code: "this-month", label: `${today.getMonth() + 1}월`, slug: "this-month" },
+  ];
+}
+
+/**
+ * 기존 PERIODS 호환성 — 슬러그 / 코드만 필요한 곳용 (generateStaticParams 등).
+ * 라벨은 빌드 타임 기준이라 사용자 표시에는 getPeriods() 사용 권장.
+ */
+export const PERIODS: PeriodDef[] = getPeriods();
 
 export type CategoryCode =
   | "fashion"

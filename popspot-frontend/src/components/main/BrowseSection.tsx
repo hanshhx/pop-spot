@@ -11,13 +11,15 @@ import {
   X,
   Map as MapIcon,
   ExternalLink,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 import { apiFetch } from "@/lib/api";
 import { REGIONS, classifyRegion, type RegionCode } from "@/lib/regions";
 import {
-  PERIODS,
+  getPeriods,
   CATEGORIES,
   matchesPeriod,
   classifyCategory,
@@ -75,10 +77,31 @@ type SliceItem = {
   slug: string;
 };
 
+const EXPAND_STORAGE_KEY = "popspot:browse:expanded";
+
 export default function BrowseSection() {
   const [markers, setMarkers] = useState<Marker[] | null>(null);
   const [error, setError] = useState(false);
   const [activeSlice, setActiveSlice] = useState<ActiveSlice | null>(null);
+  const [isExpanded, setIsExpanded] = useState(true);
+  const periods = useMemo(() => getPeriods(), [markers]);
+
+  // 토글 상태 localStorage 영속화 — 새로고침 후에도 사용자 선택 유지.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const saved = window.localStorage.getItem(EXPAND_STORAGE_KEY);
+    if (saved === "0") setIsExpanded(false);
+  }, []);
+
+  function toggleExpand() {
+    setIsExpanded((prev) => {
+      const next = !prev;
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem(EXPAND_STORAGE_KEY, next ? "1" : "0");
+      }
+      return next;
+    });
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -115,7 +138,7 @@ export default function BrowseSection() {
   const periodSlices = useMemo<SliceItem[]>(() => {
     if (!markers) return [];
     const now = new Date();
-    return PERIODS.map((p) => {
+    return periods.map((p) => {
       const count = markers.reduce(
         (acc, m) => acc + (matchesPeriod(m.startDate, m.endDate, p.code, now) ? 1 : 0),
         0,
@@ -129,7 +152,7 @@ export default function BrowseSection() {
         slug: p.slug,
       };
     }).filter((s) => s.count > 0);
-  }, [markers]);
+  }, [markers, periods]);
 
   const categorySlices = useMemo<SliceItem[]>(() => {
     if (!markers) return [];
@@ -168,7 +191,13 @@ export default function BrowseSection() {
         aria-label="둘러보기"
         className="mb-6 rounded-2xl border bg-white border-gray-200 dark:bg-[#111] dark:border-white/10 shadow-lg shadow-black/5 dark:shadow-black/30 overflow-hidden"
       >
-        <header className="flex items-center justify-between px-5 md:px-6 py-4 border-b border-gray-200 dark:border-white/5">
+        <button
+          type="button"
+          onClick={toggleExpand}
+          aria-expanded={isExpanded}
+          aria-controls="browse-section-body"
+          className="w-full flex items-center justify-between gap-3 px-5 md:px-6 py-4 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors text-left"
+        >
           <div>
             <p className="text-[10px] font-bold uppercase tracking-[0.4em] text-muted-foreground">
               BROWSE
@@ -177,31 +206,50 @@ export default function BrowseSection() {
               관심 있는 슬라이스로 둘러보기
             </h3>
           </div>
-        </header>
+          <span
+            className="shrink-0 p-1.5 rounded-full text-gray-500 dark:text-white/60"
+            aria-hidden
+          >
+            {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+          </span>
+        </button>
 
-        <div className="divide-y divide-gray-200 dark:divide-white/5">
-          <SliceRow
-            icon={<MapPin size={16} className="text-lime-500" />}
-            title="지역"
-            slices={regionSlices}
-            isLoading={markers === null}
-            onSelect={handleSelect}
-          />
-          <SliceRow
-            icon={<CalendarDays size={16} className="text-lime-500" />}
-            title="시점"
-            slices={periodSlices}
-            isLoading={markers === null}
-            onSelect={handleSelect}
-          />
-          <SliceRow
-            icon={<Tag size={16} className="text-lime-500" />}
-            title="카테고리"
-            slices={categorySlices}
-            isLoading={markers === null}
-            onSelect={handleSelect}
-          />
-        </div>
+        <AnimatePresence initial={false}>
+          {isExpanded && (
+            <motion.div
+              id="browse-section-body"
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.22, ease: "easeInOut" }}
+              className="overflow-hidden border-t border-gray-200 dark:border-white/5"
+            >
+              <div className="divide-y divide-gray-200 dark:divide-white/5">
+                <SliceRow
+                  icon={<MapPin size={16} className="text-lime-500" />}
+                  title="지역"
+                  slices={regionSlices}
+                  isLoading={markers === null}
+                  onSelect={handleSelect}
+                />
+                <SliceRow
+                  icon={<CalendarDays size={16} className="text-lime-500" />}
+                  title="시점"
+                  slices={periodSlices}
+                  isLoading={markers === null}
+                  onSelect={handleSelect}
+                />
+                <SliceRow
+                  icon={<Tag size={16} className="text-lime-500" />}
+                  title="카테고리"
+                  slices={categorySlices}
+                  isLoading={markers === null}
+                  onSelect={handleSelect}
+                />
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </section>
 
       <AnimatePresence>
