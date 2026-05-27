@@ -113,7 +113,7 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
       notify({
         icon: "info",
         title: "다음 곡으로 넘어가요",
-        text: `"${failed.title ?? "이 곡"}" — ${reason}`,
+        text: `"${failed.trackName ?? "이 곡"}" — ${reason}`,
         timer: 2500,
       });
 
