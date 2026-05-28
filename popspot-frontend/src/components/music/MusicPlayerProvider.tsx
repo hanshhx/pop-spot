@@ -119,16 +119,21 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
    *
    * <p>SDK 는 데스크탑 전용이라 모바일이면 spotify 엔진 제외.
    */
+  // v2.21-S13.1 — 실제 Spotify trackId 는 spotifyTrackId 필드. itunesTrackId 는 레거시(null).
+  // 둘 중 있는 값 사용 (옛 캐시 데이터 호환).
+  const spotifyTrackId = current?.spotifyTrackId || current?.itunesTrackId || null;
+
   const engine: PlaybackEngine = useMemo(() => {
     if (!current) return 'youtube';
     const isMobile =
       typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-    if (spotifyAuth.connected && spotifyAuth.isPremium && !isMobile && current.itunesTrackId) {
+    // Premium + 데스크탑 + Spotify ID 있음 → SDK 풀트랙 (preview_url 유무 무관)
+    if (spotifyAuth.connected && spotifyAuth.isPremium && !isMobile && spotifyTrackId) {
       return 'spotify';
     }
     if (current.previewUrl) return 'preview';
     return 'youtube';
-  }, [current, spotifyAuth.connected, spotifyAuth.isPremium]);
+  }, [current, spotifyTrackId, spotifyAuth.connected, spotifyAuth.isPremium]);
 
   const yt = useYouTubePlayer({
     videoId: engine === 'youtube' ? current?.youtubeVideoId ?? null : null,
@@ -168,7 +173,7 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
   });
 
   const spotifyPlayer = useSpotifyPlayer({
-    spotifyTrackId: engine === 'spotify' ? current?.itunesTrackId ?? null : null,
+    spotifyTrackId: engine === 'spotify' ? spotifyTrackId : null,
     enabled: engine === 'spotify',
     onEnded: () => playNextFromQueue(),
   });
