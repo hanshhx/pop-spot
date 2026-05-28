@@ -31,6 +31,8 @@ const DEEP_LINK_PARAMS = [
   "region",
   "period",
   "category",
+  // v2.21-S18 — Spotify OAuth 콜백 복귀 (?spotify=connected). 인트로로 튕기면 안 됨.
+  "spotify",
 ] as const;
 
 // v2.20.3 — 주요 검색엔진 봇 User-Agent 패턴. case-insensitive.
