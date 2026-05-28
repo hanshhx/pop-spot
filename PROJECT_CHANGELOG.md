@@ -10426,6 +10426,68 @@ curl -s https://popspot.co.kr/sitemap.xml | grep -c "<url>"
 # 28 출력되어야 함
 ```
 
+## 29.13 v2.21-S10 — Spotify OAuth 백엔드 (Phase 1/5)
+
+운영자가 본인 Spotify Premium 활용 + 다른 Premium 사용자에게도 풀트랙 깨끗 음원
+제공하기로 결정. Phase 1 은 백엔드 OAuth + 토큰 저장 + 자동 refresh.
+
+### 추가된 파일
+
+- `entity/SpotifyAuth.java` — 사용자별 1행. access/refresh 토큰은 AES-256 GCM
+  암호화된 Base64 문자열만 저장 (Spotify Developer Policy + PIPA 의무).
+- `repository/SpotifyAuthRepository.java` — `findByUserId`, `deleteByUserId`
+- `db/migration/V13__spotify_auth.sql` — `spotify_auth` 테이블. FK `users(user_id)`
+  ON DELETE CASCADE — 회원 탈퇴 시 자동 정리.
+- `service/spotify/TokenEncryption.java` — AES-256 GCM 자체 구현. nonce 12바이트
+  prepend, 키 32바이트 Base64 from `spotify.token.encryption-key`. 키 미설정 시
+  부팅 warning + 기능 비활성 (다른 기능엔 영향 0).
+- `service/spotify/SpotifyOAuthService.java` — 4 메서드:
+  - `buildAuthorizationUrl(state)` — Spotify 로그인 URL 생성
+  - `handleCallback(userId, code)` — code → access/refresh 교환 + DB upsert
+  - `getValidAccessToken(userId)` — 60초 grace 안이면 refresh 자동 후 반환
+  - 내부: Spotify token + /v1/me HTTP 호출 (java.net.http.HttpClient)
+- `controller/SpotifyAuthController.java` — 5 endpoint:
+  - `GET  /api/spotify/login` — 로그인 URL 반환 (인증 필요)
+  - `GET  /api/spotify/callback` — Spotify → popspot 콜백 (permitAll, state 검증)
+  - `GET  /api/spotify/me` — 연결 상태 + isPremium
+  - `POST /api/spotify/disconnect` — 토큰 즉시 삭제
+  - `GET  /api/spotify/token` — Web Playback SDK 용 access token (자동 refresh)
+
+### 설정 추가 (`application.properties`)
+
+```
+spotify.oauth.client-id=${SPOTIFY_OAUTH_CLIENT_ID:}
+spotify.oauth.client-secret=${SPOTIFY_OAUTH_CLIENT_SECRET:}
+spotify.oauth.redirect-uri=${SPOTIFY_OAUTH_REDIRECT_URI:http://localhost:8080/api/spotify/callback}
+spotify.oauth.frontend-redirect=${SPOTIFY_OAUTH_FRONTEND_REDIRECT:http://localhost:3000/}
+spotify.token.encryption-key=${SPOTIFY_TOKEN_ENCRYPTION_KEY:}
+```
+
+### 정책 준수 체크
+
+- ✅ OAuth scope 최소화: `streaming user-read-email user-read-private` 만
+- ✅ 토큰 평문 저장 X (AES-256 GCM 암호화 후 DB)
+- ✅ 회원 탈퇴 시 FK CASCADE 로 즉시 토큰 삭제
+- ✅ Refresh token 절대 외부 노출 X (`/token` 은 access token 만 반환)
+- ✅ state CSRF 보호 (userId + 16바이트 nonce)
+- ⏳ 어트리뷰션 "Powered by Spotify" — Phase 5 (S14) 에서 UI 추가 예정
+
+### 운영자 사전 작업
+
+1. https://developer.spotify.com/dashboard 에서 popspot 앱 생성
+2. Redirect URI 등록:
+   - `https://popspot.co.kr/api/spotify/callback`
+   - `http://localhost:8080/api/spotify/callback`
+3. Client ID / Secret 발급 → 환경변수 주입
+4. 암호화 키 생성: `openssl rand -base64 32` → `SPOTIFY_TOKEN_ENCRYPTION_KEY`
+
+### 다음 단계
+
+- S11: 프론트 "Spotify 연결" UI + 콜백 처리
+- S12: HTML5 audio 기반 Preview 폴백 (Free 사용자 30초)
+- S13: Web Playback SDK 통합 (Premium 풀트랙)
+- S14: 어트리뷰션 UI + 회원 탈퇴 토큰 삭제 wiring
+
 ## 29.12 v2.21-S4 — 사용자 노출 신뢰도 게이트 제거 (운영자 결정 롤백)
 
 **배경**: v2.21-S2 에서 `isPublic` 에 추가한 신뢰도 0.8 미만 차단 + v2.21-S3 의 `popspot.popup.min-visible-confidence` 환경변수가 운영 중 핀 누락 부작용을 일으켜 사용자가 "지도 핀이 안 보인다" 보고. 운영자가 제거 결정.
