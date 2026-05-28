@@ -10511,3 +10511,161 @@ spotify.token.encryption-key=${SPOTIFY_TOKEN_ENCRYPTION_KEY:}
 
 → **RANK ⊂ MAP = BROWSE**. 랭크에 있는 팝업은 자동으로 지도/BROWSE 양쪽에 포함.
 
+## 29.14 v2.21-S5 — BROWSE 토글 + 동적 시점 라벨 + 인라인 통합검색
+
+### 1) BROWSE 섹션 접기/펴기 토글
+
+- `BrowseSection.tsx`: 헤더 전체가 버튼 → 본문 (지역/시점/카테고리 칩) 을 framer-motion `height`/`opacity` 애니메이션으로 접고 편다.
+- `ChevronUp` ↔ `ChevronDown` 아이콘으로 상태 표시.
+- `localStorage` 키 `popspot:browse:expanded` 영속화 — 새로고침 후에도 사용자 선택 유지.
+
+### 2) 시점 슬라이스 동적 라벨 (`src/lib/popupSlices.ts`)
+
+- `PERIODS` 상수 → `getPeriods(now)` 함수로 변환. 호출 시점 날짜로 라벨 갱신:
+  - 오늘 → `오늘 (5/27 화)` — 매일 자동 변경
+  - 내일 → `내일 (5/28 수)`
+  - 이번 주 → `이번 주 (5/26~6/1)` — 주차 바뀌면 자동
+  - 주말 → `이번 주말 (5/31)` / 일요일이면 `다음 주말 (6/7)`
+  - 이번 달 → `5월` → 6월 되면 자동 `6월`
+- 기존 `PERIODS` const 는 `getPeriods()` 호출 결과로 호환 유지 (slug/code 만 필요한 generateStaticParams 용).
+
+### 3) 헤더 통합검색 — 모달 → 인라인 펼침 (`InlineGlobalSearch.tsx` 신규)
+
+- 이전: 돋보기 아이콘 → 전체화면 모달. → 인라인 펼침 + 드롭다운 결과.
+- 처음엔 라임색 (`bg-lime-300`) "통합검색" 칩 (다른 헤더 버튼과 차별화).
+- 클릭 → input 좌우 확장 (width 40 → 100%) 애니메이션.
+- 200ms debounce 후 `/api/popups/search?keyword=` 호출 → 최대 8개 드롭다운.
+- 결과 클릭 → `/popup/[id]`. ESC / 외부 클릭 → 칩으로 수축.
+- `Header.tsx` 의 기존 돋보기 Button 제거 후 `<InlineGlobalSearch />` 교체.
+
+## 29.15 v2.21-S6 — 음악 재생 실패 자동 skip + Ctrl+K 단축키 + BROWSE 카드 디자인 차별화
+
+### 1) 음악 재생 실패 graceful 처리
+
+- 문제: YouTube IFrame Player 에 `onError` 핸들러가 없어 embed 차단 영상이 검은 화면으로 멈춤.
+- `useYouTubePlayer.ts`: `onError` 콜백 + `describeYouTubeError(code)` 추가. 코드 매핑:
+  - 2 = 잘못된 ID, 5 = 플레이어 내부, 100 = 비공개/삭제, **101/150 = embed 차단 (가장 흔함)**
+- `MusicPlayerProvider.tsx`: 재생 실패 시
+  - `notify` 토스트 "다음 곡으로 넘어가요 — {사유}"
+  - `POST /api/music/{id}/playback-failed` 백엔드 마킹
+  - `playNextFromQueue()` 자동 호출
+  - `skippedTrackIdRef` 로 같은 trackId 무한 skip 루프 방지
+
+### 2) Ctrl+K / Cmd+K 단축키
+
+- `InlineGlobalSearch.tsx`: 전역 keydown 리스너. `input`/`textarea`/`contentEditable` 안에선 무시.
+- 칩에 `⌘K` 키 힌트 (`kbd` 태그, 데스크탑만). `title` 속성으로 hover 안내.
+
+### 3) BROWSE 카드 디자인 차별화 (지도/랭킹 카드와 구분)
+
+- `rounded-2xl` → `rounded-3xl`, border 1px → **2px lime-300/50**
+- 배경: 단색 → **lime 그라데이션** (`from-white via-lime-50/40 to-white`)
+- 그림자: black → **lime 글로우** (`shadow-lime-500/10`)
+- 좌측 **lime accent stripe** (w-1, gradient)
+- "BROWSE" 라벨 색상 muted → lime, 토글 버튼 배경 회색 → lime-100/50
+
+## 29.16 v2.21-S7 — MusicTrack.title 빌드 핫픽스 + playback-failed 백엔드 endpoint
+
+### 빌드 에러 핫픽스
+
+- `MusicPlayerProvider.tsx`: `failed.title` → `failed.trackName` (MusicTrack 실제 필드는 `trackName`). Vercel TypeScript 컴파일 에러 해결.
+
+### playback-failed 백엔드 (S6 의 백엔드 짝)
+
+- 엔티티: `MusicTrack.playbackFailedCount` (integer default 0)
+- Flyway `V12__music_track_playback_failed.sql`:
+  - `ALTER TABLE music_track ADD COLUMN playback_failed_count int DEFAULT 0`
+  - `CREATE INDEX idx_music_track_playback_failed`
+- Repository:
+  - `incrementPlaybackFailed(id)` — 단일 UPDATE 로 race-free 증가
+  - `countPlaybackBlocked(threshold)` — 어드민 통계용
+- `MusicService`:
+  - 상수 `PLAYBACK_FAILURE_THRESHOLD = 3`
+  - `recordPlaybackFailure(trackId)` public 메서드
+  - `isPlaybackHealthy(track)` — null/0/임계값 미만 통과
+  - `recommendNext()` 후보 필터에 `isPlaybackHealthy` 추가 → 3회 이상 실패 트랙 자동 추천 제외
+- `MusicController`: `POST /api/music/{trackId}/playback-failed` → 204
+
+## 29.17 v2.21-S8 — YouTube IFrame API CSP 차단 해제 (음악 재생 안 되던 진짜 원인)
+
+- 증상: 음악 재생이 "수두룩하게" 안 됨. 콘솔에 `Loading the script 'https://www.youtube.com/iframe_api' violates CSP script-src`.
+- 원인: v2.17 CSP 도입 때 `frame-src` 에 youtube 는 넣었지만 **`script-src` 에 누락**. `useYouTubePlayer` 가 iframe_api.js 를 동적 로드하는데 차단됨 → `window.YT` 미정의 → `new YT.Player()` 불가 → 검은 화면.
+- 수정 (`next.config.ts`):
+  - `script-src += https://www.youtube.com https://s.ytimg.com`
+  - `connect-src += https://www.youtube.com https://s.ytimg.com`
+- S6/S7 의 onError 시스템은 "재생 시도 가능" 전제의 안전망. CSP 차단은 시도 자체를 막던 더 근본적 원인이었음.
+
+## 29.18 v2.21-S9 — 비공식 변형 차단 키워드 30개 추가 + 매칭 0 fallback
+
+- 사용자 보고: "피아노 / 오르골 / nightcore 같은 이상한 커버곡이 가끔 나옴".
+- `YouTubeMusicSearchService.NON_OFFICIAL_KEYWORDS` 확장 (36 → 66개):
+  - 단독 악기: piano, 피아노, guitar, violin, 바이올린, orchestra, 오케스트라, harp, 오르골, music box
+  - 템포/음향: slowed, sped up, nightcore, 8d, reverb, lofi, lo-fi
+  - 클립: lullaby, 자장가, snippet, clip, preview, teaser, tiktok ver, 틱톡, shorts
+  - 편곡: arrangement, 편곡, tutorial, playthrough
+  - 누락 보강: 커버 (cover 영문만 있었음)
+- `MusicPlayerProvider.tsx`: 강력 필터로 매칭 0 (youtubeVideoId null) 시 토스트 "공식 음원을 찾지 못했어요" + 자동 skip. `noMatchHandledRef` 로 중복 방지.
+
+## 29.19 v2.21-S10 ~ S16 — Spotify OAuth + Web Playback SDK 풀스택 통합
+
+운영자 Spotify Premium 활용 + 다른 Premium 사용자도 풀트랙 깨끗 음원 제공. 5 Phase + 핫픽스.
+
+### S10 — 백엔드 OAuth (ch.29.13 참고)
+
+- `SpotifyAuth` 엔티티 + `SpotifyAuthRepository` + `V13__spotify_auth.sql` (FK CASCADE)
+- `TokenEncryption` — AES-256 GCM 자체 구현 (nonce 12바이트 prepend, 키 32바이트 Base64)
+- `SpotifyOAuthService` — buildAuthorizationUrl / handleCallback / getValidAccessToken (자동 refresh)
+- `SpotifyAuthController` — login / callback / me / disconnect / token 5 endpoint
+- scope 최소화: `streaming user-read-email user-read-private`
+
+### S11 — 프론트 연결 UI
+
+- `useSpotifyAuth.ts` — 연결 상태 polling (`/api/spotify/me`), startLogin, disconnect
+- `SpotifyConnectButton.tsx` — 미연결(녹색 #1DB954) / Premium(라임) / Free(회색) 3상태 + 콜백 `?spotify=connected/denied/error` 토스트
+- `MusicTab.tsx` 헤더에 배치
+
+### S11.1 — 401 핫픽스 (치명적)
+
+- 증상: 유효 JWT 인데 `/api/spotify/login` 이 항상 401.
+- 원인: `JwtAuthenticationFilter` 가 principal 을 `userId` (String) 로 넣는데, SpotifyAuthController 가 `@AuthenticationPrincipal UserDetails` 로 받아 타입 불일치 → null.
+- 수정: 4 endpoint 의 파라미터를 `Authentication` 으로 변경 + `authenticatedUserId()` 헬퍼 (TermsController 와 동일 패턴).
+
+### S12~S14 — 3-tier 재생 엔진
+
+- `usePreviewPlayer.ts` — HTML5 audio 30초 preview
+- `useSpotifyPlayer.ts` — Web Playback SDK 풀트랙 (sdk.scdn.co 로드 → device 등록 → PUT /v1/me/player/play)
+- `MusicPlayerProvider.tsx` 3-tier 통합:
+  - engine 결정: Premium+데스크탑+SpotifyID → spotify, previewUrl → preview, 아니면 → youtube
+  - 3개 hook 동시 호출, 활성 아닌 엔진엔 null/disabled
+  - stage div 는 youtube 엔진일 때만 영상 표시
+- `next.config.ts` CSP: script-src/connect-src/frame-src/media-src 에 Spotify 도메인 (sdk.scdn.co, api.spotify.com, *.spotify.com, *.scdn.co)
+- `UserProfileController.deleteMe`: 회원 탈퇴 시 `spotifyAuthRepository.deleteByUserId` (PIPA + Spotify 약관)
+
+### S13.1 — Premium 인데 YouTube 나오던 버그 (치명적)
+
+- 증상: Premium 인데 빌리진(메이저 곡)이 YouTube 로 재생.
+- 원인: 백엔드 `upsertTrackMetaOnly` 가 Spotify ID 를 `spotify_track_id` 컬럼에 저장하는데, 프론트는 `current.itunesTrackId` (레거시, null) 를 봄 → spotify 엔진 조건 항상 실패.
+- 수정: `types/music.ts` 에 `spotifyTrackId` 필드 추가. `spotifyTrackId || itunesTrackId` 로 사용.
+
+### S15 — iTunes preview 폴백 (Spotify deprecation 우회)
+
+- 진단: 운영 DB `music_track` 233개 중 `preview_url` 채워진 게 **0개**. Spotify 가 2024-11 부터 신규 앱의 preview_url 을 null 로 반환.
+- `ITunesPreviewService.java` 신규 — iTunes Search API (무료/키 불필요, 90초 m4a). artist+track 유사도 매칭.
+- `MusicService.ensurePreviewUrl` — preview 비었으면 iTunes 보충 (재생 직전 lazy, DB 캐시). matchPopups 에서 호출.
+- `next.config.ts` media-src += audio-ssl.itunes.apple.com, *.mzstatic.com
+
+### S16 — 전체화면 시각화 + 한영 검색 + 카테고리 + 어트리뷰션
+
+- **전체화면 (GlobalMusicPlayer)**: 영상 자리에 앨범아트 카드 (preview/spotify 엔진 시 영상 없으면 노출) + 재생 중 pulse + lime glow. 배경 블러 `artworkUrlHires || artworkUrl` fallback.
+- **한영 검색**: `MusicQueryNormalizationService` 가 죽은 코드였음 (만들어만 두고 호출 안 함). `searchTracks` 에 `normalize()` 연결 → 데이식스→DAY6, 뉴진스→NewJeans (LLM + 캐시).
+- **카테고리 정확도**: `MusicTab.CATEGORIES` 의 광범위 영어 키워드 ("summer night") → 한국 컨텍스트 ("korean summer night chill") 로 정정.
+- **어트리뷰션**: "Search · Spotify · Playback · YouTube" → "음원 제공 · Spotify · Apple Music · YouTube" (GlobalMusicPlayer + MusicTab 두 곳, S16.2 에서 통일).
+
+### 최종 재생 우선순위
+
+```
+Premium + 데스크탑 + Spotify ID → Spotify SDK (320kbps 풀트랙, 광고 0)
+Free / 미연결 + preview 있음     → iTunes/Spotify preview (30~90초 깨끗)
+위 둘 다 불가                     → YouTube IFrame (폴백)
+```
+
