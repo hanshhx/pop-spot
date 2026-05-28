@@ -7,8 +7,13 @@
 
 export interface MusicTrack {
   id: number;
-  /** Spotify trackId (레거시 필드명, DB 컬럼 호환). */
-  itunesTrackId: string;
+  /** 레거시 itunes_track_id 컬럼 — 대부분 null (v1.3 Spotify 마이그레이션 이후). */
+  itunesTrackId?: string;
+  /**
+   * v2.21-S13 — 실제 Spotify trackId. 검색으로 들어온 트랙은 이 필드에 채워진다.
+   * Web Playback SDK 가 `spotify:track:${spotifyTrackId}` 로 재생.
+   */
+  spotifyTrackId?: string;
   artistName: string;
   trackName: string;
   albumName?: string;
