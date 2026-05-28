@@ -15,6 +15,7 @@ import {
 import Link from "next/link";
 
 import { apiFetch } from "@/lib/api";
+import { SpotifyConnectButton } from "@/features/music/SpotifyConnectButton";
 import { MatchResult, MusicTrack } from "@/types/music";
 import { useMusicPlayer } from "./MusicPlayerProvider";
 
@@ -228,13 +229,21 @@ export default function MusicTab() {
     <div className="relative min-h-[80vh] w-full">
       {/* 헤더 */}
       <header className="mb-6">
-        <p className="text-xs font-bold uppercase tracking-[0.3em] text-muted-foreground">
-          POP · MUSIC
-        </p>
-        <h2 className="mt-2 text-2xl font-black leading-tight tracking-tight text-foreground sm:text-4xl">
-          듣고 있던 곡으로,{" "}
-          <span className="text-lime-500 dark:text-lime-300">팝업을 골라봐요</span>
-        </h2>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.3em] text-muted-foreground">
+              POP · MUSIC
+            </p>
+            <h2 className="mt-2 text-2xl font-black leading-tight tracking-tight text-foreground sm:text-4xl">
+              듣고 있던 곡으로,{" "}
+              <span className="text-lime-500 dark:text-lime-300">팝업을 골라봐요</span>
+            </h2>
+          </div>
+          {/* v2.21-S11 — Spotify 연결 칩. Premium 이면 풀트랙, Free/미연결은 30초 미리듣기. */}
+          <div className="shrink-0 pt-1">
+            <SpotifyConnectButton />
+          </div>
+        </div>
       </header>
 
       {/* 검색 + 룰렛/패스포트 */}
