@@ -197,13 +197,16 @@ function FullScreenPlayer() {
       role="dialog"
       aria-modal="true"
     >
-      {current.artworkUrlHires && (
+      {/* v2.21-S16 — 앨범아트 대형 블러 배경 (hires 없으면 일반 해상도 fallback). */}
+      {(current.artworkUrlHires || current.artworkUrl) && (
         <div
-          className="absolute inset-0 scale-110 bg-cover bg-center opacity-40 blur-3xl"
-          style={{ backgroundImage: `url(${current.artworkUrlHires})` }}
+          className="absolute inset-0 scale-125 bg-cover bg-center opacity-50 blur-3xl"
+          style={{
+            backgroundImage: `url(${current.artworkUrlHires || current.artworkUrl})`,
+          }}
         />
       )}
-      <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/30 to-black/85" />
+      <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/40 to-black/90" />
 
       <button
         type="button"
@@ -221,13 +224,35 @@ function FullScreenPlayer() {
 
       <div className="relative z-10 flex flex-1 flex-col items-center overflow-y-auto px-6 pt-12 pb-12">
         {/*
-         * 풀 플레이어의 상단은 YouTube IFrame 무대(MusicPlayerProvider 가 fixed 로 렌더)가
-         * 차지한다. 여기서는 영상 영역만큼 빈 공간을 띄워 두고, 곡 정보는 그 아래에 표시.
+         * v2.21-S16 — 영상 자리 + 앨범아트 시각화.
+         *
+         * YouTube IFrame 무대(MusicPlayerProvider 가 fixed 로 렌더)가 이 자리를 덮는다.
+         * Spotify SDK / iTunes preview 엔진은 영상이 없으므로, 그 자리에 앨범아트 카드를
+         * z-0 으로 깔아둔다 (youtube 면 영상이 위에 겹치고, 아니면 앨범아트가 보인다).
+         * 재생 중에는 미세한 pulse + lime ambient glow 로 몰입감.
          */}
-        <div
-          className="aspect-video w-[92vw] max-w-[640px]"
-          aria-hidden
-        />
+        <div className="relative aspect-video w-[92vw] max-w-[640px]" aria-hidden>
+          {(current.artworkUrlHires || current.artworkUrl) && (
+            <motion.div
+              className="absolute inset-0 grid place-items-center"
+              animate={isPlaying ? { scale: [1, 1.015, 1] } : { scale: 1 }}
+              transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+            >
+              <div className="relative">
+                <div
+                  className="absolute -inset-6 rounded-3xl bg-lime-300/20 blur-2xl"
+                  aria-hidden
+                />
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={current.artworkUrlHires || current.artworkUrl}
+                  alt=""
+                  className="relative h-[40vh] max-h-[320px] w-auto rounded-2xl object-cover shadow-2xl ring-1 ring-white/10"
+                />
+              </div>
+            </motion.div>
+          )}
+        </div>
 
         <div className="mt-6 max-w-md text-center text-white">
           <h1 className="text-2xl font-black tracking-tight sm:text-3xl">
@@ -354,8 +379,10 @@ function FullScreenPlayer() {
           </div>
         </section>
 
-        <p className="mt-8 font-mono text-[10px] uppercase tracking-widest text-white/30">
-          Search · Spotify &nbsp;·&nbsp; Playback · YouTube
+        {/* v2.21-S16 — 어트리뷰션 (Spotify Branding Guidelines). 음원 출처 명시. */}
+        <p className="mt-8 text-[10px] tracking-wide text-white/35">
+          음원 제공 · <span className="font-bold text-[#1DB954]/70">Spotify</span> · Apple Music ·
+          YouTube
         </p>
       </div>
     </motion.div>
