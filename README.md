@@ -1753,6 +1753,38 @@
 
 ---
 
+### v2.21-S5 ~ S9 — BROWSE UX + 음악 재생 안정화
+
+| 패치 | 내용 |
+|---|---|
+| **S5** | BROWSE 섹션 접기/펴기 토글 (localStorage 영속) · 시점 라벨 동적화 (오늘/주말/이번달 자동 갱신) · 헤더 통합검색 모달 → 인라인 펼침 |
+| **S6** | 음악 재생 실패 (`onError`) 시 토스트 + 다음 곡 자동 skip · Ctrl+K 단축키 · BROWSE 카드 lime 그라데이션 디자인 차별화 |
+| **S7** | `MusicTrack.playbackFailedCount` 컬럼 (V12) + `POST /api/music/{id}/playback-failed` — 3회 실패 트랙 추천 자동 제외 |
+| **S8** | **YouTube IFrame API 가 CSP `script-src` 에 막혀 음악 재생 안 되던 진짜 원인 해결** (youtube.com / s.ytimg.com 추가) |
+| **S9** | 비공식 변형 차단 키워드 30개 추가 (피아노 / 오르골 / nightcore / 자장가 등) · 매칭 0 시 graceful skip |
+
+---
+
+### v2.21-S10 ~ S16 — Spotify OAuth + Web Playback SDK 통합 (음악 재생 대수술)
+
+> Premium 사용자는 **320kbps 풀트랙**, Free/미연결은 **iTunes 90초 깨끗 음원**, 그 외는 YouTube 폴백. 3-tier 재생 엔진.
+
+| 패치 | 내용 |
+|---|---|
+| **S10** | 백엔드 OAuth — `SpotifyAuth` 엔티티 + V13 + AES-256 GCM `TokenEncryption` + `SpotifyOAuthService` + 5 endpoint (login/callback/me/disconnect/token) |
+| **S11** | 프론트 — `useSpotifyAuth` + `SpotifyConnectButton` (미연결/Premium/Free 3상태) + 음악 탭 헤더 배치 |
+| **S11.1** | 401 핫픽스 — `@AuthenticationPrincipal UserDetails`(타입 불일치) → `Authentication` |
+| **S12~S14** | 3-tier 엔진 — `usePreviewPlayer`(HTML5 audio) + `useSpotifyPlayer`(SDK) + `MusicPlayerProvider` 통합 + CSP Spotify 도메인 + 탈퇴 시 토큰 삭제 |
+| **S13.1** | Premium 인데 YouTube 나오던 버그 — `itunesTrackId`(null) → `spotifyTrackId` |
+| **S15** | iTunes preview 폴백 — Spotify 가 2024-11 신규 앱 preview_url 차단 (운영 DB 233곡 중 0개 확인) → `ITunesPreviewService` 로 90초 보충 |
+| **S16** | 전체화면 앨범아트 시각화 · 한영 검색 연결 (데이식스→DAY6, 죽은 코드였던 `MusicQueryNormalizationService` 활성) · 카테고리 한국 키워드 정정 · Spotify 어트리뷰션 |
+
+**재생 우선순위**: `Premium SDK (풀트랙) → iTunes/Spotify preview (30~90초) → YouTube (폴백)`
+
+<sub>신규 백엔드 7 (SpotifyAuth · Repository · TokenEncryption · SpotifyOAuthService · SpotifyAuthController · ITunesPreviewService · V12/V13 migration) + 프론트 5 (useSpotifyAuth · SpotifyConnectButton · usePreviewPlayer · useSpotifyPlayer · InlineGlobalSearch) · 수정 다수 (MusicService · MusicPlayerProvider · GlobalMusicPlayer · MusicTab · next.config CSP). 자세한 변경은 `PROJECT_CHANGELOG.md` ch.29.14 ~ 29.19 참고.</sub>
+
+---
+
 ## 폴더 구조 (백엔드)
 
 ```
