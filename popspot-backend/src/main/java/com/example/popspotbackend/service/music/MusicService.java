@@ -295,8 +295,8 @@ public class MusicService {
     }
 
     /**
-     * v2.21-S15 — preview_url 이 비어있으면 iTunes 에서 보충. Spotify 가 2024-11 부터 신규 앱의 preview_url 을
-     * null 로 막아, Free / 미연결 사용자가 깨끗한 미리듣기 대신 YouTube 로 폴백되던 문제 해결. 한 번 채우면 DB 캐시.
+     * v2.21-S15 — preview_url 이 비어있으면 iTunes 에서 보충. Spotify 가 2024-11 부터 신규 앱의 preview_url 을 null 로
+     * 막아, Free / 미연결 사용자가 깨끗한 미리듣기 대신 YouTube 로 폴백되던 문제 해결. 한 번 채우면 DB 캐시.
      */
     private void ensurePreviewUrl(MusicTrack track) {
         String existing = track.getPreviewUrl();
