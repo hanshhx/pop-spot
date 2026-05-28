@@ -68,8 +68,9 @@ const nextConfig: NextConfig = {
       "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://dapi.kakao.com https://t1.daumcdn.net https://www.googletagmanager.com https://*.algolia.net https://*.algolianet.com https://www.youtube.com https://s.ytimg.com https://sdk.scdn.co",
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net",
       "img-src 'self' data: blob: https: http:",
-      // v2.21-S14 — media-src 에 Spotify preview CDN (p.scdn.co — preview mp3 호스트).
-      "media-src 'self' blob: https: https://p.scdn.co https://*.scdn.co",
+      // v2.21-S14/S15 — media-src 에 Spotify(p.scdn.co) + iTunes preview CDN.
+      // iTunes preview 는 audio-ssl.itunes.apple.com / *.mzstatic.com 에서 m4a 제공.
+      "media-src 'self' blob: https: https://p.scdn.co https://*.scdn.co https://audio-ssl.itunes.apple.com https://*.mzstatic.com",
       "font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net",
       // v2.21-S8/S14 — connect-src 에 YouTube + Spotify API / SDK / CDN 추가.
       // api.spotify.com (Web API play call), *.spotify.com (SDK websocket), *.scdn.co (CDN).

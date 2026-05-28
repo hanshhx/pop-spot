@@ -65,6 +65,7 @@ public class MusicService {
 
     private final SpotifySearchService spotify;
     private final YouTubeMusicSearchService youtube;
+    private final ITunesPreviewService itunesPreview;
     private final MusicMoodAnalysisService moodService;
     private final MusicTrackRepository trackRepo;
     private final UserMusicHistoryRepository historyRepo;
@@ -114,6 +115,7 @@ public class MusicService {
         MusicTrack track = findTrackOrThrow(trackId);
 
         ensureYoutubeVideoId(track);
+        ensurePreviewUrl(track);
         ensureMoodTags(track);
         incrementPlayCount(track);
         trackRepo.save(track);
@@ -285,6 +287,20 @@ public class MusicService {
             track.setIsOfficial(Boolean.TRUE.equals(video.getIsOfficial()));
         }
         track.setCachedAt(LocalDateTime.now());
+    }
+
+    /**
+     * v2.21-S15 — preview_url 이 비어있으면 iTunes 에서 보충. Spotify 가 2024-11 부터 신규 앱의 preview_url 을
+     * null 로 막아, Free / 미연결 사용자가 깨끗한 미리듣기 대신 YouTube 로 폴백되던 문제 해결. 한 번 채우면 DB 캐시.
+     */
+    private void ensurePreviewUrl(MusicTrack track) {
+        String existing = track.getPreviewUrl();
+        if (existing != null && !existing.isBlank()) return;
+
+        String preview = itunesPreview.findPreviewUrl(track.getArtistName(), track.getTrackName());
+        if (preview != null) {
+            track.setPreviewUrl(preview);
+        }
     }
 
     /* =========================== 매칭 점수 =========================== */
