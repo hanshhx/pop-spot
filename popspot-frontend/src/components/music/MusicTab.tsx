@@ -377,8 +377,9 @@ export default function MusicTab() {
         </div>
       )}
 
-      <p className="mt-12 text-center font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-        Search · Spotify &nbsp;·&nbsp; Playback · YouTube
+      {/* v2.21-S16.2 — 어트리뷰션 (Spotify Branding Guidelines). GlobalMusicPlayer 와 동일 문구. */}
+      <p className="mt-12 text-center text-[10px] tracking-wide text-muted-foreground">
+        음원 제공 · <span className="font-bold text-[#1DB954]">Spotify</span> · Apple Music · YouTube
       </p>
     </div>
   );
