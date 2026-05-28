@@ -45,6 +45,7 @@ public class MusicService {
      * youtube_video_id 재선택 (cover 청소 엔드포인트) 으로 복구 가능.
      */
     private static final int PLAYBACK_FAILURE_THRESHOLD = 3;
+
     private static final int FALLBACK_POPUP_SCORE = 50;
     private static final int MAX_MATCH_SCORE = 100;
 
@@ -178,8 +179,8 @@ public class MusicService {
     }
 
     /**
-     * v2.21-S7 — 프론트 YouTube IFrame onError 호출 시 카운터 1 증가. 누적 임계값 초과 시 isPlaybackHealthy 가
-     * false 가 되어 검색 / 추천 후보에서 자동 제외된다.
+     * v2.21-S7 — 프론트 YouTube IFrame onError 호출 시 카운터 1 증가. 누적 임계값 초과 시 isPlaybackHealthy 가 false 가
+     * 되어 검색 / 추천 후보에서 자동 제외된다.
      */
     public void recordPlaybackFailure(Long trackId) {
         if (trackId == null) return;

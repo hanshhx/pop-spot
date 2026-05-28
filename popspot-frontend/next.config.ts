@@ -64,14 +64,18 @@ const nextConfig: NextConfig = {
       // 이전엔 frame-src 에만 있어 IFrame embed 는 가능했지만 iframe_api.js 자체가 CSP 에
       // 막혀서 useYouTubePlayer 가 player 인스턴스를 생성 못함 → 검은 화면. 음악 재생
       // "수두룩한 실패" 의 진짜 원인. v2.17 CSP 도입 시 누락된 도메인.
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://dapi.kakao.com https://t1.daumcdn.net https://www.googletagmanager.com https://*.algolia.net https://*.algolianet.com https://www.youtube.com https://s.ytimg.com",
+      // v2.21-S14 — script-src 에 Spotify Web Playback SDK (sdk.scdn.co) 추가.
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://dapi.kakao.com https://t1.daumcdn.net https://www.googletagmanager.com https://*.algolia.net https://*.algolianet.com https://www.youtube.com https://s.ytimg.com https://sdk.scdn.co",
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net",
       "img-src 'self' data: blob: https: http:",
-      "media-src 'self' blob: https:",
+      // v2.21-S14 — media-src 에 Spotify preview CDN (p.scdn.co — preview mp3 호스트).
+      "media-src 'self' blob: https: https://p.scdn.co https://*.scdn.co",
       "font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net",
-      // v2.21-S8 — connect-src 에 YouTube/Spotify CDN 추가 (player 가 영상 메타 fetch).
-      "connect-src 'self' https://*.algolia.net https://*.algolianet.com https://dapi.kakao.com https://accounts.kakao.com https://accounts.google.com https://nid.naver.com https://*.ts.net https://www.youtube.com https://s.ytimg.com wss: ws:",
-      "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://open.spotify.com https://accounts.kakao.com",
+      // v2.21-S8/S14 — connect-src 에 YouTube + Spotify API / SDK / CDN 추가.
+      // api.spotify.com (Web API play call), *.spotify.com (SDK websocket), *.scdn.co (CDN).
+      "connect-src 'self' https://*.algolia.net https://*.algolianet.com https://dapi.kakao.com https://accounts.kakao.com https://accounts.google.com https://nid.naver.com https://*.ts.net https://www.youtube.com https://s.ytimg.com https://api.spotify.com https://*.spotify.com https://*.scdn.co wss://*.spotify.com wss: ws:",
+      // v2.21-S14 — frame-src / media: Spotify SDK iframe (sdk.scdn.co) + open.spotify.com.
+      "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://open.spotify.com https://sdk.scdn.co https://accounts.kakao.com",
       "object-src 'none'",
       "base-uri 'self'",
       "form-action 'self'",

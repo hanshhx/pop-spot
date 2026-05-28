@@ -2,6 +2,7 @@ package com.example.popspotbackend.controller;
 
 import com.example.popspotbackend.entity.User;
 import com.example.popspotbackend.exception.ResourceNotFoundException;
+import com.example.popspotbackend.repository.SpotifyAuthRepository;
 import com.example.popspotbackend.repository.UserRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.constraints.Size;
@@ -66,6 +67,7 @@ public class UserProfileController {
     private static final String ALLOWED_HOST_PATTERNS_PROP = "app.upload.allowed-host-patterns";
 
     private final UserRepository userRepository;
+    private final SpotifyAuthRepository spotifyAuthRepository;
     private final List<Pattern> allowedHostPatterns;
 
     private final String avatarDir =
@@ -73,8 +75,10 @@ public class UserProfileController {
 
     public UserProfileController(
             UserRepository userRepository,
+            SpotifyAuthRepository spotifyAuthRepository,
             @Value("${" + ALLOWED_HOST_PATTERNS_PROP + ":}") String allowedHostPatternsCsv) {
         this.userRepository = userRepository;
+        this.spotifyAuthRepository = spotifyAuthRepository;
         this.allowedHostPatterns = compilePatterns(allowedHostPatternsCsv);
     }
 
@@ -221,7 +225,11 @@ public class UserProfileController {
         user.changePassword("DELETED-" + anonSuffix);
         userRepository.save(user);
 
-        log.info("[User] 회원 탈퇴 — userId={} 익명화 완료", userId);
+        // v2.21-S14 — Spotify 연결 토큰 즉시 삭제 (PIPA + Spotify Developer Policy 의무).
+        // FK CASCADE 도 있지만 users 는 익명화만 하고 삭제 안 하므로 명시적 삭제 필요.
+        spotifyAuthRepository.deleteByUserId(userId);
+
+        log.info("[User] 회원 탈퇴 — userId={} 익명화 + Spotify 토큰 삭제 완료", userId);
         return ResponseEntity.ok(Map.of("status", "DELETED", "userId", userId));
     }
 

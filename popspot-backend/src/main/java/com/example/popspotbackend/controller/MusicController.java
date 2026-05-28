@@ -114,8 +114,8 @@ public class MusicController {
     }
 
     /**
-     * v2.21-S7 — 재생 실패 마킹. 프론트의 useYouTubePlayer onError (101/150 embed 차단, 100
-     * 비공개 등) 시 호출. 임계값 이상 누적되면 검색 후보에서 자동 제외.
+     * v2.21-S7 — 재생 실패 마킹. 프론트의 useYouTubePlayer onError (101/150 embed 차단, 100 비공개 등) 시 호출. 임계값 이상
+     * 누적되면 검색 후보에서 자동 제외.
      */
     @PostMapping("/{trackId}/playback-failed")
     public ResponseEntity<Void> markPlaybackFailed(@PathVariable Long trackId) {

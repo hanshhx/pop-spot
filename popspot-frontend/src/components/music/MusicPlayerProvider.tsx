@@ -14,8 +14,14 @@ import {
 
 import { apiFetch } from '@/lib/api';
 import { notify } from '@/lib/notify';
+import { useSpotifyAuth } from '@/features/music/useSpotifyAuth';
 import type { MatchResult, MusicTrack } from '@/types/music';
 import { useYouTubePlayer, describeYouTubeError } from './useYouTubePlayer';
+import { usePreviewPlayer } from './usePreviewPlayer';
+import { useSpotifyPlayer } from './useSpotifyPlayer';
+
+/** v2.21-S13 — 재생 엔진 종류. 우선순위 spotify > preview > youtube. */
+type PlaybackEngine = 'spotify' | 'preview' | 'youtube';
 
 /**
  * 글로벌 음악 플레이어 Provider.
@@ -99,8 +105,33 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
   // current trackId 가 바뀔 때만 다시 0 으로 리셋.
   const skippedTrackIdRef = useRef<number | null>(null);
 
-  const player = useYouTubePlayer({
-    videoId: current?.youtubeVideoId ?? null,
+  // v2.21-S13 — Spotify 연결 / Premium 상태 (3-tier 엔진 결정에 사용).
+  const spotifyAuth = useSpotifyAuth();
+
+  /**
+   * v2.21-S13 — 재생 엔진 결정.
+   *
+   * <ul>
+   *   <li>spotify — Premium 연결 + 데스크탑 + spotify trackId (itunesTrackId 가 실제 Spotify ID)
+   *   <li>preview — Spotify preview_url 있음 (Free / 미연결 / 모바일)
+   *   <li>youtube — 위 둘 다 불가 (preview 없는 인디 곡 등)
+   * </ul>
+   *
+   * <p>SDK 는 데스크탑 전용이라 모바일이면 spotify 엔진 제외.
+   */
+  const engine: PlaybackEngine = useMemo(() => {
+    if (!current) return 'youtube';
+    const isMobile =
+      typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    if (spotifyAuth.connected && spotifyAuth.isPremium && !isMobile && current.itunesTrackId) {
+      return 'spotify';
+    }
+    if (current.previewUrl) return 'preview';
+    return 'youtube';
+  }, [current, spotifyAuth.connected, spotifyAuth.isPremium]);
+
+  const yt = useYouTubePlayer({
+    videoId: engine === 'youtube' ? current?.youtubeVideoId ?? null : null,
     onEnded: () => playNextFromQueue(),
     onError: (code) => {
       const failed = current;
@@ -129,6 +160,29 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
       playNextFromQueue();
     },
   });
+
+  const previewPlayer = usePreviewPlayer({
+    previewUrl: engine === 'preview' ? current?.previewUrl ?? null : null,
+    enabled: engine === 'preview',
+    onEnded: () => playNextFromQueue(),
+  });
+
+  const spotifyPlayer = useSpotifyPlayer({
+    spotifyTrackId: engine === 'spotify' ? current?.itunesTrackId ?? null : null,
+    enabled: engine === 'spotify',
+    onEnded: () => playNextFromQueue(),
+  });
+
+  // 활성 엔진의 신호/컨트롤로 통합. preview 는 isReady 개념 없어 항상 true.
+  const player = useMemo(() => {
+    if (engine === 'spotify') {
+      return { ...spotifyPlayer, containerRef: yt.containerRef };
+    }
+    if (engine === 'preview') {
+      return { ...previewPlayer, isReady: true, containerRef: yt.containerRef };
+    }
+    return yt;
+  }, [engine, spotifyPlayer, previewPlayer, yt]);
 
   /* ============================== Actions ============================== */
 
@@ -229,6 +283,12 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
       noMatchHandledRef.current = null;
       return;
     }
+    // v2.21-S13 — preview / spotify 엔진은 youtubeVideoId 없이도 재생 가능.
+    // youtube 엔진일 때만 매칭 0 (검은 화면) 을 skip 처리.
+    if (engine !== 'youtube') {
+      noMatchHandledRef.current = null;
+      return;
+    }
     if (matchLoading) return; // 백엔드가 youtube_video_id 채우는 중일 수 있음 — 기다림
     if (current.youtubeVideoId) {
       noMatchHandledRef.current = null;
@@ -245,7 +305,7 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
       timer: 2500,
     });
     playNextFromQueue();
-  }, [current, matchLoading, playNextFromQueue]);
+  }, [current, matchLoading, playNextFromQueue, engine]);
 
   /* ============================== Context value ============================== */
 
@@ -307,10 +367,15 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
        * YouTube IFrame 무대 — 라우트가 바뀌어도 같은 노드가 유지되어야 재생이 끊기지 않는다.
        * 모드에 따라 위치 / 크기만 부드럽게 전환된다. YouTube 약관 III.E.4.b 준수를 위해 영상은
        * 어느 모드에서도 시각적으로 노출된다 (hidden 은 곡이 없을 때뿐).
+       *
+       * v2.21-S13 — preview / spotify 엔진은 영상이 없으므로 stage 를 hidden 으로 숨긴다.
+       * (GlobalMusicPlayer 의 미니/풀 컨트롤은 앨범 커버 기반으로 별도 표시.)
        */}
       <div
-        className={`${resolveStageClass(mode)} transition-all duration-300 ease-out bg-black`}
-        aria-hidden={mode === 'hidden'}
+        className={`${
+          engine === 'youtube' ? resolveStageClass(mode) : STAGE_HIDDEN_CLASS
+        } transition-all duration-300 ease-out bg-black`}
+        aria-hidden={mode === 'hidden' || engine !== 'youtube'}
       >
         <div ref={player.containerRef} className="absolute inset-0" />
       </div>
