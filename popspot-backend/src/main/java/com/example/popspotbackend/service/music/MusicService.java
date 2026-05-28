@@ -66,6 +66,7 @@ public class MusicService {
     private final SpotifySearchService spotify;
     private final YouTubeMusicSearchService youtube;
     private final ITunesPreviewService itunesPreview;
+    private final MusicQueryNormalizationService queryNormalization;
     private final MusicMoodAnalysisService moodService;
     private final MusicTrackRepository trackRepo;
     private final UserMusicHistoryRepository historyRepo;
@@ -96,7 +97,11 @@ public class MusicService {
      */
     @Transactional
     public List<MusicTrack> searchTracks(String query, int limit) {
-        List<SpotifySearchService.SpotifyTrack> spotifyResults = spotify.search(query, limit);
+        // v2.21-S16 — 한국어 검색어를 Spotify 매칭 정식 표기로 변환 (데이식스→DAY6, 뉴진스→NewJeans).
+        // 이전엔 정규화 서비스가 만들어졌는데 호출 안 되어 영어 제목 곡이 한글 검색에 안 잡혔음.
+        String normalizedQuery = queryNormalization.normalize(query);
+        List<SpotifySearchService.SpotifyTrack> spotifyResults =
+                spotify.search(normalizedQuery, limit);
 
         List<MusicTrack> result = new ArrayList<>();
         for (SpotifySearchService.SpotifyTrack spotifyTrack : spotifyResults) {

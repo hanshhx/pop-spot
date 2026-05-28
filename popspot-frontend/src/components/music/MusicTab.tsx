@@ -33,16 +33,19 @@ function useDebounce<T>(value: T, delay = 250) {
 }
 
 /** 카테고리는 프론트에서 정의 — 백엔드는 keyword 만 받아서 검색 수행 */
+// v2.21-S16 — 카테고리 검색어 한국 음악 우선으로 정정. 이전엔 "summer night" 같은
+// 광범위 영어 키워드라 전 세계 곡이 섞여 "이상한 게 많이 나온다" 는 보고. 모든 카테고리에
+// 한국 컨텍스트 (korean / k-pop) 를 붙여 한국 사용자 기대에 맞춤.
 const CATEGORIES: { id: string; label: string; keyword: string }[] = [
-  { id: "summer", label: "여름밤", keyword: "summer night" },
-  { id: "rainy", label: "비 오는 날", keyword: "rainy day" },
-  { id: "study", label: "공부할 때", keyword: "study lofi" },
-  { id: "workout", label: "운동", keyword: "workout pump" },
-  { id: "drive", label: "드라이브", keyword: "driving korean indie" },
-  { id: "kpop", label: "K-POP", keyword: "k-pop hits" },
+  { id: "summer", label: "여름밤", keyword: "korean summer night chill" },
+  { id: "rainy", label: "비 오는 날", keyword: "korean rainy day ballad" },
+  { id: "study", label: "공부할 때", keyword: "korean lofi study" },
+  { id: "workout", label: "운동", keyword: "k-pop workout energy" },
+  { id: "drive", label: "드라이브", keyword: "korean driving indie pop" },
+  { id: "kpop", label: "K-POP", keyword: "k-pop hits 2025" },
   { id: "indie", label: "한국 인디", keyword: "korean indie" },
   { id: "ballad", label: "발라드", keyword: "korean ballad" },
-  { id: "rnb", label: "R&B", keyword: "korean rnb" },
+  { id: "rnb", label: "R&B", keyword: "korean rnb soul" },
   { id: "ost", label: "OST", keyword: "korean drama ost" },
 ];
 
