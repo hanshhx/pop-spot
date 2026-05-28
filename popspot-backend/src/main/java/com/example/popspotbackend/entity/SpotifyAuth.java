@@ -21,8 +21,8 @@ import lombok.Setter;
  * <p>각 popspot 사용자가 자기 Spotify 계정을 연결하면 1 row 가 생긴다. Web Playback SDK 가 streaming 권한을 받으려면
  * access_token 이 필요하고, 1시간 만료라 refresh_token 으로 자동 갱신해야 한다.
  *
- * <p>토큰은 평문 저장 금지 (Spotify Developer Policy + PIPA). AES-256 GCM 으로 암호화된 Base64 문자열을 그대로 보관.
- * 회원 탈퇴 시 FK ON DELETE CASCADE 로 자동 삭제.
+ * <p>토큰은 평문 저장 금지 (Spotify Developer Policy + PIPA). AES-256 GCM 으로 암호화된 Base64 문자열을 그대로 보관. 회원 탈퇴
+ * 시 FK ON DELETE CASCADE 로 자동 삭제.
  */
 @Entity
 @Table(name = "spotify_auth")

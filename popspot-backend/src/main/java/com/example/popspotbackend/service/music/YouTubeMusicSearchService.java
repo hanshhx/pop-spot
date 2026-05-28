@@ -42,11 +42,11 @@ public class YouTubeMusicSearchService {
     /**
      * v2.14 / v2.21-S9 — 제목에 포함되면 공식 음원이 아닌 것으로 간주해 매칭에서 제외하는 키워드.
      *
-     * <p>v2.14 도입. v2.21-S9 에서 사용자 보고 ("피아노 / 오르골 / nightcore 같은 비공식 변형이 가끔
-     * 나옴") 받아 단독 악기 / 템포 변형 / 자장가 / 가이드 보컬 등 30개 키워드 대량 추가.
+     * <p>v2.14 도입. v2.21-S9 에서 사용자 보고 ("피아노 / 오르골 / nightcore 같은 비공식 변형이 가끔 나옴") 받아 단독 악기 / 템포 변형 /
+     * 자장가 / 가이드 보컬 등 30개 키워드 대량 추가.
      *
-     * <p>주의: "라이브" / "live" 같은 broad 키워드가 정상 발매곡 ("Live in London (Official)") 까지
-     * 차단할 위험은 v2.14 당시 시점에 받아들임. 정확도 우선 정책.
+     * <p>주의: "라이브" / "live" 같은 broad 키워드가 정상 발매곡 ("Live in London (Official)") 까지 차단할 위험은 v2.14 당시
+     * 시점에 받아들임. 정확도 우선 정책.
      */
     private static final String[] NON_OFFICIAL_KEYWORDS = {
         // v2.14 — cover / live / remix / acoustic 계열
