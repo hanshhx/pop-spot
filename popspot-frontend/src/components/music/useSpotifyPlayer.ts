@@ -39,6 +39,12 @@ type SpotifyPlayerOptions = {
   volume?: number;
 };
 
+type SpotifyPlaybackState = {
+  paused: boolean;
+  position: number;
+  duration: number;
+};
+
 type SpotifyPlayerInstance = {
   connect: () => Promise<boolean>;
   disconnect: () => void;
@@ -48,6 +54,7 @@ type SpotifyPlayerInstance = {
   pause: () => Promise<void>;
   resume: () => Promise<void>;
   seek: (ms: number) => Promise<void>;
+  getCurrentState: () => Promise<SpotifyPlaybackState | null>;
 };
 
 let sdkLoading = false;
@@ -211,6 +218,26 @@ export function useSpotifyPlayer({
     lastTrackEndedRef.current = false;
     void playTrackOnDevice(deviceIdRef.current, spotifyTrackId);
   }, [enabled, spotifyTrackId, isReady]);
+
+  // 3) v2.21-S17 — 진행률 폴링.
+  // Spotify SDK 의 player_state_changed 는 play/pause/seek/track 변경 때만 발화하고
+  // 재생 중에는 position 을 자동으로 갱신하지 않는다. 그래서 진행바가 멈춰 보이거나
+  // 실제 위치와 어긋난다. 500ms 마다 getCurrentState() 로 position 을 직접 읽어 보정.
+  useEffect(() => {
+    if (!enabled || !isReady) return;
+    const id = setInterval(() => {
+      const p = playerRef.current;
+      if (!p?.getCurrentState) return;
+      void p.getCurrentState().then((s) => {
+        if (!s) return;
+        setIsPlaying(!s.paused);
+        setCurrentSec(s.position / 1000);
+        setDurationSec(s.duration / 1000);
+        setProgress(s.duration > 0 ? (s.position / s.duration) * 100 : 0);
+      });
+    }, 500);
+    return () => clearInterval(id);
+  }, [enabled, isReady]);
 
   return {
     isReady,
