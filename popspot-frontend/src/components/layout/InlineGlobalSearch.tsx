@@ -153,26 +153,21 @@ export default function InlineGlobalSearch() {
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
             transition={{ duration: 0.15 }}
-            className="group inline-flex items-center gap-2 h-10 pl-3 pr-3 rounded-pill border bg-lime-300 text-ink-900 border-lime-400 hover:bg-lime-400 transition-colors shadow-sm font-bold text-xs md:text-sm whitespace-nowrap"
+            className="group inline-flex items-center gap-2 h-10 px-4 rounded-pill border bg-lime-300 text-ink-900 border-lime-400 hover:bg-lime-400 transition-colors shadow-sm font-bold text-xs md:text-sm whitespace-nowrap"
           >
             <Search size={14} className="shrink-0" />
             <span>통합검색</span>
-            <kbd
-              aria-hidden
-              className="hidden md:inline-flex items-center justify-center min-w-[20px] h-[18px] px-1 rounded text-[9px] font-mono bg-ink-900/15 text-ink-900/70 border border-ink-900/15"
-            >
-              ⌘K
-            </kbd>
           </motion.button>
         ) : (
           <motion.form
             key="input"
             onSubmit={onSubmit}
-            initial={{ width: 40, opacity: 0 }}
-            animate={{ width: "100%", opacity: 1 }}
-            exit={{ width: 40, opacity: 0 }}
-            transition={{ duration: 0.22, ease: "easeOut" }}
-            className="flex items-center h-10 rounded-pill border bg-white dark:bg-[#1a1a1a] border-lime-400 dark:border-lime-300/50 shadow-md min-w-[220px] md:min-w-[320px] overflow-hidden"
+            initial={{ opacity: 0, scale: 0.97 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.97 }}
+            transition={{ duration: 0.16, ease: "easeOut" }}
+            style={{ transformOrigin: "right center" }}
+            className="flex items-center h-10 rounded-pill border bg-white dark:bg-[#1a1a1a] border-lime-400 dark:border-lime-300/50 shadow-md w-[220px] md:w-[320px] overflow-hidden"
             role="search"
             aria-label="통합검색"
           >
@@ -181,7 +176,9 @@ export default function InlineGlobalSearch() {
             </span>
             <input
               ref={inputRef}
-              type="search"
+              type="text"
+              inputMode="search"
+              autoComplete="off"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="팝업 이름 / 지역 검색…"

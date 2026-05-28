@@ -1783,6 +1783,17 @@
 
 <sub>신규 백엔드 7 (SpotifyAuth · Repository · TokenEncryption · SpotifyOAuthService · SpotifyAuthController · ITunesPreviewService · V12/V13 migration) + 프론트 5 (useSpotifyAuth · SpotifyConnectButton · usePreviewPlayer · useSpotifyPlayer · InlineGlobalSearch) · 수정 다수 (MusicService · MusicPlayerProvider · GlobalMusicPlayer · MusicTab · next.config CSP). 자세한 변경은 `PROJECT_CHANGELOG.md` ch.29.14 ~ 29.19 참고.</sub>
 
+### v2.21-S17 ~ S18 — 운영 버그 수정 (진행바 · 검색 UI · Spotify 콜백 · preview 무음)
+
+| 패치 | 내용 |
+|---|---|
+| **S17** | Spotify 풀트랙 진행바 멈춤 수정 — SDK `player_state_changed` 는 상태 전환 때만 발화 → `getCurrentState()` 500ms 폴링으로 position 보정 (`useSpotifyPlayer`) |
+| **S18-①** | 헤더 통합검색 — 깨진 ⌘K 박스(폰트 글리프 없음) 제거 · `type=search` → `text` (입력창의 "선"=취소버튼 제거) · 너비 애니메이션 ↔ `min-w` 충돌 제거 → `opacity+scale` 페이드로 매끄럽게 |
+| **S18-②** | Spotify 연결 후 인트로로 튕기던 버그 — 이중 `?` 생성(`frontendRedirectWith` 헬퍼로 항상 `?tab=MUSIC&spotify=…`) + `middleware` deep-link 에 `spotify` 추가 → 음악 탭 복귀 + 토스트 정상 |
+| **S18-③** | 미연동 시 30초 preview 무음 — 자동재생 정책 차단(매칭 비동기 후 `play()` 가 제스처 창 밖) → audio 엘리먼트 1개 재사용(세션 unlock 유지) + 거부 시 다음 클릭에 1회 재시도 (`usePreviewPlayer`) |
+
+<sub>수정 4파일 (백엔드 `SpotifyAuthController` · 프론트 `middleware` · `InlineGlobalSearch` · `usePreviewPlayer`). 프론트 빌드 42/42 통과. 자세한 변경은 `PROJECT_CHANGELOG.md` ch.29.20 ~ 29.21 참고. 백엔드 변경 1건은 JAR 재빌드/재배포 필요.</sub>
+
 ---
 
 ## 폴더 구조 (백엔드)
