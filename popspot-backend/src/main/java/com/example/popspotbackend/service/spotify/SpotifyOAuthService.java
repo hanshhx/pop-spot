@@ -31,8 +31,8 @@ import org.springframework.web.util.UriComponentsBuilder;
  *   <li>{@link #getValidAccessToken} — 호출 시점 access token 반환 (만료 임박 시 refresh 자동)
  * </ol>
  *
- * <p>Scope: streaming (Web Playback SDK), user-read-email (사용자 식별), user-read-private (Premium
- * 여부). 그 외 scope 는 요청하지 않음 — Spotify 검수 시 "최소 권한 원칙" 검사 항목.
+ * <p>Scope: streaming (Web Playback SDK), user-read-email (사용자 식별), user-read-private (Premium 여부).
+ * 그 외 scope 는 요청하지 않음 — Spotify 검수 시 "최소 권한 원칙" 검사 항목.
  */
 @Slf4j
 @Service
@@ -56,7 +56,8 @@ public class SpotifyOAuthService {
 
     private final SpotifyAuthRepository repo;
     private final TokenEncryption encryption;
-    private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
+    private final HttpClient http =
+            HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
     private final ObjectMapper mapper = new ObjectMapper();
 
     /** Spotify 로그인 페이지 URL. 사용자를 redirect 시키면 됨. */
@@ -134,10 +135,7 @@ public class SpotifyOAuthService {
     }
 
     private TokenResponse refreshAccessToken(String refreshToken) {
-        String body =
-                "grant_type=refresh_token"
-                        + "&refresh_token="
-                        + urlEncode(refreshToken);
+        String body = "grant_type=refresh_token" + "&refresh_token=" + urlEncode(refreshToken);
         return postToken(body);
     }
 
@@ -195,7 +193,10 @@ public class SpotifyOAuthService {
     /* ============================== 헬퍼 ============================== */
 
     private void ensureClientConfigured() {
-        if (clientId == null || clientId.isBlank() || clientSecret == null || clientSecret.isBlank()) {
+        if (clientId == null
+                || clientId.isBlank()
+                || clientSecret == null
+                || clientSecret.isBlank()) {
             throw new IllegalStateException(
                     "spotify.oauth.client-id / client-secret 미설정 — Spotify OAuth 사용 불가");
         }

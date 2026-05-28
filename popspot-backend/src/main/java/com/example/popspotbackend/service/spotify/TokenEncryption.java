@@ -13,11 +13,11 @@ import org.springframework.stereotype.Component;
 /**
  * v2.21-S10 — Spotify access/refresh token AES-256 GCM 암호화.
  *
- * <p>Spotify Developer Policy + PIPA 모두 토큰을 평문 저장 금지. 키가 DB 와 분리돼 있어야 하므로
- * {@code spotify.token.encryption-key} 환경변수에서만 가져온다 (소스 / .properties 기본값에 박지 않음).
+ * <p>Spotify Developer Policy + PIPA 모두 토큰을 평문 저장 금지. 키가 DB 와 분리돼 있어야 하므로 {@code
+ * spotify.token.encryption-key} 환경변수에서만 가져온다 (소스 / .properties 기본값에 박지 않음).
  *
- * <p>GCM 모드: 인증된 암호화 (변조 감지). nonce 는 매 암호화마다 새로 생성하여 ciphertext 앞에 prepend.
- * 해독 시 앞 12바이트 = nonce, 나머지 = 암호문 + tag.
+ * <p>GCM 모드: 인증된 암호화 (변조 감지). nonce 는 매 암호화마다 새로 생성하여 ciphertext 앞에 prepend. 해독 시 앞 12바이트 = nonce,
+ * 나머지 = 암호문 + tag.
  *
  * <p>키 분실 = 저장된 모든 토큰 무효. 사용자는 Spotify 재연결 필요.
  */
@@ -98,8 +98,7 @@ public class TokenEncryption {
 
     private void ensureEnabled() {
         if (!isEnabled()) {
-            throw new IllegalStateException(
-                    "spotify.token.encryption-key 미설정 — Spotify 기능 사용 불가");
+            throw new IllegalStateException("spotify.token.encryption-key 미설정 — Spotify 기능 사용 불가");
         }
     }
 }

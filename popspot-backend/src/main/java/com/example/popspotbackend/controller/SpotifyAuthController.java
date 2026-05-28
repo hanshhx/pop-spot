@@ -149,8 +149,8 @@ public class SpotifyAuthController {
     /* ============================== 내부 헬퍼 ============================== */
 
     /**
-     * Authentication 에서 popspot userId 추출. JwtAuthenticationFilter 가 principal 을 userId
-     * (String) 로 넣으므로 {@code getName()} 이 userId. 비로그인 / 익명이면 null.
+     * Authentication 에서 popspot userId 추출. JwtAuthenticationFilter 가 principal 을 userId (String) 로
+     * 넣으므로 {@code getName()} 이 userId. 비로그인 / 익명이면 null.
      */
     private String authenticatedUserId(Authentication authentication) {
         if (authentication == null
