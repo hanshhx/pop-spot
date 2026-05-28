@@ -14,8 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.Authentication;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -30,8 +29,8 @@ import org.springframework.web.bind.annotation.RestController;
  *
  * <ul>
  *   <li>{@code GET /api/spotify/login} — Spotify 로그인 URL 반환 (프론트가 redirect)
- *   <li>{@code GET /api/spotify/callback} — Spotify → popspot 콜백. code 받아 token 교환 후 프론트로
- *       302 redirect
+ *   <li>{@code GET /api/spotify/callback} — Spotify → popspot 콜백. code 받아 token 교환 후 프론트로 302
+ *       redirect
  *   <li>{@code GET /api/spotify/me} — 현재 사용자의 연결 상태 + Premium 여부
  *   <li>{@code POST /api/spotify/disconnect} — 토큰 삭제 (사용자 명시 요청)
  *   <li>{@code GET /api/spotify/token} — Web Playback SDK 가 사용할 access token (자동 refresh)
@@ -57,12 +56,13 @@ public class SpotifyAuthController {
      * <p>비로그인 사용자는 401.
      */
     @GetMapping("/login")
-    public ResponseEntity<Map<String, String>> login(@AuthenticationPrincipal UserDetails user) {
-        if (user == null) {
+    public ResponseEntity<Map<String, String>> login(Authentication authentication) {
+        String userId = authenticatedUserId(authentication);
+        if (userId == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of("error", "로그인 후 Spotify 연결이 가능합니다."));
         }
-        String state = encodeState(user.getUsername());
+        String state = encodeState(userId);
         String url = oauth.buildAuthorizationUrl(state);
         return ResponseEntity.ok(Map.of("authorizationUrl", url));
     }
@@ -94,13 +94,14 @@ public class SpotifyAuthController {
 
     /** 현재 사용자의 Spotify 연결 상태 + Premium 여부. 미로그인 → connected=false. */
     @GetMapping("/me")
-    public ResponseEntity<Map<String, Object>> me(@AuthenticationPrincipal UserDetails user) {
+    public ResponseEntity<Map<String, Object>> me(Authentication authentication) {
         Map<String, Object> result = new HashMap<>();
-        if (user == null) {
+        String userId = authenticatedUserId(authentication);
+        if (userId == null) {
             result.put("connected", false);
             return ResponseEntity.ok(result);
         }
-        SpotifyAuth auth = repo.findByUserId(user.getUsername()).orElse(null);
+        SpotifyAuth auth = repo.findByUserId(userId).orElse(null);
         if (auth == null) {
             result.put("connected", false);
             return ResponseEntity.ok(result);
@@ -114,12 +115,13 @@ public class SpotifyAuthController {
     /** 사용자가 명시적으로 Spotify 연결 끊기. */
     @PostMapping("/disconnect")
     @Transactional
-    public ResponseEntity<Void> disconnect(@AuthenticationPrincipal UserDetails user) {
-        if (user == null) {
+    public ResponseEntity<Void> disconnect(Authentication authentication) {
+        String userId = authenticatedUserId(authentication);
+        if (userId == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
-        repo.deleteByUserId(user.getUsername());
-        log.info("[SpotifyOAuth] 연결 끊기 — popspot user {}", user.getUsername());
+        repo.deleteByUserId(userId);
+        log.info("[SpotifyOAuth] 연결 끊기 — popspot user {}", userId);
         return ResponseEntity.noContent().build();
     }
 
@@ -129,12 +131,13 @@ public class SpotifyAuthController {
      * <p>이 endpoint 는 짧은 TTL 의 access token 만 노출하고, refresh_token 은 절대 노출 X.
      */
     @GetMapping("/token")
-    public ResponseEntity<Map<String, String>> token(@AuthenticationPrincipal UserDetails user) {
-        if (user == null) {
+    public ResponseEntity<Map<String, String>> token(Authentication authentication) {
+        String userId = authenticatedUserId(authentication);
+        if (userId == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
         try {
-            String accessToken = oauth.getValidAccessToken(user.getUsername());
+            String accessToken = oauth.getValidAccessToken(userId);
             return ResponseEntity.ok(Map.of("accessToken", accessToken));
         } catch (IllegalStateException e) {
             // Spotify 미연결 또는 키 미설정 등
@@ -144,6 +147,20 @@ public class SpotifyAuthController {
     }
 
     /* ============================== 내부 헬퍼 ============================== */
+
+    /**
+     * Authentication 에서 popspot userId 추출. JwtAuthenticationFilter 가 principal 을 userId
+     * (String) 로 넣으므로 {@code getName()} 이 userId. 비로그인 / 익명이면 null.
+     */
+    private String authenticatedUserId(Authentication authentication) {
+        if (authentication == null
+                || !authentication.isAuthenticated()
+                || authentication.getName() == null
+                || "anonymousUser".equals(authentication.getName())) {
+            return null;
+        }
+        return authentication.getName();
+    }
 
     /** state = Base64(userId + ":" + 16바이트 랜덤). 콜백 검증 시 디코딩하여 userId 추출. */
     private String encodeState(String userId) {
