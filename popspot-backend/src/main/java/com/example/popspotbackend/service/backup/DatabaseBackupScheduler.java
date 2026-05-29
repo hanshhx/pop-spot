@@ -6,6 +6,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
@@ -94,19 +95,21 @@ public class DatabaseBackupScheduler {
         String dbPort = extractPort(datasourceUrl);
 
         // pg_dump -h host -p port -U user dbName | gzip > outputFile
+        // v2.22 — 모든 설정 유래 값을 single-quote escape (shell 인젝션 방어 강화).
         ProcessBuilder pb =
                 new ProcessBuilder(
                         "/bin/sh",
                         "-c",
                         String.format(
-                                "PGPASSWORD='%s' %s -h %s -p %s -U %s -F p %s | gzip > '%s'",
-                                escapeShell(datasourcePassword),
-                                pgDumpPath,
-                                dbHost,
-                                dbPort,
+                                "'%s' -h '%s' -p '%s' -U '%s' -F p '%s' | gzip > '%s'",
+                                escapeShell(pgDumpPath),
+                                escapeShell(dbHost),
+                                escapeShell(dbPort),
                                 escapeShell(datasourceUsername),
                                 escapeShell(dbName),
-                                outputFile.getAbsolutePath()));
+                                escapeShell(outputFile.getAbsolutePath())));
+        // v2.22 — 비밀번호를 커맨드라인 대신 환경변수로 전달 (ps / process list 노출 방지).
+        pb.environment().put("PGPASSWORD", datasourcePassword == null ? "" : datasourcePassword);
         pb.redirectErrorStream(true);
 
         Process process = pb.start();
@@ -147,6 +150,21 @@ public class DatabaseBackupScheduler {
         Path dir = Paths.get(backupDir);
         if (!Files.exists(dir)) {
             Files.createDirectories(dir);
+        }
+        restrictDirPermissions(dir);
+    }
+
+    /**
+     * 백업 디렉토리를 소유자 전용(700)으로 제한. SQL 덤프는 전체 PII 를 담으므로 다른 로컬 계정이
+     * 읽지 못하게 한다. POSIX 가 아닌 환경(Windows dev)에서는 조용히 건너뛴다.
+     */
+    private void restrictDirPermissions(Path dir) {
+        try {
+            if (dir.getFileSystem().supportedFileAttributeViews().contains("posix")) {
+                Files.setPosixFilePermissions(dir, PosixFilePermissions.fromString("rwx------"));
+            }
+        } catch (IOException | UnsupportedOperationException e) {
+            log.warn("[DB-Backup] 백업 디렉토리 권한 설정 실패(무시): {}", e.getClass().getSimpleName());
         }
     }
 

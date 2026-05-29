@@ -121,6 +121,11 @@ public class MateService {
         if (post.getAuthor().getUserId().equals(reporterUserId)) {
             throw new IllegalArgumentException("본인 게시글은 신고할 수 없습니다.");
         }
+        // v2.22 — 1인 1신고. 같은 사용자가 반복 신고로 임계값을 혼자 채우는 어뷰징을 차단한다.
+        if (post.hasReported(reporterUserId)) {
+            throw new IllegalArgumentException("이미 신고한 게시글입니다.");
+        }
+        post.addReporter(reporterUserId);
         int next = post.getReportCount() + 1;
         post.setReportCount(next);
         if (next >= REPORT_AUTO_HIDE_THRESHOLD && !post.isHidden()) {

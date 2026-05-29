@@ -10825,6 +10825,21 @@ fetch) → `setCurrent(enriched)` → 그제서야 preview 엔진이 `audio.play
   깨짐 위험. 로컬에서 안전하게.
 - **httpOnly 쿠키 전환 / CSP nonce**: 교차 오리진(Vercel↔Tailscale) + 인라인 전면 영향. XSS 근본은
   escape 로 차단됨.
-- **RestTemplate 12개 타임아웃 / 탈퇴 시 작성콘텐츠 삭제 / pg_dump ProcessBuilder**: 실제 악용
-  난도 낮음 + 다파일/미검증 변경이라 일괄 푸시 위험 → 패치 레시피 별도 제공.
+- **RestTemplate 12개 타임아웃 / 탈퇴 시 작성콘텐츠 삭제**: 실제 악용 난도 낮음 + 다파일/미검증
+  변경이라 일괄 푸시 위험 → 패치 레시피 별도 제공.
+
+### 2차 보강 (운영 점검 항목 후속)
+
+- **신고 1인 1회 보장** — `MatePost.reportedBy`(콤마 구분 명단, V14 마이그레이션) + `hasReported`/
+  `addReporter`, `MateService.reportPost` 가 중복 신고 거부. 로그인 유저 1명이 반복 신고로 임계값(3)을
+  혼자 채워 임의 글을 자동숨김시키던 어뷰징 차단.
+- **크롤링 입력 정제** — `PopupNormalizationService` 가 LLM 정규화 결과의 name/location/description/
+  content 에 HTML 태그 제거 + 길이 상한 적용. 프론트 escape 와 함께 저장형 XSS 2중 방어 + DB 보호.
+- **열거 GET 레이트리밋** — `/api/v1/auth/check-email`, `/find-email` 분당 20회 제한(이메일 대량
+  수집 차단). `RateLimitInterceptor` 가 메서드 무관 URI 기준으로 판단하도록 변경.
+- **백업 하드닝** — `DatabaseBackupScheduler` 가 PGPASSWORD 를 커맨드라인 대신 환경변수로 전달(ps
+  노출 방지) + 설정값 shell escape 강화 + 백업 디렉토리 POSIX 700 제한.
+- **운영 점검(코드 아님, 사용자 확인 필요)**: `SPRING_PROFILES_ACTIVE=prod` 설정 여부, nginx 가
+  클라이언트 `X-Forwarded-*` 덮어쓰는지, 백업 파일 암호화(gpg 등) 적용 여부, 풀20+OSIV 동시접속
+  모니터링.
 
