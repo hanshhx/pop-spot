@@ -30,7 +30,11 @@ public class LogTailService {
 
     private static final long POLL_INTERVAL_MS = 500;
     private static final long KEEPALIVE_INTERVAL_SEC = 30;
-    private static final long SSE_TIMEOUT_MS = 0; // 0 = 무제한 (클라이언트가 닫을 때까지)
+    // 보안(v2.22): 0(무제한)이면 잠든/죽은 admin 탭의 emitter 가 영구 누수돼 스레드·메모리를
+    // 갉아먹는다. 30분 타임아웃 + 30초 keepalive → 정상 클라이언트는 자동 재연결.
+    private static final long SSE_TIMEOUT_MS = 30L * 60 * 1000;
+    // 동시 구독자 상한 — admin 전용이라 넉넉. 초과 연결은 즉시 거부해 폭증 방지.
+    private static final int MAX_SUBSCRIBERS = 50;
 
     private final LogRingBuffer ringBuffer;
 
@@ -72,8 +76,14 @@ public class LogTailService {
         subscribers.clear();
     }
 
-    /** 새 SSE 연결 — 백필 후 구독자 등록. */
+    /** 새 SSE 연결 — 백필 후 구독자 등록. 상한 초과 시 즉시 거부. */
     public SseEmitter subscribe() {
+        if (subscribers.size() >= MAX_SUBSCRIBERS) {
+            SseEmitter rejected = new SseEmitter(1L);
+            rejected.completeWithError(
+                    new IllegalStateException("로그 구독자 수 상한을 초과했습니다. 잠시 후 다시 시도하세요."));
+            return rejected;
+        }
         SseEmitter emitter = new SseEmitter(SSE_TIMEOUT_MS);
         emitter.onCompletion(() -> subscribers.remove(emitter));
         emitter.onTimeout(() -> subscribers.remove(emitter));

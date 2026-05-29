@@ -1,10 +1,13 @@
 package com.example.popspotbackend.config;
 
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import java.nio.file.Paths;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.web.servlet.HandlerInterceptor;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
@@ -38,5 +41,18 @@ public class WebConfig implements WebMvcConfigurer {
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(rateLimitInterceptor).addPathPatterns(AUTH_PATH_PATTERN);
+        // 보안(v2.22): 업로드 파일 응답에 nosniff — 이미지로 위장한 HTML/SVG 가 브라우저 MIME
+        // 스니핑으로 실행되는 것을 차단. inline 이미지 표시는 유지(Content-Disposition 미설정).
+        registry.addInterceptor(new NoSniffInterceptor()).addPathPatterns(UPLOAD_URL_PATTERN);
+    }
+
+    /** {@code /uploads/**} 응답에 {@code X-Content-Type-Options: nosniff} 부착. */
+    static class NoSniffInterceptor implements HandlerInterceptor {
+        @Override
+        public boolean preHandle(
+                HttpServletRequest request, HttpServletResponse response, Object handler) {
+            response.setHeader("X-Content-Type-Options", "nosniff");
+            return true;
+        }
     }
 }

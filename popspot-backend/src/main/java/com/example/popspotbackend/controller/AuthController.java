@@ -182,7 +182,8 @@ public class AuthController {
         if (attempts != null && attempts >= MAX_VERIFY_ATTEMPTS) {
             redisTemplate.delete(KEY_AUTH_CODE + email);
             redisTemplate.delete(attemptsKey);
-            log.warn("인증코드 brute-force 의심: email={}, 시도={}", email, attempts);
+            // 보안(v2.22): 이메일 평문을 로그에 남기지 않는다(PII). 마스킹 후 기록.
+            log.warn("인증코드 brute-force 의심: email={}, 시도={}", maskEmail(email), attempts);
             return ResponseEntity.status(429).body("실패 횟수 초과로 인증번호가 폐기되었습니다. 다시 발송해주세요.");
         }
 
@@ -216,5 +217,13 @@ public class AuthController {
 
     private boolean isBlank(String s) {
         return s == null || s.isEmpty();
+    }
+
+    /** 로그용 이메일 마스킹 — 앞 1글자 + *** + 도메인. PII 평문 로깅 방지. */
+    private static String maskEmail(String email) {
+        if (email == null || email.isBlank()) return "(none)";
+        int at = email.indexOf('@');
+        if (at <= 0) return "***";
+        return email.charAt(0) + "***" + email.substring(at);
     }
 }

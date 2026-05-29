@@ -10770,3 +10770,61 @@ fetch) → `setCurrent(enriched)` → 그제서야 preview 엔진이 `audio.play
 - 환경변수 권장값: `SPOTIFY_OAUTH_FRONTEND_REDIRECT=https://popspot.co.kr/` (쿼리 없이
   루트만. 쿼리가 있어도 헬퍼가 잘라내므로 안전.)
 
+---
+
+## 29.22 v2.22 — 전면 보안/안정성 감사 + 수정 (CRITICAL/HIGH/MEDIUM)
+
+5개 영역 병렬 감사 + 직접 코드검증으로 발견한 취약점 일괄 수정. 프론트 빌드 통과. 백엔드는
+환경 제약으로 로컬 컴파일 미검증 — 배포 전 `./gradlew spotlessApply && ./gradlew build -x test`
+필수.
+
+### CRITICAL
+
+- **인가 누락 클러스터(IDOR/Broken Access Control)** — `SecurityConfig` 가 `/api/**` 를
+  permitAll 로 두는 allow-by-default 구조라, 아래 엔드포인트들이 `Authentication` 없이 userId 를
+  요청 파라미터/바디로 받아 누구나 남 명의로 호출 가능했다. 모두 JWT 토큰(`authentication.getName()`)
+  바인딩으로 수정:
+  - `StampController` `POST /api/stamps`, `GET /api/stamps/my` — 스탬프/확성기 보상 임의 적립·열람
+  - `MyPageController` `GET /api/mypage/{userId}` — 타인 프로필 전수 조회(requireSelf 추가)
+  - `MateController` 생성/참여/삭제/신고/boost-status 5개 — 사칭·타인 글 삭제·신고 자동숨김 어뷰징
+  - `MateService.createPost(dto, userId)` 시그니처 변경 — 바디 userId 불신뢰
+- **저장형 XSS** — `KakaoRoadview.tsx` / `popup/[id]/page.tsx` 의 로드뷰 오버레이가 크롤러가 수집한
+  `popup.name` 을 raw HTML 로 주입. 신규 `src/lib/escapeHtml.ts` 로 escape. (localStorage 토큰 +
+  CSP `unsafe-inline` 조합이라 계정 탈취로 이어질 수 있던 건이라 우선순위 최상.)
+
+### HIGH
+
+- **인증 없는 파일 업로드 → 디스크 DoS** — `ChatFileController` `POST /api/chat/upload` 인증 필수화.
+- **무한 증가 인메모리 맵 → OOM** — `RateLimitInterceptor.buckets`(IP 위조로 무한 키),
+  `AuthService.loginAttempts`(이메일 스프레이) 둘 다 `ConcurrentHashMap` → Caffeine(maximumSize +
+  만료)로 교체. 과거 "서버 메모리 나감" 의 유력 원인.
+- **SSE emitter 누수** — `LogTailService` 무한 타임아웃(0) → 30분 + 동시 구독자 상한 50.
+- **토큰 노출 완화** — `api.ts` 가 서드파티 절대 URL 에 Authorization 헤더를 안 싣도록 same-origin
+  가드, OAuth 콜백(`oauth/callback`)에서 URL 의 토큰 즉시 제거(history.replaceState).
+
+### MEDIUM
+
+- **로그인 사용자 열거 차단** — `AuthService` 미가입 이메일도 비밀번호 불일치와 동일 메시지로 통일.
+- **PII 로그 마스킹** — `AuthController`(brute-force 경고), `EmailService`(발송 실패) 의 이메일 평문 →
+  앞 1글자+도메인 마스킹.
+- **CORS** — `SecurityConfig` 가 운영(prod) 에서 localhost 를 허용 origin 에 자동 추가하지 않도록 게이트.
+- **업로드 nosniff** — `WebConfig` 가 `/uploads/**` 응답에 `X-Content-Type-Options: nosniff` 부착
+  (이미지로 위장한 HTML 의 MIME 스니핑 차단, inline 표시는 유지).
+- **`.gitignore`** — `backups/`, `*.sql.gz`, `*.dump` 추가(전체 PII 덤프 커밋 사고 예방. 단 Flyway
+  마이그레이션 `*.sql` 은 추적 유지).
+
+### 검증해서 "이미 안전" 으로 확인 (수정 불필요)
+
+- AES-256-GCM 토큰 암호화(매번 새 nonce·인증태그), JWT 부팅 시 시크릿 검증, 비밀번호 재설정(이메일
+  인증코드 게이트), SQL 인젝션/SSRF clean, prod 프로필 하드닝, 커밋된 시크릿 0건, 파일 업로드 검증
+  (확장자/MIME/크기/traversal/UUID), 위시 만료 스케줄러 EntityGraph(LazyInit 거짓양성).
+
+### 의도적으로 별도 처리(권장)로 보류 — 사유
+
+- **jjwt 0.11→0.12 업그레이드**: 인증 API 파괴적 변경 + 이 환경에서 컴파일 검증 불가 → 라이브 인증
+  깨짐 위험. 로컬에서 안전하게.
+- **httpOnly 쿠키 전환 / CSP nonce**: 교차 오리진(Vercel↔Tailscale) + 인라인 전면 영향. XSS 근본은
+  escape 로 차단됨.
+- **RestTemplate 12개 타임아웃 / 탈퇴 시 작성콘텐츠 삭제 / pg_dump ProcessBuilder**: 실제 악용
+  난도 낮음 + 다파일/미검증 변경이라 일괄 푸시 위험 → 패치 레시피 별도 제공.
+

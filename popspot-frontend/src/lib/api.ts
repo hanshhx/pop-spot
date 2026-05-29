@@ -28,7 +28,7 @@ type FetchOptions = RequestInit & { headers?: HeadersInit };
  */
 export const apiFetch = async (endpoint: string, options: FetchOptions = {}): Promise<Response> => {
   const url = buildUrl(endpoint);
-  const headers = buildHeaders(options);
+  const headers = buildHeaders(options, url);
 
   try {
     const response = await fetch(url, {
@@ -52,11 +52,20 @@ export const apiFetch = async (endpoint: string, options: FetchOptions = {}): Pr
 const buildUrl = (endpoint: string): string =>
   endpoint.startsWith('http') ? endpoint : `${API_BASE_URL}${endpoint}`;
 
-const buildHeaders = (options: FetchOptions): Record<string, string> => {
+/**
+ * 우리 백엔드(API_BASE_URL) 로 가는 요청인지 판정.
+ *
+ * <p>상대 경로이거나 API_BASE_URL 로 시작하면 신뢰. 그 외 절대 URL(서드파티)에는 토큰을 절대
+ * 싣지 않는다 — 외부 도메인으로 Authorization 헤더가 새는 것을 차단.
+ */
+const isSameOrigin = (url: string): boolean =>
+  !/^https?:\/\//i.test(url) || url.startsWith(API_BASE_URL);
+
+const buildHeaders = (options: FetchOptions, url: string): Record<string, string> => {
   const headers: Record<string, string> = { [HEADER_CONTENT_TYPE]: CONTENT_TYPE_JSON };
 
   const token = readToken();
-  if (token) headers[HEADER_AUTHORIZATION] = `Bearer ${token}`;
+  if (token && isSameOrigin(url)) headers[HEADER_AUTHORIZATION] = `Bearer ${token}`;
 
   Object.assign(headers, options.headers as Record<string, string> | undefined);
 

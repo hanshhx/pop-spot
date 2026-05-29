@@ -11,6 +11,7 @@ import com.example.popspotbackend.service.MateService.JoinResult;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -18,7 +19,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -49,19 +49,20 @@ public class MateController {
     }
 
     @PostMapping
-    public ResponseEntity<MatePost> createPost(@RequestBody MateDto dto) {
-        return ResponseEntity.ok(mateService.createPost(dto));
+    public ResponseEntity<MatePost> createPost(
+            Authentication authentication, @RequestBody MateDto dto) {
+        return ResponseEntity.ok(mateService.createPost(dto, requireUserId(authentication)));
     }
 
     /** 글쓰기 모달에서 "이번 달 N회 남음" 표시용. 등급 + 한도 + 사용량 + 잔여 횟수. */
     @GetMapping("/boost-status")
-    public ResponseEntity<BoostStatus> getBoostStatus(@RequestParam String userId) {
-        return ResponseEntity.ok(mateService.getBoostStatus(userId));
+    public ResponseEntity<BoostStatus> getBoostStatus(Authentication authentication) {
+        return ResponseEntity.ok(mateService.getBoostStatus(requireUserId(authentication)));
     }
 
     @PostMapping("/{id}/join")
-    public ResponseEntity<String> joinMate(@PathVariable Long id, @RequestParam String userId) {
-        JoinResult result = mateService.joinMate(id, userId);
+    public ResponseEntity<String> joinMate(Authentication authentication, @PathVariable Long id) {
+        JoinResult result = mateService.joinMate(id, requireUserId(authentication));
         return switch (result) {
             case ALREADY_JOINED -> ResponseEntity.ok("이미 참여 중인 방입니다. 재입장합니다.");
             case FULL -> ResponseEntity.status(400).body(RESPONSE_FULL);
@@ -70,8 +71,8 @@ public class MateController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<String> deletePost(@PathVariable Long id, @RequestParam String userId) {
-        mateService.deletePost(id, userId);
+    public ResponseEntity<String> deletePost(Authentication authentication, @PathVariable Long id) {
+        mateService.deletePost(id, requireUserId(authentication));
         return ResponseEntity.ok(RESPONSE_DELETE_SUCCESS);
     }
 
@@ -82,10 +83,24 @@ public class MateController {
      */
     @PostMapping("/{id}/report")
     public ResponseEntity<java.util.Map<String, Object>> reportPost(
-            @PathVariable Long id, @RequestParam String userId) {
-        int reportCount = mateService.reportPost(id, userId);
+            Authentication authentication, @PathVariable Long id) {
+        int reportCount = mateService.reportPost(id, requireUserId(authentication));
         return ResponseEntity.ok(
                 java.util.Map.of("status", "REPORTED", "reportCount", reportCount));
+    }
+
+    /**
+     * 보안(v2.22): 작성/참여/삭제/신고 주체는 JWT 토큰에서만 가져온다. 이전엔 userId 를 요청
+     * 파라미터/바디로 받아 누구나 남 명의로 글 작성·삭제·신고(자동숨김 어뷰징)가 가능했다.
+     */
+    private String requireUserId(Authentication authentication) {
+        if (authentication == null
+                || !authentication.isAuthenticated()
+                || authentication.getName() == null
+                || "anonymousUser".equals(authentication.getName())) {
+            throw new SecurityException("로그인이 필요합니다.");
+        }
+        return authentication.getName();
     }
 
     /* ============================== 도메인 예외 → HTTP 매핑 ============================== */
