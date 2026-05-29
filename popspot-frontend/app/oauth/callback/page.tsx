@@ -29,6 +29,8 @@ function CallbackContent() {
             if (tokenFromUrl) {
                 // 이제 apiFetch가 실행될 때 이 토큰을 헤더에 자동으로 실어 보냅니다.
                 localStorage.setItem("token", tokenFromUrl);
+                // 보안: 토큰을 URL/히스토리에서 즉시 제거 (프록시 로그·뒤로가기 노출 최소화).
+                window.history.replaceState({}, "", "/oauth/callback");
                 setStatus("인증 정보 저장 중...");
             } else {
                 // 만약 토큰이 아예 없다면 에러 처리 후 로그인 페이지로 보냅니다.

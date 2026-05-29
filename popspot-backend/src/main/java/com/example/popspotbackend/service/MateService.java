@@ -57,18 +57,15 @@ public class MateService {
     }
 
     /**
-     * 새 동행 게시글을 만든다.
+     * 새 동행 게시글을 만든다. 작성자(userId)는 컨트롤러가 JWT 토큰에서 추출해 전달한다 (요청 바디의
+     * userId 는 신뢰하지 않는다 — 사칭 방지).
      *
      * @return 작성된 게시글
      * @throws BoostQuotaExceededException 부스트 사용 요청인데 이번 달 한도를 이미 다 썼을 때
      */
     @Transactional
-    public MatePost createPost(MateDto dto) {
-        if (dto.getUserId() == null) {
-            throw new IllegalArgumentException("요청 본문에 userId가 누락되었습니다.");
-        }
-
-        User user = findUserOrThrow(dto.getUserId());
+    public MatePost createPost(MateDto dto, String userId) {
+        User user = findUserOrThrow(userId);
         boolean boostApplied = tryConsumeBoost(user, dto.isUseBoost());
 
         MatePost post = buildMatePost(dto, user, boostApplied);

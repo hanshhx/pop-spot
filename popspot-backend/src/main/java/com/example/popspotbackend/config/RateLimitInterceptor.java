@@ -1,13 +1,13 @@
 package com.example.popspotbackend.config;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import io.github.bucket4j.Bandwidth;
 import io.github.bucket4j.Bucket;
 import io.github.bucket4j.Refill;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.time.Duration;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
@@ -35,7 +35,16 @@ public class RateLimitInterceptor implements HandlerInterceptor {
     private static final String RATE_LIMIT_BODY =
             "{\"error\":\"RATE_LIMITED\",\"message\":\"요청이 너무 많습니다. 잠시 후 다시 시도하세요.\"}";
 
-    private final Map<String, Bucket> buckets = new ConcurrentHashMap<>();
+    private static final long MAX_BUCKETS = 100_000;
+
+    // 보안(v2.22): 기존 ConcurrentHashMap 은 (URI|IP) 키가 무한 증가했다. X-Forwarded-For 위조로
+    // 고유 키를 무한 생성하면 메모리 고갈(OOM). Caffeine 으로 최대 크기 + 1시간 미사용 만료를 둬
+    // 메모리 상한을 보장한다.
+    private final Cache<String, Bucket> buckets =
+            Caffeine.newBuilder()
+                    .maximumSize(MAX_BUCKETS)
+                    .expireAfterAccess(Duration.ofHours(1))
+                    .build();
 
     @Override
     public boolean preHandle(
@@ -47,7 +56,7 @@ public class RateLimitInterceptor implements HandlerInterceptor {
         if (limit == null) return true;
 
         String key = request.getRequestURI() + "|" + clientIp(request);
-        Bucket bucket = buckets.computeIfAbsent(key, k -> Bucket.builder().addLimit(limit).build());
+        Bucket bucket = buckets.get(key, k -> Bucket.builder().addLimit(limit).build());
 
         if (bucket.tryConsume(1)) return true;
 

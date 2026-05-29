@@ -23,6 +23,7 @@ import MusicForPopup from "../../../src/components/music/MusicForPopup";
 // [코드 해석] 서버와 통신하기 위한 커스텀 API fetch 함수를 불러옵니다.
 import { apiFetch } from "../../../src/lib/api";
 import { notify, notifyError } from "@/lib/notify";
+import { escapeHtml } from "@/lib/escapeHtml";
 import type { User } from "@/types/popup";
 
 // [로직 해석] TypeScript 환경에서 window 객체 안에 kakao 객체가 존재함을 전역으로 알리고 에러를 방지합니다.
@@ -74,7 +75,7 @@ export function KakaoRoadview({ lat, lng, name }: KakaoRoadviewProps) {
           const content = `
             <div style="padding: 6px 10px; background: #ffeb33; border-radius: 12px; border: 2px solid #000; box-shadow: 0 4px 12px rgba(0,0,0,0.3); display: flex; align-items: center; gap: 6px; transform: translateY(-40px); font-size: 12px; white-space: nowrap;">
               <div style="width: 8px; height: 8px; background: red; border-radius: 50%; animation: pulse 1.5s infinite;"></div>
-              <span style="color: #000; font-weight: 900;">${name}</span>
+              <span style="color: #000; font-weight: 900;">${escapeHtml(name)}</span>
             </div>
             <style>
               @keyframes pulse { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.4); opacity: 0.7; } 100% { transform: scale(1); opacity: 1; } }

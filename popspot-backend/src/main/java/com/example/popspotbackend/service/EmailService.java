@@ -79,9 +79,18 @@ public class EmailService {
             javaMailSender.send(message);
             return true;
         } catch (Exception e) {
-            log.warn("[Email] 알림 발송 실패 to={} err={}", toEmail, e.toString());
+            // 보안(v2.22): 수신자 이메일 평문 + 예외 메시지 로깅 금지(PII). 마스킹 + 예외 타입만.
+            log.warn("[Email] 알림 발송 실패 to={} err={}", maskEmail(toEmail), e.getClass().getSimpleName());
             return false;
         }
+    }
+
+    /** 로그용 이메일 마스킹 — 앞 1글자 + *** + 도메인. */
+    private static String maskEmail(String email) {
+        if (email == null || email.isBlank()) return "(none)";
+        int at = email.indexOf('@');
+        if (at <= 0) return "***";
+        return email.charAt(0) + "***" + email.substring(at);
     }
 
     private String buildHtmlBody(String authCode) {

@@ -6,17 +6,19 @@ import com.example.popspotbackend.dto.SignupRequestDto;
 import com.example.popspotbackend.entity.User;
 import com.example.popspotbackend.exception.ResourceNotFoundException;
 import com.example.popspotbackend.repository.UserRepository;
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
 import jakarta.annotation.PostConstruct;
 import java.nio.charset.StandardCharsets;
 import java.security.Key;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -42,7 +44,13 @@ public class AuthService {
     private static final int LOGIN_LOCK_MINUTES = 15;
 
     /** 이메일별 최근 실패 시도 — process-local in-memory. 재시작 시 초기화. */
-    private final java.util.Map<String, LoginAttempt> loginAttempts = new ConcurrentHashMap<>();
+    // 보안(v2.22): 기존 ConcurrentHashMap 은 고유 이메일 스프레이 시 무한 증가했다. Caffeine 으로
+    // 최대 크기 + 잠금 시간 경과 후 자동 만료를 둬 메모리 누수를 차단한다.
+    private final Cache<String, LoginAttempt> loginAttempts =
+            Caffeine.newBuilder()
+                    .maximumSize(50_000)
+                    .expireAfterWrite(Duration.ofMinutes(LOGIN_LOCK_MINUTES))
+                    .build();
 
     private static final String ROLE_USER = "USER";
     private static final String PROVIDER_LOCAL = "LOCAL";
@@ -100,7 +108,10 @@ public class AuthService {
             user = findByEmailOrThrow(email);
         } catch (RuntimeException e) {
             recordFailure(email);
-            throw e;
+            // 보안(v2.22): 미가입 이메일도 비밀번호 불일치와 "동일한" 메시지로 응답해야 계정 존재
+            // 여부가 새지 않는다(user enumeration 차단). 이전엔 "가입되지 않은 이메일입니다" 로 달라
+            // 가입 여부가 식별됐다.
+            throw new IllegalArgumentException("이메일 또는 비밀번호가 일치하지 않습니다.");
         }
 
         if (!passwordEncoder.matches(requestDto.getPassword(), user.getPassword())) {
@@ -110,7 +121,7 @@ public class AuthService {
         }
 
         // 성공 시 카운터 초기화.
-        loginAttempts.remove(email);
+        loginAttempts.invalidate(email);
 
         return LoginResponseDto.builder()
                 .userId(user.getUserId())
@@ -129,33 +140,30 @@ public class AuthService {
      */
     private void ensureNotLocked(String email) {
         if (email == null) return;
-        LoginAttempt attempt = loginAttempts.get(email);
+        LoginAttempt attempt = loginAttempts.getIfPresent(email);
         if (attempt == null) return;
-        if (attempt.count < LOGIN_MAX_ATTEMPTS) return;
+        if (attempt.count() < LOGIN_MAX_ATTEMPTS) return;
 
-        LocalDateTime unlockAt = attempt.lastFailedAt.plusMinutes(LOGIN_LOCK_MINUTES);
+        LocalDateTime unlockAt = attempt.lastFailedAt().plusMinutes(LOGIN_LOCK_MINUTES);
         if (LocalDateTime.now().isBefore(unlockAt)) {
             long remainingMinutes =
-                    java.time.Duration.between(LocalDateTime.now(), unlockAt).toMinutes() + 1;
+                    Duration.between(LocalDateTime.now(), unlockAt).toMinutes() + 1;
             throw new IllegalArgumentException(
                     "로그인 시도가 너무 많습니다. " + remainingMinutes + "분 후 다시 시도해 주세요.");
         }
         // 잠금 만료 → 카운터 리셋.
-        loginAttempts.remove(email);
+        loginAttempts.invalidate(email);
     }
 
     private void recordFailure(String email) {
         if (email == null) return;
-        loginAttempts.merge(
-                email,
-                new LoginAttempt(1, LocalDateTime.now()),
-                (prev, next) -> new LoginAttempt(prev.count + 1, LocalDateTime.now()));
-        LoginAttempt now = loginAttempts.get(email);
-        if (now.count >= LOGIN_MAX_ATTEMPTS) {
+        LoginAttempt prev = loginAttempts.getIfPresent(email);
+        int nextCount = (prev == null ? 0 : prev.count()) + 1;
+        LoginAttempt now = new LoginAttempt(nextCount, LocalDateTime.now());
+        loginAttempts.put(email, now);
+        if (now.count() >= LOGIN_MAX_ATTEMPTS) {
             log.warn(
-                    "[Auth] 로그인 실패 누적 {}회 → {}분 잠금 — email 마스킹된 hash",
-                    now.count,
-                    LOGIN_LOCK_MINUTES);
+                    "[Auth] 로그인 실패 누적 {}회 → {}분 잠금 — email 마스킹됨", now.count(), LOGIN_LOCK_MINUTES);
         }
     }
 
