@@ -12,6 +12,7 @@ import java.util.regex.Pattern;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -64,7 +65,15 @@ public class ChatFileController {
 
     @PostMapping("/upload")
     public ResponseEntity<?> uploadFile(
-            @RequestParam("file") MultipartFile file, HttpServletRequest request) {
+            @RequestParam("file") MultipartFile file,
+            Authentication authentication,
+            HttpServletRequest request) {
+        // 보안(v2.22): 인증 필수. 이전엔 누구나 업로드 가능해 디스크 채우기 DoS 가 가능했다.
+        if (authentication == null
+                || !authentication.isAuthenticated()
+                || "anonymousUser".equals(authentication.getName())) {
+            return ResponseEntity.status(401).body("로그인이 필요합니다.");
+        }
         ResponseEntity<String> validationError = validate(file);
         if (validationError != null) return validationError;
 

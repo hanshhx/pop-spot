@@ -81,6 +81,10 @@ public class SecurityConfig {
     @Value("${app.allowed-origins:http://localhost:3000}")
     private String allowedOriginsRaw;
 
+    /** 활성 프로필. prod 에서는 localhost 를 CORS 허용 목록에 자동 추가하지 않는다. */
+    @Value("${spring.profiles.active:dev}")
+    private String activeProfile;
+
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder(BCRYPT_STRENGTH);
@@ -153,7 +157,11 @@ public class SecurityConfig {
         if (fallback != null && !fallback.isBlank()) {
             set.add(fallback.trim());
         }
-        set.add(LOCAL_DEV_ORIGIN);
+        // 보안(v2.22): 운영(prod)에서는 localhost 를 허용 origin 에 넣지 않는다. credentials=true 와
+        // 결합 시 불필요한 노출이라 dev/test 편의용으로만 추가.
+        if (!"prod".equalsIgnoreCase(activeProfile)) {
+            set.add(LOCAL_DEV_ORIGIN);
+        }
         return new ArrayList<>(set);
     }
 }

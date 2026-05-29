@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { MapPin, AlertCircle } from "lucide-react";
 
+import { escapeHtml } from "@/lib/escapeHtml";
+
 interface KakaoRoadviewProps {
   lat: number;
   lng: number;
@@ -32,7 +34,7 @@ export default function KakaoRoadview({ lat, lng, name }: KakaoRoadviewProps) {
           const content = `
             <div class="roadview-overlay">
               <div class="pulse-dot"></div>
-              <span class="overlay-text">${name}</span>
+              <span class="overlay-text">${escapeHtml(name)}</span>
             </div>
             <style>
               .roadview-overlay {
