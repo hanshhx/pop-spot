@@ -1794,6 +1794,39 @@
 
 <sub>수정 4파일 (백엔드 `SpotifyAuthController` · 프론트 `middleware` · `InlineGlobalSearch` · `usePreviewPlayer`). 프론트 빌드 42/42 통과. 자세한 변경은 `PROJECT_CHANGELOG.md` ch.29.20 ~ 29.21 참고. 백엔드 변경 1건은 JAR 재빌드/재배포 필요.</sub>
 
+### v2.22 — 전면 보안 감사 + 수정 (IDOR · 저장형 XSS · 메모리/스토리지 · 클린코드 점검)
+
+> 인증·인가·인젝션·암호화·프론트·컴플라이언스 6개 영역을 병렬 감사하고, 모든 고위험 발견은 실제 코드를 직접 열어 검증한 뒤 수정. 프론트는 빌드 검증 완료(Vercel 자동 배포), **백엔드는 배포 전 `./gradlew spotlessApply && ./gradlew build -x test` 필수**(이 작업 환경에선 gradle 컴파일 불가라 미검증).
+
+**1차 — CRITICAL / HIGH / MEDIUM (commit `24eeccb`)**
+
+| 등급 | 항목 | 수정 |
+|:---:|---|---|
+| 🔴 C1 | 인가 누락(IDOR) — `/api/**` permitAll 구조라 `Stamp`·`MyPage`·`Mate`(5)·`ChatFile 업로드`가 userId 를 요청 파라미터/바디로 받아 누구나 남 명의로 호출 | 모두 JWT 토큰(`authentication.getName()`) 바인딩(`requireSelf`/`requireUserId`), `MateService.createPost(dto,userId)` 시그니처 변경 |
+| 🔴 C2 | 저장형 XSS — 카카오 로드뷰 오버레이가 크롤러 수집 `popup.name` 을 raw HTML 주입(`KakaoRoadview`·`popup/[id]`) | 신규 `src/lib/escapeHtml.ts` 로 escape |
+| 🟠 H1 | 인증 없는 파일 업로드 → 디스크 DoS | `ChatFileController` 인증 필수화 |
+| 🟠 H2·H3 | 무한 증가 인메모리 맵 → OOM(`RateLimitInterceptor.buckets`·`AuthService.loginAttempts`) | Caffeine(maximumSize + 만료)으로 교체 |
+| 🟠 H4 | SSE emitter 누수 | `LogTailService` 30분 타임아웃 + 구독자 상한 50 |
+| 🟠 H5(부분) | 토큰 노출 | `api.ts` same-origin 가드 + OAuth 콜백 URL 토큰 스크럽 |
+| 🟡 M | 로그인 사용자 열거 / PII 로그 / 운영 CORS localhost / 업로드 nosniff / 백업 gitignore | 메시지 통일 · 이메일 마스킹 · prod localhost 제거 · `X-Content-Type-Options` · `.gitignore` 보강 |
+
+**2차 — 운영 점검 후속 (commit `2362615`)**
+
+| 항목 | 수정 |
+|---|---|
+| 신고 자동숨김 어뷰징 | `MatePost.reportedBy`(V14 마이그레이션) 로 1인 1신고 보장 — 반복 신고로 임계값 혼자 채우던 허점 차단 |
+| 크롤링 입력 정제 | `PopupNormalizationService` 가 name/location/desc/content HTML 태그 제거 + 길이 상한(escape 와 2중 방어) |
+| 이메일 열거 | `/check-email`·`/find-email` 분당 20회 레이트리밋 |
+| 백업 하드닝 | `PGPASSWORD` 를 env 로(ps 노출 차단) + 설정값 shell escape + 백업 디렉토리 POSIX 700 |
+
+**검증해서 "이미 안전" 확인** (수정 불필요): AES-256-GCM 토큰 암호화 · JWT 부팅 시 시크릿 검증 · 비밀번호 재설정(이메일 인증코드 게이트) · SQL 인젝션/SSRF clean · prod 프로필 하드닝 · 커밋된 시크릿 0건 · 파일 업로드 검증(확장자/MIME/크기/traversal/UUID) · 위시 만료 스케줄러 `@EntityGraph`.
+
+**의도적 보류**(별도·신중히): jjwt 0.11→0.12 업그레이드(인증 API 파괴적) · httpOnly 쿠키/CSP nonce(교차오리진 영향) · `RestTemplate` 12곳 타임아웃 · 탈퇴 시 작성콘텐츠 삭제.
+
+**클린코드·결합도 감사** — 원칙별(SRP/OCP/LSP/ISP/DIP·DRY/KISS/YAGNI·가독성·테스트가능성) 검증 완료. 리팩터 백로그 TOP 5: ① `SecurityUtils.currentUserId` 추출(인증 헬퍼 6곳 통합) · ② `FileUploadService` 추출(업로드 80줄 복붙) · ③ `JwtService` 빈 추출(JWT 발급 2곳 중복) · ④ `app/page.tsx` 분해(1,592줄/27 state) · ⑤ `RestTemplate`·`Clock` 주입(테스트 작성 전제). 죽은 코드: `TicketingSimulation.tsx`·`GoodsInitializer`·미사용 `@Slf4j` 4곳·`YouTubeService` 오배치.
+
+<sub>2개 커밋(`24eeccb`, `2362615`)에 걸쳐 수정: 백엔드 15파일 + 프론트 5파일(신규 `escapeHtml.ts` 포함) + `V14` 마이그레이션 + `.gitignore`. 자세한 변경은 `PROJECT_CHANGELOG.md` ch.29.22 ~ 29.23 참고. ⚠️ 백엔드 배포 전 `./gradlew spotlessApply && ./gradlew build -x test` 필수.</sub>
+
 ---
 
 ## 폴더 구조 (백엔드)

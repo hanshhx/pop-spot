@@ -10843,3 +10843,37 @@ fetch) → `setCurrent(enriched)` → 그제서야 preview 엔진이 `audio.play
   클라이언트 `X-Forwarded-*` 덮어쓰는지, 백업 파일 암호화(gpg 등) 적용 여부, 풀20+OSIV 동시접속
   모니터링.
 
+---
+
+## 29.23 v2.22 — 클린코드 / 결합도 정밀 감사 (SOLID·DRY·KISS·YAGNI·가독성·테스트가능성)
+
+코드 수정이 아니라 **설계 원칙 기준 진단 + 리팩터 백로그** 기록. 모든 수치는 직접 검증함.
+
+### 원칙별 등급
+
+| 원칙 | 등급 | 근거(검증값) |
+|---|:---:|---|
+| 응집도 | C+ | 백엔드 서비스는 양호 / `app/page.tsx` **1,592줄·useState 27개** 다책임, `UserProfileController`(350줄), `AuthService`(250줄) |
+| SRP | B− | 컨트롤러가 리포지토리 직접 조작·파일 I/O. JWT 발급이 `AuthService`+`OAuth2SuccessHandler` 2곳 |
+| OCP | B | `MetricSnapshotProvider`+4구현체 = 교과서급 ✅ / `OrderService.grantPurchaseEntitlements` 가 `contains("PASS")` if-else ❌ |
+| LSP | A | 상속 거의 없음, 위반 없음 |
+| ISP | A− | 인터페이스 작고 명확 |
+| DIP | C | `new RestTemplate()` **12파일**, 컨트롤러가 `Repository` 직접 의존(`UserProfile`·`Terms`·`SpotifyAuth`) |
+| DRY | C | 업로드 로직 80줄 복붙(`ChatFile`↔`UserProfile`), `new ObjectMapper()` **14파일**, 인증 추출 헬퍼 **4곳**(v2.22 에서 Stamp·Mate 2곳 추가됨), `maskEmail` 2곳 |
+| KISS | B− | `SpotifySearchService`(448줄)·`YouTubeMusicSearchService`(452줄)가 HTTP+토큰+파싱+랭킹 혼재 |
+| YAGNI/죽은코드 | C+ | `TicketingSimulation.tsx`(어디서도 import 안 됨)·`GoodsInitializer`(no-op)·미사용 `@Slf4j` 4곳·`YouTubeService` 가 controller 패키지에 `@Service` |
+| 가독성 | B+ | `ensureXxx`/`findOrThrow` 등 의도 드러나는 이름 多 ✅ / `repo` 약식 필드명, 예외-메시지-버스(`SOCIAL_USER:`) ❌ |
+| 테스트가능성 | D | **테스트 0개**(백엔드 `contextLoads()` 1개·프론트 0). `new RestTemplate()`·`LocalDateTime.now()` 하드코딩이라 단위테스트 사실상 불가 |
+
+### 리팩터 백로그 (가치순, 위험 표기)
+
+1. **`SecurityUtils.currentUserId(auth)` 추출** (DRY·DIP / 위험 낮음) — 인증 추출 헬퍼 6곳 + `maskEmail` 2곳 통합.
+2. **`FileUploadService` 추출** (DRY·SRP / 중) — `ChatFileController`↔`UserProfileController` 80줄 복붙을 크기·하위폴더만 파라미터로 받는 1개 서비스로.
+3. **`JwtService` 빈 추출** (DRY·SRP / 중, 인증) — `AuthService.issueJwt` + `OAuth2SuccessHandler` 의 중복 JWT 발급 통합.
+4. **`app/page.tsx` 분해** (응집도·SRP / 중) — `CourseTab`/`MapTab`/`MyTab` + 커스텀 훅으로.
+5. **`RestTemplate`·`Clock` 주입** (DIP·테스트 / 중) — 단위테스트 작성의 전제조건.
+
+즉시 정리 가능(낮은 위험): `TicketingSimulation.tsx` 삭제 · `GoodsInitializer` 정리 · 미사용 `@Slf4j` 제거 · `YouTubeService` → service 패키지 이동.
+
+> 리팩터는 별도 작업으로 진행 예정(백엔드는 로컬 빌드 검증 필요). 프론트(④, 죽은코드 삭제)는 `npm run build` 로 즉시 검증 가능.
+
