@@ -90,6 +90,11 @@ public class MatePost {
     @Builder.Default
     private String joinedUsers = "";
 
+    /** v2.22 — 콤마 구분 신고자 ID 명단. 1인 1신고 보장(같은 유저의 반복 신고로 인한 자동숨김 어뷰징 차단). */
+    @Column(name = "REPORTED_BY", length = 2000)
+    @Builder.Default
+    private String reportedBy = "";
+
     @PrePersist
     public void prePersist() {
         this.createdAt = LocalDateTime.now();
@@ -118,5 +123,28 @@ public class MatePost {
     public boolean hasJoined(String userId) {
         if (this.author != null && this.author.getUserId().equals(userId)) return true;
         return this.joinedUsers != null && this.joinedUsers.contains(userId);
+    }
+
+    /**
+     * 이미 신고한 사용자인지 — 콤마 구분 명단에서 토큰 단위 정확 일치로 판정.
+     *
+     * <p>{@code contains} 가 아니라 split+equals 로 비교해, 한 ID 가 다른 ID 의 부분 문자열일 때
+     * 발생하는 오탐을 막는다.
+     */
+    public boolean hasReported(String userId) {
+        if (userId == null || this.reportedBy == null || this.reportedBy.isEmpty()) return false;
+        for (String token : this.reportedBy.split(USER_DELIMITER)) {
+            if (token.equals(userId)) return true;
+        }
+        return false;
+    }
+
+    /** 신고자 명단에 추가(이미 있으면 무시). */
+    public void addReporter(String userId) {
+        if (userId == null) return;
+        if (this.reportedBy == null) this.reportedBy = "";
+        if (!hasReported(userId)) {
+            this.reportedBy += userId + USER_DELIMITER;
+        }
     }
 }

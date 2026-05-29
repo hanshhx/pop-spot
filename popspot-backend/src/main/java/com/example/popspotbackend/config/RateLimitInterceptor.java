@@ -27,10 +27,14 @@ public class RateLimitInterceptor implements HandlerInterceptor {
     private static final String PATH_EMAIL_SEND = "/api/v1/auth/email/send";
     private static final String PATH_EMAIL_SEND_FOR_PW = "/api/v1/auth/email/send-for-pw";
     private static final String PATH_EMAIL_VERIFY = "/api/v1/auth/email/verify";
+    // v2.22 — 이메일 열거(enumeration) 차단용 GET 엔드포인트.
+    private static final String PATH_CHECK_EMAIL = "/api/v1/auth/check-email";
+    private static final String PATH_FIND_EMAIL = "/api/v1/auth/find-email";
 
     private static final int LIMIT_LOGIN_PER_MIN = 5;
     private static final int LIMIT_EMAIL_PER_HOUR = 5;
     private static final int LIMIT_VERIFY_PER_MIN = 10;
+    private static final int LIMIT_ENUM_PER_MIN = 20;
 
     private static final String RATE_LIMIT_BODY =
             "{\"error\":\"RATE_LIMITED\",\"message\":\"요청이 너무 많습니다. 잠시 후 다시 시도하세요.\"}";
@@ -50,8 +54,8 @@ public class RateLimitInterceptor implements HandlerInterceptor {
     public boolean preHandle(
             HttpServletRequest request, HttpServletResponse response, Object handler)
             throws Exception {
-        if (!"POST".equalsIgnoreCase(request.getMethod())) return true;
-
+        // v2.22 — GET 열거 엔드포인트도 제한하므로 메서드로 거르지 않고 URI 로만 판단한다.
+        // 제한 대상이 아닌 경로는 resolveLimit 가 null 을 반환해 그대로 통과한다.
         Bandwidth limit = resolveLimit(request.getRequestURI());
         if (limit == null) return true;
 
@@ -75,6 +79,9 @@ public class RateLimitInterceptor implements HandlerInterceptor {
             case PATH_EMAIL_VERIFY -> Bandwidth.classic(
                     LIMIT_VERIFY_PER_MIN,
                     Refill.intervally(LIMIT_VERIFY_PER_MIN, Duration.ofMinutes(1)));
+            case PATH_CHECK_EMAIL, PATH_FIND_EMAIL -> Bandwidth.classic(
+                    LIMIT_ENUM_PER_MIN,
+                    Refill.intervally(LIMIT_ENUM_PER_MIN, Duration.ofMinutes(1)));
             default -> null;
         };
     }

@@ -27,6 +27,12 @@ public class PopupNormalizationService {
     private static final String DEFAULT_CATEGORY = "ETC";
     private static final String SEOUL_KEYWORD = "서울";
 
+    // v2.22 — 크롤링 텍스트 정제용 길이 상한. HTML 태그 제거와 함께 저장형 XSS 2중 방어 + DB 보호.
+    private static final int MAX_NAME_LEN = 120;
+    private static final int MAX_LOCATION_LEN = 200;
+    private static final int MAX_DESC_LEN = 300;
+    private static final int MAX_CONTENT_LEN = 2000;
+
     private static final String ERROR_EMPTY_SNIPPETS = "EMPTY_SNIPPETS";
     private static final String ERROR_EMPTY_NAME = "EMPTY_NAME";
     private static final String ERROR_NOT_IN_SEOUL = "NOT_IN_SEOUL";
@@ -120,13 +126,13 @@ public class PopupNormalizationService {
 
     private NormalizedPopup parseNormalizedPopup(JsonNode node) {
         return NormalizedPopup.builder()
-                .name(node.path("name").asText(""))
-                .location(node.path("location").asText(""))
+                .name(sanitize(node.path("name").asText(""), MAX_NAME_LEN))
+                .location(sanitize(node.path("location").asText(""), MAX_LOCATION_LEN))
                 .category(node.path("category").asText(DEFAULT_CATEGORY))
                 .startDate(nullableText(node, "startDate"))
                 .endDate(nullableText(node, "endDate"))
-                .description(node.path("description").asText(""))
-                .content(node.path("content").asText(""))
+                .description(sanitize(node.path("description").asText(""), MAX_DESC_LEN))
+                .content(sanitize(node.path("content").asText(""), MAX_CONTENT_LEN))
                 .confidence(node.path("confidence").asDouble(0.0))
                 .error(nullableText(node, "error"))
                 .build();
@@ -182,5 +188,15 @@ public class PopupNormalizationService {
 
     private String safe(String s) {
         return s == null ? "" : s;
+    }
+
+    /**
+     * 크롤링한 텍스트 정제 — HTML 태그 제거 + 길이 상한. 프론트 렌더 escape 와 함께 저장형 XSS 를
+     * 2중으로 막고, 비정상적으로 긴 LLM 출력으로부터 DB 컬럼을 보호한다.
+     */
+    private String sanitize(String raw, int maxLen) {
+        if (raw == null) return "";
+        String stripped = raw.replaceAll("<[^>]*>", "").trim();
+        return stripped.length() > maxLen ? stripped.substring(0, maxLen).trim() : stripped;
     }
 }
