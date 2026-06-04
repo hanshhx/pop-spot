@@ -1827,6 +1827,17 @@
 
 <sub>2개 커밋(`24eeccb`, `2362615`)에 걸쳐 수정: 백엔드 15파일 + 프론트 5파일(신규 `escapeHtml.ts` 포함) + `V14` 마이그레이션 + `.gitignore`. 자세한 변경은 `PROJECT_CHANGELOG.md` ch.29.22 ~ 29.23 참고. ⚠️ 백엔드 배포 전 `./gradlew spotlessApply && ./gradlew build -x test` 필수.</sub>
 
+### v2.23 — 인트로(커버) 페이지 제거 → 메인 직행
+
+> 발견형 서비스인데 모든 방문자가 5섹션 인트로 → ENTER 를 거쳐야 메인에 도달했고(로그인 사용자도 매번), 신규 유입이 첫 화면에서 이탈하는 구조라 제거. `AuthGuard` 가 이미 `"/"` 를 공개 경로로 두고 있어, 인트로 게이트만 걷어내면 비로그인도 메인의 공개 콘텐츠(팝업·지도·캘린더·랭킹)를 바로 본다. 찜·코스·스탬프·메이트 등 **행동 시에만 로그인 유도**(기존 동작 유지).
+
+| 구분 | 내용 |
+|---|---|
+| 삭제 | `app/intro/`(page·layout) · `middleware.ts`(역할이 인트로 redirect 전용 → `/` 가 곧장 메인 서빙) · 인트로 배경 영상 17MB |
+| 참조 정리 | `page.tsx`(탈퇴 후 → `/login`) · `AuthGuard`(PUBLIC_PATHS 정리) · `sitemap`/`feed.xml`/`terms`(`/intro` 항목 제거) · `admin`(비관리자 → `/`) |
+
+<sub>프론트 빌드 통과 · 라우트에서 `/intro` 제거 · 코드 전체 `/intro` 참조 0건 확인. 프론트 전용이라 Vercel 자동 배포. 삭제는 `git rm`(되돌리기 가능). 자세한 변경은 `PROJECT_CHANGELOG.md` ch.29.24 참고.</sub>
+
 ---
 
 ## 폴더 구조 (백엔드)

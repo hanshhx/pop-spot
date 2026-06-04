@@ -387,7 +387,7 @@ export default function Home() {
       sessionStorage.clear();
       setUser(null);
       await notifySuccess("탈퇴가 완료되었습니다. 이용해 주셔서 감사합니다.");
-      router.replace("/intro");
+      router.replace("/login");
     } catch {
       notifyError("탈퇴 처리 중 오류가 발생했습니다.");
     }

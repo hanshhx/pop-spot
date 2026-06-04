@@ -88,8 +88,7 @@ export default function AdminPage() {
      * 강건성 — DB 의 role 값이 환경별로 "ROLE_ADMIN" / "ADMIN" 둘 다 존재할 수 있어
      * 대문자화 후 두 변형 모두 통과시킨다.
      *
-     * 리다이렉트 경로 — middleware 가 "/" 진입을 "/intro" 로 보내므로,
-     * 일반 유저는 "/?entered=1" 로 보내야 intro 페이지로 튕기지 않고 메인에 머문다.
+     * 리다이렉트 경로 — 관리자 권한이 없으면 메인("/")으로 돌려보낸다.
      */
     const [authorized, setAuthorized] = useState(false);
 
@@ -105,7 +104,7 @@ export default function AdminPage() {
             const role = (parsed.role ?? "").trim().toUpperCase();
             const isAdmin = role === "ROLE_ADMIN" || role === "ADMIN";
             if (!isAdmin) {
-                router.replace("/?entered=1");
+                router.replace("/");
                 return;
             }
             setAuthorized(true);

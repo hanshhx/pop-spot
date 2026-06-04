@@ -39,8 +39,8 @@ export async function GET() {
     },
     {
       title: "POP-SPOT 시작하기",
-      link: `${SITE_URL}/intro`,
-      description: "처음 방문하셨다면 — POP-SPOT 의 주요 기능과 사용법 안내.",
+      link: `${SITE_URL}/`,
+      description: "서울 팝업을 지도 · 캘린더 · 랭킹 한 화면에서. 바로 둘러보세요.",
       pubDate: now,
     },
     {
