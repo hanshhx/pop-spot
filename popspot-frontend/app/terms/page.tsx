@@ -312,7 +312,6 @@ export default function TermsPage() {
                   <li>서비스 소개 (/about)</li>
                   <li>이용약관 (/terms)</li>
                   <li>개인정보 처리방침 (/privacy)</li>
-                  <li>인트로 (/intro)</li>
                 </ul>
               </li>
               <li>

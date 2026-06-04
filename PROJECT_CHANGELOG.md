@@ -10877,3 +10877,47 @@ fetch) → `setCurrent(enriched)` → 그제서야 preview 엔진이 `audio.play
 
 > 리팩터는 별도 작업으로 진행 예정(백엔드는 로컬 빌드 검증 필요). 프론트(④, 죽은코드 삭제)는 `npm run build` 로 즉시 검증 가능.
 
+---
+
+## 29.24 v2.23 — 인트로(커버) 페이지 제거 → 메인 직행
+
+### 왜
+
+발견형 서비스인데 모든 방문자가 5섹션 풀스크린 인트로를 거쳐 ENTER 를 눌러야 메인에
+도달했다. 인트로는 **로그인 사용자에게도 매 루트 진입마다** 노출됐고(자동 스킵 없음), 처음 온
+사용자는 팝업 하나 못 보고 로그인/게스트부터 강요당했다. SEO·인스타로 들어온 신규 유입이 첫
+화면에서 이탈하는 구조라 운영자 판단으로 제거.
+
+### 핵심: 구조상 "메인 공개" 가 이미 가능했음
+
+`AuthGuard` 의 `PUBLIC_PATHS` 에 이미 `"/"` 가 있었다(메인은 인증 게이트 대상이 아님). 즉
+인트로 게이트는 오직 (1) `middleware` 의 `/` → `/intro` redirect, (2) 탈퇴 후 `/intro` 복귀,
+두 군데서만 강제되고 있었다. 이 둘만 걷어내면 비로그인 사용자도 메인의 공개 데이터(팝업·지도·
+캘린더·랭킹 — `/api/**` permitAll GET)를 그대로 볼 수 있다. 찜·코스저장·스탬프·메이트 등
+**행동 시점에만 로그인 유도**(기존 동작 유지).
+
+### 변경
+
+**삭제 (4)**
+- `app/intro/page.tsx`, `app/intro/layout.tsx` — 인트로 라우트.
+- `middleware.ts` — matcher 가 `["/"]` 뿐이고 역할이 인트로 redirect 전용이라 통째로 제거.
+  이제 봇·사람 구분 없이 `/` 가 곧장 메인을 서빙(이전의 봇-스킵 특수처리도 불필요해짐).
+- `public/14385-256955049.mp4` — 인트로 배경 영상(17MB), 인트로에서만 참조 → Vercel 배포
+  용량 절감.
+
+**참조 정리 (6)**
+- `app/page.tsx` — 탈퇴 후 `router.replace("/intro")` → `"/login"`.
+- `src/components/AuthGuard.tsx` — `PUBLIC_PATHS` 에서 `"/intro"` 제거(사문화).
+- `app/sitemap.ts` — `/intro` 항목 제거(메인 `/` 는 priority 1.0 유지).
+- `app/feed.xml/route.ts` — "시작하기" 아이템 링크 `/intro` → `/`.
+- `app/terms/page.tsx` — §13 sitemap 포함 목록에서 "인트로 (/intro)" 줄 제거(사이트맵과 일치).
+- `app/admin/page.tsx` — 비관리자 redirect `"/?entered=1"` → `"/"` + 주석 갱신.
+
+> `?entered=1` 쿼리는 이제 무의미(no-op)하지만 무해해서 남은 호출부(login/oauth/Header 등)는
+> 그대로 둠 — 추후 정리 가능.
+
+### 검증
+
+`npm run build` 통과, 라우트 목록에서 `/intro` 사라짐, 코드 전체에 `/intro` 참조 0건 확인.
+프론트만 변경이라 Vercel 자동 배포. (삭제는 `git rm` 으로 git 히스토리에 보존 — 되돌리기 가능.)
+
