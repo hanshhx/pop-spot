@@ -10956,3 +10956,38 @@ fetch) → `setCurrent(enriched)` → 그제서야 preview 엔진이 `audio.play
 
 > 빌드 통과(첫 시도는 `usePathname()` null 로 prerender 크래시 → 수정 후 재통과). Vercel 자동 배포.
 
+---
+
+## 29.26 v2.23.2 — SEO: 공개 페이지 서버 렌더링 (AuthGuard 스피너 제거 → 실제 HTML)
+
+### 문제
+
+`AuthGuard` 가 루트 레이아웃에서 모든 페이지를 감싸고 `useState(false)` → useEffect 로 통과시키는
+구조라, **모든 페이지의 정적/SSR HTML 이 "인증 확인 중" 스피너**였다. 서버 컴포넌트로 잘 만든 SEO
+랜딩(`/popups/[slug]`)·정보 페이지(`/about` 등)조차 크롤러에겐 스피너로 보여, JS 를 거의 안 돌리는
+**네이버 Yeti 가 본문을 색인하지 못했다.**
+
+### 수정 (`AuthGuard.tsx`)
+
+- 스피너 게이트 제거 → **항상 children 을 렌더**. 보호 경로는 마운트 후 useEffect 에서 토큰 검증 +
+  `/login` 리다이렉트(보호 페이지는 noindex + API 토큰 게이트라 빈 셸 노출 무해).
+- `<Suspense>` 로 감쌈 — 일부 클라이언트 페이지(메인 등)가 `useSearchParams()` 를 써서 정적
+  생성 시 Suspense 경계가 없으면 빌드가 깨진다(실제로 한 번 깨짐). Suspense 가 있으면 그런 페이지는
+  빌드 시 fallback 으로 떨어지고(빌드 통과), suspend 안 하는 서버 컴포넌트는 실제 본문을 SSR.
+- 공개 경로 목록 확장: `/about`·`/terms`·`/privacy` (sitemap 포함) + `/popup/` prefix(공유/상세).
+
+### 검증 (생성된 정적 HTML 직접 확인)
+
+- `/popups/seongsu` → "성수 팝업"·"성수에서 진행 중인 팝업" 등 **실제 본문 102KB** (이전: 스피너).
+- `/about` → "팝스팟"·"서울 팝업" 실제 본문 31KB.
+- → **네이버/구글이 SEO 랜딩·정보 페이지를 색인 가능.**
+
+### 남은 한계
+
+- **메인(`/`)** 은 `"use client"` + `useSearchParams()` 라 본문이 여전히 fallback(스피너)으로 SSR
+  된다. `<head>` 의 title/description/JSON-LD 는 서버 렌더되어 브랜드 검색엔 잡히지만, 메인 본문까지
+  SSR 하려면 `useSearchParams` → `window.location` 패턴 전환(메인 page.tsx 리팩터)이 별도로 필요.
+- 보호 페이지가 미인증 사용자에게 잠깐 빈 셸을 보였다가 리다이렉트(noindex + API 게이트라 안전).
+
+> 빌드 41/41 통과. 프론트 전용 → Vercel 자동 배포.
+
