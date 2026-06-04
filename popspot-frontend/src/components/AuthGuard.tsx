@@ -7,7 +7,6 @@ import { Loader2 } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 
 const PUBLIC_PATHS = [
-  "/intro",
   "/login",
   "/signup",
   "/",
