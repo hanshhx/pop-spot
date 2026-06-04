@@ -10921,3 +10921,38 @@ fetch) → `setCurrent(enriched)` → 그제서야 preview 엔진이 `audio.play
 `npm run build` 통과, 라우트 목록에서 `/intro` 사라짐, 코드 전체에 `/intro` 참조 0건 확인.
 프론트만 변경이라 Vercel 자동 배포. (삭제는 `git rm` 으로 git 히스토리에 보존 — 되돌리기 가능.)
 
+---
+
+## 29.25 v2.23.1 — SEO: SEO 랜딩(`/popups/[slug]`)이 크롤러를 /login 으로 튕기던 문제 수정
+
+### 증상 (Google Search Console 진단)
+
+신규 사이트라 색인 거의 0(3개월 노출 1). "팝스팟"/"팝업스토어" 검색에 안 뜨고, 유일하게
+노출/클릭된 페이지가 메인이 아니라 `/popups/art`(슬라이스 랜딩) 였음.
+
+### 원인
+
+- `/popups/[slug]` 는 **서버 컴포넌트 SSG** (실제 HTML 생성)인데, 루트 레이아웃의
+  `AuthGuard`(클라이언트) 가 감싸고 있고 `PUBLIC_PATHS` 에 `/popups/*` 가 없어, 비로그인
+  사용자·크롤러가 JS 하이드레이션 후 **`/login` 으로 리다이렉트**됐다. → 구글이 본문 대신 로그인
+  페이지를 봄.
+- 메인(`/`)은 `PUBLIC_PATHS` 에 있어 리다이렉트는 안 되지만 `"use client"` + 데이터 클라이언트
+  fetch 라 본문이 약함.
+- 공통: `AuthGuard` 가 `useState(false)` 로 시작해 **모든 페이지 초기 HTML 이 "인증 확인 중"
+  스피너** → JS 를 거의 안 돌리는 **네이버 Yeti** 는 스피너만 보고 색인 불가.
+
+### 수정 (`AuthGuard.tsx`)
+
+- `PUBLIC_PREFIXES = ["/popups/"]` + `isPublicPath()` (prefix 매칭, null-safe) 추가 → 슬라이스
+  랜딩이 더 이상 `/login` 으로 튕기지 않음. 구글 JS 렌더가 실제 본문을 색인.
+- `useState(false)` 는 유지(정적 빌드 시 `usePathname()` 이 null → 초기값을 동적으로 잡으면
+  prerender 크래시 + hydration 불일치. 실제로 한 번 깨져서 되돌림).
+
+### 남은 한계 (별도 작업 필요)
+
+정적(pre-JS) HTML 은 여전히 스피너 → **네이버 색인을 위해선 공개 페이지의 서버 렌더링이 필요**
+(route group 으로 AuthGuard 를 보호 페이지에만 적용하거나, 메인/랜딩을 서버 컴포넌트화). 신규
+도메인이라 색인·랭킹은 시간 + Search Console 색인요청 + 브랜드 신호도 필요.
+
+> 빌드 통과(첫 시도는 `usePathname()` null 로 prerender 크래시 → 수정 후 재통과). Vercel 자동 배포.
+
