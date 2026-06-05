@@ -1838,6 +1838,21 @@
 
 <sub>프론트 빌드 통과 · 라우트에서 `/intro` 제거 · 코드 전체 `/intro` 참조 0건 확인. 프론트 전용이라 Vercel 자동 배포. 삭제는 `git rm`(되돌리기 가능). 자세한 변경은 `PROJECT_CHANGELOG.md` ch.29.24 참고.</sub>
 
+### v2.23.1 ~ v2.23.2 — SEO 색인 수정 (크롤러 리다이렉트 버그 + 공개 페이지 서버 렌더링)
+
+> **진단(Google Search Console):** 신규 사이트라 3개월 노출 1회. "팝스팟"·"팝업스토어" 검색에 안 뜨고, 유일하게 노출/클릭된 게 메인이 아니라 `/popups/art`(슬라이스 랜딩). 원인 = ① SEO 랜딩이 크롤러를 `/login`으로 튕김, ② 모든 페이지가 `AuthGuard` 스피너라 서버 HTML에 본문이 없음(특히 JS 안 돌리는 **네이버 Yeti** 색인 불가).
+
+| 버전 | 문제 | 수정 |
+|---|---|---|
+| **v2.23.1** (`80bc2be`) | `/popups/[slug]`(서버 SSG)가 루트 `AuthGuard`에 감싸였는데 공개 목록에 없어 **비로그인·크롤러가 `/login`으로 리다이렉트** | `AuthGuard`에 `PUBLIC_PREFIXES=["/popups/"]` + `isPublicPath()`(prefix·null-safe) |
+| **v2.23.2** (`1e1d8ec`) | `AuthGuard`가 모든 페이지 첫 HTML을 "인증 확인 중" 스피너로 가려 **서버 컴포넌트 SEO 페이지조차 크롤러엔 스피너** | 스피너 게이트 제거 → **항상 children 렌더**(보호 경로만 마운트 후 토큰검증+리다이렉트). `useSearchParams` 빌드 실패 방지 위해 `<Suspense>` 래핑. 공개 목록에 `/about`·`/terms`·`/privacy`·`/popup/` 추가 |
+
+**검증(생성 정적 HTML 직접 확인):** `/popups/seongsu` = "성수 팝업" 실제 본문 **102KB**(이전 스피너), `/about` = "팝스팟·서울 팝업" **31KB**. → **네이버/구글이 SEO 랜딩·정보 페이지 색인 가능.**
+
+**남은 한계:** 메인(`/`)은 `"use client"` + `useSearchParams()`라 **본문은 여전히 fallback(스피너)으로 SSR**된다. 단 `<head>`의 title/description/keywords/JSON-LD는 서버 렌더되어 **브랜드("팝스팟") 검색엔 잡힘**. 메인 본문까지 완전 SSR하려면 `useSearchParams` → `window.location` 패턴 전환(1,592줄 `app/page.tsx` 리팩터)이 별도로 필요.
+
+<sub>`AuthGuard.tsx` 단일 파일 수정(2개 커밋). 프론트 빌드 41/41 통과(중간에 `usePathname()` null prerender 크래시 + `useSearchParams` Suspense 미스로 2회 실패 후 통과). Vercel 자동 배포. 자세한 변경은 `PROJECT_CHANGELOG.md` ch.29.25 ~ 29.26 참고. **배포 후 Search Console·네이버 서치어드바이저에서 슬라이스·`/about` 색인 요청 권장.**</sub>
+
 ---
 
 ## 폴더 구조 (백엔드)
