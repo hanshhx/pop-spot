@@ -37,3 +37,6 @@ popspot.env
 # ===== OS / Misc =====
 **/tsconfig.tsbuildinfo
 **/next-env.d.ts.bak
+
+# 개인 대화 로그 — GitHub 에 올리지 않음
+대화기록.txt
