@@ -10991,3 +10991,37 @@ fetch) → `setCurrent(enriched)` → 그제서야 preview 엔진이 `audio.play
 
 > 빌드 41/41 통과. 프론트 전용 → Vercel 자동 배포.
 
+---
+
+## 29.27 v2.24 — 브랜드 리뉴얼 (P-핀 로고 + Wanted Sans 폰트 통일)
+
+### 배경
+
+- 파비콘(`icon.svg`)이 보라→자홍 그라데이션 사각 + Arial "P" + 청록 점 = 전형적 "AI 기본 아이콘" 톤.
+- 사이트 폰트가 Pretendard — 무난하나 팝업 발견 서비스의 브랜드 개성이 약함(운영자 피드백: "워드마크가 별로").
+
+### 로고 — "P-핀" 모노그램
+
+- 글자 **P** 의 카운터(속파임) 속 점 = 위치 점, 기둥 끝의 뾰족함 = 핀 꼬리 → **P 이자 지도 핀(spot)**.
+- 단색 1색으로 성립(라임/잉크/흰색 어디든). 프로토타입 10종 → 3종 압축 → A안(P-핀) 채택.
+- 파비콘: 라임(`#88C828`) 라운드 사각(rx 116) + 흰 마크. `app/icon.svg`·`public/icon.svg`·루트 `icon.svg` 3곳 동기화. 보라 그라데 P 폐기.
+
+### 폰트 — Wanted Sans 통일
+
+- `globals.css` 상단 `@import` 에 Wanted Sans(jsdelivr CDN) 추가, Pretendard `@import` 는 fallback 로 유지.
+- Tailwind `@theme` 의 `--font-sans`·`--font-display` → `"Wanted Sans Variable"` 우선. `font-sans` 유틸이 이 토큰을 쓰므로 **사이트 전체가 한 번에 전환**.
+- 코드/숫자/로그뷰어용 `--font-mono`(JetBrains Mono) 는 정렬 때문에 유지.
+
+### 로고 컴포넌트 + 배선
+
+- 신규 `src/components/layout/Logo.tsx` — `LogoMark`(P-핀 SVG, currentColor) + `Logo`(마크+워드마크). props: `className`(크기) / `markClassName` / `wordmarkClassName` / `showWordmark`.
+- 워드마크 = 소문자 `popspot`(Wanted Sans 800, 자간 -0.05em, 가운데 `o` 라임).
+- 교체: `Header.tsx`·`Footer.tsx`·`login/page.tsx` 의 `font-display-en`(mono) `POP-SPOT.` 텍스트 → `<Logo>`. 법무/메타/마케팅 본문의 정식명 `POP-SPOT` 은 그대로(브랜드 명칭).
+
+### 브랜드 에셋 (`public/brand/`)
+
+- `popspot-favicon.svg` / `popspot-mark-{ink,lime,white}.svg` / `popspot-logo.svg`·`popspot-logo-white.svg`(가로 락업) + `README.md`(컨셉·색·폰트·사용 규칙).
+- 락업 SVG 의 워드마크는 `<text>`+Wanted Sans 라 폰트 없는 외부 툴에선 시스템 폰트로 대체 → 외부 배포 시 텍스트 아웃라인 권장(README 명시).
+
+> 빌드 41/41 통과 · TS 체크 OK. 프론트 전용 → Vercel 자동 배포.
+

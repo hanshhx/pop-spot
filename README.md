@@ -1853,6 +1853,20 @@
 
 <sub>`AuthGuard.tsx` 단일 파일 수정(2개 커밋). 프론트 빌드 41/41 통과(중간에 `usePathname()` null prerender 크래시 + `useSearchParams` Suspense 미스로 2회 실패 후 통과). Vercel 자동 배포. 자세한 변경은 `PROJECT_CHANGELOG.md` ch.29.25 ~ 29.26 참고. **배포 후 Search Console·네이버 서치어드바이저에서 슬라이스·`/about` 색인 요청 권장.**</sub>
 
+### v2.24 — 브랜드 리뉴얼 (로고 · 폰트 통일)
+
+> 기존 파비콘은 보라→자홍 그라데이션 사각 + Arial "P" + 청록 점이라 "AI 기본 아이콘" 톤이었고, 사이트 폰트(Pretendard)는 무난하지만 브랜드 개성이 약했다. 팝업 발견 서비스다운 정체성으로 새로: **로고를 "P-핀" 모노그램**(글자 P 의 카운터 속 점 = 위치 점, 기둥 끝 = 핀 꼬리 → P 이자 지도 핀=spot)으로 만들고, **사이트 전체 폰트를 Wanted Sans 로 통일**했다.
+
+| 구분 | 내용 |
+|---|---|
+| 폰트 | `globals.css` Tailwind `@theme` 의 `--font-sans`·`--font-display` → **Wanted Sans**(jsdelivr CDN). 본문·헤더·버튼 등 `font-sans` 전 영역 일괄 적용. Pretendard 는 CDN 장애 대비 fallback 유지. 코드/숫자용 JetBrains Mono 유지 |
+| 파비콘 | 보라 그라데+Arial P 폐기 → 라임 라운드 사각 + 흰 P-핀 (`app/icon.svg`·`public/icon.svg`·루트 `icon.svg` 3곳) |
+| 로고 컴포넌트 | 신규 `components/layout/Logo.tsx`(마크+워드마크, 크기·색 props). 헤더·푸터·로그인의 `font-display-en`(mono) `POP-SPOT.` 텍스트 로고를 이 컴포넌트로 교체 |
+| 브랜드 에셋 | `public/brand/` — 파비콘 · 마크 3색 · 가로 락업 2종 + 사용 가이드 `README.md` |
+| 워드마크 | 소문자 `popspot`(Wanted Sans 800, 자간 -0.05em, 가운데 `o` 라임 포인트). 법무·메타·마케팅 본문의 정식명 `POP-SPOT` 은 유지 |
+
+<sub>프론트 빌드 41/41 통과 · TS 체크 OK. 프론트 전용 → Vercel 자동 배포. 새 파비콘은 브라우저 캐시가 강해 강력 새로고침(Ctrl+Shift+R) 필요. 자세한 변경은 `PROJECT_CHANGELOG.md` ch.29.27 참고.</sub>
+
 ---
 
 ## 폴더 구조 (백엔드)
