@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { Instagram } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Logo } from '@/components/layout/Logo';
 
 /**
  * X (구 Twitter) 브랜드 로고 — lucide-react 가 리브랜딩된 X 로고를 제공하지 않아 inline SVG 로 처리.
@@ -79,8 +80,8 @@ export function Footer({ className }: FooterProps) {
 function BrandColumn() {
   return (
     <div className="col-span-1 sm:col-span-2">
-      <h2 className="font-display-en text-2xl lg:text-3xl font-extrabold tracking-tighter mb-3 text-foreground">
-        POP-SPOT<span className="text-lime-300">.</span>
+      <h2 className="text-2xl lg:text-3xl mb-3">
+        <Logo />
       </h2>
       <p className="text-sm text-muted-foreground max-w-sm mb-6 leading-relaxed">
         서울 팝업스토어 정보를 한곳에 모아둔 곳.

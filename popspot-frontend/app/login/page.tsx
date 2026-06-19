@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 import Link from "next/link";
+import { Logo } from "@/components/layout/Logo";
 
 import { apiFetch, API_BASE_URL } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -135,8 +136,8 @@ export default function LoginPage() {
           <ArrowLeft className="size-5" aria-hidden />
         </button>
 
-        <h1 className="font-display-en text-3xl md:text-4xl font-extrabold text-center text-cream-200 tracking-tighter mt-4 mb-1">
-          POP-SPOT<span className="text-lime-300">.</span>
+        <h1 className="flex justify-center text-3xl md:text-4xl mt-4 mb-1">
+          <Logo wordmarkClassName="text-cream-200" markClassName="text-lime-300" />
         </h1>
         <p className="text-center text-cream-200/60 text-sm mb-8">
           돌아오신 걸 환영합니다
