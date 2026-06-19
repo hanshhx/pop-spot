@@ -10,6 +10,7 @@ import ThemeToggle from "@/components/ThemeToggle";
 import InlineGlobalSearch from "@/components/layout/InlineGlobalSearch";
 import { unreadCount as readUnread } from "@/lib/notifications";
 import { cn } from "@/lib/utils";
+import { Logo } from "@/components/layout/Logo";
 
 export interface HeaderUser {
   userId: string;
@@ -77,8 +78,8 @@ export function Header({
         onClick={onLogoClick}
         className="group inline-flex flex-col"
       >
-        <h1 className="font-display-en text-3xl md:text-5xl font-extrabold tracking-tighter leading-none transition-colors group-hover:text-lime-500">
-          POP-SPOT<span className="text-lime-300">.</span>
+        <h1 className="text-3xl md:text-5xl leading-none">
+          <Logo wordmarkClassName="transition-colors group-hover:text-lime-500" />
         </h1>
         <p className="text-[10px] md:text-xs mt-1 tracking-[0.2em] uppercase text-muted-foreground">
           {subtitle}
