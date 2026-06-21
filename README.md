@@ -1881,6 +1881,20 @@
 
 <sub>프론트 빌드 41/41 통과 · TS 체크 OK. 워드마크는 아웃라인이라 폰트 의존 없음. 원본 CI(.ai·PNG·시안)는 디자이너 ZIP 보관, repo 엔 SVG 만. 자세한 변경은 `PROJECT_CHANGELOG.md` ch.29.28 참고.</sub>
 
+### v2.26 — CI 섹션 로고 전면 적용 + 메인 로고 확대
+
+> 공식 CI 의 섹션 로고(POP-LOOK · Popup Calendar · Search Zone · Powered by · SEOUL POPUP STORE INTELLIGENCE)를 각 위치에 적용하고, 메인(헤더) 로고를 키움. 섹션 로고는 교체 전 텍스트 크기에 맞춰 밸런스 조정.
+
+| 위치 | 적용 |
+|---|---|
+| 헤더 | 메인 로고 확대(h-9→**h-12**) + 부제 텍스트 → **SEOUL POPUP STORE INTELLIGENCE** 태그라인 로고(기본 subtitle 시) |
+| 메인 OOTD | `POP-LOOK.` 텍스트 → **POP-LOOK** 로고 |
+| 캘린더 카드 | `Popup Calendar` 텍스트 → **Popup Calendar** 로고 |
+| 검색존 | `Search Zone.` 텍스트 → **Search Zone** 로고 (실제+fallback) |
+| 푸터 | 카피라이트 위 **Powered by popspot** 배지 |
+
+<sub>신규 `BrandLogos.tsx`(생성 스크립트 `scripts/gen-brand-logos.cjs` — 검정 #040000→currentColor 치환, 태그라인은 흑·백 단색화). 빌드 41/41 통과. 자세한 변경은 `PROJECT_CHANGELOG.md` ch.29.29 참고.</sub>
+
 ---
 
 ## 폴더 구조 (백엔드)

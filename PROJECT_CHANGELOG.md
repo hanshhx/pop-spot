@@ -11053,3 +11053,26 @@ fetch) → `setCurrent(enriched)` → 그제서야 preview 엔진이 `audio.play
 
 > 빌드 41/41 통과 · TS 체크 OK. 프론트 전용 → Vercel 자동 배포.
 
+---
+
+## 29.29 v2.26 — CI 섹션 로고 전면 적용 + 메인 로고 확대
+
+### 신규 `BrandLogos.tsx` + 생성 스크립트
+
+- `scripts/gen-brand-logos.cjs` 가 `public/brand/*.svg` 를 읽어 검정(`#040000`/`#060203`)을 `currentColor` 로 치환 → `src/components/layout/BrandLogos.tsx` 자동 생성. `<SectionLogo name=.. className="h-.." />` 로 사용(height=크기, `text-*`=색).
+- 태그라인은 흰색(`#f6f6f6`) 글자 파트가 있어 밝은 배경에서 사라지지 않도록 흑·백 모두 `currentColor` 로 단색화(라임/핑크 유지).
+
+### 적용 위치
+
+- **헤더**: 메인 로고 `h-9 md:h-12` 로 확대. 부제(subtitle 미전달 시) "Seoul Popup Store Intelligence" 텍스트 → **태그라인 로고**(`h-5 md:h-6`). subtitle 을 명시한 페이지는 기존 텍스트 유지.
+- **POP-LOOK**(OOTD 섹션 `page.tsx`): `POP-LOOK.` 텍스트 헤딩 → **pop-look 로고**(`h-10 md:h-16`).
+- **Popup Calendar**(캘린더 카드): `Popup / Calendar` 텍스트 → **popup-calendar 로고**(`h-6 md:h-8`, 라임 카드라 `text-black`).
+- **Search Zone**(`SearchBox.tsx` 실제+fallback 2곳): `Search Zone.` 텍스트 → **search-zone 로고**(`h-9 md:h-12`).
+- **Powered by**(`Footer.tsx`): 카피라이트 위 **powered-by 배지**(`h-4`).
+
+### 밸런스
+
+- 섹션 로고는 교체 전 텍스트 크기(text-2xl/3xl/5xl/7xl)에 맞춰 height 를 잡아 시각 밸런스 유지.
+
+> 빌드 41/41 통과 · TS 체크 OK. 프론트 전용 → Vercel 자동 배포. (캘린더 카드 라임 액센트 / 태그라인 크기는 라이브 확인 후 미세조정 가능.)
+
