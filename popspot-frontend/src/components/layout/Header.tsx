@@ -11,6 +11,7 @@ import InlineGlobalSearch from "@/components/layout/InlineGlobalSearch";
 import { unreadCount as readUnread } from "@/lib/notifications";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/layout/Logo";
+import { SectionLogo } from "@/components/layout/BrandLogos";
 
 export interface HeaderUser {
   userId: string;
@@ -50,7 +51,7 @@ export function Header({
   onProfileClick,
   onSearchClick,
   onBellClick,
-  subtitle = "Seoul Popup Store Intelligence",
+  subtitle,
   className,
 }: HeaderProps) {
   // v2.18.1 — 미확인 알림 개수 (localStorage 기반).
@@ -79,11 +80,19 @@ export function Header({
         className="group inline-flex flex-col"
       >
         <h1 className="leading-none">
-          <Logo className="h-7 md:h-9 transition-opacity group-hover:opacity-80" />
+          <Logo className="h-9 md:h-12 transition-opacity group-hover:opacity-80" />
         </h1>
-        <p className="text-[10px] md:text-xs mt-1 tracking-[0.2em] uppercase text-muted-foreground">
-          {subtitle}
-        </p>
+        {subtitle ? (
+          <p className="text-[10px] md:text-xs mt-1 tracking-[0.2em] uppercase text-muted-foreground">
+            {subtitle}
+          </p>
+        ) : (
+          <SectionLogo
+            name="tagline"
+            label="Seoul Popup Store Intelligence"
+            className="h-5 md:h-6 mt-1.5 text-muted-foreground"
+          />
+        )}
       </Link>
 
       <nav

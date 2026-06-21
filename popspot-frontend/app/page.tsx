@@ -47,6 +47,7 @@ import {
   isGuestExpired,
 } from "@/lib/guestMode";
 import { SearchZone } from "@/features/popup/SearchBox";
+import { SectionLogo } from "@/components/layout/BrandLogos";
 import { ReportPopupModal } from "@/features/popup/ReportPopupModal";
 import { PopupCalendarModal } from "@/features/popup/PopupCalendarModal";
 import { AllTrendingModal } from "@/features/popup/AllTrendingModal";
@@ -818,7 +819,7 @@ export default function Home() {
                     >
                         <div className="relative z-10">
                             <Calendar size={28} className="md:w-8 md:h-8 group-hover:rotate-12 transition-transform" />
-                            <h3 className="text-xl md:text-2xl font-black mt-2 leading-none uppercase">Popup<br/>Calendar</h3>
+                            <SectionLogo name="popup-calendar" label="Popup Calendar" className="h-6 md:h-8 mt-2 text-black" />
                             <p className="text-[10px] md:text-xs font-bold opacity-60 mt-1 md:mt-2 mb-2">어떤 팝업이 열릴지 궁금하다면?</p>
                         </div>
                         
@@ -855,7 +856,7 @@ export default function Home() {
                 {/* OOTD Section */}
                 <motion.section aria-label="Style Recommendation" initial="hidden" whileInView="visible" viewport={{ once: true }} variants={sectionVariants} className="mb-16">
                     <header className="flex flex-col md:flex-row items-center md:items-end justify-between mb-8 md:mb-12 text-center md:text-left">
-                        <h2 className="font-display-en text-4xl md:text-7xl font-extrabold tracking-tighter relative z-10 text-foreground">POP-LOOK<span className="text-hot-400">.</span></h2>
+                        <SectionLogo name="pop-look" label="POP-LOOK" className="h-10 md:h-16 relative z-10 text-foreground" />
                         <p className="text-gray-500 dark:text-white/60 max-w-md mt-2 md:mt-0 relative z-10 text-xs md:text-base">서울 갈 때 뭐 입지?<br/>오늘의 분위기에 딱 맞는 OOTD를 제안합니다.</p>
                     </header>
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-auto lg:h-[500px]">

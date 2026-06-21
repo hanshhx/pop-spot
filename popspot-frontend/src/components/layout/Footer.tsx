@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { Instagram } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Logo } from '@/components/layout/Logo';
+import { SectionLogo } from '@/components/layout/BrandLogos';
 
 /**
  * X (구 Twitter) 브랜드 로고 — lucide-react 가 리브랜딩된 X 로고를 제공하지 않아 inline SVG 로 처리.
@@ -177,7 +178,8 @@ function DisclaimerBox() {
           <p>실제 결제 / 예매: 처리하지 않음 — 안내 서비스 한정</p>
         </div>
 
-        <p className="mt-3 opacity-60">© {new Date().getFullYear()} POP-SPOT. All rights reserved.</p>
+        <SectionLogo name="powered-by" label="Powered by popspot" className="mt-4 h-4 text-muted-foreground/80" />
+        <p className="mt-2 opacity-60">© {new Date().getFullYear()} POP-SPOT. All rights reserved.</p>
       </div>
     </div>
   );
