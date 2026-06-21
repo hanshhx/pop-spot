@@ -11025,3 +11025,31 @@ fetch) → `setCurrent(enriched)` → 그제서야 preview 엔진이 `audio.play
 
 > 빌드 41/41 통과 · TS 체크 OK. 프론트 전용 → Vercel 자동 배포.
 
+---
+
+## 29.28 v2.25 — 공식 CI 로고 교체 (바스켓 심볼 + popspot 워드마크)
+
+### 배경
+
+- v2.24 의 P-핀 로고는 임시안. 디자이너가 정식 브랜드 CI(`POP-SPOT 브랜드 CI.zip` — Illustrator `.ai` 원본 + PNG + SVG + 아이디어 시안, 비밀번호 zip)를 전달받아 교체.
+
+### 새 로고
+
+- **심볼 = 쇼핑 바스켓**: 라임(`#b8d565`/`#b3d35f`) 테두리 + 검정(`#040000`/`#101010`) 몸체·손잡이 + 핑크(`#e73274`) 점. "팝업에서 담는다"는 발견·쇼핑 은유.
+- **워드마크 = popspot** 아웃라인(검정 + 라임 혼합) — 폰트 의존 없음.
+- 메인 로고 = 심볼 + 워드마크 가로 락업.
+
+### 적용
+
+- **파비콘**: P-핀 라임 사각 폐기 → 공식 바스켓. `app/icon.svg`·`public/icon.svg`·루트 `icon.svg` 3곳 동기화.
+- **`Logo.tsx` 재작성**: 공식 아웃라인 SVG 인라인 + **검정 파트만 `currentColor`** 치환 → 다크 배경(헤더/푸터/로그인)에서 크림으로 적응, 라임·핑크는 원본 고정. props: `className`(높이 `h-*`·색 `text-*`) / `symbolOnly`(바스켓만).
+- **배선**: `Header`·`Footer`·`login` 로고를 새 Logo(높이 기반)로 교체. 로그인은 다크라 `text-cream-200`.
+- **브랜드 에셋**: `public/brand/` 공식 SVG 로 교체(favicon·logo·powered-by + 섹션 로고 POP-LOOK·popup-calendar·search-zone·tagline). 임시 P-핀 마크/락업 SVG 제거.
+
+### 참고
+
+- 폰트(Wanted Sans, v2.24)는 로고와 별개라 유지.
+- 파비콘은 원본 CI 그대로(투명 배경) — 밝은 탭 최적, 매우 어두운 탭에선 검정 파트가 옅어질 수 있음(필요 시 배경 타일 추가 가능).
+
+> 빌드 41/41 통과 · TS 체크 OK. 프론트 전용 → Vercel 자동 배포.
+

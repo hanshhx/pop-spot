@@ -1867,6 +1867,20 @@
 
 <sub>프론트 빌드 41/41 통과 · TS 체크 OK. 프론트 전용 → Vercel 자동 배포. 새 파비콘은 브라우저 캐시가 강해 강력 새로고침(Ctrl+Shift+R) 필요. 자세한 변경은 `PROJECT_CHANGELOG.md` ch.29.27 참고.</sub>
 
+### v2.25 — 공식 CI 로고 교체 (바스켓 심볼 + popspot 워드마크)
+
+> 디자이너가 제작한 공식 브랜드 CI(쇼핑 바스켓 심볼 + popspot 아웃라인 워드마크)로 교체. 직전 v2.24 의 임시 P-핀 로고·파비콘은 전부 폐기. 폰트(Wanted Sans)는 로고와 별개라 유지.
+
+| 구분 | 내용 |
+|---|---|
+| 심볼 | 쇼핑 바스켓 — 라임(`#b8d565`) 테두리 + 검정 몸체/손잡이 + 핑크(`#e73274`) 점 |
+| 파비콘 | P-핀 라임 사각 폐기 → 공식 바스켓 심볼 (`app/icon.svg`·`public/icon.svg`·루트 `icon.svg`) |
+| 로고 컴포넌트 | `Logo.tsx` 재작성 — 공식 아웃라인 락업 인라인, **검정 파트만 `currentColor`** 로 바꿔 라이트/다크 적응(라임·핑크 고정). props: `className`(높이·색) / `symbolOnly` |
+| 배선 | 헤더·푸터·로그인 모두 새 Logo 사용 (높이 기반 크기) |
+| 브랜드 에셋 | `public/brand/` 갱신 — 공식 favicon·logo·powered-by + 섹션 로고(POP-LOOK·팝업캘린더·Search Zone·태그라인). 임시 P-핀 마크 SVG 제거 |
+
+<sub>프론트 빌드 41/41 통과 · TS 체크 OK. 워드마크는 아웃라인이라 폰트 의존 없음. 원본 CI(.ai·PNG·시안)는 디자이너 ZIP 보관, repo 엔 SVG 만. 자세한 변경은 `PROJECT_CHANGELOG.md` ch.29.28 참고.</sub>
+
 ---
 
 ## 폴더 구조 (백엔드)
