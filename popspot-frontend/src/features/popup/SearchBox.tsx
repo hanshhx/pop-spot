@@ -11,6 +11,7 @@ import {
 } from "react-instantsearch";
 import { liteClient as algoliasearch } from "algoliasearch/lite";
 import { env } from "@/lib/env";
+import { SectionLogo } from "@/components/layout/BrandLogos";
 
 interface AlgoliaHit {
   objectID: string;
@@ -138,9 +139,7 @@ function SearchZoneFallback() {
   return (
     <div className="rounded-xl p-6 md:p-8 flex flex-col justify-between border border-[var(--color-border)] bg-surface relative z-50 min-h-[260px]">
       <div>
-        <h2 className="font-display-en text-3xl md:text-5xl font-extrabold tracking-tighter mb-4 text-foreground">
-          Search <span className="text-lime-300">Zone.</span>
-        </h2>
+        <SectionLogo name="search-zone" label="Search Zone" className="h-9 md:h-12 mb-4 text-foreground" />
         <div className="mt-6 relative w-full">
           <input
             type="text"
@@ -177,9 +176,7 @@ export function SearchZone() {
     <div className="rounded-xl p-6 md:p-8 flex flex-col justify-between border border-[var(--color-border)] bg-surface relative z-50 min-h-[260px]">
       <InstantSearch searchClient={searchClient} indexName="popups">
         <div>
-          <h2 className="font-display-en text-3xl md:text-5xl font-extrabold tracking-tighter mb-4 text-foreground">
-            Search <span className="text-lime-300">Zone.</span>
-          </h2>
+          <SectionLogo name="search-zone" label="Search Zone" className="h-9 md:h-12 mb-4 text-foreground" />
           <div className="mt-6 relative w-full">
             <CustomSearchBox />
           </div>
