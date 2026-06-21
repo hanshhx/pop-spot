@@ -78,8 +78,8 @@ export function Header({
         onClick={onLogoClick}
         className="group inline-flex flex-col"
       >
-        <h1 className="text-3xl md:text-5xl leading-none">
-          <Logo wordmarkClassName="transition-colors group-hover:text-lime-500" />
+        <h1 className="leading-none">
+          <Logo className="h-7 md:h-9 transition-opacity group-hover:opacity-80" />
         </h1>
         <p className="text-[10px] md:text-xs mt-1 tracking-[0.2em] uppercase text-muted-foreground">
           {subtitle}

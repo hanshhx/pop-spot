@@ -136,8 +136,8 @@ export default function LoginPage() {
           <ArrowLeft className="size-5" aria-hidden />
         </button>
 
-        <h1 className="flex justify-center text-3xl md:text-4xl mt-4 mb-1">
-          <Logo wordmarkClassName="text-cream-200" markClassName="text-lime-300" />
+        <h1 className="flex justify-center mt-4 mb-1">
+          <Logo className="h-7 md:h-8 text-cream-200" />
         </h1>
         <p className="text-center text-cream-200/60 text-sm mb-8">
           돌아오신 걸 환영합니다

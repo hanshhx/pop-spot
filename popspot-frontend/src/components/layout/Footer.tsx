@@ -80,8 +80,8 @@ export function Footer({ className }: FooterProps) {
 function BrandColumn() {
   return (
     <div className="col-span-1 sm:col-span-2">
-      <h2 className="text-2xl lg:text-3xl mb-3">
-        <Logo />
+      <h2 className="mb-3">
+        <Logo className="h-6 lg:h-7" />
       </h2>
       <p className="text-sm text-muted-foreground max-w-sm mb-6 leading-relaxed">
         서울 팝업스토어 정보를 한곳에 모아둔 곳.
