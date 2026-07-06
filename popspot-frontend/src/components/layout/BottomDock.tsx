@@ -7,7 +7,6 @@ import {
   User,
   Users,
   Music2,
-  Inbox,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -42,7 +41,6 @@ const ITEMS: DockItemDef[] = [
   { key: "PASSPORT", icon: Ticket, label: "여권" },
   { key: "MY", icon: User, label: "MY" },
   { key: "MATE", icon: Users, label: "동행" },
-  { key: "FEEDBACK", icon: Inbox, label: "의견" },
 ];
 
 /**
