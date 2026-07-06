@@ -11148,3 +11148,27 @@ fetch) → `setCurrent(enriched)` → 그제서야 preview 엔진이 `audio.play
 
 > 프론트 빌드 통과(~100 슬라이스 SSG) · TS OK. Vercel 자동 배포.
 
+---
+
+## 29.33 v2.30 — 데스크톱 네비 분리 + 미리보기 실측 진단
+
+### 데스크톱 네비 (⑧ "웹이 모바일틱")
+
+- `BottomDock` 의 탭 정의를 `DOCK_ITEMS` 로 export.
+- `Header` 에 데스크톱 전용 가로 네비(`hidden lg:flex`) 추가 — `DOCK_ITEMS` 6탭 + 현재 탭 하이라이트. props `activeTab` / `onNavChange` 신설, `page.tsx` 가 `currentTab` / `handleTabChange` 전달.
+- `BottomDock` 에 `lg:hidden` — 데스크톱(lg+)에선 하단 독 숨김. 모바일/태블릿은 그대로.
+- 메인 `pb-32 → pb-32 lg:pb-16` (독 없는 데스크톱 하단 여백 축소).
+
+### 미리보기 실측 진단 (⑨ 짤림 / ⑩ 여백)
+
+- 로컬 dev 서버로 검증. **백엔드 미가동**이라 지도/티커/데이터는 전부 실패(빈 상태) → 스크린샷은 폴링 churn 으로 타임아웃, 대신 `getBoundingClientRect` 실측으로 판정.
+- **데스크톱**: 대시보드 1384px 풀폭 정상(레이아웃 깨짐 없음). 헤더네비 6버튼 표시, 독 `display:none`.
+- **모바일(375)**: `document.scrollWidth == innerWidth == 375` → **가로 뷰포트 짤림 없음.** 오버플로우로 잡힌 건 티커/배경 svg 등 `overflow-hidden` 으로 의도 clip 된 것뿐. 독 표시(6탭), 헤더네비 숨김.
+- 메인은 이미 `pb-32` + `overflow-x-hidden` 이라 독이 콘텐츠를 덮지 않음.
+
+### 남은 것 (백엔드 up 필요)
+
+- 데이터 의존 클리핑(긴 팝업명 truncate, MY 탭 `h-[85vh]` 내부 스크롤 등)이나 실 데이터 여백은 백엔드를 함께 띄워야 실화면으로 확인 가능. 특정 화면 지목 시 그 지점부터 정밀 수정.
+
+> 빌드 118/118 통과 · TS OK. Vercel 자동 배포.
+
