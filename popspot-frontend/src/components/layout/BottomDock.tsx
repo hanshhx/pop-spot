@@ -55,20 +55,15 @@ export function BottomDock({ currentTab, onTabChange }: BottomDockProps) {
       aria-label="메인 네비게이션"
       className={cn(
         "fixed bottom-4 md:bottom-6 left-1/2 -translate-x-1/2 z-50 lg:hidden",
-        "w-[95%] max-w-[520px] md:w-auto md:max-w-none"
+        "w-[95%] max-w-[520px]"
       )}
     >
       <div
         className={cn(
-          "flex items-center gap-1 md:gap-2",
-          // v2.17 — 모바일은 가로 스크롤. 데스크탑은 중앙 정렬.
-          "overflow-x-auto md:overflow-visible",
-          "justify-start md:justify-center",
-          "p-2 px-3 md:px-4",
-          "rounded-pill border border-[var(--color-border)]",
-          "bg-surface/95 backdrop-blur-md shadow-pop",
-          // 스크롤바 숨김 — Tailwind 의 scrollbar-none 또는 inline style
-          "[&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+          // 균등 분할(flex-1) — 가로 스크롤 없이 6탭이 폭에 딱 맞게.
+          "flex items-stretch gap-1 p-2",
+          "rounded-[1.75rem] border border-black/5 dark:border-white/10",
+          "bg-surface/90 backdrop-blur-xl shadow-pop ring-1 ring-black/[0.02] dark:ring-white/[0.04]"
         )}
       >
         {DOCK_ITEMS.map((item) => (
@@ -100,24 +95,22 @@ function DockButton({ icon: Icon, label, isActive, onClick }: DockButtonProps) {
       aria-pressed={isActive}
       aria-label={label}
       className={cn(
-        "relative flex flex-col items-center justify-center",
-        // v2.17 — 모바일에서 좁아지지 않도록 11 → 가로 스크롤 + 약간 여유
-        "w-11 h-12 md:w-14 md:h-14",
-        "rounded-pill transition-all duration-200 shrink-0 group",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+        "relative flex flex-1 min-w-0 flex-col items-center justify-center gap-1",
+        "h-14 md:h-16 rounded-[1.25rem] transition-all duration-200 group",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-400",
         isActive
-          ? "bg-ink-900 text-cream-200 dark:bg-cream-200 dark:text-ink-900"
-          : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
+          ? "bg-lime-300 text-ink-900 shadow-sm shadow-lime-400/40"
+          : "text-muted-foreground hover:text-foreground hover:bg-foreground/[0.06] active:scale-95"
       )}
     >
       <Icon
         className={cn(
-          "size-5 transition-transform duration-200",
-          !isActive && "group-hover:-translate-y-0.5"
+          "size-6 transition-transform duration-200",
+          isActive ? "scale-110" : "group-hover:-translate-y-0.5"
         )}
         aria-hidden
       />
-      <span className="text-[10px] md:text-[11px] font-semibold mt-0.5">
+      <span className="text-[11px] font-bold tracking-tight leading-none">
         {label}
       </span>
     </button>
