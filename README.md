@@ -1895,6 +1895,17 @@
 
 <sub>신규 `BrandLogos.tsx`(생성 스크립트 `scripts/gen-brand-logos.cjs` — 검정 #040000→currentColor 치환, 태그라인은 흑·백 단색화). 빌드 41/41 통과. 자세한 변경은 `PROJECT_CHANGELOG.md` ch.29.29 참고.</sub>
 
+### v2.27 — 어드민 "회원 목록" 탭 (가입자 조회)
+
+> 가입자를 확인하려면 DB(psql)를 직접 쳐야 했던 걸, 어드민 페이지에서 바로 보도록 회원 목록 탭 신설. 비밀번호 등 민감 필드는 DTO 로 제외.
+
+| 구분 | 내용 |
+|---|---|
+| 백엔드 | `GET /api/admin/users`(ROLE_ADMIN) → `AdminUserDto`(record, **password 제외**) 리스트. `UserRepository.findAllByOrderByCreatedAtDesc()` 가입 최신순 |
+| 프론트 | 어드민 `/admin` 에 **회원 목록** 탭 — 닉네임(관리자 뱃지)·이메일·가입경로(로컬/구글/카카오/네이버)·등급(프리미엄)·가입일 테이블 |
+
+<sub>프론트 빌드 41/41 통과. ⚠️ 백엔드는 이 PC 에서 Gradle loopback 오류로 로컬 컴파일 불가 — 배포 전 `./gradlew spotlessApply build -x test` 권장. 자세한 변경은 `PROJECT_CHANGELOG.md` ch.29.30 참고.</sub>
+
 ---
 
 ## 폴더 구조 (백엔드)

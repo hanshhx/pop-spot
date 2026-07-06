@@ -1,5 +1,6 @@
 package com.example.popspotbackend.service;
 
+import com.example.popspotbackend.dto.AdminUserDto;
 import com.example.popspotbackend.entity.MatePost;
 import com.example.popspotbackend.entity.PopupStore;
 import com.example.popspotbackend.entity.User;
@@ -51,6 +52,14 @@ public class AdminService {
     @Transactional(readOnly = true)
     public List<MatePost> findAllMatePostsOrdered() {
         return matePostRepository.findAllByOrderByIsMegaphoneDescCreatedAtDesc();
+    }
+
+    /** v2.27 — 회원 목록(가입 최신순). 비밀번호 제외 DTO 로 변환. */
+    @Transactional(readOnly = true)
+    public List<AdminUserDto> findAllUsers() {
+        return userRepository.findAllByOrderByCreatedAtDesc().stream()
+                .map(AdminUserDto::from)
+                .toList();
     }
 
     /** 제보된 팝업 승인 — 상태를 "영업중" 으로 바꾸고 신고자에게 확성기 1개를 보상으로 지급. */
