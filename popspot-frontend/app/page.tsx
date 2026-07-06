@@ -619,7 +619,7 @@ export default function Home() {
   const isAdmin = user?.role?.includes('ADMIN');
 
   return (
-    <main className="min-h-screen font-sans relative pb-32 overflow-x-hidden transition-colors duration-500 bg-gray-50 text-gray-900 dark:bg-black dark:text-white">
+    <main className="min-h-screen font-sans relative pb-32 lg:pb-16 overflow-x-hidden transition-colors duration-500 bg-gray-50 text-gray-900 dark:bg-black dark:text-white">
       
       <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
         <video autoPlay loop muted playsInline className="absolute min-w-full min-h-full object-cover">
@@ -638,6 +638,8 @@ export default function Home() {
           onProfileClick={user ? () => setIsProfileEditOpen(true) : undefined}
           onSearchClick={() => setIsGlobalSearchOpen(true)}
           onBellClick={() => setIsNotificationsOpen(true)}
+          activeTab={currentTab}
+          onNavChange={(t) => handleTabChange(t)}
           className="mb-4 md:mb-6"
         />
 

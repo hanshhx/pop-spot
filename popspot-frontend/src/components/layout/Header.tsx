@@ -11,6 +11,7 @@ import { unreadCount as readUnread } from "@/lib/notifications";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/layout/Logo";
 import { SectionLogo } from "@/components/layout/BrandLogos";
+import { DOCK_ITEMS } from "@/components/layout/BottomDock";
 
 export interface HeaderUser {
   userId: string;
@@ -33,6 +34,9 @@ interface HeaderProps {
   /** v2.18.1 — 알림 센터 모달 열기. */
   onBellClick?: () => void;
   subtitle?: string;
+  /** 데스크톱(lg+) 상단 네비 — 현재 탭 + 전환 콜백. 모바일은 BottomDock 사용. */
+  activeTab?: string;
+  onNavChange?: (tab: string) => void;
   className?: string;
 }
 
@@ -51,6 +55,8 @@ export function Header({
   onSearchClick,
   onBellClick,
   subtitle,
+  activeTab,
+  onNavChange,
   className,
 }: HeaderProps) {
   // v2.18.1 — 미확인 알림 개수 (localStorage 기반).
@@ -93,6 +99,36 @@ export function Header({
           />
         )}
       </Link>
+
+      {/* 데스크톱(lg+) 상단 네비 — 모바일은 하단 BottomDock. */}
+      {onNavChange && (
+        <nav
+          aria-label="주요 메뉴"
+          className="hidden lg:flex items-center gap-1 self-center"
+        >
+          {DOCK_ITEMS.map((item) => {
+            const Icon = item.icon;
+            const active = activeTab === item.key;
+            return (
+              <button
+                key={item.key}
+                type="button"
+                onClick={() => onNavChange(item.key)}
+                aria-current={active ? "page" : undefined}
+                className={cn(
+                  "inline-flex items-center gap-1.5 px-3 py-2 rounded-pill text-sm font-semibold transition-colors",
+                  active
+                    ? "bg-ink-900 text-cream-200 dark:bg-cream-200 dark:text-ink-900"
+                    : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
+                )}
+              >
+                <Icon className="size-4" aria-hidden />
+                {item.label}
+              </button>
+            );
+          })}
+        </nav>
+      )}
 
       <nav
         aria-label="사용자 메뉴"

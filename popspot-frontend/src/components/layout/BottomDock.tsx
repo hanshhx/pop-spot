@@ -34,7 +34,7 @@ interface DockItemDef {
  * 모든 탭은 같은 페이지 안에서 즉시 전환된다 — 외부 라우트 X.
  * 마이페이지/지도/음악 모두 같은 모델로 통일해서 깜빡임 없이 이동.
  */
-const ITEMS: DockItemDef[] = [
+export const DOCK_ITEMS: DockItemDef[] = [
   { key: "MAP", icon: MapIcon, label: "지도" },
   { key: "COURSE", icon: Route, label: "코스" },
   { key: "MUSIC", icon: Music2, label: "음악" },
@@ -54,7 +54,7 @@ export function BottomDock({ currentTab, onTabChange }: BottomDockProps) {
     <nav
       aria-label="메인 네비게이션"
       className={cn(
-        "fixed bottom-4 md:bottom-6 left-1/2 -translate-x-1/2 z-50",
+        "fixed bottom-4 md:bottom-6 left-1/2 -translate-x-1/2 z-50 lg:hidden",
         "w-[95%] max-w-[520px] md:w-auto md:max-w-none"
       )}
     >
@@ -71,7 +71,7 @@ export function BottomDock({ currentTab, onTabChange }: BottomDockProps) {
           "[&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
         )}
       >
-        {ITEMS.map((item) => (
+        {DOCK_ITEMS.map((item) => (
           <DockButton
             key={item.key}
             icon={item.icon}
