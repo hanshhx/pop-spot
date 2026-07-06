@@ -1,5 +1,6 @@
 package com.example.popspotbackend.controller;
 
+import com.example.popspotbackend.dto.AdminUserDto;
 import com.example.popspotbackend.entity.MatePost;
 import com.example.popspotbackend.entity.PopupStore;
 import com.example.popspotbackend.service.AdminService;
@@ -68,6 +69,14 @@ public class AdminController {
             @PathVariable Long id, @RequestParam String status) {
         adminService.changePopupStatus(id, status);
         return ResponseEntity.ok("상태가 [" + status + "]로 변경되었습니다.");
+    }
+
+    /* ============================== 회원 목록 ============================== */
+
+    /** v2.27 — 가입자 목록(최신순). 비밀번호 제외 DTO 반환. */
+    @GetMapping("/users")
+    public ResponseEntity<List<AdminUserDto>> getAllUsers() {
+        return ResponseEntity.ok(adminService.findAllUsers());
     }
 
     /* ============================== 보상 / 메이트 운영 ============================== */

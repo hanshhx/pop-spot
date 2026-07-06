@@ -51,6 +51,20 @@ interface AdminMatePost {
     isMegaphone?: boolean;
 }
 
+interface AdminUser {
+    userId: string;
+    email: string;
+    nickname: string;
+    picture?: string | null;
+    provider?: string | null;
+    role: string;
+    createdAt?: string;
+    isPremium?: boolean;
+    premiumExpiryDate?: string | null;
+    stampCount?: number;
+    likeCount?: number;
+}
+
 // 실시간 폴링 — 3초 주기. 더 잦으면 백엔드 부하, 더 느슨하면 모니터링 가치 떨어짐.
 const SERVER_METRICS_POLL_INTERVAL_MS = 3000;
 const SERVER_METRICS_BUFFER_SIZE = 15;
@@ -117,6 +131,7 @@ export default function AdminPage() {
     const [pendingPopups, setPendingPopups] = useState<PopupStore[]>([]);
     const [allPopups, setAllPopups] = useState<PopupStore[]>([]);
     const [matePosts, setMatePosts] = useState<AdminMatePost[]>([]);
+    const [users, setUsers] = useState<AdminUser[]>([]);
 
     // v2.10 — 통합 메트릭 폴링. DASHBOARD 탭일 때만 실제 폴링 (다른 탭에선 훅이 effect cleanup).
     // v2.13.3 — authorized 가 true 가 되기 전엔 폴링 자체를 시작하지 않아 403 도배 차단.
@@ -196,12 +211,22 @@ export default function AdminPage() {
         } catch (e) {} finally { setIsLoading(false); }
     };
 
+    // 4. 회원 목록 로딩
+    const loadUsers = async () => {
+        setIsLoading(true);
+        try {
+            const res = await apiFetch("/api/admin/users");
+            if (res.ok) setUsers(await res.json());
+        } catch (e) {} finally { setIsLoading(false); }
+    };
+
     // 탭 변경 시 데이터 로딩
     useEffect(() => {
         if (!authorized) return; // v2.13.3 — role 검증 전엔 admin fetch 차단
         if (activeTab === "DASHBOARD") loadDashboardData();
         else if (activeTab === "POPUPS") loadAllPopups();
         else if (activeTab === "MATES") loadMatePosts();
+        else if (activeTab === "MEMBERS") loadUsers();
     }, [activeTab, authorized]);
 
     // ================= [API 기능 핸들러] =================
@@ -332,6 +357,7 @@ export default function AdminPage() {
                     <div className="flex gap-2 overflow-x-auto custom-scrollbar pb-2">
                         {[
                             { id: "DASHBOARD", label: "요약 & 제보관리", icon: <BarChart3 size={16}/> },
+                            { id: "MEMBERS", label: "회원 목록", icon: <Users size={16}/> },
                             { id: "POPUPS", label: "팝업스토어 제어", icon: <Store size={16}/> },
                             { id: "MATES", label: "커뮤니티 관리", icon: <MessageSquare size={16}/> },
                             { id: "REWARDS", label: "이벤트 보상 지급", icon: <Gift size={16}/> },
@@ -563,6 +589,48 @@ export default function AdminPage() {
                                 <button onClick={() => handleDeleteMatePost(post.id)} className="px-4 py-2 bg-red-50 text-red-600 hover:bg-red-500 hover:text-white rounded-xl text-xs font-bold transition-all uppercase flex items-center gap-1 opacity-0 group-hover:opacity-100"><Trash2 size={14}/> Delete</button>
                             </div>
                         ))}
+                    </div>
+                )}
+
+                {/* 탭: 회원 목록 — 가입자 조회 (닉네임/이메일/가입경로/등급/가입일) */}
+                {!isLoading && activeTab === "MEMBERS" && (
+                    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        <h2 className="text-lg font-black uppercase tracking-tight flex items-center gap-2 mb-4"><Users size={18} className="text-lime-500"/> 회원 {users.length}명</h2>
+                        <div className="bg-white dark:bg-ink-700 rounded-2xl border border-gray-200 dark:border-white/5 overflow-hidden">
+                            <div className="overflow-x-auto custom-scrollbar">
+                                <table className="w-full text-sm">
+                                    <thead>
+                                        <tr className="bg-gray-50 dark:bg-ink-800 text-gray-500 text-left text-xs uppercase tracking-wider">
+                                            <th className="px-4 py-3 font-bold">닉네임</th>
+                                            <th className="px-4 py-3 font-bold">이메일</th>
+                                            <th className="px-4 py-3 font-bold">가입경로</th>
+                                            <th className="px-4 py-3 font-bold">등급</th>
+                                            <th className="px-4 py-3 font-bold whitespace-nowrap">가입일</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {users.map(u => (
+                                            <tr key={u.userId} className="border-t border-gray-100 dark:border-white/5 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
+                                                <td className="px-4 py-3 whitespace-nowrap">
+                                                    <span className="inline-flex items-center gap-2 font-bold">
+                                                        <span className="w-6 h-6 rounded-full bg-lime-300/30 flex items-center justify-center text-[10px] text-lime-700 dark:text-lime-400 font-black shrink-0">{u.nickname?.[0] ?? "?"}</span>
+                                                        {u.nickname}
+                                                        {u.role === "ROLE_ADMIN" && <span className="text-[9px] bg-hot-100 text-hot-500 px-1.5 py-0.5 rounded font-bold">ADMIN</span>}
+                                                    </span>
+                                                </td>
+                                                <td className="px-4 py-3 text-gray-500">{u.email}</td>
+                                                <td className="px-4 py-3"><span className="text-[11px] px-2 py-0.5 rounded-full border border-gray-200 dark:border-white/10 uppercase">{u.provider || "local"}</span></td>
+                                                <td className="px-4 py-3">{u.isPremium ? <span className="text-[11px] text-amber-600 font-bold whitespace-nowrap">👑 프리미엄</span> : <span className="text-[11px] text-gray-400">일반</span>}</td>
+                                                <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{u.createdAt ? new Date(u.createdAt).toLocaleString("ko-KR", { year: "2-digit", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }) : "-"}</td>
+                                            </tr>
+                                        ))}
+                                        {users.length === 0 && (
+                                            <tr><td colSpan={5} className="px-4 py-16 text-center text-gray-400">아직 가입한 회원이 없습니다.</td></tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
                 )}
 
