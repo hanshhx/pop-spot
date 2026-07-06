@@ -11119,3 +11119,32 @@ fetch) → `setCurrent(enriched)` → 그제서야 preview 엔진이 `audio.play
 
 > 프론트 빌드 41/41 통과 · TS OK. Vercel 자동 배포.
 
+---
+
+## 29.32 v2.29 — SEO: 지역×카테고리 조합 랜딩 (약관 §10-2 준수)
+
+### 진단 (GSC 실적 분석)
+
+- 3개월 노출 111 / 클릭 3 / 평균순위 7.5. 검색어는 "잠실 팝업" 등 롱테일뿐, 브랜드어 검색 0(신규 사이트).
+- 근본 원인 = **색인 표면이 슬라이스 23개뿐.** 개별 팝업 상세는 `"use client"` + sitemap 제외라 사실상 비색인.
+- 단, 개별 팝업 비색인은 **버그가 아니라 약관 §10-2 정책**(네이버/카카오 자동수집 데이터 재배포 금지, takedown 시스템과 짝). → 운영자와 합의: **정책 유지 + 슬라이스 확장** 방향.
+
+### 조합 랜딩 (`/popups/[slug]`)
+
+- `Slice` 유니온에 `region-category` 종류 추가. 슬러그 `${지역}-${카테고리}` (예: `seongsu-fashion`).
+- `generateStaticParams` 에 `REGIONS × CATEGORIES` 조합 추가 → 슬라이스 **23 → ~100개** SSG.
+- `resolveSlice` 조합 파싱(지역 prefix + 카테고리), `filterBySlice` 지역+카테고리 동시 매칭, `deepLinkQuery`(구 deepLinkParam) 가 `region=..&category=..` 생성.
+- 메타/H1/intro/FAQ/JSON-LD 전부 조합 키워드("성수 패션 팝업스토어 추천").
+
+### 품질/정책 안전장치
+
+- 결과 **0곳 조합은 `robots: noindex`**(thin content 방지). 페이지 접근·내부링크는 유지 → 사용자 회유는 되되 검색 인덱스는 오염 안 함.
+- `sitemap.ts` 에 조합 랜딩 등록. **자동수집 개별 팝업은 §10-2 준수로 계속 sitemap 제외.**
+
+### 후속 권장
+
+- 배포 후 GSC/네이버 서치어드바이저에 sitemap 재제출 + 주요 조합 색인 요청.
+- 순위 상승엔 슬라이스 콘텐츠 강화 + 백링크(SNS/블로그)가 병행 필요(사이트 밖).
+
+> 프론트 빌드 통과(~100 슬라이스 SSG) · TS OK. Vercel 자동 배포.
+
