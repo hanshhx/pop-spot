@@ -45,7 +45,14 @@ type Marker = {
 type Slice =
   | { kind: "region"; slug: string; label: string }
   | { kind: "period"; slug: string; label: string }
-  | { kind: "category"; slug: string; label: string };
+  | { kind: "category"; slug: string; label: string }
+  | {
+      kind: "region-category";
+      slug: string;
+      label: string;
+      regionSlug: string;
+      categorySlug: string;
+    };
 
 // v2.21-S3 — ISR + 알 수 없는 슬러그는 404.
 // Next.js 16 segment config 는 literal 값만 받음 (const 변수 참조 X) — Vercel 빌드에서
@@ -60,6 +67,10 @@ export function generateStaticParams() {
     ...REGIONS.map((r) => ({ slug: r.slug })),
     ...PERIODS.map((p) => ({ slug: p.slug })),
     ...CATEGORIES.map((c) => ({ slug: c.slug })),
+    // v2.29 — 지역×카테고리 조합 롱테일 랜딩 ("성수 패션 팝업" 등).
+    ...REGIONS.flatMap((r) =>
+      CATEGORIES.map((c) => ({ slug: `${r.slug}-${c.slug}` })),
+    ),
   ];
 }
 
@@ -70,16 +81,35 @@ function resolveSlice(slug: string): Slice | null {
   if (p) return { kind: "period", slug: p.slug, label: p.label };
   const c = categoryBySlug(slug);
   if (c) return { kind: "category", slug: c.slug, label: c.label };
+  // v2.29 — 지역-카테고리 조합 (예: "seongsu-fashion" → 성수 × 패션).
+  for (const reg of REGIONS) {
+    if (!slug.startsWith(`${reg.slug}-`)) continue;
+    const cat = categoryBySlug(slug.slice(reg.slug.length + 1));
+    if (cat) {
+      return {
+        kind: "region-category",
+        slug,
+        label: `${reg.label} ${cat.label}`,
+        regionSlug: reg.slug,
+        categorySlug: cat.slug,
+      };
+    }
+  }
   return null;
 }
 
-/** 슬라이스 유형 → 진입 deep link 쿼리 키. */
-function deepLinkParam(slice: Slice): string {
-  return slice.kind === "region"
-    ? "region"
-    : slice.kind === "period"
-      ? "period"
-      : "category";
+/** 슬라이스 → 메인 지도 deep link 쿼리스트링. */
+function deepLinkQuery(slice: Slice): string {
+  switch (slice.kind) {
+    case "region":
+      return `region=${slice.slug}`;
+    case "period":
+      return `period=${slice.slug}`;
+    case "category":
+      return `category=${slice.slug}`;
+    case "region-category":
+      return `region=${slice.regionSlug}&category=${slice.categorySlug}`;
+  }
 }
 
 /** 백엔드 visible markers — SSG 빌드 타임에 fetch. */
@@ -106,6 +136,12 @@ function filterBySlice(markers: Marker[], slice: Slice): Marker[] {
       );
     case "category":
       return markers.filter((m) => classifyCategory(m.category) === slice.slug);
+    case "region-category":
+      return markers.filter(
+        (m) =>
+          classifyRegion(m.location) === slice.regionSlug &&
+          classifyCategory(m.category) === slice.categorySlug,
+      );
   }
 }
 
@@ -124,20 +160,30 @@ export async function generateMetadata({
     region: `${slice.label} 팝업스토어 추천`,
     period: `${slice.label} 진행 팝업스토어`,
     category: `${slice.label} 팝업스토어`,
+    "region-category": `${slice.label} 팝업스토어 추천`,
   };
   const descriptions: Record<Slice["kind"], string> = {
     region: `${slice.label}에서 진행 중인 팝업스토어 일정과 위치를 한눈에. 위시 등록, 마감 D-3 알림, 같이 갈 동행 매칭까지 무료.`,
     period: `${slice.label} 서울에서 열리는 팝업스토어 목록. 영업 시간, 위치, 종료일까지 정리.`,
     category: `${slice.label} 관련 팝업스토어 모음. 신상 / 인기 / 마감 임박 한눈에 보기.`,
+    "region-category": `${slice.label} 팝업스토어를 한눈에. 위치·일정·카테고리별 큐레이션, 위시 등록과 마감 D-3 알림까지 무료.`,
   };
 
   const title = titles[slice.kind];
   const description = descriptions[slice.kind];
   const url = `${SITE_URL}/popups/${slice.slug}`;
 
+  // v2.29 — 조합 슬라이스가 결과 0곳이면 thin content 방지 위해 noindex (페이지 접근·내부링크는 유지).
+  let robots: Metadata["robots"] | undefined;
+  if (slice.kind === "region-category") {
+    const count = filterBySlice(await fetchMarkers(), slice).length;
+    if (count === 0) robots = { index: false, follow: true };
+  }
+
   return {
     title,
     description,
+    robots,
     alternates: { canonical: url },
     openGraph: {
       title: `${title} · POP-SPOT`,
@@ -163,18 +209,19 @@ export default async function PopupsBySlugPage({
   const markers = await fetchMarkers();
   const filtered = filterBySlice(markers, slice);
   const count = filtered.length;
-  const param = deepLinkParam(slice);
-  const mainHref = `${SITE_URL}/?tab=MAP&${param}=${slice.slug}`;
+  const mainHref = `${SITE_URL}/?tab=MAP&${deepLinkQuery(slice)}`;
 
   const headingByKind: Record<Slice["kind"], string> = {
     region: `${slice.label} 팝업스토어 ${count}곳`,
     period: `${slice.label} 진행 중인 팝업 ${count}곳`,
     category: `${slice.label} 팝업스토어 ${count}곳`,
+    "region-category": `${slice.label} 팝업스토어 ${count}곳`,
   };
   const introByKind: Record<Slice["kind"], string> = {
     region: `${slice.label}에서 진행 중인 팝업스토어를 POP-SPOT 이 자동 큐레이션 합니다. 영업 기간이 끝난 팝업은 자동으로 빠지고, 신규 팝업은 매일 04시 / 16시에 갱신.`,
     period: `${slice.label} 서울 곳곳에서 열리는 팝업스토어. 위치 · 카테고리 · 마감일을 지도 한 화면에서 확인.`,
     category: `${slice.label} 관련 신상 / 인기 팝업스토어. 위시 등록 시 마감 3일 전 알림 발송.`,
+    "region-category": `${slice.label} 팝업스토어를 POP-SPOT 이 자동 큐레이션. 해당 지역·카테고리에 맞는 팝업만 모아 위치와 일정을 한눈에.`,
   };
 
   return (
@@ -194,7 +241,9 @@ export default async function PopupsBySlugPage({
               ? "REGION"
               : slice.kind === "period"
                 ? "WHEN"
-                : "CATEGORY"}
+                : slice.kind === "category"
+                  ? "CATEGORY"
+                  : "REGION × CATEGORY"}
           </span>
         </div>
 
@@ -256,7 +305,7 @@ export default async function PopupsBySlugPage({
             </section>
 
             <Link
-              href={`/?tab=MAP&${param}=${slice.slug}`}
+              href={`/?tab=MAP&${deepLinkQuery(slice)}`}
               className="block w-full text-center px-6 py-4 rounded-2xl bg-lime-300 text-ink-900 font-black text-base md:text-lg hover:bg-lime-400 transition shadow-lg"
             >
               지도에서 {slice.label} 팝업 보기 →
