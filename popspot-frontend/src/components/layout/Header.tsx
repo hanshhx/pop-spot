@@ -104,7 +104,7 @@ export function Header({
       {onNavChange && (
         <nav
           aria-label="주요 메뉴"
-          className="hidden lg:flex items-center gap-7 self-center"
+          className="hidden lg:flex items-center gap-8 self-center"
         >
           {DOCK_ITEMS.map((item) => {
             const active = activeTab === item.key;
@@ -115,7 +115,7 @@ export function Header({
                 onClick={() => onNavChange(item.key)}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "relative py-1 text-[15px] tracking-tight transition-colors",
+                  "relative py-1.5 text-[17px] tracking-tight transition-colors",
                   "after:absolute after:left-0 after:right-0 after:-bottom-1 after:h-[3px] after:rounded-full after:transition-colors",
                   active
                     ? "text-foreground font-bold after:bg-lime-400"

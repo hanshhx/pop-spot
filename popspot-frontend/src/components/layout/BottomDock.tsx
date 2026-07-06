@@ -55,13 +55,13 @@ export function BottomDock({ currentTab, onTabChange }: BottomDockProps) {
       aria-label="메인 네비게이션"
       className={cn(
         "fixed bottom-4 md:bottom-6 left-1/2 -translate-x-1/2 z-50 lg:hidden",
-        "w-[95%] max-w-[520px]"
+        "w-[95%] max-w-[560px]"
       )}
     >
       <div
         className={cn(
           // 균등 분할(flex-1) — 가로 스크롤 없이 6탭이 폭에 딱 맞게.
-          "flex items-stretch gap-1 p-2",
+          "flex items-stretch gap-1 p-2.5",
           "rounded-[1.75rem] border border-black/5 dark:border-white/10",
           "bg-surface/90 backdrop-blur-xl shadow-pop ring-1 ring-black/[0.02] dark:ring-white/[0.04]"
         )}
@@ -96,7 +96,7 @@ function DockButton({ icon: Icon, label, isActive, onClick }: DockButtonProps) {
       aria-label={label}
       className={cn(
         "relative flex flex-1 min-w-0 flex-col items-center justify-center gap-1",
-        "h-14 md:h-16 rounded-[1.25rem] transition-all duration-200 group",
+        "h-16 md:h-[72px] rounded-[1.375rem] transition-all duration-200 group",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-400",
         isActive
           ? "bg-lime-300 text-ink-900 shadow-sm shadow-lime-400/40"
@@ -105,12 +105,12 @@ function DockButton({ icon: Icon, label, isActive, onClick }: DockButtonProps) {
     >
       <Icon
         className={cn(
-          "size-6 transition-transform duration-200",
+          "size-7 transition-transform duration-200",
           isActive ? "scale-110" : "group-hover:-translate-y-0.5"
         )}
         aria-hidden
       />
-      <span className="text-[11px] font-bold tracking-tight leading-none">
+      <span className="text-[12px] font-bold tracking-tight leading-none">
         {label}
       </span>
     </button>
