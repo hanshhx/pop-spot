@@ -11100,3 +11100,22 @@ fetch) → `setCurrent(enriched)` → 그제서야 preview 엔진이 `audio.play
 
 > 프론트 빌드 통과. 백엔드는 배포 환경에서 gradle 빌드 1회 필요.
 
+---
+
+## 29.31 v2.28 — UI 정리 (검색 일원화 · 네비 축소 · 색/여백)
+
+사용성 피드백 1차 반영(프론트 전용):
+
+- **검색 일원화**: 헤더 `InlineGlobalSearch`("통합검색" 칩) 제거. 메인 대시보드의 `SearchZone` 하나로 통일. (중복 검색 UI 혼란 제거)
+- **네비 축소**: `BottomDock` 에서 "의견"(FEEDBACK) 탭 제거(7→6). 대신 **MY 탭 내 계정 카드에 "의견·문의 보내기"** 링크 추가 → FEEDBACK 뷰로 진입. (FEEDBACK 뷰 자체는 유지)
+- **캘린더 카드**: 상단 중복 `<Calendar>` 아이콘 제거(배경 대형 아이콘만 유지).
+- **색/가독성**: 웰컴배너 "N개" `text-lime-300`→`lime-400 dark:lime-700`(톤다운). `LiveChatTicker` 팝업명 배지 `text-white`→`text-ink-900`(라임 배경 위 가독성).
+- **프로필**: 업로드 안내 문구 "jpg / png / webp · 최대 5MB" → "최대 5MB"만(검증 로직·accept 은 그대로).
+- **여백**: 헤더 `mb-6 md:mb-10`→`mb-4 md:mb-6`, 대시보드 `mb-16`→`mb-10`, LIVE NOW `mb-12 md:mb-24`→`mb-8 md:mb-12`.
+
+### 다음(이어서)
+
+- 팝업 상세(`/popup/[id]`) SSR + sitemap 개별 등록(SEO 엔진) · 데스크톱 네비 개편 · 모바일 짤림/정밀 여백은 라이브 확인하며 계속.
+
+> 프론트 빌드 41/41 통과 · TS OK. Vercel 자동 배포.
+

@@ -242,7 +242,7 @@ export function ProfileEditModal({
                 프로필 사진
               </p>
               <p className="text-xs text-muted-foreground mt-1">
-                jpg / png / webp · 최대 {MAX_AVATAR_MB}MB
+                최대 {MAX_AVATAR_MB}MB
               </p>
               <Button
                 type="button"

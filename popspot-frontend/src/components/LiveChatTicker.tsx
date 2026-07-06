@@ -49,7 +49,7 @@ export default function LiveChatTicker() {
   if (messages.length === 0) return null;
 
   return (
-    <div className="w-full mb-12 md:mb-24 overflow-hidden relative group">
+    <div className="w-full mb-8 md:mb-12 overflow-hidden relative group">
        {/* 섹션 타이틀 */}
        
       <div className="flex items-center gap-1.5 md:gap-2 mb-3 md:mb-4 px-4 md:px-0">
@@ -82,7 +82,7 @@ export default function LiveChatTicker() {
               ">
                 {/* 팝업 이름 배지 */}
                 
-                <span className="text-[8px] md:text-[10px] font-bold text-white bg-lime-300 px-1.5 md:px-2 py-0.5 rounded-md whitespace-nowrap">
+                <span className="text-[8px] md:text-[10px] font-bold text-ink-900 bg-lime-300 px-1.5 md:px-2 py-0.5 rounded-md whitespace-nowrap">
                   {msg.popupName}
                 </span>
 
