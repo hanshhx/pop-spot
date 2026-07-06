@@ -7,7 +7,6 @@ import { LogOut, ShieldCheck, Megaphone, Crown, User as UserIcon, Bell } from "l
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import ThemeToggle from "@/components/ThemeToggle";
-import InlineGlobalSearch from "@/components/layout/InlineGlobalSearch";
 import { unreadCount as readUnread } from "@/lib/notifications";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/layout/Logo";
@@ -100,9 +99,6 @@ export function Header({
         className="flex items-center gap-2 md:gap-3 self-end md:self-auto"
       >
         <ThemeToggle />
-
-        {/* v2.21-S5 — 모달 → 인라인 통합검색. 처음엔 라임색 칩, 클릭 시 input 으로 확장. */}
-        <InlineGlobalSearch />
 
         {onBellClick && (
           <button

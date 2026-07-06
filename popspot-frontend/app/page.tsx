@@ -638,7 +638,7 @@ export default function Home() {
           onProfileClick={user ? () => setIsProfileEditOpen(true) : undefined}
           onSearchClick={() => setIsGlobalSearchOpen(true)}
           onBellClick={() => setIsNotificationsOpen(true)}
-          className="mb-6 md:mb-10"
+          className="mb-4 md:mb-6"
         />
 
         {/*
@@ -672,7 +672,7 @@ export default function Home() {
                         <div className="w-full border rounded-xl p-5 md:p-8 relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-4 bg-ink-900 text-cream-200 border-ink-900 dark:bg-cream-200 dark:text-ink-900 dark:border-cream-200">
                              <div className="relative z-10 text-center md:text-left">
                                 <h2 className="text-xl md:text-3xl font-bold mb-1 md:mb-2">반가워요, <span className="text-lime-300 dark:text-lime-700">{user.nickname}</span>님!</h2>
-                                <p className="text-xs md:text-base opacity-70">오늘 서울에 <span className="font-bold text-lime-300">{allPopups.length}개</span>의 팝업이 열려있어요.</p>
+                                <p className="text-xs md:text-base opacity-70">오늘 서울에 <span className="font-bold text-lime-400 dark:text-lime-700">{allPopups.length}개</span>의 팝업이 열려있어요.</p>
                              </div>
                              <button onClick={() => handleTabChange("PASSPORT")} className="relative z-10 w-full md:w-auto inline-flex px-5 py-3 bg-lime-300 hover:bg-lime-400 text-ink-900 font-semibold rounded-pill items-center justify-center gap-2 transition-colors text-sm md:text-base">
                                 <Ticket size={18}/> 내 여권 확인
@@ -739,7 +739,7 @@ export default function Home() {
                 <BrowseSection />
 
                 {/* Dashboard Main Grid */}
-                <section aria-label="Dashboard Layout" className="grid grid-cols-1 lg:grid-cols-12 md:grid-rows-6 gap-4 min-h-[80vh] mb-16">
+                <section aria-label="Dashboard Layout" className="grid grid-cols-1 lg:grid-cols-12 md:grid-rows-6 gap-4 min-h-[80vh] mb-10">
                     
                     {/* Search Zone */}
                     <div className="col-span-1 lg:col-span-5 md:row-span-2 relative z-50 order-1 lg:order-none">
@@ -818,8 +818,7 @@ export default function Home() {
                         className="col-span-1 lg:col-span-4 md:row-span-2 bg-primary text-black rounded-[2rem] p-5 md:p-6 transition-all hover:scale-[1.02] cursor-pointer shadow-xl shadow-primary/20 dark:shadow-primary/10 relative overflow-hidden group order-4 lg:order-none flex flex-col justify-between"
                     >
                         <div className="relative z-10">
-                            <Calendar size={28} className="md:w-8 md:h-8 group-hover:rotate-12 transition-transform" />
-                            <SectionLogo name="popup-calendar" label="Popup Calendar" className="h-6 md:h-8 mt-2 text-black" />
+                            <SectionLogo name="popup-calendar" label="Popup Calendar" className="h-6 md:h-8 text-black" />
                             <p className="text-[10px] md:text-xs font-bold opacity-60 mt-1 md:mt-2 mb-2">어떤 팝업이 열릴지 궁금하다면?</p>
                         </div>
                         
@@ -1204,7 +1203,14 @@ export default function Home() {
                                 </p>
                             </div>
                         </div>
-                        <div className="mt-3 flex items-center justify-end">
+                        <div className="mt-3 flex items-center justify-between">
+                            <button
+                                type="button"
+                                onClick={() => handleTabChange("FEEDBACK")}
+                                className="text-xs font-semibold text-lime-600 dark:text-lime-400 underline-offset-2 hover:underline transition-colors"
+                            >
+                                의견·문의 보내기
+                            </button>
                             <button
                                 type="button"
                                 onClick={handleDeleteAccount}
