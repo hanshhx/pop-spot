@@ -11076,3 +11076,27 @@ fetch) → `setCurrent(enriched)` → 그제서야 preview 엔진이 `audio.play
 
 > 빌드 41/41 통과 · TS 체크 OK. 프론트 전용 → Vercel 자동 배포. (캘린더 카드 라임 액센트 / 태그라인 크기는 라이브 확인 후 미세조정 가능.)
 
+---
+
+## 29.30 v2.27 — 어드민 "회원 목록" 탭 (가입자 조회)
+
+### 배경
+
+- 가입자를 확인할 어드민 화면·API 가 없어 DB(psql)를 직접 쳐야 했다. 어드민 콘솔에서 바로 보도록 회원 목록 탭 신설.
+
+### 백엔드
+
+- `AdminUserDto`(record) 신규 — `User` 엔티티에서 **password 제외**, 안전 필드만(userId·email·nickname·picture·provider·role·createdAt·isPremium·premiumExpiryDate·stampCount·likeCount). boolean `isPremium` 은 `@JsonProperty` 로 JSON 키 고정.
+- `UserRepository.findAllByOrderByCreatedAtDesc()` — 가입 최신순 파생 쿼리.
+- `AdminService.findAllUsers()` → DTO 매핑. `AdminController` 에 `GET /api/admin/users`. 클래스 `@PreAuthorize("hasRole('ADMIN')")` 로 자동 보호(비관리자 403).
+
+### 프론트
+
+- `/admin` 페이지에 **회원 목록** 탭(`MEMBERS`) — 닉네임(+ADMIN 뱃지)·이메일·가입경로·등급(프리미엄/일반)·가입일 테이블. 탭 진입 시 `/api/admin/users` 로드.
+
+### 검증 한계
+
+- **프론트 빌드 41/41 통과.** 백엔드는 이 개발 PC 에서 Gradle 이 loopback 소켓을 못 열어(보안SW/IPv6 loopback 추정) 로컬 컴파일/spotless 실행 불가. 코드는 수동 검토 + AOSP(google-java-format) 스타일로 손 포맷. **배포 전 `./gradlew spotlessApply build -x test` 로 최종 확인 권장.**
+
+> 프론트 빌드 통과. 백엔드는 배포 환경에서 gradle 빌드 1회 필요.
+

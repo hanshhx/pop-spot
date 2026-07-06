@@ -1,6 +1,7 @@
 package com.example.popspotbackend.repository;
 
 import com.example.popspotbackend.entity.User;
+import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -20,4 +21,7 @@ public interface UserRepository extends JpaRepository<User, String> {
 
     // 🔥 [신규 추가] 관리자가 닉네임으로 유저를 찾아 보상을 지급하기 위한 메서드
     Optional<User> findByNickname(String nickname);
+
+    /** v2.27 — 관리자 회원 목록: 가입 최신순. */
+    List<User> findAllByOrderByCreatedAtDesc();
 }
