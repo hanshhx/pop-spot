@@ -104,10 +104,9 @@ export function Header({
       {onNavChange && (
         <nav
           aria-label="주요 메뉴"
-          className="hidden lg:flex items-center gap-1 self-center rounded-pill border border-black/5 dark:border-white/10 bg-surface/70 backdrop-blur p-1 shadow-sm"
+          className="hidden lg:flex items-center gap-7 self-center"
         >
           {DOCK_ITEMS.map((item) => {
-            const Icon = item.icon;
             const active = activeTab === item.key;
             return (
               <button
@@ -116,13 +115,13 @@ export function Header({
                 onClick={() => onNavChange(item.key)}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "inline-flex items-center gap-2 px-4 py-2.5 rounded-pill text-sm font-bold transition-all",
+                  "relative py-1 text-[15px] tracking-tight transition-colors",
+                  "after:absolute after:left-0 after:right-0 after:-bottom-1 after:h-[3px] after:rounded-full after:transition-colors",
                   active
-                    ? "bg-lime-300 text-ink-900 shadow-sm shadow-lime-400/40"
-                    : "text-muted-foreground hover:text-foreground hover:bg-foreground/[0.06]"
+                    ? "text-foreground font-bold after:bg-lime-400"
+                    : "text-muted-foreground font-medium hover:text-foreground after:bg-transparent"
                 )}
               >
-                <Icon className="size-[18px]" aria-hidden />
                 {item.label}
               </button>
             );
