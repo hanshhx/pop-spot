@@ -72,6 +72,15 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: "weekly" as const,
       priority: 0.5,
     })),
+    // v2.29 — 지역×카테고리 조합 롱테일 랜딩 ("성수 패션" 등, 큐레이션 집계라 §10-2 준수).
+    ...REGIONS.flatMap((r) =>
+      CATEGORIES.map((c) => ({
+        url: `${SITE_URL}/popups/${r.slug}-${c.slug}`,
+        lastModified: now,
+        changeFrequency: "weekly" as const,
+        priority: 0.5,
+      })),
+    ),
   ];
 
   return [...staticPages, ...sliceLandings];
