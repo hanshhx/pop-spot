@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "popspot-web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "popspot-frontend", "run", "dev"],
+      "port": 3000
+    }
+  ]
+}

@@ -104,7 +104,7 @@ export function Header({
       {onNavChange && (
         <nav
           aria-label="주요 메뉴"
-          className="hidden lg:flex items-center gap-1 self-center"
+          className="hidden lg:flex items-center gap-1 self-center rounded-pill border border-black/5 dark:border-white/10 bg-surface/70 backdrop-blur p-1 shadow-sm"
         >
           {DOCK_ITEMS.map((item) => {
             const Icon = item.icon;
@@ -116,13 +116,13 @@ export function Header({
                 onClick={() => onNavChange(item.key)}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "inline-flex items-center gap-1.5 px-3 py-2 rounded-pill text-sm font-semibold transition-colors",
+                  "inline-flex items-center gap-2 px-4 py-2.5 rounded-pill text-sm font-bold transition-all",
                   active
-                    ? "bg-ink-900 text-cream-200 dark:bg-cream-200 dark:text-ink-900"
-                    : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
+                    ? "bg-lime-300 text-ink-900 shadow-sm shadow-lime-400/40"
+                    : "text-muted-foreground hover:text-foreground hover:bg-foreground/[0.06]"
                 )}
               >
-                <Icon className="size-4" aria-hidden />
+                <Icon className="size-[18px]" aria-hidden />
                 {item.label}
               </button>
             );

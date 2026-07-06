@@ -11172,3 +11172,28 @@ fetch) → `setCurrent(enriched)` → 그제서야 preview 엔진이 `audio.play
 
 > 빌드 118/118 통과 · TS OK. Vercel 자동 배포.
 
+---
+
+## 29.34 v2.30.1 — 네비게이션 UI 개선 (크기 ↑ · 라임 액티브 · 캡슐 바)
+
+v2.30 데스크톱 네비 분리 직후 "네비가 대충한 것 같다 + 크게" 피드백 반영. 모바일 독 + 데스크톱 네비 동시 폴리시.
+
+### 모바일 독 (`BottomDock`)
+
+- 버튼: `w-11 h-12`(44×48) 고정폭+가로스크롤 → **`flex-1 h-14`(≈53×56) 균등 분할**(스크롤 제거, 6탭이 폭에 딱).
+- 액티브: 밋밋한 반전 잉크 pill → **라임 캡슐**(`bg-lime-300 text-ink-900` + `shadow-lime-400/40`), 아이콘 `scale-110`.
+- 아이콘 `size-5→6`, 라벨 `font-semibold→font-bold`.
+- 컨테이너: `rounded-pill`+`backdrop-blur-md` → `rounded-[1.75rem]`+`backdrop-blur-xl`+`ring-1`(crisp edge).
+
+### 데스크톱 네비 (`Header`)
+
+- 낱개 버튼 → **캡슐 바**(`rounded-pill border bg-surface/70 backdrop-blur p-1 shadow-sm`)로 묶어 하나의 네비로 인식.
+- 버튼 `px-3 py-2`→`px-4 py-2.5`, 아이콘 `size-4→18px`, 액티브 잉크→**라임**(독과 통일).
+
+### 검증 (미리보기 실측)
+
+- 모바일: 독 버튼 `height=56`, 액티브 `backgroundColor=rgb(194,249,112)`(lime-300), `scrollWidth==375`(오버플로우 0).
+- 데스크톱(1280): 헤더네비 `display=flex`·`borderRadius=9999px`(캡슐)·액티브 lime, 독 `display=none`.
+
+> 빌드 통과 · TS OK. 프론트 전용 → Vercel 자동 배포.
+
