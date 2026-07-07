@@ -1987,6 +1987,19 @@
 
 <sub>프론트 빌드 118/118 통과. ⚠️ 백엔드는 배포 필요(`./gradlew spotlessApply build -x test`) + 첫 부팅에 V15 마이그레이션 적용. Vercel Analytics 는 Vercel 프로젝트 설정에서 Web Analytics 를 켜야 데이터 수집. 자세한 변경은 `PROJECT_CHANGELOG.md` ch.29.37.</sub>
 
+### v2.32 — 메인 페이지 SEO 강화 (서버 렌더 본문 + 키워드 우선 타이틀)
+
+> GSC 진단: 메인 `/` 3개월 노출 **5회**뿐(슬라이스는 39·43…). 원인 = 메인이 `use client`+`useSearchParams` 라 본문이 SSR 안 됨(스피너) → 구글이 메인을 색인 못 함(브랜드어로만 잡힘).
+
+| 항목 | 변경 |
+|---|---|
+| 분리 | `app/page.tsx`(클라이언트 앱) → `HomeClient.tsx`, 새 `page.tsx` 는 **서버 컴포넌트 래퍼** |
+| SEO 본문 | 서버 렌더 `sr-only` 블록 — H1 "서울 팝업스토어 지도" + 설명 + 지역/카테고리 슬라이스 **내부 링크** (화면 변화 없음) |
+| 타이틀 | 브랜드 우선 → **키워드 우선** "서울 팝업스토어 지도 · 오늘 여는 팝업 한눈에" + canonical |
+| 앱 | `<Suspense>` 로 HomeClient 감쌈 — 동작 그대로 |
+
+<sub>curl 검증: 서버 HTML 에 SEO H1·내부 링크·키워드 타이틀 포함. 앱 정상 렌더(헤더·독·웰컴 확인). 빌드 118/118 통과. 프론트 전용 → Vercel 자동 배포. ⚠️ **배포 후 GSC 에서 `/` URL 검사 → 색인 요청 + sitemap 재제출 필수**(구글 재크롤·재평가에 보통 며칠~2주). 자세한 변경은 `PROJECT_CHANGELOG.md` ch.29.38.</sub>
+
 ---
 
 ## 폴더 구조 (백엔드)
