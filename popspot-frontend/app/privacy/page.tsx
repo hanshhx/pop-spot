@@ -109,6 +109,10 @@ export default function PrivacyPage() {
               ]}
             />
             <Note>
+              통계 분석에는 Vercel Web Analytics (쿠키리스 · 익명) 와 자체 익명 방문 로그 (랜덤
+              방문자 ID · 페이지 경로만 기록, IP · 개인정보 미수집) 를 사용합니다.
+            </Note>
+            <Note>
               위 목적 외의 용도로는 이용하지 않으며, 이용 목적이 변경되면 사전 동의를 구합니다.
             </Note>
           </Section>

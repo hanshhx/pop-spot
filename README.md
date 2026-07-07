@@ -1973,6 +1973,20 @@
 
 <sub>미리보기 실측: 독 버튼 64px·바 86px·오버플로우 0 / 데스크톱 텍스트 17px. 빌드 통과. 자세한 변경은 `PROJECT_CHANGELOG.md` ch.29.36.</sub>
 
+### v2.31 — 게스트·방문자 통계 (Vercel Analytics + 어드민 방문 통계 탭)
+
+> "게스트가 왔다 간 걸 어드민에서 보고 싶다" 요청. 익명 방문 추적 2종.
+
+| 구분 | 내용 |
+|---|---|
+| Vercel Analytics | `@vercel/analytics` — 쿠키리스·익명 방문자/페이지뷰/유입을 Vercel 대시보드에서 |
+| 어드민 방문 통계 | `/admin → 방문 통계` 탭 — 오늘 방문자·페이지뷰·게스트/회원·7일 그래프·인기 페이지 |
+| 백엔드 | `VisitLog`(익명 visitorId+경로+게스트여부, **IP·PII 없음**) + Flyway **V15** + `POST /api/visits`(비콘, 공개) + `GET /api/admin/visits/stats`(ADMIN) |
+| 프론트 비콘 | `VisitTracker` — 세션당 경로별 1회, 실패 시 무시(fire-and-forget) |
+| 개인정보 | 방침 제2조에 도구 명시(익명 통계 · IP 미저장) |
+
+<sub>프론트 빌드 118/118 통과. ⚠️ 백엔드는 배포 필요(`./gradlew spotlessApply build -x test`) + 첫 부팅에 V15 마이그레이션 적용. Vercel Analytics 는 Vercel 프로젝트 설정에서 Web Analytics 를 켜야 데이터 수집. 자세한 변경은 `PROJECT_CHANGELOG.md` ch.29.37.</sub>
+
 ---
 
 ## 폴더 구조 (백엔드)

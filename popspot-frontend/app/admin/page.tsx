@@ -65,6 +65,16 @@ interface AdminUser {
     likeCount?: number;
 }
 
+interface AdminVisitStats {
+    todayVisitors: number;
+    todayPageviews: number;
+    todayGuests: number;
+    todayMembers: number;
+    weekVisitors: number;
+    daily: { date: string; visitors: number }[];
+    topPaths: { path: string; count: number }[];
+}
+
 // 실시간 폴링 — 3초 주기. 더 잦으면 백엔드 부하, 더 느슨하면 모니터링 가치 떨어짐.
 const SERVER_METRICS_POLL_INTERVAL_MS = 3000;
 const SERVER_METRICS_BUFFER_SIZE = 15;
@@ -132,6 +142,7 @@ export default function AdminPage() {
     const [allPopups, setAllPopups] = useState<PopupStore[]>([]);
     const [matePosts, setMatePosts] = useState<AdminMatePost[]>([]);
     const [users, setUsers] = useState<AdminUser[]>([]);
+    const [visitStats, setVisitStats] = useState<AdminVisitStats | null>(null);
 
     // v2.10 — 통합 메트릭 폴링. DASHBOARD 탭일 때만 실제 폴링 (다른 탭에선 훅이 effect cleanup).
     // v2.13.3 — authorized 가 true 가 되기 전엔 폴링 자체를 시작하지 않아 403 도배 차단.
@@ -220,6 +231,15 @@ export default function AdminPage() {
         } catch (e) {} finally { setIsLoading(false); }
     };
 
+    // 5. 방문 통계 로딩 (익명 집계)
+    const loadVisitStats = async () => {
+        setIsLoading(true);
+        try {
+            const res = await apiFetch("/api/admin/visits/stats");
+            if (res.ok) setVisitStats(await res.json());
+        } catch (e) {} finally { setIsLoading(false); }
+    };
+
     // 탭 변경 시 데이터 로딩
     useEffect(() => {
         if (!authorized) return; // v2.13.3 — role 검증 전엔 admin fetch 차단
@@ -227,6 +247,7 @@ export default function AdminPage() {
         else if (activeTab === "POPUPS") loadAllPopups();
         else if (activeTab === "MATES") loadMatePosts();
         else if (activeTab === "MEMBERS") loadUsers();
+        else if (activeTab === "VISITS") loadVisitStats();
     }, [activeTab, authorized]);
 
     // ================= [API 기능 핸들러] =================
@@ -358,6 +379,7 @@ export default function AdminPage() {
                         {[
                             { id: "DASHBOARD", label: "요약 & 제보관리", icon: <BarChart3 size={16}/> },
                             { id: "MEMBERS", label: "회원 목록", icon: <Users size={16}/> },
+                            { id: "VISITS", label: "방문 통계", icon: <Globe size={16}/> },
                             { id: "POPUPS", label: "팝업스토어 제어", icon: <Store size={16}/> },
                             { id: "MATES", label: "커뮤니티 관리", icon: <MessageSquare size={16}/> },
                             { id: "REWARDS", label: "이벤트 보상 지급", icon: <Gift size={16}/> },
@@ -629,6 +651,66 @@ export default function AdminPage() {
                                         )}
                                     </tbody>
                                 </table>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* 탭: 방문 통계 — 익명 방문 로그 집계 (게스트 포함, IP 미저장) */}
+                {!isLoading && activeTab === "VISITS" && visitStats && (
+                    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        <h2 className="text-lg font-black uppercase tracking-tight flex items-center gap-2">
+                            <Globe size={18} className="text-lime-500"/> 방문 통계
+                            <span className="text-xs font-normal text-gray-400 normal-case">· 익명 집계 (IP 미저장)</span>
+                        </h2>
+                        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                            {[
+                                { label: "오늘 방문자", value: visitStats.todayVisitors, sub: "고유" },
+                                { label: "오늘 페이지뷰", value: visitStats.todayPageviews, sub: "" },
+                                { label: "오늘 게스트", value: visitStats.todayGuests, sub: "" },
+                                { label: "오늘 회원", value: visitStats.todayMembers, sub: "" },
+                                { label: "7일 방문자", value: visitStats.weekVisitors, sub: "고유" },
+                            ].map((s) => (
+                                <div key={s.label} className="bg-white dark:bg-ink-700 p-4 rounded-2xl border border-gray-200 dark:border-white/5">
+                                    <p className="text-xs text-gray-500">{s.label}</p>
+                                    <p className="text-2xl md:text-3xl font-black mt-1">
+                                        {s.value.toLocaleString()}
+                                        {s.sub && <span className="text-xs font-normal text-gray-400 ml-1">{s.sub}</span>}
+                                    </p>
+                                </div>
+                            ))}
+                        </div>
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                            <div className="bg-white dark:bg-ink-700 p-5 rounded-2xl border border-gray-200 dark:border-white/5">
+                                <h3 className="font-bold text-sm mb-4">최근 7일 방문자</h3>
+                                {visitStats.daily.length === 0 ? (
+                                    <p className="text-sm text-gray-400 py-10 text-center">데이터가 아직 없어요.</p>
+                                ) : (
+                                    <div className="flex items-end justify-between gap-2 h-40">
+                                        {(() => { const max = Math.max(...visitStats.daily.map((x) => x.visitors), 1); return visitStats.daily.map((d) => (
+                                            <div key={d.date} className="flex-1 flex flex-col items-center justify-end gap-1 h-full">
+                                                <span className="text-[10px] font-bold text-gray-500">{d.visitors}</span>
+                                                <div className="w-full bg-lime-300 rounded-t-md" style={{ height: `${(d.visitors / max) * 100}%`, minHeight: d.visitors > 0 ? 4 : 0 }} />
+                                                <span className="text-[9px] text-gray-400">{d.date}</span>
+                                            </div>
+                                        )); })()}
+                                    </div>
+                                )}
+                            </div>
+                            <div className="bg-white dark:bg-ink-700 p-5 rounded-2xl border border-gray-200 dark:border-white/5">
+                                <h3 className="font-bold text-sm mb-4">인기 페이지 (7일)</h3>
+                                {visitStats.topPaths.length === 0 ? (
+                                    <p className="text-sm text-gray-400 py-10 text-center">데이터가 아직 없어요.</p>
+                                ) : (
+                                    <ul className="space-y-2">
+                                        {visitStats.topPaths.map((p) => (
+                                            <li key={p.path} className="flex items-center justify-between gap-2 text-sm">
+                                                <span className="truncate text-gray-600 dark:text-gray-300 font-mono text-xs">{p.path}</span>
+                                                <span className="font-bold shrink-0">{p.count.toLocaleString()}</span>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                )}
                             </div>
                         </div>
                     </div>
