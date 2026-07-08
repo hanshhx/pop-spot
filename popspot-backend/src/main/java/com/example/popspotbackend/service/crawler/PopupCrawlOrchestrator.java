@@ -25,8 +25,9 @@ import org.springframework.stereotype.Service;
 /**
  * 자동수집 파이프라인 — 검색 API → LLM 정규화 → 신뢰도 검증 → DB 저장.
  *
- * <p>키워드는 "서울 + 카테고리/지역/브랜드" 조합으로 다각도 수집한다. Naver(블로그+뉴스) + Kakao(웹+블로그) 4개 채널의 snippet 을 키워드별로 묶어
- * LLM 에게 한 번씩 정규화 요청. 신뢰도 임계값 이상이면 자동게시 (AUTO_PUBLISHED), 미만이면 즉시 폐기 (검수 큐 미사용 — 품질 우선 정책).
+ * <p>키워드는 "서울 + 카테고리/지역/브랜드" 조합으로 다각도 수집한다. Naver(블로그+뉴스) + Kakao(웹+블로그) 4개 채널의 snippet 을 키워드별로
+ * 묶어 LLM 에게 한 번씩 정규화 요청 — v2.33 부터 한 번의 호출로 묶음 안의 서로 다른 팝업을 모두 추출한다(수집량 병목 해소). 신뢰도 임계값
+ * 이상이면 자동게시 (AUTO_PUBLISHED), 미만이면 즉시 폐기 (검수 큐 미사용 — 품질 우선 정책).
  *
  * <p>크롤 1회가 1~2분 걸리므로 {@code @Transactional} 미사용 — 단일 거대 트랜잭션으로 묶으면 DB 커넥션 점유 시간이 길어진다. 각 save()
  * 호출이 Spring Data JPA 의 자동 트랜잭션 단위로 처리된다.
@@ -223,12 +224,26 @@ public class PopupCrawlOrchestrator {
     }
 
     private List<PopupCrawlSource> fetchSnippetsForKeyword(String keyword) {
-        List<PopupCrawlSource> snippets = new ArrayList<>();
-        snippets.addAll(naverCrawler.searchBlog(keyword));
-        snippets.addAll(naverCrawler.searchNews(keyword));
-        snippets.addAll(kakaoCrawler.searchWeb(keyword));
-        snippets.addAll(kakaoCrawler.searchBlog(keyword));
-        return snippets;
+        // v2.33 — 4개 채널을 라운드로빈으로 교차 배치. 앞 N개(정규화 상한)만 LLM 에 들어가므로 순차 concat 하면
+        // 네이버 블로그에만 편향된다. 교차 배치로 4개 소스가 골고루 섞이고 sourceIndex 매핑 순서도 고정된다.
+        return interleave(
+                List.of(
+                        naverCrawler.searchBlog(keyword),
+                        naverCrawler.searchNews(keyword),
+                        kakaoCrawler.searchWeb(keyword),
+                        kakaoCrawler.searchBlog(keyword)));
+    }
+
+    /** 여러 소스 목록을 라운드로빈으로 교차 병합. [a0, b0, c0, d0, a1, b1, ...] */
+    private List<PopupCrawlSource> interleave(List<List<PopupCrawlSource>> lists) {
+        List<PopupCrawlSource> merged = new ArrayList<>();
+        int maxSize = lists.stream().mapToInt(List::size).max().orElse(0);
+        for (int i = 0; i < maxSize; i++) {
+            for (List<PopupCrawlSource> list : lists) {
+                if (i < list.size()) merged.add(list.get(i));
+            }
+        }
+        return merged;
     }
 
     /* =========================== 정규화 + 저장 단계 =========================== */
@@ -246,19 +261,24 @@ public class PopupCrawlOrchestrator {
             if (!isFirstCall) sleepQuietly(GROQ_RPM_THROTTLE_MS);
             isFirstCall = false;
 
-            NormalizedPopup normalized = normalizer.normalize(snippets);
-            stats.normalized++;
+            // v2.33 — 한 키워드 묶음에서 서로 다른 팝업을 여러 개 추출(LLM 호출은 키워드당 1회 유지).
+            List<NormalizedPopup> candidates = normalizer.normalizeAll(snippets);
+            stats.llmCalls++;
 
-            handleNormalizedResult(normalized, snippets, stats);
+            for (NormalizedPopup candidate : candidates) {
+                if (shouldStopEarly(stats)) break;
+                stats.normalized++;
+                handleNormalizedResult(candidate, snippets, stats);
+            }
         }
     }
 
     private boolean shouldStopEarly(CrawlStatistics stats) {
         if (maxAutoPublished <= 0 || stats.autoPublished < maxAutoPublished) return false;
         log.info(
-                "[PopupCrawlOrchestrator] 자동게시 목표 {}개 달성 → 조기 종료 (정규화 {}회 처리)",
+                "[PopupCrawlOrchestrator] 자동게시 목표 {}개 달성 → 조기 종료 (LLM 호출 {}회)",
                 maxAutoPublished,
-                stats.normalized);
+                stats.llmCalls);
         return true;
     }
 
@@ -287,8 +307,16 @@ public class PopupCrawlOrchestrator {
             return;
         }
 
-        saveNewPopup(result, snippets, externalId);
+        saveNewPopup(result, pickPrimarySource(snippets, result.getSourceIndex()), externalId);
         stats.autoPublished++;
+    }
+
+    /** sourceIndex(1-based) 로 근거 snippet 을 고르고, null 이거나 범위를 벗어나면 첫 snippet 으로 대체. */
+    private PopupCrawlSource pickPrimarySource(List<PopupCrawlSource> snippets, Integer sourceIndex) {
+        if (sourceIndex != null && sourceIndex >= 1 && sourceIndex <= snippets.size()) {
+            return snippets.get(sourceIndex - 1);
+        }
+        return snippets.get(0);
     }
 
     private boolean isInvalidResult(NormalizedPopup result) {
@@ -309,8 +337,7 @@ public class PopupCrawlOrchestrator {
     }
 
     private void saveNewPopup(
-            NormalizedPopup result, List<PopupCrawlSource> snippets, String externalId) {
-        PopupCrawlSource primarySource = snippets.get(0);
+            NormalizedPopup result, PopupCrawlSource primarySource, String externalId) {
         Optional<Coordinates> coordinates =
                 geocodingService.geocode(result.getName(), result.getLocation());
 
@@ -411,6 +438,7 @@ public class PopupCrawlOrchestrator {
 
     private static class CrawlStatistics {
         int totalSnippets;
+        int llmCalls;
         int normalized;
         int autoPublished;
         int pendingReview;
@@ -420,6 +448,7 @@ public class PopupCrawlOrchestrator {
         Map<String, Integer> toMap() {
             Map<String, Integer> map = new LinkedHashMap<>();
             map.put("totalSnippets", totalSnippets);
+            map.put("llmCalls", llmCalls);
             map.put("normalized", normalized);
             map.put("autoPublished", autoPublished);
             map.put("pendingReview", pendingReview);
