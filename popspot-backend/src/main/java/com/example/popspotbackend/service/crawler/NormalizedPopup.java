@@ -26,4 +26,10 @@ public class NormalizedPopup {
     private String content;
     private Double confidence;
     private String error;
+
+    /**
+     * v2.33 — 다건 추출 시 이 팝업의 근거가 된 snippet 번호(1-based). Orchestrator 가 sourceUrl/sourceName 을 해당
+     * snippet 으로 매핑하는 데만 쓰는 임시 힌트로, DB 에는 저장되지 않는다. 범위를 벗어나거나 null 이면 첫 snippet 으로 대체.
+     */
+    private Integer sourceIndex;
 }
