@@ -45,6 +45,7 @@ import {
   getGuestFirstVisit,
   getRemainingGuestDays,
   isGuestExpired,
+  startGuestMode,
 } from "@/lib/guestMode";
 import { SearchZone } from "@/features/popup/SearchBox";
 import { SectionLogo } from "@/components/layout/BrandLogos";
@@ -533,6 +534,13 @@ export default function Home() {
     if (!storedUser) {
       const firstVisit = getGuestFirstVisit();
       if (firstVisit == null) {
+        // [redesign/test 전용] 로컬 개발(백엔드 없음)에서 로그인 없이 재설계 홈을 바로 확인하려고
+        // 게스트 세션을 자동 시작한다. NODE_ENV=production(실배포)에서는 기존대로 /login 이동.
+        if (process.env.NODE_ENV === "development") {
+          startGuestMode();
+          setGuestRemainingDays(getRemainingGuestDays());
+          return;
+        }
         router.replace("/login");
         return;
       }
