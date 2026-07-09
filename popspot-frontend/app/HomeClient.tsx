@@ -7,7 +7,7 @@ import {
   Instagram, Plus, X, ArrowUp, ArrowDown, Minus,
   Map as MapIcon, Route, Ticket, User as UserIcon, LogOut, Sparkles, Lock, ArrowRight, Loader2, RefreshCw,
   Shirt, Video, ShoppingBag, Crown, GripVertical, PlusCircle, Zap, MessageCircle, Heart, Star, Gift,
-  FolderOpen, Save, Trash2, Store, ShieldCheck, ChevronLeft, ChevronRight, Camera, Coffee, Music, Clock
+  FolderOpen, Save, Trash2, Store, ShieldCheck, ChevronLeft, ChevronRight, Camera, Coffee, Clock
 } from "lucide-react";
 import { motion, Variants, AnimatePresence } from "framer-motion";
 import Link from "next/link";
@@ -712,45 +712,19 @@ export default function Home() {
                     )}
                 </section>
 
-                {/* V5: 음악 → 팝업 추천 진입 (홈 디스커버리) */}
-                <button
-                    type="button"
-                    onClick={() => handleTabChange("MUSIC")}
-                    aria-label="POP·MUSIC 둘러보기"
-                    className="group relative mb-6 flex w-full items-center justify-between overflow-hidden rounded-2xl border border-[var(--color-border)] bg-gradient-to-r from-fuchsia-500/15 via-lime-300/10 to-sky-500/15 p-5 backdrop-blur transition hover:scale-[1.005] hover:shadow-lg"
-                >
-                    <div className="flex items-center gap-4">
-                        <div className="grid h-12 w-12 place-items-center rounded-xl bg-lime-300 text-ink-900 shadow-lg shadow-lime-300/30">
-                            <Music size={20} />
-                        </div>
-                        <div>
-                            <p className="text-[10px] font-bold tracking-[0.2em] text-muted-foreground">
-                                새 기능
-                            </p>
-                            <p className="text-base md:text-lg font-black text-foreground">
-                                듣는 곡으로 분위기에 맞는 팝업 찾기
-                            </p>
-                            <p className="mt-0.5 text-xs text-muted-foreground">
-                                Spotify 검색 · 풀 재생 · 룰렛 · 패스포트
-                            </p>
-                        </div>
-                    </div>
-                    <ArrowRight size={20} className="text-foreground transition group-hover:translate-x-1" />
-                </button>
-
-                {/* v2.21 — BROWSE 섹션 (지역 / 시점 / 카테고리 슬라이스 진입점) */}
+                {/* 지역 / 시점 / 카테고리 빠른 필터 (지도 위 진입점) */}
                 <BrowseSection />
 
-                {/* Dashboard Main Grid */}
-                <section aria-label="Dashboard Layout" className="grid grid-cols-1 lg:grid-cols-12 md:grid-rows-6 gap-4 min-h-[80vh] mb-10">
+                {/* 서울 팝업 지도 — 홈의 주인공 (디자인 진단서 P0). 지도 전체폭·크게, 보조 정보는 아래 3열. */}
+                <section aria-label="서울 팝업 지도" className="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-10">
                     
                     {/* Search Zone */}
-                    <div className="col-span-1 lg:col-span-5 md:row-span-2 relative z-50 order-1 lg:order-none">
+                    <div className="col-span-1 lg:col-span-12 relative z-50 order-1 lg:order-none">
                         <SearchZone />
                     </div>
                     
                     {/* Map Zone — 배경 분리를 위해 solid 배경 + shadow 로 카드 블록 강화. */}
-                    <div className="col-span-1 lg:col-span-7 md:row-span-4 rounded-[2rem] relative overflow-hidden border border-gray-200 dark:border-white/10 group bg-white dark:bg-[#111] shadow-lg shadow-black/5 dark:shadow-black/30 min-h-[440px] md:min-h-[560px] order-2 lg:order-none">
+                    <div className="col-span-1 lg:col-span-12 rounded-[2rem] relative overflow-hidden border border-gray-200 dark:border-white/10 group bg-white dark:bg-[#111] shadow-lg shadow-black/5 dark:shadow-black/30 h-[58vh] min-h-[420px] order-2 lg:order-none">
                         <InteractiveMap onMarkerClick={handleMarkerClickToDetail} />
                         <div className="absolute bottom-4 md:bottom-6 left-4 md:left-6 flex gap-2 z-20">
                             <span className="backdrop-blur px-3 py-1.5 md:px-4 md:py-2 rounded-full border text-[10px] md:text-xs font-bold flex items-center gap-1.5 md:gap-2 bg-white/80 border-gray-200 text-gray-900 dark:bg-black/60 dark:border-white/10 dark:text-white">
@@ -760,7 +734,7 @@ export default function Home() {
                     </div>
 
                     {/* Real-time Ranking Zone — solid 카드 블록 (배경 겹침 가독성 개선). */}
-                    <div className="col-span-1 lg:col-span-5 md:row-span-4 rounded-[2rem] p-5 md:p-6 border flex flex-col transition-colors bg-white border-gray-200 dark:bg-[#111] dark:border-white/10 shadow-lg shadow-black/5 dark:shadow-black/30 order-3 lg:order-none h-[300px] md:h-auto">
+                    <div className="col-span-1 lg:col-span-4 rounded-[2rem] p-5 md:p-6 border flex flex-col transition-colors bg-white border-gray-200 dark:bg-[#111] dark:border-white/10 shadow-lg shadow-black/5 dark:shadow-black/30 order-3 lg:order-none h-[340px]">
                         <header className="flex items-center justify-between mb-4 md:mb-6 pb-3 md:pb-4 border-b border-gray-200 dark:border-white/5">
                             <div className="flex items-center gap-2">
                                 <Flame size={18} className="text-secondary animate-pulse md:w-5 md:h-5"/>
@@ -818,7 +792,7 @@ export default function Home() {
                     {/* Calendar Zone — primary 컬러 solid + shadow 강화. */}
                     <div
                         onClick={() => setIsCalendarOpen(true)}
-                        className="col-span-1 lg:col-span-4 md:row-span-2 bg-primary text-black rounded-[2rem] p-5 md:p-6 transition-all hover:scale-[1.02] cursor-pointer shadow-xl shadow-primary/20 dark:shadow-primary/10 relative overflow-hidden group order-4 lg:order-none flex flex-col justify-between"
+                        className="col-span-1 lg:col-span-4 bg-primary text-black rounded-[2rem] p-5 md:p-6 transition-all hover:scale-[1.02] cursor-pointer shadow-xl shadow-primary/20 dark:shadow-primary/10 relative overflow-hidden group order-4 lg:order-none flex flex-col justify-between h-[340px]"
                     >
                         <div className="relative z-10">
                             <SectionLogo name="popup-calendar" label="Popup Calendar" className="h-6 md:h-8 text-black" />
@@ -835,7 +809,7 @@ export default function Home() {
                     </div>
 
                     {/* AI Report Zone — solid 카드 블록 + 클릭 피드백. */}
-                    <div onClick={() => setIsReportOpen(true)} className="col-span-1 lg:col-span-3 md:row-span-2 rounded-[2rem] p-5 md:p-6 cursor-pointer border flex flex-col justify-between group transition-all hover:scale-[1.02] active:scale-[0.99] bg-white border-gray-200 hover:border-primary dark:bg-[#111] dark:border-white/10 dark:hover:border-primary shadow-lg shadow-black/5 dark:shadow-black/30 order-5 lg:order-none">
+                    <div onClick={() => setIsReportOpen(true)} className="col-span-1 lg:col-span-4 rounded-[2rem] p-5 md:p-6 cursor-pointer border flex flex-col justify-between group transition-all hover:scale-[1.02] active:scale-[0.99] bg-white border-gray-200 hover:border-primary dark:bg-[#111] dark:border-white/10 dark:hover:border-primary shadow-lg shadow-black/5 dark:shadow-black/30 order-5 lg:order-none h-[340px]">
                         <div className="flex justify-between items-start">
                             <Users size={20} className={`md:w-6 md:h-6 ${getCongestionColor(congestionData?.level || '')} group-hover:scale-110 transition-transform`}/>
                             <div className="text-right">
@@ -847,7 +821,7 @@ export default function Home() {
                             </div>
                         </div>
                         <div>
-                            <h3 className="font-bold text-sm md:text-lg text-gray-900 dark:text-white group-hover:text-primary transition-colors">AI Report</h3>
+                            <h3 className="font-bold text-sm md:text-lg text-gray-900 dark:text-white group-hover:text-primary transition-colors">실시간 혼잡도</h3>
                             <p className="text-[10px] md:text-xs text-gray-500 dark:text-white/60 mt-0.5 md:mt-1">
                                 {congestionData ? `성수동 인구 ${congestionData.minPop.toLocaleString()}~${congestionData.maxPop.toLocaleString()}명` : "성수동 혼잡도 분석 중"}
                             </p>
