@@ -14,12 +14,12 @@ import org.springframework.stereotype.Service;
 /**
  * 검색 API 결과(snippet 들)를 LLM 에 넘겨 구조화된 {@link NormalizedPopup} 목록으로 정규화.
  *
- * <p>v2.33 — 한 번의 LLM 호출로 snippet 묶음 안의 <b>서로 다른 팝업을 전부</b> 추출한다(JSON 배열). 이전엔 키워드당 팝업 1개만
- * 뽑아 수집량이 병목이었다 — 같은 API 로 이미 가져온 snippet 을 더 깊게 활용해 추가 크롤/쿼터 없이 수확만 끌어올린다. confidence 점수는
- * 팝업마다 LLM 이 직접 매기고, 0.8 게이트/중복제거/PII 규칙은 그대로 유지된다.
+ * <p>v2.33 — 한 번의 LLM 호출로 snippet 묶음 안의 <b>서로 다른 팝업을 전부</b> 추출한다(JSON 배열). 이전엔 키워드당 팝업 1개만 뽑아 수집량이
+ * 병목이었다 — 같은 API 로 이미 가져온 snippet 을 더 깊게 활용해 추가 크롤/쿼터 없이 수확만 끌어올린다. confidence 점수는 팝업마다 LLM 이 직접
+ * 매기고, 0.8 게이트/중복제거/PII 규칙은 그대로 유지된다.
  *
- * <p>토큰과 Groq RPM 을 아끼기 위해 snippet 은 최대 {@link #MAX_SNIPPETS_PER_REQUEST} 개까지만 프롬프트에 넣는다(호출 수는
- * 키워드당 1회로 고정).
+ * <p>토큰과 Groq RPM 을 아끼기 위해 snippet 은 최대 {@link #MAX_SNIPPETS_PER_REQUEST} 개까지만 프롬프트에 넣는다(호출 수는 키워드당
+ * 1회로 고정).
  */
 @Slf4j
 @Service
@@ -66,12 +66,14 @@ public class PopupNormalizationService {
                  startDate/endDate 둘 다 명확 +0.3, 출처 2개 이상에서 같은 정보 +0.1, 카테고리 명확 +0.1.
                - sourceIndex (number): 이 팝업의 근거가 된 snippet 의 번호(위 목록의 번호). 여러 개면 가장 대표적인 1개.
                - error (string|null): 보통 null.
-            4) 서울이 아닌 팝업은 배열에서 제외. 너무 모호해서 팝업 이름을 특정할 수 없으면 제외.
+            4) 서울이 아닌 팝업은 배열에서 제외. 팝업 이름·존재가 확실하지 않으면 넣지 마 — 물량보다 정확도 우선(애매하면 버려).
             5) 개인정보 보호 — description/content 에 다음 절대 포함 금지:
                운영자 휴대폰 번호 / 이메일 / 인스타 DM 안내 같은 개인 연락처,
                블로그 작성자 닉네임·실명, 후기를 쓴 개인의 인적사항.
                필요하면 "공식 SNS 참고" 같은 일반 표현으로 대체.
             6) description/content 는 검색 스니펫의 문장을 그대로 베끼지 말고 너의 표현으로 요약해.
+            7) 각 팝업의 날짜·장소·카테고리는 그 팝업을 다룬 snippet 에서만 가져와 — 한 팝업의 정보를
+               다른 팝업에 섞지 마(교차오염 금지). 같은 팝업이 이름만 조금 다르게 여러 번 나오면 하나로 합쳐.
 
             예시 출력:
             [{"name":"○○ 팝업스토어","location":"서울 성동구 성수동","category":"FASHION","startDate":"2026-05-01","endDate":"2026-05-31","description":"○○ 브랜드 신상 컬렉션 팝업","content":"...","confidence":0.85,"sourceIndex":3,"error":null}]
@@ -83,16 +85,15 @@ public class PopupNormalizationService {
     /**
      * snippet 묶음을 LLM 에 한 번 넘겨 그 안의 서로 다른 팝업을 <b>모두</b> {@link NormalizedPopup} 목록으로 받는다.
      *
-     * <p>파싱/호출 실패 시 빈 목록을 반환(예외 전파 없음). 각 원소는 후처리 검증(이름 누락·서울 외 강제 0.0)을 통과한 상태이며,
-     * confidence 게이트/중복제거는 호출자(Orchestrator)가 담당한다.
+     * <p>파싱/호출 실패 시 빈 목록을 반환(예외 전파 없음). 각 원소는 후처리 검증(이름 누락·서울 외 강제 0.0)을 통과한 상태이며, confidence
+     * 게이트/중복제거는 호출자(Orchestrator)가 담당한다.
      */
     public List<NormalizedPopup> normalizeAll(List<PopupCrawlSource> snippets) {
         if (snippets == null || snippets.isEmpty()) {
             return List.of();
         }
 
-        List<PopupCrawlSource> limited =
-                snippets.stream().limit(MAX_SNIPPETS_PER_REQUEST).toList();
+        List<PopupCrawlSource> limited = snippets.stream().limit(MAX_SNIPPETS_PER_REQUEST).toList();
         String prompt = buildPrompt(limited);
 
         try {
@@ -142,8 +143,8 @@ public class PopupNormalizationService {
     }
 
     /**
-     * 응답 루트를 팝업 객체 배열로 정규화. LLM 이 배열을 그대로 주는 게 정상이지만, 가끔 {@code {"popups":[...]}} 로 감싸거나 객체
-     * 하나만 주는 경우가 있어 방어적으로 처리한다.
+     * 응답 루트를 팝업 객체 배열로 정규화. LLM 이 배열을 그대로 주는 게 정상이지만, 가끔 {@code {"popups":[...]}} 로 감싸거나 객체 하나만 주는
+     * 경우가 있어 방어적으로 처리한다.
      */
     private JsonNode extractArray(JsonNode root) {
         if (root.isArray()) {
