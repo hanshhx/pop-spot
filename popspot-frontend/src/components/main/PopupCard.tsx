@@ -1,6 +1,6 @@
 "use client";
 
-import { Heart, MapPin } from "lucide-react";
+import { Heart, MapPin, Shirt, Coffee, Palette, Star, Sparkles, Cpu, Store } from "lucide-react";
 import type { PopupStore } from "@/types/popup";
 
 /**
@@ -33,6 +33,20 @@ const CATEGORY_KO: Record<string, string> = {
   ETC: "기타",
 };
 
+/**
+ * 사진이 없을 때(자동수집 팝업 대부분)의 플레이스홀더 스타일. 카테고리별 브랜드 그라디언트 + 아이콘 —
+ * 잘못된 사진을 붙이는 대신 "의도된 디자인"으로 보이게. 색은 소스에 문자열 리터럴로 박아 Tailwind JIT 가 인식.
+ */
+const CATEGORY_STYLE: Record<string, { grad: string; Icon: typeof MapPin }> = {
+  FASHION: { grad: "from-pink-200 to-rose-300", Icon: Shirt },
+  FOOD: { grad: "from-amber-200 to-orange-300", Icon: Coffee },
+  CULTURE: { grad: "from-violet-200 to-indigo-300", Icon: Palette },
+  CHARACTER: { grad: "from-lime-200 to-emerald-300", Icon: Star },
+  BEAUTY: { grad: "from-fuchsia-200 to-pink-300", Icon: Sparkles },
+  TECH: { grad: "from-sky-200 to-cyan-300", Icon: Cpu },
+  ETC: { grad: "from-gray-200 to-gray-300", Icon: Store },
+};
+
 export interface PopupCardProps {
   popup: PopupStore;
   onClick?: () => void;
@@ -47,6 +61,7 @@ export function PopupCard({ popup, onClick, onWish, wished, className }: PopupCa
     ? CATEGORY_KO[popup.category.toUpperCase()] ?? popup.category
     : null;
   const region = (popup.location || "").split(" ").slice(0, 2).join(" ") || "서울";
+  const catStyle = CATEGORY_STYLE[popup.category?.toUpperCase() ?? "ETC"] ?? CATEGORY_STYLE.ETC;
 
   return (
     <div
@@ -71,8 +86,8 @@ export function PopupCard({ popup, onClick, onWish, wished, className }: PopupCa
             className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
           />
         ) : (
-          <div className="flex h-full w-full items-center justify-center text-gray-300 dark:text-white/20">
-            <MapPin size={28} />
+          <div className={`flex h-full w-full items-center justify-center bg-gradient-to-br ${catStyle.grad}`}>
+            <catStyle.Icon size={40} strokeWidth={1.5} className="text-white/60" />
           </div>
         )}
 
