@@ -63,6 +63,7 @@ import { MyFeedbackList } from "@/features/feedback/MyFeedbackList";
 import { FeedbackForm } from "@/features/feedback/FeedbackForm";
 import { ProfileEditModal } from "@/features/profile/ProfileEditModal";
 import BrowseSection from "@/components/main/BrowseSection";
+import { PopupCard } from "@/components/main/PopupCard";
 import type {
   User,
   PopupStore,
@@ -684,7 +685,7 @@ export default function Home() {
                         <div className="w-full border rounded-xl p-6 md:p-10 relative overflow-hidden text-center md:text-left flex flex-col md:flex-row items-center justify-between gap-6 transition-colors bg-white/60 border-gray-200 backdrop-blur-md dark:bg-white/5 dark:border-white/10">
                             <div className="relative z-10">
                                 <div className="inline-block px-3 py-1 mb-3 md:mb-4 text-[10px] md:text-xs font-bold tracking-[0.2em] uppercase rounded-pill bg-lime-300 text-ink-900">
-                                    Welcome to POP-SPOT
+                                    팝스팟에 오신 걸 환영해요
                                 </div>
                                 <h2 className="text-2xl md:text-5xl font-black mb-3 md:mb-4 leading-tight text-gray-900 dark:text-white">
                                     Find Your <span className="text-hot-400">Vibe</span><br className="hidden md:block"/>
@@ -723,8 +724,8 @@ export default function Home() {
                             <Music size={20} />
                         </div>
                         <div>
-                            <p className="text-[10px] font-bold uppercase tracking-[0.4em] text-muted-foreground">
-                                NEW · BETA
+                            <p className="text-[10px] font-bold tracking-[0.2em] text-muted-foreground">
+                                새 기능
                             </p>
                             <p className="text-base md:text-lg font-black text-foreground">
                                 듣는 곡으로 분위기에 맞는 팝업 찾기
@@ -749,11 +750,11 @@ export default function Home() {
                     </div>
                     
                     {/* Map Zone — 배경 분리를 위해 solid 배경 + shadow 로 카드 블록 강화. */}
-                    <div className="col-span-1 lg:col-span-7 md:row-span-4 rounded-[2rem] relative overflow-hidden border border-gray-200 dark:border-white/10 group bg-white dark:bg-[#111] shadow-lg shadow-black/5 dark:shadow-black/30 min-h-[400px] md:min-h-0 order-2 lg:order-none">
+                    <div className="col-span-1 lg:col-span-7 md:row-span-4 rounded-[2rem] relative overflow-hidden border border-gray-200 dark:border-white/10 group bg-white dark:bg-[#111] shadow-lg shadow-black/5 dark:shadow-black/30 min-h-[440px] md:min-h-[560px] order-2 lg:order-none">
                         <InteractiveMap onMarkerClick={handleMarkerClickToDetail} />
                         <div className="absolute bottom-4 md:bottom-6 left-4 md:left-6 flex gap-2 z-20">
                             <span className="backdrop-blur px-3 py-1.5 md:px-4 md:py-2 rounded-full border text-[10px] md:text-xs font-bold flex items-center gap-1.5 md:gap-2 bg-white/80 border-gray-200 text-gray-900 dark:bg-black/60 dark:border-white/10 dark:text-white">
-                            <span className="w-1.5 h-1.5 md:w-2 md:h-2 bg-green-500 rounded-full animate-pulse"/> LIVE DATA
+                            <span className="w-1.5 h-1.5 md:w-2 md:h-2 bg-green-500 rounded-full animate-pulse"/> 실시간
                             </span>
                         </div>
                     </div>
@@ -763,7 +764,7 @@ export default function Home() {
                         <header className="flex items-center justify-between mb-4 md:mb-6 pb-3 md:pb-4 border-b border-gray-200 dark:border-white/5">
                             <div className="flex items-center gap-2">
                                 <Flame size={18} className="text-secondary animate-pulse md:w-5 md:h-5"/>
-                                <h3 className="font-bold text-base md:text-lg text-gray-900 dark:text-white">REAL-TIME RANKING</h3>
+                                <h3 className="font-bold text-base md:text-lg text-gray-900 dark:text-white">실시간 랭킹</h3>
                             </div>
                             <button onClick={handleOpenModal} aria-label="전체 트렌딩 보기" className="p-1.5 md:p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full transition-colors group">
                                 <Plus size={18} className="md:w-5 md:h-5 text-gray-500 dark:text-white/60 group-hover:text-primary transition-colors"/>
@@ -854,6 +855,42 @@ export default function Home() {
                     </div>
                 </section>
 
+                {/* 지금 뜨는 팝업 — 사진 카드 레일 (디자인 진단서 P0: 팝업 사진 카드로 코어 뷰잉 강화). */}
+                <motion.section
+                    aria-label="지금 뜨는 팝업"
+                    initial="hidden"
+                    whileInView="visible"
+                    viewport={{ once: true, margin: "-80px" }}
+                    variants={sectionVariants}
+                    className="mb-16"
+                >
+                    <header className="mb-5 flex items-end justify-between gap-3">
+                        <div>
+                            <h2 className="text-xl md:text-2xl font-bold text-foreground">지금 뜨는 팝업</h2>
+                            <p className="mt-1 text-xs md:text-sm text-muted-foreground">서울에서 가장 많이 찾는 팝업을 사진으로 훑어보세요.</p>
+                        </div>
+                        <button type="button" onClick={handleOpenModal} className="shrink-0 text-xs font-semibold text-primary hover:underline">전체 보기</button>
+                    </header>
+                    {hotPopups.length > 0 ? (
+                        <div className="custom-scrollbar -mx-1 flex snap-x gap-4 overflow-x-auto px-1 pb-3">
+                            {hotPopups.map((p) => (
+                                <div key={p.id} className="snap-start">
+                                    <PopupCard
+                                        popup={p}
+                                        onClick={() => { handleTabChange("MAP"); router.push(`/popup/${p.id}`); }}
+                                    />
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="flex gap-4 overflow-hidden">
+                            {[...Array(5)].map((_, i) => (
+                                <div key={i} className="h-[320px] w-[220px] shrink-0 animate-pulse rounded-2xl bg-gray-100 dark:bg-white/5" />
+                            ))}
+                        </div>
+                    )}
+                </motion.section>
+
                 {/* OOTD Section */}
                 <motion.section aria-label="Style Recommendation" initial="hidden" whileInView="visible" viewport={{ once: true }} variants={sectionVariants} className="mb-16">
                     <header className="flex flex-col md:flex-row items-center md:items-end justify-between mb-8 md:mb-12 text-center md:text-left">
@@ -876,7 +913,7 @@ export default function Home() {
                         <div className="lg:col-span-2 flex flex-col gap-4 lg:gap-6">
                             <article className="flex-1 rounded-[2rem] lg:rounded-[2.5rem] p-6 lg:p-10 bg-white/80 dark:bg-[#111]/80 backdrop-blur-lg border border-gray-200 dark:border-white/5 flex flex-col justify-center items-start relative overflow-hidden">
                                 <Shirt size={80} className="lg:w-[120px] lg:h-[120px] absolute -right-4 -bottom-4 lg:-right-6 lg:-bottom-6 text-gray-100 dark:text-white/5 rotate-[-15deg]"/>
-                                <span className="text-primary font-bold tracking-widest text-[10px] lg:text-xs uppercase mb-3 lg:mb-4 border border-primary/30 px-2 py-1 lg:px-3 lg:py-1 rounded-full">Daily Style Forecast</span>
+                                <span className="text-primary font-bold tracking-wide text-[10px] lg:text-xs mb-3 lg:mb-4 border border-primary/30 px-2 py-1 lg:px-3 lg:py-1 rounded-full">오늘의 스타일</span>
                                 <h3 className="text-xl md:text-3xl lg:text-4xl font-bold text-gray-900 dark:text-white mb-4 lg:mb-6 leading-tight">{ootd?.comment || "트렌디한 서울 바이브를 분석 중입니다..."}</h3>
                                 <div className="flex flex-wrap gap-2 lg:gap-3">{['#SeongsuVibe', '#PopUpStyle', '#OOTD', `#${ootd?.data?.keyword.replace(" ", "") || 'Fashion'}`].map((tag, i) => (<span key={i} className="text-xs lg:text-sm text-gray-500 dark:text-white/40 font-medium">{tag}</span>))}</div>
                             </article>
