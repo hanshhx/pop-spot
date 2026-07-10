@@ -359,6 +359,27 @@ export default function AdminPage() {
         }
     };
 
+    // 이미지 없는 공개 팝업에 Pexels 커버를 배정(수동 백필). 백엔드 pexels.api-key 설정 필요.
+    const [isBackfilling, setIsBackfilling] = useState(false);
+    const handleBackfillPhotos = async () => {
+        if (!(await confirmAction({ text: "이미지 없는 팝업에 Pexels 커버 사진을 배정할까요?" }))) return;
+        setIsBackfilling(true);
+        try {
+            const res = await apiFetch("/api/admin/popups/backfill-photos?limit=150", { method: "POST" });
+            if (res.ok) {
+                const data = await res.json();
+                notifySuccess(`커버 ${data.assigned ?? 0}개 배정 완료`);
+                loadAllPopups();
+            } else {
+                notifyError("커버 배정 실패 (Pexels 키 설정 여부 확인)");
+            }
+        } catch (e) {
+            notifyError("커버 배정 중 오류가 발생했습니다.");
+        } finally {
+            setIsBackfilling(false);
+        }
+    };
+
     const handleDeleteMatePost = async (id: number) => {
         if (!(await confirmAction({ text: "삭제하시겠습니까?", destructive: true }))) return;
         try {
@@ -568,7 +589,18 @@ export default function AdminPage() {
 
                         {/* ===== 팝업 관리 ===== */}
                         {!isLoading && activeTab === "POPUPS" && (
-                            <div className="rounded-2xl border border-[var(--color-border)] bg-surface overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
+                            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                            <div className="mb-4 flex items-center justify-between gap-3">
+                                <p className="text-sm text-muted-foreground">이미지 없는 팝업은 커버 배정으로 각기 다른 사진을 채웁니다.</p>
+                                <button
+                                    onClick={handleBackfillPhotos}
+                                    disabled={isBackfilling}
+                                    className="shrink-0 rounded-pill bg-lime-300 px-4 py-2 text-sm font-bold text-ink-900 transition-colors hover:bg-lime-400 disabled:opacity-60"
+                                >
+                                    {isBackfilling ? "배정 중…" : "팝업 사진 채우기"}
+                                </button>
+                            </div>
+                            <div className="rounded-2xl border border-[var(--color-border)] bg-surface overflow-hidden">
                                 <div className="overflow-x-auto custom-scrollbar">
                                     <table className="w-full text-left text-sm">
                                         <thead className="bg-cream-100 dark:bg-ink-800 text-muted-foreground font-bold border-b border-[var(--color-border)] text-[11px]">
@@ -598,6 +630,7 @@ export default function AdminPage() {
                                         </tbody>
                                     </table>
                                 </div>
+                            </div>
                             </div>
                         )}
 

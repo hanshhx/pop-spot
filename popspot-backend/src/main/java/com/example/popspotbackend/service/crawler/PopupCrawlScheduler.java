@@ -1,5 +1,6 @@
 package com.example.popspotbackend.service.crawler;
 
+import com.example.popspotbackend.service.PopupPhotoService;
 import com.example.popspotbackend.service.PopupStoreService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,9 +31,13 @@ public class PopupCrawlScheduler {
 
     private final PopupCrawlOrchestrator orchestrator;
     private final PopupStoreService popupStoreService;
+    private final PopupPhotoService popupPhotoService;
 
     @Value("${popspot.crawler.enabled:false}")
     private boolean enabled;
+
+    @Value("${popspot.photo.backfill-limit:150}")
+    private int photoBackfillLimit;
 
     @Scheduled(cron = "${popspot.crawler.cron:0 0 4 * * *}", zone = "Asia/Seoul")
     public void scheduledRunMorning() {
@@ -57,6 +62,25 @@ public class PopupCrawlScheduler {
             log.info("[PopupCrawlScheduler] Geocoding 자동 백필 완료 — {}개 좌표 채움", filled);
         } catch (Exception e) {
             log.error("[PopupCrawlScheduler] Geocoding 백필 실패", e);
+        }
+    }
+
+    /**
+     * 이미지 없는 공개 팝업에 Pexels 커버 배정. 매일 04:45 — 본 수집·지오코딩 직후라 새로 들어온 팝업의 커버를 채운다. Pexels 키 미설정이면
+     * 서비스 레이어에서 스킵된다.
+     */
+    @Scheduled(cron = "${popspot.photo.backfill-cron:0 45 4 * * *}", zone = "Asia/Seoul")
+    public void scheduledPhotoBackfill() {
+        if (!enabled) {
+            log.debug("[PopupCrawlScheduler] photo-backfill disabled — 스킵");
+            return;
+        }
+        log.info("[PopupCrawlScheduler] === 팝업 커버 백필 시작 ===");
+        try {
+            int filled = popupPhotoService.backfillMissingPhotos(photoBackfillLimit);
+            log.info("[PopupCrawlScheduler] 팝업 커버 백필 완료 — {}개 배정", filled);
+        } catch (Exception e) {
+            log.error("[PopupCrawlScheduler] 커버 백필 실패", e);
         }
     }
 

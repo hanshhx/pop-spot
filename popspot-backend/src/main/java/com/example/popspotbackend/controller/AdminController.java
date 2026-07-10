@@ -4,6 +4,7 @@ import com.example.popspotbackend.dto.AdminUserDto;
 import com.example.popspotbackend.entity.MatePost;
 import com.example.popspotbackend.entity.PopupStore;
 import com.example.popspotbackend.service.AdminService;
+import com.example.popspotbackend.service.PopupPhotoService;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
@@ -32,6 +33,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class AdminController {
 
     private final AdminService adminService;
+    private final PopupPhotoService popupPhotoService;
 
     /* ============================== 팝업 승인 큐 ============================== */
 
@@ -62,6 +64,16 @@ public class AdminController {
     @GetMapping("/popups/all")
     public ResponseEntity<List<PopupStore>> getAllPopupsForAdmin() {
         return ResponseEntity.ok(adminService.findAllPopups());
+    }
+
+    /**
+     * 이미지 없는 공개 팝업에 Pexels 커버를 수동으로 배정(백필). {@code limit} 으로 배치 크기를 제한한다. Pexels 키 미설정이면 0 을 반환한다.
+     */
+    @PostMapping("/popups/backfill-photos")
+    public ResponseEntity<Map<String, Object>> backfillPhotos(
+            @RequestParam(defaultValue = "150") int limit) {
+        int assigned = popupPhotoService.backfillMissingPhotos(limit);
+        return ResponseEntity.ok(Map.of("assigned", assigned));
     }
 
     @PatchMapping("/popups/{id}/status")
