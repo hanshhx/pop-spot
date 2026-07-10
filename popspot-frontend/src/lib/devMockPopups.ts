@@ -10,7 +10,7 @@ import type { PopupStore } from "@/types/popup";
 
 /** Pexels CDN 직접 URL(키 불필요). 4:5 크롭. */
 const PX = (id: number) =>
-  `https://images.pexels.com/photos/${id}/pexels-photo-${id}.jpeg?auto=compress&cs=tinysrgb&w=440&h=560&fit=crop`;
+  `https://images.pexels.com/photos/${id}/pexels-photo-${id}.jpeg?auto=compress&cs=tinysrgb&w=1200&h=1500&fit=crop`;
 
 interface Seed {
   name: string;
