@@ -148,6 +148,8 @@ export default function Home() {
   const [guestRemainingDays, setGuestRemainingDays] = useState<number | null>(null);
   /** 서치존에서 팝업 선택 시 지도를 그 위치로 이동시킬 좌표. */
   const [mapCenter, setMapCenter] = useState<{ lat: number; lng: number } | undefined>(undefined);
+  // 검색 결과 선택 시 지도가 그 팝업 마커로 이동하도록 신호(nonce 로 재검색도 매번 반응).
+  const [searchFocus, setSearchFocus] = useState<{ id: string; nonce: number } | null>(null);
 
   const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -815,7 +817,9 @@ export default function Home() {
                     <div className="col-span-1 lg:col-span-12 relative z-50 order-1 lg:order-none">
                         <SearchZone
                             onSelectPopup={(hit) => {
-                                // 검색 결과를 실제 팝업 목록에서 찾아 좌표로 지도 이동.
+                                // 1순위: 지도가 자기 마커에서 그 팝업을 찾아 이동+정보창 오픈(allPopups 의존 X).
+                                setSearchFocus((prev) => ({ id: String(hit.objectID), nonce: (prev?.nonce ?? 0) + 1 }));
+                                // 2순위(보조): allPopups 에 좌표가 있으면 중심도 같이 이동(마커가 아직 안 실렸을 때 대비).
                                 const p = allPopups.find((x) => String(x.id) === String(hit.objectID));
                                 if (p?.latitude && p?.longitude) {
                                     setMapCenter({ lat: parseFloat(p.latitude), lng: parseFloat(p.longitude) });
@@ -826,7 +830,7 @@ export default function Home() {
                     
                     {/* Map Zone — 배경 분리를 위해 solid 배경 + shadow 로 카드 블록 강화. */}
                     <div className="col-span-1 lg:col-span-12 rounded-[2rem] relative overflow-hidden border border-gray-200 dark:border-white/10 group bg-white dark:bg-[#111] shadow-lg shadow-black/5 dark:shadow-black/30 h-[58vh] min-h-[420px] order-2 lg:order-none">
-                        <InteractiveMap center={mapCenter} onMarkerClick={handleMarkerClickToDetail} />
+                        <InteractiveMap center={mapCenter} focusReq={searchFocus} onMarkerClick={handleMarkerClickToDetail} />
                         <div className="absolute bottom-4 md:bottom-6 left-4 md:left-6 flex gap-2 z-20">
                             <span className="backdrop-blur px-3 py-1.5 md:px-4 md:py-2 rounded-full border text-[10px] md:text-xs font-bold flex items-center gap-1.5 md:gap-2 bg-white/80 border-gray-200 text-gray-900 dark:bg-black/60 dark:border-white/10 dark:text-white">
                             <span className="w-1.5 h-1.5 md:w-2 md:h-2 bg-green-500 rounded-full animate-pulse"/> 실시간
