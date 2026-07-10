@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 
 import { PopupMatch } from "@/types/music";
+import { popupCoverUrl } from "@/lib/popupCover";
 import { useMusicPlayer } from "./MusicPlayerProvider";
 
 function formatSeconds(sec: number) {
@@ -357,10 +358,10 @@ function FullScreenPlayer() {
                 onClick={collapse}
                 className="group flex gap-3 rounded-xl bg-white/5 p-3 backdrop-blur transition hover:bg-white/10"
               >
-                {/* 팝업 이미지 호스트가 외부 CDN 다양 — next.config 이미지 도메인 화이트리스트 등록보다 <img> 가 더 단순. */}
+                {/* 커버는 popupCoverUrl 로 통일 — 진짜 사진 없으면 카테고리·id 결정적 큐레이션 사진. */}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={popup.imageUrl}
+                  src={popupCoverUrl({ id: popup.popupId, imageUrl: popup.imageUrl })}
                   alt={popup.name}
                   className="h-16 w-16 shrink-0 rounded-lg object-cover"
                 />

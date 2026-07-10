@@ -23,6 +23,7 @@ import MusicForPopup from "../../../src/components/music/MusicForPopup";
 import { apiFetch } from "../../../src/lib/api";
 import { notify, notifyError } from "@/lib/notify";
 import { escapeHtml } from "@/lib/escapeHtml";
+import { popupCoverUrl } from "@/lib/popupCover";
 import type { User } from "@/types/popup";
 
 declare global {
@@ -377,12 +378,13 @@ export default function PopupDetail() {
     <main className="min-h-screen bg-background text-foreground pb-24">
       {/* 사진 히어로 — 실제 커버 이미지(없으면 카테고리 그라디언트) + 제목 오버레이 */}
       <div className="relative h-[38vh] min-h-[240px] max-h-[440px] w-full overflow-hidden">
-        {popup.imageUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={popup.imageUrl} alt={popup.name} className="h-full w-full object-cover" />
-        ) : (
-          <div className={`h-full w-full bg-gradient-to-br ${catGrad}`} />
-        )}
+        <div className={`absolute inset-0 bg-gradient-to-br ${catGrad}`} />
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={popupCoverUrl(popup, 1200)}
+          alt={popup.name}
+          className="absolute inset-0 h-full w-full object-cover"
+        />
         <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
 
         {/* 상단: 뒤로 / 공유 · 찜 */}

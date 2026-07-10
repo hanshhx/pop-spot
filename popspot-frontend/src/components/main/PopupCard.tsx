@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Heart, MapPin, Shirt, Coffee, Palette, Star, Sparkles, Cpu, Store } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { popupCoverUrl } from "@/lib/popupCover";
 import type { PopupStore } from "@/types/popup";
 
 /**
@@ -83,10 +84,10 @@ export function PopupCard({ popup, onClick, onWish, wished, className }: PopupCa
       )}
     >
       <div className="relative aspect-[4/5] w-full overflow-hidden bg-gray-100 dark:bg-white/5">
-        {popup.imageUrl && !imgError ? (
+        {!imgError ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={popup.imageUrl}
+            src={popupCoverUrl(popup)}
             alt={popup.name}
             loading="lazy"
             onError={() => setImgError(true)}
