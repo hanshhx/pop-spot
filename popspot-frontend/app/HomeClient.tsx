@@ -66,6 +66,7 @@ import { ProfileEditModal } from "@/features/profile/ProfileEditModal";
 import BrowseSection from "@/components/main/BrowseSection";
 import { PopupCard } from "@/components/main/PopupCard";
 import { devMockPopups } from "@/lib/devMockPopups";
+import FeatureSections from "@/components/main/FeatureSections";
 import type {
   User,
   PopupStore,
@@ -921,8 +922,11 @@ export default function Home() {
                     <div className="text-center mt-6 lg:mt-8"><p className="text-[10px] lg:text-sm text-gray-500 dark:text-white/40">* 서울 현장 유저들이 실시간으로 공유하는 정보입니다.</p></div>
                 </motion.section>
 
-                {/* Collaboration Feature Promo Section */}
-                <motion.section aria-label="Feature Promotion" initial="hidden" whileInView="visible" viewport={{ once: true }} variants={sectionVariants} className="mb-16 py-12 px-6 lg:py-20 lg:px-12 bg-ink-900 text-cream-200 relative overflow-hidden rounded-xl lg:rounded-2xl shadow-pop">
+                {/* v2.34 — 기능 소개 개별 섹션 (코스·음악·여권·동행). 각각 다른 무드+비주얼+좌우 교차. */}
+                <FeatureSections onNavigate={handleTabChange} />
+
+                {/* (구) 협업 프로모 — FeatureSections 로 대체됨(주석 유지 시 아래 미사용 블록 제거 필요) */}
+                <motion.section aria-label="Feature Promotion" initial="hidden" whileInView="visible" viewport={{ once: true }} variants={sectionVariants} className="hidden py-12 px-6 lg:py-20 lg:px-12 bg-ink-900 text-cream-200 relative overflow-hidden rounded-xl lg:rounded-2xl shadow-pop">
                                         
                     <div className="flex flex-col lg:flex-row items-center justify-between gap-8 lg:gap-12 relative z-10">
                         <div className="flex-1 text-center lg:text-left">
