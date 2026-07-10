@@ -234,6 +234,39 @@ function MateVisual() {
   );
 }
 
+/**
+ * 섹션 사이 브레이커 — 다크 섹션이 연속으로 나오는 단조로움을 끊는 라이트 인터스티셜.
+ * 짧은 인용/스탯/한마디를 중앙 정렬로. 다음 섹션 액센트로 divider·eyebrow 를 물들여 자연스레 이어준다.
+ */
+function Interstitial({
+  eyebrow,
+  title,
+  sub,
+  accentText,
+  accentBar,
+}: {
+  eyebrow: string;
+  title: React.ReactNode;
+  sub: string;
+  accentText: string;
+  accentBar: string;
+}) {
+  return (
+    <motion.div
+      initial="hidden"
+      whileInView="visible"
+      viewport={{ once: true, margin: "-60px" }}
+      variants={reveal}
+      className="relative flex flex-col items-center gap-3 px-6 py-14 text-center lg:py-20"
+    >
+      <span className={`h-px w-12 ${accentBar}`} />
+      <span className={`text-[11px] font-bold tracking-[0.3em] ${accentText}`}>{eyebrow}</span>
+      <p className="max-w-xl text-xl font-black leading-snug text-foreground md:text-3xl">{title}</p>
+      <p className="max-w-md text-sm text-muted-foreground md:text-base">{sub}</p>
+    </motion.div>
+  );
+}
+
 /* =============================== 배열 렌더 =============================== */
 
 interface FeatureSectionsProps {
@@ -265,6 +298,19 @@ export default function FeatureSections({ onNavigate }: FeatureSectionsProps) {
         }}
       />
 
+      <Interstitial
+        eyebrow="유저 후기"
+        title={
+          <>
+            “주말마다 팝스팟 켜고,
+            <br className="hidden md:block" /> 성수부터 한 바퀴 돌아요.”
+          </>
+        }
+        sub="— 20대 팝스팟 유저"
+        accentText="text-hot-400"
+        accentBar="bg-hot-400/60"
+      />
+
       <FeatureShell
         flip
         eyebrow="POP·MUSIC"
@@ -288,6 +334,14 @@ export default function FeatureSections({ onNavigate }: FeatureSectionsProps) {
         }}
       />
 
+      <Interstitial
+        eyebrow="매일 업데이트"
+        title={<>04시 · 16시, 하루 두 번</>}
+        sub="서울에 새로 뜬 팝업이 지도에 자동으로 쌓여요."
+        accentText="text-amber-300"
+        accentBar="bg-amber-300/60"
+      />
+
       <FeatureShell
         eyebrow="디지털 팝업 여권"
         EyeIcon={Ticket}
@@ -308,6 +362,19 @@ export default function FeatureSections({ onNavigate }: FeatureSectionsProps) {
           btn: "bg-amber-300 text-ink-900 hover:bg-amber-200",
           ring: "ring-amber-300/40",
         }}
+      />
+
+      <Interstitial
+        eyebrow="놓치지 마세요"
+        title={
+          <>
+            마감이 다가오는 팝업,
+            <br className="hidden md:block" /> 알림으로 먼저
+          </>
+        }
+        sub="위시리스트에 담으면 마감 D-3에 알려드려요."
+        accentText="text-sky-300"
+        accentBar="bg-sky-400/60"
       />
 
       <FeatureShell
