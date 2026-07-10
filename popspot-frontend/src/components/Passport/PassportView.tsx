@@ -2,198 +2,147 @@
 
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Lock, CheckCircle, Award, Gift } from "lucide-react";
+import { Lock, Check } from "lucide-react";
 import { apiFetch } from "../../lib/api";
-import { notify } from "@/lib/notify";
-import { getUserRank } from "@/lib/rank";
 import type { User } from "@/types/popup";
 
-// [기존 유지] 백엔드에서 받아올 데이터 형태 정의
+/**
+ * 여권 — '스탬프 = 방문한 팝업의 추억'.
+ *
+ * <p>개선안: 추상 라임 동그라미 대신 방문한 팝업 <b>사진 카드</b>(사진 + 이름 + 방문일 + 체크). 좁은 중앙 컬럼 →
+ * 전체폭 그리드. 레벨·진행바·리워드는 MY '기록' 대시보드와 중복이라 제거. 사진이 없으면 카테고리 그라디언트.
+ */
+
 interface StampData {
   id: number;
   stampDate: string;
   popupStore: {
-      popupId: number;
-      name: string;
-      category: string;
-  }
+    popupId: number;
+    name: string;
+    category: string;
+    imageUrl?: string;
+  };
 }
+
+const CAT_GRAD: Record<string, string> = {
+  FASHION: "from-pink-300 to-rose-400",
+  FOOD: "from-amber-300 to-orange-400",
+  CULTURE: "from-violet-300 to-indigo-400",
+  CHARACTER: "from-lime-300 to-emerald-400",
+  BEAUTY: "from-fuchsia-300 to-pink-400",
+  TECH: "from-sky-300 to-cyan-400",
+  ETC: "from-gray-300 to-gray-400",
+};
+
+const TOTAL_COUNT = 12;
 
 export default function PassportView() {
   const [stamps, setStamps] = useState<StampData[]>([]);
-  
-  // 실제 로그인 유저 정보를 담을 상태 추가
   const [user, setUser] = useState<User | null>(null);
 
-  // 컴포넌트 로드 시 로그인한 유저 정보 확인 (localStorage)
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
     if (storedUser) {
+      try {
         setUser(JSON.parse(storedUser));
+      } catch {
+        /* 손상된 값 무시 */
+      }
     }
   }, []);
 
-  // 유저 정보가 확인되면, 그 유저의 ID로 스탬프 목록 가져오기
   useEffect(() => {
-      if (!user) return;
+    if (!user) return;
+    apiFetch(`/api/stamps/my?userId=${user.userId}`)
+      .then((res) => res.json())
+      .then((data) => setStamps(data))
+      .catch(async () => {
+        // [redesign/test 전용] 로컬(백엔드 없음)에서 여권을 채우는 목업.
+        if (process.env.NODE_ENV === "development") {
+          const { devMockPopups } = await import("@/lib/devMockPopups");
+          setStamps(
+            devMockPopups()
+              .slice(0, 5)
+              .map((p, i) => ({
+                id: i,
+                stampDate: `2026-03-0${i + 1}`,
+                popupStore: {
+                  popupId: Number(p.id),
+                  name: p.name,
+                  category: p.category || "ETC",
+                  imageUrl: p.imageUrl,
+                },
+              })),
+          );
+        }
+      });
+  }, [user]);
 
-      apiFetch(`/api/stamps/my?userId=${user.userId}`)
-          .then(res => res.json())
-          .then(data => {
-              setStamps(data);
-          })
-          .catch(err => console.error("스탬프 로딩 실패:", err));
-  }, [user]); 
-
-  // 진행률 계산 (목표 12개로 설정)
-  const totalCount = 12;
   const acquiredCount = stamps.length;
-  const progress = Math.min((acquiredCount / totalCount) * 100, 100);
-  const rank = getUserRank(acquiredCount);
+  const lockedCount = Math.max(0, TOTAL_COUNT - acquiredCount);
 
   return (
-    <motion.div 
-      initial={{ opacity: 0, y: 20 }}
+    <motion.div
+      initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -20 }}
-      className="w-full max-w-md mx-auto h-full flex flex-col pt-4 pb-32 px-6 overflow-y-auto custom-scrollbar"
+      className="mx-auto w-full max-w-4xl px-4 py-6 md:px-6"
     >
-      {/* 1. 여권 헤더 (프로필) */}
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h2 className="text-3xl font-black text-white italic tracking-tighter">
-            POP<span className="text-primary">-</span>PASSPORT
-          </h2>
-          <p className="text-muted text-xs mt-1">
-            {user ? `${user.nickname}'s COLLECTION` : "SEOUL POP-UP COLLECTION"}
-          </p>
-        </div>
-        {/* 아바타 — 획득한 등급에 따라 ring 색이 자동으로 바뀐다 */}
-        <div className="relative">
-          <div className={`w-14 h-14 rounded-full bg-gradient-to-br from-primary to-lime-400 flex items-center justify-center text-black font-bold text-lg shadow-lg ring-4 ${rank.ring} ring-offset-2 ring-offset-surface transition-all`}>
-            {user ? user.nickname.substring(0, 2).toUpperCase() : "ME"}
-          </div>
-          {rank.key !== "NONE" && (
-            <span className={`absolute -bottom-1 -right-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold border-2 border-surface ${rank.accent} text-ink-900`}>
-              {rank.label.replace("팝업 ", "")}
-            </span>
-          )}
-        </div>
-      </div>
+      <header className="mb-6">
+        <h2 className="text-2xl font-black text-foreground md:text-3xl">
+          내 스탬프 <span className="text-lime-500">{acquiredCount}</span>
+          <span className="font-bold text-muted-foreground"> / {TOTAL_COUNT}</span>
+        </h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          방문 인증할 때마다 그 팝업이 그대로 도장으로 남아요.
+        </p>
+      </header>
 
-      {/* 2. 레벨 및 진행률 카드 */}
-      <div className="bg-white/5 border border-white/10 rounded-3xl p-6 mb-8 relative overflow-hidden">
-        <div className="absolute top-0 right-0 p-4 opacity-10">
-          <Award size={100} />
-        </div>
-        
-        <div className="relative z-10">
-          <div className="flex justify-between items-end mb-2">
-            <div>
-              <span className="text-primary font-bold text-xs border border-primary/30 px-2 py-1 rounded-full">
-                Lv.{Math.floor(acquiredCount / 3) + 1} 트렌드 세터
-              </span>
-              <h3 className="text-2xl font-bold text-white mt-2">스탬프 콜렉터</h3>
-            </div>
-            <span className="text-3xl font-black italic">{acquiredCount}<span className="text-lg text-muted font-normal">/{totalCount}</span></span>
-          </div>
-
-          {/* 진행률 바 */}
-          <div className="w-full h-3 bg-black/50 rounded-full overflow-hidden mt-4">
-            <motion.div 
-              initial={{ width: 0 }}
-              animate={{ width: `${progress}%` }}
-              transition={{ duration: 1, delay: 0.2 }}
-              className="h-full bg-gradient-to-r from-primary to-lime-400 rounded-full"
-            />
-          </div>
-          <p className="text-[10px] text-muted mt-2 text-right">다음 레벨까지 {3 - (acquiredCount % 3)}개 남았어요!</p>
-        </div>
-      </div>
-
-      {/* 3. 스탬프 그리드 (핵심 - DB 연동) */}
-      <div className="mb-8">
-        <h3 className="text-white font-bold mb-4 flex items-center gap-2">
-          <CheckCircle size={18} className="text-primary"/> MY STAMPS
-        </h3>
-        
-        <div className="grid grid-cols-3 gap-4">
-          {/* [1] 획득한 스탬프 렌더링 */}
-          {stamps.map((stamp, idx) => (
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+        {stamps.map((s, idx) => {
+          const grad = CAT_GRAD[s.popupStore.category?.toUpperCase()] ?? CAT_GRAD.ETC;
+          return (
             <motion.div
-              key={stamp.id}
-              initial={{ opacity: 0, scale: 0.8 }}
+              key={s.id}
+              initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: idx * 0.1 }}
-              className="aspect-square rounded-2xl relative flex flex-col items-center justify-center p-2 border bg-white/10 border-primary/50 shadow-[0_0_15px_rgba(var(--primary-rgb),0.2)] cursor-pointer group"
+              transition={{ delay: idx * 0.05 }}
+              className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-white/10 dark:bg-white/[0.04]"
             >
-                <div className={`w-12 h-12 rounded-full mb-2 bg-gradient-to-br bg-lime-300 flex items-center justify-center text-[10px] font-bold text-white shadow-inner`}>
-                  {stamp.popupStore.category.slice(0, 4)}
-                </div>
-                <span className="text-[10px] text-primary font-bold text-center leading-tight truncate w-full px-1">
-                    {stamp.popupStore.name}
+              <div className={`relative aspect-square bg-gradient-to-br ${grad}`}>
+                {s.popupStore.imageUrl && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={s.popupStore.imageUrl}
+                    alt=""
+                    className="h-full w-full object-cover"
+                  />
+                )}
+                <span className="absolute right-2 top-2 grid h-7 w-7 place-items-center rounded-full bg-lime-400 text-ink-900 shadow-md">
+                  <Check size={15} strokeWidth={3} />
                 </span>
-                <span className="text-[8px] text-muted mt-1">{stamp.stampDate.split('T')[0]}</span>
-                
-                {/* 도장 찍힌 효과 */}
-                <div className="absolute top-1 right-1 w-16 h-16 border-2 border-primary/30 rounded-full opacity-50 rotate-[-15deg] pointer-events-none flex items-center justify-center">
-                  <span className="text-[8px] text-primary/50 font-black uppercase tracking-widest">Visited</span>
-                </div>
+              </div>
+              <div className="p-2.5">
+                <p className="truncate text-xs font-bold text-foreground">{s.popupStore.name}</p>
+                <p className="mt-0.5 text-[10px] text-muted-foreground">
+                  {s.stampDate.split("T")[0]}
+                </p>
+              </div>
             </motion.div>
-          ))}
+          );
+        })}
 
-          {/* [2] 빈 칸 렌더링 (LOCKED 상태) - 남은 개수만큼 채움 */}
-          {Array.from({ length: Math.max(0, totalCount - stamps.length) }).map((_, i) => (
-             <div key={`locked-${i}`} className="aspect-square rounded-2xl flex flex-col items-center justify-center p-2 border bg-black/40 border-white/5 opacity-30">
-                <Lock size={24} className="text-white/20 mb-2"/>
-                <span className="text-[10px] text-white/30 font-bold text-center leading-tight">LOCKED</span>
-             </div>
-          ))}
-        </div>
+        {Array.from({ length: lockedCount }).map((_, i) => (
+          <div
+            key={`locked-${i}`}
+            className="flex aspect-square flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-gray-200 text-center dark:border-white/10"
+          >
+            <Lock size={22} className="text-gray-300 dark:text-white/20" />
+            <span className="text-[11px] font-semibold text-muted-foreground">
+              {i === 0 ? "다음 팝업" : "방문하면 열림"}
+            </span>
+          </div>
+        ))}
       </div>
-
-      {/* 리워드/혜택 — 스탬프 누적 시 자동 부여되는 도장 마니아 칭호 단계 */}
-      <div>
-        <h3 className="text-white font-bold mb-4 flex items-center gap-2">
-          <Gift size={18} className="text-secondary"/> REWARDS
-        </h3>
-
-        <div className="space-y-3">
-          <div className={`bg-surface/50 p-4 rounded-2xl flex items-center gap-4 border transition-all ${acquiredCount >= 3 ? 'border-primary/50 bg-primary/10 opacity-100' : 'border-white/5 opacity-50'}`}>
-            <div className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center text-muted">1</div>
-            <div className="flex-1">
-              <h4 className="text-sm font-bold text-white">팝업 입문자 뱃지</h4>
-              <p className="text-xs text-muted">스탬프 3개 달성 시 자동 지급</p>
-            </div>
-            <span className={`text-xs px-3 py-1.5 rounded-full whitespace-nowrap ${acquiredCount >= 3 ? 'bg-primary text-black font-bold' : 'bg-white/5 text-white/30'}`}>
-              {acquiredCount >= 3 ? '획득' : '잠김'}
-            </span>
-          </div>
-
-          <div className={`bg-surface/50 p-4 rounded-2xl flex items-center gap-4 border transition-all ${acquiredCount >= 6 ? 'border-primary/50 bg-primary/10 opacity-100' : 'border-white/5 opacity-50'}`}>
-            <div className="w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center text-primary font-bold">2</div>
-            <div className="flex-1">
-              <h4 className="text-sm font-bold text-white">팝업 헌터 뱃지</h4>
-              <p className="text-xs text-muted">스탬프 6개 달성 시 자동 지급</p>
-            </div>
-            <span className={`text-xs px-3 py-1.5 rounded-full whitespace-nowrap ${acquiredCount >= 6 ? 'bg-primary text-black font-bold' : 'bg-white/5 text-white/30'}`}>
-              {acquiredCount >= 6 ? '획득' : '잠김'}
-            </span>
-          </div>
-
-          <div className={`bg-surface/50 p-4 rounded-2xl flex items-center gap-4 border transition-all ${acquiredCount >= 12 ? 'border-primary/50 bg-primary/10 opacity-100' : 'border-white/5 opacity-50'}`}>
-            <div className="w-10 h-10 bg-primary/30 rounded-full flex items-center justify-center text-primary font-bold">3</div>
-            <div className="flex-1">
-              <h4 className="text-sm font-bold text-white">팝업 마스터 칭호</h4>
-              <p className="text-xs text-muted">스탬프 12개 달성 시 자동 지급</p>
-            </div>
-            <span className={`text-xs px-3 py-1.5 rounded-full whitespace-nowrap ${acquiredCount >= 12 ? 'bg-primary text-black font-bold' : 'bg-white/5 text-white/30'}`}>
-              {acquiredCount >= 12 ? '획득' : '잠김'}
-            </span>
-          </div>
-        </div>
-      </div>
-
     </motion.div>
   );
 }
