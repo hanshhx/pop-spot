@@ -764,25 +764,42 @@ export default function Home() {
 
                 </section>
 
-                {/* 실시간 혼잡도 — 지도 바로 아래 슬림 바. 혼잡도는 '지역/공간' 개념이라 지도와 붙임. 누르면 지역별 혼잡도 모달. */}
-                <button
-                    type="button"
-                    onClick={() => setIsReportOpen(true)}
-                    className="group mb-10 flex w-full items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-white px-5 py-3.5 shadow-sm transition hover:border-primary hover:shadow-md dark:border-white/10 dark:bg-[#111]"
-                >
-                    <div className="flex items-center gap-2.5">
-                        <span className={`h-2.5 w-2.5 shrink-0 animate-pulse rounded-full bg-current ${congestionData ? getCongestionColor(congestionData.level) : "text-green-500"}`} aria-hidden />
-                        <span className="text-sm font-bold text-gray-900 dark:text-white">실시간 혼잡도</span>
-                        {congestionData ? (
-                            <span className="text-sm text-gray-500 dark:text-white/60">
-                                · 성수 <span className={`font-bold ${getCongestionColor(congestionData.level)}`}>{congestionData.level}</span>
-                            </span>
-                        ) : (
-                            <span className="text-sm text-gray-400 dark:text-white/40">· 지역별 실시간 분석</span>
-                        )}
-                    </div>
-                    <span className="shrink-0 text-xs font-semibold text-primary group-hover:underline">지역별 혼잡도 보기 →</span>
-                </button>
+                {/* 지도 아래 유틸리티 2열 — 실시간 혼잡도(공간) + 팝업 캘린더(시간). 각각 누르면 모달. */}
+                <div className="mb-10 grid grid-cols-1 gap-4 md:grid-cols-2">
+                    {/* 실시간 혼잡도 */}
+                    <button
+                        type="button"
+                        onClick={() => setIsReportOpen(true)}
+                        className="group flex items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-white px-5 py-3.5 shadow-sm transition hover:border-primary hover:shadow-md dark:border-white/10 dark:bg-[#111]"
+                    >
+                        <div className="flex min-w-0 items-center gap-2.5">
+                            <span className={`h-2.5 w-2.5 shrink-0 animate-pulse rounded-full bg-current ${congestionData ? getCongestionColor(congestionData.level) : "text-green-500"}`} aria-hidden />
+                            <span className="shrink-0 text-sm font-bold text-gray-900 dark:text-white">실시간 혼잡도</span>
+                            {congestionData ? (
+                                <span className="truncate text-sm text-gray-500 dark:text-white/60">
+                                    · 성수 <span className={`font-bold ${getCongestionColor(congestionData.level)}`}>{congestionData.level}</span>
+                                </span>
+                            ) : (
+                                <span className="hidden truncate text-sm text-gray-400 dark:text-white/40 sm:inline">· 지역별 분석</span>
+                            )}
+                        </div>
+                        <span className="shrink-0 text-xs font-semibold text-primary group-hover:underline">지역별 보기 →</span>
+                    </button>
+
+                    {/* 팝업 캘린더 */}
+                    <button
+                        type="button"
+                        onClick={() => setIsCalendarOpen(true)}
+                        className="group flex items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-white px-5 py-3.5 shadow-sm transition hover:border-primary hover:shadow-md dark:border-white/10 dark:bg-[#111]"
+                    >
+                        <div className="flex min-w-0 items-center gap-2.5">
+                            <Calendar size={16} className="shrink-0 text-primary" aria-hidden />
+                            <span className="shrink-0 text-sm font-bold text-gray-900 dark:text-white">팝업 캘린더</span>
+                            <span className="hidden truncate text-sm text-gray-400 dark:text-white/40 sm:inline">· 언제 뭐가 열리나</span>
+                        </div>
+                        <span className="shrink-0 text-xs font-semibold text-primary group-hover:underline">달력 보기 →</span>
+                    </button>
+                </div>
 
                 {/* 홈 하단 발견 존 — 1a안 (랭킹 히어로 + 나의 기록 + 같이 갈 사람). 혼잡도는 위 바로, 캘린더·음악은 이 존 제외. */}
                 <HomeBento1a
