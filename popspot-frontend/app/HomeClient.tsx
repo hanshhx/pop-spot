@@ -7,11 +7,12 @@ import {
   Instagram, Plus, X, ArrowUp, ArrowDown, Minus,
   Map as MapIcon, Route, Ticket, User as UserIcon, LogOut, Sparkles, Lock, ArrowRight, Loader2, RefreshCw,
   Shirt, Video, ShoppingBag, Crown, GripVertical, PlusCircle, Zap, MessageCircle, Heart, Star, Gift,
-  FolderOpen, Save, Trash2, Store, ShieldCheck, ChevronLeft, ChevronRight, Camera, Coffee, Clock
+  FolderOpen, Save, Trash2, ShieldCheck, ChevronLeft, ChevronRight, Camera, Coffee, Clock
 } from "lucide-react";
 import { motion, Variants, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import Image from "next/image";
+import { popupCoverUrl } from "@/lib/popupCover";
 
 import { 
   DndContext, 
@@ -1343,19 +1344,14 @@ export default function Home() {
                             <div className="grid grid-cols-2 gap-2 lg:gap-3">
                                 {myWishlist.map((item, i) => (
                                     <div key={i} className="relative rounded-md overflow-hidden aspect-video group cursor-pointer border border-[var(--color-border)] bg-cream-300 dark:bg-ink-800">
-                                            {item.popupImage ? (
-                                                <Image
-                                                    src={item.popupImage}
-                                                    alt={item.popupName}
-                                                    fill
-                                                    sizes="(max-width: 768px) 50vw, 25vw"
-                                                    className="object-cover group-hover:scale-110 transition-transform duration-500"
-                                                />
-                                            ) : (
-                                                <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-                                                    <Store size={20} className="lg:w-6 lg:h-6" />
-                                                </div>
-                                            )}
+                                            <Image
+                                                src={popupCoverUrl({ id: item.popupId, imageUrl: item.popupImage })}
+                                                alt={item.popupName}
+                                                fill
+                                                sizes="(max-width: 768px) 50vw, 25vw"
+                                                className="object-cover group-hover:scale-110 transition-transform duration-500"
+                                                unoptimized
+                                            />
                                             
                                             <div className="absolute inset-0 bg-gradient-to-t from-ink-900/85 via-ink-900/30 to-transparent flex flex-col justify-end p-3">
                                                 <span className="text-cream-200 text-xs font-semibold truncate">{item.popupName}</span>
@@ -1637,20 +1633,14 @@ function RecentVisitsCard() {
             href={`/popup/${v.popupId}`}
             className="group block rounded-md overflow-hidden border border-[var(--color-border)] bg-cream-300 dark:bg-ink-800 aspect-square relative"
           >
-            {v.popupImage ? (
-              <Image
-                src={v.popupImage}
-                alt={v.popupName}
-                fill
-                sizes="(max-width: 768px) 33vw, 15vw"
-                className="object-cover group-hover:scale-105 transition-transform duration-300"
-                unoptimized
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-                <Store size={18} />
-              </div>
-            )}
+            <Image
+              src={popupCoverUrl({ id: v.popupId, imageUrl: v.popupImage })}
+              alt={v.popupName}
+              fill
+              sizes="(max-width: 768px) 33vw, 15vw"
+              className="object-cover group-hover:scale-105 transition-transform duration-300"
+              unoptimized
+            />
             <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-ink-900/85 to-transparent p-1.5">
               <span className="text-cream-200 text-[10px] font-semibold truncate block">
                 {v.popupName}
