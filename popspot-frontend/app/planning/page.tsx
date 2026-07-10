@@ -246,6 +246,29 @@ export default function PlanningPage() {
              setParticipants(prev => prev.filter(p => p.name !== name));
           }
         });
+
+        // 코스 탭 "작전지도에서 함께 짜기"로 넘어온 경우: sessionStorage 에 담긴 추천 코스를
+        // 기존 ADD 액션으로 리플레이해 방을 시드한다(백엔드 변경 불필요). 1회만 하고 즉시 비운다.
+        try {
+          const seedRaw = sessionStorage.getItem("planningSeedCourse");
+          if (seedRaw) {
+            sessionStorage.removeItem("planningSeedCourse");
+            const seed: { name: string; lat: number; lng: number }[] = JSON.parse(seedRaw);
+            const valid = seed.filter(
+              (p) => p && p.name && Number.isFinite(p.lat) && Number.isFinite(p.lng),
+            );
+            valid.forEach((p) => {
+              const dataStr = `${p.name}|${p.lat}|${p.lng}`;
+              client.publish({
+                destination: `/app/plan/${roomId}/action`,
+                body: JSON.stringify({ type: "ADD", data: dataStr, sender: myNickname }),
+              });
+            });
+            if (valid.length > 0) notify("추천 코스를 작전지도로 옮겼어요. 함께 편집해보세요!");
+          }
+        } catch {
+          /* 시드 파싱 실패는 무시 */
+        }
       },
       onDisconnect: () => setIsConnected(false),
     });

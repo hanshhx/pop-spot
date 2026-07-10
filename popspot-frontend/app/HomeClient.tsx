@@ -438,7 +438,15 @@ export default function Home() {
       setAiCourse(result);
       sessionStorage.setItem("aiCourseData", JSON.stringify({ vibe: vibe, course: result }));
     } catch (e) {
-      notifyError('AI 연결 실패');
+      // [redesign/test 전용] 백엔드 없을 때(로컬) 동선 지도·저장 버튼을 미리볼 수 있도록 목업 코스로 폴백.
+      if (process.env.NODE_ENV === "development") {
+        const { devMockCourse } = await import("@/lib/devMockPopups");
+        const mock = devMockCourse(vibe);
+        setAiCourse(mock);
+        sessionStorage.setItem("aiCourseData", JSON.stringify({ vibe, course: mock }));
+      } else {
+        notifyError('AI 연결 실패');
+      }
     } finally { setIsAiLoading(false); }
   };
 
@@ -446,6 +454,49 @@ export default function Home() {
     setAiCourse([]);
     setSelectedVibe("");
     sessionStorage.removeItem("aiCourseData");
+  };
+
+  /** AI 추천 코스(aiCourse)를 마이페이지에 저장. */
+  const handleSaveAiCourse = async () => {
+    if (aiCourse.length === 0) {
+      notifyWarning('먼저 코스를 추천받아주세요.');
+      return;
+    }
+    if (!user) {
+      notify('로그인이 필요합니다.');
+      router.push('/login');
+      return;
+    }
+    try {
+      const res = await apiFetch('/api/my-courses', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user.userId,
+          courseName: `${selectedVibe || '나만의'} 코스 (${new Date().toLocaleDateString()})`,
+          courseData: JSON.stringify(aiCourse),
+        }),
+      });
+      if (res.ok) {
+        notifySuccess('코스가 마이페이지에 저장되었어요.');
+        setMyCourseItems(aiCourse);
+        fetchMyCourses(user.userId);
+      } else {
+        notifyError('저장 실패: 서버 오류가 발생했습니다.');
+      }
+    } catch {
+      notifyError('저장 중 오류가 발생했습니다.');
+    }
+  };
+
+  /** 이 코스를 작전지도(협업)로 넘겨 함께 편집. 방 접속 후 planningSeedCourse 를 마커로 시드(백엔드 필요). */
+  const handleOpenCourseInPlanning = () => {
+    if (aiCourse.length === 0) {
+      notifyWarning('먼저 코스를 추천받아주세요.');
+      return;
+    }
+    sessionStorage.setItem('planningSeedCourse', JSON.stringify(aiCourse));
+    handleCreateRoom();
   };
 
   const handleSaveCourse = async () => {
@@ -1126,6 +1177,16 @@ export default function Home() {
                                         <p className="text-muted-foreground text-sm mt-1">AI가 제안하는 최적의 동선입니다.</p>
                                     </div>
                                 </div>
+
+                                {/* 동선 지도 — 카카오맵 링크 대신 앱 안에서 경로(showPath)를 그려 보여준다. */}
+                                <div className="mb-6 h-[280px] overflow-hidden rounded-2xl border border-[var(--color-border)] lg:h-[340px]">
+                                    <InteractiveMap
+                                        places={aiCourse}
+                                        showPath
+                                        center={aiCourse[0] ? { lat: aiCourse[0].lat, lng: aiCourse[0].lng } : undefined}
+                                    />
+                                </div>
+
                                 <div className="space-y-4 lg:space-y-6">
                                     {aiCourse.map((item, idx) => (
                                         <article key={idx} className="flex gap-3 lg:gap-4 group/item">
@@ -1144,16 +1205,20 @@ export default function Home() {
                                     ))}
                                 </div>
                                 
-                                <button 
-                                    onClick={handleCopyAiToMyCourse}
-                                    className="w-full py-3 lg:py-4 mt-2 lg:mt-4 bg-lime-300 hover:bg-lime-400 rounded-pill font-semibold text-ink-900 transition-colors flex items-center justify-center gap-1.5 lg:gap-2 text-sm lg:text-base"
-                                >
-                                  <MapIcon size={14} className="lg:w-[18px] lg:h-[18px]" /> 전체 경로 지도에서 보기 (MY 탭으로 이동)
-                                </button>
-                                
-                                <button onClick={handleSaveCourse} className="w-full py-3 lg:py-4 mt-2 lg:mt-3 bg-transparent hover:bg-foreground/5 text-foreground border border-[var(--color-border-strong)] rounded-pill font-semibold transition-colors flex items-center justify-center gap-2 text-sm lg:text-base">
-                                    <Ticket size={14} className="lg:w-[18px] lg:h-[18px]" /> 내 코스로 저장하기
-                                </button>
+                                <div className="mt-4 flex flex-col gap-2 lg:mt-6 lg:flex-row">
+                                    <button
+                                        onClick={handleSaveAiCourse}
+                                        className="flex flex-1 items-center justify-center gap-2 rounded-pill bg-lime-300 py-3.5 text-sm font-semibold text-ink-900 transition-colors hover:bg-lime-400 lg:text-base"
+                                    >
+                                        <Ticket size={16} /> 마이페이지에 저장
+                                    </button>
+                                    <button
+                                        onClick={handleOpenCourseInPlanning}
+                                        className="flex flex-1 items-center justify-center gap-2 rounded-pill border border-[var(--color-border-strong)] py-3.5 text-sm font-semibold text-foreground transition-colors hover:bg-foreground/5 lg:text-base"
+                                    >
+                                        <MapIcon size={16} /> 작전지도에서 함께 짜기
+                                    </button>
+                                </div>
                             </div>
                         </motion.div>
                     )}
