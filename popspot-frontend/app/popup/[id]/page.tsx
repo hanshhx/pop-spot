@@ -376,7 +376,7 @@ export default function PopupDetail() {
   return (
     <main className="min-h-screen bg-background text-foreground pb-24">
       {/* 사진 히어로 — 실제 커버 이미지(없으면 카테고리 그라디언트) + 제목 오버레이 */}
-      <div className="relative h-[42vh] min-h-[300px] w-full overflow-hidden md:h-[48vh]">
+      <div className="relative h-[38vh] min-h-[240px] max-h-[440px] w-full overflow-hidden">
         {popup.imageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={popup.imageUrl} alt={popup.name} className="h-full w-full object-cover" />
