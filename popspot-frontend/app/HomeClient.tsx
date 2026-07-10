@@ -1006,10 +1006,10 @@ export default function Home() {
 
         {/* TAB: PASSPORT */}
         {currentTab === "PASSPORT" && (
-            <motion.section aria-label="Digital Passport" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} 
-                        className="min-h-[60vh] flex flex-col items-center justify-center rounded-xl border border-[var(--color-border)] bg-surface text-surface-foreground mb-16 relative overflow-hidden p-4 shadow-md">
+            <motion.section aria-label="Digital Passport" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}
+                        className="min-h-[60vh] rounded-xl border border-[var(--color-border)] bg-surface text-surface-foreground mb-16 shadow-md">
               {user ? (<PassportView />) : (
-                  <div className="text-center p-6 lg:p-8 z-10 w-full max-w-md">
+                  <div className="mx-auto text-center p-6 lg:p-8 pt-16 z-10 w-full max-w-md">
                       <div className="w-20 h-20 rounded-pill flex items-center justify-center mx-auto mb-6 border border-[var(--color-border)] bg-cream-300 dark:bg-ink-800"><Lock size={32} className="lg:w-10 lg:h-10 text-muted-foreground" /></div>
                       <h2 className="text-2xl lg:text-3xl font-bold mb-3 text-foreground">로그인이 필요합니다</h2><p className="text-sm text-muted-foreground mb-8">나만의 팝업 여권을 만들고 스탬프를 모아보세요.</p>
                       <Link href="/login" className="inline-flex w-full lg:w-auto px-6 py-3 bg-lime-300 hover:bg-lime-400 text-ink-900 font-semibold rounded-pill transition-colors items-center justify-center text-sm lg:text-base">로그인 하러가기</Link>
