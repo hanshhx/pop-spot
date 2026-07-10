@@ -1,77 +1,60 @@
 "use client";
 
-// [코드 해석] React의 생명주기와 상태 관리를 위한 훅들을 불러옵니다.
 import { useEffect, useRef, useState } from "react";
-// [코드 해석] Next.js의 앱 라우터에서 URL 파라미터를 읽고 페이지를 이동시키는 훅을 불러옵니다.
 import { useParams, useRouter } from "next/navigation";
-// [코드 해석] UI 디자인에 사용할 Lucide 아이콘들을 불러옵니다.
 import {
-  ArrowLeft, MapPin, Calendar, Clock, Share2, Heart, CheckCircle, Ticket,
-  Sun, Moon, ExternalLink, Info, AlertCircle, ShieldAlert, Sparkles
+  ArrowLeft,
+  MapPin,
+  Share2,
+  Heart,
+  CheckCircle,
+  Ticket,
+  ExternalLink,
+  AlertCircle,
+  ShieldAlert,
+  Sparkles,
+  Navigation,
 } from "lucide-react";
 import { TakedownModal } from "../../../src/features/popup/TakedownModal";
-// [코드 해석] 타이포그래피 애니메이션을 구현하기 위해 Framer Motion 모듈을 불러옵니다.
-import { motion, Variants } from "framer-motion";
-// [코드 해석] 다크/라이트 모드 전환을 위한 next-themes 훅을 불러옵니다.
-import { useTheme } from "next-themes"; 
 
-// [코드 해석] 분리된 하위 컴포넌트(지도, 채팅, 디지털 티켓)를 불러옵니다.
 import DetailMap from "../../../src/components/Map/DetailMap";
 import ChatRoom from "../../../src/components/ChatRoom";
-import DigitalTicket from "../../../src/components/DigitalTicket";
 import MusicForPopup from "../../../src/components/music/MusicForPopup";
-// [코드 해석] 서버와 통신하기 위한 커스텀 API fetch 함수를 불러옵니다.
 import { apiFetch } from "../../../src/lib/api";
 import { notify, notifyError } from "@/lib/notify";
 import { escapeHtml } from "@/lib/escapeHtml";
 import type { User } from "@/types/popup";
 
-// [로직 해석] TypeScript 환경에서 window 객체 안에 kakao 객체가 존재함을 전역으로 알리고 에러를 방지합니다.
 declare global {
   interface Window {
     kakao: import("@/types/sdk").KakaoMapsSdk;
   }
 }
 
-// [코드 해석] 카카오 로드뷰 컴포넌트가 부모로부터 받을 위도, 경도, 장소명 타입을 정의합니다.
 interface KakaoRoadviewProps {
   lat: number;
   lng: number;
   name: string;
 }
 
-// [로직 해석] 카카오맵 API를 활용하여 지정된 좌표의 로드뷰(거리뷰)를 렌더링하는 전용 컴포넌트입니다.
+/** 카카오 로드뷰(거리뷰)를 렌더링하는 전용 컴포넌트. */
 export function KakaoRoadview({ lat, lng, name }: KakaoRoadviewProps) {
-  // [코드 해석] 로드뷰를 담을 실제 HTML div 요소를 조작하기 위해 useRef를 생성합니다.
   const containerRef = useRef<HTMLDivElement>(null);
-  // [코드 해석] 로드뷰 정보를 불러오지 못했을 때의 에러 상태를 관리합니다.
   const [isError, setIsError] = useState(false);
 
-  // [로직 해석] 컴포넌트가 렌더링되거나 좌표(lat, lng)가 바뀔 때마다 카카오 로드뷰를 초기화하는 이펙트입니다.
   useEffect(() => {
-    // [코드 해석] 서버사이드 렌더링(SSR) 중이거나 카카오맵 스크립트가 로드되지 않았다면 실행을 중단합니다.
     if (typeof window === "undefined" || !window.kakao || !window.kakao.maps) return;
-
-    // [코드 해석] 참조해둔 DOM 요소가 실제로 존재하는지 확인합니다.
     const container = containerRef.current;
     if (!container) return;
 
-    // [로직 해석] 카카오맵 API가 완전히 로드된 후 내부 콜백 함수를 실행하도록 보장합니다.
     window.kakao.maps.load(() => {
-      // [코드 해석] 넘겨받은 위도, 경도로 카카오맵 좌표 객체를 생성합니다.
       const position = new window.kakao.maps.LatLng(lat, lng);
-      // [코드 해석] DOM 컨테이너에 실제 로드뷰 객체를 생성하여 연결합니다.
       const rv = new window.kakao.maps.Roadview(container);
-      // [코드 해석] 로드뷰 데이터(파노라마 ID)를 검색하기 위한 클라이언트 객체를 생성합니다.
       const rvClient = new window.kakao.maps.RoadviewClient();
 
-      // [로직 해석] 지정된 좌표를 중심으로 반경 50미터 이내에서 가장 가까운 로드뷰 파노라마 ID를 검색합니다.
       rvClient.getNearestPanoId(position, 50, (panoId: number | null) => {
-        // [코드 해석] 검색된 파노라마 ID가 존재한다면 로드뷰를 해당 위치로 설정합니다.
         if (panoId) {
           rv.setPanoId(panoId, position);
-          
-          // [로직 해석] 로드뷰 화면 위에 둥둥 떠다닐 커스텀 오버레이 마커의 HTML 문자열을 구성합니다.
           const content = `
             <div style="padding: 6px 10px; background: #ffeb33; border-radius: 12px; border: 2px solid #000; box-shadow: 0 4px 12px rgba(0,0,0,0.3); display: flex; align-items: center; gap: 6px; transform: translateY(-40px); font-size: 12px; white-space: nowrap;">
               <div style="width: 8px; height: 8px; background: red; border-radius: 50%; animation: pulse 1.5s infinite;"></div>
@@ -81,22 +64,14 @@ export function KakaoRoadview({ lat, lng, name }: KakaoRoadviewProps) {
               @keyframes pulse { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.4); opacity: 0.7; } 100% { transform: scale(1); opacity: 1; } }
             </style>
           `;
-
-          // [코드 해석] 구성한 HTML을 바탕으로 카카오 커스텀 오버레이 객체를 생성하고 로드뷰에 부착합니다.
-          new window.kakao.maps.CustomOverlay({
-            position: position,
-            content: content,
-            map: rv 
-          });
+          new window.kakao.maps.CustomOverlay({ position: position, content: content, map: rv });
         } else {
-          // [코드 해석] 해당 좌표 주변에 로드뷰 데이터가 없다면 에러 상태를 true로 변경합니다.
           setIsError(true);
         }
       });
     });
   }, [lat, lng, name]);
 
-  // [로직 해석] 에러 상태가 true일 경우, 로드뷰 대신 에러 안내 UI를 렌더링하여 화면 붕괴를 막습니다.
   if (isError) {
     return (
       <div className="w-full h-full bg-gray-900 flex flex-col items-center justify-center text-gray-400 p-4 text-center">
@@ -106,7 +81,6 @@ export function KakaoRoadview({ lat, lng, name }: KakaoRoadviewProps) {
     );
   }
 
-  // [코드 해석] 정상적으로 로드뷰 데이터를 찾았다면 준비된 컨테이너 div를 화면에 그려줍니다.
   return (
     <div className="w-full h-full relative">
       <div ref={containerRef} className="w-full h-full" />
@@ -114,126 +88,140 @@ export function KakaoRoadview({ lat, lng, name }: KakaoRoadviewProps) {
   );
 }
 
-// [코드 해석] 팝업스토어 상세 정보 API 응답 데이터의 타입을 안전하게 관리하기 위해 인터페이스를 정의합니다.
 interface PopupDetail {
-  id: number; name: string; content: string; address: string; category: string;
-  status?: string; openDate?: string; closeDate?: string; openTime?: string; closeTime?: string;
-  latitude?: string; longitude?: string;
+  id: number;
+  name: string;
+  content: string;
+  address: string;
+  category: string;
+  status?: string;
+  openDate?: string;
+  closeDate?: string;
+  openTime?: string;
+  closeTime?: string;
+  latitude?: string;
+  longitude?: string;
+  imageUrl?: string;
   // [V4] 자동수집/검수/저작권 메타
-  sourceType?: string; sourceUrl?: string; sourceName?: string;
+  sourceType?: string;
+  sourceUrl?: string;
+  sourceName?: string;
   reviewStatus?: string;
 }
 
-// [로직 해석] 상세 페이지의 전체 레이아웃과 데이터 흐름을 담당하는 메인 컴포넌트입니다.
+const CAT_KO: Record<string, string> = {
+  FASHION: "패션",
+  FOOD: "푸드",
+  CULTURE: "컬처",
+  CHARACTER: "캐릭터",
+  BEAUTY: "뷰티",
+  TECH: "테크",
+  ETC: "기타",
+};
+
+const CAT_GRAD: Record<string, string> = {
+  FASHION: "from-pink-300 to-rose-400",
+  FOOD: "from-amber-300 to-orange-400",
+  CULTURE: "from-violet-300 to-indigo-400",
+  CHARACTER: "from-lime-300 to-emerald-400",
+  BEAUTY: "from-fuchsia-300 to-pink-400",
+  TECH: "from-sky-300 to-cyan-400",
+  ETC: "from-gray-300 to-gray-400",
+};
+
+function ddayLabel(closeDate?: string): string | null {
+  if (!closeDate) return null;
+  const end = new Date(closeDate);
+  if (Number.isNaN(end.getTime())) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  end.setHours(0, 0, 0, 0);
+  const diff = Math.round((end.getTime() - today.getTime()) / 86_400_000);
+  if (diff < 0) return "종료";
+  if (diff === 0) return "오늘 마감";
+  return `D-${diff}`;
+}
+
+/** 팝업 상세 페이지 — 사진 히어로 + 정보 바 + CTA + 소개 + 지도 + 보조 위젯(음악·톡). */
 export default function PopupDetail() {
-  // [코드 해석] URL에서 동적 라우팅 파라미터(예: /popups/86 의 86)를 추출합니다.
   const params = useParams();
-  // [코드 해석] 다른 페이지로 이동하거나 뒤로가기 기능을 수행하기 위해 라우터 객체를 가져옵니다.
   const router = useRouter();
-  // [코드 해석] 현재 테마 상태와 테마를 변경하는 함수를 가져옵니다.
-  const { theme, setTheme } = useTheme(); 
-  
-  // [코드 해석] 서버에서 받아온 팝업스토어 상세 데이터를 보관하는 상태입니다.
+
   const [popup, setPopup] = useState<PopupDetail | null>(null);
-  // [코드 해석] 데이터를 불러오는 동안 화면에 로딩 인디케이터를 띄우기 위한 상태입니다.
   const [loading, setLoading] = useState(true);
-  // [코드 해석] 유저가 이 팝업스토어에 방문 스탬프를 찍었는지 여부를 관리하는 상태입니다.
-  const [isStamped, setIsStamped] = useState(false); 
-  // [코드 해석] 유저가 이 팝업스토어를 찜(위시리스트)했는지 여부를 관리하는 상태입니다.
-  const [isLiked, setIsLiked] = useState(false); 
-  // [코드 해석] 로그인 인증 여부를 검사하는 중인지 확인하여 화면 깜빡임을 방지하는 상태입니다.
+  const [isStamped, setIsStamped] = useState(false);
+  const [isLiked, setIsLiked] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
-  // [코드 해석] 로컬스토리지에서 가져온 유저 정보를 담아두는 상태입니다.
   const [user, setUser] = useState<User | null>(null);
-  // [V4] 권리자 takedown 신고 모달 상태
   const [takedownOpen, setTakedownOpen] = useState(false);
 
-  // [코드 해석] 테스트 목적이나 유저 데이터가 없을 때를 대비한 기본 유저 ID 상수입니다.
   const TEST_USER_ID = "test_user";
 
-  // [로직 해석] 텍스트 안에 포함된 http/https 링크를 찾아 실제 클릭 가능한 a 태그로 변환해주는 유틸리티 함수입니다.
+  /** 본문 내 http/https 링크를 클릭 가능한 a 태그로 변환. */
   const renderContentWithLinks = (text: string) => {
-    // [코드 해석] 전달받은 텍스트가 비어있다면 빈 문자열을 반환하여 에러를 막습니다.
     if (!text) return "";
-    // [코드 해석] 웹 URL 형식을 잡아내는 정규표현식 객체입니다.
     const urlRegex = /(https?:\/\/[^\s]+)/g;
-    // [코드 해석] 정규식을 기준으로 원본 텍스트를 링크 부분과 일반 텍스트 부분으로 쪼갭니다.
     const parts = text.split(urlRegex);
-    
-    // [로직 해석] 쪼개진 텍스트 조각들을 순회하면서 링크인 경우와 아닌 경우를 다르게 렌더링합니다.
     return parts.map((part, index) => {
-      // [코드 해석] 현재 조각이 URL 정규식과 일치한다면 a 태그로 감싸서 반환합니다.
       if (part.match(urlRegex)) {
         return (
-          <a 
-            key={index} 
-            href={part} 
-            target="_blank" 
-            rel="noopener noreferrer" 
-            className="text-lime-500 hover:text-lime-300 underline break-all inline-flex items-center gap-1"
+          <a
+            key={index}
+            href={part}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-lime-600 hover:text-lime-500 dark:text-lime-400 dark:hover:text-lime-300 underline break-all inline-flex items-center gap-1"
           >
-            {part} <ExternalLink size={12} className="md:w-3.5 md:h-3.5"/>
+            {part} <ExternalLink size={12} className="md:w-3.5 md:h-3.5" />
           </a>
         );
       }
-      // [코드 해석] 일반 텍스트라면 별도 처리 없이 원본 텍스트를 그대로 반환합니다.
       return part;
     });
   };
 
-  // [로직 해석] 컴포넌트가 처음 화면에 나타날 때 로컬스토리지를 검사하여 로그인 여부를 확인합니다.
   useEffect(() => {
-    // [코드 해석] 브라우저 저장소에서 'user'라는 키로 저장된 데이터를 꺼내옵니다.
+    // 팝업 상세는 비로그인/게스트도 열람 가능(공유·SEO·게스트 둘러보기). 로그인은 스탬프·찜 등 액션에서만 요구.
     const storedUser = localStorage.getItem("user");
-    // [로직 해석] 저장된 정보가 없다면 경고창을 띄우고 강제로 로그인 페이지로 이동시킵니다.
-    if (!storedUser) {
-        notify("로그인이 필요합니다.");
-        router.replace("/login"); 
-    } else {
-        // [코드 해석] 정보가 있다면 JSON 문자열을 자바스크립트 객체로 변환하여 user 상태에 저장합니다.
+    if (storedUser) {
+      try {
         setUser(JSON.parse(storedUser));
-        // [코드 해석] 인증 확인 절차가 끝났음을 알리기 위해 상태를 false로 변경합니다.
-        setIsCheckingAuth(false); 
+      } catch {
+        /* 손상된 값 무시 */
+      }
     }
-  }, [router]);
+    setIsCheckingAuth(false);
+  }, []);
 
-  // [로직 해석] 인증 검사가 끝나면 파라미터로 받은 팝업스토어 ID를 이용해 백엔드에서 상세 데이터를 가져옵니다.
   useEffect(() => {
-    // [코드 해석] 아직 인증 검사 중이라면 API 호출을 잠시 보류합니다.
     if (isCheckingAuth) return;
 
-    // [코드 해석] apiFetch를 사용하여 백엔드의 상세 조회 엔드포인트로 GET 요청을 보냅니다.
     apiFetch(`/api/popups/${params.id}`)
-      // [코드 해석] 응답이 정상(ok)이면 JSON 데이터를 뽑아내고, 아니면 에러를 발생시킵니다.
-      .then(res => res.ok ? res.json() : Promise.reject())
-      .then(response => {
-        // [코드 해석] 백엔드 응답 구조에 따라 데이터 객체를 추출합니다.
-        const data = response.data || response; 
-        // [로직 해석] 추출한 데이터를 PopupDetail 인터페이스 구조에 맞게 매핑하여 상태를 업데이트합니다.
+      .then((res) => (res.ok ? res.json() : Promise.reject()))
+      .then((response) => {
+        const data = response.data || response;
         setPopup({
-            id: data.popupId || data.id,
-            name: data.name,
-            content: data.content,
-            address: data.location || data.address,
-            category: data.category,
-            status: data.status || "운영중",
-            openDate: data.startDate || data.openDate,
-            closeDate: data.endDate || data.closeDate,
-            openTime: data.openTime,
-            closeTime: data.closeTime,
-            latitude: data.latitude,
-            longitude: data.longitude,
-            // [V4] 자동수집 메타
-            sourceType: data.sourceType,
-            sourceUrl: data.sourceUrl,
-            sourceName: data.sourceName,
-            reviewStatus: data.reviewStatus,
+          id: data.popupId || data.id,
+          name: data.name,
+          content: data.content,
+          address: data.location || data.address,
+          category: data.category,
+          status: data.status || "운영중",
+          openDate: data.startDate || data.openDate,
+          closeDate: data.endDate || data.closeDate,
+          openTime: data.openTime,
+          closeTime: data.closeTime,
+          latitude: data.latitude,
+          longitude: data.longitude,
+          imageUrl: data.imageUrl || data.image,
+          sourceType: data.sourceType,
+          sourceUrl: data.sourceUrl,
+          sourceName: data.sourceName,
+          reviewStatus: data.reviewStatus,
         });
-        // [코드 해석] 데이터를 모두 받아왔으므로 로딩 상태를 false로 풀어 화면을 렌더링하게 합니다.
         setLoading(false);
-        // v2.18 — 최근 본 팝업 자동 기록 (localStorage, 최대 10개).
+        // v2.18 — 최근 본 팝업 자동 기록.
         try {
-          // dynamic import 로 SSR 시 영향 0.
           import("@/lib/recentVisits").then(({ recordVisit }) => {
             const popupId = Number(data.popupId || data.id);
             if (!Number.isNaN(popupId)) {
@@ -247,334 +235,336 @@ export default function PopupDetail() {
         } catch {
           /* 기록 실패는 무시 */
         }
-        // [로직 해석] 데이터를 성공적으로 받아온 직후, 유저의 스탬프 여부와 찜 여부를 확인하는 함수를 연달아 호출합니다.
         checkIfStamped(data.popupId || data.id);
         checkWishlistStatus(data.popupId || data.id);
       })
-      // [코드 해석] API 통신 중 에러가 발생해도 로딩 상태를 풀어 무한 로딩에 빠지지 않게 합니다.
-      .catch(() => setLoading(false));
+      .catch(() => {
+        // [redesign/test 전용] 로컬(백엔드 없음)에서 재설계 상세를 보기 위한 목업 폴백.
+        if (process.env.NODE_ENV === "development") {
+          import("@/lib/devMockPopups").then(({ devMockPopups }) => {
+            const list = devMockPopups();
+            const m = list.find((p) => String(p.id) === String(params.id)) || list[0];
+            if (m) {
+              setPopup({
+                id: Number(m.id),
+                name: m.name,
+                content:
+                  "성수동에 처음 문을 여는 팝업스토어입니다. 포토존과 한정판 굿즈, 시즌 한정 메뉴를 만나보세요. 방문 인증하면 스탬프가 적립됩니다. 자세한 내용은 공식 SNS를 참고해주세요.",
+                address: m.location,
+                category: m.category || "ETC",
+                status: m.status || "운영중",
+                closeDate: m.endDate,
+                openTime: "11:00",
+                closeTime: "20:00",
+                latitude: m.latitude,
+                longitude: m.longitude,
+                imageUrl: m.imageUrl,
+              });
+            }
+          });
+        }
+        setLoading(false);
+      });
   }, [params.id, isCheckingAuth]);
 
-  // [로직 해석] 유저가 해당 팝업스토어에 방문하여 오늘 날짜로 찍어둔 스탬프가 있는지 확인하는 비동기 함수입니다.
   const checkIfStamped = async (popupId: number) => {
-      // [코드 해석] 상태에 유저 ID가 있으면 쓰고, 없으면 기본 테스트 ID를 사용합니다.
-      const userIdToCheck = user?.userId || TEST_USER_ID;
-      try {
-          // [코드 해석] 백엔드에 내 스탬프 목록을 요청합니다.
-          const res = await apiFetch(`/api/stamps/my?userId=${userIdToCheck}`);
-          if (res.ok) {
-              // [코드 해석] 정상적으로 목록을 가져왔다면 JSON으로 변환합니다.
-              interface StampRow {
-                  stampDate?: string;
-                  popupStore: { popupId: number };
-              }
-              const myStamps: StampRow[] = await res.json();
-              // [코드 해석] 시스템의 현재 날짜를 yyyy-mm-dd 문자열 포맷으로 추출합니다.
-              const todayString = new Date().toISOString().split('T')[0];
-              // [로직 해석] 배열의 요소 중, 현재 보고 있는 팝업스토어 ID와 일치하면서 날짜가 오늘인 데이터가 하나라도 있는지 검사합니다.
-              const hasStampToday = myStamps.some((s) => {
-                  const dbDate = s.stampDate?.split('T')[0];
-                  return s.popupStore.popupId === popupId && dbDate === todayString;
-              });
-              // [코드 해석] 검사 결과를 isStamped 상태에 반영하여 UI 버튼을 활성/비활성화합니다.
-              setIsStamped(hasStampToday);
-          }
-      } catch (e) { console.error(e); } // [코드 해석] 에러 발생 시 콘솔에만 출력하고 앱을 중단시키지 않습니다.
-  };
-
-  // [로직 해석] 유저의 위시리스트 목록을 가져와 현재 보고 있는 팝업스토어가 찜 되어있는지 확인하는 비동기 함수입니다.
-  const checkWishlistStatus = async (popupId: number) => {
-    // [코드 해석] 검색에 사용할 유저 ID를 세팅합니다.
+    if (!user) return;
     const userIdToCheck = user?.userId || TEST_USER_ID;
     try {
-        // [코드 해석] 백엔드에 해당 유저의 전체 위시리스트 목록을 요청합니다.
-        const res = await apiFetch(`/api/wishlist/${userIdToCheck}`);
-        if (res.ok) {
-            // [코드 해석] 정상 응답 시 데이터를 파싱합니다.
-            const list: { popupId: number }[] = await res.json();
-            // [로직 해석] 배열을 순회하며 현재 팝업스토어 ID와 동일한 항목이 있다면 isLiked 상태를 true로 만듭니다.
-            setIsLiked(list.some((item) => item.popupId === popupId));
+      const res = await apiFetch(`/api/stamps/my?userId=${userIdToCheck}`);
+      if (res.ok) {
+        interface StampRow {
+          stampDate?: string;
+          popupStore: { popupId: number };
         }
-    } catch (e) { console.error(e); }
-  };
-
-  const handleStamp = async () => {
-    // [코드 해석] 팝업스토어 데이터가 로드되지 않았다면 함수를 종료합니다.
-    if (!popup) return;
-    try {
-        // [로직 해석] 백엔드 API 규격에 맞게 userId와 popupId를 URL 끝에 파라미터로 붙여서 POST를 요청합니다.
-        const res = await apiFetch(`/api/stamps?userId=${user?.userId}&popupId=${popup.id}`, { 
-            method: "POST"
+        const myStamps: StampRow[] = await res.json();
+        const todayString = new Date().toISOString().split("T")[0];
+        const hasStampToday = myStamps.some((s) => {
+          const dbDate = s.stampDate?.split("T")[0];
+          return s.popupStore.popupId === popupId && dbDate === todayString;
         });
-        // [코드 해석] 통신이 성공했다면 스탬프 상태를 true로 바꾸고 성공 알림을 띄웁니다.
-        if (res.ok) {
-            setIsStamped(true);
-            notify("🎉 스탬프 완료!");
-        } else {
-            notifyError("이미 스탬프를 찍었거나 서버 오류입니다.");
-        }
-    } catch (e) { notifyError("오류 발생"); }
-  };
-
-  const handleToggleLike = async () => {
-    // [코드 해석] 유저나 팝업 정보가 없으면 로직을 중단합니다.
-    if (!popup || !user) return;
-    
-    // [코드 해석] API 통신이 실패했을 때를 대비해 이전 찜 상태를 변수에 저장해둡니다.
-    const prevStatus = isLiked;
-    // [로직 해석] 서버 응답을 기다리지 않고 먼저 UI 하트 색상을 바꿔주는 낙관적 업데이트(Optimistic UI) 패턴입니다.
-    setIsLiked(!isLiked); 
-    
-    try {
-        // [코드 해석] 동현님 원본 코드 그대로 Path Variable 형태의 URL로 POST 요청을 보냅니다.
-        const res = await apiFetch(`/api/wishlist/${user.userId}/${popup.id}`, { 
-            method: "POST"
-        });
-        
-        // [코드 해석] 서버에서 에러 코드(4xx, 5xx)가 돌아오면 의도적으로 예외를 발생시킵니다.
-        if (!res.ok) throw new Error();
+        setIsStamped(hasStampToday);
+      }
     } catch (e) {
-        // [로직 해석] API 호출에 실패했다면 미리 바꿔두었던 UI 상태를 이전 상태로 강제 복구합니다.
-        setIsLiked(prevStatus); 
-        notifyError("찜하기 처리에 실패했습니다.");
+      console.error(e);
     }
   };
 
-  // [로직 해석] 인증 절차가 안 끝났거나 데이터 로딩 중이면 뼈대 화면(LOADING)을 보여줍니다.
-  if (isCheckingAuth || loading) return <div className="min-h-screen bg-black flex items-center justify-center text-white font-black text-sm md:text-base">LOADING...</div>;
-  // [코드 해석] 팝업 데이터가 끝내 없으면 아무것도 렌더링하지 않아 에러를 피합니다.
+  const checkWishlistStatus = async (popupId: number) => {
+    if (!user) return;
+    const userIdToCheck = user?.userId || TEST_USER_ID;
+    try {
+      const res = await apiFetch(`/api/wishlist/${userIdToCheck}`);
+      if (res.ok) {
+        const list: { popupId: number }[] = await res.json();
+        setIsLiked(list.some((item) => item.popupId === popupId));
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleStamp = async () => {
+    if (!popup) return;
+    if (!user) {
+      notify("로그인이 필요합니다.");
+      router.push("/login");
+      return;
+    }
+    try {
+      const res = await apiFetch(`/api/stamps?userId=${user?.userId}&popupId=${popup.id}`, {
+        method: "POST",
+      });
+      if (res.ok) {
+        setIsStamped(true);
+        notify("🎉 스탬프 완료!");
+      } else {
+        notifyError("이미 스탬프를 찍었거나 서버 오류입니다.");
+      }
+    } catch (e) {
+      notifyError("오류 발생");
+    }
+  };
+
+  const handleToggleLike = async () => {
+    if (!popup) return;
+    if (!user) {
+      notify("로그인이 필요합니다.");
+      router.push("/login");
+      return;
+    }
+    const prevStatus = isLiked;
+    setIsLiked(!isLiked);
+    try {
+      const res = await apiFetch(`/api/wishlist/${user.userId}/${popup.id}`, {
+        method: "POST",
+      });
+      if (!res.ok) throw new Error();
+    } catch (e) {
+      setIsLiked(prevStatus);
+      notifyError("찜하기 처리에 실패했습니다.");
+    }
+  };
+
+  const handleShare = async () => {
+    if (!popup) return;
+    const { share } = await import("@/lib/share");
+    await share({
+      title: popup.name,
+      text: `${popup.name} — ${popup.address ?? ""}`,
+      url: typeof window !== "undefined" ? window.location.href : "",
+    });
+  };
+
+  if (isCheckingAuth || loading)
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center text-foreground font-black text-sm md:text-base">
+        LOADING...
+      </div>
+    );
   if (!popup) return null;
 
-  // [코드 해석] 지도와 로드뷰에 사용할 위경도 문자열 데이터를 소수점 숫자(float) 형태로 변환합니다. 값이 없으면 건대입구 좌표를 기본값으로 씁니다.
   const lat = parseFloat(popup.latitude || "37.5445");
   const lng = parseFloat(popup.longitude || "127.0560");
 
-  // [코드 해석] 프레이머 모션을 이용해 배경 글자가 X축으로 -1000px 이동하며 무한 반복되도록 애니메이션 속성을 정의합니다.
-  const marqueeVariants: Variants = {
-    animate: { x: [0, -1000], transition: { x: { repeat: Infinity, repeatType: "loop" as const, duration: 20, ease: "linear" } } },
-  };
+  const catKey = popup.category?.toUpperCase() ?? "ETC";
+  const catKo = CAT_KO[catKey] ?? popup.category;
+  const catGrad = CAT_GRAD[catKey] ?? CAT_GRAD.ETC;
+  const dday = ddayLabel(popup.closeDate);
+  const directionsUrl = `https://map.kakao.com/link/to/${encodeURIComponent(popup.name)},${lat},${lng}`;
 
-  // [로직 해석] 실제 사용자 화면에 렌더링되는 전체 HTML(JSX) 구조의 시작점입니다.
   return (
-    // [코드 해석] 뷰포트 전체 높이를 잡고 내용을 넘어설 경우 스크롤되도록 세팅된 메인 컨테이너입니다.
-    <main className="min-h-screen bg-[#050505] text-white relative pb-20 overflow-x-hidden overflow-y-auto"> 
-      
-      
-      <div className="relative h-[50vh] md:h-[60vh] w-full overflow-hidden flex flex-col items-center justify-center z-0">
-        
-        {/* [코드 해석] 애니메이션 글자가 흘러가는 배경 레이어입니다. 마우스 이벤트가 무시되도록 설정되어 있습니다. */}
-        <div className="absolute inset-0 flex flex-col justify-center opacity-10 select-none pointer-events-none overflow-hidden">
-            {/* [로직 해석] 동일한 문구를 3번 반복 렌더링하여 화면에 빈틈없이 타이포그래피가 채워지게 합니다. */}
-            {[...Array(3)].map((_, i) => (
-                <motion.div key={i} variants={marqueeVariants} animate="animate" className="whitespace-nowrap text-[12vh] md:text-[15vh] font-black text-white leading-none uppercase">
-                    {popup.name} &nbsp; {popup.category} &nbsp;
-                </motion.div>
-            ))}
-        </div>
+    <main className="min-h-screen bg-background text-foreground pb-24">
+      {/* 사진 히어로 — 실제 커버 이미지(없으면 카테고리 그라디언트) + 제목 오버레이 */}
+      <div className="relative h-[38vh] min-h-[240px] max-h-[440px] w-full overflow-hidden">
+        {popup.imageUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={popup.imageUrl} alt={popup.name} className="h-full w-full object-cover" />
+        ) : (
+          <div className={`h-full w-full bg-gradient-to-br ${catGrad}`} />
+        )}
+        <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
 
-        {/* [코드 해석] 화면 최상단 좌우에 위치하는 뒤로가기 버튼과 테마(다크/라이트) 변경 버튼 영역입니다. */}
-        <div className="absolute top-0 left-0 w-full p-4 md:p-6 flex justify-between z-[50]">
-            {/* [코드 해석] 클릭 시 라우터 객체를 통해 이전 페이지 이력으로 돌아갑니다. */}
-            <button onClick={() => router.back()} className="p-2.5 md:p-3 bg-white/10 backdrop-blur-md rounded-full border border-white/10 hover:bg-white/20 transition-all">
-                <ArrowLeft size={20} className="md:w-6 md:h-6" />
-            </button>
-            {/* [코드 해석] 현재 테마 상태에 따라 해(Sun) 또는 달(Moon) 아이콘을 교차하여 보여주고 테마를 토글합니다. */}
-            <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="p-2.5 md:p-3 bg-white/10 backdrop-blur-md rounded-full border border-white/10">
-                {theme === 'dark' ? <Sun size={20} className="md:w-6 md:h-6" /> : <Moon size={20} className="md:w-6 md:h-6" />}
-            </button>
-        </div>
-
-        {/* [로직 해석] Hero 중앙에 실제 팝업 정보를 카드 형태로 보여주는 핵심 UI 컴포넌트(DigitalTicket)를 삽입합니다. */}
-        <div className="relative z-10 w-full flex justify-center px-4 mt-6 md:mt-10">
-            <DigitalTicket 
-                name={popup.name}
-                date={`${popup.openDate} ~ ${popup.closeDate}`}
-                address={popup.address}
-                category={popup.category}
-                userName={user?.nickname}
-                status={popup.status}
-                lat={lat} lng={lng}
-          />
-        </div>
-        
-        {/* [코드 해석] Hero 섹션과 하단 상세 컨텐츠가 자연스럽게 이어지도록 밑부분에 투명한 그라데이션 박스를 덮습니다. */}
-        <div className="absolute bottom-0 left-0 w-full h-24 md:h-32 bg-gradient-to-t from-[#050505] to-transparent z-20"></div>
-      </div>
-
-      
-      <div className="p-4 md:p-6 max-w-3xl mx-auto space-y-6 md:space-y-10 relative z-30 -mt-6 md:-mt-10">
-        
-        {/* [로직 해석] 사용자가 가장 빈번하게 누르는 액션 버튼들(스탬프, 공유, 찜)을 묶어둔 컨테이너입니다. */}
-        <div className="flex flex-row md:flex-row gap-2 md:gap-3 relative z-[40]">
-            {/* [로직 해석] 스탬프 상태에 따라 버튼의 색상, 텍스트, 비활성화 여부(disabled)가 실시간으로 변합니다. */}
-            <button 
-                onClick={handleStamp}
-                disabled={isStamped}
-                className={`flex-[2] md:flex-[3] py-3 md:py-4 rounded-xl md:rounded-2xl font-black flex items-center justify-center gap-1.5 md:gap-2 transition-all border text-xs md:text-base ${
-                    isStamped 
-                    ? "bg-white/5 border-white/10 text-gray-500 cursor-not-allowed" 
-                    : "bg-lime-300 text-ink-900 shadow-xl shadow-md border-transparent hover:bg-lime-400"
-                }`}
-             aria-label="스탬프 찍기">
-                {/* [코드 해석] 스탬프 유무에 따라 좌측 아이콘이 체크 마크 혹은 티켓 모양으로 바뀝니다. */}
-                {isStamped ? <CheckCircle size={16} className="md:w-5 md:h-5"/> : <Ticket size={16} className="md:w-5 md:h-5"/>}
-                {isStamped ? "인증됨" : "스탬프 찍기"}
-            </button>
-            {/* v2.18 — 공유 버튼: Web Share API + 클립보드 복사 fallback */}
+        {/* 상단: 뒤로 / 공유 · 찜 */}
+        <div className="absolute inset-x-0 top-0 z-10 flex items-center justify-between p-4 md:p-5">
+          <button
+            onClick={() => router.back()}
+            aria-label="뒤로"
+            className="grid h-10 w-10 place-items-center rounded-full bg-black/40 text-white backdrop-blur-md transition hover:bg-black/60"
+          >
+            <ArrowLeft size={20} />
+          </button>
+          <div className="flex gap-2">
             <button
-                aria-label="공유"
-                onClick={async () => {
-                    if (!popup) return;
-                    const { share } = await import("@/lib/share");
-                    await share({
-                        title: popup.name,
-                        text: `${popup.name} — ${popup.address ?? ""}`,
-                        url: typeof window !== "undefined" ? window.location.href : "",
-                    });
-                }}
-                className="flex-1 p-3 md:p-4 bg-white/5 backdrop-blur-md border border-white/10 rounded-xl md:rounded-2xl text-white hover:bg-white/10 transition-colors flex items-center justify-center"
+              onClick={handleShare}
+              aria-label="공유"
+              className="grid h-10 w-10 place-items-center rounded-full bg-black/40 text-white backdrop-blur-md transition hover:bg-black/60"
             >
-                <Share2 size={16} className="md:w-5 md:h-5" />
+              <Share2 size={18} />
             </button>
-            {/* [로직 해석] 찜하기 상태에 따라 배경색과 하트 색상이 빨갛게 채워지거나(fill-current) 투명하게 토글됩니다. */}
-            <button 
-                onClick={handleToggleLike}
-                className={`flex-1 p-3 md:p-4 border rounded-xl md:rounded-2xl transition-colors flex items-center justify-center backdrop-blur-md ${
-                    isLiked 
-                    ? "bg-red-500/10 border-red-500 text-red-500" 
-                    : "bg-white/5 border-white/10 text-white hover:bg-white/10"
-                }`}
+            <button
+              onClick={handleToggleLike}
+              aria-label="찜하기"
+              className={`grid h-10 w-10 place-items-center rounded-full backdrop-blur-md transition ${
+                isLiked ? "bg-hot-400 text-white" : "bg-black/40 text-white hover:bg-black/60"
+              }`}
             >
-                <Heart size={16} className={`md:w-5 md:h-5 ${isLiked ? "fill-current" : ""}`} />
+              <Heart size={18} className={isLiked ? "fill-current" : ""} />
             </button>
+          </div>
         </div>
 
-        {/* [코드 해석] 팝업스토어의 날짜와 오픈/마감 시간을 명시적으로 보여주는 정보 카드 섹션입니다. */}
-        <div className="bg-[#111] border border-white/10 rounded-2xl md:rounded-3xl p-5 md:p-6 space-y-3 md:space-y-4 shadow-2xl relative z-30">
-            {/* [코드 해석] 운영 기간(Period)을 표시하는 좌우 분할 레이아웃입니다. */}
-            <div className="flex items-center gap-3 md:gap-4">
-                <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-lime-300/10 flex items-center justify-center text-lime-300 border border-lime-300/20 shrink-0">
-                    <Calendar size={16} className="md:w-5 md:h-5"/>
-                </div>
-                <div>
-                    <p className="text-[9px] md:text-[10px] text-white/40 font-bold uppercase tracking-widest">Period</p>
-                    <p className="font-bold text-white/90 text-xs md:text-base">{popup.openDate} ~ {popup.closeDate}</p>
-                </div>
-            </div>
-            {/* [코드 해석] 구역을 나누기 위한 얇은 가로선(디바이더)입니다. */}
-            <div className="w-full h-px bg-white/5"/>
-            {/* [코드 해석] 오픈 시간(Open Time)을 표시하는 좌우 분할 레이아웃입니다. 데이터가 없으면 기본값(11:00-20:00)을 씁니다. */}
-            <div className="flex items-center gap-3 md:gap-4">
-                <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-lime-300/10 flex items-center justify-center text-lime-300 border border-lime-300/20 shrink-0">
-                    <Clock size={16} className="md:w-5 md:h-5"/>
-                </div>
-                <div>
-                    <p className="text-[9px] md:text-[10px] text-white/40 font-bold uppercase tracking-widest">Open Time</p>
-                    <p className="font-bold text-white/90 text-xs md:text-base">{popup.openTime || "11:00"} - {popup.closeTime || "20:00"}</p>
-                </div>
-            </div>
-        </div>
-
-        {/* [로직 해석] 관리자가 백엔드에 입력해둔 긴 상세 설명 글이 렌더링되는 영역입니다. */}
-        <div className="space-y-3 md:space-y-4 relative z-30">
-            {/* [코드 해석] About This Spot 이라는 섹션 제목입니다. */}
-            <h3 className="text-lg md:text-xl font-black text-lime-300 italic flex items-center gap-1.5 md:gap-2 uppercase tracking-tighter">
-                <Info size={16} className="md:w-5 md:h-5"/> About This Spot
-            </h3>
-            {/* [로직 해석] whitespace-pre-line 클래스를 통해 글의 엔터(줄바꿈)를 그대로 살려주고, 링크 변환 함수를 거친 내용을 출력합니다. */}
-            <div className="bg-[#111] p-5 md:p-7 rounded-2xl md:rounded-3xl border border-white/10 text-white/80 leading-relaxed font-medium whitespace-pre-line shadow-inner text-xs md:text-base">
-                {renderContentWithLinks(popup.content)}
-            </div>
-        </div>
-
-        {/* [V4] 자동수집 출처 + 권리자 신고 박스
-                - sourceType==CRAWLED 인 row 만 출처/AI 뱃지 노출
-                - 모든 row 에서 신고 버튼은 노출 (manual 데이터 오류도 신고 가능) */}
-        <div className="bg-[#111] border border-white/10 rounded-2xl md:rounded-3xl p-5 md:p-6 space-y-3 md:space-y-4 shadow-2xl relative z-30">
-            {popup.sourceType === "CRAWLED" && (
-                <div className="flex items-start gap-3 md:gap-4">
-                    <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-blue-300/10 flex items-center justify-center text-blue-300 border border-blue-300/20 shrink-0">
-                        <Sparkles size={16} className="md:w-5 md:h-5"/>
-                    </div>
-                    <div className="min-w-0 flex-1">
-                        <p className="text-[9px] md:text-[10px] text-white/40 font-bold uppercase tracking-widest">
-                            AI 자동수집 정보
-                        </p>
-                        <p className="text-xs md:text-sm text-white/70 leading-relaxed">
-                            본 정보는 공개된 검색 API ({popup.sourceName || "외부 출처"}) 의 결과를 AI 가 정리한 것입니다.
-                            정확성을 보장하지 않으며, 항상 원문을 참고해주세요.
-                        </p>
-                        {popup.sourceUrl && (
-                            <a
-                                href={popup.sourceUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1.5 mt-2 text-xs md:text-sm text-lime-300 hover:text-lime-400 underline break-all"
-                            >
-                                원문 출처 보기
-                                <ExternalLink size={12} className="md:w-3.5 md:h-3.5 shrink-0"/>
-                            </a>
-                        )}
-                    </div>
-                </div>
+        {/* 제목 오버레이 */}
+        <div className="absolute inset-x-0 bottom-0 z-10 p-5 text-white md:p-7">
+          <div className="mb-2 flex items-center gap-2">
+            {catKo && (
+              <span className="rounded-pill bg-white/15 px-2.5 py-1 text-[11px] font-bold backdrop-blur">
+                {catKo}
+              </span>
             )}
-            <div className={`flex items-start gap-3 md:gap-4 ${popup.sourceType === "CRAWLED" ? "border-t border-white/5 pt-3 md:pt-4" : ""}`}>
-                <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-red-300/10 flex items-center justify-center text-red-300 border border-red-300/20 shrink-0">
-                    <ShieldAlert size={16} className="md:w-5 md:h-5"/>
-                </div>
-                <div className="min-w-0 flex-1">
-                    <p className="text-[9px] md:text-[10px] text-white/40 font-bold uppercase tracking-widest">
-                        Report / Takedown
-                    </p>
-                    <p className="text-xs md:text-sm text-white/70 leading-relaxed mb-2">
-                        부정확한 정보거나 본인이 운영하는 팝업이 동의 없이 게시되었다면 즉시 신고해주세요.
-                        24시간 내 검토 후 조치합니다.
-                    </p>
-                    <button
-                        onClick={() => setTakedownOpen(true)}
-                        className="inline-flex items-center gap-1.5 text-xs md:text-sm text-red-300 hover:text-red-200 underline"
-                    >
-                        정보 삭제·수정 요청
-                        <ShieldAlert size={12} className="md:w-3.5 md:h-3.5"/>
-                    </button>
-                </div>
-            </div>
+            <span className="inline-flex items-center gap-1 rounded-pill bg-lime-300 px-2.5 py-1 text-[11px] font-bold text-ink-900">
+              <span className="h-1.5 w-1.5 rounded-full bg-green-600" /> {popup.status || "운영중"}
+            </span>
+          </div>
+          <h1 className="text-2xl font-black leading-tight md:text-4xl">{popup.name}</h1>
+          <p className="mt-1.5 flex items-center gap-1 text-sm text-white/80">
+            <MapPin size={14} className="shrink-0" /> {popup.address}
+          </p>
         </div>
-
-        {/* [로직 해석] 사용자가 팝업스토어 위치를 찾을 수 있도록 카카오 지도를 보여주는 영역입니다. */}
-        <div className="w-full h-[250px] md:h-[350px] rounded-2xl md:rounded-3xl overflow-hidden border border-white/10 relative z-30 shadow-2xl bg-[#111]">
-            {/* [코드 해석] DetailMap 자식 컴포넌트에 파싱된 위경도를 넘겨주어 지도를 로드합니다. */}
-            <DetailMap latitude={lat} longitude={lng} />
-            {/* [코드 해석] 지도 하단 중앙에 플로팅 형태로 실제 도로명 주소 텍스트를 띄웁니다. */}
-            <div className="absolute bottom-4 md:bottom-6 left-1/2 -translate-x-1/2 bg-black/90 backdrop-blur-xl px-4 py-2 md:px-5 md:py-2.5 rounded-full border border-white/20 text-[10px] md:text-xs flex items-center gap-1.5 md:gap-2 shadow-2xl z-40 whitespace-nowrap text-white font-bold w-[90%] md:w-auto overflow-hidden">
-                <MapPin size={12} className="md:w-3.5 md:h-3.5 text-lime-500 animate-bounce shrink-0"/> 
-                <span className="truncate">{popup.address}</span>
-            </div>
-        </div>
-
-        {/* [V5] 음악 매칭 — 이 팝업과 어울리는 곡 */}
-        <div className="pt-6 md:pt-10 relative z-30">
-            <MusicForPopup popupId={popup.id} />
-        </div>
-
-        {/* [로직 해석] 팝업스토어별로 독립된 소켓 통신을 기반으로 유저 간 실시간 채팅을 지원하는 모듈입니다. */}
-        <div className="pt-6 md:pt-10 relative z-30">
-             {/* [코드 해석] 실시간 느낌을 주기 위해 제목 옆에 빨간 점이 깜빡이는(animate-ping) 디자인을 넣었습니다. */}
-             <h3 className="text-lg md:text-xl font-black text-lime-300 italic flex items-center gap-1.5 md:gap-2 uppercase tracking-tighter mb-4 md:mb-6">
-                Live Visitor Talk <span className="w-2 h-2 md:w-2.5 md:h-2.5 rounded-full bg-red-500 animate-ping"></span>
-             </h3>
-             {/* [코드 해석] 팝업 고유 ID를 채팅방 방번호로 쓰고, 유저의 닉네임을 넘겨주어 채팅 인스턴스를 생성합니다. */}
-             <ChatRoom roomId={popup.id} nickname={user?.nickname || "익명"} />
-        </div>
-
       </div>
 
-      {/* [V4] 권리자 takedown 신고 모달 */}
+      <div className="mx-auto max-w-3xl px-4 md:px-6">
+        {/* 정보 바 — 기간 · 운영 · 마감 D-day (상단 고정, 숨기지 않음) */}
+        <div className="relative z-10 -mt-6 grid grid-cols-3 divide-x divide-gray-200 rounded-2xl border border-gray-200 bg-white shadow-lg dark:divide-white/10 dark:border-white/10 dark:bg-[#111]">
+          <div className="px-3 py-4 text-center">
+            <p className="text-[10px] font-bold text-muted-foreground">기간</p>
+            <p className="mt-1 text-sm font-bold">
+              {popup.closeDate ? `~${popup.closeDate.slice(5)}` : "-"}
+            </p>
+          </div>
+          <div className="px-3 py-4 text-center">
+            <p className="text-[10px] font-bold text-muted-foreground">운영</p>
+            <p className="mt-1 text-sm font-bold">
+              {popup.openTime || "11:00"}~{popup.closeTime || "20:00"}
+            </p>
+          </div>
+          <div className="px-3 py-4 text-center">
+            <p className="text-[10px] font-bold text-muted-foreground">마감</p>
+            <p className={`mt-1 text-sm font-black ${dday === "종료" ? "text-muted-foreground" : "text-hot-400"}`}>
+              {dday || "-"}
+            </p>
+          </div>
+        </div>
+
+        {/* CTA — 길찾기(주) · 방문 인증(보조). 찜은 히어로 우상단. */}
+        <div className="mt-4 flex gap-2.5">
+          <a
+            href={directionsUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex flex-[2] items-center justify-center gap-2 rounded-2xl bg-lime-300 py-3.5 font-bold text-ink-900 shadow-md transition hover:bg-lime-400"
+          >
+            <Navigation size={18} /> 길찾기
+          </a>
+          <button
+            onClick={handleStamp}
+            disabled={isStamped}
+            className={`flex flex-1 items-center justify-center gap-1.5 rounded-2xl border py-3.5 font-bold transition ${
+              isStamped
+                ? "cursor-not-allowed border-gray-200 bg-gray-50 text-gray-400 dark:border-white/10 dark:bg-white/5 dark:text-white/30"
+                : "border-gray-300 bg-white text-foreground hover:border-lime-400 dark:border-white/15 dark:bg-white/5"
+            }`}
+          >
+            {isStamped ? <CheckCircle size={16} /> : <Ticket size={16} />}
+            {isStamped ? "인증됨" : "방문 인증"}
+          </button>
+        </div>
+
+        {/* 소개 */}
+        <section className="mt-8">
+          <h2 className="mb-3 text-lg font-black">소개</h2>
+          <div className="whitespace-pre-line rounded-2xl border border-gray-200 bg-white p-5 text-sm font-medium leading-relaxed text-foreground/80 dark:border-white/10 dark:bg-[#111] md:p-6 md:text-base">
+            {renderContentWithLinks(popup.content)}
+          </div>
+        </section>
+
+        {/* 위치 */}
+        <section className="mt-8">
+          <h2 className="mb-3 text-lg font-black">위치</h2>
+          <div className="relative h-[250px] overflow-hidden rounded-2xl border border-gray-200 dark:border-white/10 md:h-[320px]">
+            <DetailMap latitude={lat} longitude={lng} />
+            <div className="absolute bottom-4 left-1/2 z-40 flex w-[90%] -translate-x-1/2 items-center gap-1.5 overflow-hidden whitespace-nowrap rounded-full border border-white/20 bg-black/85 px-4 py-2 text-[11px] font-bold text-white backdrop-blur-xl md:w-auto md:bottom-6">
+              <MapPin size={12} className="shrink-0 animate-bounce text-lime-400" />
+              <span className="truncate">{popup.address}</span>
+            </div>
+          </div>
+        </section>
+
+        {/* 어울리는 곡 — 하단 보조 위젯 */}
+        <section className="mt-8">
+          <MusicForPopup popupId={popup.id} />
+        </section>
+
+        {/* 실시간 방문자 톡 — 하단 보조 위젯 */}
+        <section className="mt-8">
+          <h2 className="mb-4 flex items-center gap-2 text-lg font-black">
+            실시간 방문자 톡
+            <span className="h-2 w-2 rounded-full bg-red-500 animate-ping" />
+          </h2>
+          <ChatRoom roomId={popup.id} nickname={user?.nickname || "익명"} />
+        </section>
+
+        {/* 출처 / 신고 */}
+        <section className="mt-8 space-y-4 rounded-2xl border border-gray-200 bg-white p-5 dark:border-white/10 dark:bg-[#111] md:p-6">
+          {popup.sourceType === "CRAWLED" && (
+            <div className="flex items-start gap-3">
+              <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-sky-300/30 bg-sky-300/10 text-sky-500">
+                <Sparkles size={16} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-[11px] font-bold text-muted-foreground">AI 자동수집 정보</p>
+                <p className="mt-0.5 text-xs leading-relaxed text-foreground/70 md:text-sm">
+                  본 정보는 공개된 검색 API ({popup.sourceName || "외부 출처"})의 결과를 AI가 정리한 것입니다.
+                  정확성을 보장하지 않으니 항상 원문을 참고해주세요.
+                </p>
+                {popup.sourceUrl && (
+                  <a
+                    href={popup.sourceUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-lime-600 underline dark:text-lime-400 md:text-sm"
+                  >
+                    원문 출처 보기 <ExternalLink size={12} className="shrink-0" />
+                  </a>
+                )}
+              </div>
+            </div>
+          )}
+          <div className={`flex items-start gap-3 ${popup.sourceType === "CRAWLED" ? "border-t border-gray-100 pt-4 dark:border-white/5" : ""}`}>
+            <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-red-300/30 bg-red-300/10 text-red-500">
+              <ShieldAlert size={16} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-[11px] font-bold text-muted-foreground">신고 · 삭제 요청</p>
+              <p className="mb-2 mt-0.5 text-xs leading-relaxed text-foreground/70 md:text-sm">
+                부정확한 정보거나 본인이 운영하는 팝업이 동의 없이 게시되었다면 신고해주세요. 24시간 내 검토 후 조치합니다.
+              </p>
+              <button
+                onClick={() => setTakedownOpen(true)}
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-red-500 underline hover:text-red-400 md:text-sm"
+              >
+                정보 삭제·수정 요청 <ShieldAlert size={12} />
+              </button>
+            </div>
+          </div>
+        </section>
+      </div>
+
       <TakedownModal
-          open={takedownOpen}
-          onOpenChange={setTakedownOpen}
-          popupId={popup.id}
-          popupName={popup.name}
+        open={takedownOpen}
+        onOpenChange={setTakedownOpen}
+        popupId={popup.id}
+        popupName={popup.name}
       />
     </main>
   );
