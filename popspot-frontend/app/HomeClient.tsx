@@ -1072,7 +1072,10 @@ export default function Home() {
                 animate={{ opacity: 1, y: 0 }}
                 className="mb-16 rounded-xl border border-[var(--color-border)] bg-surface p-4 lg:p-6"
             >
-                <MusicTab />
+                <MusicTab
+                    popups={allPopups}
+                    onOpenPopup={(id) => { handleTabChange("MAP"); router.push(`/popup/${id}`); }}
+                />
             </motion.section>
         )}
 
