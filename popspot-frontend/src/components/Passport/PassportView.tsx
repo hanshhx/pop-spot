@@ -52,30 +52,35 @@ export default function PassportView() {
   }, []);
 
   useEffect(() => {
-    if (!user) return;
-    apiFetch(`/api/stamps/my?userId=${user.userId}`)
-      .then((res) => res.json())
-      .then((data) => setStamps(data))
-      .catch(async () => {
-        // [redesign/test 전용] 로컬(백엔드 없음)에서 여권을 채우는 목업.
-        if (process.env.NODE_ENV === "development") {
-          const { devMockPopups } = await import("@/lib/devMockPopups");
-          setStamps(
-            devMockPopups()
-              .slice(0, 5)
-              .map((p, i) => ({
-                id: i,
-                stampDate: `2026-03-0${i + 1}`,
-                popupStore: {
-                  popupId: Number(p.id),
-                  name: p.name,
-                  category: p.category || "ETC",
-                  imageUrl: p.imageUrl,
-                },
-              })),
-          );
-        }
-      });
+    // [redesign/test 전용] 백엔드 없을 때(로컬 개발) 여권을 채우는 목업.
+    const loadDevStamps = async () => {
+      if (process.env.NODE_ENV !== "development") return;
+      const { devMockPopups } = await import("@/lib/devMockPopups");
+      setStamps(
+        devMockPopups()
+          .slice(0, 5)
+          .map((p, i) => ({
+            id: i,
+            stampDate: `2026-03-0${i + 1}`,
+            popupStore: {
+              popupId: Number(p.id),
+              name: p.name,
+              category: p.category || "ETC",
+              imageUrl: p.imageUrl,
+            },
+          })),
+      );
+    };
+
+    if (user) {
+      apiFetch(`/api/stamps/my?userId=${user.userId}`)
+        .then((res) => res.json())
+        .then((data) => setStamps(data))
+        .catch(loadDevStamps);
+    } else {
+      // 비로그인/게스트: 실서비스는 빈 여권(0/12), 로컬 개발은 미리보기 목업.
+      loadDevStamps();
+    }
   }, [user]);
 
   const acquiredCount = stamps.length;
