@@ -750,59 +750,48 @@ export default function Home() {
                         </div>
                     </div>
 
-                    {/* Real-time Ranking Zone — solid 카드 블록 (배경 겹침 가독성 개선). */}
-                    <div className="col-span-1 lg:col-span-4 rounded-[2rem] p-5 md:p-6 border flex flex-col transition-colors bg-white border-gray-200 dark:bg-[#111] dark:border-white/10 shadow-lg shadow-black/5 dark:shadow-black/30 order-3 lg:order-none h-[340px]">
-                        <header className="flex items-center justify-between mb-4 md:mb-6 pb-3 md:pb-4 border-b border-gray-200 dark:border-white/5">
+                    {/* 실시간 랭킹 — 눌러서 사진 카드 모달 (캘린더·혼잡도 타일과 통일). 상위 3개 썸네일 미리보기. */}
+                    <div
+                        onClick={handleOpenModal}
+                        className="col-span-1 lg:col-span-4 rounded-[2rem] p-5 md:p-6 border flex flex-col transition-all hover:scale-[1.02] active:scale-[0.99] cursor-pointer bg-white border-gray-200 hover:border-primary dark:bg-[#111] dark:border-white/10 dark:hover:border-primary shadow-lg shadow-black/5 dark:shadow-black/30 order-3 lg:order-none h-[340px] group"
+                    >
+                        <header className="flex items-center justify-between mb-4">
                             <div className="flex items-center gap-2">
                                 <Flame size={18} className="text-secondary animate-pulse md:w-5 md:h-5"/>
                                 <h3 className="font-bold text-base md:text-lg text-gray-900 dark:text-white">실시간 랭킹</h3>
                             </div>
-                            <button onClick={handleOpenModal} aria-label="전체 트렌딩 보기" className="p-1.5 md:p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full transition-colors group">
-                                <Plus size={18} className="md:w-5 md:h-5 text-gray-500 dark:text-white/60 group-hover:text-primary transition-colors"/>
-                            </button>
+                            <ArrowUpRight size={18} className="text-gray-400 group-hover:text-primary transition-colors"/>
                         </header>
-                        <div className="flex-1 space-y-2 overflow-y-auto custom-scrollbar pr-1 md:pr-2">
-                            {hotPopups.length > 0 ? (
-                            <AnimatePresence>
-                                {hotPopups.map((popup, idx) => (
-                                <motion.a
-                                    href={`/popup/${popup.id}`}
-                                    key={popup.id}
-                                    onClick={(e) => { e.preventDefault(); handleTabChange("MAP"); router.push(`/popup/${popup.id}`); }} layout initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.3 }} 
-                                                className="flex items-center justify-between p-3 md:p-4 mb-2 rounded-xl md:rounded-2xl transition-all cursor-pointer group border bg-white hover:bg-gray-50 hover:scale-[1.01] active:scale-[0.99] border-gray-100 hover:border-gray-300 dark:bg-white/5 dark:hover:bg-white/10 dark:border-transparent dark:hover:border-white/10">
-                                    <div className="flex items-center gap-2 md:gap-3">
-                                            <div className="flex flex-col items-center w-5 md:w-6">
-                                                <span className={`text-xs md:text-sm font-black ${idx === 0 ? 'text-primary' : 'text-gray-400 dark:text-white/30'}`}>{idx + 1}</span>
-                                                {renderRankChange(popup.rankChange)}
-                                            </div>
-                                            <div>
-                                                <strong className="font-bold block text-xs md:text-sm text-gray-900 dark:text-white truncate max-w-[120px] md:max-w-[180px]">{popup.name}</strong>
-                                                <span className="text-[9px] md:text-[10px] text-gray-500 dark:text-white/60 truncate max-w-[120px] md:max-w-full block">{popup.location}</span>
-                                            </div>
-                                    </div>
-                                    <div className="flex flex-col items-end gap-1">
-                                        <span className="text-[9px] md:text-[10px] text-gray-500 dark:text-white/60 flex items-center gap-1"><Users size={8} className="md:w-2.5 md:h-2.5"/> {popup.viewCount}</span>
-                                        <span className={`text-[9px] md:text-[10px] px-1.5 py-0.5 md:px-2 md:py-0.5 rounded-full border whitespace-nowrap ${popup.status === '혼잡' ? 'border-secondary/30 text-secondary' : 'border-primary/30 text-primary'}`}>{popup.status || '영업중'}</span>
-                                    </div>
-                                    </motion.a>
-                                ))}
-                            </AnimatePresence>
-                            ) : (
-                            <div className="h-full flex flex-col justify-center space-y-3 opacity-60">
-                                {[...Array(5)].map((_, i) => (
-                                    <div key={i} className="animate-pulse flex items-center justify-between p-3 md:p-4 rounded-xl md:rounded-2xl border bg-gray-100 dark:bg-white/5 border-transparent">
-                                        <div className="flex gap-3 items-center">
-                                            <div className="w-5 h-8 bg-gray-300 dark:bg-white/10 rounded"></div>
-                                            <div className="space-y-2">
-                                                <div className="h-3 w-24 bg-gray-300 dark:bg-white/10 rounded"></div>
-                                                <div className="h-2 w-16 bg-gray-300 dark:bg-white/10 rounded"></div>
-                                            </div>
+                        <div className="flex-1 space-y-2.5">
+                            {hotPopups.length > 0
+                                ? hotPopups.slice(0, 3).map((popup, idx) => (
+                                    <div key={popup.id} className="flex items-center gap-3">
+                                        <span className={`w-4 shrink-0 text-sm font-black ${idx === 0 ? 'text-primary' : 'text-gray-400 dark:text-white/30'}`}>{idx + 1}</span>
+                                        <div className="h-11 w-11 shrink-0 overflow-hidden rounded-xl bg-gray-100 dark:bg-white/5">
+                                            {popup.imageUrl ? (
+                                                // eslint-disable-next-line @next/next/no-img-element
+                                                <img src={popup.imageUrl} alt="" className="h-full w-full object-cover" />
+                                            ) : null}
                                         </div>
-                                        <div className="w-10 h-4 bg-gray-300 dark:bg-white/10 rounded-full"></div>
+                                        <div className="min-w-0">
+                                            <strong className="block truncate text-sm font-bold text-gray-900 dark:text-white">{popup.name}</strong>
+                                            <span className="block truncate text-[11px] text-gray-500 dark:text-white/50">{popup.location}</span>
+                                        </div>
+                                    </div>
+                                ))
+                                : [...Array(3)].map((_, i) => (
+                                    <div key={i} className="flex items-center gap-3 animate-pulse">
+                                        <div className="h-4 w-4 rounded bg-gray-200 dark:bg-white/10" />
+                                        <div className="h-11 w-11 rounded-xl bg-gray-200 dark:bg-white/10" />
+                                        <div className="flex-1 space-y-1.5">
+                                            <div className="h-3 w-2/3 rounded bg-gray-200 dark:bg-white/10" />
+                                            <div className="h-2 w-1/3 rounded bg-gray-200 dark:bg-white/10" />
+                                        </div>
                                     </div>
                                 ))}
-                            </div>
-                            )}
+                        </div>
+                        <div className="mt-3 w-full rounded-xl bg-primary/10 py-2.5 text-center text-xs font-bold text-primary group-hover:bg-primary/20 transition-colors">
+                            전체 랭킹 사진으로 보기 ➔
                         </div>
                     </div>
 
