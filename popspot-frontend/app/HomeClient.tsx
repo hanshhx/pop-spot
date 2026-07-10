@@ -66,7 +66,7 @@ import { ProfileEditModal } from "@/features/profile/ProfileEditModal";
 import BrowseSection from "@/components/main/BrowseSection";
 import { PopupCard } from "@/components/main/PopupCard";
 import { devMockPopups } from "@/lib/devMockPopups";
-import FeatureSections from "@/components/main/FeatureSections";
+import FeatureSections, { FeatureTiles } from "@/components/main/FeatureSections";
 import type {
   User,
   PopupStore,
@@ -845,6 +845,9 @@ export default function Home() {
                         </div>
                     </div>
                 </section>
+
+                {/* 기능 바로가기 타일 (음악·여권·동행) — 랭킹/캘린더/혼잡도 크기, 지금 뜨는 팝업 위. */}
+                <FeatureTiles onNavigate={handleTabChange} />
 
                 {/* 지금 뜨는 팝업 — 사진 카드 레일 (디자인 진단서 P0: 팝업 사진 카드로 코어 뷰잉 강화). */}
                 <motion.section
