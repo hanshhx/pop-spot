@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Heart, MapPin, Shirt, Coffee, Palette, Star, Sparkles, Cpu, Store } from "lucide-react";
+import { cn } from "@/lib/utils";
 import type { PopupStore } from "@/types/popup";
 
 /**
@@ -76,7 +77,10 @@ export function PopupCard({ popup, onClick, onWish, wished, className }: PopupCa
           onClick?.();
         }
       }}
-      className={`group relative flex w-[220px] shrink-0 cursor-pointer flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white text-left shadow-sm transition hover:-translate-y-1 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-400 dark:border-white/10 dark:bg-white/[0.04] ${className ?? ""}`}
+      className={cn(
+        "group relative flex w-[220px] shrink-0 cursor-pointer flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white text-left shadow-sm transition hover:-translate-y-1 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-400 dark:border-white/10 dark:bg-white/[0.04]",
+        className,
+      )}
     >
       <div className="relative aspect-[4/5] w-full overflow-hidden bg-gray-100 dark:bg-white/5">
         {popup.imageUrl && !imgError ? (
