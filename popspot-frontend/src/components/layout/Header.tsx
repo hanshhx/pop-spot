@@ -85,7 +85,7 @@ export function Header({
         className="group inline-flex flex-col"
       >
         <h1 className="leading-none">
-          <Logo className="h-9 md:h-12 transition-opacity group-hover:opacity-80" />
+          <Logo className="h-10 md:h-14 transition-opacity group-hover:opacity-80" />
         </h1>
         {subtitle ? (
           <p className="text-[10px] md:text-xs mt-1 tracking-[0.2em] uppercase text-muted-foreground">
@@ -104,7 +104,7 @@ export function Header({
       {onNavChange && (
         <nav
           aria-label="주요 메뉴"
-          className="hidden lg:flex items-center gap-8 self-center"
+          className="hidden lg:flex items-center gap-10 self-center"
         >
           {DOCK_ITEMS.map((item) => {
             const active = activeTab === item.key;
@@ -115,7 +115,7 @@ export function Header({
                 onClick={() => onNavChange(item.key)}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "relative py-1.5 text-[17px] tracking-tight transition-colors",
+                  "relative py-2 text-[20px] tracking-tight transition-colors",
                   "after:absolute after:left-0 after:right-0 after:-bottom-1 after:h-[3px] after:rounded-full after:transition-colors",
                   active
                     ? "text-foreground font-bold after:bg-lime-400"
