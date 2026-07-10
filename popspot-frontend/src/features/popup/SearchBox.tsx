@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Search, MapPin, Store, ArrowRight } from "lucide-react";
+import { Search, MapPin, ArrowRight } from "lucide-react";
 import {
   InstantSearch,
   useSearchBox,
@@ -11,12 +11,15 @@ import {
 } from "react-instantsearch";
 import { liteClient as algoliasearch } from "algoliasearch/lite";
 import { env } from "@/lib/env";
+import { popupCoverUrl } from "@/lib/popupCover";
 import { SectionLogo } from "@/components/layout/BrandLogos";
 
 interface AlgoliaHit {
   objectID: string;
   name: string;
   location?: string;
+  category?: string | null;
+  imageUrl?: string | null;
   /** v2.13 — 백엔드가 인덱싱 시점에 가드를 걸지만 클라에서도 한 번 더 검증 (이중 방어). */
   reviewStatus?: string | null;
   status?: string | null;
@@ -119,9 +122,17 @@ function CustomHits({ onSelect }: CustomHitsProps) {
             }}
           >
             <article className="flex items-center gap-4 p-4 hover:bg-lime-300/10 transition-colors cursor-pointer border-b border-[var(--color-border)] last:border-none group">
-              <div className="size-12 shrink-0 rounded-md bg-lime-300/15 flex items-center justify-center text-lime-500">
-                <Store size={20} aria-hidden />
-              </div>
+              {/* 팝업 커버 — imageUrl 이 기본 플레이스홀더면 카테고리·id 로 큐레이션 사진 배정. */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={popupCoverUrl(
+                  { id: hit.objectID, category: hit.category, imageUrl: hit.imageUrl },
+                  200,
+                )}
+                alt=""
+                loading="lazy"
+                className="size-12 shrink-0 rounded-md object-cover bg-lime-300/15"
+              />
               <div className="flex-1 min-w-0">
                 <h4 className="font-bold text-sm truncate text-foreground group-hover:text-lime-500 transition-colors">
                   {hit.name}

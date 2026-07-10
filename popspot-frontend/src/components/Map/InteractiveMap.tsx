@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Map, CustomOverlayMap, Polyline } from "react-kakao-maps-sdk";
 import { X, MapPin, ArrowRight, Plus, Minus, Compass, List, ShoppingBag, Coffee, Camera, Zap, Sparkles } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -31,9 +31,11 @@ interface InteractiveMapProps {
     category?: string;
     reason?: string; 
   }[];
-  showPath?: boolean; 
+  showPath?: boolean;
   center?: { lat: number; lng: number };
-  mode?: "DEFAULT" | "PLAN"; 
+  /** 검색 결과 선택 시 그 팝업 마커로 이동+정보창 오픈. nonce 로 같은 팝업 재검색도 매번 반응. */
+  focusReq?: { id: string | number; nonce: number } | null;
+  mode?: "DEFAULT" | "PLAN";
   routePaths?: { lat: number; lng: number }[][];
   onMarkerClick?: (popupId: number | string) => void; // 👈 이 부분이 추가되었습니다!
 }
@@ -106,7 +108,7 @@ function spreadOverlappingMarkers(markers: MapMarkerData[]): MapMarkerData[] {
   return result;
 }
 
-export default function InteractiveMap({ places, showPath = false, center, mode = "DEFAULT", routePaths = [], onMarkerClick }: InteractiveMapProps) {
+export default function InteractiveMap({ places, showPath = false, center, focusReq, mode = "DEFAULT", routePaths = [], onMarkerClick }: InteractiveMapProps) {
   const [allMarkers, setAllMarkers] = useState<MapMarkerData[]>([]);
   const [selectedMarker, setSelectedMarker] = useState<MapMarkerData | null>(null);
   const [activeCategory, setActiveCategory] = useState("ALL");
@@ -232,6 +234,24 @@ export default function InteractiveMap({ places, showPath = false, center, mode 
       map.panTo(moveLatLon);
     }
   }, [center, map]);
+
+  // 검색 결과 선택 시 그 팝업 마커로 이동 + 정보창 오픈.
+  // 지도의 '자기 마커(allMarkers)'에서 직접 찾으므로 allPopups/Algolia 좌표에 의존하지 않는다.
+  // 검색 시점에 마커가 아직 안 실렸으면 allMarkers 로드 후 재시도(effect deps). 각 요청(nonce)은 1회만 처리.
+  const handledFocusRef = useRef<number>(-1);
+  useEffect(() => {
+    if (!map || !focusReq) return;
+    if (handledFocusRef.current === focusReq.nonce) return;
+    const target = allMarkers.find((m) => String(m.popupId) === String(focusReq.id));
+    if (!target) return;
+    const lat = parseFloat(target.latitude);
+    const lng = parseFloat(target.longitude);
+    if (Number.isNaN(lat) || Number.isNaN(lng)) return;
+    handledFocusRef.current = focusReq.nonce;
+    map.panTo(new window.kakao.maps.LatLng(lat, lng));
+    map.setLevel(4);
+    setSelectedMarker(target);
+  }, [focusReq, map, allMarkers]);
 
   /**
    * "내 위치" 버튼 클릭 시 호출.
