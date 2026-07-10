@@ -1,4 +1,4 @@
-import type { PopupStore } from "@/types/popup";
+import type { PopupStore, CourseItem } from "@/types/popup";
 
 /**
  * [redesign/test 전용] 백엔드가 없을 때(로컬 개발) 재설계 홈을 채우는 개발용 목업.
@@ -40,6 +40,42 @@ function toISODate(daysFromNow: number): string {
   const d = new Date();
   d.setDate(d.getDate() + daysFromNow);
   return d.toISOString().slice(0, 10);
+}
+
+/**
+ * [redesign/test 전용] AI 코스 추천 백엔드가 없을 때 동선 지도·저장 버튼을 미리보기 위한 목업 코스.
+ *
+ * <p>실제 서울(도산/성수) 좌표 3곳이라 {@code showPath} 경로선이 지도에 그려진다. 실배포에선
+ * {@code /api/courses/recommend} 응답이 그대로 쓰인다.
+ */
+export function devMockCourse(vibe: string): CourseItem[] {
+  const label = vibe || "나만의";
+  return [
+    {
+      id: "c1",
+      name: "젠틀몬스터 하우스 도산",
+      lat: 37.5247,
+      lng: 127.0378,
+      category: "FASHION",
+      reason: `${label} 무드의 출발점 — 감각적인 플래그십부터`,
+    },
+    {
+      id: "c2",
+      name: "탬버린즈 신사 플래그십",
+      lat: 37.5219,
+      lng: 127.0231,
+      category: "BEAUTY",
+      reason: "향과 분위기에 흠뻑 젖는 두 번째 코스",
+    },
+    {
+      id: "c3",
+      name: "누데이크 도산",
+      lat: 37.5241,
+      lng: 127.0385,
+      category: "FOOD",
+      reason: "달콤한 디저트로 마무리하는 마지막 코스",
+    },
+  ];
 }
 
 /** 개발용 목업 팝업 목록 — 각 항목에 느낌 맞춤 커버 + 미래 종료일(D-day)이 들어있다. */
