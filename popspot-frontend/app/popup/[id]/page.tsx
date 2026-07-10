@@ -181,15 +181,17 @@ export default function PopupDetail() {
   };
 
   useEffect(() => {
+    // 팝업 상세는 비로그인/게스트도 열람 가능(공유·SEO·게스트 둘러보기). 로그인은 스탬프·찜 등 액션에서만 요구.
     const storedUser = localStorage.getItem("user");
-    if (!storedUser) {
-      notify("로그인이 필요합니다.");
-      router.replace("/login");
-    } else {
-      setUser(JSON.parse(storedUser));
-      setIsCheckingAuth(false);
+    if (storedUser) {
+      try {
+        setUser(JSON.parse(storedUser));
+      } catch {
+        /* 손상된 값 무시 */
+      }
     }
-  }, [router]);
+    setIsCheckingAuth(false);
+  }, []);
 
   useEffect(() => {
     if (isCheckingAuth) return;
@@ -266,6 +268,7 @@ export default function PopupDetail() {
   }, [params.id, isCheckingAuth]);
 
   const checkIfStamped = async (popupId: number) => {
+    if (!user) return;
     const userIdToCheck = user?.userId || TEST_USER_ID;
     try {
       const res = await apiFetch(`/api/stamps/my?userId=${userIdToCheck}`);
@@ -288,6 +291,7 @@ export default function PopupDetail() {
   };
 
   const checkWishlistStatus = async (popupId: number) => {
+    if (!user) return;
     const userIdToCheck = user?.userId || TEST_USER_ID;
     try {
       const res = await apiFetch(`/api/wishlist/${userIdToCheck}`);
@@ -302,6 +306,11 @@ export default function PopupDetail() {
 
   const handleStamp = async () => {
     if (!popup) return;
+    if (!user) {
+      notify("로그인이 필요합니다.");
+      router.push("/login");
+      return;
+    }
     try {
       const res = await apiFetch(`/api/stamps?userId=${user?.userId}&popupId=${popup.id}`, {
         method: "POST",
@@ -318,7 +327,12 @@ export default function PopupDetail() {
   };
 
   const handleToggleLike = async () => {
-    if (!popup || !user) return;
+    if (!popup) return;
+    if (!user) {
+      notify("로그인이 필요합니다.");
+      router.push("/login");
+      return;
+    }
     const prevStatus = isLiked;
     setIsLiked(!isLiked);
     try {
