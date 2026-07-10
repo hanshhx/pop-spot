@@ -227,7 +227,13 @@ export default function Home() {
                   localStorage.setItem("user", JSON.stringify(updatedUser));
               }
           }
-      } catch (e) { console.error("마이페이지 로드 실패", e); }
+      } catch (e) {
+          console.error("마이페이지 로드 실패", e);
+          // [redesign/test 전용] 로컬(백엔드 없음)에서 '기록' 대시보드를 채우는 목업.
+          if (process.env.NODE_ENV === "development") {
+              setMyPageInfo({ likeCount: 12, stampCount: 5, reviewCount: 24, isPremium: false } as MyPageData);
+          }
+      }
   };
 
   const fetchMyCourses = async (userId: string, shouldAutoLoad = false) => {
@@ -254,7 +260,21 @@ export default function Home() {
             const data = await res.json();
             setMyWishlist(data);
         }
-    } catch (e) { console.error("위시리스트 로드 실패:", e); }
+    } catch (e) {
+        console.error("위시리스트 로드 실패:", e);
+        // [redesign/test 전용] 로컬에서 찜한 팝업 카드를 채우는 목업.
+        if (process.env.NODE_ENV === "development") {
+            const { devMockPopups } = await import("@/lib/devMockPopups");
+            setMyWishlist(
+                devMockPopups().slice(0, 12).map((p) => ({
+                    popupId: Number(p.id),
+                    popupName: p.name,
+                    location: p.location,
+                    popupImage: p.imageUrl,
+                } as WishlistItem)),
+            );
+        }
+    }
   };
 
   const handleRemoveWishlist = async (e: React.MouseEvent, popupId: number) => {
@@ -1148,25 +1168,11 @@ export default function Home() {
 
         {/* TAB: MY */}
         {currentTab === "MY" && (
-            <motion.section aria-label="User Dashboard" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} 
-                        className="h-[85vh] flex flex-col md:flex-row overflow-hidden rounded-xl border border-[var(--color-border)] bg-surface text-surface-foreground mb-16 relative shadow-md">
-                
-                {/* 1. Map Context Area */}
-                <div className="w-full md:w-[55%] h-[35vh] md:h-full relative border-b md:border-b-0 md:border-r border-[var(--color-border)] flex-shrink-0">
-                    <InteractiveMap 
-                        places={myCourseItems} 
-                        showPath={true} 
-                        center={myCourseItems.length > 0 ? { lat: myCourseItems[0].lat, lng: myCourseItems[0].lng } : undefined}
-                    />
-                    <div className="absolute top-3 left-3 lg:top-4 lg:left-4 z-10 bg-surface/95 backdrop-blur px-3 py-1.5 rounded-pill shadow-md border border-[var(--color-border)]">
-                        <span className="text-xs font-semibold tracking-wide text-lime-500 flex items-center gap-1.5">
-                            <Sparkles size={10} className="lg:w-3 lg:h-3" /> My Course Preview
-                        </span>
-                    </div>
-                </div>
+            <motion.section aria-label="내 기록" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+                        className="mx-auto mb-16 max-w-3xl">
 
-                {/* 2. Scrollable Dashboard Area */}
-                <div className="w-full md:w-[45%] h-[50vh] md:h-full flex flex-col bg-surface relative overflow-y-auto custom-scrollbar pb-24 md:pb-20">
+                {/* '기록' 대시보드 — 개선안: 코스 지도 제거, 전체폭 세로 대시보드(프로필·통계·등급·찜·최근 방문). */}
+                <div className="flex flex-col overflow-hidden rounded-2xl border border-[var(--color-border)] bg-surface text-surface-foreground shadow-md">
 
                     {/* v2.15.3 — 내 계정: 회원이름 / 이메일 / 프로필 사진 노출. 네이버/카카오/구글
                         OAuth 검수 활용처 증명에 사용되며, 사용자도 "내 정보" 를 한 눈에 확인.
@@ -1220,7 +1226,7 @@ export default function Home() {
                     {/* Activity Dashboard */}
                     <div className="p-4 lg:p-6 border-b border-[var(--color-border)]">
                         <h3 className="text-base lg:text-lg font-bold mb-4 flex items-center gap-2 text-foreground">
-                            <UserIcon size={16} className="lg:w-[18px] lg:h-[18px] text-lime-500"/> Activity Dashboard
+                            <UserIcon size={16} className="lg:w-[18px] lg:h-[18px] text-lime-500"/> 활동 기록
                         </h3>
                         <div className="grid grid-cols-3 gap-2 lg:gap-3">
                             <div className="bg-cream-300 dark:bg-ink-800 p-4 rounded-md text-center border border-[var(--color-border)]">
@@ -1263,7 +1269,7 @@ export default function Home() {
                     {/* Wishlist */}
                     <div className="p-4 lg:p-6 border-b border-[var(--color-border)]">
                         <h3 className="text-base lg:text-lg font-bold mb-4 flex items-center gap-2 text-foreground">
-                            <Heart size={16} className="lg:w-[18px] lg:h-[18px] text-hot-400"/> Wishlist
+                            <Heart size={16} className="lg:w-[18px] lg:h-[18px] text-hot-400"/> 찜한 팝업
                         </h3>
                         {myWishlist.length === 0 ? (
                             <div className="text-center py-8 text-muted-foreground text-sm border border-dashed border-[var(--color-border-strong)] rounded-md">
@@ -1311,7 +1317,7 @@ export default function Home() {
                     {/* Saved Courses History */}
                     <div className="p-4 lg:p-6 border-b border-[var(--color-border)]">
                         <h3 className="text-base lg:text-lg font-bold mb-4 flex items-center gap-2 text-foreground">
-                            <FolderOpen size={16} className="lg:w-[18px] lg:h-[18px] text-lime-500"/> Saved Courses
+                            <FolderOpen size={16} className="lg:w-[18px] lg:h-[18px] text-lime-500"/> 저장한 코스
                         </h3>
                         
                         {savedCourses.length === 0 ? (
