@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Heart, MapPin, Shirt, Coffee, Palette, Star, Sparkles, Cpu, Store } from "lucide-react";
 import type { PopupStore } from "@/types/popup";
 
@@ -56,6 +57,7 @@ export interface PopupCardProps {
 }
 
 export function PopupCard({ popup, onClick, onWish, wished, className }: PopupCardProps) {
+  const [imgError, setImgError] = useState(false);
   const dday = ddayLabel(popup.endDate);
   const cat = popup.category
     ? CATEGORY_KO[popup.category.toUpperCase()] ?? popup.category
@@ -77,12 +79,13 @@ export function PopupCard({ popup, onClick, onWish, wished, className }: PopupCa
       className={`group relative flex w-[220px] shrink-0 cursor-pointer flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white text-left shadow-sm transition hover:-translate-y-1 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-400 dark:border-white/10 dark:bg-white/[0.04] ${className ?? ""}`}
     >
       <div className="relative aspect-[4/5] w-full overflow-hidden bg-gray-100 dark:bg-white/5">
-        {popup.imageUrl ? (
+        {popup.imageUrl && !imgError ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={popup.imageUrl}
             alt={popup.name}
             loading="lazy"
+            onError={() => setImgError(true)}
             className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
           />
         ) : (
