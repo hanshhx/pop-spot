@@ -65,6 +65,7 @@ import { FeedbackForm } from "@/features/feedback/FeedbackForm";
 import { ProfileEditModal } from "@/features/profile/ProfileEditModal";
 import BrowseSection from "@/components/main/BrowseSection";
 import { PopupCard } from "@/components/main/PopupCard";
+import { devMockPopups } from "@/lib/devMockPopups";
 import type {
   User,
   PopupStore,
@@ -484,7 +485,15 @@ export default function Home() {
             setHotPopups(sortedData.slice(0, 5)); 
             localStorage.setItem("cached_popups", JSON.stringify(data)); 
         })
-        .catch(err => console.error("팝업 데이터 로딩 실패:", err));
+        .catch(err => {
+            console.error("팝업 데이터 로딩 실패:", err);
+            // [redesign/test 전용] 로컬(백엔드 없음)에서 재설계 홈을 채우는 개발용 목업.
+            if (process.env.NODE_ENV === "development") {
+                const mock = devMockPopups();
+                setAllPopups(mock);
+                setHotPopups(mock.slice(0, 8));
+            }
+        });
 
     const cachedCongestion = localStorage.getItem("cached_congestion");
     if (cachedCongestion) {
