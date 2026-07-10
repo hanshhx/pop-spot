@@ -86,9 +86,13 @@ function CustomSearchBox(props: UseSearchBoxProps) {
   );
 }
 
-function CustomHits() {
+interface CustomHitsProps {
+  onSelect?: (hit: { objectID: string; name: string; location?: string }) => void;
+}
+
+function CustomHits({ onSelect }: CustomHitsProps) {
   const { items: hits } = useHits<AlgoliaHit>();
-  const { query } = useSearchBox();
+  const { query, refine } = useSearchBox();
 
   if (!query) return null;
 
@@ -102,7 +106,18 @@ function CustomHits() {
         </div>
       ) : (
         visibleHits.map((hit) => (
-          <Link key={hit.objectID} href={`/popup/${hit.objectID}`}>
+          <Link
+            key={hit.objectID}
+            href={`/popup/${hit.objectID}`}
+            onClick={(e) => {
+              // onSelect 가 있으면 상세 이동 대신 지도 이동(+검색 닫기).
+              if (onSelect) {
+                e.preventDefault();
+                onSelect({ objectID: hit.objectID, name: hit.name, location: hit.location });
+                refine("");
+              }
+            }}
+          >
             <article className="flex items-center gap-4 p-4 hover:bg-lime-300/10 transition-colors cursor-pointer border-b border-[var(--color-border)] last:border-none group">
               <div className="size-12 shrink-0 rounded-md bg-lime-300/15 flex items-center justify-center text-lime-500">
                 <Store size={20} aria-hidden />
@@ -167,7 +182,12 @@ function SearchZoneFallback() {
  * 메인 페이지 MAP 탭 좌측에 들어감. 결과는 입력창 아래 dropdown 으로.
  * Algolia 키가 없거나 잘못 설정됐으면 fallback UI 로 안전하게 대체.
  */
-export function SearchZone() {
+interface SearchZoneProps {
+  /** 검색 결과 선택 시 호출 — 지도 이동 등에 사용. 미지정이면 상세 페이지로 이동. */
+  onSelectPopup?: (hit: { objectID: string; name: string; location?: string }) => void;
+}
+
+export function SearchZone({ onSelectPopup }: SearchZoneProps = {}) {
   if (!searchClient) {
     return <SearchZoneFallback />;
   }
@@ -181,7 +201,7 @@ export function SearchZone() {
             <CustomSearchBox />
           </div>
         </div>
-        <CustomHits />
+        <CustomHits onSelect={onSelectPopup} />
       </InstantSearch>
     </div>
   );
