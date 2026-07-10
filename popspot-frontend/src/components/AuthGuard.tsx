@@ -68,6 +68,15 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     // 공개 경로는 아무 검사도 하지 않는다.
     if (isPublicPath(pathname)) return;
 
+    // [redesign/test] 로컬(localhost) 미리보기에서는 보호 경로도 막지 않는다 — 백엔드/토큰 없이
+    // 관리자 등 보호 페이지를 확인하기 위함. 프로덕션(실도메인)에서는 이 우회가 동작하지 않는다.
+    if (
+      typeof window !== "undefined" &&
+      ["localhost", "127.0.0.1"].includes(window.location.hostname)
+    ) {
+      return;
+    }
+
     let cancelled = false;
 
     const clearAuthAndRedirect = () => {
