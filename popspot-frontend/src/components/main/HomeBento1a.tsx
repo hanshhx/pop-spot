@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { Flame, Ticket, Users, ArrowRight } from "lucide-react";
 import type { PopupStore } from "@/types/popup";
+import { popupCoverUrl } from "@/lib/popupCover";
 
 /**
  * 홈 하단 발견 존 — 1a안 (히어로 + 서브 타일).
@@ -124,10 +125,8 @@ export default function HomeBento1a({ popups, total, onOpenRanking, onNavigate }
                   {i + 1}
                 </span>
                 <div className="h-11 w-11 shrink-0 overflow-hidden rounded-xl bg-white/5">
-                  {p.imageUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={p.imageUrl} alt="" className="h-full w-full object-cover" />
-                  ) : null}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={popupCoverUrl(p, 200)} alt="" className="h-full w-full object-cover" />
                 </div>
                 <div className="min-w-0 flex-1">
                   <strong className="block truncate text-sm font-bold">{p.name}</strong>
