@@ -66,7 +66,8 @@ import { ProfileEditModal } from "@/features/profile/ProfileEditModal";
 import BrowseSection from "@/components/main/BrowseSection";
 import { PopupCard } from "@/components/main/PopupCard";
 import { devMockPopups } from "@/lib/devMockPopups";
-import FeatureSections, { FeatureTiles } from "@/components/main/FeatureSections";
+import FeatureSections from "@/components/main/FeatureSections";
+import HomeBento1a from "@/components/main/HomeBento1a";
 import type {
   User,
   PopupStore,
@@ -761,93 +762,15 @@ export default function Home() {
                         </div>
                     </div>
 
-                    {/* 실시간 랭킹 — 눌러서 사진 카드 모달 (캘린더·혼잡도 타일과 통일). 상위 3개 썸네일 미리보기. */}
-                    <div
-                        onClick={handleOpenModal}
-                        className="col-span-1 lg:col-span-4 rounded-[2rem] p-5 md:p-6 border flex flex-col transition-all hover:scale-[1.02] active:scale-[0.99] cursor-pointer bg-white border-gray-200 hover:border-primary dark:bg-[#111] dark:border-white/10 dark:hover:border-primary shadow-lg shadow-black/5 dark:shadow-black/30 order-3 lg:order-none h-[340px] group"
-                    >
-                        <header className="flex items-center justify-between mb-4">
-                            <div className="flex items-center gap-2">
-                                <Flame size={18} className="text-secondary animate-pulse md:w-5 md:h-5"/>
-                                <h3 className="font-bold text-base md:text-lg text-gray-900 dark:text-white">실시간 랭킹</h3>
-                            </div>
-                            <ArrowUpRight size={18} className="text-gray-400 group-hover:text-primary transition-colors"/>
-                        </header>
-                        <div className="flex-1 space-y-2.5">
-                            {hotPopups.length > 0
-                                ? hotPopups.slice(0, 3).map((popup, idx) => (
-                                    <div key={popup.id} className="flex items-center gap-3">
-                                        <span className={`w-4 shrink-0 text-sm font-black ${idx === 0 ? 'text-primary' : 'text-gray-400 dark:text-white/30'}`}>{idx + 1}</span>
-                                        <div className="h-11 w-11 shrink-0 overflow-hidden rounded-xl bg-gray-100 dark:bg-white/5">
-                                            {popup.imageUrl ? (
-                                                // eslint-disable-next-line @next/next/no-img-element
-                                                <img src={popup.imageUrl} alt="" className="h-full w-full object-cover" />
-                                            ) : null}
-                                        </div>
-                                        <div className="min-w-0">
-                                            <strong className="block truncate text-sm font-bold text-gray-900 dark:text-white">{popup.name}</strong>
-                                            <span className="block truncate text-[11px] text-gray-500 dark:text-white/50">{popup.location}</span>
-                                        </div>
-                                    </div>
-                                ))
-                                : [...Array(3)].map((_, i) => (
-                                    <div key={i} className="flex items-center gap-3 animate-pulse">
-                                        <div className="h-4 w-4 rounded bg-gray-200 dark:bg-white/10" />
-                                        <div className="h-11 w-11 rounded-xl bg-gray-200 dark:bg-white/10" />
-                                        <div className="flex-1 space-y-1.5">
-                                            <div className="h-3 w-2/3 rounded bg-gray-200 dark:bg-white/10" />
-                                            <div className="h-2 w-1/3 rounded bg-gray-200 dark:bg-white/10" />
-                                        </div>
-                                    </div>
-                                ))}
-                        </div>
-                        <div className="mt-3 w-full rounded-xl bg-primary/10 py-2.5 text-center text-xs font-bold text-primary group-hover:bg-primary/20 transition-colors">
-                            전체 랭킹 사진으로 보기 ➔
-                        </div>
-                    </div>
-
-                    {/* Calendar Zone — primary 컬러 solid + shadow 강화. */}
-                    <div
-                        onClick={() => setIsCalendarOpen(true)}
-                        className="col-span-1 lg:col-span-4 bg-primary text-black rounded-[2rem] p-5 md:p-6 transition-all hover:scale-[1.02] cursor-pointer shadow-xl shadow-primary/20 dark:shadow-primary/10 relative overflow-hidden group order-4 lg:order-none flex flex-col justify-between h-[340px]"
-                    >
-                        <div className="relative z-10">
-                            <SectionLogo name="popup-calendar" label="Popup Calendar" className="h-6 md:h-8 text-black" />
-                            <p className="text-[10px] md:text-xs font-bold opacity-60 mt-1 md:mt-2 mb-2">어떤 팝업이 열릴지 궁금하다면?</p>
-                        </div>
-                        
-                        <div className="relative z-10 w-full py-2.5 bg-black/10 group-hover:bg-black/20 rounded-xl text-center text-xs font-bold transition-colors">
-                            전체 달력 펴보기 ➔
-                        </div>
-
-                        <div className="absolute -right-6 -bottom-6 opacity-20 pointer-events-none group-hover:scale-110 transition-transform duration-500">
-                            <Calendar size={140} />
-                        </div>
-                    </div>
-
-                    {/* AI Report Zone — solid 카드 블록 + 클릭 피드백. */}
-                    <div onClick={() => setIsReportOpen(true)} className="col-span-1 lg:col-span-4 rounded-[2rem] p-5 md:p-6 cursor-pointer border flex flex-col justify-between group transition-all hover:scale-[1.02] active:scale-[0.99] bg-white border-gray-200 hover:border-primary dark:bg-[#111] dark:border-white/10 dark:hover:border-primary shadow-lg shadow-black/5 dark:shadow-black/30 order-5 lg:order-none h-[340px]">
-                        <div className="flex justify-between items-start">
-                            <Users size={20} className={`md:w-6 md:h-6 ${getCongestionColor(congestionData?.level || '')} group-hover:scale-110 transition-transform`}/>
-                            <div className="text-right">
-                                {congestionData ? (
-                                    <span className={`text-xl md:text-2xl font-black ${getCongestionColor(congestionData.level)}`}>{congestionData.level}</span>
-                                ) : (
-                                    <div className="h-6 w-16 bg-gray-200 dark:bg-white/10 rounded animate-pulse"></div>
-                                )}
-                            </div>
-                        </div>
-                        <div>
-                            <h3 className="font-bold text-sm md:text-lg text-gray-900 dark:text-white group-hover:text-primary transition-colors">실시간 혼잡도</h3>
-                            <p className="text-[10px] md:text-xs text-gray-500 dark:text-white/60 mt-0.5 md:mt-1">
-                                {congestionData ? `성수동 인구 ${congestionData.minPop.toLocaleString()}~${congestionData.maxPop.toLocaleString()}명` : "성수동 혼잡도 분석 중"}
-                            </p>
-                        </div>
-                    </div>
                 </section>
 
-                {/* 기능 바로가기 타일 (음악·여권·동행) — 랭킹/캘린더/혼잡도 크기, 지금 뜨는 팝업 위. */}
-                <FeatureTiles onNavigate={handleTabChange} />
+                {/* 홈 하단 발견 존 — 1a안 (랭킹 히어로 + 나의 기록 + 같이 갈 사람). 캘린더·혼잡도·음악은 이 존 제외. */}
+                <HomeBento1a
+                    popups={hotPopups}
+                    total={allPopups.length}
+                    onOpenRanking={handleOpenModal}
+                    onNavigate={handleTabChange}
+                />
 
                 {/* 지금 뜨는 팝업 — 사진 카드 레일 (디자인 진단서 P0: 팝업 사진 카드로 코어 뷰잉 강화). */}
                 <motion.section
