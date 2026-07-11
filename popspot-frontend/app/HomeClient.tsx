@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { useRouter, useSearchParams } from "next/navigation"; 
+import { useRouter, useSearchParams } from "next/navigation";
+import { useTheme } from "next-themes";
 import { 
   Search, MapPin, ArrowUpRight, Flame, Calendar, Menu, Users,
   Instagram, Plus, X, ArrowUp, ArrowDown, Minus,
@@ -114,8 +115,18 @@ function userOnlyTabHint(tab: string): string {
 /* -------------------------------------------------------------------------- */
 export default function Home() {
   const router = useRouter();
-  const searchParams = useSearchParams(); 
-  
+  const searchParams = useSearchParams();
+
+  // 모드별 풀 배경 영상: 라이트=밝은 스카이라인(212404), 다크=생기있는 서울 야경(login-bg).
+  // resolvedTheme 은 마운트 후에야 확정되므로 gate 로 SSR 불일치/깜빡임 방지(마운트 전엔 브랜드 단색만).
+  const { resolvedTheme } = useTheme();
+  const [themeReady, setThemeReady] = useState(false);
+  useEffect(() => setThemeReady(true), []);
+  // 라이트=매끄러운 루프(부메랑)로 재인코딩한 밝은 스카이라인(light-bg), 다크=서울 야경(login-bg).
+  const bgVideoSrc = resolvedTheme === "dark" ? "/login-bg.mp4" : "/light-bg.mp4";
+  // 라이트 영상은 도심 불빛 반짝임이 커서 0.5배속으로 차분하게. 다크(야경)는 원속도 유지.
+  const bgVideoRate = resolvedTheme === "dark" ? 1 : 0.5;
+
   const [hotPopups, setHotPopups] = useState<PopupStore[]>([]);
   const [allPopups, setAllPopups] = useState<PopupStore[]>([]);
   
@@ -718,14 +729,29 @@ export default function Home() {
   const isAdmin = user?.role?.includes('ADMIN');
 
   return (
-    <main className="min-h-screen font-sans relative pb-32 lg:pb-16 overflow-x-hidden transition-colors duration-500 home-canvas text-gray-900 dark:text-white">
+    <main className="min-h-screen font-sans relative pb-32 lg:pb-16 overflow-x-hidden transition-colors duration-500 text-gray-900 dark:text-white">
 
-      {/* 목업 배경 시스템: 비디오 제거 → 딥잉크/웜크림 캔버스(home-canvas) + 미세 그레인 + 시네마틱 스카이 히어로.
-          '반투명 카드가 영상 위에 떠 있어 짜치던' 문제를 근본 제거. */}
-      <div className="home-grain-layer pointer-events-none fixed inset-0 z-0" aria-hidden></div>
-      <div className="absolute top-0 inset-x-0 h-[56vh] z-0 overflow-hidden pointer-events-none" aria-hidden>
-        <div className="home-sky absolute inset-0"></div>
-        <div className="home-sky-overlay absolute inset-0"></div>
+      {/* 모드별 풀 배경 영상 — 라이트=밝은 스카이라인(212404), 다크=생기있는 서울 야경(login-bg).
+          영상이 '실제로 보이도록' 스크림은 얕게(home-video-scrim). 콘텐츠는 불투명 카드 위라 가독성은 카드가 담당.
+          마운트 전엔 브랜드 단색(cream/ink)만 → 깜빡임 없이 영상 페이드 인. 활성 모드 영상 한 개만 로드. */}
+      <div className="fixed inset-0 -z-10 bg-cream-100 dark:bg-ink-900 overflow-hidden" aria-hidden>
+        {themeReady && (
+          <video
+            key={bgVideoSrc}
+            autoPlay
+            loop
+            muted
+            playsInline
+            preload="auto"
+            onLoadedMetadata={(e) => {
+              e.currentTarget.playbackRate = bgVideoRate;
+            }}
+            className="absolute inset-0 h-full w-full object-cover motion-safe:animate-[bgfade_1.2s_ease-out]"
+          >
+            <source src={bgVideoSrc} type="video/mp4" />
+          </video>
+        )}
+        <div className="home-video-scrim absolute inset-0"></div>
       </div>
 
       <div className="relative z-10 px-4 md:px-6 py-4 md:py-6 max-w-[1600px] mx-auto">

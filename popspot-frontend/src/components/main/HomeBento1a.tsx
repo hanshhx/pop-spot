@@ -24,9 +24,9 @@ function ddayNum(endDate?: string): number | null {
 }
 
 function statusTone(status?: string): string {
-  if (status === "혼잡") return "text-hot-400";
-  if (status === "여유") return "text-lime-400";
-  return "text-amber-300";
+  if (status === "혼잡") return "text-hot-500 dark:text-hot-400";
+  if (status === "여유") return "text-lime-600 dark:text-lime-400";
+  return "text-amber-500 dark:text-amber-300";
 }
 
 type ChipKey = "전체" | "이번 주" | "마감임박" | "혼잡";
@@ -70,8 +70,8 @@ export default function HomeBento1a({ popups, total, onOpenRanking, onNavigate }
       aria-label="발견"
       className="mb-10 grid grid-cols-1 gap-4 lg:grid-cols-3 lg:grid-rows-2"
     >
-      {/* 실시간 랭킹 히어로 */}
-      <div className="flex flex-col rounded-[2rem] bg-ink-900 p-5 text-cream-200 shadow-pop md:p-6 lg:col-span-2 lg:row-span-2">
+      {/* 실시간 랭킹 히어로 — 라이트=흰 카드/진한 글씨, 다크=딥카드(기존 유지) */}
+      <div className="flex flex-col rounded-[2rem] border border-black/[0.06] bg-white p-5 text-ink-900 shadow-pop md:p-6 lg:col-span-2 lg:row-span-2 dark:border-transparent dark:bg-ink-900 dark:text-cream-200">
         <div className="mb-4 flex flex-wrap gap-2">
           {chips.map((c) => (
             <button
@@ -82,7 +82,7 @@ export default function HomeBento1a({ popups, total, onOpenRanking, onNavigate }
               className={`rounded-pill px-3 py-1 text-[11px] font-bold transition ${
                 chip === c.key
                   ? "bg-lime-300 text-ink-900"
-                  : "border border-ink-700 text-cream-200/60 hover:text-cream-200"
+                  : "border border-black/15 text-ink-500 hover:text-ink-900 dark:border-ink-700 dark:text-cream-200/60 dark:hover:text-cream-200"
               }`}
             >
               {c.label}
@@ -99,16 +99,16 @@ export default function HomeBento1a({ popups, total, onOpenRanking, onNavigate }
           {popups.length === 0 ? (
             [...Array(4)].map((_, i) => (
               <div key={i} className="flex animate-pulse items-center gap-3 p-2">
-                <div className="h-4 w-4 rounded bg-white/10" />
-                <div className="h-11 w-11 rounded-xl bg-white/10" />
+                <div className="h-4 w-4 rounded bg-black/10 dark:bg-white/10" />
+                <div className="h-11 w-11 rounded-xl bg-black/10 dark:bg-white/10" />
                 <div className="flex-1 space-y-1.5">
-                  <div className="h-3 w-2/3 rounded bg-white/10" />
-                  <div className="h-2 w-1/3 rounded bg-white/10" />
+                  <div className="h-3 w-2/3 rounded bg-black/10 dark:bg-white/10" />
+                  <div className="h-2 w-1/3 rounded bg-black/10 dark:bg-white/10" />
                 </div>
               </div>
             ))
           ) : top.length === 0 ? (
-            <p className="py-8 text-center text-sm text-cream-200/40">
+            <p className="py-8 text-center text-sm text-ink-400 dark:text-cream-200/40">
               이 조건에 맞는 팝업이 없어요.
             </p>
           ) : (
@@ -117,20 +117,20 @@ export default function HomeBento1a({ popups, total, onOpenRanking, onNavigate }
                 key={p.id}
                 type="button"
                 onClick={onOpenRanking}
-                className="flex w-full items-center gap-3 rounded-2xl p-2 text-left transition hover:bg-white/5"
+                className="flex w-full items-center gap-3 rounded-2xl p-2 text-left transition hover:bg-black/5 dark:hover:bg-white/5"
               >
                 <span
-                  className={`w-4 shrink-0 text-center text-sm font-black ${i === 0 ? "text-lime-300" : "text-cream-200/40"}`}
+                  className={`w-4 shrink-0 text-center text-sm font-black ${i === 0 ? "text-lime-600 dark:text-lime-300" : "text-ink-400 dark:text-cream-200/40"}`}
                 >
                   {i + 1}
                 </span>
-                <div className="h-11 w-11 shrink-0 overflow-hidden rounded-xl bg-white/5">
+                <div className="h-11 w-11 shrink-0 overflow-hidden rounded-xl bg-black/5 dark:bg-white/5">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={popupCoverUrl(p, 200)} alt="" className="h-full w-full object-cover" />
                 </div>
                 <div className="min-w-0 flex-1">
                   <strong className="block truncate text-sm font-bold">{p.name}</strong>
-                  <span className="block truncate text-[11px] text-cream-200/45">
+                  <span className="block truncate text-[11px] text-ink-500 dark:text-cream-200/45">
                     {(p.location || "").split(" ").slice(0, 2).join(" ")} ·{" "}
                     <span className={statusTone(p.status)}>{p.status || "영업중"}</span>
                   </span>
@@ -143,7 +143,7 @@ export default function HomeBento1a({ popups, total, onOpenRanking, onNavigate }
         <button
           type="button"
           onClick={onOpenRanking}
-          className="mt-3 w-full rounded-xl bg-lime-300/15 py-2.5 text-center text-xs font-bold text-lime-300 transition hover:bg-lime-300/25"
+          className="mt-3 w-full rounded-xl bg-lime-400/15 py-2.5 text-center text-xs font-bold text-lime-700 transition hover:bg-lime-400/25 dark:bg-lime-300/15 dark:text-lime-300 dark:hover:bg-lime-300/25"
         >
           전체 랭킹 보기 →
         </button>
@@ -153,7 +153,7 @@ export default function HomeBento1a({ popups, total, onOpenRanking, onNavigate }
       <button
         type="button"
         onClick={() => onNavigate("PASSPORT")}
-        className="group relative overflow-hidden rounded-[2rem] bg-ink-900 p-5 text-left text-cream-200 shadow-pop transition hover:scale-[1.02] md:p-6 lg:col-span-1"
+        className="group relative overflow-hidden rounded-[2rem] border border-black/[0.06] bg-white p-5 text-left text-ink-900 shadow-pop transition hover:scale-[1.02] md:p-6 lg:col-span-1 dark:border-transparent dark:bg-ink-900 dark:text-cream-200"
       >
         <div
           aria-hidden
@@ -170,10 +170,10 @@ export default function HomeBento1a({ popups, total, onOpenRanking, onNavigate }
           </span>
           <div>
             <h3 className="text-base font-black">나의 기록</h3>
-            <p className="mt-1 text-xs leading-relaxed text-cream-200/55">
+            <p className="mt-1 text-xs leading-relaxed text-ink-500 dark:text-cream-200/55">
               방문한 팝업을 도장으로 기록하고 스탬프를 모아요.
             </p>
-            <span className="mt-3 inline-flex items-center gap-1 text-xs font-bold text-amber-300">
+            <span className="mt-3 inline-flex items-center gap-1 text-xs font-bold text-amber-600 dark:text-amber-300">
               여권 열기 <ArrowRight size={13} className="transition-transform group-hover:translate-x-0.5" />
             </span>
           </div>
@@ -184,7 +184,7 @@ export default function HomeBento1a({ popups, total, onOpenRanking, onNavigate }
       <button
         type="button"
         onClick={() => onNavigate("MATE")}
-        className="group relative overflow-hidden rounded-[2rem] bg-ink-900 p-5 text-left text-cream-200 shadow-pop transition hover:scale-[1.02] md:p-6 lg:col-span-1"
+        className="group relative overflow-hidden rounded-[2rem] border border-black/[0.06] bg-white p-5 text-left text-ink-900 shadow-pop transition hover:scale-[1.02] md:p-6 lg:col-span-1 dark:border-transparent dark:bg-ink-900 dark:text-cream-200"
       >
         <div
           aria-hidden
@@ -197,14 +197,14 @@ export default function HomeBento1a({ popups, total, onOpenRanking, onNavigate }
           <div>
             <div className="mb-2 flex -space-x-2" aria-hidden>
               {["bg-lime-300", "bg-hot-400", "bg-sky-400"].map((c, i) => (
-                <span key={i} className={`h-7 w-7 rounded-full ring-2 ring-ink-900 ${c}`} />
+                <span key={i} className={`h-7 w-7 rounded-full ring-2 ring-white dark:ring-ink-900 ${c}`} />
               ))}
             </div>
             <h3 className="text-base font-black">같이 갈 사람</h3>
-            <p className="mt-1 text-xs leading-relaxed text-cream-200/55">
+            <p className="mt-1 text-xs leading-relaxed text-ink-500 dark:text-cream-200/55">
               관심사 맞는 동행을 찾아 함께 다녀와요.
             </p>
-            <span className="mt-3 inline-flex items-center gap-1 text-xs font-bold text-sky-300">
+            <span className="mt-3 inline-flex items-center gap-1 text-xs font-bold text-sky-600 dark:text-sky-300">
               동행 찾기 <ArrowRight size={13} className="transition-transform group-hover:translate-x-0.5" />
             </span>
           </div>
