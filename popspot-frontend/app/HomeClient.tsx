@@ -360,6 +360,9 @@ export default function Home() {
     }
     setCurrentTab(tab);
     sessionStorage.setItem("lastTab", tab);
+    // 탭 전환 시 항상 상단부터 보이게 (아래로 스크롤한 상태에서 여권/동행 등을 누르면
+    // 스크롤 위치가 유지돼 새 탭의 하단이 먼저 보이던 문제 수정).
+    if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "auto" });
 
     if (tab === "MY" && user) {
         fetchMyPageData(user.userId);
@@ -721,7 +724,8 @@ export default function Home() {
         <video autoPlay loop muted playsInline className="absolute min-w-full min-h-full object-cover">
           <source src="/bg.mp4" type="video/mp4" />
         </video>
-        <div className="absolute inset-0 transition-colors duration-500 bg-white/80 dark:bg-black/80 backdrop-blur-[2px]"></div>
+        {/* 다크모드에서 야경 배경이 보이도록 오버레이를 옅게(80→55). 밝은모드는 가독성 위해 유지. */}
+        <div className="absolute inset-0 transition-colors duration-500 bg-white/80 dark:bg-black/55 backdrop-blur-[1px]"></div>
       </div>
 
       <div className="relative z-10 px-4 md:px-6 py-4 md:py-6 max-w-[1600px] mx-auto">
@@ -777,7 +781,7 @@ export default function Home() {
                              </button>
                         </div>
                     ) : (
-                        <div className="w-full border rounded-xl p-6 md:p-10 relative overflow-hidden text-center md:text-left flex flex-col md:flex-row items-center justify-between gap-6 transition-colors bg-white/60 border-gray-200 backdrop-blur-md dark:bg-white/5 dark:border-white/10">
+                        <div className="w-full border rounded-xl p-6 md:p-10 relative overflow-hidden text-center md:text-left flex flex-col md:flex-row items-center justify-between gap-6 transition-colors bg-white border-gray-200 dark:bg-[#161616] dark:border-white/10">
                             <div className="relative z-10">
                                 <div className="inline-block px-3 py-1 mb-3 md:mb-4 text-[10px] md:text-xs font-bold tracking-[0.2em] uppercase rounded-pill bg-lime-300 text-ink-900">
                                     팝스팟에 오신 걸 환영해요
@@ -856,10 +860,10 @@ export default function Home() {
                                     · 성수 <span className={`font-bold ${getCongestionColor(congestionData.level)}`}>{congestionData.level}</span>
                                 </span>
                             ) : (
-                                <span className="hidden truncate text-sm text-gray-400 dark:text-white/40 sm:inline">· 지역별 분석</span>
+                                <span className="hidden truncate text-sm text-gray-500 dark:text-white/60 sm:inline">· 지역별 분석</span>
                             )}
                         </div>
-                        <span className="shrink-0 text-xs font-semibold text-primary group-hover:underline">지역별 보기 →</span>
+                        <span className="shrink-0 text-sm font-bold text-lime-600 dark:text-lime-400 group-hover:underline">지역별 보기 →</span>
                     </button>
 
                     {/* 팝업 캘린더 */}
@@ -871,9 +875,9 @@ export default function Home() {
                         <div className="flex min-w-0 items-center gap-2.5">
                             <Calendar size={16} className="shrink-0 text-primary" aria-hidden />
                             <span className="shrink-0 text-sm font-bold text-gray-900 dark:text-white">팝업 캘린더</span>
-                            <span className="hidden truncate text-sm text-gray-400 dark:text-white/40 sm:inline">· 언제 뭐가 열리나</span>
+                            <span className="hidden truncate text-sm text-gray-500 dark:text-white/60 sm:inline">· 언제 뭐가 열리나</span>
                         </div>
-                        <span className="shrink-0 text-xs font-semibold text-primary group-hover:underline">달력 보기 →</span>
+                        <span className="shrink-0 text-sm font-bold text-lime-600 dark:text-lime-400 group-hover:underline">달력 보기 →</span>
                     </button>
                 </div>
 
@@ -941,9 +945,9 @@ export default function Home() {
                             )}
                         </article>
                         <div className="lg:col-span-2 flex flex-col gap-4 lg:gap-6">
-                            <article className="flex-1 rounded-[2rem] lg:rounded-[2.5rem] p-6 lg:p-10 bg-white/80 dark:bg-[#111]/80 backdrop-blur-lg border border-gray-200 dark:border-white/5 flex flex-col justify-center items-start relative overflow-hidden">
+                            <article className="flex-1 rounded-[2rem] lg:rounded-[2.5rem] p-6 lg:p-10 bg-white dark:bg-[#111] border border-gray-200 dark:border-white/5 flex flex-col justify-center items-start relative overflow-hidden">
                                 <Shirt size={80} className="lg:w-[120px] lg:h-[120px] absolute -right-4 -bottom-4 lg:-right-6 lg:-bottom-6 text-gray-100 dark:text-white/5 rotate-[-15deg]"/>
-                                <span className="text-primary font-bold tracking-wide text-[10px] lg:text-xs mb-3 lg:mb-4 border border-primary/30 px-2 py-1 lg:px-3 lg:py-1 rounded-full">오늘의 스타일</span>
+                                <span className="text-lime-700 dark:text-lime-300 font-bold tracking-wide text-xs lg:text-sm mb-3 lg:mb-4 border border-lime-500/40 bg-lime-50 dark:bg-lime-300/10 px-2.5 py-1 lg:px-3 lg:py-1 rounded-full">오늘의 스타일</span>
                                 <h3 className="text-xl md:text-3xl lg:text-4xl font-bold text-gray-900 dark:text-white mb-4 lg:mb-6 leading-tight">{ootd?.comment || "트렌디한 서울 바이브를 분석 중입니다..."}</h3>
                                 <div className="flex flex-wrap gap-2 lg:gap-3">{['#SeongsuVibe', '#PopUpStyle', '#OOTD', `#${ootd?.data?.keyword.replace(" ", "") || 'Fashion'}`].map((tag, i) => (<span key={i} className="text-xs lg:text-sm text-gray-500 dark:text-white/40 font-medium">{tag}</span>))}</div>
                             </article>

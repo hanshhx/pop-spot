@@ -163,7 +163,7 @@ function CustomHits({ onSelect }: CustomHitsProps) {
  */
 function SearchZoneFallback() {
   return (
-    <div className="rounded-xl p-6 md:p-8 flex flex-col justify-between border border-[var(--color-border)] bg-surface relative z-50 min-h-[260px]">
+    <div className="rounded-xl p-6 md:p-8 flex flex-col justify-start border border-[var(--color-border)] bg-surface relative z-50 min-h-0">
       <div>
         <SectionLogo name="search-zone" label="Search Zone" className="h-9 md:h-12 mb-4 text-foreground" />
         <div className="mt-6 relative w-full">
@@ -204,7 +204,7 @@ export function SearchZone({ onSelectPopup }: SearchZoneProps = {}) {
   }
 
   return (
-    <div className="rounded-xl p-6 md:p-8 flex flex-col justify-between border border-[var(--color-border)] bg-surface relative z-50 min-h-[260px]">
+    <div className="rounded-xl p-6 md:p-8 flex flex-col justify-start border border-[var(--color-border)] bg-surface relative z-50 min-h-0">
       <InstantSearch searchClient={searchClient} indexName="popups">
         <div>
           <SectionLogo name="search-zone" label="Search Zone" className="h-9 md:h-12 mb-4 text-foreground" />
