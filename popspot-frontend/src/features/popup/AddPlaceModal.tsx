@@ -31,7 +31,7 @@ export function AddPlaceModal({
           initial={{ y: "100%" }}
           animate={{ y: 0 }}
           exit={{ y: "100%" }}
-          className="absolute inset-0 bg-surface z-50 flex flex-col"
+          className="fixed inset-0 bg-surface z-[100] flex flex-col"
           role="dialog"
           aria-label="장소 추가하기"
         >

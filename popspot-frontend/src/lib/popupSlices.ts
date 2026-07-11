@@ -91,7 +91,15 @@ export type CategoryDef = {
   keywords: string[];
 };
 
+// 순서·명칭을 지도 카테고리와 통일: 캐릭터-패션-뷰티-푸드-문화-(라이프·테크).
+// 라벨만 조정(디저트→푸드, 아트→문화)하고 slug/code/keywords 는 유지 → 기존 SEO 랜딩 URL 보존.
 export const CATEGORIES: CategoryDef[] = [
+  {
+    code: "character",
+    label: "캐릭터",
+    slug: "character",
+    keywords: ["캐릭터", "굿즈", "애니", "character", "CHARACTER"],
+  },
   {
     code: "fashion",
     label: "패션",
@@ -105,28 +113,22 @@ export const CATEGORIES: CategoryDef[] = [
     keywords: ["뷰티", "화장품", "코스메틱", "beauty", "BEAUTY"],
   },
   {
-    code: "character",
-    label: "캐릭터",
-    slug: "character",
-    keywords: ["캐릭터", "굿즈", "애니", "character", "CHARACTER"],
-  },
-  {
     code: "dessert",
-    label: "디저트",
+    label: "푸드",
     slug: "dessert",
     keywords: ["디저트", "베이커리", "카페", "푸드", "음료", "dessert", "FOOD"],
+  },
+  {
+    code: "art",
+    label: "문화",
+    slug: "art",
+    keywords: ["아트", "전시", "갤러리", "art", "CULTURE"],
   },
   {
     code: "lifestyle",
     label: "라이프",
     slug: "lifestyle",
     keywords: ["라이프", "리빙", "홈", "lifestyle"],
-  },
-  {
-    code: "art",
-    label: "아트",
-    slug: "art",
-    keywords: ["아트", "전시", "갤러리", "art", "CULTURE"],
   },
   {
     code: "tech",
