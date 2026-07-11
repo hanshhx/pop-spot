@@ -547,7 +547,7 @@ export default function InteractiveMap({ places, showPath = false, center, focus
                             className={`flex items-center gap-1 px-2 py-1 rounded-lg shadow-lg backdrop-blur-md border-2 whitespace-nowrap transform transition-all group-hover/marker:scale-110 ${
                               selectedMarker?.popupId === marker.popupId
                                 ? `bg-primary text-black ${style.border}`
-                                : `bg-black/85 text-white ${style.border}`
+                                : `bg-white text-gray-800 dark:bg-black/85 dark:text-white ${style.border}`
                             }`}
                           >
                             <span className={selectedMarker?.popupId === marker.popupId ? 'text-black' : style.color}>
@@ -559,7 +559,7 @@ export default function InteractiveMap({ places, showPath = false, center, focus
                           </div>
 
                           {/* 카드 아래 작은 점 (위치 표시) */}
-                          <div className={`w-2 h-2 mt-0.5 rounded-full border-2 border-black ${
+                          <div className={`w-2 h-2 mt-0.5 rounded-full border-2 border-gray-400 dark:border-black ${
                             selectedMarker?.popupId === marker.popupId ? 'bg-primary' : 'bg-white'
                           }`}></div>
 
