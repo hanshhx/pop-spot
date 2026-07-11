@@ -20,8 +20,8 @@ public class AiSearchController {
     private final AiSearchService aiSearchService;
 
     @GetMapping("/api/search/ai")
-    public Map<String, List<String>> search(
+    public Map<String, List<Map<String, Object>>> search(
             @RequestParam(value = "q", required = false, defaultValue = "") String q) {
-        return Map.of("ids", aiSearchService.searchPopupIds(q));
+        return Map.of("results", aiSearchService.searchPopups(q));
     }
 }

@@ -3,18 +3,19 @@ package com.example.popspotbackend.service;
 import com.example.popspotbackend.entity.PopupStore;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.langchain4j.model.chat.ChatLanguageModel;
+import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 /**
- * 자연어(AI) 팝업 검색 — 사용자의 검색 의도를 LLM(Groq)이 해석해 '지도에 떠 있는 팝업 중' 맞는 것들의 id 를 고른다.
+ * 자연어(AI) 팝업 검색 — 사용자의 검색 의도를 LLM(Groq)이 해석해 '지도에 떠 있는 팝업 중' 맞는 것들을 고른다.
  *
- * <p>후보군은 지도 마커와 동일한 {@code findVisibleMapMarkers} 라서, 프론트가 반환된 id 로 핀만 필터하면 "검색어에
- * 맞는 핀만" 남는다. 응답은 id 문자열 JSON 배열로 강제하고, 실재하는 후보 id 로만 필터해 환각을 차단한다.
+ * <p>후보군은 지도 마커와 동일한 {@code findVisibleMapMarkers}. LLM 에는 id 만 JSON 배열로 답하게 강제하고, 실재하는
+ * 후보 id 로만 필터해 환각을 차단한 뒤, 프론트가 지도 핀 필터(맵) / 결과 목록(모달) 양쪽에 쓰도록 id·이름·위치를 함께 돌려준다.
  */
 @Slf4j
 @Service
@@ -28,7 +29,7 @@ public class AiSearchService {
     private final PopupStoreService popupStoreService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    public List<String> searchPopupIds(String query) {
+    public List<Map<String, Object>> searchPopups(String query) {
         String q = query == null ? "" : query.trim();
         if (q.isEmpty()) return List.of();
 
@@ -39,16 +40,31 @@ public class AiSearchService {
                         ? candidates.subList(0, MAX_CANDIDATES)
                         : candidates;
 
-        Set<String> validIds =
-                bounded.stream().map(p -> String.valueOf(p.getId())).collect(Collectors.toSet());
+        Map<String, PopupStore> byId =
+                bounded.stream()
+                        .collect(
+                                Collectors.toMap(
+                                        p -> String.valueOf(p.getId()),
+                                        p -> p,
+                                        (a, b) -> a,
+                                        LinkedHashMap::new));
 
         log.info("[AiSearch] q='{}' 후보={}", q, bounded.size());
         try {
             String response = chatLanguageModel.generate(buildPrompt(q, bounded));
             return parseIds(response).stream()
-                    .filter(validIds::contains)
+                    .filter(byId::containsKey)
                     .distinct()
                     .limit(MAX_RESULTS)
+                    .map(
+                            id -> {
+                                PopupStore p = byId.get(id);
+                                Map<String, Object> m = new LinkedHashMap<>();
+                                m.put("id", id);
+                                m.put("name", p.getName());
+                                m.put("location", nz(p.getLocation()));
+                                return m;
+                            })
                     .toList();
         } catch (Exception e) {
             log.error("[AiSearch] LLM 호출 실패", e);

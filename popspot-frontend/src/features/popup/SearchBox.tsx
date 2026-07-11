@@ -1,187 +1,59 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
-import { Search, MapPin, ArrowRight, Sparkles, Loader2 } from "lucide-react";
-import {
-  InstantSearch,
-  useSearchBox,
-  useHits,
-  type UseSearchBoxProps,
-} from "react-instantsearch";
-import { liteClient as algoliasearch } from "algoliasearch/lite";
-import { env } from "@/lib/env";
+import { Sparkles, Loader2, MapPin, ArrowRight } from "lucide-react";
 import { apiFetch } from "@/lib/api";
-import { popupCoverUrl } from "@/lib/popupCover";
 import { SectionLogo } from "@/components/layout/BrandLogos";
 
-interface AlgoliaHit {
-  objectID: string;
-  name: string;
-  location?: string;
-  category?: string | null;
-  imageUrl?: string | null;
-  /** v2.13 — 백엔드가 인덱싱 시점에 가드를 걸지만 클라에서도 한 번 더 검증 (이중 방어). */
-  reviewStatus?: string | null;
-  status?: string | null;
-  confidence?: number | null;
-  endDate?: string | null;
-}
-
-const MIN_CONFIDENCE = 0.8;
-const ALLOWED_REVIEW_STATUSES: ReadonlyArray<string | null | undefined> = [
-  "AUTO_PUBLISHED",
-  "APPROVED",
-  null,
-  undefined,
-];
-const BLOCKED_STATUSES: ReadonlySet<string> = new Set(["EXPIRED", "PENDING"]);
-
-/** 인덱스에 옛 garbage 가 남아 있을 가능성 대비 — 정확도 / 유효기간 / 상태 가드. */
-function isVisibleHit(hit: AlgoliaHit): boolean {
-  if (!ALLOWED_REVIEW_STATUSES.includes(hit.reviewStatus ?? null)) return false;
-  if (hit.status && BLOCKED_STATUSES.has(hit.status)) return false;
-  if (typeof hit.confidence === "number" && hit.confidence < MIN_CONFIDENCE) return false;
-  if (hit.endDate) {
-    const end = Date.parse(hit.endDate);
-    if (!Number.isNaN(end) && end < Date.now() - 24 * 60 * 60 * 1000) return false;
-  }
-  return true;
-}
-
-// env.algolia 가 null 이면 (미설정·더미값) 클라이언트 미생성 → fallback UI.
-const searchClient = env.algolia
-  ? algoliasearch(env.algolia.appId, env.algolia.searchKey)
-  : null;
-
-function CustomSearchBox(props: UseSearchBoxProps) {
-  const { query, refine } = useSearchBox(props);
-  const [inputValue, setInputValue] = useState(query);
-
-  // Algolia 의 query 가 외부에서 바뀌면 input value 도 따라가게 한다.
-  // inputValue 를 deps 에 넣으면 input → state → effect → setInputValue → input 무한루프가
-  // 생기므로 의도적으로 query 만 dep 으로 둔다.
-  useEffect(() => {
-    if (query !== inputValue) setInputValue(query);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- inputValue 는 의도적으로 deps 제외
-  }, [query]);
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setInputValue(e.target.value);
-    refine(e.target.value);
-  };
-
-  return (
-    <div className="relative w-full">
-      <input
-        type="text"
-        value={inputValue}
-        onChange={handleChange}
-        placeholder="지역, 팝업 이름, 카테고리 검색..."
-        aria-label="팝업 검색"
-        className="w-full h-12 rounded-pill py-3 pl-12 pr-4 bg-cream-300 dark:bg-ink-800 border border-[var(--color-border)] text-foreground placeholder:text-muted-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus:border-lime-400 transition-colors text-sm md:text-base"
-      />
-      <Search
-        className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground"
-        size={18}
-        aria-hidden
-      />
-    </div>
-  );
-}
-
-interface CustomHitsProps {
-  onSelect?: (hit: { objectID: string; name: string; location?: string }) => void;
-}
-
-function CustomHits({ onSelect }: CustomHitsProps) {
-  const { items: hits } = useHits<AlgoliaHit>();
-  const { query, refine } = useSearchBox();
-
-  if (!query) return null;
-
-  const visibleHits = hits.filter(isVisibleHit);
-
-  return (
-    <div className="absolute top-full left-0 right-0 mt-3 bg-surface border border-[var(--color-border)] rounded-lg overflow-hidden z-50 shadow-pop max-h-[400px] overflow-y-auto custom-scrollbar">
-      {visibleHits.length === 0 ? (
-        <div className="p-8 text-center text-muted-foreground text-sm">
-          검색 결과가 없습니다.
-        </div>
-      ) : (
-        visibleHits.map((hit) => (
-          <Link
-            key={hit.objectID}
-            href={`/popup/${hit.objectID}`}
-            onClick={(e) => {
-              // onSelect 가 있으면 상세 이동 대신 지도 이동(+검색 닫기).
-              if (onSelect) {
-                e.preventDefault();
-                onSelect({ objectID: hit.objectID, name: hit.name, location: hit.location });
-                refine("");
-              }
-            }}
-          >
-            <article className="flex items-center gap-4 p-4 hover:bg-lime-300/10 transition-colors cursor-pointer border-b border-[var(--color-border)] last:border-none group">
-              {/* 팝업 커버 — imageUrl 이 기본 플레이스홀더면 카테고리·id 로 큐레이션 사진 배정. */}
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={popupCoverUrl(
-                  { id: hit.objectID, category: hit.category, imageUrl: hit.imageUrl },
-                  200,
-                )}
-                alt=""
-                loading="lazy"
-                className="size-12 shrink-0 rounded-md object-cover bg-lime-300/15"
-              />
-              <div className="flex-1 min-w-0">
-                <h4 className="font-bold text-sm truncate text-foreground group-hover:text-lime-500 transition-colors">
-                  {hit.name}
-                </h4>
-                <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5 truncate">
-                  <MapPin size={12} aria-hidden /> {hit.location || "위치 정보 없음"}
-                </p>
-              </div>
-              <ArrowRight
-                size={16}
-                className="text-muted-foreground opacity-0 group-hover:opacity-100 group-hover:text-lime-500 transition-all"
-                aria-hidden
-              />
-            </article>
-          </Link>
-        ))
-      )}
-      <div className="px-4 py-2 bg-cream-300 dark:bg-ink-800 text-[10px] text-right text-muted-foreground">
-        Search by <span className="font-bold text-lime-500">Algolia</span>
-      </div>
-    </div>
-  );
-}
-
 /**
- * AI 자연어 검색 — 검색어를 백엔드 LLM(Groq)이 해석해 매칭 팝업 id 를 받고, 지도에 그 핀만 남긴다.
- * Algolia 서치존과 독립적으로 동작(키가 없어도 사용 가능). LLM 비용/한도 고려해 Enter/버튼 제출 시에만 호출.
+ * AI 검색존 — 기존 Algolia 서치바를 걷어내고 자연어 'AI 검색'을 메인 검색으로 승격.
+ *
+ * <p>검색어를 백엔드 LLM(Groq)이 해석해 매칭 팝업을 받는다. 지도 페이지에서는 {@code onAiFilter} 로 지도에 해당
+ * 핀만 남기고, 지도가 없는 글로벌 검색 모달에서는 결과를 목록으로 보여준다(팝업 상세로 이동). 기존 서치바처럼 크고
+ * 또렷하되, AI 답게 스파클·라임 글로우·예시 칩으로 특색을 준다.
  */
-function AiSearchBar({ onAiFilter }: { onAiFilter?: (ids: string[] | null) => void }) {
+
+type AiResult = { id: string; name: string; location: string };
+
+interface SearchZoneProps {
+  /** (호환용) 이전 Algolia 결과 선택 콜백 — 현재 미사용. */
+  onSelectPopup?: (hit: { objectID: string; name: string; location?: string }) => void;
+  /** AI 검색 결과 id 목록(또는 null=전체 복원). 지정되면 지도 핀 필터 모드. 미지정이면 결과 목록 모드. */
+  onAiFilter?: (ids: string[] | null) => void;
+}
+
+const EXAMPLES = ["비 오는 날 감성 카페", "성수 캐릭터 굿즈", "주말 전시 팝업", "아이랑 가기 좋은 곳"];
+
+export function SearchZone({ onAiFilter }: SearchZoneProps = {}) {
   const [q, setQ] = useState("");
   const [loading, setLoading] = useState(false);
-  const [count, setCount] = useState<number | null>(null);
+  const [results, setResults] = useState<AiResult[] | null>(null);
   const [erred, setErred] = useState(false);
 
-  async function run() {
-    const query = q.trim();
-    if (!query || loading) return;
+  const mapMode = typeof onAiFilter === "function"; // 지도 필터 vs 결과 목록
+
+  async function run(query?: string) {
+    const text = (query ?? q).trim();
+    if (!text || loading) return;
+    if (query) setQ(query);
     setLoading(true);
     setErred(false);
     try {
-      const res = await apiFetch(`/api/search/ai?q=${encodeURIComponent(query)}`);
+      const res = await apiFetch(`/api/search/ai?q=${encodeURIComponent(text)}`);
       const data = await res.json().catch(() => ({}));
-      const ids: string[] = Array.isArray(data?.ids) ? data.ids.map(String) : [];
-      setCount(ids.length);
-      onAiFilter?.(ids);
+      const list: AiResult[] = Array.isArray(data?.results)
+        ? data.results.map((r: { id: unknown; name?: string; location?: string }) => ({
+            id: String(r.id),
+            name: r.name ?? "",
+            location: r.location ?? "",
+          }))
+        : [];
+      setResults(list);
+      onAiFilter?.(list.map((r) => r.id));
     } catch {
       setErred(true);
-      setCount(null);
+      setResults(null);
       onAiFilter?.(null);
     } finally {
       setLoading(false);
@@ -190,19 +62,34 @@ function AiSearchBar({ onAiFilter }: { onAiFilter?: (ids: string[] | null) => vo
 
   function reset() {
     setQ("");
-    setCount(null);
+    setResults(null);
     setErred(false);
     onAiFilter?.(null);
   }
 
+  const count = results?.length ?? null;
+
   return (
-    <div className="mt-4 rounded-2xl border border-lime-300/40 bg-lime-50/60 dark:bg-lime-300/5 p-3">
-      <div className="flex items-center gap-1.5 mb-2">
-        <Sparkles size={14} className="text-lime-600 dark:text-lime-300" aria-hidden />
-        <span className="text-xs font-bold text-lime-700 dark:text-lime-300">AI로 찾기</span>
-        <span className="text-[10px] text-muted-foreground">— 지도에 딱 맞는 핀만</span>
+    <div className="relative z-50 overflow-hidden rounded-xl border border-lime-300/50 bg-gradient-to-br from-lime-50/70 via-surface to-surface p-6 md:p-8 dark:from-lime-300/[0.06] dark:via-surface dark:to-surface">
+      {/* 헤더 — AI 브랜딩 */}
+      <div className="mb-4 flex items-center gap-2">
+        <SectionLogo
+          name="search-zone"
+          label="Search Zone"
+          className="h-9 text-foreground md:h-12"
+        />
+        <span className="inline-flex items-center gap-1 rounded-pill bg-lime-300 px-2 py-0.5 text-[10px] font-black text-ink-900">
+          <Sparkles size={11} /> AI
+        </span>
       </div>
-      <div className="flex items-center gap-2">
+
+      {/* 메인 검색 입력 — 기존 서치바처럼 크게, AI 답게 스파클 + 라임 글로우 */}
+      <div className="relative w-full">
+        <Sparkles
+          className="absolute left-4 top-1/2 -translate-y-1/2 text-lime-500 dark:text-lime-300"
+          size={20}
+          aria-hidden
+        />
         <input
           type="text"
           value={q}
@@ -210,101 +97,89 @@ function AiSearchBar({ onAiFilter }: { onAiFilter?: (ids: string[] | null) => vo
           onKeyDown={(e) => {
             if (e.key === "Enter") run();
           }}
-          placeholder="예: 비 오는 날 감성 카페, 성수 캐릭터 굿즈"
-          aria-label="AI 검색"
-          className="flex-1 h-11 rounded-pill py-2.5 px-4 bg-surface border border-[var(--color-border)] text-foreground placeholder:text-muted-foreground text-sm focus:outline-none focus:border-lime-400"
+          placeholder="AI에게 말하듯 검색 — 예: 비 오는 날 감성 카페"
+          aria-label="AI 팝업 검색"
+          className="h-14 w-full rounded-pill border-2 border-lime-300/40 bg-surface py-3.5 pl-12 pr-24 text-sm text-foreground transition-all placeholder:text-muted-foreground focus:border-lime-400 focus:outline-none focus:ring-4 focus:ring-lime-300/20 md:text-base"
         />
         <button
           type="button"
-          onClick={run}
+          onClick={() => run()}
           disabled={loading || !q.trim()}
           aria-label="AI 검색 실행"
-          className="shrink-0 h-11 px-4 rounded-pill bg-lime-300 text-ink-900 font-bold text-sm hover:bg-lime-400 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-1.5 transition"
+          className="absolute right-1.5 top-1/2 inline-flex h-11 -translate-y-1/2 items-center gap-1.5 rounded-pill bg-lime-300 px-4 text-sm font-bold text-ink-900 transition hover:bg-lime-400 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {loading ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
           찾기
         </button>
       </div>
+
+      {/* 결과 피드백 */}
       {(count !== null || erred) && (
-        <div className="mt-2 flex items-center justify-between gap-2 text-xs">
-          <span className={erred ? "text-hot-500 font-medium" : "text-muted-foreground"}>
+        <div className="mt-3 flex items-center justify-between gap-2 text-xs">
+          <span className={erred ? "font-medium text-hot-500" : "text-muted-foreground"}>
             {erred
               ? "AI 검색이 잠시 안 돼요. 다시 시도해 주세요."
               : count === 0
-                ? "맞는 팝업을 못 찾았어요."
-                : `지도에 ${count}곳만 표시 중`}
+                ? "맞는 팝업을 못 찾았어요. 다르게 말해볼까요?"
+                : mapMode
+                  ? `지도에 ${count}곳만 표시 중 ✨`
+                  : `${count}곳 찾았어요 ✨`}
           </span>
           <button
             type="button"
             onClick={reset}
-            className="shrink-0 font-bold text-lime-700 dark:text-lime-300 hover:underline"
+            className="shrink-0 font-bold text-lime-700 hover:underline dark:text-lime-300"
           >
-            전체 지도 보기
+            {mapMode ? "전체 지도 보기" : "초기화"}
           </button>
         </div>
       )}
-    </div>
-  );
-}
 
-/**
- * Algolia 키 미설정/잘못된 키일 때 보여주는 안전한 fallback.
- * 외부 호출을 일절 하지 않으므로 콘솔 에러 없음. (AI 검색은 Algolia 와 독립이라 여기서도 노출)
- */
-function SearchZoneFallback({ onAiFilter }: { onAiFilter?: (ids: string[] | null) => void }) {
-  return (
-    <div className="rounded-xl p-6 md:p-8 flex flex-col justify-start border border-[var(--color-border)] bg-surface relative z-50 min-h-0">
-      <div>
-        <SectionLogo name="search-zone" label="Search Zone" className="h-9 md:h-12 mb-4 text-foreground" />
-        <div className="mt-6 relative w-full">
-          <input
-            type="text"
-            disabled
-            placeholder="검색 기능 준비 중입니다..."
-            aria-label="팝업 검색 (준비 중)"
-            className="w-full h-12 rounded-pill py-3 pl-12 pr-4 bg-cream-300/50 dark:bg-ink-800/50 border border-[var(--color-border)] text-muted-foreground placeholder:text-muted-foreground/70 cursor-not-allowed text-sm md:text-base"
-          />
-          <Search
-            className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/50"
-            size={18}
-            aria-hidden
-          />
+      {/* 결과 목록 — 지도가 없는 모달 모드에서만(맵 모드는 지도 핀으로 표시) */}
+      {!mapMode && results && results.length > 0 && (
+        <ul className="mt-3 max-h-[360px] divide-y divide-[var(--color-border)] overflow-y-auto custom-scrollbar rounded-lg border border-[var(--color-border)]">
+          {results.map((r) => (
+            <li key={r.id}>
+              <Link
+                href={`/popup/${r.id}`}
+                className="group flex items-center gap-3 p-3 transition-colors hover:bg-lime-300/10"
+              >
+                <span className="shrink-0 text-lime-500">
+                  <MapPin size={16} />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-bold text-foreground group-hover:text-lime-600 dark:group-hover:text-lime-300">
+                    {r.name}
+                  </p>
+                  <p className="truncate text-xs text-muted-foreground">
+                    {r.location || "위치 정보 없음"}
+                  </p>
+                </div>
+                <ArrowRight
+                  size={14}
+                  className="shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100"
+                />
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {/* 예시 칩 — 아직 검색 전일 때만 */}
+      {count === null && !erred && (
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {EXAMPLES.map((ex) => (
+            <button
+              key={ex}
+              type="button"
+              onClick={() => run(ex)}
+              className="rounded-pill border border-[var(--color-border)] bg-surface px-2.5 py-1 text-[11px] text-muted-foreground transition-colors hover:border-lime-300 hover:text-lime-600 dark:hover:text-lime-300"
+            >
+              {ex}
+            </button>
+          ))}
         </div>
-      </div>
-      <AiSearchBar onAiFilter={onAiFilter} />
-    </div>
-  );
-}
-
-/**
- * Algolia 기반 검색존.
- * 메인 페이지 MAP 탭 좌측에 들어감. 결과는 입력창 아래 dropdown 으로.
- * Algolia 키가 없거나 잘못 설정됐으면 fallback UI 로 안전하게 대체.
- */
-interface SearchZoneProps {
-  /** 검색 결과 선택 시 호출 — 지도 이동 등에 사용. 미지정이면 상세 페이지로 이동. */
-  onSelectPopup?: (hit: { objectID: string; name: string; location?: string }) => void;
-  /** AI 검색 결과 id 목록(또는 null=전체 복원). 지도 핀 필터에 사용. */
-  onAiFilter?: (ids: string[] | null) => void;
-}
-
-export function SearchZone({ onSelectPopup, onAiFilter }: SearchZoneProps = {}) {
-  if (!searchClient) {
-    return <SearchZoneFallback onAiFilter={onAiFilter} />;
-  }
-
-  return (
-    <div className="rounded-xl p-6 md:p-8 flex flex-col justify-start border border-[var(--color-border)] bg-surface relative z-50 min-h-0">
-      <InstantSearch searchClient={searchClient} indexName="popups">
-        <div>
-          <SectionLogo name="search-zone" label="Search Zone" className="h-9 md:h-12 mb-4 text-foreground" />
-          <div className="mt-6 relative w-full">
-            <CustomSearchBox />
-          </div>
-        </div>
-        <CustomHits onSelect={onSelectPopup} />
-      </InstantSearch>
-      <AiSearchBar onAiFilter={onAiFilter} />
+      )}
     </div>
   );
 }
