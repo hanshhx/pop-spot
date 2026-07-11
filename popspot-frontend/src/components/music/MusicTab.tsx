@@ -96,6 +96,24 @@ export default function MusicTab({ popups, onOpenPopup }: MusicTabProps) {
     return [...matched, ...filler].slice(0, MAX_POPUPS);
   }, [popups, activeMood]);
 
+  // 정렬 기준 — 추천순(무드 매칭 순) / 인기순 / 마감임박순 / 카테고리순.
+  const [sortBy, setSortBy] = useState<"default" | "popular" | "dday" | "category">("default");
+
+  const sortedMoodPopups = useMemo(() => {
+    const arr = [...moodPopups];
+    const dday = (p: PopupStore) => {
+      if (!p.endDate) return Number.POSITIVE_INFINITY;
+      const end = new Date(p.endDate);
+      if (Number.isNaN(end.getTime())) return Number.POSITIVE_INFINITY;
+      return Math.ceil((end.getTime() - Date.now()) / 86_400_000);
+    };
+    if (sortBy === "popular") arr.sort((a, b) => (b.viewCount || 0) - (a.viewCount || 0));
+    else if (sortBy === "dday") arr.sort((a, b) => dday(a) - dday(b));
+    else if (sortBy === "category")
+      arr.sort((a, b) => (a.category || "ETC").localeCompare(b.category || "ETC"));
+    return arr;
+  }, [moodPopups, sortBy]);
+
   /* -------- 배경음악(강등된 위젯) -------- */
   const [query, setQuery] = useState("");
   const [submittedQuery, setSubmittedQuery] = useState("");
@@ -308,16 +326,34 @@ export default function MusicTab({ popups, onOpenPopup }: MusicTabProps) {
 
       {/* PRIMARY — 이 무드의 팝업 사진 카드 */}
       <section aria-label="이 무드의 팝업" className="mb-10">
-        <div className="mb-4 flex items-baseline gap-2">
-          <h3 className="text-base font-black text-foreground">
-            <span className="text-lime-500 dark:text-lime-300">{activeMood.label}</span> 무드의 팝업
-          </h3>
-          <span className="text-xs text-muted-foreground">사진으로 훑어보세요</span>
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-baseline gap-2">
+            <h3 className="text-base font-black text-foreground">
+              <span className="text-lime-500 dark:text-lime-300">{activeMood.label}</span> 무드의 팝업
+            </h3>
+            <span className="text-xs text-muted-foreground">사진으로 훑어보세요</span>
+          </div>
+          <label className="flex items-center gap-1.5 text-xs">
+            <span className="text-muted-foreground">정렬</span>
+            <select
+              value={sortBy}
+              onChange={(e) =>
+                setSortBy(e.target.value as "default" | "popular" | "dday" | "category")
+              }
+              aria-label="팝업 정렬 기준"
+              className="rounded-pill border border-[var(--color-border)] bg-surface px-3 py-1.5 text-xs font-semibold text-foreground focus:outline-none focus:border-lime-400"
+            >
+              <option value="default">추천순</option>
+              <option value="popular">인기순</option>
+              <option value="dday">마감임박순</option>
+              <option value="category">카테고리순</option>
+            </select>
+          </label>
         </div>
 
-        {moodPopups.length > 0 ? (
+        {sortedMoodPopups.length > 0 ? (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
-            {moodPopups.map((p) => (
+            {sortedMoodPopups.map((p) => (
               <PopupCard
                 key={p.id}
                 popup={p}
