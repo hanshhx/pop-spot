@@ -108,7 +108,7 @@ export default function LoginPage() {
         aria-hidden
         className="absolute inset-0 w-full h-full object-cover z-0 opacity-60"
       >
-        <source src="/login-bg.mp4" type="video/mp4" />
+        <source src="/bg.mp4" type="video/mp4" />
       </video>
 
       {/* 어두운 막 */}
