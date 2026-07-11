@@ -752,6 +752,9 @@ export default function Home() {
           </video>
         )}
         <div className="home-video-scrim absolute inset-0"></div>
+        {/* 헤더(로고) 뒤 상단만 블러 — 밝은 영상의 도심 불빛이 로고 위에서 어른거리던 걸 진정.
+            아래로 마스크 페이드해 영상 본체는 그대로 보임. */}
+        <div className="home-header-haze pointer-events-none absolute inset-x-0 top-0 h-32 backdrop-blur-xl md:h-40" aria-hidden></div>
       </div>
 
       <div className="relative z-10 px-4 md:px-6 py-4 md:py-6 max-w-[1600px] mx-auto">
