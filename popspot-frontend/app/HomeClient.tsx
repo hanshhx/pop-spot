@@ -718,15 +718,14 @@ export default function Home() {
   const isAdmin = user?.role?.includes('ADMIN');
 
   return (
-    <main className="min-h-screen font-sans relative pb-32 lg:pb-16 overflow-x-hidden transition-colors duration-500 bg-cream-100 text-gray-900 dark:bg-ink-900 dark:text-white">
+    <main className="min-h-screen font-sans relative pb-32 lg:pb-16 overflow-x-hidden transition-colors duration-500 home-canvas text-gray-900 dark:text-white">
 
-      {/* 비디오는 '상단 히어로 배경'으로만. 아래로 갈수록 깔끔한 단색으로 페이드아웃 →
-          '반투명 카드가 비디오 위에 떠 있어 짜친다' 문제를 근본적으로 제거. */}
-      <div className="absolute top-0 inset-x-0 h-[62vh] z-0 overflow-hidden pointer-events-none">
-        <video autoPlay loop muted playsInline className="absolute min-w-full min-h-full object-cover">
-          <source src="/bg.mp4" type="video/mp4" />
-        </video>
-        <div className="absolute inset-0 bg-gradient-to-b from-white/25 via-white/55 to-cream-100 dark:from-black/25 dark:via-black/50 dark:to-ink-900"></div>
+      {/* 목업 배경 시스템: 비디오 제거 → 딥잉크/웜크림 캔버스(home-canvas) + 미세 그레인 + 시네마틱 스카이 히어로.
+          '반투명 카드가 영상 위에 떠 있어 짜치던' 문제를 근본 제거. */}
+      <div className="home-grain-layer pointer-events-none fixed inset-0 z-0" aria-hidden></div>
+      <div className="absolute top-0 inset-x-0 h-[56vh] z-0 overflow-hidden pointer-events-none" aria-hidden>
+        <div className="home-sky absolute inset-0"></div>
+        <div className="home-sky-overlay absolute inset-0"></div>
       </div>
 
       <div className="relative z-10 px-4 md:px-6 py-4 md:py-6 max-w-[1600px] mx-auto">
