@@ -1,6 +1,7 @@
 package com.example.popspotbackend.controller;
 
 import com.example.popspotbackend.entity.ChatMessage;
+import com.example.popspotbackend.service.ChatIdentityResolver;
 import com.example.popspotbackend.service.ChatService;
 import java.util.List;
 import java.util.Map;
@@ -10,6 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.SendTo;
+import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
@@ -26,12 +28,18 @@ import org.springframework.web.bind.annotation.RestController;
 public class ChatController {
 
     private final ChatService chatService;
+    private final ChatIdentityResolver identityResolver;
 
     @MessageMapping("/chat/message/{roomId}")
     @SendTo("/sub/chat/room/{roomId}")
-    public ChatMessage sendMessage(@DestinationVariable Long roomId, ChatMessageDto dto) {
-        log.debug("[Chat] roomId={} sender={} 수신", roomId, dto.getSender());
-        return chatService.saveMessage(roomId, dto.getSender(), dto.getMessage());
+    public ChatMessage sendMessage(
+            @DestinationVariable Long roomId,
+            ChatMessageDto dto,
+            SimpMessageHeaderAccessor headerAccessor) {
+        // 보안: sender 는 클라이언트 값(dto)을 신뢰하지 않고 인증 세션 기준으로 서버가 확정(사칭 차단).
+        String sender = identityResolver.resolveSender(headerAccessor);
+        log.debug("[Chat] roomId={} sender={} 수신", roomId, sender);
+        return chatService.saveMessage(roomId, sender, dto.getMessage());
     }
 
     @GetMapping("/api/chat/history/{roomId}")
