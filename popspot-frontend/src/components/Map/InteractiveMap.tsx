@@ -38,6 +38,8 @@ interface InteractiveMapProps {
   mode?: "DEFAULT" | "PLAN";
   routePaths?: { lat: number; lng: number }[][];
   onMarkerClick?: (popupId: number | string) => void; // 👈 이 부분이 추가되었습니다!
+  /** AI 검색 결과 id 집합 — 지정되면 해당 팝업 핀만 표시(빈 배열=0곳). null/undefined 면 전체(기본). */
+  filterIds?: (number | string)[] | null;
 }
 
 interface MapMarkerData {
@@ -108,7 +110,7 @@ function spreadOverlappingMarkers(markers: MapMarkerData[]): MapMarkerData[] {
   return result;
 }
 
-export default function InteractiveMap({ places, showPath = false, center, focusReq, mode = "DEFAULT", routePaths = [], onMarkerClick }: InteractiveMapProps) {
+export default function InteractiveMap({ places, showPath = false, center, focusReq, mode = "DEFAULT", routePaths = [], onMarkerClick, filterIds }: InteractiveMapProps) {
   const [allMarkers, setAllMarkers] = useState<MapMarkerData[]>([]);
   const [selectedMarker, setSelectedMarker] = useState<MapMarkerData | null>(null);
   const [activeCategory, setActiveCategory] = useState("ALL");
@@ -224,8 +226,14 @@ export default function InteractiveMap({ places, showPath = false, center, focus
       );
     }
 
+    // AI 검색 결과 필터 — 지정되면 해당 id 핀만(빈 배열이면 0곳). null 이면 전체.
+    if (filterIds) {
+      const idSet = new Set(filterIds.map(String));
+      filtered = filtered.filter((m) => idSet.has(String(m.popupId)));
+    }
+
     return spreadOverlappingMarkers(filtered);
-  }, [allMarkers, activeCategory, activeBrowseCategory, activeRegion, activePeriod]);
+  }, [allMarkers, activeCategory, activeBrowseCategory, activeRegion, activePeriod, filterIds]);
 
   // center prop 변경 시 지도 이동
   useEffect(() => {
