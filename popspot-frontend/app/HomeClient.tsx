@@ -161,6 +161,8 @@ export default function Home() {
   const [mapCenter, setMapCenter] = useState<{ lat: number; lng: number } | undefined>(undefined);
   // 검색 결과 선택 시 지도가 그 팝업 마커로 이동하도록 신호(nonce 로 재검색도 매번 반응).
   const [searchFocus, setSearchFocus] = useState<{ id: string; nonce: number } | null>(null);
+  // AI 검색 결과 id 목록 — 지도에 이 핀들만 표시(null=전체). 서치존의 'AI로 찾기'가 세팅.
+  const [mapFilterIds, setMapFilterIds] = useState<string[] | null>(null);
 
   const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -877,12 +879,21 @@ export default function Home() {
                                     setMapCenter({ lat: parseFloat(p.latitude), lng: parseFloat(p.longitude) });
                                 }
                             }}
+                            onAiFilter={(ids) => {
+                                // AI 검색 결과 id → 지도에 그 핀만. null 이면 전체 복원.
+                                setMapFilterIds(ids);
+                                if (ids && typeof document !== "undefined") {
+                                    document
+                                        .querySelector('[aria-label="서울 팝업 지도"]')
+                                        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+                                }
+                            }}
                         />
                     </div>
                     
                     {/* Map Zone — 배경 분리를 위해 solid 배경 + shadow 로 카드 블록 강화. */}
                     <div className="col-span-1 lg:col-span-12 rounded-[2rem] relative overflow-hidden border border-gray-200 dark:border-white/10 group bg-white dark:bg-[#111] shadow-lg shadow-black/5 dark:shadow-black/30 h-[58vh] min-h-[420px] order-2 lg:order-none">
-                        <InteractiveMap center={mapCenter} focusReq={searchFocus} onMarkerClick={handleMarkerClickToDetail} />
+                        <InteractiveMap center={mapCenter} focusReq={searchFocus} onMarkerClick={handleMarkerClickToDetail} filterIds={mapFilterIds} />
                         <div className="absolute bottom-4 md:bottom-6 left-4 md:left-6 flex gap-2 z-20">
                             <span className="backdrop-blur px-3 py-1.5 md:px-4 md:py-2 rounded-full border text-[10px] md:text-xs font-bold flex items-center gap-1.5 md:gap-2 bg-white/80 border-gray-200 text-gray-900 dark:bg-black/60 dark:border-white/10 dark:text-white">
                             <span className="w-1.5 h-1.5 md:w-2 md:h-2 bg-green-500 rounded-full animate-pulse"/> 실시간
