@@ -584,6 +584,7 @@ export default function InteractiveMap({ places, showPath = false, center, focus
             }}
             yAnchor={showPath || mode === "PLAN" ? 1.6 : 1.4}
             zIndex={100}
+            clickable={true}
           >
             
             <motion.div 
@@ -618,10 +619,17 @@ export default function InteractiveMap({ places, showPath = false, center, focus
                   <MapPin size={8} className="md:w-2.5 md:h-2.5 shrink-0" /> <span className="truncate">{selectedMarker.address}</span>
                 </p>
 
-                {/* 원래 있던 Link 컴포넌트는 전체 박스를 클릭하게 만들었으므로 삭제하거나 디자인만 유지합니다 */}
-                <div className="w-full py-1.5 md:py-2 bg-white/10 group-hover:bg-primary group-hover:text-black rounded-md md:rounded-lg text-[10px] md:text-xs font-bold transition-all flex items-center justify-center gap-1 text-white">
-                  View Details <ArrowRight size={10} className="group-hover:translate-x-1 transition-transform md:w-2.5 md:h-2.5"/>
-                </div>
+                {/* 상세 보기 — 명시적 버튼으로 이동(클릭이 아래 마커/지도로 흘러 재선택만 되던 버그 수정). */}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (onMarkerClick && selectedMarker.popupId) onMarkerClick(selectedMarker.popupId);
+                  }}
+                  className="w-full py-1.5 md:py-2 bg-white/10 group-hover:bg-primary group-hover:text-black rounded-md md:rounded-lg text-[10px] md:text-xs font-bold transition-all flex items-center justify-center gap-1 text-white cursor-pointer"
+                >
+                  상세 보기 <ArrowRight size={10} className="group-hover:translate-x-1 transition-transform md:w-2.5 md:h-2.5"/>
+                </button>
 
                 <div className="absolute bottom-[-5px] md:bottom-[-6px] left-1/2 -translate-x-1/2 w-2.5 h-2.5 md:w-3 md:h-3 bg-black/80 border-r border-b border-white/20 rotate-45 transform"></div>
             </motion.div>
