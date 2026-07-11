@@ -252,13 +252,6 @@ p, li {
   );
 }
 
-/* 헤더(로고) 뒤 상단 블러 헤이즈 — 블러는 Tailwind backdrop-blur-xl 유틸로(JSX), 여기선 마스크만.
-   아래로 페이드해 영상 본체는 선명하게 유지. 라이트/다크 공통(로고 가독성 보강). */
-.home-header-haze {
-  -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 48%, transparent 100%);
-  mask-image: linear-gradient(180deg, #000 0%, #000 48%, transparent 100%);
-}
-
 /* 배경 영상 페이드 인 — 마운트 시 브랜드 단색에서 영상으로 부드럽게 */
 @keyframes bgfade {
   from {
