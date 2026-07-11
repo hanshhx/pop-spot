@@ -26,7 +26,7 @@ const DOTS: React.CSSProperties = {
 /** 코스 — 점선 경로 + 번호 핀 미니 지도. */
 function CourseVisual() {
   return (
-    <div className="rounded-xl border border-ink-700 bg-ink-900 p-4" style={DOTS}>
+    <div className="rounded-xl border border-black/10 bg-cream-100 p-4 dark:border-ink-700 dark:bg-ink-900" style={DOTS}>
       <div className="relative h-48 lg:h-52">
         <svg
           className="absolute inset-0 h-full w-full"
@@ -59,7 +59,7 @@ function CourseVisual() {
           </div>
         ))}
       </div>
-      <div className="mt-3 flex items-center justify-between px-1 text-[11px] text-cream-200/50">
+      <div className="mt-3 flex items-center justify-between px-1 text-[11px] text-ink-400 dark:text-cream-200/50">
         <span>추천 코스</span>
         <span className="font-mono uppercase tracking-wider">3 stops · 2.4km</span>
       </div>
@@ -102,7 +102,7 @@ function FeatureShell({
       whileInView="visible"
       viewport={{ once: true, margin: "-100px" }}
       variants={reveal}
-      className="relative overflow-hidden rounded-[2rem] bg-ink-900 px-6 py-12 text-cream-200 shadow-pop lg:rounded-[2.5rem] lg:px-14 lg:py-16"
+      className="relative overflow-hidden rounded-[2rem] border border-black/[0.06] bg-white px-6 py-12 text-ink-900 shadow-pop lg:rounded-[2.5rem] lg:px-14 lg:py-16 dark:border-transparent dark:bg-ink-900 dark:text-cream-200"
     >
       <div
         aria-hidden
@@ -118,7 +118,7 @@ function FeatureShell({
             <EyeIcon size={13} /> {eyebrow}
           </span>
           <h2 className="mb-4 text-2xl font-black leading-tight md:text-4xl">{title}</h2>
-          <p className="mb-7 text-sm leading-relaxed text-cream-200/60 lg:text-base">{desc}</p>
+          <p className="mb-7 text-sm leading-relaxed text-ink-500 lg:text-base dark:text-cream-200/60">{desc}</p>
           <button
             type="button"
             onClick={onCta}
@@ -296,7 +296,7 @@ export default function FeatureSections({ onNavigate }: Props) {
         visual={<CourseVisual />}
         accent={{
           glow: "bg-lime-300/20",
-          pill: "border-lime-300/40 bg-lime-300/15 text-lime-300",
+          pill: "border-lime-500/40 bg-lime-400/15 text-lime-700 dark:border-lime-300/40 dark:bg-lime-300/15 dark:text-lime-300",
           btn: "bg-lime-300 text-ink-900 hover:bg-lime-400",
         }}
       />
