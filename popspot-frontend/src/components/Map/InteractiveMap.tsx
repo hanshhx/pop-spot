@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Map, CustomOverlayMap, Polyline } from "react-kakao-maps-sdk";
-import { X, MapPin, ArrowRight, Plus, Minus, Compass, List, ShoppingBag, Coffee, Camera, Zap, Sparkles } from "lucide-react";
+import { X, MapPin, ArrowRight, Plus, Minus, Compass, List, ShoppingBag, Coffee, Camera, Zap, Sparkles, Palette } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { notify } from "@/lib/notify";
@@ -300,7 +300,7 @@ export default function InteractiveMap({ places, showPath = false, center, focus
       case "FASHION":   return { color: "text-hot-400", border: "border-hot-400", icon: <ShoppingBag className="w-2.5 h-2.5 md:w-3 md:h-3" /> };
       case "BEAUTY":    return { color: "text-pink-400", border: "border-pink-400", icon: <Camera className="w-2.5 h-2.5 md:w-3 md:h-3" /> };
       case "FOOD":      return { color: "text-orange-500", border: "border-orange-500", icon: <Coffee className="w-2.5 h-2.5 md:w-3 md:h-3" /> };
-      case "CULTURE":   return { color: "text-cyan-400", border: "border-cyan-400", icon: <Camera className="w-2.5 h-2.5 md:w-3 md:h-3" /> };
+      case "CULTURE":   return { color: "text-cyan-400", border: "border-cyan-400", icon: <Palette className="w-2.5 h-2.5 md:w-3 md:h-3" /> };
       default:          return { color: "text-lime-500", border: "border-lime-300", icon: <MapPin className="w-2.5 h-2.5 md:w-3 md:h-3" /> };
     }
   };

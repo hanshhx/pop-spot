@@ -186,10 +186,10 @@ export function Header({
           <UserChip user={user} onLogout={onLogout} onProfileClick={onProfileClick} />
         ) : (
           <div className="hidden md:flex items-center gap-2">
-            <Button asChild variant="ghost" size="sm">
+            <Button asChild variant="ghost" size="md" className="text-sm md:text-[15px] font-bold">
               <Link href="/login">로그인</Link>
             </Button>
-            <Button asChild variant="primary" size="sm">
+            <Button asChild variant="primary" size="md" className="text-sm md:text-[15px] font-bold">
               <Link href="/signup">회원가입</Link>
             </Button>
           </div>
