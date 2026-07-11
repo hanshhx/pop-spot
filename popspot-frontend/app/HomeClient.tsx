@@ -718,14 +718,15 @@ export default function Home() {
   const isAdmin = user?.role?.includes('ADMIN');
 
   return (
-    <main className="min-h-screen font-sans relative pb-32 lg:pb-16 overflow-x-hidden transition-colors duration-500 bg-gray-50 text-gray-900 dark:bg-black dark:text-white">
-      
-      <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
+    <main className="min-h-screen font-sans relative pb-32 lg:pb-16 overflow-x-hidden transition-colors duration-500 bg-cream-100 text-gray-900 dark:bg-ink-900 dark:text-white">
+
+      {/* 비디오는 '상단 히어로 배경'으로만. 아래로 갈수록 깔끔한 단색으로 페이드아웃 →
+          '반투명 카드가 비디오 위에 떠 있어 짜친다' 문제를 근본적으로 제거. */}
+      <div className="absolute top-0 inset-x-0 h-[62vh] z-0 overflow-hidden pointer-events-none">
         <video autoPlay loop muted playsInline className="absolute min-w-full min-h-full object-cover">
           <source src="/bg.mp4" type="video/mp4" />
         </video>
-        {/* 다크모드에서 야경 배경이 보이도록 오버레이를 옅게(80→55). 밝은모드는 가독성 위해 유지. */}
-        <div className="absolute inset-0 transition-colors duration-500 bg-white/80 dark:bg-black/55 backdrop-blur-[1px]"></div>
+        <div className="absolute inset-0 bg-gradient-to-b from-white/25 via-white/55 to-cream-100 dark:from-black/25 dark:via-black/50 dark:to-ink-900"></div>
       </div>
 
       <div className="relative z-10 px-4 md:px-6 py-4 md:py-6 max-w-[1600px] mx-auto">
