@@ -225,63 +225,39 @@ p, li {
 }
 
 /* ============================================================
-   홈 배경 시스템 (디자인 목업 "홈 배경 적용 라이트·다크")
-   원칙: 순색 금지(딥잉크/웜크림) · 브랜드 앰비언트 틴트 · 미세 그레인 · 시네마틱 스카이 히어로.
-   비디오 배경을 대체 — 반투명 카드가 영상 위에 떠 있어 '짜치던' 문제를 근본 제거.
+   홈 배경 영상 시스템 (모드별 풀 배경)
+   라이트 = 밝은 스카이라인(212404.mp4) / 다크 = 생기있는 서울 야경(login-bg.mp4).
+   원칙: 영상이 '실제로 보이도록' 스크림은 얕게. 어둡게 덮어 '배경 넣은 의미 없던' 문제 해결.
+   가독성은 불투명 카드가 담당 → 스크림은 헤더/푸터 대비만 살짝 보강.
    ============================================================ */
 
-/* 본문 캔버스 — 딥잉크(다크)/웜크림(라이트) + 라임·핑크·보라 오로라 틴트 */
-.home-canvas {
-  background:
-    radial-gradient(70% 40% at 92% 2%, rgba(136, 200, 40, 0.12), transparent 55%),
-    radial-gradient(60% 45% at 4% 30%, rgba(238, 26, 100, 0.08), transparent 55%),
-    radial-gradient(70% 50% at 60% 82%, rgba(94, 63, 238, 0.06), transparent 60%),
-    #f6f2ea;
+/* 영상 위 스크림 — 상·하단만 살짝 눌러 헤더/푸터 대비 확보, 중앙은 거의 투명해 영상이 그대로 보임. */
+.home-video-scrim {
+  background: linear-gradient(
+    180deg,
+    rgba(251, 249, 243, 0.68) 0%,
+    rgba(251, 249, 243, 0.34) 9%,
+    rgba(251, 249, 243, 0.13) 22%,
+    rgba(251, 249, 243, 0.12) 68%,
+    rgba(251, 249, 243, 0.5) 100%
+  );
 }
-.dark .home-canvas {
-  background:
-    radial-gradient(70% 40% at 92% 2%, rgba(194, 249, 112, 0.12), transparent 55%),
-    radial-gradient(60% 45% at 4% 30%, rgba(238, 26, 100, 0.1), transparent 55%),
-    radial-gradient(70% 50% at 60% 80%, rgba(94, 63, 238, 0.09), transparent 60%),
-    #0b0d12;
-}
-
-/* 미세 그레인 한 겹 — 콘텐츠 뒤(z-0)에서 캔버스에 블렌드 */
-.home-grain-layer {
-  opacity: 0.28;
-  mix-blend-mode: multiply;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='hg'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23hg)'/%3E%3C/svg%3E");
-  background-size: 140px 140px;
-}
-.dark .home-grain-layer {
-  opacity: 0.4;
-  mix-blend-mode: overlay;
+.dark .home-video-scrim {
+  background: linear-gradient(
+    180deg,
+    rgba(8, 9, 12, 0.55) 0%,
+    rgba(8, 9, 12, 0.24) 16%,
+    rgba(8, 9, 12, 0.2) 66%,
+    rgba(8, 9, 12, 0.58) 100%
+  );
 }
 
-/* 시네마틱 스카이 히어로 — 라이트=노을 하늘 / 다크=야경. 별빛 점 + 그라디언트. */
-.home-sky {
-  background:
-    radial-gradient(3px 3px at 16% 34%, rgba(255, 255, 255, 0.9), transparent 60%),
-    radial-gradient(2px 2px at 40% 26%, rgba(255, 244, 220, 0.9), transparent 60%),
-    radial-gradient(2.5px 2.5px at 66% 38%, rgba(255, 255, 255, 0.85), transparent 60%),
-    radial-gradient(2px 2px at 84% 28%, rgba(255, 240, 210, 0.85), transparent 60%),
-    linear-gradient(165deg, #ffd9a8, #f4b6c6 42%, #c9b6e8 78%, #a9c4e6);
-}
-.dark .home-sky {
-  background:
-    radial-gradient(2px 2px at 12% 30%, rgba(255, 196, 120, 0.8), transparent 60%),
-    radial-gradient(1.5px 1.5px at 26% 46%, rgba(150, 190, 255, 0.7), transparent 60%),
-    radial-gradient(2px 2px at 40% 22%, rgba(255, 170, 90, 0.7), transparent 60%),
-    radial-gradient(1.5px 1.5px at 58% 40%, rgba(200, 220, 255, 0.6), transparent 60%),
-    radial-gradient(2px 2px at 72% 26%, rgba(255, 190, 120, 0.7), transparent 60%),
-    radial-gradient(1.5px 1.5px at 86% 44%, rgba(180, 210, 255, 0.6), transparent 60%),
-    linear-gradient(160deg, #16233f, #0b1426 55%, #070a12);
-}
-
-/* 스카이 하단을 본문 캔버스 색으로 페이드 → 히어로에서 본문으로 매끄럽게 */
-.home-sky-overlay {
-  background: linear-gradient(180deg, rgba(246, 242, 234, 0.05) 22%, rgba(246, 242, 234, 0.6) 60%, #f6f2ea 100%);
-}
-.dark .home-sky-overlay {
-  background: linear-gradient(180deg, rgba(11, 13, 18, 0.15) 18%, rgba(11, 13, 18, 0.6) 58%, #0b0d12 100%);
+/* 배경 영상 페이드 인 — 마운트 시 브랜드 단색에서 영상으로 부드럽게 */
+@keyframes bgfade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
