@@ -781,31 +781,53 @@ export default function Home() {
                              </button>
                         </div>
                     ) : (
-                        <div className="w-full border rounded-xl p-6 md:p-10 relative overflow-hidden text-center md:text-left flex flex-col md:flex-row items-center justify-between gap-6 transition-colors bg-white border-gray-200 dark:bg-[#161616] dark:border-white/10">
-                            <div className="relative z-10">
-                                <div className="inline-block px-3 py-1 mb-3 md:mb-4 text-[10px] md:text-xs font-bold tracking-[0.2em] uppercase rounded-pill bg-lime-300 text-ink-900">
-                                    팝스팟에 오신 걸 환영해요
+                        <div className="relative w-full overflow-hidden rounded-2xl border p-6 md:p-8 bg-white border-gray-200 dark:bg-[#1c1c1e] dark:border-white/10">
+                            {/* 은은한 라임 글로우 — 칙칙함 대신 활력. 밝지만 텍스트 대비는 유지. */}
+                            <div aria-hidden className="pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full bg-lime-300/35 blur-3xl dark:bg-lime-400/20" />
+                            <div className="relative z-10 flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+                                <div className="text-center md:text-left">
+                                    <span className="inline-block mb-3 rounded-pill bg-lime-300 px-3 py-1 text-[10px] md:text-xs font-black tracking-[0.2em] uppercase text-ink-900">
+                                        오늘의 서울 팝업
+                                    </span>
+                                    <h2 className="text-2xl md:text-4xl font-black leading-tight text-gray-900 dark:text-white">
+                                        지금 서울에{" "}
+                                        <span className="text-lime-600 dark:text-lime-300">{allPopups.length || "…"}개</span>의<br className="hidden md:block"/>{" "}
+                                        팝업이 열렸어요
+                                    </h2>
+                                    <p className="mt-2 text-sm md:text-base text-gray-600 dark:text-white/70">
+                                        지도에서 사진으로 훑어보고, 마음에 드는 팝업을 저장하세요.
+                                    </p>
+                                    <div className="mt-5 flex flex-col sm:flex-row gap-2.5 justify-center md:justify-start">
+                                        <button
+                                            type="button"
+                                            onClick={() => document.querySelector('[aria-label="서울 팝업 지도"]')?.scrollIntoView({ behavior: "smooth", block: "start" })}
+                                            className="inline-flex items-center justify-center gap-2 rounded-pill bg-lime-300 px-6 py-3 text-sm md:text-base font-bold text-ink-900 transition hover:bg-lime-400"
+                                        >
+                                            지도에서 둘러보기 <ArrowRight size={16} />
+                                        </button>
+                                        <Link href="/signup" className="inline-flex items-center justify-center gap-2 rounded-pill border border-gray-300 bg-white px-6 py-3 text-sm md:text-base font-bold text-gray-900 transition hover:bg-gray-100 dark:border-white/20 dark:bg-white/10 dark:text-white dark:hover:bg-white/20">
+                                            회원가입
+                                        </Link>
+                                    </div>
                                 </div>
-                                <h2 className="text-2xl md:text-5xl font-black mb-3 md:mb-4 leading-tight text-gray-900 dark:text-white">
-                                    Find Your <span className="text-hot-400">Vibe</span><br className="hidden md:block"/>
-                                    in Seoul.
-                                </h2>
-                                <p className="text-xs md:text-base text-gray-600 dark:text-white/70 max-w-md">
-                                    지금 로그인하고 나만의 팝업 지도를 만들어보세요.<br/>
-                                    친구와 함께하는 실시간 동선 계획부터 스탬프 적립까지.
-                                </p>
-                            </div>
-                            <div className="flex flex-col sm:flex-row gap-3 relative z-10 w-full md:w-auto">
-                                <Link href="/login" className="flex-1 md:flex-none">
-                                    <button className="w-full md:w-auto px-6 py-3 md:px-8 md:py-4 bg-lime-300 hover:bg-lime-400 text-ink-900 font-semibold rounded-pill transition-colors inline-flex items-center justify-center gap-2 text-sm md:text-base">
-                                        시작하기 <ArrowRight size={16} className="md:w-[18px] md:h-[18px]"/>
-                                    </button>
-                                </Link>
-                                <Link href="/signup" className="flex-1 md:flex-none">
-                                    <button className="w-full md:w-auto px-6 py-3 md:px-8 md:py-4 font-bold rounded-xl transition-all border bg-white text-gray-900 border-gray-300 hover:bg-gray-100 dark:bg-white/10 dark:text-white dark:border-white/20 dark:hover:bg-white/20 text-sm md:text-base">
-                                        회원가입
-                                    </button>
-                                </Link>
+
+                                {/* 팝업 사진 클러스터 — 들어오자마자 '볼 게 많다'는 첫인상 훅. 클릭 시 상세로. */}
+                                {hotPopups.length > 0 && (
+                                    <div className="grid grid-cols-2 gap-2 shrink-0 md:w-[280px]">
+                                        {hotPopups.slice(0, 4).map((p, i) => (
+                                            <button
+                                                key={p.id}
+                                                type="button"
+                                                onClick={() => { handleTabChange("MAP"); router.push(`/popup/${p.id}`); }}
+                                                aria-label={`${p.name} 상세 보기`}
+                                                className={`aspect-[4/5] overflow-hidden rounded-xl ring-1 ring-black/5 dark:ring-white/10 transition hover:-translate-y-0.5 hover:shadow-lg ${i % 2 === 1 ? "sm:translate-y-3" : ""}`}
+                                            >
+                                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                <img src={popupCoverUrl(p, 400)} alt="" loading="lazy" className="h-full w-full object-cover" />
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                         </div>
                     )}
