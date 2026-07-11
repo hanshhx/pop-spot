@@ -4,6 +4,7 @@ import com.example.popspotbackend.dto.AdminUserDto;
 import com.example.popspotbackend.entity.MatePost;
 import com.example.popspotbackend.entity.PopupStore;
 import com.example.popspotbackend.service.AdminService;
+import com.example.popspotbackend.service.PopupDedupService;
 import com.example.popspotbackend.service.PopupPhotoService;
 import java.util.List;
 import java.util.Map;
@@ -34,6 +35,7 @@ public class AdminController {
 
     private final AdminService adminService;
     private final PopupPhotoService popupPhotoService;
+    private final PopupDedupService popupDedupService;
 
     /* ============================== 팝업 승인 큐 ============================== */
 
@@ -74,6 +76,18 @@ public class AdminController {
             @RequestParam(defaultValue = "150") int limit) {
         int assigned = popupPhotoService.backfillMissingPhotos(limit);
         return ResponseEntity.ok(Map.of("assigned", assigned));
+    }
+
+    /** 이름이 완전히 동일한 중복 팝업 그룹 미리보기(적용 전 확인용). */
+    @GetMapping("/popups/duplicates")
+    public ResponseEntity<List<Map<String, Object>>> previewDuplicates() {
+        return ResponseEntity.ok(popupDedupService.previewDuplicates());
+    }
+
+    /** 중복 정리 실행 — 그룹별 대표 1건만 남기고 나머지 숨김 + Algolia 색인 제거. */
+    @PostMapping("/popups/dedupe")
+    public ResponseEntity<Map<String, Object>> dedupe() {
+        return ResponseEntity.ok(popupDedupService.dedupe());
     }
 
     @PatchMapping("/popups/{id}/status")

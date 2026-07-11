@@ -361,6 +361,7 @@ export default function AdminPage() {
 
     // 이미지 없는 공개 팝업에 Pexels 커버를 배정(수동 백필). 백엔드 pexels.api-key 설정 필요.
     const [isBackfilling, setIsBackfilling] = useState(false);
+    const [isDeduping, setIsDeduping] = useState(false);
     const handleBackfillPhotos = async () => {
         if (!(await confirmAction({ text: "이미지 없는 팝업에 Pexels 커버 사진을 배정할까요?" }))) return;
         setIsBackfilling(true);
@@ -377,6 +378,39 @@ export default function AdminPage() {
             notifyError("커버 배정 중 오류가 발생했습니다.");
         } finally {
             setIsBackfilling(false);
+        }
+    };
+
+    // 이름이 완전히 같은 중복 팝업 정리 — 먼저 미리보기로 몇 건인지 보여주고 확인받은 뒤 적용.
+    const handleDedupe = async () => {
+        try {
+            const res = await apiFetch("/api/admin/popups/duplicates");
+            if (!res.ok) { notifyError("중복 조회 실패"); return; }
+            const groups = await res.json();
+            if (!Array.isArray(groups) || groups.length === 0) {
+                notifySuccess("이름이 완전히 같은 중복이 없습니다.");
+                return;
+            }
+            const total = groups.reduce((a: number, g: { count?: number }) => a + Math.max(0, (g.count ?? 1) - 1), 0);
+            const sample = groups.slice(0, 6).map((g: { name?: string; count?: number }) => `· ${g.name} (${g.count}건)`).join("\n");
+            const ok = await confirmAction({
+                text: `이름이 완전히 같은 중복 ${groups.length}그룹 · 총 ${total}건을 숨길까요? (그룹마다 대표 1건만 남깁니다)\n\n${sample}${groups.length > 6 ? "\n…" : ""}`,
+                destructive: true,
+            });
+            if (!ok) return;
+            setIsDeduping(true);
+            const applyRes = await apiFetch("/api/admin/popups/dedupe", { method: "POST" });
+            if (applyRes.ok) {
+                const data = await applyRes.json();
+                notifySuccess(`중복 ${data.hidden ?? 0}건 정리 완료`);
+                loadAllPopups();
+            } else {
+                notifyError("중복 정리 실패");
+            }
+        } catch (e) {
+            notifyError("중복 정리 중 오류가 발생했습니다.");
+        } finally {
+            setIsDeduping(false);
         }
     };
 
@@ -592,13 +626,22 @@ export default function AdminPage() {
                             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                             <div className="mb-4 flex items-center justify-between gap-3">
                                 <p className="text-sm text-muted-foreground">이미지 없는 팝업은 커버 배정으로 각기 다른 사진을 채웁니다.</p>
-                                <button
-                                    onClick={handleBackfillPhotos}
-                                    disabled={isBackfilling}
-                                    className="shrink-0 rounded-pill bg-lime-300 px-4 py-2 text-sm font-bold text-ink-900 transition-colors hover:bg-lime-400 disabled:opacity-60"
-                                >
-                                    {isBackfilling ? "배정 중…" : "팝업 사진 채우기"}
-                                </button>
+                                <div className="flex shrink-0 items-center gap-2">
+                                    <button
+                                        onClick={handleDedupe}
+                                        disabled={isDeduping}
+                                        className="rounded-pill border border-hot-400/60 bg-hot-400/10 px-4 py-2 text-sm font-bold text-hot-500 transition-colors hover:bg-hot-400/20 disabled:opacity-60"
+                                    >
+                                        {isDeduping ? "정리 중…" : "중복 정리"}
+                                    </button>
+                                    <button
+                                        onClick={handleBackfillPhotos}
+                                        disabled={isBackfilling}
+                                        className="rounded-pill bg-lime-300 px-4 py-2 text-sm font-bold text-ink-900 transition-colors hover:bg-lime-400 disabled:opacity-60"
+                                    >
+                                        {isBackfilling ? "배정 중…" : "팝업 사진 채우기"}
+                                    </button>
+                                </div>
                             </div>
                             <div className="rounded-2xl border border-[var(--color-border)] bg-surface overflow-hidden">
                                 <div className="overflow-x-auto custom-scrollbar">
