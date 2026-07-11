@@ -104,8 +104,15 @@ export default function MateChatModal({
         setMessages([]);
       });
 
-    const socket = new SockJS(`${SOCKET_BASE_URL}/ws-stomp`);
-    
+    // 보안: 핸드셰이크에서 서버가 신원을 확인하도록 JWT 를 ?token= 으로 전달(sender 사칭 차단).
+    const wsToken =
+      typeof window !== "undefined" ? window.localStorage.getItem("token") : null;
+    const socket = new SockJS(
+      wsToken
+        ? `${SOCKET_BASE_URL}/ws-stomp?token=${encodeURIComponent(wsToken)}`
+        : `${SOCKET_BASE_URL}/ws-stomp`,
+    );
+
     client.current = new Client({
       webSocketFactory: () => socket,
       debug: () => {},

@@ -38,7 +38,15 @@ export default function ChatRoom({ roomId, nickname }: Props) {
       .catch(err => console.error("히스토리 로드 실패:", err));
 
     // 1-2) WebSocket 연결 + 구독 → 새 메시지 들어올 때마다 state 추가
-    const socketFactory = () => new SockJS(`${SOCKET_BASE_URL}/ws-stomp`);
+    // 보안: 핸드셰이크에서 서버가 신원을 확인하도록 JWT 를 ?token= 으로 전달(sender 사칭 차단).
+    const socketFactory = () => {
+      const token =
+        typeof window !== "undefined" ? window.localStorage.getItem("token") : null;
+      const url = token
+        ? `${SOCKET_BASE_URL}/ws-stomp?token=${encodeURIComponent(token)}`
+        : `${SOCKET_BASE_URL}/ws-stomp`;
+      return new SockJS(url);
+    };
 
     client.current = new Client({
       webSocketFactory: socketFactory,
