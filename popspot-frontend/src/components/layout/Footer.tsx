@@ -145,7 +145,7 @@ function LinkColumn({ title, links, external }: LinkColumnProps) {
 function DisclaimerBox() {
   return (
     <div className="mt-12 pt-8 border-t border-[var(--color-border)] text-center max-w-[1200px] mx-auto px-6">
-      <div className="rounded-lg p-5 text-xs text-muted-foreground leading-relaxed border border-[var(--color-border)] bg-surface/50">
+      <div className="rounded-lg p-5 text-sm md:text-xs text-muted-foreground leading-relaxed border border-[var(--color-border)] bg-surface/50">
         <p className="font-bold mb-2 text-foreground">
           [정보 안내] 서울 팝업스토어 정보를 모아 안내하는 서비스입니다.
         </p>
@@ -171,7 +171,7 @@ function DisclaimerBox() {
           </a>
         </p>
         {/* v2.18.1 — 운영자 정보. 사업자 / 통신판매업 신고는 실제 운영 시작 시 채워 넣기. */}
-        <div className="mt-4 pt-4 border-t border-[var(--color-border)] grid grid-cols-1 md:grid-cols-2 gap-1 text-[10px] text-muted-foreground/80">
+        <div className="mt-4 pt-4 border-t border-[var(--color-border)] grid grid-cols-1 md:grid-cols-2 gap-1 text-xs md:text-[10px] text-muted-foreground/80">
           <p>서비스 제공: POP-SPOT 운영팀</p>
           <p>호스팅 서비스 제공자: Vercel · 자체 운영 NAS</p>
           <p>광고 / 후원 수익: 받지 않음 (개인 비영리 운영)</p>
