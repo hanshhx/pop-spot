@@ -113,7 +113,7 @@ interface PopupDetail {
 const CAT_KO: Record<string, string> = {
   FASHION: "패션",
   FOOD: "푸드",
-  CULTURE: "컬처",
+  CULTURE: "문화",
   CHARACTER: "캐릭터",
   BEAUTY: "뷰티",
   TECH: "테크",
