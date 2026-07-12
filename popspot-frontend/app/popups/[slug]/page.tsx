@@ -13,6 +13,8 @@ import {
   periodBySlug,
   categoryBySlug,
   brandBySlug,
+  parseDate,
+  startOfDay,
 } from "@/lib/popupSlices";
 
 /**
@@ -232,6 +234,19 @@ export default async function PopupsBySlugPage({
   const count = filtered.length;
   const mainHref = `${SITE_URL}/?tab=MAP&${deepLinkQuery(slice)}`;
 
+  // "지금 가야 할 이유" 훅: 오늘 오픈 · 마감임박(7일 내 종료). ISR(revalidate=3600)로 매시 갱신.
+  const todayStart = startOfDay(new Date());
+  const soonThreshold = new Date(todayStart);
+  soonThreshold.setDate(soonThreshold.getDate() + 7);
+  const closingSoon = filtered.filter((m) => {
+    const end = parseDate(m.endDate);
+    return end !== null && end >= todayStart && end <= soonThreshold;
+  }).length;
+  const openingToday = filtered.filter((m) => {
+    const start = parseDate(m.startDate);
+    return start !== null && start.getTime() === todayStart.getTime();
+  }).length;
+
   const headingByKind: Record<Slice["kind"], string> = {
     region: `${slice.label} 팝업스토어 ${count}곳`,
     period: `${slice.label} 진행 중인 팝업 ${count}곳`,
@@ -279,6 +294,35 @@ export default async function PopupsBySlugPage({
         <p className="text-sm md:text-base text-gray-600 dark:text-white/70 max-w-2xl mb-8">
           {introByKind[slice.kind]}
         </p>
+
+        {count > 0 && (
+          <section className="mb-8 rounded-2xl border border-lime-300/50 bg-lime-50 p-5 dark:bg-lime-300/[0.06] md:p-6">
+            <div className="mb-4 flex flex-wrap items-baseline gap-x-5 gap-y-1">
+              <span className="text-sm text-muted-foreground">
+                <b className="text-2xl font-black text-lime-600 dark:text-lime-300">{count}</b>곳 진행 중
+              </span>
+              {openingToday > 0 && (
+                <span className="text-sm text-muted-foreground">
+                  오늘 오픈 <b className="font-black text-foreground">{openingToday}</b>
+                </span>
+              )}
+              {closingSoon > 0 && (
+                <span className="text-sm text-muted-foreground">
+                  마감임박(7일 내) <b className="font-black text-orange-500">{closingSoon}</b>
+                </span>
+              )}
+            </div>
+            <Link
+              href={`/?tab=MAP&${deepLinkQuery(slice)}`}
+              className="block w-full rounded-2xl bg-lime-300 px-6 py-4 text-center text-base font-black text-ink-900 shadow-lg transition hover:bg-lime-400 md:text-lg"
+            >
+              지도에서 {slice.label} 팝업 위치·마감일 보기 →
+            </Link>
+            <p className="mt-2 text-center text-[11px] text-muted-foreground">
+              로그인 없이 무료로 위치 · 영업시간 · 마감일 확인
+            </p>
+          </section>
+        )}
 
         {count === 0 ? (
           <section className="rounded-2xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5 p-6 md:p-8">
