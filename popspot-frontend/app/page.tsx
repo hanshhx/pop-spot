@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 
 import HomeClient from "./HomeClient";
 import { REGIONS } from "@/lib/regions";
-import { CATEGORIES } from "@/lib/popupSlices";
+import { CATEGORIES, BRANDS } from "@/lib/popupSlices";
 
 /**
  * v2.32 — 메인 페이지 SEO 강화.
@@ -56,6 +56,16 @@ export default function Page() {
             {CATEGORIES.map((c) => (
               <li key={c.slug}>
                 <a href={`/popups/${c.slug}`}>{c.label} 팝업스토어</a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+        <nav aria-label="브랜드·IP별 팝업스토어">
+          <h2>브랜드·IP·인기 장소 팝업스토어</h2>
+          <ul>
+            {BRANDS.map((b) => (
+              <li key={b.slug}>
+                <a href={`/popups/${b.slug}`}>{b.label} 팝업스토어</a>
               </li>
             ))}
           </ul>
