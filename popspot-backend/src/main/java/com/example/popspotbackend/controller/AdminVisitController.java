@@ -2,6 +2,8 @@ package com.example.popspotbackend.controller;
 
 import com.example.popspotbackend.dto.VisitStatsDto;
 import com.example.popspotbackend.service.VisitService;
+import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -21,5 +23,11 @@ public class AdminVisitController {
     @GetMapping("/stats")
     public ResponseEntity<VisitStatsDto> getStats() {
         return ResponseEntity.ok(visitService.getStats());
+    }
+
+    /** 오늘 방문 경로별 집계(경로·총·회원·게스트) — 유입이 어디서/누구인지 진단용. */
+    @GetMapping("/today-paths")
+    public ResponseEntity<List<Map<String, Object>>> getTodayPaths() {
+        return ResponseEntity.ok(visitService.getTodayPaths());
     }
 }

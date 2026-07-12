@@ -200,6 +200,7 @@ export default function AdminPage() {
     const [matePosts, setMatePosts] = useState<AdminMatePost[]>([]);
     const [users, setUsers] = useState<AdminUser[]>([]);
     const [visitStats, setVisitStats] = useState<AdminVisitStats | null>(null);
+    const [todayPaths, setTodayPaths] = useState<{ path: string; total: number; members: number; guests: number }[]>([]);
 
     // v2.10 — 통합 메트릭 폴링. authorized 전엔 시작하지 않아 403 도배 차단.
     const dashboard = useDashboardMetrics(
@@ -294,6 +295,8 @@ export default function AdminPage() {
         try {
             const res = await apiFetch("/api/admin/visits/stats");
             if (res.ok) setVisitStats(await res.json());
+            const tp = await apiFetch("/api/admin/visits/today-paths");
+            if (tp.ok) setTodayPaths(await tp.json());
         } catch (e) {
             if (isPreviewEnv()) setVisitStats(devVisitStats);
         } finally { setIsLoading(false); }
@@ -922,6 +925,29 @@ export default function AdminPage() {
                                                     <li key={p.path} className="flex items-center justify-between gap-2 text-sm">
                                                         <span className="truncate text-muted-foreground font-mono text-xs">{p.path}</span>
                                                         <span className="font-bold shrink-0">{p.count.toLocaleString()}</span>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        )}
+                                    </div>
+                                    <div className="bg-surface p-5 rounded-2xl border border-[var(--color-border)] lg:col-span-2">
+                                        <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+                                            <h3 className="font-bold text-sm">오늘 방문 경로 <span className="text-muted-foreground font-normal">(봇 제외 · 회원/게스트 구분)</span></h3>
+                                            <button onClick={loadVisitStats} className="rounded-pill border border-[var(--color-border)] px-3 py-1 text-[11px] font-bold text-muted-foreground hover:text-foreground">새로고침</button>
+                                        </div>
+                                        <p className="text-[11px] text-muted-foreground mb-3">/login·/admin·/oauth에 <b>회원</b> 뷰가 많으면 본인 접속, /popups·/popup에 <b>게스트</b>가 많으면 외부·검색 유입입니다.</p>
+                                        {todayPaths.length === 0 ? (
+                                            <p className="text-sm text-muted-foreground py-8 text-center">오늘 방문이 아직 없어요.</p>
+                                        ) : (
+                                            <ul className="space-y-1">
+                                                {todayPaths.map((p) => (
+                                                    <li key={p.path} className="flex items-center justify-between gap-3 border-b border-[var(--color-border)] last:border-0 py-1.5 text-sm">
+                                                        <span className="truncate font-mono text-xs text-muted-foreground">{p.path}</span>
+                                                        <span className="flex shrink-0 items-center gap-1.5 text-xs">
+                                                            <span className="font-bold">{p.total}</span>
+                                                            {p.members > 0 && <span className="rounded-full bg-lime-300/20 px-2 py-0.5 font-bold text-lime-700 dark:text-lime-300">회원 {p.members}</span>}
+                                                            {p.guests > 0 && <span className="rounded-full bg-gray-200 px-2 py-0.5 text-muted-foreground dark:bg-white/10">게스트 {p.guests}</span>}
+                                                        </span>
                                                     </li>
                                                 ))}
                                             </ul>
