@@ -141,7 +141,7 @@ export const CATEGORIES: CategoryDef[] = [
 /* ============================== 시점 ============================== */
 
 /** ISO yyyy-MM-dd 또는 yyyy.MM.dd 또는 null 안전 파싱. */
-function parseDate(s: string | null | undefined): Date | null {
+export function parseDate(s: string | null | undefined): Date | null {
   if (!s) return null;
   const normalized = s.trim().replace(/\./g, "-").slice(0, 10);
   const parts = normalized.split("-");
@@ -151,7 +151,7 @@ function parseDate(s: string | null | undefined): Date | null {
   return new Date(y, m - 1, d);
 }
 
-function startOfDay(d: Date): Date {
+export function startOfDay(d: Date): Date {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate());
 }
 
