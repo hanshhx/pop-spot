@@ -42,6 +42,7 @@ import { Footer } from "../src/components/layout/Footer";
 import { BottomDock, type DockTab } from "../src/components/layout/BottomDock";
 import MusicTab from "@/components/music/MusicTab";
 import RankCard from "@/components/rank/RankCard";
+import LoopingBgVideo from "@/components/LoopingBgVideo";
 import { notify, notifySuccess, notifyError, notifyWarning, confirmAction } from "@/lib/notify";
 import {
   getGuestFirstVisit,
@@ -738,20 +739,7 @@ export default function Home() {
           마운트 전엔 브랜드 단색(cream/ink)만 → 깜빡임 없이 영상 페이드 인. 활성 모드 영상 한 개만 로드. */}
       <div className="fixed inset-0 -z-10 bg-cream-100 dark:bg-ink-900 overflow-hidden" aria-hidden>
         {themeReady && (
-          <video
-            key={bgVideoSrc}
-            autoPlay
-            loop
-            muted
-            playsInline
-            preload="auto"
-            onLoadedMetadata={(e) => {
-              e.currentTarget.playbackRate = bgVideoRate;
-            }}
-            className="absolute inset-0 h-full w-full object-cover [backface-visibility:hidden] [transform:translateZ(0)] will-change-transform motion-safe:animate-[bgfade_1.2s_ease-out]"
-          >
-            <source src={bgVideoSrc} type="video/mp4" />
-          </video>
+          <LoopingBgVideo key={bgVideoSrc} src={bgVideoSrc} rate={bgVideoRate} />
         )}
         <div className="home-video-scrim absolute inset-0"></div>
       </div>
