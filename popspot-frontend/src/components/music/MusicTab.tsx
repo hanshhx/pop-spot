@@ -134,12 +134,35 @@ export default function MusicTab({ popups, onOpenPopup }: MusicTabProps) {
 
   const [rouletteLoading, setRouletteLoading] = useState(false);
 
+  // 개인화: 로그인 유저의 재생 이력 취향 기반 '당신을 위한' 추천.
+  const [forYou, setForYou] = useState<MusicTrack[]>([]);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
   // 인기곡(검색·무드 트랙이 모두 비었을 때의 최종 폴백)
   useEffect(() => {
     apiFetch("/api/music/popular?limit=12")
       .then((r) => (r.ok ? r.json() : []))
       .then((data: MusicTrack[]) => setPopular(data || []))
       .catch(() => setPopular([]));
+  }, []);
+
+  // '당신을 위한' — 로그인 상태에서만. 재생 이력이 쌓일수록 각자 다른 추천이 뜬다.
+  useEffect(() => {
+    let alive = true;
+    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    setIsLoggedIn(!!token);
+    if (!token) return;
+    apiFetch("/api/music/for-you?limit=12")
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data: MusicTrack[]) => {
+        if (alive) setForYou(data || []);
+      })
+      .catch(() => {
+        if (alive) setForYou([]);
+      });
+    return () => {
+      alive = false;
+    };
   }, []);
 
   // 무드 변경 시 그 무드의 배경음악을 가져온다.
@@ -296,6 +319,23 @@ export default function MusicTab({ popups, onOpenPopup }: MusicTabProps) {
           </div>
         </div>
       </header>
+
+      {/* 당신을 위한 — 개인화 추천 (로그인 유저, 재생 이력 취향 기반) */}
+      {isLoggedIn && forYou.length > 0 && (
+        <section aria-label="당신을 위한 추천" className="mb-7">
+          <div className="mb-3 flex items-baseline gap-2">
+            <h3 className="text-base font-black text-foreground">
+              당신을 위한 <span className="text-lime-500 dark:text-lime-300">추천</span>
+            </h3>
+            <span className="text-xs text-muted-foreground">들으신 곡 취향으로 골랐어요</span>
+          </div>
+          <div className="custom-scrollbar -mx-1 flex snap-x gap-3 overflow-x-auto px-1 pb-2">
+            {forYou.map((t) => (
+              <TrackChip key={t.id} track={t} onPlay={() => player.play(t, forYou)} />
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* 무드 선택 — 주 인터랙션 */}
       <div className="mb-7 grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-6">
@@ -490,6 +530,23 @@ export default function MusicTab({ popups, onOpenPopup }: MusicTabProps) {
           음원 제공 · <span className="font-bold text-[#1DB954]">Spotify</span> · Apple Music · YouTube
         </p>
       </section>
+
+      {/* 다음 추천 — 재생 중일 때 이어질 곡 (유튜브 up-next식, 재생 곡 기반 개인화) */}
+      {player.current && player.autoQueue.length > 0 && (
+        <section aria-label="다음 추천" className="mt-6">
+          <div className="mb-3 flex items-baseline gap-2">
+            <h3 className="text-base font-black text-foreground">다음 추천</h3>
+            <span className="min-w-0 truncate text-xs text-muted-foreground">
+              &ldquo;{player.current.trackName}&rdquo; 다음에 이어질 곡
+            </span>
+          </div>
+          <div className="custom-scrollbar -mx-1 flex snap-x gap-3 overflow-x-auto px-1 pb-2">
+            {player.autoQueue.map((t) => (
+              <TrackChip key={t.id} track={t} onPlay={() => player.play(t, player.autoQueue)} />
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }

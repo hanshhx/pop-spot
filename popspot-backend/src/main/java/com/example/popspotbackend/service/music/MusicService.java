@@ -11,8 +11,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
@@ -52,6 +55,8 @@ public class MusicService {
     private static final int MUSIC_TO_POPUP_TAG_SCORE = 30;
     private static final int POPUP_TO_MUSIC_TAG_SCORE = 25;
     private static final int SIMILARITY_TAG_SCORE = 20;
+    private static final int ARTIST_AFFINITY_BONUS = 15;
+    private static final int USER_HISTORY_DEPTH = 40;
 
     private static final String MOOD_DANCE = "댄스";
     private static final String MOOD_KITSCH = "키치";
@@ -157,32 +162,99 @@ public class MusicService {
         return searchTracks(keyword, limit);
     }
 
-    /**
-     * 자동 다음 곡 추천.
-     *
-     * <p>시드 곡의 무드 태그와 겹치는 정도로 점수화해서 상위 N 곡 반환. 외부 API 안 쓰고 DB 만으로 처리하므로 quota 부담 0.
-     */
+    /** 하위호환 — 유저 정보 없이 시드 곡 기반 추천. */
     public List<MusicTrack> recommendNext(Long seedTrackId, int limit) {
+        return recommendNext(seedTrackId, limit, null);
+    }
+
+    /**
+     * 자동 다음 곡 추천(개인화).
+     *
+     * <p>시드 곡 무드 유사도(가중치 2)에 <b>유저 재생 이력</b>의 무드 취향·선호 아티스트를 더해 점수화. 로그인 유저마다
+     * 같은 곡에서도 다른 추천이 나온다. 외부 API 안 쓰고 DB 만으로 처리하므로 quota 부담 0.
+     */
+    public List<MusicTrack> recommendNext(Long seedTrackId, int limit, String userId) {
         MusicTrack seed = trackRepo.findById(seedTrackId).orElse(null);
         if (seed == null) return List.of();
 
         List<String> seedMoods = parseTagsJson(seed.getMoodTags());
-        if (seedMoods.isEmpty()) return popular(limit);
+        Taste taste = userTaste(userId);
+        if (seedMoods.isEmpty() && taste.moods().isEmpty()) return popular(limit);
 
+        // 시드 자신만 제외 — "다음 곡"은 이미 들은 곡도 다시 나올 수 있음.
+        return rankByProfile(seedMoods, taste, seedTrackId, Set.of(), limit);
+    }
+
+    /**
+     * '당신을 위한' 개인 추천 피드.
+     *
+     * <p>유저 재생 이력에서 무드 프로필·선호 아티스트를 뽑아, 그 취향에 가까운 곡을 점수화(이미 들은 곡 제외). 이력이 없는
+     * 신규/게스트는 인기곡으로 폴백. 무드 키워드 고정으로 쏠리던 문제를 유저별 취향으로 보완한다.
+     */
+    public List<MusicTrack> forYou(String userId, int limit) {
+        Taste taste = userTaste(userId);
+        if (taste.moods().isEmpty()) return popular(limit);
+        return rankByProfile(taste.moods(), taste, null, taste.playedIds(), limit);
+    }
+
+    /** 무드 유사도 + 유저 취향(무드·아티스트) 블렌드로 후보 풀을 정렬. */
+    private List<MusicTrack> rankByProfile(
+            List<String> seedMoods, Taste taste, Long excludeSeedId, Set<Long> excludeIds, int limit) {
         return trackRepo.findTopPlayed(PageRequest.of(0, RECOMMENDATION_CANDIDATE_POOL)).stream()
-                .filter(t -> !t.getId().equals(seedTrackId))
+                .filter(t -> excludeSeedId == null || !t.getId().equals(excludeSeedId))
+                .filter(t -> !excludeIds.contains(t.getId()))
                 .filter(this::hasYoutubeVideoId)
                 .filter(this::isPlaybackHealthy)
                 .map(
-                        t ->
-                                new RankedTrack(
-                                        t,
-                                        similarityScore(seedMoods, parseTagsJson(t.getMoodTags()))))
+                        t -> {
+                            List<String> tMoods = parseTagsJson(t.getMoodTags());
+                            int score = similarityScore(seedMoods, tMoods) * 2;
+                            score += similarityScore(taste.moods(), tMoods);
+                            String artist = t.getArtistName();
+                            if (artist != null && taste.artists().contains(artist.toLowerCase())) {
+                                score += ARTIST_AFFINITY_BONUS;
+                            }
+                            return new RankedTrack(t, score);
+                        })
                 .filter(rt -> rt.score() > 0)
                 .sorted(Comparator.comparingInt(RankedTrack::score).reversed())
                 .limit(limit)
                 .map(RankedTrack::track)
                 .toList();
+    }
+
+    /** 유저 취향 프로필 — 최근 이력에서 무드(빈도순)·선호 아티스트·들은 곡 id 집계. 비로그인/무이력이면 빈 값. */
+    private Taste userTaste(String userId) {
+        if (userId == null || userId.isBlank()) return Taste.EMPTY;
+        List<UserMusicHistory> hist =
+                historyRepo.findByUserIdOrderByPlayedAtDesc(
+                        userId, PageRequest.of(0, USER_HISTORY_DEPTH));
+        if (hist.isEmpty()) return Taste.EMPTY;
+
+        Set<Long> played = new HashSet<>();
+        List<Long> ids = new ArrayList<>();
+        for (UserMusicHistory h : hist) {
+            if (played.add(h.getTrackId())) ids.add(h.getTrackId());
+        }
+        Map<String, Integer> moodFreq = new HashMap<>();
+        Set<String> artists = new HashSet<>();
+        for (MusicTrack t : trackRepo.findAllById(ids)) {
+            for (String m : parseTagsJson(t.getMoodTags())) moodFreq.merge(m, 1, Integer::sum);
+            String a = t.getArtistName();
+            if (a != null && !a.isBlank()) artists.add(a.toLowerCase());
+        }
+        List<String> moods =
+                moodFreq.entrySet().stream()
+                        .sorted(Comparator.<Map.Entry<String, Integer>>comparingInt(Map.Entry::getValue)
+                                .reversed())
+                        .map(Map.Entry::getKey)
+                        .toList();
+        return new Taste(moods, artists, played);
+    }
+
+    /** 유저 취향 스냅샷 — 무드(빈도순) · 선호 아티스트(소문자) · 이미 들은 곡 id. */
+    private record Taste(List<String> moods, Set<String> artists, Set<Long> playedIds) {
+        static final Taste EMPTY = new Taste(List.of(), Set.of(), Set.of());
     }
 
     /**
