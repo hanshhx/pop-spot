@@ -39,6 +39,13 @@ export const apiFetch = async (endpoint: string, options: FetchOptions = {}): Pr
 
     if (!response.ok) {
       console.error(`API Error (${response.status}): ${url}`);
+      // 서버가 담아준 원인(message)을 콘솔에 그대로 노출 — "400만 보이고 이유를 모르는" 디버깅 공백 제거.
+      try {
+        const text = await response.clone().text();
+        if (text) console.error(`API Error body: ${text.slice(0, 500)}`);
+      } catch {
+        /* body 읽기 실패는 무시 */
+      }
     }
     return response;
   } catch (error) {
