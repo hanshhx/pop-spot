@@ -74,6 +74,14 @@ public class ChatService {
         chatRepository.deleteById(id);
     }
 
+    /** 어드민 — 라이브 댓글 일괄 삭제. 존재하는 id 만 지워지며, 요청 건수를 반환. */
+    @Transactional
+    public int deleteMessages(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) return 0;
+        chatRepository.deleteAllById(ids);
+        return ids.size();
+    }
+
     /* ============================== 내부 헬퍼 ============================== */
 
     private Map<String, String> toTickerEntry(ChatMessage msg) {

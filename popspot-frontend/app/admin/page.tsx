@@ -366,6 +366,7 @@ export default function AdminPage() {
     const [isBackfilling, setIsBackfilling] = useState(false);
     const [isDeduping, setIsDeduping] = useState(false);
     const [comments, setComments] = useState<{ id: number; sender: string; message: string; sendTime?: string; popupName?: string }[]>([]);
+    const [selectedComments, setSelectedComments] = useState<Set<number>>(new Set());
     const handleBackfillPhotos = async () => {
         if (!(await confirmAction({ text: "이미지 없는 팝업에 Pexels 커버 사진을 배정할까요?" }))) return;
         setIsBackfilling(true);
@@ -431,14 +432,32 @@ export default function AdminPage() {
         }
     };
 
-    // 라이브 댓글(실시간 톡방) 관리 — 최근 100건 조회 + 부적절한 댓글 삭제.
+    // 라이브 댓글(실시간 톡방) 관리 — 최근 100건 조회 + 개별/일괄 삭제.
     const loadComments = async () => {
         try {
             const res = await apiFetch("/api/admin/chat/recent");
-            if (res.ok) setComments(await res.json());
+            if (res.ok) {
+                setComments(await res.json());
+                setSelectedComments(new Set());
+            }
         } catch (e) {
             notifyError("댓글을 불러오지 못했습니다.");
         }
+    };
+
+    const toggleCommentSelect = (id: number) => {
+        setSelectedComments((prev) => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id);
+            else next.add(id);
+            return next;
+        });
+    };
+
+    const toggleSelectAllComments = () => {
+        setSelectedComments((prev) =>
+            prev.size === comments.length ? new Set() : new Set(comments.map((c) => c.id)),
+        );
     };
 
     const handleDeleteComment = async (id: number) => {
@@ -448,11 +467,37 @@ export default function AdminPage() {
             if (res.ok) {
                 notifySuccess("삭제 완료");
                 setComments((prev) => prev.filter((c) => c.id !== id));
+                setSelectedComments((prev) => {
+                    const next = new Set(prev);
+                    next.delete(id);
+                    return next;
+                });
             } else {
                 notifyError("삭제 실패");
             }
         } catch (e) {
             notifyError("삭제 중 오류가 발생했습니다.");
+        }
+    };
+
+    const handleBulkDeleteComments = async () => {
+        const ids = Array.from(selectedComments);
+        if (ids.length === 0) return;
+        if (!(await confirmAction({ text: `선택한 댓글 ${ids.length}개를 삭제할까요?`, destructive: true }))) return;
+        try {
+            const res = await apiFetch("/api/admin/chat/delete-batch", {
+                method: "POST",
+                body: JSON.stringify(ids),
+            });
+            if (res.ok) {
+                notifySuccess(`${ids.length}개 삭제 완료`);
+                setComments((prev) => prev.filter((c) => !selectedComments.has(c.id)));
+                setSelectedComments(new Set());
+            } else {
+                notifyError("일괄 삭제 실패");
+            }
+        } catch (e) {
+            notifyError("일괄 삭제 중 오류가 발생했습니다.");
         }
     };
 
@@ -730,16 +775,31 @@ export default function AdminPage() {
                         {/* ===== 라이브 댓글 ===== */}
                         {!isLoading && activeTab === "COMMENTS" && (
                             <div className="space-y-3 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                                <div className="mb-1 flex items-center justify-between gap-3">
-                                    <p className="text-sm text-muted-foreground">실시간 톡방(라이브 댓글) 최근 100건. 부적절한 댓글을 삭제할 수 있어요.</p>
+                                <div className="mb-1 flex flex-wrap items-center justify-between gap-3">
+                                    <p className="text-sm text-muted-foreground">실시간 톡방(라이브 댓글) 최근 100건. 개별 또는 일괄 삭제할 수 있어요.</p>
                                     <button onClick={loadComments} className="shrink-0 rounded-pill border border-[var(--color-border)] px-3 py-1.5 text-xs font-bold text-muted-foreground transition-colors hover:text-foreground">새로고침</button>
                                 </div>
+
+                                {comments.length > 0 && (
+                                    <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--color-border)] bg-cream-100 dark:bg-ink-800/60 px-4 py-2.5">
+                                        <label className="flex cursor-pointer items-center gap-2 text-sm font-semibold">
+                                            <input type="checkbox" checked={comments.length > 0 && selectedComments.size === comments.length} onChange={toggleSelectAllComments} className="size-4 accent-lime-500" />
+                                            전체 선택
+                                            {selectedComments.size > 0 && <span className="text-lime-600 dark:text-lime-300">· {selectedComments.size}개 선택됨</span>}
+                                        </label>
+                                        <button onClick={handleBulkDeleteComments} disabled={selectedComments.size === 0} className="flex shrink-0 items-center gap-1.5 rounded-xl border border-danger/40 bg-danger/10 px-4 py-2 text-xs font-bold text-danger transition-all hover:bg-danger/20 disabled:cursor-not-allowed disabled:opacity-40">
+                                            <Trash2 size={14}/> 선택 삭제{selectedComments.size > 0 ? ` (${selectedComments.size})` : ""}
+                                        </button>
+                                    </div>
+                                )}
+
                                 {comments.length === 0 && (
                                     <div className="text-center py-16 rounded-2xl border border-dashed border-[var(--color-border)] text-muted-foreground">댓글이 없습니다.</div>
                                 )}
                                 {comments.map(c => (
-                                    <div key={c.id} className="bg-surface p-4 rounded-2xl border border-[var(--color-border)] flex justify-between items-center gap-3">
-                                        <div className="min-w-0">
+                                    <div key={c.id} className={`flex items-center gap-3 rounded-2xl border bg-surface p-4 ${selectedComments.has(c.id) ? "border-lime-400 ring-1 ring-lime-300/40" : "border-[var(--color-border)]"}`}>
+                                        <input type="checkbox" checked={selectedComments.has(c.id)} onChange={() => toggleCommentSelect(c.id)} aria-label="댓글 선택" className="size-4 shrink-0 accent-lime-500" />
+                                        <div className="min-w-0 flex-1">
                                             <div className="mb-0.5 flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
                                                 <span className="font-bold text-foreground">{c.sender}</span>
                                                 {c.popupName && <span className="truncate">· {c.popupName}</span>}
