@@ -7,10 +7,12 @@ import { REGIONS, classifyRegion, regionBySlug } from "@/lib/regions";
 import {
   PERIODS,
   CATEGORIES,
+  BRANDS,
   matchesPeriod,
   classifyCategory,
   periodBySlug,
   categoryBySlug,
+  brandBySlug,
 } from "@/lib/popupSlices";
 
 /**
@@ -46,6 +48,7 @@ type Slice =
   | { kind: "region"; slug: string; label: string }
   | { kind: "period"; slug: string; label: string }
   | { kind: "category"; slug: string; label: string }
+  | { kind: "brand"; slug: string; label: string; keywords: string[] }
   | {
       kind: "region-category";
       slug: string;
@@ -67,6 +70,8 @@ export function generateStaticParams() {
     ...REGIONS.map((r) => ({ slug: r.slug })),
     ...PERIODS.map((p) => ({ slug: p.slug })),
     ...CATEGORIES.map((c) => ({ slug: c.slug })),
+    // 브랜드/IP/장소 랜딩 ("스텔라이브 팝업", "오버워치 팝업" 등). 매칭 0곳이면 noindex.
+    ...BRANDS.map((b) => ({ slug: b.slug })),
     // v2.29 — 지역×카테고리 조합 롱테일 랜딩 ("성수 패션 팝업" 등).
     ...REGIONS.flatMap((r) =>
       CATEGORIES.map((c) => ({ slug: `${r.slug}-${c.slug}` })),
@@ -81,6 +86,8 @@ function resolveSlice(slug: string): Slice | null {
   if (p) return { kind: "period", slug: p.slug, label: p.label };
   const c = categoryBySlug(slug);
   if (c) return { kind: "category", slug: c.slug, label: c.label };
+  const b = brandBySlug(slug);
+  if (b) return { kind: "brand", slug: b.slug, label: b.label, keywords: b.keywords };
   // v2.29 — 지역-카테고리 조합 (예: "seongsu-fashion" → 성수 × 패션).
   for (const reg of REGIONS) {
     if (!slug.startsWith(`${reg.slug}-`)) continue;
@@ -107,6 +114,9 @@ function deepLinkQuery(slice: Slice): string {
       return `period=${slice.slug}`;
     case "category":
       return `category=${slice.slug}`;
+    case "brand":
+      // 지도엔 브랜드 필터 파라미터가 없어 전체 지도로 유도(랜딩 목록이 SEO 본체).
+      return "";
     case "region-category":
       return `region=${slice.regionSlug}&category=${slice.categorySlug}`;
   }
@@ -136,6 +146,14 @@ function filterBySlice(markers: Marker[], slice: Slice): Marker[] {
       );
     case "category":
       return markers.filter((m) => classifyCategory(m.category) === slice.slug);
+    case "brand": {
+      // 팝업 이름·위치에 브랜드 키워드가 포함되면 매칭(대소문자 무시).
+      const kws = slice.keywords.map((k) => k.toLowerCase());
+      return markers.filter((m) => {
+        const hay = `${m.name ?? ""} ${m.location ?? ""}`.toLowerCase();
+        return kws.some((k) => hay.includes(k));
+      });
+    }
     case "region-category":
       return markers.filter(
         (m) =>
@@ -160,12 +178,14 @@ export async function generateMetadata({
     region: `${slice.label} 팝업스토어 추천`,
     period: `${slice.label} 진행 팝업스토어`,
     category: `${slice.label} 팝업스토어`,
+    brand: `${slice.label} 팝업스토어 일정·위치`,
     "region-category": `${slice.label} 팝업스토어 추천`,
   };
   const descriptions: Record<Slice["kind"], string> = {
     region: `${slice.label}에서 진행 중인 팝업스토어 일정과 위치를 한눈에. 위시 등록, 마감 D-3 알림, 같이 갈 동행 매칭까지 무료.`,
     period: `${slice.label} 서울에서 열리는 팝업스토어 목록. 영업 시간, 위치, 종료일까지 정리.`,
     category: `${slice.label} 관련 팝업스토어 모음. 신상 / 인기 / 마감 임박 한눈에 보기.`,
+    brand: `${slice.label} 팝업스토어 일정과 위치를 지도로 한눈에. 서울에서 진행 중인 ${slice.label} 팝업을 확인하고 위시·마감 D-3 알림까지 무료.`,
     "region-category": `${slice.label} 팝업스토어를 한눈에. 위치·일정·카테고리별 큐레이션, 위시 등록과 마감 D-3 알림까지 무료.`,
   };
 
@@ -173,9 +193,10 @@ export async function generateMetadata({
   const description = descriptions[slice.kind];
   const url = `${SITE_URL}/popups/${slice.slug}`;
 
-  // v2.29 — 조합 슬라이스가 결과 0곳이면 thin content 방지 위해 noindex (페이지 접근·내부링크는 유지).
+  // 결과 0곳이면 thin content 방지 위해 noindex (페이지 접근·내부링크는 유지).
+  // 브랜드/장소는 해당 팝업이 진행 중일 때만 색인 — 없으면 빈 페이지가 색인되지 않게.
   let robots: Metadata["robots"] | undefined;
-  if (slice.kind === "region-category") {
+  if (slice.kind === "region-category" || slice.kind === "brand") {
     const count = filterBySlice(await fetchMarkers(), slice).length;
     if (count === 0) robots = { index: false, follow: true };
   }
@@ -215,12 +236,14 @@ export default async function PopupsBySlugPage({
     region: `${slice.label} 팝업스토어 ${count}곳`,
     period: `${slice.label} 진행 중인 팝업 ${count}곳`,
     category: `${slice.label} 팝업스토어 ${count}곳`,
+    brand: `${slice.label} 팝업스토어 ${count}곳`,
     "region-category": `${slice.label} 팝업스토어 ${count}곳`,
   };
   const introByKind: Record<Slice["kind"], string> = {
     region: `${slice.label}에서 진행 중인 팝업스토어를 POP-SPOT 이 자동 큐레이션 합니다. 영업 기간이 끝난 팝업은 자동으로 빠지고, 신규 팝업은 매일 04시 / 16시에 갱신.`,
     period: `${slice.label} 서울 곳곳에서 열리는 팝업스토어. 위치 · 카테고리 · 마감일을 지도 한 화면에서 확인.`,
     category: `${slice.label} 관련 신상 / 인기 팝업스토어. 위시 등록 시 마감 3일 전 알림 발송.`,
+    brand: `${slice.label} 관련 팝업스토어를 POP-SPOT 이 자동 큐레이션. 서울에서 진행 중인 ${slice.label} 팝업의 위치·일정을 한눈에. 위시 등록 시 마감 3일 전 알림 발송.`,
     "region-category": `${slice.label} 팝업스토어를 POP-SPOT 이 자동 큐레이션. 해당 지역·카테고리에 맞는 팝업만 모아 위치와 일정을 한눈에.`,
   };
 
@@ -243,7 +266,9 @@ export default async function PopupsBySlugPage({
                 ? "WHEN"
                 : slice.kind === "category"
                   ? "CATEGORY"
-                  : "REGION × CATEGORY"}
+                  : slice.kind === "brand"
+                    ? "BRAND"
+                    : "REGION × CATEGORY"}
           </span>
         </div>
 
@@ -351,6 +376,7 @@ function SliceCloud({ current }: { current: Slice }) {
     ...REGIONS.map((r) => ({ slug: r.slug, label: r.label, kind: "region" as const })),
     ...PERIODS.map((p) => ({ slug: p.slug, label: p.label, kind: "period" as const })),
     ...CATEGORIES.map((c) => ({ slug: c.slug, label: c.label, kind: "category" as const })),
+    ...BRANDS.map((b) => ({ slug: b.slug, label: b.label, kind: "brand" as const })),
   ].filter((s) => s.slug !== current.slug);
 
   return (
@@ -390,7 +416,9 @@ function FaqSection({ slice, count }: { slice: Slice; count: number }) {
           ? "팝업 주소의 동/로 이름을 기준으로 분류합니다. 정확한 위치는 지도에서 확인하세요."
           : slice.kind === "period"
             ? "팝업의 운영 시작일·종료일을 기준으로 해당 기간 안에 한 번이라도 열리면 포함됩니다."
-            : "팝업 카테고리 필드의 한글/영문 키워드를 매칭해 분류합니다.",
+            : slice.kind === "brand"
+              ? "팝업 이름에 해당 브랜드/IP 이름이 포함되면 자동으로 모읍니다. 진행 중인 팝업만 표시됩니다."
+              : "팝업 카테고리 필드의 한글/영문 키워드를 매칭해 분류합니다.",
     },
     {
       q: "위시 등록 / 마감 알림은 어디서 하나요?",

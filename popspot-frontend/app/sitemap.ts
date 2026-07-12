@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next";
 
 import { REGIONS } from "@/lib/regions";
-import { PERIODS, CATEGORIES } from "@/lib/popupSlices";
+import { PERIODS, CATEGORIES, BRANDS } from "@/lib/popupSlices";
 
 /**
  * Sitemap.xml 자동 생성 (Next.js {@code MetadataRoute.Sitemap}).
@@ -71,6 +71,13 @@ export default function sitemap(): MetadataRoute.Sitemap {
       lastModified: now,
       changeFrequency: "weekly" as const,
       priority: 0.5,
+    })),
+    // 브랜드·IP·장소 랜딩 ("스텔라이브 팝업" 등). 매칭 0곳이면 페이지 단에서 noindex.
+    ...BRANDS.map((b) => ({
+      url: `${SITE_URL}/popups/${b.slug}`,
+      lastModified: now,
+      changeFrequency: "daily" as const,
+      priority: 0.6,
     })),
     // v2.29 — 지역×카테고리 조합 롱테일 랜딩 ("성수 패션" 등, 큐레이션 집계라 §10-2 준수).
     ...REGIONS.flatMap((r) =>

@@ -233,6 +233,56 @@ export function categoryBySlug(slug: string): CategoryDef | undefined {
   return CATEGORIES.find((c) => c.slug === slug);
 }
 
+/* ============================== 브랜드 / IP / 장소 (검색 트렌드 기반) ============================== */
+
+export type BrandDef = {
+  slug: string;
+  label: string;
+  /** 팝업 이름/위치에 이 중 하나라도 포함되면 매칭(대소문자 무시). */
+  keywords: string[];
+};
+
+/**
+ * 사람들이 많이 검색하는 IP·캐릭터·장소 브랜드. 각 slug 는 {@code /popups/[slug]} 브랜드 랜딩이 되고,
+ * 매칭 팝업이 0곳이면 thin content 방지로 noindex(진행 중일 때만 색인). 구글 트렌드(2026-07) 고관심·급상승어 기반.
+ */
+export const BRANDS: BrandDef[] = [
+  { slug: "stellive", label: "스텔라이브", keywords: ["스텔라이브", "스텔 라이브"] },
+  { slug: "overwatch", label: "오버워치", keywords: ["오버워치", "오버 워치", "overwatch", "옵치"] },
+  { slug: "pokemon", label: "포켓몬", keywords: ["포켓몬", "pokemon", "피카츄"] },
+  {
+    slug: "sanrio",
+    label: "산리오",
+    keywords: ["산리오", "sanrio", "쿠로미", "시나모롤", "마이멜로디", "폼폼푸린", "헬로키티", "포차코"],
+  },
+  { slug: "genshin", label: "원신", keywords: ["원신", "genshin"] },
+  { slug: "toy-story", label: "토이스토리", keywords: ["토이스토리", "토이 스토리", "toy story"] },
+  { slug: "demon-slayer", label: "귀멸의 칼날", keywords: ["귀멸의 칼날", "귀멸의칼날", "귀칼"] },
+  { slug: "jujutsu-kaisen", label: "주술회전", keywords: ["주술회전", "주술 회전"] },
+  { slug: "nikke", label: "니케", keywords: ["니케", "nikke"] },
+  { slug: "project-sekai", label: "프로젝트 세카이", keywords: ["프로젝트 세카이", "프세카", "project sekai"] },
+  { slug: "hatsune-miku", label: "하츠네 미쿠", keywords: ["하츠네 미쿠", "하츠네미쿠", "미쿠", "miku"] },
+  { slug: "djmax", label: "디맥", keywords: ["디맥", "djmax", "디제이맥스"] },
+  { slug: "roblox", label: "로블록스", keywords: ["로블록스", "roblox"] },
+  { slug: "blue-archive", label: "블루아카이브", keywords: ["블루아카이브", "블루 아카이브", "블아"] },
+  { slug: "disney", label: "디즈니", keywords: ["디즈니", "disney"] },
+  { slug: "kakao-friends", label: "카카오프렌즈", keywords: ["카카오프렌즈", "춘식이"] },
+  { slug: "line-friends", label: "라인프렌즈", keywords: ["라인프렌즈"] },
+  { slug: "one-piece", label: "원피스", keywords: ["원피스", "one piece"] },
+  { slug: "t1", label: "T1", keywords: ["t1 팝업", "티원"] },
+  { slug: "the-hyundai", label: "더현대 서울", keywords: ["더현대", "더 현대"] },
+  { slug: "yongsan-ipark", label: "용산 아이파크몰", keywords: ["용산 아이파크", "아이파크몰"] },
+  { slug: "coex", label: "코엑스", keywords: ["코엑스", "coex"] },
+  { slug: "starfield", label: "스타필드", keywords: ["스타필드"] },
+  { slug: "lotte-world-mall", label: "롯데월드몰", keywords: ["롯데월드몰", "롯데월드 몰"] },
+];
+
+const BRAND_BY_SLUG = new Map(BRANDS.map((b) => [b.slug, b]));
+
+export function brandBySlug(slug: string): BrandDef | undefined {
+  return BRAND_BY_SLUG.get(slug);
+}
+
 export function periodBySlug(slug: string): PeriodDef | undefined {
   return PERIODS.find((p) => p.slug === slug);
 }
