@@ -68,18 +68,17 @@ public class ChatService {
         return result;
     }
 
-    /** 어드민 — 부적절한 라이브 댓글 삭제. */
+    /** 어드민 — 부적절한 라이브 댓글 삭제. 엔티티 로드 없는 벌크 delete(중복 id 행이 있어도 안전). */
     @Transactional
     public void deleteMessage(Long id) {
-        chatRepository.deleteById(id);
+        chatRepository.deleteAllByIdsBulk(List.of(id));
     }
 
-    /** 어드민 — 라이브 댓글 일괄 삭제. 존재하는 id 만 지워지며, 요청 건수를 반환. */
+    /** 어드민 — 라이브 댓글 일괄 삭제. 실제 지워진 행 수를 반환. */
     @Transactional
     public int deleteMessages(List<Long> ids) {
         if (ids == null || ids.isEmpty()) return 0;
-        chatRepository.deleteAllById(ids);
-        return ids.size();
+        return chatRepository.deleteAllByIdsBulk(ids);
     }
 
     /* ============================== 내부 헬퍼 ============================== */
