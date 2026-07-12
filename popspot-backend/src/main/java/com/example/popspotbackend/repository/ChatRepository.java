@@ -12,5 +12,8 @@ public interface ChatRepository extends JpaRepository<ChatMessage, Long> {
     // 2. 전체 채팅 중 최신 10개 (메인페이지 티커용)
     List<ChatMessage> findTop10ByOrderBySendTimeDesc();
 
+    /** 어드민 라이브 댓글 관리 — 최근 100건. */
+    List<ChatMessage> findTop100ByOrderBySendTimeDesc();
+
     int countBySender(String sender);
 }

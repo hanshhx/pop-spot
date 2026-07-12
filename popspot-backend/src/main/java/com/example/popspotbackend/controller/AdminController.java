@@ -4,6 +4,7 @@ import com.example.popspotbackend.dto.AdminUserDto;
 import com.example.popspotbackend.entity.MatePost;
 import com.example.popspotbackend.entity.PopupStore;
 import com.example.popspotbackend.service.AdminService;
+import com.example.popspotbackend.service.ChatService;
 import com.example.popspotbackend.service.PopupDedupService;
 import com.example.popspotbackend.service.PopupPhotoService;
 import java.util.List;
@@ -36,6 +37,7 @@ public class AdminController {
     private final AdminService adminService;
     private final PopupPhotoService popupPhotoService;
     private final PopupDedupService popupDedupService;
+    private final ChatService chatService;
 
     /* ============================== 팝업 승인 큐 ============================== */
 
@@ -88,6 +90,21 @@ public class AdminController {
     @PostMapping("/popups/dedupe")
     public ResponseEntity<Map<String, Object>> dedupe() {
         return ResponseEntity.ok(popupDedupService.dedupe());
+    }
+
+    /* ============================== 라이브 댓글(채팅) 관리 ============================== */
+
+    /** 최근 라이브 댓글(채팅) 100건 — 부적절한 댓글 삭제 대상 조회. */
+    @GetMapping("/chat/recent")
+    public ResponseEntity<List<Map<String, Object>>> getRecentChats() {
+        return ResponseEntity.ok(chatService.findRecentMessages());
+    }
+
+    /** 라이브 댓글 삭제. */
+    @DeleteMapping("/chat/{id}")
+    public ResponseEntity<String> deleteChat(@PathVariable Long id) {
+        chatService.deleteMessage(id);
+        return ResponseEntity.ok("삭제 완료");
     }
 
     @PatchMapping("/popups/{id}/status")

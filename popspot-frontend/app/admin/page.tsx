@@ -103,6 +103,7 @@ const NAV: { id: string; label: string; icon: typeof Users; badge?: boolean }[] 
     { id: "PENDING", label: "제보 승인", icon: AlertCircle, badge: true },
     { id: "MEMBERS", label: "회원", icon: Users },
     { id: "MATES", label: "커뮤니티", icon: MessageSquare },
+    { id: "COMMENTS", label: "라이브 댓글", icon: MessageSquare },
     { id: "VISITS", label: "방문 통계", icon: Globe },
     { id: "REWARDS", label: "보상 지급", icon: Gift },
     { id: "FEEDBACK", label: "의견", icon: Inbox },
@@ -115,6 +116,7 @@ const TAB_TITLE: Record<string, string> = {
     PENDING: "제보 승인",
     MEMBERS: "회원",
     MATES: "커뮤니티 관리",
+    COMMENTS: "라이브 댓글 관리",
     VISITS: "방문 통계",
     REWARDS: "보상 지급",
     FEEDBACK: "의견",
@@ -304,6 +306,7 @@ export default function AdminPage() {
         else if (activeTab === "PENDING") loadDashboardData();
         else if (activeTab === "POPUPS") loadAllPopups();
         else if (activeTab === "MATES") loadMatePosts();
+        else if (activeTab === "COMMENTS") loadComments();
         else if (activeTab === "MEMBERS") loadUsers();
         else if (activeTab === "VISITS") loadVisitStats();
         else setIsLoading(false); // SYSTEM / REWARDS / FEEDBACK 은 별도 fetch 없음
@@ -362,6 +365,7 @@ export default function AdminPage() {
     // 이미지 없는 공개 팝업에 Pexels 커버를 배정(수동 백필). 백엔드 pexels.api-key 설정 필요.
     const [isBackfilling, setIsBackfilling] = useState(false);
     const [isDeduping, setIsDeduping] = useState(false);
+    const [comments, setComments] = useState<{ id: number; sender: string; message: string; sendTime?: string; popupName?: string }[]>([]);
     const handleBackfillPhotos = async () => {
         if (!(await confirmAction({ text: "이미지 없는 팝업에 Pexels 커버 사진을 배정할까요?" }))) return;
         setIsBackfilling(true);
@@ -424,6 +428,31 @@ export default function AdminPage() {
             }
         } catch (e) {
             notifyError('삭제 중 오류가 발생했습니다.');
+        }
+    };
+
+    // 라이브 댓글(실시간 톡방) 관리 — 최근 100건 조회 + 부적절한 댓글 삭제.
+    const loadComments = async () => {
+        try {
+            const res = await apiFetch("/api/admin/chat/recent");
+            if (res.ok) setComments(await res.json());
+        } catch (e) {
+            notifyError("댓글을 불러오지 못했습니다.");
+        }
+    };
+
+    const handleDeleteComment = async (id: number) => {
+        if (!(await confirmAction({ text: "이 댓글을 삭제할까요?", destructive: true }))) return;
+        try {
+            const res = await apiFetch(`/api/admin/chat/${id}`, { method: "DELETE" });
+            if (res.ok) {
+                notifySuccess("삭제 완료");
+                setComments((prev) => prev.filter((c) => c.id !== id));
+            } else {
+                notifyError("삭제 실패");
+            }
+        } catch (e) {
+            notifyError("삭제 중 오류가 발생했습니다.");
         }
     };
 
@@ -693,6 +722,32 @@ export default function AdminPage() {
                                             <p className="text-sm text-muted-foreground truncate">{post.content}</p>
                                         </div>
                                         <button onClick={() => handleDeleteMatePost(post.id)} className="shrink-0 px-3.5 py-2 rounded-xl border border-[var(--color-border)] text-muted-foreground hover:border-danger hover:text-danger text-xs font-bold transition-all flex items-center gap-1"><Trash2 size={14}/> 삭제</button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        {/* ===== 라이브 댓글 ===== */}
+                        {!isLoading && activeTab === "COMMENTS" && (
+                            <div className="space-y-3 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                <div className="mb-1 flex items-center justify-between gap-3">
+                                    <p className="text-sm text-muted-foreground">실시간 톡방(라이브 댓글) 최근 100건. 부적절한 댓글을 삭제할 수 있어요.</p>
+                                    <button onClick={loadComments} className="shrink-0 rounded-pill border border-[var(--color-border)] px-3 py-1.5 text-xs font-bold text-muted-foreground transition-colors hover:text-foreground">새로고침</button>
+                                </div>
+                                {comments.length === 0 && (
+                                    <div className="text-center py-16 rounded-2xl border border-dashed border-[var(--color-border)] text-muted-foreground">댓글이 없습니다.</div>
+                                )}
+                                {comments.map(c => (
+                                    <div key={c.id} className="bg-surface p-4 rounded-2xl border border-[var(--color-border)] flex justify-between items-center gap-3">
+                                        <div className="min-w-0">
+                                            <div className="mb-0.5 flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
+                                                <span className="font-bold text-foreground">{c.sender}</span>
+                                                {c.popupName && <span className="truncate">· {c.popupName}</span>}
+                                                {c.sendTime && <span>· {new Date(c.sendTime).toLocaleString()}</span>}
+                                            </div>
+                                            <p className="text-sm text-foreground break-all">{c.message}</p>
+                                        </div>
+                                        <button onClick={() => handleDeleteComment(c.id)} className="shrink-0 px-3.5 py-2 rounded-xl border border-[var(--color-border)] text-muted-foreground hover:border-danger hover:text-danger text-xs font-bold transition-all flex items-center gap-1"><Trash2 size={14}/> 삭제</button>
                                     </div>
                                 ))}
                             </div>
