@@ -485,17 +485,29 @@ export default function AdminPage() {
         if (ids.length === 0) return;
         if (!(await confirmAction({ text: `선택한 댓글 ${ids.length}개를 삭제할까요?`, destructive: true }))) return;
         try {
-            const res = await apiFetch("/api/admin/chat/delete-batch", {
-                method: "POST",
-                body: JSON.stringify(ids),
+            // 개별 삭제 엔드포인트를 병렬 호출(각각 독립 — 일부 실패해도 나머지는 삭제).
+            const results = await Promise.all(
+                ids.map(async (id) => {
+                    try {
+                        const r = await apiFetch(`/api/admin/chat/${id}`, { method: "DELETE" });
+                        return { id, ok: r.ok };
+                    } catch {
+                        return { id, ok: false };
+                    }
+                }),
+            );
+            const okIds = new Set(results.filter((r) => r.ok).map((r) => r.id));
+            const failed = ids.length - okIds.size;
+            setComments((prev) => prev.filter((c) => !okIds.has(c.id)));
+            setSelectedComments((prev) => {
+                const next = new Set<number>();
+                prev.forEach((id) => {
+                    if (!okIds.has(id)) next.add(id);
+                });
+                return next;
             });
-            if (res.ok) {
-                notifySuccess(`${ids.length}개 삭제 완료`);
-                setComments((prev) => prev.filter((c) => !selectedComments.has(c.id)));
-                setSelectedComments(new Set());
-            } else {
-                notifyError("일괄 삭제 실패");
-            }
+            if (failed === 0) notifySuccess(`${okIds.size}개 삭제 완료`);
+            else notifyError(`${okIds.size}개 삭제 완료, ${failed}개 실패`);
         } catch (e) {
             notifyError("일괄 삭제 중 오류가 발생했습니다.");
         }
