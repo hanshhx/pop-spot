@@ -35,6 +35,25 @@ export default function VisitTracker() {
   useEffect(() => {
     if (!pathname) return;
 
+    // 관리자/운영자(본인) 트래픽 제외 — 지표가 자체 접속으로 부풀려지지 않게.
+    //  (1) /admin 경로  (2) JWT role=ADMIN  (3) notrack 플래그.
+    // 한 번이라도 ADMIN 으로 확인된 브라우저는 이후(로그아웃/게스트 테스트 포함) 계속 제외한다.
+    try {
+      if (pathname.startsWith("/admin")) return;
+      if (localStorage.getItem("popspot:notrack") === "1") return;
+      const token = localStorage.getItem("token");
+      const payloadPart = token?.split(".")[1];
+      if (payloadPart) {
+        const payload = JSON.parse(atob(payloadPart.replace(/-/g, "+").replace(/_/g, "/")));
+        if (payload?.role === "ADMIN") {
+          localStorage.setItem("popspot:notrack", "1");
+          return;
+        }
+      }
+    } catch {
+      /* 판정 실패 시 정상 기록 진행 */
+    }
+
     // 세션 내 같은 경로 중복 전송 방지.
     const sentKey = `popspot:visit:${pathname}`;
     try {
