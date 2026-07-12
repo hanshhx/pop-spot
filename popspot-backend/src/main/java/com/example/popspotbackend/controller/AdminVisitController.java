@@ -9,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /** 어드민 방문 통계 API. 익명 집계값만 반환. 클래스 단 ADMIN 가드. */
@@ -29,5 +30,12 @@ public class AdminVisitController {
     @GetMapping("/today-paths")
     public ResponseEntity<List<Map<String, Object>>> getTodayPaths() {
         return ResponseEntity.ok(visitService.getTodayPaths());
+    }
+
+    /** 방문자 목록 — visitorId 단위(방문수·경로·최근시각·게스트/회원). days 기본 7, 최대 30. */
+    @GetMapping("/visitors")
+    public ResponseEntity<List<Map<String, Object>>> getRecentVisitors(
+            @RequestParam(defaultValue = "7") int days) {
+        return ResponseEntity.ok(visitService.getRecentVisitors(days));
     }
 }
