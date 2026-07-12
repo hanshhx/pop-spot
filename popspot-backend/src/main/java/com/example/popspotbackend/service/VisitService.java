@@ -72,8 +72,33 @@ public class VisitService {
                 .toList();
     }
 
+    /** 방문자 목록 — 최근 days 일(기본 7, 최대 30) 내 visitorId 단위 집계. 게스트/회원 구분해 나열. */
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> getRecentVisitors(int days) {
+        int safeDays = days <= 0 ? 7 : Math.min(days, 30);
+        LocalDateTime since = LocalDate.now().minusDays(safeDays - 1L).atStartOfDay();
+        return visitLogRepository.recentVisitors(since).stream()
+                .map(
+                        r -> {
+                            Map<String, Object> m = new LinkedHashMap<>();
+                            m.put("visitorId", str(r[0]));
+                            m.put("visits", num(r[1]));
+                            m.put("paths", str(r[2]));
+                            m.put("lastSeen", str(r[3]));
+                            m.put("guest", bool(r[4])); // all_guest: true=순수 게스트, false=회원 이력
+                            return m;
+                        })
+                .toList();
+    }
+
     private static String clamp(String s, int max) {
         return s.length() > max ? s.substring(0, max) : s;
+    }
+
+    private static boolean bool(Object o) {
+        if (o instanceof Boolean b) return b;
+        String s = str(o);
+        return "t".equals(s) || "true".equals(s);
     }
 
     private static String str(Object o) {

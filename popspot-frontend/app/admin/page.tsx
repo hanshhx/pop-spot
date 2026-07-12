@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import {
     Check, X, ShieldCheck, MapPin, Store, AlertCircle,
     BarChart3, Users, MessageSquare, Gift, Trash2, Activity, Cpu,
-    Database, Globe, Inbox, ChevronRight, LogOut
+    Database, Globe, Inbox, ChevronRight, LogOut, Footprints
 } from "lucide-react";
 import Swal from "sweetalert2";
 
@@ -105,6 +105,7 @@ const NAV: { id: string; label: string; icon: typeof Users; badge?: boolean }[] 
     { id: "MATES", label: "커뮤니티", icon: MessageSquare },
     { id: "COMMENTS", label: "라이브 댓글", icon: MessageSquare },
     { id: "VISITS", label: "방문 통계", icon: Globe },
+    { id: "VISITORS", label: "방문자", icon: Footprints },
     { id: "REWARDS", label: "보상 지급", icon: Gift },
     { id: "FEEDBACK", label: "의견", icon: Inbox },
     { id: "SYSTEM", label: "시스템", icon: Activity },
@@ -118,6 +119,7 @@ const TAB_TITLE: Record<string, string> = {
     MATES: "커뮤니티 관리",
     COMMENTS: "라이브 댓글 관리",
     VISITS: "방문 통계",
+    VISITORS: "방문자 목록",
     REWARDS: "보상 지급",
     FEEDBACK: "의견",
     SYSTEM: "시스템",
@@ -201,6 +203,7 @@ export default function AdminPage() {
     const [users, setUsers] = useState<AdminUser[]>([]);
     const [visitStats, setVisitStats] = useState<AdminVisitStats | null>(null);
     const [todayPaths, setTodayPaths] = useState<{ path: string; total: number; members: number; guests: number }[]>([]);
+    const [visitors, setVisitors] = useState<{ visitorId: string; visits: number; paths: string; lastSeen: string; guest: boolean }[]>([]);
 
     // v2.10 — 통합 메트릭 폴링. authorized 전엔 시작하지 않아 403 도배 차단.
     const dashboard = useDashboardMetrics(
@@ -302,6 +305,16 @@ export default function AdminPage() {
         } finally { setIsLoading(false); }
     };
 
+    const loadVisitors = async () => {
+        setIsLoading(true);
+        try {
+            const res = await apiFetch("/api/admin/visits/visitors?days=7");
+            if (res.ok) setVisitors(await res.json());
+        } catch {
+            /* 백엔드 미배포 시 빈 목록 유지 */
+        } finally { setIsLoading(false); }
+    };
+
     // 탭 변경 시 데이터 로딩
     useEffect(() => {
         if (!authorized) return;
@@ -312,6 +325,7 @@ export default function AdminPage() {
         else if (activeTab === "COMMENTS") loadComments();
         else if (activeTab === "MEMBERS") loadUsers();
         else if (activeTab === "VISITS") loadVisitStats();
+        else if (activeTab === "VISITORS") loadVisitors();
         else setIsLoading(false); // SYSTEM / REWARDS / FEEDBACK 은 별도 fetch 없음
     }, [activeTab, authorized]);
 
@@ -954,6 +968,35 @@ export default function AdminPage() {
                                         )}
                                     </div>
                                 </div>
+                            </div>
+                        )}
+
+                        {/* ===== 방문자 목록 ===== */}
+                        {!isLoading && activeTab === "VISITORS" && (
+                            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+                                    <div>
+                                        <p className="text-sm text-muted-foreground">최근 7일 방문자 · 봇 제외 · 최근 방문 순 (최대 100명)</p>
+                                        <p className="mt-1 text-xs font-bold">게스트 <span className="text-muted-foreground">{visitors.filter(v => v.guest).length}명</span> · 회원 <span className="text-lime-600 dark:text-lime-300">{visitors.filter(v => !v.guest).length}명</span></p>
+                                    </div>
+                                    <button onClick={loadVisitors} className="rounded-full border border-[var(--color-border)] px-3 py-1.5 text-xs font-bold text-muted-foreground hover:text-foreground">새로고침</button>
+                                </div>
+                                {visitors.length === 0 ? (
+                                    <div className="rounded-2xl border border-[var(--color-border)] bg-surface p-12 text-center text-sm text-muted-foreground">
+                                        최근 방문자가 없어요.<span className="mt-1 block text-xs">(백엔드 배포 후 집계됩니다)</span>
+                                    </div>
+                                ) : (
+                                    <ul className="divide-y divide-[var(--color-border)] overflow-hidden rounded-2xl border border-[var(--color-border)] bg-surface">
+                                        {visitors.map((v, i) => (
+                                            <li key={v.visitorId || i} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 text-sm">
+                                                <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ${v.guest ? "bg-gray-200 text-muted-foreground dark:bg-white/10" : "bg-lime-300/20 text-lime-700 dark:text-lime-300"}`}>{v.guest ? "게스트" : "회원"}</span>
+                                                <span className="min-w-0 flex-1 truncate font-mono text-xs text-muted-foreground" title={v.paths}>{v.paths}</span>
+                                                <span className="shrink-0 text-xs font-bold">{v.visits}회</span>
+                                                <span className="shrink-0 tabular-nums text-[11px] text-muted-foreground">{(v.lastSeen ?? "").slice(5, 16)}</span>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                )}
                             </div>
                         )}
 

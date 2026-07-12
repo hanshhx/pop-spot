@@ -15,8 +15,8 @@ import org.springframework.web.bind.annotation.RestController;
  *
  * <p>로그인 불필요(게스트도 기록). 로그인 여부(guest)·경로만 받고 IP·개인정보는 저장하지 않는다. 항상 204 로 응답해 클라이언트 부담을 없앤다.
  *
- * <p>봇 제외: 검색엔진 크롤러(Googlebot/Yeti 등)·헤드리스·HTTP 클라이언트는 JS 를 실행하며 비콘을 쏴 방문자 수를
- * 뻥튀기하므로 User-Agent 로 걸러 기록하지 않는다. UA 가 없는 요청(스크립트)도 봇으로 간주.
+ * <p>봇 제외: 검색엔진 크롤러(Googlebot/Yeti 등)·헤드리스·HTTP 클라이언트는 JS 를 실행하며 비콘을 쏴 방문자 수를 뻥튀기하므로 User-Agent 로
+ * 걸러 기록하지 않는다. UA 가 없는 요청(스크립트)도 봇으로 간주.
  */
 @RestController
 @RequestMapping("/api/visits")
