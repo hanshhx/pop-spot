@@ -473,7 +473,9 @@ export default function AdminPage() {
                     return next;
                 });
             } else {
-                notifyError("삭제 실패");
+                // 서버가 담아준 원인(message)을 그대로 노출 — 원인 없는 "삭제 실패"로 디버깅이 막히지 않게.
+                const data = await res.json().catch(() => null);
+                notifyError(data?.message ? `삭제 실패: ${data.message}` : `삭제 실패 (${res.status})`);
             }
         } catch (e) {
             notifyError("삭제 중 오류가 발생했습니다.");
@@ -490,14 +492,16 @@ export default function AdminPage() {
                 ids.map(async (id) => {
                     try {
                         const r = await apiFetch(`/api/admin/chat/${id}`, { method: "DELETE" });
-                        return { id, ok: r.ok };
+                        if (r.ok) return { id, ok: true as const, message: null };
+                        const data = await r.json().catch(() => null);
+                        return { id, ok: false as const, message: data?.message ?? `HTTP ${r.status}` };
                     } catch {
-                        return { id, ok: false };
+                        return { id, ok: false as const, message: "네트워크 오류" };
                     }
                 }),
             );
             const okIds = new Set(results.filter((r) => r.ok).map((r) => r.id));
-            const failed = ids.length - okIds.size;
+            const failed = results.filter((r) => !r.ok);
             setComments((prev) => prev.filter((c) => !okIds.has(c.id)));
             setSelectedComments((prev) => {
                 const next = new Set<number>();
@@ -506,8 +510,11 @@ export default function AdminPage() {
                 });
                 return next;
             });
-            if (failed === 0) notifySuccess(`${okIds.size}개 삭제 완료`);
-            else notifyError(`${okIds.size}개 삭제 완료, ${failed}개 실패`);
+            if (failed.length === 0) notifySuccess(`${okIds.size}개 삭제 완료`);
+            else
+                notifyError(
+                    `${okIds.size}개 삭제 완료, ${failed.length}개 실패 — ${failed[0].message}`,
+                );
         } catch (e) {
             notifyError("일괄 삭제 중 오류가 발생했습니다.");
         }
