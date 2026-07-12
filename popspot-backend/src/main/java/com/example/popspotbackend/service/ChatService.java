@@ -5,6 +5,7 @@ import com.example.popspotbackend.entity.PopupStore;
 import com.example.popspotbackend.repository.ChatRepository;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
@@ -47,6 +48,30 @@ public class ChatService {
             result.add(toTickerEntry(msg));
         }
         return result;
+    }
+
+    /** 어드민 — 최근 라이브 댓글(채팅) 목록. 부적절한 댓글 삭제 대상 선택용. */
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> findRecentMessages() {
+        List<ChatMessage> recents = chatRepository.findTop100ByOrderBySendTimeDesc();
+        List<Map<String, Object>> result = new ArrayList<>(recents.size());
+        for (ChatMessage m : recents) {
+            Map<String, Object> map = new LinkedHashMap<>();
+            map.put("id", m.getId());
+            map.put("sender", m.getSender());
+            map.put("message", m.getMessage());
+            map.put("sendTime", m.getSendTime());
+            map.put("popupName", m.getPopupStore() != null ? m.getPopupStore().getName() : null);
+            map.put("popupId", m.getPopupStore() != null ? m.getPopupStore().getId() : null);
+            result.add(map);
+        }
+        return result;
+    }
+
+    /** 어드민 — 부적절한 라이브 댓글 삭제. */
+    @Transactional
+    public void deleteMessage(Long id) {
+        chatRepository.deleteById(id);
     }
 
     /* ============================== 내부 헬퍼 ============================== */
