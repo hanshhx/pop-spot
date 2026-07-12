@@ -52,6 +52,7 @@ const STAGE_HIDDEN_CLASS = 'fixed -left-[9999px] -top-[9999px] h-0 w-0 overflow-
 interface MusicPlayerState {
   current: MusicTrack | null;
   playlist: MusicTrack[];
+  autoQueue: MusicTrack[];
   match: MatchResult | null;
   matchLoading: boolean;
   mode: Mode;
@@ -318,6 +319,7 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
     () => ({
       current,
       playlist,
+      autoQueue,
       match,
       matchLoading,
       mode,
@@ -343,6 +345,7 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
     [
       current,
       playlist,
+      autoQueue,
       match,
       matchLoading,
       mode,

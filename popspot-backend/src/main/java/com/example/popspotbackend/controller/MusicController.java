@@ -105,12 +105,22 @@ public class MusicController {
                 sanitizeQuery(keyword), clampLimit(limit, MAX_GRID_LIMIT));
     }
 
-    /** 현재 곡 종료 시 다음 자동 재생을 위한 추천 큐. */
+    /** 현재 곡 종료 시 다음 자동 재생을 위한 추천 큐(로그인 시 재생 이력으로 개인화). */
     @GetMapping("/{trackId}/next")
     public List<MusicTrack> nextRecommendations(
             @PathVariable Long trackId,
-            @RequestParam(value = "limit", defaultValue = "" + DEFAULT_NEXT_LIMIT) int limit) {
-        return musicService.recommendNext(trackId, clampLimit(limit, MAX_NEXT_LIMIT));
+            @RequestParam(value = "limit", defaultValue = "" + DEFAULT_NEXT_LIMIT) int limit,
+            @AuthenticationPrincipal UserDetails user) {
+        return musicService.recommendNext(
+                trackId, clampLimit(limit, MAX_NEXT_LIMIT), usernameOrNull(user));
+    }
+
+    /** '당신을 위한' 개인 추천 피드 — 로그인 유저의 재생 이력 취향 기반. 비로그인/무이력은 인기곡. */
+    @GetMapping("/for-you")
+    public List<MusicTrack> forYou(
+            @AuthenticationPrincipal UserDetails user,
+            @RequestParam(value = "limit", defaultValue = "" + DEFAULT_GRID_LIMIT) int limit) {
+        return musicService.forYou(usernameOrNull(user), clampLimit(limit, MAX_GRID_LIMIT));
     }
 
     /**
