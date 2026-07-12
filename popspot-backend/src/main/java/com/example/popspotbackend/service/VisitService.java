@@ -5,7 +5,9 @@ import com.example.popspotbackend.entity.VisitLog;
 import com.example.popspotbackend.repository.VisitLogRepository;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -49,6 +51,25 @@ public class VisitService {
                 visitLogRepository.countDistinctVisitorsSince(weekStart),
                 daily,
                 topPaths);
+    }
+
+    /** 오늘 방문 경로별 집계 — 경로 · 총 페이지뷰 · 회원 뷰 · 게스트/봇 뷰. 유입 진단용. */
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> getTodayPaths() {
+        LocalDateTime todayStart = LocalDate.now().atStartOfDay();
+        return visitLogRepository.pathBreakdownSince(todayStart).stream()
+                .map(
+                        r -> {
+                            long total = num(r[1]);
+                            long members = num(r[2]);
+                            Map<String, Object> m = new LinkedHashMap<>();
+                            m.put("path", str(r[0]));
+                            m.put("total", total);
+                            m.put("members", members);
+                            m.put("guests", total - members);
+                            return m;
+                        })
+                .toList();
     }
 
     private static String clamp(String s, int max) {

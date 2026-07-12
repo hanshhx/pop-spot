@@ -35,4 +35,13 @@ public interface VisitLogRepository extends JpaRepository<VisitLog, Long> {
                     "SELECT path, COUNT(*) AS c FROM visit_log WHERE created_at >= :since AND path IS NOT NULL GROUP BY path ORDER BY c DESC LIMIT 8",
             nativeQuery = true)
     List<Object[]> topPathsSince(@Param("since") LocalDateTime since);
+
+    /** 경로별 총 페이지뷰 + 회원(비게스트) 뷰 — 오늘 방문이 어디서/누구(회원 vs 게스트·봇)인지 진단용. */
+    @Query(
+            value =
+                    "SELECT path, COUNT(*) AS total, SUM(CASE WHEN guest THEN 0 ELSE 1 END) AS members "
+                            + "FROM visit_log WHERE created_at >= :since AND path IS NOT NULL "
+                            + "GROUP BY path ORDER BY total DESC LIMIT 50",
+            nativeQuery = true)
+    List<Object[]> pathBreakdownSince(@Param("since") LocalDateTime since);
 }
