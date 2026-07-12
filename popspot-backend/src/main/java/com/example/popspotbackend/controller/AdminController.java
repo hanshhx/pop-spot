@@ -107,6 +107,13 @@ public class AdminController {
         return ResponseEntity.ok("삭제 완료");
     }
 
+    /** 라이브 댓글 일괄 삭제 — 선택한 id 목록을 한 번에. */
+    @PostMapping("/chat/delete-batch")
+    public ResponseEntity<Map<String, Object>> deleteChatsBatch(@RequestBody List<Long> ids) {
+        int deleted = chatService.deleteMessages(ids);
+        return ResponseEntity.ok(Map.of("deleted", deleted));
+    }
+
     @PatchMapping("/popups/{id}/status")
     public ResponseEntity<String> changePopupStatus(
             @PathVariable Long id, @RequestParam String status) {
