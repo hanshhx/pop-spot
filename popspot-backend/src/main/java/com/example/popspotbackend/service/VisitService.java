@@ -19,14 +19,20 @@ public class VisitService {
 
     private final VisitLogRepository visitLogRepository;
 
-    /** 익명 방문 1건 기록. visitorId 가 비면 무시, 길이 초과 값은 컬럼 한도로 절단. */
+    /** 익명 방문 1건 기록. visitorId 가 비면 무시, 길이 초과 값은 컬럼 한도로 절단. UA 는 봇 식별용으로 저장. */
     @Transactional
-    public void record(String visitorId, String path, boolean guest) {
+    public void record(String visitorId, String path, boolean guest, String userAgent) {
         if (visitorId == null || visitorId.isBlank()) return;
         String safeVisitor = clamp(visitorId, 64);
         String safePath = path == null ? null : clamp(path, 255);
+        String safeUa = userAgent == null ? null : clamp(userAgent, 400);
         visitLogRepository.save(
-                VisitLog.builder().visitorId(safeVisitor).path(safePath).guest(guest).build());
+                VisitLog.builder()
+                        .visitorId(safeVisitor)
+                        .path(safePath)
+                        .guest(guest)
+                        .userAgent(safeUa)
+                        .build());
     }
 
     @Transactional(readOnly = true)
@@ -86,6 +92,7 @@ public class VisitService {
                             m.put("paths", str(r[2]));
                             m.put("lastSeen", str(r[3]));
                             m.put("guest", bool(r[4])); // all_guest: true=순수 게스트, false=회원 이력
+                            m.put("userAgent", str(r[5])); // 봇 식별용(배포 후 방문부터 채워짐)
                             return m;
                         })
                 .toList();
