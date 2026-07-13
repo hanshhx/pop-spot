@@ -1,7 +1,9 @@
+import { Image } from "expo-image";
 import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 
-import { categoryLabel, ddayLabel } from "../lib";
+import Glass from "../components/Glass";
+import { categoryLabel, coverUrl, ddayLabel } from "../lib";
 import { colors } from "../theme";
 import { RootStackParamList } from "../types";
 
@@ -10,6 +12,7 @@ type Props = NativeStackScreenProps<RootStackParamList, "Detail">;
 export default function DetailScreen({ route }: Props) {
   const { popup } = route.params;
   const dday = ddayLabel(popup.endDate);
+  const uri = coverUrl(popup);
 
   const openInMaps = () => {
     const { latitude: lat, longitude: lng, name, location } = popup;
@@ -23,41 +26,56 @@ export default function DetailScreen({ route }: Props) {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.content}>
-      <View style={styles.badgeRow}>
-        <View style={styles.catBadge}>
-          <Text style={styles.catText}>{categoryLabel(popup.category)}</Text>
-        </View>
-        {dday && (
-          <View style={[styles.dday, dday.urgent && styles.ddayUrgent]}>
-            <Text style={[styles.ddayText, dday.urgent && styles.ddayTextUrgent]}>{dday.text}</Text>
+    <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <View style={styles.hero}>
+        {uri ? (
+          <Image source={{ uri }} style={styles.heroImg} contentFit="cover" transition={200} />
+        ) : (
+          <View style={[styles.heroImg, styles.heroPlaceholder]}>
+            <Text style={styles.placeholderText}>{categoryLabel(popup.category)}</Text>
           </View>
         )}
       </View>
 
-      <Text style={styles.name}>{popup.name}</Text>
+      <View style={styles.body}>
+        <View style={styles.badgeRow}>
+          <View style={styles.catBadge}>
+            <Text style={styles.catText}>{categoryLabel(popup.category)}</Text>
+          </View>
+          {dday && (
+            <View style={[styles.dday, dday.urgent && styles.ddayUrgent]}>
+              <Text style={[styles.ddayText, dday.urgent && styles.ddayTextUrgent]}>
+                {dday.text}
+              </Text>
+            </View>
+          )}
+        </View>
 
-      <View style={styles.infoCard}>
-        <InfoRow label="위치" value={popup.location ?? "위치 정보 없음"} />
-        <InfoRow
-          label="기간"
-          value={`${popup.startDate ?? "?"}  ~  ${popup.endDate ?? "?"}`}
-        />
-        <InfoRow label="카테고리" value={categoryLabel(popup.category)} />
+        <Text style={styles.name}>{popup.name}</Text>
+        {!!popup.content && <Text style={styles.desc}>{popup.content}</Text>}
+
+        <Glass strong style={styles.infoCard}>
+          <InfoRow label="위치" value={popup.location ?? "위치 정보 없음"} />
+          <InfoRow label="기간" value={`${popup.startDate ?? "?"}  ~  ${popup.endDate ?? "?"}`} />
+          <InfoRow label="카테고리" value={categoryLabel(popup.category)} last />
+        </Glass>
+
+        <Pressable
+          style={({ pressed }) => [styles.mapBtn, pressed && styles.mapBtnPressed]}
+          onPress={openInMaps}
+        >
+          <Text style={styles.mapBtnText}>지도 앱에서 위치 보기 →</Text>
+        </Pressable>
+
+        <Text style={styles.hint}>실시간 정보·사진은 popspot.co.kr 에서 더 볼 수 있어요.</Text>
       </View>
-
-      <Pressable style={({ pressed }) => [styles.mapBtn, pressed && styles.mapBtnPressed]} onPress={openInMaps}>
-        <Text style={styles.mapBtnText}>지도 앱에서 위치 보기 →</Text>
-      </Pressable>
-
-      <Text style={styles.hint}>실시간 정보·사진은 popspot.co.kr 에서 더 볼 수 있어요.</Text>
     </ScrollView>
   );
 }
 
-function InfoRow({ label, value }: { label: string; value: string }) {
+function InfoRow({ label, value, last }: { label: string; value: string; last?: boolean }) {
   return (
-    <View style={styles.infoRow}>
+    <View style={[styles.infoRow, last && styles.infoRowLast]}>
       <Text style={styles.infoLabel}>{label}</Text>
       <Text style={styles.infoValue}>{value}</Text>
     </View>
@@ -65,7 +83,12 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 }
 
 const styles = StyleSheet.create({
-  content: { padding: 20, paddingBottom: 40 },
+  content: { paddingBottom: 48 },
+  hero: { width: "100%", aspectRatio: 1.1 },
+  heroImg: { width: "100%", height: "100%" },
+  heroPlaceholder: { alignItems: "center", justifyContent: "center", backgroundColor: colors.limeSoft },
+  placeholderText: { color: colors.limeText, fontWeight: "800", fontSize: 20 },
+  body: { paddingHorizontal: 20, marginTop: 18 },
   badgeRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 12 },
   catBadge: {
     backgroundColor: colors.limeSoft,
@@ -73,27 +96,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 11,
     paddingVertical: 4,
   },
-  catText: { color: "#4d7c0f", fontSize: 13, fontWeight: "800" },
-  dday: { backgroundColor: "#f5f5f4", borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
-  ddayUrgent: { backgroundColor: "#fff1e6" },
-  ddayText: { color: colors.muted, fontSize: 13, fontWeight: "800" },
-  ddayTextUrgent: { color: colors.warn },
+  catText: { color: colors.limeText, fontSize: 13, fontWeight: "800" },
+  dday: { backgroundColor: colors.glassStrong, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
+  ddayUrgent: { backgroundColor: colors.warn },
+  ddayText: { color: colors.ink, fontSize: 13, fontWeight: "800" },
+  ddayTextUrgent: { color: "#fff" },
   name: { color: colors.ink, fontSize: 24, fontWeight: "900", lineHeight: 32 },
-  infoCard: {
-    backgroundColor: colors.card,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: 4,
-    marginTop: 20,
-  },
+  desc: { color: colors.ink700, fontSize: 14, lineHeight: 21, marginTop: 10 },
+  infoCard: { borderRadius: 18, marginTop: 20, paddingHorizontal: 4 },
   infoRow: {
     flexDirection: "row",
     paddingHorizontal: 14,
     paddingVertical: 14,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
+    borderBottomColor: colors.glassBorder,
   },
+  infoRowLast: { borderBottomWidth: 0 },
   infoLabel: { width: 72, color: colors.muted, fontSize: 14 },
   infoValue: { flex: 1, color: colors.ink, fontSize: 14, fontWeight: "600" },
   mapBtn: {

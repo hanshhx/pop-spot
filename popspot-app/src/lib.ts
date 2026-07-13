@@ -36,6 +36,13 @@ export function ddayLabel(endDate: string | null | undefined): { text: string; u
   return { text: `D-${d}`, urgent: d <= 3 };
 }
 
+/** 팝업 커버 이미지 URL. imageUrl 우선, 없으면 images[0], 그것도 없으면 null(플레이스홀더). */
+export function coverUrl(p: { imageUrl?: string | null; images?: string[] | null }): string | null {
+  if (p.imageUrl && p.imageUrl.trim()) return p.imageUrl;
+  if (p.images && p.images.length > 0) return p.images[0];
+  return null;
+}
+
 /** 위치 문자열을 짧게 (예: "서울 성동구 성수동" → "성동구"). 없으면 "위치 미정". */
 export function regionShort(location: string | null | undefined): string {
   if (!location) return "위치 미정";
