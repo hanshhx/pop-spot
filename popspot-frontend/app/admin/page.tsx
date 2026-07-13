@@ -125,6 +125,12 @@ const TAB_TITLE: Record<string, string> = {
     SYSTEM: "시스템",
 };
 
+/** UA 에 흔한 브라우저 토큰이 하나도 없으면 봇 의심(강화 필터를 통과했더라도 눈으로 확인용). */
+function uaLooksBot(ua: string | null | undefined): boolean {
+    if (!ua) return false;
+    return !/(chrome|crios|firefox|fxios|safari|edg|samsungbrowser|whale|opr|trident|msie|naver|kakao)/i.test(ua);
+}
+
 /* [redesign/test 전용] 백엔드 없을 때(로컬) 관리자 화면을 미리볼 수 있게 하는 목업. */
 const devAdminStats: AdminStats = {
     totalUsers: 22,
@@ -203,7 +209,7 @@ export default function AdminPage() {
     const [users, setUsers] = useState<AdminUser[]>([]);
     const [visitStats, setVisitStats] = useState<AdminVisitStats | null>(null);
     const [todayPaths, setTodayPaths] = useState<{ path: string; total: number; members: number; guests: number }[]>([]);
-    const [visitors, setVisitors] = useState<{ visitorId: string; visits: number; paths: string; lastSeen: string; guest: boolean }[]>([]);
+    const [visitors, setVisitors] = useState<{ visitorId: string; visits: number; paths: string; lastSeen: string; guest: boolean; userAgent: string | null }[]>([]);
 
     // v2.10 — 통합 메트릭 폴링. authorized 전엔 시작하지 않아 403 도배 차단.
     const dashboard = useDashboardMetrics(
@@ -993,6 +999,12 @@ export default function AdminPage() {
                                                 <span className="min-w-0 flex-1 truncate font-mono text-xs text-muted-foreground" title={v.paths}>{v.paths}</span>
                                                 <span className="shrink-0 text-xs font-bold">{v.visits}회</span>
                                                 <span className="shrink-0 tabular-nums text-[11px] text-muted-foreground">{(v.lastSeen ?? "").slice(5, 16)}</span>
+                                                {v.userAgent && (
+                                                    <span className="w-full min-w-0 truncate font-mono text-[10px] text-muted-foreground/70" title={v.userAgent}>
+                                                        {uaLooksBot(v.userAgent) && <span className="mr-1 rounded bg-red-500/15 px-1 font-bold text-red-500">봇?</span>}
+                                                        {v.userAgent}
+                                                    </span>
+                                                )}
                                             </li>
                                         ))}
                                     </ul>

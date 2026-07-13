@@ -46,13 +46,14 @@ public interface VisitLogRepository extends JpaRepository<VisitLog, Long> {
     List<Object[]> pathBreakdownSince(@Param("since") LocalDateTime since);
 
     /**
-     * 방문자 목록 — visitorId 단위 집계. 방문수 · 다녀간 경로들 · 최근 방문 시각 · 순수게스트 여부(all_guest).
-     * all_guest=true 면 한 번도 로그인 안 한 게스트, false 면 로그인 이력이 있는 회원. 최근 방문 순 100명.
+     * 방문자 목록 — visitorId 단위 집계. 방문수 · 다녀간 경로들 · 최근 방문 시각 · 순수게스트 여부(all_guest). all_guest=true 면 한
+     * 번도 로그인 안 한 게스트, false 면 로그인 이력이 있는 회원. 최근 방문 순 100명.
      */
     @Query(
             value =
                     "SELECT visitor_id, COUNT(*) AS visits, STRING_AGG(DISTINCT path, ', ') AS paths, "
-                            + "MAX(created_at) AS last_seen, BOOL_AND(guest) AS all_guest "
+                            + "MAX(created_at) AS last_seen, BOOL_AND(guest) AS all_guest, "
+                            + "MAX(user_agent) AS ua "
                             + "FROM visit_log WHERE created_at >= :since "
                             + "GROUP BY visitor_id ORDER BY MAX(created_at) DESC LIMIT 100",
             nativeQuery = true)
