@@ -269,12 +269,27 @@ export const BRANDS: BrandDef[] = [
   { slug: "kakao-friends", label: "카카오프렌즈", keywords: ["카카오프렌즈", "춘식이"] },
   { slug: "line-friends", label: "라인프렌즈", keywords: ["라인프렌즈"] },
   { slug: "one-piece", label: "원피스", keywords: ["원피스", "one piece"] },
+  // 2026-07 트렌드 신규 — 좀비고는 "팝업 스토어" 다음가는 검색량(35)으로 급상승 중.
+  {
+    slug: "zombie-high",
+    label: "좀비고등학교",
+    keywords: ["좀비고", "좀비 고", "좀비고등학교"],
+  },
+  { slug: "kim-hamzzi", label: "김햄찌", keywords: ["김햄찌", "김 햄찌"] },
+  { slug: "oasis", label: "오아시스", keywords: ["오아시스", "oasis"] },
+  { slug: "tft", label: "롤토체스", keywords: ["롤체", "롤토체스", "teamfight"] },
+  {
+    slug: "arknights",
+    label: "명일방주",
+    keywords: ["명일방주", "명방", "arknights"],
+  },
   { slug: "t1", label: "T1", keywords: ["t1 팝업", "티원"] },
   { slug: "the-hyundai", label: "더현대 서울", keywords: ["더현대", "더 현대"] },
   { slug: "yongsan-ipark", label: "용산 아이파크몰", keywords: ["용산 아이파크", "아이파크몰"] },
   { slug: "coex", label: "코엑스", keywords: ["코엑스", "coex"] },
   { slug: "starfield", label: "스타필드", keywords: ["스타필드"] },
   { slug: "lotte-world-mall", label: "롯데월드몰", keywords: ["롯데월드몰", "롯데월드 몰"] },
+  { slug: "ak-plaza", label: "AK플라자", keywords: ["ak플라자", "ak 플라자"] },
 ];
 
 const BRAND_BY_SLUG = new Map(BRANDS.map((b) => [b.slug, b]));
