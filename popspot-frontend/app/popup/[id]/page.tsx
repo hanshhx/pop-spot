@@ -19,6 +19,7 @@ import { TakedownModal } from "../../../src/features/popup/TakedownModal";
 
 import DetailMap from "../../../src/components/Map/DetailMap";
 import ChatRoom from "../../../src/components/ChatRoom";
+import NowWait from "@/components/popup/NowWait";
 import MusicForPopup from "../../../src/components/music/MusicForPopup";
 import { apiFetch } from "../../../src/lib/api";
 import { notify, notifyError } from "@/lib/notify";
@@ -482,6 +483,10 @@ export default function PopupDetail() {
           </button>
         </div>
 
+        {/* 지금 어때요? — 원터치 대기 제보. 실시간 채팅과 달리 혼자 눌러도 다음 방문자에게 남는 신호라
+            방문자가 적어도 작동한다(로그인 불필요 = 참여 문턱 최소). */}
+        <NowWait popupId={popup.id} />
+
         {/* 소개 */}
         <section className="mt-8">
           <h2 className="mb-3 text-lg font-black">소개</h2>
@@ -507,12 +512,13 @@ export default function PopupDetail() {
           <MusicForPopup popupId={popup.id} />
         </section>
 
-        {/* 실시간 방문자 톡 — 하단 보조 위젯 */}
+        {/* 방문 팁 — '실시간 톡'은 동시 접속자가 있어야 성립해 빈 방으로 보였다.
+            남긴 글이 쌓여 다음 방문자에게 남는 비동기 팁으로 성격을 바꾼다. */}
         <section className="mt-8">
-          <h2 className="mb-4 flex items-center gap-2 text-lg font-black">
-            실시간 방문자 톡
-            <span className="h-2 w-2 rounded-full bg-red-500 animate-ping" />
-          </h2>
+          <h2 className="mb-1 text-lg font-black">다녀온 사람들의 한 줄</h2>
+          <p className="mb-4 text-xs text-muted-foreground">
+            웨이팅·주차·굿즈 정보를 남겨주세요. 다음에 오는 사람이 봅니다.
+          </p>
           <ChatRoom roomId={popup.id} nickname={user?.nickname || "익명"} />
         </section>
 
