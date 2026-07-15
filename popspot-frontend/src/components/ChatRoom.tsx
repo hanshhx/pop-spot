@@ -75,11 +75,25 @@ export default function ChatRoom({ roomId, nickname }: Props) {
   return (
     <div className="flex flex-col h-[450px] md:h-[600px] bg-[#bacee0] dark:bg-[#1e1e1e] rounded-2xl md:rounded-3xl overflow-hidden border border-gray-200 dark:border-white/10 shadow-xl">
       <div className="bg-[#a9bdce] dark:bg-[#2a2a2a] p-3 md:p-4 flex items-center justify-between shadow-sm z-10">
-        <h3 className="font-bold text-sm md:text-base text-gray-800 dark:text-white flex items-center gap-1.5 md:gap-2">💬 실시간 톡방</h3>
-        <span className="text-[10px] md:text-xs text-gray-600 dark:text-gray-400 flex items-center gap-1">LIVE</span>
+        {/* '실시간 톡방'은 동시 접속자가 있어야 말이 되는 이름이라, 아무도 없을 때 빈 방처럼 보였다.
+            남긴 글이 그대로 쌓여 다음 방문자가 보는 '방문 팁'으로 성격을 바꾼다. */}
+        <h3 className="font-bold text-sm md:text-base text-gray-800 dark:text-white flex items-center gap-1.5 md:gap-2">💬 방문 팁</h3>
+        <span className="text-[10px] md:text-xs text-gray-600 dark:text-gray-400 flex items-center gap-1">누구나 남길 수 있어요</span>
       </div>
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-3 md:p-4 space-y-3 md:space-y-4 custom-scrollbar">
+        {/* 빈 방은 스스로 빈 방을 유지한다 — 뭘 남기면 되는지 알려줘야 첫 줄이 달린다. */}
+        {messages.length === 0 && (
+          <div className="flex h-full flex-col items-center justify-center gap-2 px-6 text-center">
+            <span className="text-3xl">✍️</span>
+            <p className="text-sm font-bold text-gray-700 dark:text-gray-100">아직 남겨진 팁이 없어요</p>
+            <p className="text-xs leading-relaxed text-gray-600 dark:text-gray-300">
+              웨이팅·주차·굿즈 같은 정보를 한 줄 남겨주시면
+              <br />
+              다음에 오는 사람에게 큰 도움이 돼요.
+            </p>
+          </div>
+        )}
         <AnimatePresence>
           {messages.map((msg, idx) => {
             const isMe = msg.sender === nickname;
@@ -171,7 +185,7 @@ export default function ChatRoom({ roomId, nickname }: Props) {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
-          placeholder="메시지 입력"
+          placeholder="웨이팅·주차·굿즈… 한 줄 남기기"
           className="flex-1 bg-gray-100 dark:bg-black/20 rounded-full px-3 py-2 md:px-4 md:py-3 text-xs md:text-sm focus:outline-none dark:text-white"
         />
         <button onClick={sendMessage} aria-label="메시지 전송" className="p-2 md:p-3 bg-[#ffeb33] hover:bg-[#ffe600] rounded-full text-black shadow-sm shrink-0">
