@@ -638,14 +638,13 @@ export default function Home() {
     if (!storedUser) {
       const firstVisit = getGuestFirstVisit();
       if (firstVisit == null) {
-        // [redesign/test 전용] 로컬 개발(백엔드 없음)에서 로그인 없이 재설계 홈을 바로 확인하려고
-        // 게스트 세션을 자동 시작한다. NODE_ENV=production(실배포)에서는 기존대로 /login 이동.
-        if (process.env.NODE_ENV === "development") {
-          startGuestMode();
-          setGuestRemainingDays(getRemainingGuestDays());
-          return;
-        }
-        router.replace("/login");
+        // 첫 방문자도 로그인 없이 홈을 바로 보게 게스트 세션을 자동 시작한다.
+        //
+        // 이전엔 여기서 /login 으로 튕겼는데, 그 결과 검색·SEO 로 들어온 방문자가 서비스를
+        // 구경도 못 하고 이탈했다(방문 로그에 `/` → `/login` 2회만 찍힌 세션이 다수).
+        // 로그인은 저장·찜·채팅처럼 계정이 꼭 필요한 순간에 각 기능에서 유도한다.
+        startGuestMode();
+        setGuestRemainingDays(getRemainingGuestDays());
         return;
       }
       if (isGuestExpired(firstVisit)) {
