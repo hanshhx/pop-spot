@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import "maplibre-gl/dist/maplibre-gl.css";
 import Script from "next/script";
 import { Analytics } from "@vercel/analytics/next";
 import VisitTracker from "@/components/VisitTracker";

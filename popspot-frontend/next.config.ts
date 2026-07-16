@@ -75,14 +75,22 @@ const nextConfig: NextConfig = {
       "font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net",
       // v2.21-S8/S14 — connect-src 에 YouTube + Spotify API / SDK / CDN 추가.
       // api.spotify.com (Web API play call), *.spotify.com (SDK websocket), *.scdn.co (CDN).
-      "connect-src 'self' https://*.algolia.net https://*.algolianet.com https://dapi.kakao.com https://accounts.kakao.com https://accounts.google.com https://nid.naver.com https://*.ts.net https://www.youtube.com https://s.ytimg.com https://api.spotify.com https://*.spotify.com https://*.scdn.co wss://*.spotify.com wss: ws:",
+      // v2.32 — MapLibre 지도용: protomaps.github.io(라틴/숫자 글리프 fetch). 타일은 same-origin
+      // /basemap 프록시로 받으므로 build.protomaps.com 은 서버측 fetch(브라우저 CSP 무관).
+      "connect-src 'self' https://*.algolia.net https://*.algolianet.com https://dapi.kakao.com https://accounts.kakao.com https://accounts.google.com https://nid.naver.com https://*.ts.net https://www.youtube.com https://s.ytimg.com https://api.spotify.com https://*.spotify.com https://*.scdn.co https://protomaps.github.io wss://*.spotify.com wss: ws:",
+      // v2.32 — MapLibre GL JS 는 타일 파싱을 blob URL 웹워커에서 한다. worker-src 미지정 시
+      // default-src 'self' 로 폴백돼 blob: 워커가 차단된다 → 지도 렌더 실패.
+      "worker-src 'self' blob:",
+      "child-src 'self' blob:",
       // v2.21-S14 — frame-src / media: Spotify SDK iframe (sdk.scdn.co) + open.spotify.com.
       "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://open.spotify.com https://sdk.scdn.co https://accounts.kakao.com",
       "object-src 'none'",
       "base-uri 'self'",
       "form-action 'self'",
       "frame-ancestors 'self'",
-      "upgrade-insecure-requests",
+      // upgrade-insecure-requests 는 운영(https)에서만. 로컬 dev(http://localhost)에서 켜면
+      // same-origin /basemap 요청까지 https 로 올려버려 지도 타일이 깨진다.
+      ...(process.env.NODE_ENV === "production" ? ["upgrade-insecure-requests"] : []),
     ].join("; ");
 
     return [
