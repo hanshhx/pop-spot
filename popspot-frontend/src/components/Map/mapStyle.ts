@@ -197,8 +197,25 @@ export function buildBaseStyle(mode: MapMode, tileUrl: string, showShops = false
  */
 export const zoomFromLevel = (level: number): number => 18 - level; // level 4 → 14, level 3 → 15
 
-/** pmtiles 소스 URL. 브라우저 same-origin 의 프록시 라우트(/basemap)를 통해 받는다. */
-export function basemapTileUrl(): string {
+/**
+ * pmtiles 소스 URL. same-origin 프록시(/basemap)를 통해 받는다.
+ * version(빌드 날짜)을 붙이면 서버가 그 빌드로 고정 → 브라우저가 타일을 immutable 캐시(속도 ↑).
+ */
+export function basemapTileUrl(version?: string): string {
   const origin = typeof window !== "undefined" ? window.location.origin : "";
-  return `pmtiles://${origin}/basemap`;
+  const q = version ? `?v=${encodeURIComponent(version)}` : "";
+  return `pmtiles://${origin}/basemap${q}`;
+}
+
+/** 현재 서빙 중인 베이스맵 빌드 버전을 가져온다(타일 캐시 키). 실패 시 undefined(폴백). */
+export async function fetchBasemapVersion(): Promise<string | undefined> {
+  if (typeof window === "undefined") return undefined;
+  try {
+    const r = await fetch(`${window.location.origin}/basemap/version`);
+    if (!r.ok) return undefined;
+    const j = (await r.json()) as { v?: string | null };
+    return typeof j.v === "string" ? j.v : undefined;
+  } catch {
+    return undefined;
+  }
 }

@@ -20,7 +20,7 @@ import {
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
-import { buildBaseStyle, basemapTileUrl, type MapMode } from "./mapStyle";
+import { buildBaseStyle, basemapTileUrl, fetchBasemapVersion, type MapMode } from "./mapStyle";
 
 type MapInstance = any; // maplibregl.Map
 type MapLib = any; // typeof maplibregl
@@ -60,6 +60,8 @@ export function MapGL({ center, zoom, mode = "dark", onCreate, onClick, classNam
   const appliedModeRef = useRef<MapMode | null>(null);
   // 현재 지도에 적용된 center 좌표(값 기준 비교로 불필요한 이동 방지).
   const centerRef = useRef({ lat: center.lat, lng: center.lng });
+  // 버전이 붙은 타일 URL(캐시 가능). setStyle 시에도 재사용.
+  const tileUrlRef = useRef<string>("");
   // 최신 콜백을 effect 재실행 없이 참조
   const onCreateRef = useRef(onCreate);
   const onClickRef = useRef(onClick);
@@ -71,18 +73,25 @@ export function MapGL({ center, zoom, mode = "dark", onCreate, onClick, classNam
     let cancelled = false;
 
     (async () => {
-      const maplibregl = (await import("maplibre-gl")).default;
-      const { Protocol } = await import("pmtiles");
+      // 라이브러리 import 와 타일 버전 조회를 병렬로.
+      const [maplibregl, pmtiles, version] = await Promise.all([
+        import("maplibre-gl").then((m) => m.default),
+        import("pmtiles"),
+        fetchBasemapVersion(),
+      ]);
       if (cancelled || !containerRef.current) return;
 
       if (!protocolRegistered) {
-        maplibregl.addProtocol("pmtiles", new Protocol().tile);
+        maplibregl.addProtocol("pmtiles", new pmtiles.Protocol().tile);
         protocolRegistered = true;
       }
 
+      const tileUrl = basemapTileUrl(version);
+      tileUrlRef.current = tileUrl;
+
       map = new maplibregl.Map({
         container: containerRef.current,
-        style: buildBaseStyle(mode, basemapTileUrl()),
+        style: buildBaseStyle(mode, tileUrl),
         center: [center.lng, center.lat],
         zoom,
         attributionControl: { compact: true },
@@ -90,6 +99,10 @@ export function MapGL({ center, zoom, mode = "dark", onCreate, onClick, classNam
         localIdeographFontFamily: "'Wanted Sans Variable','Pretendard',sans-serif",
         dragRotate: false,
         pitchWithRotate: false,
+        // 타일을 메모리에 더 오래 유지 → 팬/줌 시 재요청 감소.
+        maxTileCacheSize: 512,
+        // 만료 타일 재검증 안 함(우린 버전으로 캐시 무효화 관리).
+        refreshExpiredTiles: false,
       });
       appliedModeRef.current = mode; // 초기 스타일은 마운트 시점 mode 로 지음
       map.touchZoomRotate?.disableRotation?.();
@@ -120,7 +133,7 @@ export function MapGL({ center, zoom, mode = "dark", onCreate, onClick, classNam
     if (!m) return;
     if (appliedModeRef.current === mode) return;
     appliedModeRef.current = mode;
-    m.setStyle(buildBaseStyle(mode, basemapTileUrl()));
+    m.setStyle(buildBaseStyle(mode, tileUrlRef.current || basemapTileUrl()));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, ctx.map]);
 
