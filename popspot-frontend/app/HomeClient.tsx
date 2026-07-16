@@ -857,7 +857,10 @@ export default function Home() {
                     {/* Search Zone */}
                     <div className="col-span-1 lg:col-span-12 relative z-50 order-1 lg:order-none">
                         <SearchZone
+                            popups={allPopups}
                             onSelectPopup={(hit) => {
+                                // AI 필터가 걸려 있으면 해제 — 그래야 고른 핀이 지도에 보인다.
+                                setMapFilterIds(null);
                                 // 1순위: 지도가 자기 마커에서 그 팝업을 찾아 이동+정보창 오픈(allPopups 의존 X).
                                 setSearchFocus((prev) => ({ id: String(hit.objectID), nonce: (prev?.nonce ?? 0) + 1 }));
                                 // 2순위(보조): allPopups 에 좌표가 있으면 중심도 같이 이동(마커가 아직 안 실렸을 때 대비).

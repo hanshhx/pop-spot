@@ -1,54 +1,55 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useState } from "react";
+import { useTheme } from "next-themes";
+import { MapPin } from "lucide-react";
+import { MapGL, MapMarker } from "./MapGL";
+import { zoomFromLevel, type MapMode } from "./mapStyle";
 
 interface DetailMapProps {
   latitude: number;
   longitude: number;
 }
 
-declare global {
-  interface Window {
-    kakao: import("@/types/sdk").KakaoMapsSdk;
-  }
-}
-
+/**
+ * 팝업 상세 위치 지도. (기존 카카오 → MapLibre + Protomaps)
+ * 좌표 하나를 중심에 두고 라임 핀 하나를 찍는다. 사이트 전역 테마(다크/라이트)를 따른다.
+ */
 export default function DetailMap({ latitude, longitude }: DetailMapProps) {
-  const mapRef = useRef<HTMLDivElement>(null);
+  const { resolvedTheme } = useTheme();
+  const mode: MapMode = resolvedTheme === "light" ? "light" : "dark";
 
-  useEffect(() => {
-    // 1. 카카오 스크립트 로드 확인
-    if (!window.kakao || !window.kakao.maps) {
-      return;
-    }
+  // resolvedTheme 은 마운트 전 undefined → 라이트 사용자 깜빡임 방지용 게이트(next-themes 패턴).
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
-    // 2. 좌표가 없으면 중단
-    if (!latitude || !longitude) return;
-
-    window.kakao.maps.load(() => {
-      const container = mapRef.current;
-      const options = {
-        center: new window.kakao.maps.LatLng(latitude, longitude),
-        level: 3,
-      };
-
-      const map = new window.kakao.maps.Map(container, options);
-
-      // 마커 표시
-      const markerPosition = new window.kakao.maps.LatLng(latitude, longitude);
-      const marker = new window.kakao.maps.Marker({
-        position: markerPosition,
-      });
-      marker.setMap(map);
-    });
-  }, [latitude, longitude]);
+  const valid = Number.isFinite(latitude) && Number.isFinite(longitude);
 
   return (
-    <div className="w-full h-full min-h-[250px] md:min-h-[350px] bg-gray-800 relative rounded-2xl md:rounded-3xl overflow-hidden">
-      {/* outline-none을 추가하여 모바일 터치 시 포커스 테두리 발생 방지 */}
-      <div ref={mapRef} className="w-full h-full outline-none" />
+    <div className="w-full h-full min-h-[250px] md:min-h-[350px] bg-ink-800 relative rounded-2xl md:rounded-3xl overflow-hidden">
+      {mounted && valid ? (
+        <MapGL
+          center={{ lat: latitude, lng: longitude }}
+          zoom={zoomFromLevel(3)}
+          mode={mode}
+          className="w-full h-full outline-none"
+        >
+          <MapMarker position={{ lat: latitude, lng: longitude }} anchor="bottom">
+            <div className="relative flex flex-col items-center -mb-1" aria-label="팝업 위치">
+              <div className="flex items-center justify-center size-8 rounded-full bg-lime-400 text-ink-900 shadow-lg ring-2 ring-white/70">
+                <MapPin size={16} strokeWidth={2.5} />
+              </div>
+              <div className="w-2 h-2 -mt-1 rotate-45 bg-lime-400 ring-2 ring-white/70" />
+            </div>
+          </MapMarker>
+        </MapGL>
+      ) : (
+        <div className="w-full h-full flex items-center justify-center text-muted text-xs">
+          위치 정보가 없습니다.
+        </div>
+      )}
       {/* 지도 위를 덮는 얇은 테두리 (디자인) */}
-      <div className="absolute inset-0 pointer-events-none border border-white/10 rounded-2xl md:rounded-3xl"></div>
+      <div className="absolute inset-0 pointer-events-none border border-white/10 rounded-2xl md:rounded-3xl" />
     </div>
   );
 }

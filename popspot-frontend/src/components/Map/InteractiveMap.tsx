@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Map, CustomOverlayMap, Polyline } from "react-kakao-maps-sdk";
-import { X, MapPin, ArrowRight, Plus, Minus, Compass, List, ShoppingBag, Coffee, Camera, Zap, Sparkles, Palette } from "lucide-react";
+import { useTheme } from "next-themes";
+import { MapGL, MapMarker, MapPolyline } from "./MapGL";
+import { zoomFromLevel } from "./mapStyle";
+import { X, MapPin, ArrowRight, Plus, Minus, Compass, List, ShoppingBag, Coffee, Camera, Sparkles, Palette, Layers } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import Link from "next/link";
 import { notify } from "@/lib/notify";
 import { classifyRegion, regionBySlug, regionLabel, type RegionCode } from "@/lib/regions";
 import {
@@ -16,20 +17,14 @@ import {
   type CategoryCode,
 } from "@/lib/popupSlices";
 
-declare global {
-  interface Window {
-    kakao: any;
-  }
-}
-
 interface InteractiveMapProps {
-  places?: { 
-    id: string | number; 
-    name: string; 
-    lat: number; 
-    lng: number; 
+  places?: {
+    id: string | number;
+    name: string;
+    lat: number;
+    lng: number;
     category?: string;
-    reason?: string; 
+    reason?: string;
   }[];
   showPath?: boolean;
   center?: { lat: number; lng: number };
@@ -72,6 +67,29 @@ const CATEGORY_LABEL_KO: Record<string, string> = {
   ETC: "기타",
 };
 
+/** 동네 바로가기 — 팝업이 몰리는 핵심 상권. 클릭 시 지도를 그쪽으로 날린다. */
+const SEOUL_AREAS: { label: string; lng: number; lat: number; zoom: number }[] = [
+  { label: "성수", lng: 127.0557, lat: 37.5447, zoom: 14.3 },
+  { label: "홍대", lng: 126.9235, lat: 37.5563, zoom: 14.3 },
+  { label: "강남", lng: 127.0276, lat: 37.4979, zoom: 13.8 },
+  { label: "잠실", lng: 127.1, lat: 37.5133, zoom: 13.8 },
+  { label: "여의도", lng: 126.9245, lat: 37.525, zoom: 13.8 },
+  { label: "명동", lng: 126.985, lat: 37.5636, zoom: 14.3 },
+];
+/** 서울 전체 조망 — "전체" 칩. */
+const SEOUL_OVERVIEW = { lng: 126.99, lat: 37.55, zoom: 11 };
+
+/** 범례 — 실제 지도 마커는 카테고리 색이므로 그 색 키를 보여준다(+지하철역). */
+const LEGEND: { label: string; cls: string }[] = [
+  { label: "캐릭터", cls: "bg-purple-400" },
+  { label: "패션", cls: "bg-hot-400" },
+  { label: "뷰티", cls: "bg-pink-400" },
+  { label: "푸드", cls: "bg-orange-500" },
+  { label: "문화", cls: "bg-cyan-400" },
+  { label: "기타", cls: "bg-lime-400" },
+  { label: "지하철역", cls: "bg-violet-400" },
+];
+
 /**
  * 같은 좌표(같은 빌딩 등)에 박힌 마커들을 작은 원형으로 분산시킨다.
  * 자동수집 geocoding 결과 동일 좌표가 자주 발생해서 시각적으로 1개만 보이는 문제를 해결.
@@ -79,8 +97,6 @@ const CATEGORY_LABEL_KO: Record<string, string> = {
  * 분산 반경: 위경도 0.00005 도 ≈ 약 5m (실제 위치 인식 영향 없는 수준)
  */
 function spreadOverlappingMarkers(markers: MapMarkerData[]): MapMarkerData[] {
-  // ⚠️ 이 파일은 react-kakao-maps-sdk 의 Map 컴포넌트를 import 하므로
-  //    JS 내장 Map 자료구조와 이름이 충돌한다. 그래서 객체(Record) 로 그룹핑.
   const groups: Record<string, MapMarkerData[]> = {};
   for (const m of markers) {
     if (!m.latitude || !m.longitude) continue;
@@ -114,10 +130,22 @@ export default function InteractiveMap({ places, showPath = false, center, focus
   const [allMarkers, setAllMarkers] = useState<MapMarkerData[]>([]);
   const [selectedMarker, setSelectedMarker] = useState<MapMarkerData | null>(null);
   const [activeCategory, setActiveCategory] = useState("ALL");
+  // 원본 maplibre Map 인스턴스 (패닝/줌 제어용). 카카오 map 객체 자리.
   const [map, setMap] = useState<any>(null);
   const [isListOpen, setIsListOpen] = useState(false);
+  // 동네 바로가기 + 범례 패널 열림 상태.
+  const [isExploreOpen, setIsExploreOpen] = useState(false);
   // 사용자 현재 위치 — 브라우저 메모리에만 보관 (서버 저장 X · PIPA 부담 최소).
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+
+  // 사이트 전역 테마(next-themes)를 따라 지도 베이스맵도 다크/라이트 전환.
+  const { resolvedTheme } = useTheme();
+  const mapMode: "dark" | "light" = resolvedTheme === "light" ? "light" : "dark";
+
+  // resolvedTheme 은 마운트 전 undefined 라 첫 렌더는 무조건 dark. 마운트 후에 지도를 만들어
+  // 라이트 사용자에게 '다크→라이트 재도색' 깜빡임이 없도록 게이트한다(next-themes 권장 패턴).
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   // v2.21-S3.5 — useSearchParams 가 Suspense 없이 호출돼 production 빌드에서 마운트 실패하던
   // 회귀 차단. window.location.search 를 useEffect 안에서 안전하게 읽고 popstate 로 변경 감지.
@@ -238,8 +266,7 @@ export default function InteractiveMap({ places, showPath = false, center, focus
   // center prop 변경 시 지도 이동
   useEffect(() => {
     if (map && center && center.lat && center.lng) {
-      const moveLatLon = new window.kakao.maps.LatLng(center.lat, center.lng);
-      map.panTo(moveLatLon);
+      map.panTo([center.lng, center.lat]);
     }
   }, [center, map]);
 
@@ -256,10 +283,65 @@ export default function InteractiveMap({ places, showPath = false, center, focus
     const lng = parseFloat(target.longitude);
     if (Number.isNaN(lat) || Number.isNaN(lng)) return;
     handledFocusRef.current = focusReq.nonce;
-    map.panTo(new window.kakao.maps.LatLng(lat, lng));
-    map.setLevel(4);
+    map.easeTo({ center: [lng, lat], zoom: zoomFromLevel(4) });
     setSelectedMarker(target);
   }, [focusReq, map, allMarkers]);
+
+  // 검색(AI 필터) 결과가 지도에 반영되면 그 핀들이 모두 화면에 들어오도록 지도를 맞춘다.
+  // 기존엔 핀만 걸러지고 시점은 그대로라 "검색해도 지도가 안 따라오는" 문제가 있었다.
+  // filterIds 가 null(전체)로 돌아오면 사용자의 현재 시점을 건드리지 않는다.
+  const handledFilterRef = useRef<string>("");
+  useEffect(() => {
+    if (!map) return;
+    if (!filterIds) {
+      handledFilterRef.current = "";
+      return;
+    }
+    const key = [...filterIds].map(String).sort().join(",");
+    if (handledFilterRef.current === key) return;
+
+    const pts = markers
+      .map((m) => [parseFloat(m.longitude), parseFloat(m.latitude)] as [number, number])
+      .filter(([lng, lat]) => Number.isFinite(lng) && Number.isFinite(lat));
+    if (pts.length === 0) return; // 아직 마커 로드 전이면 다음 렌더에 재시도
+
+    handledFilterRef.current = key;
+    if (pts.length === 1) {
+      map.easeTo({ center: pts[0], zoom: 15, duration: 800 });
+      return;
+    }
+    let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity;
+    for (const [lng, lat] of pts) {
+      minLng = Math.min(minLng, lng); maxLng = Math.max(maxLng, lng);
+      minLat = Math.min(minLat, lat); maxLat = Math.max(maxLat, lat);
+    }
+    map.fitBounds([[minLng, minLat], [maxLng, maxLat]], { padding: 70, maxZoom: 15, duration: 800 });
+  }, [filterIds, markers, map]);
+
+  // 동네 바로가기 — 지도를 해당 상권으로 날린다.
+  const flyToArea = (area: { lng: number; lat: number; zoom: number }) => {
+    if (!map) return;
+    setSelectedMarker(null);
+    setIsExploreOpen(false);
+    map.flyTo({ center: [area.lng, area.lat], zoom: area.zoom, duration: 900 });
+  };
+
+  // 선택된 팝업이 현재 필터(카테고리·검색)에서 제외되면 떠 있던 상세 카드를 닫는다.
+  useEffect(() => {
+    if (selectedMarker && !markers.some((m) => m.popupId === selectedMarker.popupId)) {
+      setSelectedMarker(null);
+    }
+  }, [markers, selectedMarker]);
+
+  // 동네/범례 패널 — Escape 로 닫기.
+  useEffect(() => {
+    if (!isExploreOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setIsExploreOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [isExploreOpen]);
 
   /**
    * "내 위치" 버튼 클릭 시 호출.
@@ -277,16 +359,15 @@ export default function InteractiveMap({ places, showPath = false, center, focus
         const lat = position.coords.latitude;
         const lng = position.coords.longitude;
         setUserLocation({ lat, lng });
-        const locPosition = new window.kakao.maps.LatLng(lat, lng);
-        map.panTo(locPosition);
+        map.panTo([lng, lat]);
       },
       () => notify("위치 정보를 가져올 수 없습니다. 브라우저 권한을 확인해주세요."),
       { enableHighAccuracy: false, timeout: 5000, maximumAge: 60_000 },
     );
   };
 
-  const zoomIn = () => map && map.setLevel(map.getLevel() - 1);
-  const zoomOut = () => map && map.setLevel(map.getLevel() + 1);
+  const zoomIn = () => map && map.zoomIn();
+  const zoomOut = () => map && map.zoomOut();
 
   const moveToMarker = (marker: MapMarkerData) => {
     if (!map) return;
@@ -295,8 +376,7 @@ export default function InteractiveMap({ places, showPath = false, center, focus
 
     if (isNaN(lat) || isNaN(lng)) return;
 
-    const moveLatLon = new window.kakao.maps.LatLng(lat, lng);
-    map.panTo(moveLatLon);
+    map.panTo([lng, lat]);
     setSelectedMarker(marker);
   };
 
@@ -313,14 +393,11 @@ export default function InteractiveMap({ places, showPath = false, center, focus
     }
   };
 
+  // 선택된 팝업 카드의 세로 오프셋(px) — 아래 이름카드/핀을 넘어 위에 뜨도록.
+  const selectedOffset: [number, number] = (showPath || mode === "PLAN") ? [0, -48] : [0, -34];
+
   return (
-    <div className="relative w-full h-full group overflow-hidden rounded-[20px] outline-none">
-      <style jsx global>{`
-        #map > div:first-child > div > div > div > img {
-            filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%) !important;
-        }
-        #map { background-color: #1a1a1a !important; }
-      `}</style>
+    <div className="relative w-full h-full group overflow-hidden rounded-[20px] outline-none bg-ink-900">
 
       {/* v2.21-S2 — 활성 BROWSE 필터 배지 (좌측 상단). 사용자가 어떤 필터가 적용됐는지 즉시 인지. */}
       {!showPath && mode !== "PLAN" && (activeRegion || activePeriod || activeBrowseCategory) && (
@@ -352,24 +429,87 @@ export default function InteractiveMap({ places, showPath = false, center, focus
       {/* PLAN 모드가 아니고 showPath도 아닐 때만 카테고리/사이드바 표시 */}
       {!showPath && mode !== "PLAN" && (
         <>
-          {/* 상단 카테고리 필터 (반응형 패딩, 폰트 조절) */}
-          <div className="absolute top-3 md:top-4 left-3 md:left-4 right-3 md:right-4 z-20 flex gap-1.5 md:gap-2 overflow-x-auto custom-scrollbar pb-1.5 md:pb-2 pl-10 md:pl-0 transition-all">
+          {/* 상단 카테고리 필터 (반응형 패딩, 폰트 조절). pr-12: 우측 상단 '탐색' 버튼 자리 확보. */}
+          <div className="absolute top-3 md:top-4 left-3 md:left-4 right-3 md:right-4 z-20 flex gap-1.5 md:gap-2 overflow-x-auto custom-scrollbar pb-1.5 md:pb-2 pl-10 md:pl-0 pr-12 md:pr-14 transition-all">
             {CATEGORIES.map((cat) => (
               <button
-                key={`cat-btn-${cat}`} 
+                key={`cat-btn-${cat}`}
                 onClick={() => {
                     setActiveCategory(cat);
                     setSelectedMarker(null);
                 }}
                 className={`px-3 py-1 md:px-4 md:py-1.5 rounded-full text-[9px] md:text-[10px] font-bold backdrop-blur-md border transition-all whitespace-nowrap ${
-                  activeCategory === cat 
-                    ? 'bg-primary text-black border-primary shadow-[0_0_10px_rgba(var(--primary-rgb),0.5)]' 
+                  activeCategory === cat
+                    ? 'bg-primary text-black border-primary shadow-[0_0_10px_rgba(var(--primary-rgb),0.5)]'
                     : 'bg-black/40 text-white/70 border-white/10 hover:bg-white/10'
                 }`}
               >
                 {CATEGORY_LABEL_KO[cat] ?? cat}
               </button>
             ))}
+          </div>
+
+          {/* 우측 상단 — 동네 바로가기 + 범례 토글 */}
+          <div className="absolute top-3 md:top-4 right-3 md:right-4 z-30">
+            <button
+              onClick={() => setIsExploreOpen((v) => !v)}
+              aria-label="동네 바로가기 · 범례"
+              aria-expanded={isExploreOpen}
+              className={`p-2 md:p-2.5 backdrop-blur-md border rounded-lg md:rounded-xl transition-all shadow-lg ${
+                isExploreOpen
+                  ? "bg-primary text-black border-primary"
+                  : "bg-black/70 dark:bg-black/70 text-white border-white/20 hover:text-primary hover:border-primary"
+              }`}
+            >
+              <Layers size={16} className="md:w-[18px] md:h-[18px]" />
+            </button>
+
+            <AnimatePresence>
+              {isExploreOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: -8, scale: 0.96 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -8, scale: 0.96 }}
+                  transition={{ duration: 0.16 }}
+                  className="absolute top-11 md:top-12 right-0 w-[220px] p-3 rounded-2xl border shadow-2xl backdrop-blur-xl bg-white/90 border-gray-200 text-gray-900 dark:bg-black/80 dark:border-white/15 dark:text-white"
+                >
+                  {/* 동네 바로가기 */}
+                  <div className="text-[10px] font-black uppercase tracking-wider opacity-50 mb-1.5">
+                    동네 바로가기
+                  </div>
+                  <div className="flex flex-wrap gap-1.5 mb-3">
+                    {SEOUL_AREAS.map((area) => (
+                      <button
+                        key={area.label}
+                        onClick={() => flyToArea(area)}
+                        className="px-2.5 py-1 rounded-full text-[11px] font-bold border border-gray-200 bg-gray-50 hover:border-primary hover:text-primary dark:border-white/15 dark:bg-white/5 transition-colors"
+                      >
+                        {area.label}
+                      </button>
+                    ))}
+                    <button
+                      onClick={() => flyToArea(SEOUL_OVERVIEW)}
+                      className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-primary/15 text-primary border border-primary/30 hover:bg-primary/25 transition-colors"
+                    >
+                      서울 전체
+                    </button>
+                  </div>
+
+                  {/* 범례 */}
+                  <div className="text-[10px] font-black uppercase tracking-wider opacity-50 mb-1.5">
+                    범례
+                  </div>
+                  <div className="grid grid-cols-2 gap-x-2 gap-y-1.5">
+                    {LEGEND.map((item) => (
+                      <div key={item.label} className="flex items-center gap-1.5 text-[11px]">
+                        <span className={`w-2.5 h-2.5 rounded-full ring-1 ring-black/10 dark:ring-white/20 ${item.cls}`} />
+                        <span className="opacity-80">{item.label}</span>
+                      </div>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
           {/* 사이드바 목록 (반응형 너비 조절) */}
@@ -394,12 +534,21 @@ export default function InteractiveMap({ places, showPath = false, center, focus
                 <div className="flex-1 overflow-y-auto custom-scrollbar p-2 md:p-3 space-y-1.5 md:space-y-2">
                     {markers.length > 0 ? (
                         markers.map((marker, index) => (
-                            <div 
-                                key={`sidebar-item-${marker.popupId || index}`} 
+                            <div
+                                key={`sidebar-item-${marker.popupId || index}`}
                                 onClick={() => moveToMarker(marker)}
-                                className={`p-2.5 md:p-3 rounded-xl border cursor-pointer transition-all hover:translate-x-1 ${
-                                    selectedMarker?.popupId === marker.popupId 
-                                        ? 'bg-white/10 border-primary/50 shadow-[0_0_10px_rgba(var(--primary-rgb),0.2)]' 
+                                role="button"
+                                tabIndex={0}
+                                aria-label={`${marker.name} 지도에서 보기`}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter" || e.key === " ") {
+                                    e.preventDefault();
+                                    moveToMarker(marker);
+                                  }
+                                }}
+                                className={`p-2.5 md:p-3 rounded-xl border cursor-pointer transition-all hover:translate-x-1 focus:outline-none focus:ring-2 focus:ring-primary/60 ${
+                                    selectedMarker?.popupId === marker.popupId
+                                        ? 'bg-white/10 border-primary/50 shadow-[0_0_10px_rgba(var(--primary-rgb),0.2)]'
                                         : 'bg-transparent border-white/5 hover:bg-white/5 hover:border-white/20'
                                 }`}
                             >
@@ -417,7 +566,7 @@ export default function InteractiveMap({ places, showPath = false, center, focus
                         </div>
                     )}
                 </div>
-                
+
                 <div className="p-2.5 md:p-3 border-t border-white/10 text-center">
                     <span className="text-[10px] md:text-xs text-muted">
                         Total <strong className="text-white">{markers.length}</strong> Locations
@@ -431,6 +580,8 @@ export default function InteractiveMap({ places, showPath = false, center, focus
           <div className="absolute bottom-4 md:bottom-6 right-3 md:right-4 z-20 flex flex-col gap-2">
              <button
                onClick={() => setIsListOpen(!isListOpen)}
+               aria-label="팝업 목록"
+               aria-expanded={isListOpen}
                className={`p-2 md:p-2.5 backdrop-blur-md border rounded-lg md:rounded-xl text-white transition-all shadow-lg ${
                    isListOpen
                         ? 'bg-primary text-black border-primary'
@@ -445,8 +596,9 @@ export default function InteractiveMap({ places, showPath = false, center, focus
 
       {/* 공통 컨트롤러 (위치, 줌) - 반응형 여백 조절 */}
       <div className="absolute right-3 md:right-4 z-20 flex flex-col gap-1.5 md:gap-2" style={{ bottom: (showPath || mode === "PLAN") ? '16px' : '64px' }}>
-         <button 
+         <button
            onClick={handleMyLocation}
+           aria-label="내 위치로 이동"
            className="p-2 md:p-2.5 bg-black/80 backdrop-blur-md border border-white/20 rounded-lg md:rounded-xl text-white hover:text-primary hover:border-primary transition-colors shadow-lg"
          >
             <Compass size={16} className="md:w-[18px] md:h-[18px]" />
@@ -462,48 +614,52 @@ export default function InteractiveMap({ places, showPath = false, center, focus
          </div>
       </div>
 
-      <Map
+      {mounted && (
+      <MapGL
         id="map"
         center={{ lat: 37.5441, lng: 127.0631 }}
-        style={{ width: "100%", height: "100%" }}
-        level={showPath || mode === "PLAN" ? 4 : 4}
-        onClick={() => setSelectedMarker(null)}
+        zoom={zoomFromLevel(4)}
+        mode={mapMode}
+        className="w-full h-full outline-none"
+        onClick={() => {
+          setSelectedMarker(null);
+          setIsExploreOpen(false);
+        }}
         onCreate={setMap}
       >
-        
+
         {(showPath || mode === "PLAN") && routePaths.length > 0 ? (
             // 1. 실제 경로 데이터가 있으면 '실선(Solid)'으로 그립니다 (네비게이션 스타일)
             routePaths.map((path, idx) => (
-                <Polyline
+                <MapPolyline
                     key={`route-${idx}`}
                     path={path}
-                    strokeWeight={5} 
-                    strokeColor={"#4f46e5"} 
-                    strokeOpacity={0.9} 
-                    strokeStyle={"solid"} 
+                    weight={5}
+                    color={"#4f46e5"}
+                    opacity={0.9}
                 />
             ))
         ) : (
             // 2. 경로 데이터가 없으면 기존 '점선(Dash)'으로 직선을 그립니다 (Fallback)
             (showPath || mode === "PLAN") && markers.length >= 2 && (
-                <Polyline
+                <MapPolyline
                     path={markers.map(m => ({ lat: parseFloat(m.latitude), lng: parseFloat(m.longitude) }))}
-                    strokeWeight={4}
-                    strokeColor={"#666"}
-                    strokeOpacity={0.5}
-                    strokeStyle={"shortdash"}
+                    weight={4}
+                    color={"#666"}
+                    opacity={0.5}
+                    dashed
                 />
             )
         )}
 
         {/* 사용자 현재 위치 마커 — 파란 점 + pulse ring. 클릭 X (단순 표시용). */}
         {userLocation && (
-          <CustomOverlayMap position={userLocation} yAnchor={0.5} xAnchor={0.5}>
+          <MapMarker position={userLocation} anchor="center">
             <div className="relative" aria-label="내 위치">
               <span className="absolute inset-0 -m-3 rounded-full bg-blue-400/30 animate-ping" />
               <span className="relative block size-4 rounded-full bg-blue-500 ring-2 ring-white shadow-md" />
             </div>
-          </CustomOverlayMap>
+          </MapMarker>
         )}
 
         {markers.map((marker, index) => {
@@ -511,23 +667,23 @@ export default function InteractiveMap({ places, showPath = false, center, focus
             const style = getCategoryStyle(marker.category);
 
             return (
-              <CustomOverlayMap
-                key={`marker-overlay-${marker.popupId || index}`} 
+              <MapMarker
+                key={`marker-overlay-${marker.popupId || index}`}
                 position={{
                   lat: parseFloat(marker.latitude),
                   lng: parseFloat(marker.longitude),
                 }}
-                yAnchor={1}
+                anchor="bottom"
                 zIndex={selectedMarker?.popupId === marker.popupId ? 99 : 1}
               >
-                <div 
+                <div
                   className="relative cursor-pointer group/marker"
                   onClick={(e) => {
                     e.stopPropagation();
                     moveToMarker(marker);
                   }}
                 >
-                  
+
                   {showPath || mode === "PLAN" ? (
                       <div className="relative flex flex-col items-center hover:z-50">
                           {/* 1. 이름표 (항상 보임) - 모바일 텍스트 및 패딩 조정 */}
@@ -543,7 +699,7 @@ export default function InteractiveMap({ places, showPath = false, center, focus
                              <div className={`w-3 h-3 md:w-4 md:h-4 transform rotate-45 border-r border-b bg-white ${style.border} -mt-2 md:-mt-3`}></div>
                              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1 h-1 md:w-1.5 md:h-1.5 bg-white rounded-full mt-[-6px] md:mt-[-10px]"></div>
                           </div>
-                          
+
                           {/* 그림자 */}
                           <div className="w-6 h-1.5 md:w-8 md:h-2 bg-black/20 blur-sm rounded-full mt-1"></div>
                       </div>
@@ -578,24 +734,24 @@ export default function InteractiveMap({ places, showPath = false, center, focus
                       </div>
                   )}
                 </div>
-              </CustomOverlayMap>
+              </MapMarker>
             );
         })}
 
         {/* 선택된 마커 오버레이 (상세 정보) - 모바일 패딩 및 사이즈 최적화 */}
         {selectedMarker && (
-          <CustomOverlayMap
-            key={`selected-popup-overlay-${selectedMarker.popupId}`} 
+          <MapMarker
+            key={`selected-popup-overlay-${selectedMarker.popupId}`}
             position={{
               lat: parseFloat(selectedMarker.latitude),
               lng: parseFloat(selectedMarker.longitude),
             }}
-            yAnchor={showPath || mode === "PLAN" ? 1.6 : 1.4}
+            anchor="bottom"
+            offset={selectedOffset}
             zIndex={100}
-            clickable={true}
           >
-            
-            <motion.div 
+
+            <motion.div
               initial={{ opacity: 0, y: 10, scale: 0.9 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 10 }}
@@ -606,7 +762,7 @@ export default function InteractiveMap({ places, showPath = false, center, focus
                  }
               }}
             >
-                <button 
+                <button
                   onClick={(e) => {
                       e.stopPropagation(); // 클릭 이벤트가 상세페이지 이동으로 번지는 것을 막음
                       setSelectedMarker(null);
@@ -641,9 +797,10 @@ export default function InteractiveMap({ places, showPath = false, center, focus
 
                 <div className="absolute bottom-[-5px] md:bottom-[-6px] left-1/2 -translate-x-1/2 w-2.5 h-2.5 md:w-3 md:h-3 bg-black/80 border-r border-b border-white/20 rotate-45 transform"></div>
             </motion.div>
-          </CustomOverlayMap>
+          </MapMarker>
         )}
-      </Map>
+      </MapGL>
+      )}
     </div>
   );
 }
