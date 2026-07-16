@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Sparkles, Loader2, MapPin, ArrowRight } from "lucide-react";
 import { apiFetch } from "@/lib/api";
@@ -17,21 +17,43 @@ import { SectionLogo } from "@/components/layout/BrandLogos";
 type AiResult = { id: string; name: string; location: string };
 
 interface SearchZoneProps {
-  /** (호환용) 이전 Algolia 결과 선택 콜백 — 현재 미사용. */
+  /** 이름 매칭으로 고른 팝업 → 지도에서 해당 핀으로 이동 + 정보카드 오픈. */
   onSelectPopup?: (hit: { objectID: string; name: string; location?: string }) => void;
   /** AI 검색 결과 id 목록(또는 null=전체 복원). 지정되면 지도 핀 필터 모드. 미지정이면 결과 목록 모드. */
   onAiFilter?: (ids: string[] | null) => void;
+  /** 이름 즉시검색용 팝업 목록(지도 모드). 있으면 입력 즉시 이름 부분일치 드롭다운을 띄운다. */
+  popups?: { id: number; name: string; location: string }[];
 }
 
 const EXAMPLES = ["비 오는 날 감성 카페", "성수 캐릭터 굿즈", "주말 전시 팝업", "아이랑 가기 좋은 곳"];
 
-export function SearchZone({ onAiFilter }: SearchZoneProps = {}) {
+export function SearchZone({ onAiFilter, onSelectPopup, popups }: SearchZoneProps = {}) {
   const [q, setQ] = useState("");
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<AiResult[] | null>(null);
   const [erred, setErred] = useState(false);
+  // 이름 매칭 드롭다운 표시 여부(입력/포커스 중에만).
+  const [showSuggest, setShowSuggest] = useState(false);
 
   const mapMode = typeof onAiFilter === "function"; // 지도 필터 vs 결과 목록
+
+  // 이름 부분일치(대소문자 무시) — AI 호출 없이 즉시. "마뗑킴" → "마뗑킴 전시" 처럼 부분 이름도 잡는다.
+  const nameMatches = useMemo(() => {
+    const low = q.trim().toLowerCase();
+    if (low.length < 1 || !popups?.length) return [];
+    return popups.filter((p) => p.name?.toLowerCase().includes(low)).slice(0, 6);
+  }, [q, popups]);
+
+  const canSuggest = typeof onSelectPopup === "function";
+
+  /** 이름 매칭 결과 선택 → 지도가 그 핀으로 이동하고 카드를 연다. */
+  function pick(p: { id: number; name: string; location: string }) {
+    setQ(p.name);
+    setShowSuggest(false);
+    setResults(null);
+    setErred(false);
+    onSelectPopup?.({ objectID: String(p.id), name: p.name, location: p.location });
+  }
 
   async function run(query?: string) {
     const text = (query ?? q).trim();
@@ -93,17 +115,41 @@ export function SearchZone({ onAiFilter }: SearchZoneProps = {}) {
         <input
           type="text"
           value={q}
-          onChange={(e) => setQ(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") run();
+          onChange={(e) => {
+            setQ(e.target.value);
+            setShowSuggest(true);
           }}
-          placeholder="AI에게 말하듯 검색 — 예: 비 오는 날 감성 카페"
-          aria-label="AI 팝업 검색"
+          onFocus={() => {
+            if (q.trim()) setShowSuggest(true);
+          }}
+          onBlur={() => {
+            // 드롭다운 항목 클릭이 먼저 처리되도록 살짝 지연 후 닫는다.
+            setTimeout(() => setShowSuggest(false), 150);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              // 이름 후보가 있으면 첫 후보로 바로 이동(핀+카드). 없으면 자연어 AI 검색.
+              if (canSuggest && showSuggest && nameMatches.length > 0) {
+                pick(nameMatches[0]);
+              } else {
+                setShowSuggest(false);
+                run();
+              }
+            } else if (e.key === "Escape") {
+              setShowSuggest(false);
+            }
+          }}
+          placeholder="팝업 이름 또는 느낌으로 검색 — 예: 마뗑킴, 비 오는 날 감성 카페"
+          aria-label="팝업 이름·AI 검색"
+          autoComplete="off"
           className="h-14 w-full rounded-pill border-2 border-lime-300/40 bg-surface py-3.5 pl-12 pr-24 text-sm text-foreground transition-all placeholder:text-muted-foreground focus:border-lime-400 focus:outline-none focus:ring-4 focus:ring-lime-300/20 md:text-base"
         />
         <button
           type="button"
-          onClick={() => run()}
+          onClick={() => {
+            setShowSuggest(false);
+            run();
+          }}
           disabled={loading || !q.trim()}
           aria-label="AI 검색 실행"
           className="absolute right-1.5 top-1/2 inline-flex h-11 -translate-y-1/2 items-center gap-1.5 rounded-pill bg-lime-300 px-4 text-sm font-bold text-ink-900 transition hover:bg-lime-400 disabled:cursor-not-allowed disabled:opacity-50"
@@ -111,6 +157,34 @@ export function SearchZone({ onAiFilter }: SearchZoneProps = {}) {
           {loading ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
           찾기
         </button>
+
+        {/* 이름 즉시검색 드롭다운 — 고르면 지도가 그 핀으로 이동 + 카드 오픈 */}
+        {canSuggest && showSuggest && nameMatches.length > 0 && (
+          <ul className="absolute left-0 right-0 top-[calc(100%+6px)] z-[60] max-h-[320px] overflow-y-auto custom-scrollbar rounded-2xl border border-[var(--color-border)] bg-surface shadow-2xl">
+            {nameMatches.map((p) => (
+              <li key={p.id}>
+                <button
+                  type="button"
+                  // input blur 로 드롭다운이 닫히기 전에 클릭이 처리되도록
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => pick(p)}
+                  className="flex w-full items-center gap-3 p-3 text-left transition-colors hover:bg-lime-300/10"
+                >
+                  <MapPin size={16} className="shrink-0 text-lime-500" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-bold text-foreground">{p.name}</span>
+                    <span className="block truncate text-xs text-muted-foreground">
+                      {p.location || "위치 정보 없음"}
+                    </span>
+                  </span>
+                  <span className="shrink-0 text-[10px] font-bold text-lime-600 dark:text-lime-300">
+                    지도에서 보기
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
       {/* 결과 피드백 */}
