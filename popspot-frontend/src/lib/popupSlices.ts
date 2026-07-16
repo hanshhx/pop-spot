@@ -249,7 +249,7 @@ export type BrandDef = {
 export const BRANDS: BrandDef[] = [
   { slug: "stellive", label: "스텔라이브", keywords: ["스텔라이브", "스텔 라이브"] },
   { slug: "overwatch", label: "오버워치", keywords: ["오버워치", "오버 워치", "overwatch", "옵치"] },
-  { slug: "pokemon", label: "포켓몬", keywords: ["포켓몬", "pokemon", "피카츄"] },
+  { slug: "pokemon", label: "포켓몬", keywords: ["포켓몬", "pokemon", "피카츄", "메타몽", "이브이"] },
   {
     slug: "sanrio",
     label: "산리오",
@@ -290,6 +290,19 @@ export const BRANDS: BrandDef[] = [
   { slug: "starfield", label: "스타필드", keywords: ["스타필드"] },
   { slug: "lotte-world-mall", label: "롯데월드몰", keywords: ["롯데월드몰", "롯데월드 몰"] },
   { slug: "ak-plaza", label: "AK플라자", keywords: ["ak플라자", "ak 플라자"] },
+  // 2026-07 트렌드 신규(최근 3개월 급상승·고관심) — 넥슨·호요버스·애니·K-pop IP 다수.
+  { slug: "maplestory", label: "메이플스토리", keywords: ["메이플스토리", "메이플 스토리", "메이플", "maplestory"] },
+  { slug: "honkai-star-rail", label: "붕괴 스타레일", keywords: ["스타레일", "스타 레일", "붕괴 스타레일", "honkai"] },
+  { slug: "umamusume", label: "우마무스메", keywords: ["우마무스메", "우마 무스메", "umamusume"] },
+  { slug: "wuthering-waves", label: "명조", keywords: ["명조", "wuthering"] },
+  { slug: "chiikawa", label: "치이카와", keywords: ["치이카와", "치이 카와", "chiikawa"] },
+  { slug: "naruto", label: "나루토", keywords: ["나루토", "naruto"] },
+  { slug: "jojo", label: "죠죠", keywords: ["죠죠", "조조의 기묘한", "jojo"] },
+  { slug: "dungeon-meshi", label: "던전밥", keywords: ["던전밥", "던전 밥"] },
+  { slug: "yumeiro-patissiere", label: "꿈빛 파티시엘", keywords: ["꿈빛 파티시엘", "꿈빛파티시엘"] },
+  { slug: "nmixx", label: "엔믹스", keywords: ["엔믹스", "nmixx"] },
+  { slug: "yorushika", label: "요루시카", keywords: ["요루시카", "요루 시카", "yorushika"] },
+  { slug: "sega", label: "세가", keywords: ["세가", "sega"] },
 ];
 
 const BRAND_BY_SLUG = new Map(BRANDS.map((b) => [b.slug, b]));
