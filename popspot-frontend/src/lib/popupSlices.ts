@@ -303,6 +303,27 @@ export const BRANDS: BrandDef[] = [
   { slug: "nmixx", label: "엔믹스", keywords: ["엔믹스", "nmixx"] },
   { slug: "yorushika", label: "요루시카", keywords: ["요루시카", "요루 시카", "yorushika"] },
   { slug: "sega", label: "세가", keywords: ["세가", "sega"] },
+  // 2026-07 트렌드 3차(최근 1달·1주 급상승, 웹리서치로 정체 확인 + 충돌 없는 키워드).
+  { slug: "omniscient-reader", label: "전지적 독자 시점", keywords: ["전독시", "전지적 독자", "전지적독자"] },
+  { slug: "lookism", label: "외모지상주의", keywords: ["외모지상주의", "외지주"] },
+  { slug: "hearts2hearts", label: "하츠투하츠", keywords: ["하츠투하츠", "하투하", "hearts2hearts"] },
+  { slug: "alien-stage", label: "에일리언 스테이지", keywords: ["에일리언 스테이지", "에이스테", "alien stage"] },
+  { slug: "cutie-street", label: "큐티 스트리트", keywords: ["큐티 스트리트", "cutie street", "큐스토"] },
+  { slug: "ghost-story-commute", label: "괴담출근", keywords: ["괴담출근", "괴담에 떨어져도 출근", "괴출 팝업"] },
+  { slug: "minive", label: "미니브", keywords: ["미니브", "minive"] },
+  { slug: "angyeong-mandu", label: "안경만두", keywords: ["안경만두"] },
+  { slug: "ganadi", label: "가나디", keywords: ["가나디"] },
+  { slug: "latale", label: "라테일", keywords: ["라테일"] },
+  { slug: "street-restaurant-fighter", label: "스트릿 레스토랑 파이터", keywords: ["스트릿 레스토랑 파이터", "스트릿레스토랑파이터"] },
+  { slug: "gintama", label: "은혼", keywords: ["은혼", "긴타마", "gintama"] },
+  { slug: "hells-kitchen", label: "헬스키친", keywords: ["헬스키친"] },
+  { slug: "digimon", label: "디지몬", keywords: ["디지몬", "digimon"] },
+  { slug: "spider-man", label: "스파이더맨", keywords: ["스파이더맨", "spider-man", "spiderman"] },
+  { slug: "ive", label: "아이브", keywords: ["아이브"] },
+  { slug: "fromis-9", label: "프로미스나인", keywords: ["프로미스나인", "fromis_9", "fromis"] },
+  { slug: "yoasobi", label: "요아소비", keywords: ["요아소비", "yoasobi"] },
+  { slug: "project-i", label: "프로젝트아이", keywords: ["프로젝트아이", "프로젝트 아이", "프젝아"] },
+  { slug: "offside", label: "오프사이드", keywords: ["오프사이드"] },
 ];
 
 const BRAND_BY_SLUG = new Map(BRANDS.map((b) => [b.slug, b]));
