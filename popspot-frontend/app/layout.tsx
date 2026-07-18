@@ -17,8 +17,9 @@ export const metadata: Metadata = {
     default: "POP-SPOT — 서울 팝업스토어 인텔리전스",
     template: "%s · POP-SPOT",
   },
+  // 네이버 권장(80자 이내). 페이지별 미지정 시 쓰이는 기본 설명.
   description:
-    "서울 팝업스토어 정보를 지도로 모아보세요. 성수 · 한남 · 압구정 · 홍대 · 강남 팝업 일정, 위시리스트, D-3 마감 알림, 같이 갈 동행 매칭까지. 무료로 시작하세요.",
+    "서울 팝업스토어 일정을 지도로 한눈에. 성수·홍대·강남 팝업, 위시·마감 D-3 알림·동행 매칭까지 무료.",
   keywords: [
     // 브랜드
     "POP-SPOT",
@@ -67,7 +68,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "POP-SPOT — 서울 팝업스토어 인텔리전스",
     description:
-      "서울 팝업스토어 정보를 지도로 모아보세요. 성수 · 한남 · 압구정 · 홍대 · 강남 팝업 일정, 위시리스트, D-3 마감 알림, 같이 갈 동행 매칭.",
+      "서울 팝업스토어 일정을 지도로 한눈에. 성수·홍대·강남 팝업, 위시·마감 D-3 알림·동행 매칭까지 무료.",
     type: "website",
     locale: "ko_KR",
     url: "https://popspot.co.kr",
@@ -78,7 +79,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "POP-SPOT — 서울 팝업스토어 인텔리전스",
     description:
-      "서울 팝업스토어 정보를 지도로 모아보세요. 성수 · 한남 · 압구정 · 홍대 · 강남 팝업 일정, 위시리스트, D-3 마감 알림, 같이 갈 동행 매칭.",
+      "서울 팝업스토어 일정을 지도로 한눈에. 성수·홍대·강남 팝업, 위시·마감 D-3 알림·동행 매칭까지 무료.",
     images: ["/og-image.png"],
   },
   icons: {
