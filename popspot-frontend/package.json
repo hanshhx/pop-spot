@@ -32,7 +32,6 @@
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-instantsearch": "^7.23.2",
-    "react-kakao-maps-sdk": "^1.2.0",
     "recharts": "^3.7.0",
     "sockjs-client": "^1.6.1",
     "sweetalert2": "^11.26.20",
