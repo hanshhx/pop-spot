@@ -6,7 +6,6 @@ import { MessageCircle, ArrowRight } from "lucide-react";
 import Link from "next/link";
 // GET 호출은 apiFetch 의 Content-Type 헤더가 preflight 를 일으켜서
 // 직접 fetch 를 사용한다.
-import { API_BASE_URL } from "../lib/api";
 
 interface TickerMessage {
   popupName: string;
@@ -21,8 +20,9 @@ export default function LiveChatTicker() {
   // 1. 최신 채팅 데이터 가져오기 — Simple Request 로 보내야 preflight 회피
   const fetchRecentChats = async () => {
     try {
-      const url = `${API_BASE_URL}/api/chat/ticker?t=${Date.now()}`;
-      // Content-Type 헤더 없이 GET → simple request → preflight 안 일어남
+      // 상대 경로 → 동일 출처 리라이트. 10초 폴링이라 크로스오리진일 때는 매번 백엔드와
+      // 별도 커넥션을 유지해야 했다. 동일 출처면 페이지 커넥션을 그대로 재사용한다.
+      const url = `/api/chat/ticker?t=${Date.now()}`;
       const res = await fetch(url, { credentials: "include" });
 
       if (res.ok) {

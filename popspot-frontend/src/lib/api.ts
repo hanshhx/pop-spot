@@ -27,7 +27,7 @@ type FetchOptions = RequestInit & { headers?: HeadersInit };
  * </ul>
  */
 export const apiFetch = async (endpoint: string, options: FetchOptions = {}): Promise<Response> => {
-  const url = buildUrl(endpoint);
+  const url = buildUrl(endpoint, options);
   const headers = buildHeaders(options, url);
 
   try {
@@ -56,8 +56,42 @@ export const apiFetch = async (endpoint: string, options: FetchOptions = {}): Pr
 
 /* ============================== 내부 헬퍼 ============================== */
 
-const buildUrl = (endpoint: string): string =>
-  endpoint.startsWith('http') ? endpoint : `${API_BASE_URL}${endpoint}`;
+/**
+ * 브라우저에서도 절대 URL(백엔드 직접 호출)을 반드시 유지해야 하는 경로.
+ *
+ * <p>업로드 2종 — 백엔드 {@code buildPublicUrl()} 이 요청 호스트를 반사해 응답 URL 을 만든다.
+ * 프록시를 경유하면 {@code https://popspot.co.kr/uploads/...} 가 생성되는데 이 경로에는 리라이트가
+ * 없어 404 다. 특히 아바타는 그 값이 users.picture 에 영구 저장되므로 코드 롤백으로 복구되지 않는다.
+ * 덤으로 프록시 본문 크기 한도도 함께 피한다.
+ *
+ * <p>관리자 장시간 작업 2종 — 외부 API 를 최대 150회 직렬 호출한다. 엣지 게이트웨이 타임아웃에
+ * 걸리면 UI 만 실패로 뜨고 백엔드 작업은 계속 돌아 재실행 중복이 생긴다.
+ */
+const FORCE_ABSOLUTE_PREFIXES = [
+  '/api/v1/users/me/avatar',
+  '/api/chat/upload',
+  '/api/admin/popups/backfill-photos',
+  '/api/admin/popups/dedupe',
+] as const;
+
+/**
+ * 요청 URL 결정.
+ *
+ * <p>브라우저에서는 상대 경로를 그대로 둬서 next.config 의 {@code /api/:path*} 리라이트(동일 출처)를
+ * 타게 한다. 백엔드로 가는 별도 TLS 핸드셰이크(≈190ms)와 CORS preflight 가 사라지고, 페이지를 받아온
+ * 커넥션을 그대로 재사용한다. apiFetch 의 모든 endpoint 가 {@code /api/} 로 시작함을 전수 확인했다.
+ *
+ * <p>서버(SSR/ISR/route handler)에서는 상대 경로를 fetch 할 수 없으므로 절대 URL 을 유지한다.
+ * 현재 apiFetch 를 부르는 서버 실행 경로는 없지만, 향후 추가될 때 조용히 깨지지 않도록 둔다.
+ */
+const buildUrl = (endpoint: string, options: FetchOptions = {}): string => {
+  if (endpoint.startsWith('http')) return endpoint;
+  if (typeof window === 'undefined') return `${API_BASE_URL}${endpoint}`;
+  // FormData = 업로드. 응답 URL 이 요청 호스트를 반사하므로 프록시를 태우면 안 된다.
+  if (options.body instanceof FormData) return `${API_BASE_URL}${endpoint}`;
+  if (FORCE_ABSOLUTE_PREFIXES.some((p) => endpoint.startsWith(p))) return `${API_BASE_URL}${endpoint}`;
+  return endpoint;
+};
 
 /**
  * 우리 백엔드(API_BASE_URL) 로 가는 요청인지 판정.
