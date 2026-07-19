@@ -56,7 +56,9 @@ export async function GET(req: Request): Promise<Response> {
     }
   }
 
-  const cacheKey = `${upstreamUrl}|${range}`;
+  // 캐시 키에 v 를 포함한다. 정적 파일(OVERRIDE)은 URL 이 그대로여도 내용이 바뀔 수 있어,
+  // URL+range 만으로 키를 잡으면 파일 교체 후에도 웜 인스턴스가 옛 조각을 계속 돌려준다.
+  const cacheKey = `${upstreamUrl}|${v ?? "-"}|${range}`;
   const cached = cacheGet(cacheKey);
   if (cached) {
     return new Response(cached.body, {

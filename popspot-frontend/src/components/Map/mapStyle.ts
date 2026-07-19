@@ -66,6 +66,28 @@ const THEMES: Record<MapMode, Theme> = {
   },
 };
 
+/**
+ * globals.css 의 브랜드 토큰을 실제로 읽어온다(없으면 fallback).
+ *
+ * <p>THEMES 에 hex 를 손으로 적어두면 팔레트를 바꿨을 때 UI 크롬만 바뀌고 지도는 옛 색으로 남아
+ * 화면이 어긋난다. buildBaseStyle 은 브라우저에서만 호출되므로 CSS 변수를 직접 참조할 수 있다.
+ */
+function cssToken(name: string, fallback: string): string {
+  if (typeof window === "undefined" || typeof document === "undefined") return fallback;
+  const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  return v || fallback;
+}
+
+/** THEMES 의 하드코딩 값 중 globals.css 토큰과 1:1 대응하는 것만 실제 토큰으로 치환. */
+function resolveTheme(mode: MapMode): Theme {
+  const t = THEMES[mode];
+  return {
+    ...t,
+    earth: cssToken(mode === "dark" ? "--color-ink-900" : "--color-cream-100", t.earth),
+    subway: cssToken(mode === "dark" ? "--color-violet-400" : "--color-violet-500", t.subway),
+  };
+}
+
 const SRC = "protomaps";
 // 한글 우선(name:ko), 없으면 name(OSM 기본이 이미 한글인 경우 많음)
 const NAME_KO: any = ["coalesce", ["get", "name:ko"], ["get", "name"]];
@@ -89,7 +111,7 @@ const SHOP_KINDS = [
  * @param showShops   주변 상점 라벨 표시 여부(기본 false — 팝업 핀이 주인공).
  */
 export function buildBaseStyle(mode: MapMode, tileUrl: string, showShops = false): any {
-  const t = THEMES[mode];
+  const t = resolveTheme(mode);
   return {
     version: 8,
     glyphs: "https://protomaps.github.io/basemaps-assets/fonts/{fontstack}/{range}.pbf",

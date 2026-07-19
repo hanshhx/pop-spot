@@ -1,10 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useTheme } from "next-themes";
 import { MapPin } from "lucide-react";
 import { MapGL, MapMarker } from "./MapGL";
-import { zoomFromLevel, type MapMode } from "./mapStyle";
+import { zoomFromLevel } from "./mapStyle";
+import { useMapMode } from "./useMapMode";
 
 interface DetailMapProps {
   latitude: number;
@@ -16,12 +15,8 @@ interface DetailMapProps {
  * 좌표 하나를 중심에 두고 라임 핀 하나를 찍는다. 사이트 전역 테마(다크/라이트)를 따른다.
  */
 export default function DetailMap({ latitude, longitude }: DetailMapProps) {
-  const { resolvedTheme } = useTheme();
-  const mode: MapMode = resolvedTheme === "light" ? "light" : "dark";
-
-  // resolvedTheme 은 마운트 전 undefined → 라이트 사용자 깜빡임 방지용 게이트(next-themes 패턴).
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  // 사이트 테마 연동 + 테마 확정 전 렌더 보류. InteractiveMap 과 같은 훅을 쓴다. @see useMapMode
+  const { mode, ready: mounted } = useMapMode();
 
   const valid = Number.isFinite(latitude) && Number.isFinite(longitude);
 

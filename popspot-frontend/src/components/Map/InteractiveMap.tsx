@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useTheme } from "next-themes";
 import { MapGL, MapMarker, MapPolyline } from "./MapGL";
 import { zoomFromLevel } from "./mapStyle";
+import { useMapMode } from "./useMapMode";
 import { X, MapPin, ArrowRight, Plus, Minus, Compass, List, ShoppingBag, Coffee, Camera, Sparkles, Palette, Layers } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { notify } from "@/lib/notify";
@@ -54,17 +54,28 @@ interface MapMarkerData {
 const CATEGORIES = ["ALL", "CHARACTER", "FASHION", "BEAUTY", "FOOD", "CULTURE", "ETC"];
 
 /**
- * v2.18.1 — 사용자 표시용 한국어 라벨. 카테고리 값은 영문(DB 매칭) 그대로 두고
- * UI 만 한글로 바꿔 가독성 ↑.
+ * 카테고리 단일 출처 — 한글 라벨 · 핀 아이콘색 · 핀 테두리색 · 범례 스와치를 여기서만 정의한다.
+ * (카테고리 값은 영문 그대로 두고 표시용 라벨만 한글 — DB 매칭 유지)
+ *
+ * <p>예전엔 CATEGORY_LABEL_KO / getCategoryStyle / LEGEND 세 곳에 손으로 나뉘어 있어, 범례의
+ * '기타' 는 lime-400 인데 실제 핀 테두리는 lime-300 이라 <b>범례가 핀 색을 잘못 설명</b>하고 있었다.
+ * 범례의 유일한 존재 이유가 '핀 색 설명' 이므로 출처를 하나로 합친다.
  */
+const CATEGORY_META = {
+  CHARACTER: { label: "캐릭터", text: "text-purple-400", border: "border-purple-400", dot: "bg-purple-400", Icon: Sparkles },
+  FASHION: { label: "패션", text: "text-hot-400", border: "border-hot-400", dot: "bg-hot-400", Icon: ShoppingBag },
+  BEAUTY: { label: "뷰티", text: "text-pink-400", border: "border-pink-400", dot: "bg-pink-400", Icon: Camera },
+  FOOD: { label: "푸드", text: "text-orange-500", border: "border-orange-500", dot: "bg-orange-500", Icon: Coffee },
+  CULTURE: { label: "문화", text: "text-cyan-400", border: "border-cyan-400", dot: "bg-cyan-400", Icon: Palette },
+  // 핀 테두리가 lime-300 이므로 범례 점도 lime-300 이어야 실제 화면과 일치한다.
+  ETC: { label: "기타", text: "text-lime-500", border: "border-lime-300", dot: "bg-lime-300", Icon: MapPin },
+} as const;
+
+type CategoryKey = keyof typeof CATEGORY_META;
+
 const CATEGORY_LABEL_KO: Record<string, string> = {
   ALL: "전체",
-  CHARACTER: "캐릭터",
-  FASHION: "패션",
-  BEAUTY: "뷰티",
-  FOOD: "푸드",
-  CULTURE: "문화",
-  ETC: "기타",
+  ...Object.fromEntries(Object.entries(CATEGORY_META).map(([code, m]) => [code, m.label])),
 };
 
 /** 동네 바로가기 — 팝업이 몰리는 핵심 상권. 클릭 시 지도를 그쪽으로 날린다. */
@@ -79,14 +90,27 @@ const SEOUL_AREAS: { label: string; lng: number; lat: number; zoom: number }[] =
 /** 서울 전체 조망 — "전체" 칩. */
 const SEOUL_OVERVIEW = { lng: 126.99, lat: 37.55, zoom: 11 };
 
-/** 범례 — 실제 지도 마커는 카테고리 색이므로 그 색 키를 보여준다(+지하철역). */
+/**
+ * 주어진 좌표들이 모두 화면에 들어오도록 지도를 맞춘다.
+ * 한 점이면 fitBounds 가 최대 줌까지 당겨버리므로 적당한 줌으로 이동만 한다.
+ */
+function fitToPoints(map: any, pts: [number, number][]) {
+  if (pts.length === 0) return;
+  if (pts.length === 1) {
+    map.easeTo({ center: pts[0], zoom: 15, duration: 800 });
+    return;
+  }
+  let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity;
+  for (const [lng, lat] of pts) {
+    minLng = Math.min(minLng, lng); maxLng = Math.max(maxLng, lng);
+    minLat = Math.min(minLat, lat); maxLat = Math.max(maxLat, lat);
+  }
+  map.fitBounds([[minLng, minLat], [maxLng, maxLat]], { padding: 70, maxZoom: 15, duration: 800 });
+}
+
+/** 범례 — 카테고리 색은 CATEGORY_META 에서 파생하므로 핀과 절대 어긋나지 않는다(+지하철역). */
 const LEGEND: { label: string; cls: string }[] = [
-  { label: "캐릭터", cls: "bg-purple-400" },
-  { label: "패션", cls: "bg-hot-400" },
-  { label: "뷰티", cls: "bg-pink-400" },
-  { label: "푸드", cls: "bg-orange-500" },
-  { label: "문화", cls: "bg-cyan-400" },
-  { label: "기타", cls: "bg-lime-400" },
+  ...Object.values(CATEGORY_META).map((m) => ({ label: m.label, cls: m.dot })),
   { label: "지하철역", cls: "bg-violet-400" },
 ];
 
@@ -138,14 +162,9 @@ export default function InteractiveMap({ places, showPath = false, center, focus
   // 사용자 현재 위치 — 브라우저 메모리에만 보관 (서버 저장 X · PIPA 부담 최소).
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
 
-  // 사이트 전역 테마(next-themes)를 따라 지도 베이스맵도 다크/라이트 전환.
-  const { resolvedTheme } = useTheme();
-  const mapMode: "dark" | "light" = resolvedTheme === "light" ? "light" : "dark";
-
-  // resolvedTheme 은 마운트 전 undefined 라 첫 렌더는 무조건 dark. 마운트 후에 지도를 만들어
-  // 라이트 사용자에게 '다크→라이트 재도색' 깜빡임이 없도록 게이트한다(next-themes 권장 패턴).
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  // 사이트 전역 테마 → 지도 mode, 그리고 테마 확정 전에는 지도 생성을 보류(라이트 깜빡임 방지).
+  // 이 로직은 DetailMap 과 공유한다. @see useMapMode
+  const { mode: mapMode, ready: mounted } = useMapMode();
 
   // v2.21-S3.5 — useSearchParams 가 Suspense 없이 호출돼 production 빌드에서 마운트 실패하던
   // 회귀 차단. window.location.search 를 useEffect 안에서 안전하게 읽고 popstate 로 변경 감지.
@@ -306,17 +325,23 @@ export default function InteractiveMap({ places, showPath = false, center, focus
     if (pts.length === 0) return; // 아직 마커 로드 전이면 다음 렌더에 재시도
 
     handledFilterRef.current = key;
-    if (pts.length === 1) {
-      map.easeTo({ center: pts[0], zoom: 15, duration: 800 });
-      return;
-    }
-    let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity;
-    for (const [lng, lat] of pts) {
-      minLng = Math.min(minLng, lng); maxLng = Math.max(maxLng, lng);
-      minLat = Math.min(minLat, lat); maxLat = Math.max(maxLat, lat);
-    }
-    map.fitBounds([[minLng, minLat], [maxLng, maxLat]], { padding: 70, maxZoom: 15, duration: 800 });
+    fitToPoints(map, pts);
   }, [filterIds, markers, map]);
+
+  // 코스(PLAN) 모드 — 전달된 장소들이 한 화면에 들어오도록 맞춘다.
+  // 기존엔 고정 center(성수)로만 열려서, 강남·잠실로 코스를 짜면 사용자가 자기 경로를 못 봤다.
+  const handledCourseRef = useRef<string>("");
+  useEffect(() => {
+    if (!map || !places || places.length === 0) return;
+    const pts = places
+      .map((p) => [p.lng, p.lat] as [number, number])
+      .filter(([lng, lat]) => Number.isFinite(lng) && Number.isFinite(lat));
+    if (pts.length === 0) return;
+    const key = pts.map(([lng, lat]) => `${lng},${lat}`).join(";");
+    if (handledCourseRef.current === key) return;
+    handledCourseRef.current = key;
+    fitToPoints(map, pts);
+  }, [places, map]);
 
   // 동네 바로가기 — 지도를 해당 상권으로 날린다.
   const flyToArea = (area: { lng: number; lat: number; zoom: number }) => {
@@ -326,12 +351,12 @@ export default function InteractiveMap({ places, showPath = false, center, focus
     map.flyTo({ center: [area.lng, area.lat], zoom: area.zoom, duration: 900 });
   };
 
-  // 선택된 팝업이 현재 필터(카테고리·검색)에서 제외되면 떠 있던 상세 카드를 닫는다.
-  useEffect(() => {
-    if (selectedMarker && !markers.some((m) => m.popupId === selectedMarker.popupId)) {
-      setSelectedMarker(null);
-    }
-  }, [markers, selectedMarker]);
+  // 선택된 팝업이 현재 필터(카테고리·검색)에서 제외되면 상세 카드를 감춘다.
+  // effect 로 state 를 되돌리면 불필요한 재렌더가 한 번 더 생기므로, 렌더 시점에 파생만 한다.
+  const visibleSelected =
+    selectedMarker && markers.some((m) => m.popupId === selectedMarker.popupId)
+      ? selectedMarker
+      : null;
 
   // 동네/범례 패널 — Escape 로 닫기.
   useEffect(() => {
@@ -382,15 +407,9 @@ export default function InteractiveMap({ places, showPath = false, center, focus
 
   // 카테고리별 스타일 매핑 — DB 실제 카테고리에 맞춤
   const getCategoryStyle = (category?: string) => {
-    const cat = category?.toUpperCase() || "ETC";
-    switch (cat) {
-      case "CHARACTER": return { color: "text-purple-400", border: "border-purple-400", icon: <Sparkles className="w-2.5 h-2.5 md:w-3 md:h-3" /> };
-      case "FASHION":   return { color: "text-hot-400", border: "border-hot-400", icon: <ShoppingBag className="w-2.5 h-2.5 md:w-3 md:h-3" /> };
-      case "BEAUTY":    return { color: "text-pink-400", border: "border-pink-400", icon: <Camera className="w-2.5 h-2.5 md:w-3 md:h-3" /> };
-      case "FOOD":      return { color: "text-orange-500", border: "border-orange-500", icon: <Coffee className="w-2.5 h-2.5 md:w-3 md:h-3" /> };
-      case "CULTURE":   return { color: "text-cyan-400", border: "border-cyan-400", icon: <Palette className="w-2.5 h-2.5 md:w-3 md:h-3" /> };
-      default:          return { color: "text-lime-500", border: "border-lime-300", icon: <MapPin className="w-2.5 h-2.5 md:w-3 md:h-3" /> };
-    }
+    const meta = CATEGORY_META[(category?.toUpperCase() as CategoryKey)] ?? CATEGORY_META.ETC;
+    const Icon = meta.Icon;
+    return { color: meta.text, border: meta.border, icon: <Icon className="w-2.5 h-2.5 md:w-3 md:h-3" /> };
   };
 
   // 선택된 팝업 카드의 세로 오프셋(px) — 아래 이름카드/핀을 넘어 위에 뜨도록.
@@ -742,12 +761,12 @@ export default function InteractiveMap({ places, showPath = false, center, focus
         })}
 
         {/* 선택된 마커 오버레이 (상세 정보) - 모바일 패딩 및 사이즈 최적화 */}
-        {selectedMarker && (
+        {visibleSelected && (
           <MapMarker
-            key={`selected-popup-overlay-${selectedMarker.popupId}`}
+            key={`selected-popup-overlay-${visibleSelected.popupId}`}
             position={{
-              lat: parseFloat(selectedMarker.latitude),
-              lng: parseFloat(selectedMarker.longitude),
+              lat: parseFloat(visibleSelected.latitude),
+              lng: parseFloat(visibleSelected.longitude),
             }}
             anchor="bottom"
             offset={selectedOffset}
@@ -760,8 +779,8 @@ export default function InteractiveMap({ places, showPath = false, center, focus
               exit={{ opacity: 0, y: 10 }}
               className="relative min-w-[160px] md:min-w-[200px] p-3 md:p-4 bg-black/80 backdrop-blur-md border border-white/20 rounded-xl md:rounded-2xl shadow-2xl text-left cursor-pointer hover:border-primary transition-colors group"
               onClick={() => {
-                 if (onMarkerClick && selectedMarker.popupId) {
-                     onMarkerClick(selectedMarker.popupId);
+                 if (onMarkerClick && visibleSelected.popupId) {
+                     onMarkerClick(visibleSelected.popupId);
                  }
               }}
             >
@@ -777,13 +796,13 @@ export default function InteractiveMap({ places, showPath = false, center, focus
 
                 <div className="flex items-center gap-1.5 md:gap-2 mb-1">
                     <span className="text-[8px] md:text-[9px] px-1 md:px-1.5 py-0.5 rounded bg-primary/20 text-primary border border-primary/30 font-bold">
-                        {selectedMarker.category || 'POPUP'}
+                        {visibleSelected.category || 'POPUP'}
                     </span>
-                    <h3 className="text-white font-bold text-xs md:text-base truncate pr-4 group-hover:text-primary transition-colors">{selectedMarker.name}</h3>
+                    <h3 className="text-white font-bold text-xs md:text-base truncate pr-4 group-hover:text-primary transition-colors">{visibleSelected.name}</h3>
                 </div>
 
                 <p className="text-muted text-[9px] md:text-xs flex items-center gap-1 mb-2 md:mb-3">
-                  <MapPin size={8} className="md:w-2.5 md:h-2.5 shrink-0" /> <span className="truncate">{selectedMarker.address}</span>
+                  <MapPin size={8} className="md:w-2.5 md:h-2.5 shrink-0" /> <span className="truncate">{visibleSelected.address}</span>
                 </p>
 
                 {/* 상세 보기 — 명시적 버튼으로 이동(클릭이 아래 마커/지도로 흘러 재선택만 되던 버그 수정). */}
@@ -791,7 +810,7 @@ export default function InteractiveMap({ places, showPath = false, center, focus
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (onMarkerClick && selectedMarker.popupId) onMarkerClick(selectedMarker.popupId);
+                    if (onMarkerClick && visibleSelected.popupId) onMarkerClick(visibleSelected.popupId);
                   }}
                   className="w-full py-1.5 md:py-2 bg-white/10 group-hover:bg-primary group-hover:text-black rounded-md md:rounded-lg text-[10px] md:text-xs font-bold transition-all flex items-center justify-center gap-1 text-white cursor-pointer"
                 >
