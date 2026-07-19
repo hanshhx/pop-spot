@@ -1616,6 +1616,7 @@ export default function Home() {
       <GlobalSearchModal
         open={isGlobalSearchOpen}
         onOpenChange={setIsGlobalSearchOpen}
+        popups={allPopups}
       />
       <OnboardingModal />
       <NotificationCenter
