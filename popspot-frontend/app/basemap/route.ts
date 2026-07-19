@@ -15,11 +15,33 @@ export const dynamic = "force-dynamic";
 // 서울 유저 근처에서 실행(왕복 지연 ↓). 플랜이 리전 지정을 막으면 무시된다.
 export const preferredRegion = ["icn1"];
 
+// 한 번에 중계할 수 있는 최대 바이트. pmtiles 조각은 헤더 16KB·디렉터리·타일 모두 이보다 훨씬 작다.
+// 이 상한이 없으면 `Range: bytes=0-1073741823` 한 방으로 1GB 를 arrayBuffer 에 올려 함수가 OOM 으로 죽는다.
+const MAX_RANGE_BYTES = 4 * 1024 * 1024;
+
+/** `bytes=start-end` 단일 범위만 허용하고 길이를 상한으로 제한. 그 외(다중·열린·suffix)는 거부. */
+function parseRange(range: string): { ok: true } | { ok: false; reason: string } {
+  const m = /^bytes=(\d+)-(\d+)$/.exec(range.trim());
+  if (!m) return { ok: false, reason: "single closed byte range required" };
+  const start = Number(m[1]);
+  const end = Number(m[2]);
+  if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end) || end < start) {
+    return { ok: false, reason: "invalid range bounds" };
+  }
+  if (end - start + 1 > MAX_RANGE_BYTES) return { ok: false, reason: "range too large" };
+  return { ok: true };
+}
+
 export async function GET(req: Request): Promise<Response> {
   const range = req.headers.get("range") ?? "";
   // Range 없는 요청은 거부 — 없이 upstream 을 부르면 planet 전체가 응답으로 와서 서버 메모리가 터진다.
   if (!range) {
     return new Response("Range header required", { status: 416, headers: { "Accept-Ranges": "bytes" } });
+  }
+  // 크기·형식 검증 — 인증 없는 공개 엔드포인트라 대용량 range 로 메모리를 고갈시킬 수 있다.
+  const checked = parseRange(range);
+  if (!checked.ok) {
+    return new Response(checked.reason, { status: 416, headers: { "Accept-Ranges": "bytes" } });
   }
 
   const v = new URL(req.url).searchParams.get("v");
