@@ -3,6 +3,7 @@ import "./globals.css";
 import "maplibre-gl/dist/maplibre-gl.css";
 import Script from "next/script";
 import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import VisitTracker from "@/components/VisitTracker";
 import { Providers } from "./Providers";
 import AuthGuard from "@/components/AuthGuard";
@@ -157,9 +158,12 @@ export default function RootLayout({
           </AuthGuard>
         </Providers>
 
-        {/* 익명 방문 비콘(어드민 방문 통계용) + Vercel Web Analytics. */}
+        {/* 익명 방문 비콘(어드민 방문 통계용) + Vercel Web Analytics.
+            SpeedInsights 는 실사용자 Core Web Vitals(LCP/CLS/INP) 실측 — 지도(MapLibre) 렌더
+            성능 개선이 실제로 효과가 있었는지 합성 점수가 아닌 실측으로 확인하기 위해 붙인다. */}
         <VisitTracker />
         <Analytics />
+        <SpeedInsights />
 
         {env.kakaoMapKey && (
           <Script
