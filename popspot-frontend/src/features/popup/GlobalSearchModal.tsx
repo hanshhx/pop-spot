@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 import {
   Dialog,
@@ -15,6 +16,11 @@ import { SearchZone } from "./SearchBox";
 interface GlobalSearchModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /**
+   * 이름 즉시검색용 팝업 목록. 없으면 SearchZone 이 이름 드롭다운을 띄우지 못하고
+   * 자연어 AI 검색만 남는다 — 이 모달이 "무엇을 쳐도 0건" 이던 원인이었다.
+   */
+  popups?: { id: number; name: string; location: string }[];
 }
 
 /**
@@ -25,7 +31,9 @@ interface GlobalSearchModalProps {
  *
  * <p>키보드 단축키: Ctrl+K (또는 Cmd+K) 로 열기 / ESC 로 닫기 (Radix Dialog 기본 동작).
  */
-export function GlobalSearchModal({ open, onOpenChange }: GlobalSearchModalProps) {
+export function GlobalSearchModal({ open, onOpenChange, popups }: GlobalSearchModalProps) {
+  const router = useRouter();
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent size="lg">
@@ -35,7 +43,17 @@ export function GlobalSearchModal({ open, onOpenChange }: GlobalSearchModalProps
             지역 · 팝업 이름 · 카테고리 어느 키워드로든 검색할 수 있습니다.
           </DialogDescription>
         </DialogHeader>
-        <SearchZone />
+        {/*
+          지도가 없는 모달이므로 고른 팝업은 상세 페이지로 보낸다(지도 모드에선 해당 핀으로 이동).
+          popups 를 넘겨야 SearchZone 의 canSuggest 가 켜져 이름 부분일치 드롭다운이 뜬다.
+        */}
+        <SearchZone
+          popups={popups}
+          onSelectPopup={(hit) => {
+            onOpenChange(false);
+            router.push(`/popup/${hit.objectID}`);
+          }}
+        />
       </DialogContent>
     </Dialog>
   );
