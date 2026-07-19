@@ -708,10 +708,13 @@ export default function InteractiveMap({ places, showPath = false, center, focus
                       <div className="relative flex flex-col items-center hover:z-50">
                           {/* 이름 카드 — 항상 보임. 카테고리 색상으로 강조 */}
                           <div
-                            className={`flex items-center gap-1 px-2 py-1 rounded-lg shadow-lg backdrop-blur-md border-2 whitespace-nowrap transform transition-all group-hover/marker:scale-110 ${
+                            // ⚠️ 성능: 이 카드는 화면에 140개 넘게 동시에 뜬다. backdrop-blur 를 쓰면
+                            // 마커마다 컴포지팅 레이어가 생겨 팬·줌 매 프레임 배경을 다시 블러해 지도가 버벅인다.
+                            // 배경이 이미 불투명이라 시각 차이는 거의 없으므로 블러를 뺀다(transition 도 transform 만).
+                            className={`flex items-center gap-1 px-2 py-1 rounded-lg shadow-lg border-2 whitespace-nowrap transform transition-transform group-hover/marker:scale-110 ${
                               selectedMarker?.popupId === marker.popupId
                                 ? `bg-primary text-black ${style.border}`
-                                : `bg-white text-gray-800 dark:bg-black/85 dark:text-white ${style.border}`
+                                : `bg-white text-gray-800 dark:bg-black/90 dark:text-white ${style.border}`
                             }`}
                           >
                             <span className={selectedMarker?.popupId === marker.popupId ? 'text-black' : style.color}>
