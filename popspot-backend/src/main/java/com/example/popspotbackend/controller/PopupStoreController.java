@@ -118,6 +118,12 @@ public class PopupStoreController {
     /* ============================== 내부 헬퍼 ============================== */
 
     private void applyTakedown(PopupStore popup, PopupTakedownRequestDto dto) {
+        if (REVIEW_STATUS_TAKEDOWN.equals(popup.getReviewStatus())) {
+            // 이미 차단된 건이면 최초 신고 기록(시각·사유·신고자)을 그대로 보존한다.
+            // 재신고마다 시각을 갱신하면 SLA cutoff 가 계속 뒤로 밀려 admin 알림이 울리지 않고,
+            // 주기적으로 재신고하는 것만으로 영구 은폐가 가능해진다.
+            return;
+        }
         popup.setReviewStatus(REVIEW_STATUS_TAKEDOWN);
         popup.setTakedownRequestedAt(LocalDateTime.now());
         popup.setTakedownReason(dto.getReason());

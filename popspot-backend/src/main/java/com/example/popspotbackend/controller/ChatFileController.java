@@ -1,8 +1,10 @@
 package com.example.popspotbackend.controller;
 
+import com.example.popspotbackend.service.media.ImageUploadGuard;
 import jakarta.servlet.http.HttpServletRequest;
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.List;
@@ -53,14 +55,26 @@ public class ChatFileController {
      */
     private static final String ALLOWED_HOST_PATTERNS_PROP = "app.upload.allowed-host-patterns";
 
-    private final String uploadDir =
-            Paths.get(System.getProperty("user.dir"), "uploads").toString();
+    /**
+     * 저장 위치. 정적 서빙(WebConfig)과 <b>같은 프로퍼티</b>를 읽어야 한다.
+     *
+     * <p>이전에는 {@code user.dir/uploads} 로 하드코딩돼 있었고 WebConfig 는 {@code app.upload.path} 를 봤다.
+     * 기본값이 {@code ${user.dir}/uploads/} 라 우연히 일치했을 뿐이고, {@code .env.example} 이 안내하는 대로
+     * {@code APP_UPLOAD_PATH=/var/popspot/uploads/} 를 설정하는 순간 저장 위치와 공개 위치가 갈려 모든 업로드가
+     * 404 가 됐다. 한 곳에서 읽어 그 지뢰를 제거한다.
+     */
+    private final String uploadDir;
 
     private final List<Pattern> allowedHostPatterns;
+    private final ImageUploadGuard imageGuard;
 
     public ChatFileController(
-            @Value("${" + ALLOWED_HOST_PATTERNS_PROP + ":}") String allowedHostPatternsCsv) {
+            @Value("${" + ALLOWED_HOST_PATTERNS_PROP + ":}") String allowedHostPatternsCsv,
+            @Value("${app.upload.path}") String uploadPath,
+            ImageUploadGuard imageGuard) {
         this.allowedHostPatterns = compilePatterns(allowedHostPatternsCsv);
+        this.uploadDir = Paths.get(uploadPath).toAbsolutePath().normalize().toString();
+        this.imageGuard = imageGuard;
     }
 
     @PostMapping("/upload")
@@ -79,9 +93,16 @@ public class ChatFileController {
 
         String extension = extractExtension(StringUtils.cleanPath(file.getOriginalFilename()));
 
+        // 확장자와 Content-Type 은 둘 다 클라이언트가 정하는 값이다. 파일 내용으로 실체를 확인하고,
+        // 가능하면 픽셀만 남겨 재인코딩한 바이트를 받는다(EXIF 위치정보·트레일러 payload 제거).
+        ImageUploadGuard.Inspection inspection = imageGuard.inspect(file, extension);
+        if (inspection.rejected()) {
+            return ResponseEntity.badRequest().body(inspection.rejection());
+        }
+
         try {
-            File destination = prepareDestination(extension);
-            file.transferTo(destination);
+            File destination = prepareDestination(inspection.extension());
+            Files.write(destination.toPath(), inspection.bytes());
 
             String savedFileName = destination.getName();
             String fileUrl = buildPublicUrl(request, savedFileName);

@@ -4,10 +4,12 @@ import com.example.popspotbackend.entity.User;
 import com.example.popspotbackend.exception.ResourceNotFoundException;
 import com.example.popspotbackend.repository.SpotifyAuthRepository;
 import com.example.popspotbackend.repository.UserRepository;
+import com.example.popspotbackend.service.media.ImageUploadGuard;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.constraints.Size;
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.List;
@@ -70,16 +72,28 @@ public class UserProfileController {
     private final SpotifyAuthRepository spotifyAuthRepository;
     private final List<Pattern> allowedHostPatterns;
 
-    private final String avatarDir =
-            Paths.get(System.getProperty("user.dir"), "uploads", "avatar").toString();
+    /**
+     * 아바타 저장 위치. 정적 서빙(WebConfig)과 <b>같은 프로퍼티</b>({@code app.upload.path})를 읽는다.
+     *
+     * <p>이전에는 {@code user.dir/uploads/avatar} 로 하드코딩돼 있어서, {@code APP_UPLOAD_PATH} 를 설정하는 순간
+     * 저장 위치와 공개 위치가 갈렸다. 아바타 URL 은 {@code users.picture} 에 영구 저장되므로 그 상태로 업로드가
+     * 이뤄지면 DB 에 죽은 URL 이 쌓여 코드 롤백으로도 복구되지 않는다.
+     */
+    private final String avatarDir;
+
+    private final ImageUploadGuard imageGuard;
 
     public UserProfileController(
             UserRepository userRepository,
             SpotifyAuthRepository spotifyAuthRepository,
-            @Value("${" + ALLOWED_HOST_PATTERNS_PROP + ":}") String allowedHostPatternsCsv) {
+            @Value("${" + ALLOWED_HOST_PATTERNS_PROP + ":}") String allowedHostPatternsCsv,
+            @Value("${app.upload.path}") String uploadPath,
+            ImageUploadGuard imageGuard) {
         this.userRepository = userRepository;
         this.spotifyAuthRepository = spotifyAuthRepository;
         this.allowedHostPatterns = compilePatterns(allowedHostPatternsCsv);
+        this.avatarDir = Paths.get(uploadPath, "avatar").toAbsolutePath().normalize().toString();
+        this.imageGuard = imageGuard;
     }
 
     /* ============================== 닉네임 중복 검사 ============================== */
@@ -123,9 +137,17 @@ public class UserProfileController {
 
         String extension = extractExtension(StringUtils.cleanPath(file.getOriginalFilename()));
 
+        // 확장자·Content-Type 은 클라이언트가 정하는 값이라 파일 내용으로 실체를 검증한다.
+        // 아바타는 사용자가 찍은 사진일 확률이 높아 EXIF 에 GPS 좌표가 남아 있을 수 있는데,
+        // 재인코딩이 그것도 함께 제거한다(공개 URL 로 노출되는 이미지라 특히 중요).
+        ImageUploadGuard.Inspection inspection = imageGuard.inspect(file, extension);
+        if (inspection.rejected()) {
+            return ResponseEntity.badRequest().body(inspection.rejection());
+        }
+
         try {
-            File destination = prepareDestination(extension);
-            file.transferTo(destination);
+            File destination = prepareDestination(inspection.extension());
+            Files.write(destination.toPath(), inspection.bytes());
 
             String fileUrl = buildPublicUrl(request, destination.getName());
 
