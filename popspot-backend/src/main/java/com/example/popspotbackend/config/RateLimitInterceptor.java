@@ -1,5 +1,6 @@
 package com.example.popspotbackend.config;
 
+import com.example.popspotbackend.controller.PopupStoreController;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import io.github.bucket4j.Bandwidth;
@@ -11,6 +12,7 @@ import java.time.Duration;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
+import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.HandlerInterceptor;
 
 /**
@@ -31,10 +33,37 @@ public class RateLimitInterceptor implements HandlerInterceptor {
     private static final String PATH_CHECK_EMAIL = "/api/v1/auth/check-email";
     private static final String PATH_FIND_EMAIL = "/api/v1/auth/find-email";
 
+    /**
+     * 권리자 takedown 신고 핸들러 메서드명 — {@link PopupStoreController#requestTakedown}.
+     *
+     * <p>이 엔드포인트는 인증 없이 호출 가능하고 즉시 노출을 차단한다(약관 §11 · about 페이지에 공표된 정책이라
+     * 동작 자체는 유지해야 한다). 따라서 남은 방어선은 호출 빈도 제한뿐이다.
+     */
+    private static final String TAKEDOWN_METHOD_NAME = "requestTakedown";
+
+    /**
+     * takedown 전용 버킷 이름.
+     *
+     * <p>버킷 키를 URI 로 잡으면 팝업마다 키가 달라져 "팝업 1건당 3회" 가 된다. 공격자는 서로 다른 팝업
+     * 1000개를 각각 1회씩 내려버리면 그만이라 제한이 사실상 없는 것과 같다. 기능 단위로 묶어 IP 당 총량을 센다.
+     */
+    private static final String BUCKET_TAKEDOWN = "takedown";
+
     private static final int LIMIT_LOGIN_PER_MIN = 5;
     private static final int LIMIT_EMAIL_PER_HOUR = 5;
     private static final int LIMIT_VERIFY_PER_MIN = 10;
     private static final int LIMIT_ENUM_PER_MIN = 20;
+    private static final int LIMIT_TAKEDOWN_PER_HOUR = 3;
+
+    /**
+     * 경로를 알아보지 못했을 때 적용할 보수적 기본값.
+     *
+     * <p>이 인터셉터는 등록된 민감 경로에서만 호출된다. 그런데도 {@code resolveLimit} 가 못 알아봤다는 건
+     * 인코딩 우회 같은 변형 표기일 개연성이 높다(예: {@code /api/v1/auth/%6Cogin}). 예전처럼 무제한 통과시키면
+     * 문자열 한 글자만 바꿔 제한을 벗어날 수 있으므로 fail-closed 로 둔다.
+     */
+    private static final Bandwidth FALLBACK_LIMIT =
+            Bandwidth.classic(10, Refill.intervally(10, Duration.ofMinutes(1)));
 
     private static final String RATE_LIMIT_BODY =
             "{\"error\":\"RATE_LIMITED\",\"message\":\"요청이 너무 많습니다. 잠시 후 다시 시도하세요.\"}";
@@ -55,17 +84,42 @@ public class RateLimitInterceptor implements HandlerInterceptor {
             HttpServletRequest request, HttpServletResponse response, Object handler)
             throws Exception {
         // v2.22 — GET 열거 엔드포인트도 제한하므로 메서드로 거르지 않고 URI 로만 판단한다.
-        // 제한 대상이 아닌 경로는 resolveLimit 가 null 을 반환해 그대로 통과한다.
-        Bandwidth limit = resolveLimit(request.getRequestURI());
-        if (limit == null) return true;
+        //
+        // 보안: takedown 판정은 URI 문자열이 아니라 **Spring 이 이미 매칭한 핸들러**로 한다.
+        // URI 정규식(\\d+)으로 판정하면 우회가 열린다 — @PathVariable Long 은 NumberUtils 를 거쳐
+        // Long.decode 로 파싱되므로 "/api/popups/0x7B/takedown" 이 정규식에는 안 걸리면서
+        // 컨트롤러에서는 id=123 으로 정상 실행된다. "%74akedown" 같은 인코딩 우회도 같은 원리다.
+        // 핸들러로 판정하면 어떤 표기로 들어오든 같은 메서드로 수렴한다.
+        boolean takedown = isTakedown(handler);
+        String uri = request.getRequestURI();
 
-        String key = request.getRequestURI() + "|" + clientIp(request);
+        Bandwidth limit = takedown ? takedownBandwidth() : resolveLimit(uri);
+        if (limit == null) {
+            // fail-closed: 이 인터셉터는 등록된 민감 경로에서만 호출된다. 경로 표기를 못 알아봤다는 건
+            // 우회 시도일 가능성이 높으므로 무제한 통과시키지 않고 보수적 기본값을 적용한다.
+            limit = FALLBACK_LIMIT;
+        }
+
+        String key = (takedown ? BUCKET_TAKEDOWN : uri) + "|" + clientIp(request);
         Bucket bucket = buckets.get(key, k -> Bucket.builder().addLimit(limit).build());
 
         if (bucket.tryConsume(1)) return true;
 
         rejectAsRateLimited(request, response);
         return false;
+    }
+
+    /** 요청이 권리자 takedown 핸들러로 매핑됐는지 — 문자열이 아니라 실제 매칭 결과로 판정. */
+    private boolean isTakedown(Object handler) {
+        return handler instanceof HandlerMethod hm
+                && PopupStoreController.class.equals(hm.getBeanType())
+                && TAKEDOWN_METHOD_NAME.equals(hm.getMethod().getName());
+    }
+
+    private Bandwidth takedownBandwidth() {
+        return Bandwidth.classic(
+                LIMIT_TAKEDOWN_PER_HOUR,
+                Refill.intervally(LIMIT_TAKEDOWN_PER_HOUR, Duration.ofHours(1)));
     }
 
     private Bandwidth resolveLimit(String uri) {
@@ -94,12 +148,34 @@ public class RateLimitInterceptor implements HandlerInterceptor {
         response.getWriter().write(RATE_LIMIT_BODY);
     }
 
-    /** X-Forwarded-For / X-Real-IP 헤더 우선. 둘 다 없으면 remote addr. */
+    /**
+     * 신뢰 가능한 클라이언트 IP.
+     *
+     * <p>보안: 이전 구현은 {@code X-Forwarded-For} 의 <b>첫</b> 항목을 썼는데, 이는 클라이언트가 보낸 값이다.
+     * nginx 의 {@code $proxy_add_x_forwarded_for} 는 "클라이언트가 보낸 XFF + 실제 IP" 로 <b>덧붙이기</b> 때문에,
+     * 공격자가 매 요청마다 {@code X-Forwarded-For: 1.2.3.4} 를 바꿔 보내면 버킷 키가 매번 달라져
+     * 레이트리밋이 통째로 무력화됐다.
+     *
+     * <p>순서를 바꾼다:
+     *
+     * <ol>
+     *   <li>{@code X-Real-IP} — nginx 가 {@code proxy_set_header} 로 <b>덮어쓰므로</b> 클라이언트가 위조할 수 없다.
+     *   <li>{@code X-Forwarded-For} 의 <b>마지막</b> 항목 — 우리 nginx 가 덧붙인 실제 접속 IP.
+     *   <li>{@code remoteAddr} — 프록시를 거치지 않은 직결 요청(로컬 개발).
+     * </ol>
+     *
+     * <p>주의: 앞단에 프록시를 하나 더 두게 되면 "마지막에서 N번째" 로 조정해야 한다.
+     */
     private String clientIp(HttpServletRequest req) {
-        String xff = req.getHeader("X-Forwarded-For");
-        if (xff != null && !xff.isBlank()) return xff.split(",")[0].trim();
         String real = req.getHeader("X-Real-IP");
-        if (real != null && !real.isBlank()) return real;
+        if (real != null && !real.isBlank()) return real.trim();
+
+        String xff = req.getHeader("X-Forwarded-For");
+        if (xff != null && !xff.isBlank()) {
+            String[] hops = xff.split(",");
+            String last = hops[hops.length - 1].trim();
+            if (!last.isEmpty()) return last;
+        }
         return req.getRemoteAddr();
     }
 }
