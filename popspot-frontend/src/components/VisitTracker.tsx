@@ -2,7 +2,6 @@
 
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
-import { API_BASE_URL } from "@/lib/api";
 
 const VISITOR_KEY = "popspot:visitorId";
 
@@ -77,7 +76,9 @@ export default function VisitTracker() {
     });
 
     try {
-      void fetch(`${API_BASE_URL}/api/visits`, {
+      // 상대 경로 → 동일 출처 리라이트. 전역 마운트 + JSON POST 라 유일하게 매 페이지
+      // preflight 를 유발하던 호출이었다. 동일 출처가 되면 preflight 자체가 사라진다.
+      void fetch(`/api/visits`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body,

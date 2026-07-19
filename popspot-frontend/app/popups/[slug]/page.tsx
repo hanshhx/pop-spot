@@ -123,12 +123,19 @@ function deepLinkQuery(slice: Slice): string {
 
 /** 백엔드 visible markers — SSG 빌드 타임에 fetch. */
 async function fetchMarkers(): Promise<Marker[]> {
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? SITE_URL;
+  // NEXT_PUBLIC_API_BASE_URL 은 저장소 어디에도 정의가 없는 폐기된 오타 이름이었다(실제는 _API_URL).
+  // 그동안 항상 SITE_URL 로 폴백해 자기 공개 도메인 → 리라이트를 헤어핀으로 되돌아 타고 있었다.
+  const apiBase = process.env.NEXT_PUBLIC_API_URL ?? SITE_URL;
   try {
     const res = await fetch(`${apiBase}/api/map/markers`, { next: { revalidate: 3600 } });
-    if (!res.ok) return [];
+    if (!res.ok) {
+      console.warn(`[popups/slug] 마커 fetch ${res.status} — 빈 목록으로 렌더합니다.`);
+      return [];
+    }
     return (await res.json()) as Marker[];
-  } catch {
+  } catch (e) {
+    // 조용히 삼키면 SEO 랜딩 전체가 "0곳" 상태로 빌드되어도 아무도 모른다.
+    console.warn("[popups/slug] 마커 fetch 실패 — 빈 목록으로 렌더합니다.", e);
     return [];
   }
 }
