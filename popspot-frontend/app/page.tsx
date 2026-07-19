@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import HomeClient from "./HomeClient";
 import { REGIONS } from "@/lib/regions";
 import { CATEGORIES, BRANDS } from "@/lib/popupSlices";
+import { CRAWL_REFRESH_SENTENCE } from "@/lib/siteCopy";
 
 /**
  * v2.32 — 메인 페이지 SEO 강화.
@@ -33,8 +34,8 @@ export default function Page() {
           성수 · 한남 · 압구정 · 홍대 · 강남 · 잠실 · 여의도 · 명동 · 더현대 서울 · 용산 아이파크몰 등 서울
           곳곳의 팝업스토어 일정과 위치를 지도 한 장에 모았습니다. 오늘 · 이번 주 · 이번 주말 · 이번 달 여는
           팝업, 신상 · 마감 임박 팝업, 패션 · 뷰티 · 캐릭터 · 브랜드 · IP 팝업까지 한눈에 확인하세요.
-          위시리스트, 마감 D-3 알림, 같이 갈 동행 매칭까지 무료로 이용하세요. 매일 04시 · 16시 자동
-          업데이트되는 서울 팝업스토어 추천 · 일정 · 지도 · 캘린더 서비스입니다.
+          위시리스트, 마감 D-3 알림, 같이 갈 동행 매칭까지 무료로 이용하세요.{" "}
+          {CRAWL_REFRESH_SENTENCE}되는 서울 팝업스토어 추천 · 일정 · 지도 · 캘린더 서비스입니다.
         </p>
         <p>
           팝스팟은 서울에서 지금 열리는 팝업스토어를 매일 자동으로 모아 지도와 캘린더로 보여주는 팝업 일정

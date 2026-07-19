@@ -122,10 +122,9 @@ export function SearchZone({ onAiFilter, onSelectPopup, popups }: SearchZoneProp
           onFocus={() => {
             if (q.trim()) setShowSuggest(true);
           }}
-          onBlur={() => {
-            // 드롭다운 항목 클릭이 먼저 처리되도록 살짝 지연 후 닫는다.
-            setTimeout(() => setShowSuggest(false), 150);
-          }}
+          // 드롭다운 항목은 onMouseDown 에서 preventDefault 하므로 클릭해도 blur 가 나지 않는다.
+          // 따라서 지연 없이 즉시 닫아도 안전하다(지연을 두면 딴 곳을 눌러도 드롭다운이 잠깐 남았다).
+          onBlur={() => setShowSuggest(false)}
           onKeyDown={(e) => {
             if (e.key === "Enter") {
               // 이름 후보가 있으면 첫 후보로 바로 이동(핀+카드). 없으면 자연어 AI 검색.

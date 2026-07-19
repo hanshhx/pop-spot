@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, MapPin, Calendar, Tag, Clock, Flame } from "lucide-react";
 
 import { REGIONS, classifyRegion, regionBySlug } from "@/lib/regions";
+import { CRAWL_REFRESH_COPY } from "@/lib/siteCopy";
 import {
   PERIODS,
   CATEGORIES,
@@ -37,8 +38,8 @@ import {
  */
 
 const SITE_URL = "https://popspot.co.kr";
-// 갱신 주기 카피 — 현재 배포된 크롤러는 하루 2회(04·16시). 백엔드에 4회(04·10·16·22)가 배포되면 이 한 곳만 교체.
-const REFRESH_COPY = "매일 04·16시";
+// 갱신 주기 카피는 홈 SEO 블록과도 공유한다(한 곳만 고치면 전부 반영). @see src/lib/siteCopy.ts
+const REFRESH_COPY = CRAWL_REFRESH_COPY;
 
 type Marker = {
   id: number;
@@ -273,16 +274,14 @@ export default async function PopupsBySlugPage({
   }).length;
 
   // 마감임박순 정렬 + 각 항목 D-day. 종료일 없음/이미 종료는 뒤로.
-  const withDday = filtered.map((m) => ({ m, dday: ddayOf(m.endDate, todayStart) }));
-  const sorted = [...withDday].sort((a, b) => {
-    const av = a.dday === null || a.dday < 0 ? Infinity : a.dday;
-    const bv = b.dday === null || b.dday < 0 ? Infinity : b.dday;
-    return av - bv;
-  });
-  const minDday = withDday.reduce<number | null>(
-    (min, x) => (x.dday !== null && x.dday >= 0 && (min === null || x.dday < min) ? x.dday : min),
-    null,
-  );
+  // 정렬 기준을 rank() 한 곳에만 두어, 목록 순서와 히어로의 '가장 빠른 마감' 이 어긋날 수 없게 한다.
+  const rank = (d: number | null) => (d === null || d < 0 ? Infinity : d);
+  const sorted = filtered
+    .map((m) => ({ m, dday: ddayOf(m.endDate, todayStart) }))
+    .sort((a, b) => rank(a.dday) - rank(b.dday));
+  // 정렬했으므로 맨 앞이 곧 최소값. (Infinity = 유효한 마감일이 하나도 없음)
+  const soonest = sorted.length > 0 ? rank(sorted[0].dday) : Infinity;
+  const minDday = Number.isFinite(soonest) ? soonest : null;
 
   const headingByKind: Record<Slice["kind"], string> = {
     region: `${slice.label} 팝업스토어 ${count}곳`,
@@ -305,16 +304,15 @@ export default async function PopupsBySlugPage({
       ? `가장 빨리 끝나는 곳은 D-${minDday}. 위치·영업기간·마감일을 로그인 없이 무료로, 지금 지도에서 확인하세요.`
       : `${slice.label} 팝업 위치·영업기간·마감일을 지도 한 화면에서. 로그인 없이 무료로 지금 바로.`;
 
-  const kicker =
-    slice.kind === "region"
-      ? "REGION"
-      : slice.kind === "period"
-        ? "WHEN"
-        : slice.kind === "category"
-          ? "CATEGORY"
-          : slice.kind === "brand"
-            ? "BRAND"
-            : "REGION × CATEGORY";
+  // Record 로 둬야 슬라이스 종류가 늘 때 헤딩·소개문과 함께 타입 검사에 걸린다(삼항은 조용히 통과).
+  const kickerByKind: Record<Slice["kind"], string> = {
+    region: "REGION",
+    period: "WHEN",
+    category: "CATEGORY",
+    brand: "BRAND",
+    "region-category": "REGION × CATEGORY",
+  };
+  const kicker = kickerByKind[slice.kind];
 
   return (
     <main className="min-h-screen bg-white text-gray-900 dark:bg-[#0a0a0a] dark:text-white">
@@ -551,9 +549,12 @@ function CrossSell({
 }) {
   // 고의도 칩
   const intent: { href: string; label: string; icon: "flame" | "clock" }[] = [];
-  if (openingToday > 0 || current.slug !== "today")
+  // 자기 자신으로 가는 순환 링크만 빼고 항상 노출한다.
+  // (이전엔 `openingToday > 0 ||` 가 앞에 붙어 있었는데, today 가 아닌 페이지에선 뒤 절이 이미 참이라
+  //  카운트 절이 아무것도 결정하지 못했고, 정작 /popups/today 에선 자기 자신을 가리키는 칩이 떴다.)
+  if (current.slug !== "today")
     intent.push({ href: "/popups/today", label: "오늘 오픈 팝업", icon: "flame" });
-  if (closingSoon > 0 || current.slug !== "this-weekend")
+  if (current.slug !== "this-weekend")
     intent.push({ href: "/popups/this-weekend", label: "이번 주말 마감 임박", icon: "clock" });
 
   // 브랜드 랜딩은 지도 필터가 없어 → 매칭 팝업 상위 지역으로 좁히게 유도

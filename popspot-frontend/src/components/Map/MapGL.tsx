@@ -14,7 +14,7 @@ import {
   createContext,
   useContext,
   useEffect,
-  useMemo,
+  useId,
   useRef,
   useState,
   type ReactNode,
@@ -58,15 +58,15 @@ export function MapGL({ center, zoom, mode = "dark", onCreate, onClick, classNam
   const [ctx, setCtx] = useState<Ctx>({ map: null, lib: null });
   // 현재 스타일에 실제로 적용된 mode. 불필요한 setStyle(깜빡임) 방지용.
   const appliedModeRef = useRef<MapMode | null>(null);
-  // 현재 지도에 적용된 center 좌표(값 기준 비교로 불필요한 이동 방지).
-  const centerRef = useRef({ lat: center.lat, lng: center.lng });
   // 버전이 붙은 타일 URL(캐시 가능). setStyle 시에도 재사용.
   const tileUrlRef = useRef<string>("");
-  // 최신 콜백을 effect 재실행 없이 참조
+  // 최신 콜백을 effect 재실행 없이 참조. 렌더 중 ref 를 쓰면 안 되므로(React 19) 커밋 후 갱신한다.
   const onCreateRef = useRef(onCreate);
   const onClickRef = useRef(onClick);
-  onCreateRef.current = onCreate;
-  onClickRef.current = onClick;
+  useEffect(() => {
+    onCreateRef.current = onCreate;
+    onClickRef.current = onClick;
+  });
 
   useEffect(() => {
     let map: MapInstance | null = null;
@@ -140,11 +140,10 @@ export function MapGL({ center, zoom, mode = "dark", onCreate, onClick, classNam
   // center prop 이 실제로 바뀌면 지도를 그쪽으로 이동한다. 좌표가 갱신되는 소비자(예: DetailMap
   // 에서 팝업 A→B 이동)를 위해 필요. 값(위경도) 기준 비교라, 부모가 매 렌더 새 객체를 줘도
   // 같은 좌표면 무시한다. 고정 center 를 주고 이동을 자체 처리하는 InteractiveMap 에선 no-op.
+  // deps 가 이미 원시값(lat/lng)이라 좌표가 실제로 바뀔 때만 재실행된다 — 별도 비교 ref 는 불필요.
   useEffect(() => {
     const m = ctx.map;
     if (!m) return;
-    if (centerRef.current.lat === center.lat && centerRef.current.lng === center.lng) return;
-    centerRef.current = { lat: center.lat, lng: center.lng };
     m.easeTo({ center: [center.lng, center.lat], duration: 500 });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [center.lat, center.lng, ctx.map]);
@@ -172,18 +171,20 @@ interface MapMarkerProps {
  */
 export function MapMarker({ position, anchor = "bottom", offset, zIndex, children }: MapMarkerProps) {
   const { map, lib } = useMapGL();
-  const elRef = useRef<HTMLDivElement | null>(null);
-  if (elRef.current === null && typeof document !== "undefined") {
-    elRef.current = document.createElement("div");
-    // 오버레이 DOM 이 지도 상호작용을 방해하지 않도록
-    elRef.current.style.willChange = "transform";
-  }
+  // portal 대상 DOM 은 마커당 한 번만 만든다. 렌더 중 ref 를 쓰면 안 되므로(React 19)
+  // useState 초기화 함수로 지연 생성한다 — 초기화 함수는 첫 렌더에 딱 한 번만 실행된다.
+  const [el] = useState<HTMLDivElement | null>(() => {
+    if (typeof document === "undefined") return null;
+    const d = document.createElement("div");
+    d.style.willChange = "transform"; // 오버레이 DOM 이 지도 상호작용을 방해하지 않도록
+    return d;
+  });
   const markerRef = useRef<any>(null);
 
   useEffect(() => {
-    if (!map || !lib || !elRef.current) return;
+    if (!map || !lib || !el) return;
     const marker = new lib.Marker({
-      element: elRef.current,
+      element: el,
       anchor,
       offset: offset ?? [0, 0],
     })
@@ -195,7 +196,7 @@ export function MapMarker({ position, anchor = "bottom", offset, zIndex, childre
       markerRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [map, lib]);
+  }, [map, lib, el]);
 
   // 위치/오프셋 변경은 재생성 없이 반영
   useEffect(() => {
@@ -205,11 +206,14 @@ export function MapMarker({ position, anchor = "bottom", offset, zIndex, childre
     if (markerRef.current && offset) markerRef.current.setOffset(offset);
   }, [offset]);
   useEffect(() => {
-    if (elRef.current && zIndex != null) elRef.current.style.zIndex = String(zIndex);
-  }, [zIndex]);
+    // el 은 우리가 만들어 maplibre 에 넘긴 DOM 노드다. style 을 직접 쓰는 게 목적이므로
+    // "state 값을 변경하지 말라" 규칙은 여기선 해당하지 않는다(불변 데이터가 아니라 DOM 핸들).
+    // eslint-disable-next-line react-hooks/immutability
+    if (el && zIndex != null) el.style.zIndex = String(zIndex);
+  }, [el, zIndex]);
 
-  if (!elRef.current) return null;
-  return createPortal(children, elRef.current);
+  if (!el) return null;
+  return createPortal(children, el);
 }
 
 interface MapPolylineProps {
@@ -223,8 +227,14 @@ interface MapPolylineProps {
 /** 카카오 Polyline 대체. GeoJSON LineString 소스/레이어로 그린다. */
 export function MapPolyline({ path, color, weight = 4, opacity = 0.9, dashed = false }: MapPolylineProps) {
   const { map } = useMapGL();
-  const idRef = useRef<string>(`pl-${Math.random().toString(36).slice(2)}`);
-  const key = useMemo(() => path.map((p) => `${p.lng},${p.lat}`).join(";"), [path]);
+  // 레이어 id 는 인스턴스마다 고유해야 한다. Math.random 은 렌더 중 호출이라 불순(재렌더 시 불안정)이므로
+  // React 가 보장하는 안정적 고유값을 쓴다. maplibre id 에 안전하도록 영숫자만 남긴다.
+  const reactId = useId();
+  const layerId = `pl-${reactId.replace(/[^a-zA-Z0-9]/g, "")}`;
+  const idRef = useRef<string>(layerId);
+  // 호출부가 매 렌더 새 배열을 만들어 넘기므로 useMemo 는 절대 적중하지 않는다.
+  // 실제 변경 감지는 아래 effect deps 의 이 문자열 값이 하므로, 메모 없이 그대로 계산한다.
+  const key = path.map((p) => `${p.lng},${p.lat}`).join(";");
 
   useEffect(() => {
     if (!map) return;
