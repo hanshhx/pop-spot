@@ -12,7 +12,7 @@ import { motion, AnimatePresence } from "framer-motion";
 
 import InteractiveMap from "../../src/components/Map/InteractiveMap"; 
 
-import { API_BASE_URL, SOCKET_BASE_URL } from "../../src/lib/api";
+import { SOCKET_BASE_URL } from "../../src/lib/api";
 import { notify, confirmAction } from "@/lib/notify";
 
 interface MarkerData {
@@ -197,7 +197,8 @@ export default function PlanningPage() {
       votes?: Record<string, number>;
     }
 
-    fetch(`${API_BASE_URL}/api/planning/${roomId}/state`)
+    // 상대 경로 → 동일 출처 리라이트(별도 TLS 핸드셰이크·preflight 회피)
+    fetch(`/api/planning/${roomId}/state`)
       .then(res => res.json())
       .then((data: PlanningRoomState) => {
         if (data.markers) {
@@ -282,7 +283,9 @@ export default function PlanningPage() {
       if (!searchQuery.trim()) return;
       setIsSearching(true);
       try {
-        const res = await fetch(`${API_BASE_URL}/api/popups/search?keyword=${searchQuery}`);
+        // 상대 경로 → 동일 출처 리라이트. encodeURIComponent 누락도 함께 수정 —
+        // 검색어에 & 나 # 이 있으면 쿼리가 잘려 엉뚱한 결과가 나왔다.
+        const res = await fetch(`/api/popups/search?keyword=${encodeURIComponent(searchQuery)}`);
         if (res.ok) setSearchResults(await res.json());
       } catch (e) {
           console.error("Search error:", e);
