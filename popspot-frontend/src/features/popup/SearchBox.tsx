@@ -176,8 +176,10 @@ export function SearchZone({ onAiFilter, onSelectPopup, popups }: SearchZoneProp
                       {p.location || "위치 정보 없음"}
                     </span>
                   </span>
+                  {/* 지도 모드면 해당 핀으로 이동하고, 모달(글로벌 검색)에선 상세로 보낸다.
+                      문구가 실제 동작과 어긋나면 사용자가 어디로 가는지 예측할 수 없다. */}
                   <span className="shrink-0 text-[10px] font-bold text-lime-600 dark:text-lime-300">
-                    지도에서 보기
+                    {mapMode ? "지도에서 보기" : "상세 보기"}
                   </span>
                 </button>
               </li>
