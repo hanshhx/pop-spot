@@ -19,8 +19,8 @@ public interface ChatRepository extends JpaRepository<ChatMessage, Long> {
     List<ChatMessage> findTop100ByOrderBySendTimeDesc();
 
     /**
-     * 어드민 개별/일괄 삭제 — 엔티티 로드 없이 SQL 로 바로 삭제. deleteById 는 로드를 거치므로 같은 id 행이 중복이면
-     * (시퀀스 리셋으로 PK 충돌 이력) "Duplicate row" 로 터졌음. 벌크 delete 는 중복이 있어도 전부 안전하게 지운다.
+     * 어드민 개별/일괄 삭제 — 엔티티 로드 없이 SQL 로 바로 삭제. deleteById 는 로드를 거치므로 같은 id 행이 중복이면 (시퀀스 리셋으로 PK 충돌 이력)
+     * "Duplicate row" 로 터졌음. 벌크 delete 는 중복이 있어도 전부 안전하게 지운다.
      */
     @Modifying
     @Query("delete from ChatMessage m where m.id in :ids")

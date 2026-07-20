@@ -16,9 +16,8 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * 팝업 방문 스탬프 적립 API. 중복 적립은 서비스 계층의 unique 제약으로 차단된다.
  *
- * <p>보안(v2.22): userId 는 요청 파라미터가 아니라 JWT 토큰(Authentication)에서만 가져온다. 이전엔
- * {@code @RequestParam userId} 라 비로그인 사용자가 남의 ID 로 스탬프/확성기 보상을 임의 적립할 수
- * 있었다(IDOR).
+ * <p>보안(v2.22): userId 는 요청 파라미터가 아니라 JWT 토큰(Authentication)에서만 가져온다. 이전엔 {@code @RequestParam
+ * userId} 라 비로그인 사용자가 남의 ID 로 스탬프/확성기 보상을 임의 적립할 수 있었다(IDOR).
  */
 @Slf4j
 @RestController

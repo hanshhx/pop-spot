@@ -17,8 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * 팝업 "지금 어때요?" 대기 제보 API.
  *
- * <p>로그인 없이(게스트도) 버튼 한 번으로 참여할 수 있게 열어둔다 — 참여 문턱을 낮추는 게 이 기능의 존재 이유다. 게스트는 익명 visitorId 로 중복만
- * 막는다.
+ * <p>로그인 없이(게스트도) 버튼 한 번으로 참여할 수 있게 열어둔다 — 참여 문턱을 낮추는 게 이 기능의 존재 이유다. 게스트는 익명 visitorId 로 중복만 막는다.
  */
 @RestController
 @RequestMapping("/api/popups")

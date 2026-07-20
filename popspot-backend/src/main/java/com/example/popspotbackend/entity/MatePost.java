@@ -128,8 +128,7 @@ public class MatePost {
     /**
      * 이미 신고한 사용자인지 — 콤마 구분 명단에서 토큰 단위 정확 일치로 판정.
      *
-     * <p>{@code contains} 가 아니라 split+equals 로 비교해, 한 ID 가 다른 ID 의 부분 문자열일 때
-     * 발생하는 오탐을 막는다.
+     * <p>{@code contains} 가 아니라 split+equals 로 비교해, 한 ID 가 다른 ID 의 부분 문자열일 때 발생하는 오탐을 막는다.
      */
     public boolean hasReported(String userId) {
         if (userId == null || this.reportedBy == null || this.reportedBy.isEmpty()) return false;

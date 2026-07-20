@@ -17,9 +17,8 @@ import org.springframework.web.bind.annotation.RestController;
  * <p>실제 로직은 {@link MyPageService} 가 처리하며, 컨트롤러는 URL 매핑만 담당. 예외 처리는 {@link
  * com.example.popspotbackend.exception.GlobalExceptionHandler} 가 전역 변환.
  *
- * <p>보안(v2.22): path 의 userId 가 JWT 토큰 본인과 일치할 때만 통과(WishlistController 와 동일한
- * requireSelf 패턴). 이전엔 검사가 없어 누구나 {@code /api/mypage/{타인ID}} 로 남의 프리미엄/확성기/스탬프
- * 수를 전수 조회할 수 있었다(IDOR).
+ * <p>보안(v2.22): path 의 userId 가 JWT 토큰 본인과 일치할 때만 통과(WishlistController 와 동일한 requireSelf 패턴). 이전엔
+ * 검사가 없어 누구나 {@code /api/mypage/{타인ID}} 로 남의 프리미엄/확성기/스탬프 수를 전수 조회할 수 있었다(IDOR).
  */
 @Slf4j
 @RestController
