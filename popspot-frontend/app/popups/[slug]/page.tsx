@@ -16,6 +16,8 @@ import {
   brandBySlug,
   parseDate,
   startOfDay,
+  kstTodayStart,
+  isExpired,
 } from "@/lib/popupSlices";
 
 /**
@@ -166,10 +168,16 @@ function filterBySlice(markers: Marker[], slice: Slice): Marker[] {
 
 /* ===== D-day 유틸 (기존 endDate 재포맷 — 새 정보 아님, §10-2 준수) ===== */
 
-/** KST(UTC+9) 기준 오늘 00:00. 서버 TZ(Vercel=UTC)와 무관하게 KST 달력 날짜를 쓴다. */
-function kstTodayStart(): Date {
-  const k = new Date(Date.now() + 9 * 3600 * 1000);
-  return new Date(k.getUTCFullYear(), k.getUTCMonth(), k.getUTCDate());
+/**
+ * 종료된 팝업을 뺀 마커 목록.
+ *
+ * <p>본문과 {@link generateMetadata} 가 <b>같은 함수</b>를 쓰게 해서 판정이 갈리지 않도록 한다.
+ * 예전엔 본문만 만료를 걸러서, 브랜드에 만료 팝업만 남으면 본문은 "0곳" 인데 메타데이터는 결과가
+ * 있다고 보고 noindex 를 안 붙였다 — 빈 페이지가 색인되는 경로였다.
+ */
+async function liveMarkers(): Promise<Marker[]> {
+  const today = kstTodayStart();
+  return (await fetchMarkers()).filter((m) => !isExpired(m.endDate, today));
 }
 
 /** endDate 까지 남은 일수. 0=오늘 마감, 1=내일, 음수=이미 종료, null=종료일 없음. */
@@ -221,11 +229,11 @@ export async function generateMetadata({
     "region-category": `${slice.label} 팝업스토어 추천`,
   };
   const descriptions: Record<Slice["kind"], string> = {
-    region: `${slice.label}에서 진행 중인 팝업스토어 일정과 위치를 한눈에. 위시 등록, 마감 D-3 알림, 같이 갈 동행 매칭까지 무료.`,
+    region: `${slice.label}에서 진행 중인 팝업스토어 일정과 위치를 한눈에. 위시 등록과 마감임박순 정렬까지 무료.`,
     period: `${slice.label} 서울에서 열리는 팝업스토어 목록. 영업 시간, 위치, 종료일까지 정리.`,
     category: `${slice.label} 관련 팝업스토어 모음. 신상 / 인기 / 마감 임박 한눈에 보기.`,
-    brand: `${slice.label} 팝업스토어 일정과 위치를 지도로 한눈에. 서울에서 진행 중인 ${slice.label} 팝업을 확인하고 위시·마감 D-3 알림까지 무료.`,
-    "region-category": `${slice.label} 팝업스토어를 한눈에. 위치·일정·카테고리별 큐레이션, 위시 등록과 마감 D-3 알림까지 무료.`,
+    brand: `${slice.label} 팝업스토어 일정과 위치를 지도로 한눈에. 서울에서 진행 중인 ${slice.label} 팝업을 확인하고 위시 등록과 마감일 확인까지 무료.`,
+    "region-category": `${slice.label} 팝업스토어를 한눈에. 위치·일정·카테고리별 큐레이션, 위시 등록과 마감일 확인까지 무료.`,
   };
 
   const title = titles[slice.kind];
@@ -235,7 +243,9 @@ export async function generateMetadata({
   // 결과 0곳이면 thin content 방지 위해 noindex (페이지 접근·내부링크는 유지).
   let robots: Metadata["robots"] | undefined;
   if (slice.kind === "region-category" || slice.kind === "brand") {
-    const count = filterBySlice(await fetchMarkers(), slice).length;
+    // 본문과 동일한 liveMarkers 기준. 만료 팝업만 남은 슬라이스는 본문이 "0곳" 이므로
+    // 메타데이터도 같은 판정을 해야 빈 페이지가 색인되지 않는다.
+    const count = filterBySlice(await liveMarkers(), slice).length;
     if (count === 0) robots = { index: false, follow: true };
   }
 
@@ -260,15 +270,17 @@ export default async function PopupsBySlugPage({
   const slice = resolveSlice(slug);
   if (!slice) notFound();
 
-  const markers = await fetchMarkers();
-  const filtered = filterBySlice(markers, slice);
+  // 이미 끝난 팝업은 제외한다. 백엔드 만료 스케줄러가 지연·실패해도 사용자에게는 종료된 팝업이
+  // 보이지 않아야 한다("성수 팝업" 으로 들어왔는데 닫힌 곳이 나오는 신뢰 문제). 이 페이지는
+  // revalidate=3600 SSG 라 백엔드만 고치면 최대 1시간 지연이 생기므로 렌더 시점에도 한 겹 더 거른다.
+  const todayStart = kstTodayStart();
+  const filtered = filterBySlice(await liveMarkers(), slice);
   const count = filtered.length;
   const deepLink = deepLinkQuery(slice);
   const mapHref = `/?tab=MAP${deepLink ? `&${deepLink}` : ""}`;
   const mainHref = `${SITE_URL}${mapHref}`;
 
   // "지금 가야 할 이유" 훅 — 전부 기존 endDate/startDate 의 파생값(무료).
-  const todayStart = kstTodayStart();
   const soonThreshold = new Date(todayStart);
   soonThreshold.setDate(soonThreshold.getDate() + 7);
   const closingSoon = filtered.filter((m) => {
@@ -300,8 +312,8 @@ export default async function PopupsBySlugPage({
   const introByKind: Record<Slice["kind"], string> = {
     region: `${slice.label}에서 진행 중인 팝업스토어를 POP-SPOT 이 자동 큐레이션 합니다. 영업 기간이 끝난 팝업은 자동으로 빠지고, 신규 팝업은 ${REFRESH_COPY}에 갱신.`,
     period: `${slice.label} 서울 곳곳에서 열리는 팝업스토어. 위치 · 카테고리 · 마감일을 지도 한 화면에서 확인.`,
-    category: `${slice.label} 관련 신상 / 인기 팝업스토어. 위시 등록 시 마감 3일 전 알림 발송.`,
-    brand: `${slice.label} 관련 팝업스토어를 POP-SPOT 이 자동 큐레이션. 서울에서 진행 중인 ${slice.label} 팝업의 위치·일정을 한눈에. 위시 등록 시 마감 3일 전 알림 발송.`,
+    category: `${slice.label} 관련 신상 / 인기 팝업스토어. 마감 임박순으로 정렬해 한눈에.`,
+    brand: `${slice.label} 관련 팝업스토어를 POP-SPOT 이 자동 큐레이션. 서울에서 진행 중인 ${slice.label} 팝업의 위치·일정을 한눈에. 마감 임박순으로 정렬해 제공.`,
     "region-category": `${slice.label} 팝업스토어를 POP-SPOT 이 자동 큐레이션. 해당 지역·카테고리에 맞는 팝업만 모아 위치와 일정을 한눈에.`,
   };
 
@@ -384,7 +396,9 @@ export default async function PopupsBySlugPage({
                 무료 · 로그인 없이 · {REFRESH_COPY} 자동 갱신
               </p>
               <div className="mt-3 flex flex-wrap justify-center gap-1.5">
-                {["지도 한눈에", "마감 D-3 알림", "같이 갈 동행 매칭"].map((b) => (
+                {/* 실행 경로가 있는 것만 적는다. 알림·동행 매칭은 이 페이지에서 누를 수 있는
+                    진입점이 없어(그리고 알림 기능 자체가 없어) 빼고, 실제로 되는 것만 남긴다. */}
+                {["지도 한눈에", "마감임박순 정렬", "무료 · 로그인 없이"].map((b) => (
                   <span
                     key={b}
                     className="inline-flex items-center rounded-pill border border-lime-300/50 bg-white/60 px-2.5 py-0.5 text-[11px] font-medium text-gray-700 dark:bg-white/5 dark:text-white/70"
@@ -466,7 +480,9 @@ export default async function PopupsBySlugPage({
               지금 열린 팝업 지도에서 보기 →
             </Link>
             <p className="mt-3 text-[11px] text-muted-foreground">
-              무료 · 로그인 없이 · 메인에서 위시 등록 시 새 {slice.label} 팝업 열릴 때 알림
+              {/* "새 팝업 열릴 때 알림" 은 구현이 존재하지 않아 제거했다. 위시 등록 자체는 되므로
+                  그것만 남긴다. */}
+              무료 · 로그인 없이 · 메인에서 위시 등록 가능
             </p>
           </section>
         )}
@@ -646,7 +662,7 @@ function FaqSection({ slice, count }: { slice: Slice; count: number }) {
               : "팝업 카테고리 필드의 한글/영문 키워드를 매칭해 분류합니다.",
     },
     {
-      q: "위시 등록 / 마감 알림은 어디서 하나요?",
+      q: "위시 등록은 어디서 하나요?",
       a: `메인 지도의 팝업 마커를 누른 뒤 상세 페이지에서 위시 등록할 수 있습니다. 현재 ${count}곳 진행 중.`,
     },
   ];
