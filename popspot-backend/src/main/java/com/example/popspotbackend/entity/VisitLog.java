@@ -16,8 +16,8 @@ import org.hibernate.annotations.CreationTimestamp;
 /**
  * 익명 방문 로그.
  *
- * <p>게스트/회원 방문 집계 전용. IP·개인정보는 저장하지 않으며, {@code visitorId} 는 클라이언트가 만든 익명 UUID(개인 식별 불가)다.
- * {@code userAgent} 는 봇 식별/제외 목적으로만 저장하는 브라우저·기기 종류 문자열(개인 식별 불가)이다.
+ * <p>게스트/회원 방문 집계 전용. IP·개인정보는 저장하지 않으며, {@code visitorId} 는 클라이언트가 만든 익명 UUID(개인 식별 불가)다. {@code
+ * userAgent} 는 봇 식별/제외 목적으로만 저장하는 브라우저·기기 종류 문자열(개인 식별 불가)이다.
  */
 @Entity
 @Getter

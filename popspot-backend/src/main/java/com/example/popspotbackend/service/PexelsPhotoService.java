@@ -17,8 +17,8 @@ import org.springframework.web.util.UriComponentsBuilder;
 /**
  * Pexels 사진 검색 래퍼.
  *
- * <p>팝업 이름/카테고리로 무료 스톡 사진(Pexels)을 검색해 팝업마다 서로 다른 커버를 배정한다. 검색어는 사람이 적은 인테리어/제품 위주로 편향하지만,
- * 동적 검색 특성상 사람(얼굴) 배제를 100% 보장하지는 못한다. 키 미설정/호출 실패 시 빈 값을 반환해 호출부가 기존 동작(fallback 커버)을 유지하도록 한다.
+ * <p>팝업 이름/카테고리로 무료 스톡 사진(Pexels)을 검색해 팝업마다 서로 다른 커버를 배정한다. 검색어는 사람이 적은 인테리어/제품 위주로 편향하지만, 동적 검색
+ * 특성상 사람(얼굴) 배제를 100% 보장하지는 못한다. 키 미설정/호출 실패 시 빈 값을 반환해 호출부가 기존 동작(fallback 커버)을 유지하도록 한다.
  *
  * <p>설정 키: {@code pexels.api-key} (무료 발급: https://www.pexels.com/api/). 미설정이면 커버 배정이 스킵된다.
  */
@@ -62,7 +62,8 @@ public class PexelsPhotoService {
             headers.set("Authorization", apiKey);
             @SuppressWarnings("rawtypes")
             ResponseEntity<Map> res =
-                    restTemplate.exchange(uri, HttpMethod.GET, new HttpEntity<>(headers), Map.class);
+                    restTemplate.exchange(
+                            uri, HttpMethod.GET, new HttpEntity<>(headers), Map.class);
             return pickPhotoUrl(res.getBody(), seed);
         } catch (Exception e) {
             log.warn("[PexelsPhotoService] 검색 실패 query='{}' err={}", query, e.toString());

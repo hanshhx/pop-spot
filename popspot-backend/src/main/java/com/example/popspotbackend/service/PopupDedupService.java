@@ -19,9 +19,9 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * 중복 팝업 정리 — 이름이 <b>완전히 동일한</b>(공백 트림 제외 후 정확히 같은) 레코드만 중복으로 본다.
  *
- * <p>피스마이너스원×토이스토리 vs 피마원 X 토이스토리 같은 표기 변형은 서로 다른 것으로 두고 건드리지 않는다. 같은 이름이 여러 건이면
- * 대표 1건(신뢰도 높은 순 → id 낮은 순)만 남기고 나머지는 {@code reviewStatus=DUPLICATE} 로 숨기고(지도·검색 노출 제외)
- * Algolia 색인에서도 제거한다. 하드 삭제가 아니라 숨김이라 되돌릴 수 있다.
+ * <p>피스마이너스원×토이스토리 vs 피마원 X 토이스토리 같은 표기 변형은 서로 다른 것으로 두고 건드리지 않는다. 같은 이름이 여러 건이면 대표 1건(신뢰도 높은 순 →
+ * id 낮은 순)만 남기고 나머지는 {@code reviewStatus=DUPLICATE} 로 숨기고(지도·검색 노출 제외) Algolia 색인에서도 제거한다. 하드 삭제가
+ * 아니라 숨김이라 되돌릴 수 있다.
  */
 @Slf4j
 @Service
@@ -59,10 +59,13 @@ public class PopupDedupService {
                                     sorted.stream()
                                             .map(
                                                     p -> {
-                                                        Map<String, Object> item = new LinkedHashMap<>();
+                                                        Map<String, Object> item =
+                                                                new LinkedHashMap<>();
                                                         item.put("id", p.getId());
                                                         item.put("location", nz(p.getLocation()));
-                                                        item.put("confidence", p.getConfidenceScore());
+                                                        item.put(
+                                                                "confidence",
+                                                                p.getConfidenceScore());
                                                         return item;
                                                     })
                                             .toList());

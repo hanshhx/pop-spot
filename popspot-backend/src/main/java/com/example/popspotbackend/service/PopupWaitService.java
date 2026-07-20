@@ -63,7 +63,8 @@ public class PopupWaitService {
     public WaitStatus status(Long popupId) {
         if (popupId == null) return null;
         List<PopupWaitReport> recent =
-                repo.findByPopupIdAndCreatedAtAfter(popupId, LocalDateTime.now().minusHours(WINDOW_HOURS));
+                repo.findByPopupIdAndCreatedAtAfter(
+                        popupId, LocalDateTime.now().minusHours(WINDOW_HOURS));
         if (recent.isEmpty()) return null;
 
         double avg = recent.stream().mapToInt(PopupWaitReport::getWaitLevel).average().orElse(0);

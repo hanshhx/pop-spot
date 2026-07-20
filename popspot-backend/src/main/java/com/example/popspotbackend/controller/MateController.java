@@ -90,8 +90,8 @@ public class MateController {
     }
 
     /**
-     * 보안(v2.22): 작성/참여/삭제/신고 주체는 JWT 토큰에서만 가져온다. 이전엔 userId 를 요청
-     * 파라미터/바디로 받아 누구나 남 명의로 글 작성·삭제·신고(자동숨김 어뷰징)가 가능했다.
+     * 보안(v2.22): 작성/참여/삭제/신고 주체는 JWT 토큰에서만 가져온다. 이전엔 userId 를 요청 파라미터/바디로 받아 누구나 남 명의로 글
+     * 작성·삭제·신고(자동숨김 어뷰징)가 가능했다.
      */
     private String requireUserId(Authentication authentication) {
         if (authentication == null

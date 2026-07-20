@@ -146,8 +146,7 @@ public class AuthService {
 
         LocalDateTime unlockAt = attempt.lastFailedAt().plusMinutes(LOGIN_LOCK_MINUTES);
         if (LocalDateTime.now().isBefore(unlockAt)) {
-            long remainingMinutes =
-                    Duration.between(LocalDateTime.now(), unlockAt).toMinutes() + 1;
+            long remainingMinutes = Duration.between(LocalDateTime.now(), unlockAt).toMinutes() + 1;
             throw new IllegalArgumentException(
                     "로그인 시도가 너무 많습니다. " + remainingMinutes + "분 후 다시 시도해 주세요.");
         }
@@ -162,8 +161,7 @@ public class AuthService {
         LoginAttempt now = new LoginAttempt(nextCount, LocalDateTime.now());
         loginAttempts.put(email, now);
         if (now.count() >= LOGIN_MAX_ATTEMPTS) {
-            log.warn(
-                    "[Auth] 로그인 실패 누적 {}회 → {}분 잠금 — email 마스킹됨", now.count(), LOGIN_LOCK_MINUTES);
+            log.warn("[Auth] 로그인 실패 누적 {}회 → {}분 잠금 — email 마스킹됨", now.count(), LOGIN_LOCK_MINUTES);
         }
     }
 
