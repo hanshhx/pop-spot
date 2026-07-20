@@ -149,15 +149,30 @@ export const CATEGORIES: CategoryDef[] = [
  * 이월된 날짜로 D-day 를 계산하면 이미 끝난 팝업이 '진행 중' 으로 보인다.
  * 만들어진 Date 의 연·월·일이 입력과 같은지 되돌려 확인해 그런 값을 걸러낸다.
  */
+/** YYYY-M-D (자리수 1~2 허용). 크롤러가 "2026-7-5" 처럼 0 을 뺀 형태로 주는 경우가 있어 열어둔다. */
+const DATE_SHAPE = /^(\d{4})-(\d{1,2})-(\d{1,2})$/;
+
 export function parseDate(s: string | null | undefined): Date | null {
   if (!s) return null;
-  const normalized = s.trim().replace(/\./g, "-").slice(0, 10);
-  const parts = normalized.split("-");
-  if (parts.length !== 3) return null;
-  const [y, m, d] = parts.map((v) => Number.parseInt(v, 10));
+
+  // 1) 구분자 정규화 후 시각 성분을 떼어낸다("2026-07-25T09:00:00Z", "2026-07-25 09:00").
+  //    잘라내기(slice)로 길이를 맞추면 안 된다 — "2026-002-28" 을 "2026-002-2" 로 만들어
+  //    2월 2일이라는 엉뚱한 날짜를 조용히 만들어낸다.
+  const head = s.trim().replace(/\./g, "-").split(/[T\s]/)[0];
+
+  // 2) 모양을 먼저 확정한다. parseInt 는 "2x" 를 2 로 읽어 "2026-2x-28" 을 2월 28일로
+  //    통과시키므로, 숫자 변환 전에 정규식으로 걸러야 한다.
+  const match = DATE_SHAPE.exec(head);
+  if (!match) return null;
+
+  const y = Number(match[1]);
+  const m = Number(match[2]);
+  const d = Number(match[3]);
   if (!y || !m || !d) return null;
+
+  // 3) 달력에 실재하는 날짜인지. new Date 는 범위를 넘는 값을 조용히 이월하므로
+  //    ("2026-02-31" → 3월 2일, "2026-99-99" → 2034년) 되돌려 대조한다.
   const date = new Date(y, m - 1, d);
-  // 이월이 일어났으면 입력과 달라진다 → 존재하지 않는 날짜.
   if (date.getFullYear() !== y || date.getMonth() !== m - 1 || date.getDate() !== d) return null;
   return date;
 }
