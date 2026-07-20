@@ -166,13 +166,22 @@ public class PopupStoreService {
         return popupStoreRepository.findTrendingPublic(PageRequest.of(0, TRENDING_TOP_N));
     }
 
-    /** 상세 페이지 진입 시 viewCount 1 증가 후 반환. */
+    /**
+     * 상세 페이지 진입 시 viewCount 1 증가 후 반환.
+     *
+     * <p>검수 상태 게이트를 통과한 것만 반환한다. 이전에는 {@code findById} 결과를 무검증 반환해서, 목록에서 숨긴 TAKEDOWN / REJECTED /
+     * PENDING_REVIEW 팝업도 URL 로 직접 열면 그대로 보였다 — 권리자 신고로 내린 팝업이 링크만 알면 계속 열람되는 상태였고(약관 §11 위반), 조회수까지
+     * 올라갔다.
+     *
+     * <p>존재 자체를 숨기기 위해 403 이 아니라 404 를 낸다.
+     *
+     * <p>종료일 경과는 여기서 막지 않는다. 위시리스트·방문기록·코스에 담아둔 팝업을 나중에 열어보는 것은 정상 사용이고, "이미 끝난 팝업" 이라는 사실은 화면이
+     * 종료일로 표시하면 된다. 목록 노출만 막으면 된다.
+     */
     @Transactional
     public PopupStore getPopupById(Long id) {
-        PopupStore popup =
-                popupStoreRepository
-                        .findById(id)
-                        .orElseThrow(() -> ResourceNotFoundException.popup(id));
+        PopupStore popup = findOrThrow(id);
+        if (!passesModerationGate(popup)) throw ResourceNotFoundException.popup(id);
         int currentViews = popup.getViewCount() != null ? popup.getViewCount() : 0;
         popup.setViewCount(currentViews + 1);
         return popup;
@@ -181,7 +190,9 @@ public class PopupStoreService {
     /** 캘린더 — 행사 기간이 [from, to] 와 겹치는 공개 팝업. 파라미터 생략 시 오늘 ~ 60일 후. */
     @Transactional(readOnly = true)
     public List<CalendarPopupDto> getCalendar(String fromDate, String toDate) {
-        LocalDate from = parseOrDefault(fromDate, LocalDate.now());
+        // KST 명시. 같은 메서드의 isPublic 은 KST 기준인데 기본 조회 구간만 JVM 기본 TZ(운영 UTC)를 쓰면
+        // 한국 새벽 시간대에 창이 하루 앞당겨져 두 판정이 어긋난다.
+        LocalDate from = parseOrDefault(fromDate, LocalDate.now(PopupStoreRepository.SEOUL));
         LocalDate to = parseOrDefault(toDate, from.plusDays(DEFAULT_CALENDAR_WINDOW_DAYS));
         if (to.isBefore(from)) to = from.plusDays(DEFAULT_CALENDAR_WINDOW_DAYS);
 
@@ -201,15 +212,41 @@ public class PopupStoreService {
         return category == null || category.isEmpty() || CATEGORY_ALL.equalsIgnoreCase(category);
     }
 
+    /** 목록 노출 가능 여부 = 검수 게이트 + 종료 여부(상태·날짜 양쪽). */
     private boolean isPublic(PopupStore p) {
-        if (isHiddenStatus(p.getStatus())) return false;
+        return passesModerationGate(p) && !isEnded(p);
+    }
+
+    /**
+     * 검수·상태 게이트. <b>종료 여부는 보지 않는다.</b>
+     *
+     * <p>목록({@link #isPublic})과 상세 진입이 공유한다. 상세는 이미 끝난 팝업이라도 열어준다 — 위시리스트나 방문기록에서 다시 열어보는 것은 정상
+     * 사용이고, 끝났다는 사실은 화면이 종료일로 알리면 된다. 반면 TAKEDOWN / REJECTED / 미검수는 어느 경로로도 보이면 안 된다.
+     */
+    private boolean passesModerationGate(PopupStore p) {
+        if (STATUS_PENDING.equals(p.getStatus())) return false;
         String rs = p.getReviewStatus();
         if (rs == null) return true;
         return REVIEW_AUTO_PUBLISHED.equals(rs) || REVIEW_APPROVED.equals(rs);
     }
 
-    private boolean isHiddenStatus(String status) {
-        return STATUS_PENDING.equals(status) || STATUS_EXPIRED.equals(status);
+    /** 스케줄러가 찍은 상태와 실제 날짜 중 하나라도 종료면 종료. */
+    private boolean isEnded(PopupStore p) {
+        return STATUS_EXPIRED.equals(p.getStatus()) || isPastEnd(p.getEndDate());
+    }
+
+    /**
+     * 종료일이 이미 지났는가.
+     *
+     * <p>{@code status=EXPIRED} 전환은 하루 1회 스케줄러가 하므로 그것이 지연·실패하면 끝난 팝업이 계속 공개된다. 이 메서드는 {@code
+     * findAllVisible} · 카테고리 · 검색 · 캘린더처럼 자체 쿼리를 쓰는 경로를 덮는다(리포지토리 쿼리에 조건을 넣은 경로와 함께 이중 차단).
+     *
+     * <p>ISO(YYYY-MM-DD) 문자열이라 사전식 비교가 곧 날짜 비교다. 값이 없거나 형식이 다르면 false — 날짜 미상일 뿐 종료 근거가 아니므로 추측해서
+     * 숨기지 않는다.
+     */
+    private boolean isPastEnd(String endDate) {
+        if (endDate == null || endDate.isBlank()) return false;
+        return endDate.compareTo(PopupStoreRepository.todayKst()) < 0;
     }
 
     private LocalDate parseOrDefault(String iso, LocalDate fallback) {
