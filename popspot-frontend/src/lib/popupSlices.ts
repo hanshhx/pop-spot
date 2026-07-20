@@ -141,6 +141,14 @@ export const CATEGORIES: CategoryDef[] = [
 /* ============================== 시점 ============================== */
 
 /** ISO yyyy-MM-dd 또는 yyyy.MM.dd 또는 null 안전 파싱. */
+/**
+ * 날짜 문자열 → Date. 달력에 실재하는 날짜만 통과시킨다.
+ *
+ * <p>{@code new Date(y, m-1, d)} 는 범위를 넘는 값을 조용히 이월한다 — {@code 2026-02-31} 은 3월 3일이,
+ * {@code 2026-99-99} 는 몇 년 뒤가 된다. 크롤러가 원문에서 뽑은 날짜라 이런 값이 들어올 수 있는데,
+ * 이월된 날짜로 D-day 를 계산하면 이미 끝난 팝업이 '진행 중' 으로 보인다.
+ * 만들어진 Date 의 연·월·일이 입력과 같은지 되돌려 확인해 그런 값을 걸러낸다.
+ */
 export function parseDate(s: string | null | undefined): Date | null {
   if (!s) return null;
   const normalized = s.trim().replace(/\./g, "-").slice(0, 10);
@@ -148,7 +156,26 @@ export function parseDate(s: string | null | undefined): Date | null {
   if (parts.length !== 3) return null;
   const [y, m, d] = parts.map((v) => Number.parseInt(v, 10));
   if (!y || !m || !d) return null;
-  return new Date(y, m - 1, d);
+  const date = new Date(y, m - 1, d);
+  // 이월이 일어났으면 입력과 달라진다 → 존재하지 않는 날짜.
+  if (date.getFullYear() !== y || date.getMonth() !== m - 1 || date.getDate() !== d) return null;
+  return date;
+}
+
+/** KST(UTC+9) 기준 오늘 00:00. 서버 TZ(Vercel=UTC)·브라우저 TZ 와 무관하게 KST 달력 날짜를 쓴다. */
+export function kstTodayStart(): Date {
+  const k = new Date(Date.now() + 9 * 3600 * 1000);
+  return new Date(k.getUTCFullYear(), k.getUTCMonth(), k.getUTCDate());
+}
+
+/**
+ * 이미 끝난 팝업인가. 종료일이 없거나 해석 불가면 false — 날짜 미상일 뿐 종료 근거가 아니므로
+ * 추측해서 숨기지 않는다.
+ */
+export function isExpired(endDate: string | null | undefined, today: Date): boolean {
+  const end = parseDate(endDate);
+  if (!end) return false;
+  return startOfDay(end).getTime() < today.getTime();
 }
 
 export function startOfDay(d: Date): Date {

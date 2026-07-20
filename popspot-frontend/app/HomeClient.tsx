@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTheme } from "next-themes";
 import { 
-  Search, MapPin, ArrowUpRight, Flame, Calendar, Menu, Users,
+  Search, MapPin, Flame, Calendar, Menu, Users,
   Instagram, Plus, X, ArrowUp, ArrowDown, Minus,
   Map as MapIcon, Route, Ticket, User as UserIcon, LogOut, Sparkles, Lock, ArrowRight, Loader2, RefreshCw,
   Shirt, Video, ShoppingBag, Crown, GripVertical, PlusCircle, Zap, MessageCircle, Heart, Star, Gift,
@@ -37,6 +37,7 @@ import LiveChatTicker from "../src/components/LiveChatTicker";
 import { SortableItem } from "../src/components/SortableItem";
 import MateBoard from "../src/components/MateBoard"; 
 import { apiFetch, API_BASE_URL, SOCKET_BASE_URL } from "../src/lib/api";
+import { isExpired, kstTodayStart } from "../src/lib/popupSlices";
 import { Header } from "../src/components/layout/Header";
 import { Footer } from "../src/components/layout/Footer";
 import { BottomDock, type DockTab } from "../src/components/layout/BottomDock";
@@ -95,6 +96,24 @@ const INITIAL_MY_COURSE: CourseItem[] = [];
 /* -------------------------------------------------------------------------- */
 const DEFAULT_TAB = "MAP";
 const USER_ONLY_TABS = new Set<string>(["COURSE", "MUSIC", "MATE"]);
+
+/**
+ * 이미 끝난 팝업을 목록에서 제외한다. 판정은 랜딩과 같은 공용 함수를 쓴다 —
+ * 두 화면이 서로 다른 날짜 해석을 하면 "홈엔 있는데 랜딩엔 없는" 불일치가 생긴다.
+ *
+ * <p>{@code /api/map/markers} 는 만료를 걸러 주지만 {@code /api/popups} 는 그렇지 않아, 홈 목록·랭킹에
+ * 어제 마감된 팝업이 그대로 남는다("성수 팝업" 을 보러 왔는데 닫힌 곳이 나오는 신뢰 문제).
+ * 백엔드 만료 스케줄러가 지연·실패해도 사용자에게는 보이지 않아야 하므로 화면에서 한 겹 더 막는다.
+ *
+ * <p>기준 시각은 KST 자정이다. 사용자의 브라우저 시간대가 어디든 "한국에서 오늘" 이 기준이어야
+ * 자정 경계에서 하루가 어긋나지 않는다. endDate 가 없거나 형식이 다르면 남긴다 — 날짜 미상일 뿐
+ * 종료됐다는 근거가 아니므로 추측해서 지우지 않는다.
+ */
+function dropExpired(list: PopupStore[]): PopupStore[] {
+  if (!Array.isArray(list)) return [];
+  const today = kstTodayStart();
+  return list.filter((p) => !isExpired(p?.endDate, today));
+}
 
 /** 현재 세션에서 해당 탭에 진입할 수 있는가. */
 function canAccessTab(tab: string, hasUser: boolean, isGuestActive: boolean): boolean {
@@ -566,7 +585,7 @@ export default function Home() {
   useEffect(() => {
     const cachedPopups = localStorage.getItem("cached_popups");
     if (cachedPopups) {
-        const data = JSON.parse(cachedPopups);
+        const data = dropExpired(JSON.parse(cachedPopups));
         setAllPopups(data);
         const sortedData = [...(data as PopupStore[])].sort((a, b) => (b.viewCount || 0) - (a.viewCount || 0));
         setHotPopups(sortedData.slice(0, 5)); 
@@ -574,11 +593,12 @@ export default function Home() {
     
     apiFetch('/api/popups')
         .then(res => res.json())
-        .then(data => {
+        .then(raw => {
+            const data = dropExpired(raw);
             setAllPopups(data);
             const sortedData = [...(data as PopupStore[])].sort((a, b) => (b.viewCount || 0) - (a.viewCount || 0));
-            setHotPopups(sortedData.slice(0, 5)); 
-            localStorage.setItem("cached_popups", JSON.stringify(data)); 
+            setHotPopups(sortedData.slice(0, 5));
+            localStorage.setItem("cached_popups", JSON.stringify(data));
         })
         .catch(err => {
             console.error("팝업 데이터 로딩 실패:", err);
@@ -1000,9 +1020,11 @@ export default function Home() {
                                 <h3 className="text-xl md:text-3xl lg:text-4xl font-bold text-gray-900 dark:text-white mb-4 lg:mb-6 leading-tight">{ootd?.comment || "트렌디한 서울 바이브를 분석 중입니다..."}</h3>
                                 <div className="flex flex-wrap gap-2 lg:gap-3">{['#SeongsuVibe', '#PopUpStyle', '#OOTD', `#${ootd?.data?.keyword.replace(" ", "") || 'Fashion'}`].map((tag, i) => (<span key={i} className="text-xs lg:text-sm text-gray-500 dark:text-white/40 font-medium">{tag}</span>))}</div>
                             </article>
-                            <article className="h-24 lg:h-32 rounded-[1.5rem] lg:rounded-[2rem] bg-gradient-to-r from-gray-900 to-black dark:from-white dark:to-gray-200 flex items-center justify-between px-6 lg:px-10 relative overflow-hidden group cursor-pointer">
-                                <div className="z-10"><p className="text-gray-400 dark:text-gray-600 text-[10px] lg:text-xs font-bold mb-0.5 lg:mb-1">POP-SPOT EXCLUSIVE</p><p className="text-white dark:text-black text-sm lg:text-xl font-black">해당 스타일로 방문 시 스탬프 2배 적립</p></div>
-                                <div className="w-8 h-8 lg:w-12 lg:h-12 bg-white dark:bg-black rounded-full flex items-center justify-center text-black dark:text-white group-hover:scale-110 transition-transform z-10"><ArrowUpRight size={18} className="lg:w-6 lg:h-6"/></div>
+                            {/* 이전 문구는 "해당 스타일로 방문 시 스탬프 2배 적립" 이었다. 백엔드에 스탬프 배수
+                                로직이 존재하지 않아 지킬 수 없는 약속이었고, cursor-pointer + 화살표로 눌리는 것처럼
+                                보이지만 클릭 핸들러도 없었다. 실제로 제공하는 것만 적고 가짜 인터랙션을 제거한다. */}
+                            <article className="h-24 lg:h-32 rounded-[1.5rem] lg:rounded-[2rem] bg-gradient-to-r from-gray-900 to-black dark:from-white dark:to-gray-200 flex items-center px-6 lg:px-10 relative overflow-hidden">
+                                <div className="z-10"><p className="text-gray-400 dark:text-gray-600 text-[10px] lg:text-xs font-bold mb-0.5 lg:mb-1">POP-SPOT EXCLUSIVE</p><p className="text-white dark:text-black text-sm lg:text-xl font-black">오늘의 무드로 고른 서울 팝업 스타일</p></div>
                             </article>
                         </div>
                     </div>
