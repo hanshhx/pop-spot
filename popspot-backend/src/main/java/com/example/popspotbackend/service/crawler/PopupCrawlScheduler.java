@@ -39,12 +39,12 @@ public class PopupCrawlScheduler {
     @Value("${popspot.photo.backfill-limit:150}")
     private int photoBackfillLimit;
 
-    @Scheduled(cron = "${popspot.crawler.cron:0 0 4,10 * * *}", zone = "Asia/Seoul")
+    @Scheduled(cron = "${popspot.crawler.cron:0 0 4 * * *}", zone = "Asia/Seoul")
     public void scheduledRunMorning() {
         runIfEnabled("morning");
     }
 
-    @Scheduled(cron = "${popspot.crawler.cron-afternoon:0 0 16,22 * * *}", zone = "Asia/Seoul")
+    @Scheduled(cron = "${popspot.crawler.cron-afternoon:0 0 16 * * *}", zone = "Asia/Seoul")
     public void scheduledRunAfternoon() {
         runIfEnabled("afternoon");
     }

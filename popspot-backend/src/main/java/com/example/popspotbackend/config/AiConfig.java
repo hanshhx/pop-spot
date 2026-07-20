@@ -2,7 +2,10 @@ package com.example.popspotbackend.config;
 
 import dev.langchain4j.model.chat.ChatLanguageModel;
 import dev.langchain4j.model.openai.OpenAiChatModel;
+import jakarta.annotation.PostConstruct;
 import java.time.Duration;
+import java.util.Set;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -11,27 +14,95 @@ import org.springframework.context.annotation.Primary;
 /**
  * LLM 설정 — Groq (OpenAI API 호환) 게이트웨이.
  *
- * <p>무료 한도 14,400 req/day. 기본 모델은 품질 기준의 {@code llama-3.3-70b-versatile} 이며 속도가 더 필요하면 {@code
- * llama-3.1-8b-instant} 로 환경변수에서 교체할 수 있다. Endpoint 도 환경변수로 다른 OpenAI 호환 서비스로 바꿀 수 있다.
+ * <p><b>모델을 두 개로 나누는 이유.</b> Groq 무료 한도는 <b>조직 단위</b>로 적용되어 API 키를 나눠도 쿼터가 공유된다. 반면 한도는 <b>모델별</b>로
+ * 따로 잡히므로, 서로 다른 모델을 쓰는 것이 기능 간 격리를 만드는 유일한 방법이다. 크롤러가 일일 토큰을 소진해도 사용자 기능(AI 검색 · 코스 · 음악)이 같이 죽지
+ * 않게 분리한다.
+ *
+ * <p><b>병목은 RPD 가 아니라 TPD 다.</b> 무료 대체 모델 기준 RPD 1,000 · TPD 200K 인데, 고정 프롬프트만 1,970자(≈1,000~1,500
+ * 토큰)라 스니펫이 0개여도 하루 150회 안팎이 상한이다. 키워드를 늘리기 전에 토큰 예산을 먼저 계산해야 한다.
+ *
+ * <p><b>하위 호환.</b> 기존 {@code GROQ_MODEL_NAME} 이 설정돼 있으면 두 모델 모두 그 값을 쓴다. 즉 이 변경만 배포해도 동작이 바뀌지 않는다.
+ * 마이그레이션은 운영 env 에서 {@code AI_USER_MODEL} / {@code AI_CRAWLER_MODEL} 을 지정해 단계적으로 한다.
  */
+@Slf4j
 @Configuration
 public class AiConfig {
 
     private static final double DEFAULT_TEMPERATURE = 0.7;
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(60);
 
+    /**
+     * 2026-08-16 종료 예정 모델. 무료 · Developer 티어 대상이며 committed-spend Enterprise 만 제외된다.
+     *
+     * @see <a href="https://console.groq.com/docs/deprecations">Groq Model Deprecations</a>
+     */
+    private static final Set<String> RETIRING_MODELS =
+            Set.of("llama-3.3-70b-versatile", "llama-3.1-8b-instant");
+
+    private static final String RETIREMENT_DATE = "2026-08-16";
+
     @Value("${groq.api-key}")
     private String apiKey;
-
-    @Value("${groq.model-name:llama-3.3-70b-versatile}")
-    private String modelName;
 
     @Value("${groq.base-url:https://api.groq.com/openai/v1}")
     private String baseUrl;
 
+    /** 사용자 기능(AI 검색 · 코스 · 음악)용. 응답 품질이 사용자에게 직접 보이므로 큰 모델을 기본값으로 둔다. */
+    @Value("${ai.user.model-name}")
+    private String userModelName;
+
+    /** 크롤러 정규화용. 구조화 추출이라 작은 모델로 충분하고, 호출량이 많아 사용자 기능과 예산을 나눠야 한다. */
+    @Value("${ai.crawler.model-name}")
+    private String crawlerModelName;
+
+    /**
+     * 종료 예정 모델을 쓰고 있으면 부팅 로그에 남긴다.
+     *
+     * <p>운영 env 의 {@code GROQ_MODEL_NAME} 은 코드 기본값을 덮으므로, 코드만 고쳐서는 마이그레이션이 되지 않는다. 그 사실이 조용히 묻히지
+     * 않도록 기동 때마다 경고한다.
+     */
+    @PostConstruct
+    public void warnOnModelConfig() {
+        warnIfRetiring("user", userModelName);
+        warnIfRetiring("crawler", crawlerModelName);
+        if (userModelName.equals(crawlerModelName)) {
+            log.warn(
+                    "[AiConfig] user/crawler 모델이 같습니다('{}'). 한도가 모델 단위라 이 상태에서는 격리가"
+                            + " 걸리지 않아, 크롤러가 일일 토큰을 소진하면 사용자 AI 기능도 함께 실패합니다."
+                            + " 운영 env 에서 GROQ_MODEL_NAME 을 제거하고 AI_USER_MODEL /"
+                            + " AI_CRAWLER_MODEL 을 각각 지정하세요.",
+                    userModelName);
+        }
+    }
+
+    private void warnIfRetiring(String role, String model) {
+        if (RETIRING_MODELS.contains(model)) {
+            log.warn(
+                    "[AiConfig] {} 모델 '{}' 은 {} 종료 예정입니다. 대체: gpt-oss-120b(품질) / gpt-oss-20b(경량)."
+                            + " 운영 env 의 GROQ_MODEL_NAME 또는 AI_{}_MODEL 을 교체하세요.",
+                    role,
+                    model,
+                    RETIREMENT_DATE,
+                    role.toUpperCase());
+        } else {
+            log.info("[AiConfig] {} 모델: {}", role, model);
+        }
+    }
+
+    /** 기본 주입 대상. 기존 {@code ChatLanguageModel} 주입부(AI 검색 · 코스 · 음악 3종)는 수정 없이 이 빈을 받는다. */
     @Bean
     @Primary
-    public ChatLanguageModel chatLanguageModel() {
+    public ChatLanguageModel userChatModel() {
+        return build(userModelName);
+    }
+
+    /** 크롤러 전용. {@code @Qualifier("crawlerChatModel")} 로 명시 주입해야 한다. */
+    @Bean
+    public ChatLanguageModel crawlerChatModel() {
+        return build(crawlerModelName);
+    }
+
+    private ChatLanguageModel build(String modelName) {
         return OpenAiChatModel.builder()
                 .baseUrl(baseUrl)
                 .apiKey(apiKey)
