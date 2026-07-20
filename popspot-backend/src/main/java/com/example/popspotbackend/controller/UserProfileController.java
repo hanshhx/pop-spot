@@ -75,9 +75,9 @@ public class UserProfileController {
     /**
      * 아바타 저장 위치. 정적 서빙(WebConfig)과 <b>같은 프로퍼티</b>({@code app.upload.path})를 읽는다.
      *
-     * <p>이전에는 {@code user.dir/uploads/avatar} 로 하드코딩돼 있어서, {@code APP_UPLOAD_PATH} 를 설정하는 순간
-     * 저장 위치와 공개 위치가 갈렸다. 아바타 URL 은 {@code users.picture} 에 영구 저장되므로 그 상태로 업로드가
-     * 이뤄지면 DB 에 죽은 URL 이 쌓여 코드 롤백으로도 복구되지 않는다.
+     * <p>이전에는 {@code user.dir/uploads/avatar} 로 하드코딩돼 있어서, {@code APP_UPLOAD_PATH} 를 설정하는 순간 저장 위치와
+     * 공개 위치가 갈렸다. 아바타 URL 은 {@code users.picture} 에 영구 저장되므로 그 상태로 업로드가 이뤄지면 DB 에 죽은 URL 이 쌓여 코드
+     * 롤백으로도 복구되지 않는다.
      */
     private final String avatarDir;
 

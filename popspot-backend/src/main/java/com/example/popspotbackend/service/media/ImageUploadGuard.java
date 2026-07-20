@@ -21,20 +21,20 @@ import org.springframework.web.multipart.MultipartFile;
 /**
  * 업로드 이미지의 실체 검증 + 정규화.
  *
- * <p>기존 검증은 <b>확장자</b>와 <b>클라이언트가 보낸 Content-Type</b> 만 봤다. 둘 다 공격자가 마음대로 정하는 값이라,
- * 아무 바이너리든 {@code .jpg} 로 이름 붙이고 {@code Content-Type: image/jpeg} 만 맞추면 그대로 디스크에 저장됐다.
+ * <p>기존 검증은 <b>확장자</b>와 <b>클라이언트가 보낸 Content-Type</b> 만 봤다. 둘 다 공격자가 마음대로 정하는 값이라, 아무 바이너리든 {@code
+ * .jpg} 로 이름 붙이고 {@code Content-Type: image/jpeg} 만 맞추면 그대로 디스크에 저장됐다.
  *
  * <p>여기서는 파일 <b>내용</b>을 기준으로 판단한다:
  *
  * <ol>
  *   <li><b>매직바이트</b> — 선두 바이트로 실제 포맷을 알아내고, 사용자가 준 확장자와 일치하는지 본다.
  *   <li><b>디코드 검증</b> — {@link ImageIO} 로 실제로 열리는지 확인한다. 헤더만 이미지인 척하는 polyglot 이 걸러진다.
- *   <li><b>재인코딩</b> — JPEG/PNG 는 픽셀만 남기고 다시 쓴다. EXIF(GPS 좌표 등 위치정보)와 이미지 데이터 뒤에
- *       숨겨둔 payload 가 함께 사라진다.
+ *   <li><b>재인코딩</b> — JPEG/PNG 는 픽셀만 남기고 다시 쓴다. EXIF(GPS 좌표 등 위치정보)와 이미지 데이터 뒤에 숨겨둔 payload 가 함께
+ *       사라진다.
  * </ol>
  *
- * <p>WebP 는 JDK 기본 ImageIO 에 리더가 없어 디코드·재인코딩을 못 한다. 시그니처 검사까지만 하고 통과시키되,
- * 응답에 {@code X-Content-Type-Options: nosniff} 가 붙어 있어(WebConfig) 브라우저가 다른 타입으로 해석하지는 않는다.
+ * <p>WebP 는 JDK 기본 ImageIO 에 리더가 없어 디코드·재인코딩을 못 한다. 시그니처 검사까지만 하고 통과시키되, 응답에 {@code
+ * X-Content-Type-Options: nosniff} 가 붙어 있어(WebConfig) 브라우저가 다른 타입으로 해석하지는 않는다.
  *
  * <p>GIF 는 디코드 검증만 한다. 재인코딩하면 애니메이션이 첫 프레임으로 뭉개진다.
  */
@@ -71,8 +71,8 @@ public class ImageUploadGuard {
     /**
      * 검사 결과.
      *
-     * <p>{@link #rejection} 이 null 이 아니면 거부 사유이고, null 이면 {@link #bytes} 를 저장하면 된다. 재인코딩된 경우
-     * {@code bytes} 는 원본이 아니라 새로 만든 바이트다.
+     * <p>{@link #rejection} 이 null 이 아니면 거부 사유이고, null 이면 {@link #bytes} 를 저장하면 된다. 재인코딩된 경우 {@code
+     * bytes} 는 원본이 아니라 새로 만든 바이트다.
      */
     public record Inspection(String rejection, byte[] bytes, String extension) {
 
@@ -155,15 +155,16 @@ public class ImageUploadGuard {
     /**
      * 래스터를 할당하기 <b>전에</b> 헤더로 해상도를 재고, 상한을 넘으면 디코드하지 않는다.
      *
-     * <p>압축 후 크기 제한(10MB)은 디코드 폭탄을 못 막는다. 단색 PNG 30000×30000 은 파일로는 수백 KB 지만
-     * {@code BufferedImage} 로 펼치면 픽셀당 4바이트라 3.6GB 를 요구한다. 이때 나는 {@link OutOfMemoryError} 는
-     * {@code Error} 라 {@code catch (RuntimeException)} 에 걸리지 않고, 힙 고갈이 JVM 전체로 번져 무관한
-     * 다른 요청까지 죽인다. 기존 {@code transferTo} 는 힙을 거의 안 썼으므로 상한 없는 디코드는 명백한 회귀다.
+     * <p>압축 후 크기 제한(10MB)은 디코드 폭탄을 못 막는다. 단색 PNG 30000×30000 은 파일로는 수백 KB 지만 {@code BufferedImage}
+     * 로 펼치면 픽셀당 4바이트라 3.6GB 를 요구한다. 이때 나는 {@link OutOfMemoryError} 는 {@code Error} 라 {@code catch
+     * (RuntimeException)} 에 걸리지 않고, 힙 고갈이 JVM 전체로 번져 무관한 다른 요청까지 죽인다. 기존 {@code transferTo} 는 힙을 거의
+     * 안 썼으므로 상한 없는 디코드는 명백한 회귀다.
      *
      * @return 디코드된 이미지, 또는 열 수 없거나 해상도 상한을 넘으면 null
      */
     private BufferedImage decodeWithPixelCap(byte[] raw) {
-        try (ImageInputStream input = ImageIO.createImageInputStream(new ByteArrayInputStream(raw))) {
+        try (ImageInputStream input =
+                ImageIO.createImageInputStream(new ByteArrayInputStream(raw))) {
             if (input == null) return null;
             Iterator<ImageReader> readers = ImageIO.getImageReaders(input);
             if (!readers.hasNext()) {
@@ -193,8 +194,8 @@ public class ImageUploadGuard {
     /**
      * 픽셀만 다시 써서 EXIF·트레일러 payload 를 제거한다.
      *
-     * <p>JPEG 는 알파 채널을 지원하지 않아 투명 PNG 를 그대로 넘기면 깨진다. 여기서는 원본이 JPEG 일 때만 JPEG 로
-     * 쓰므로 문제가 없지만, 방어적으로 알파가 있으면 RGB 로 평탄화한다.
+     * <p>JPEG 는 알파 채널을 지원하지 않아 투명 PNG 를 그대로 넘기면 깨진다. 여기서는 원본이 JPEG 일 때만 JPEG 로 쓰므로 문제가 없지만, 방어적으로
+     * 알파가 있으면 RGB 로 평탄화한다.
      */
     private byte[] reencode(BufferedImage image, Kind kind) {
         try {
@@ -219,8 +220,8 @@ public class ImageUploadGuard {
     /**
      * 품질을 명시해 JPEG 로 쓴다.
      *
-     * <p>{@code ImageIO.write(..., "jpg", ...)} 는 품질 0.75 고정이라 정상 사용자의 사진도 매번 눈에 띄게
-     * 재압축된다. 명시적으로 높여 화질 손실을 줄인다.
+     * <p>{@code ImageIO.write(..., "jpg", ...)} 는 품질 0.75 고정이라 정상 사용자의 사진도 매번 눈에 띄게 재압축된다. 명시적으로 높여
+     * 화질 손실을 줄인다.
      */
     private byte[] writeJpeg(BufferedImage image) throws IOException {
         ImageWriter writer = ImageIO.getImageWritersByFormatName("jpg").next();

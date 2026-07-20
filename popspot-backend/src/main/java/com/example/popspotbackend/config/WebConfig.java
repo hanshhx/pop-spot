@@ -32,9 +32,8 @@ public class WebConfig implements WebMvcConfigurer {
     /**
      * 권리자 takedown 신고 경로 — 레이트리밋 대상.
      *
-     * <p>이 엔드포인트는 인증 없이 즉시 노출 차단을 일으킨다(약관 §11 로 공표된 정책). 인증을 요구하면 약관을
-     * 어기게 되므로, 대량 악용을 막는 유일한 수단이 호출 빈도 제한이다. 실제 제한값은
-     * {@link RateLimitInterceptor} 가 정한다.
+     * <p>이 엔드포인트는 인증 없이 즉시 노출 차단을 일으킨다(약관 §11 로 공표된 정책). 인증을 요구하면 약관을 어기게 되므로, 대량 악용을 막는 유일한 수단이 호출
+     * 빈도 제한이다. 실제 제한값은 {@link RateLimitInterceptor} 가 정한다.
      */
     private static final String TAKEDOWN_PATH_PATTERN = "/api/popups/*/takedown";
 
@@ -55,10 +54,7 @@ public class WebConfig implements WebMvcConfigurer {
         try {
             Files.createDirectories(base.resolve("avatar"));
         } catch (IOException e) {
-            log.error(
-                    "[WebConfig] 업로드 디렉터리 생성 실패 — 업로드가 실패합니다. 경로={} 원인={}",
-                    base,
-                    e.toString());
+            log.error("[WebConfig] 업로드 디렉터리 생성 실패 — 업로드가 실패합니다. 경로={} 원인={}", base, e.toString());
         }
 
         String resourcePath = base.toUri().toString();
