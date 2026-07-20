@@ -155,8 +155,8 @@ public class DatabaseBackupScheduler {
     }
 
     /**
-     * 백업 디렉토리를 소유자 전용(700)으로 제한. SQL 덤프는 전체 PII 를 담으므로 다른 로컬 계정이
-     * 읽지 못하게 한다. POSIX 가 아닌 환경(Windows dev)에서는 조용히 건너뛴다.
+     * 백업 디렉토리를 소유자 전용(700)으로 제한. SQL 덤프는 전체 PII 를 담으므로 다른 로컬 계정이 읽지 못하게 한다. POSIX 가 아닌 환경(Windows
+     * dev)에서는 조용히 건너뛴다.
      */
     private void restrictDirPermissions(Path dir) {
         try {

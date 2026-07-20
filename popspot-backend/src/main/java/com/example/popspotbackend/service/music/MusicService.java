@@ -170,8 +170,8 @@ public class MusicService {
     /**
      * 자동 다음 곡 추천(개인화).
      *
-     * <p>시드 곡 무드 유사도(가중치 2)에 <b>유저 재생 이력</b>의 무드 취향·선호 아티스트를 더해 점수화. 로그인 유저마다
-     * 같은 곡에서도 다른 추천이 나온다. 외부 API 안 쓰고 DB 만으로 처리하므로 quota 부담 0.
+     * <p>시드 곡 무드 유사도(가중치 2)에 <b>유저 재생 이력</b>의 무드 취향·선호 아티스트를 더해 점수화. 로그인 유저마다 같은 곡에서도 다른 추천이 나온다.
+     * 외부 API 안 쓰고 DB 만으로 처리하므로 quota 부담 0.
      */
     public List<MusicTrack> recommendNext(Long seedTrackId, int limit, String userId) {
         MusicTrack seed = trackRepo.findById(seedTrackId).orElse(null);
@@ -188,8 +188,8 @@ public class MusicService {
     /**
      * '당신을 위한' 개인 추천 피드.
      *
-     * <p>유저 재생 이력에서 무드 프로필·선호 아티스트를 뽑아, 그 취향에 가까운 곡을 점수화(이미 들은 곡 제외). 이력이 없는
-     * 신규/게스트는 인기곡으로 폴백. 무드 키워드 고정으로 쏠리던 문제를 유저별 취향으로 보완한다.
+     * <p>유저 재생 이력에서 무드 프로필·선호 아티스트를 뽑아, 그 취향에 가까운 곡을 점수화(이미 들은 곡 제외). 이력이 없는 신규/게스트는 인기곡으로 폴백. 무드
+     * 키워드 고정으로 쏠리던 문제를 유저별 취향으로 보완한다.
      */
     public List<MusicTrack> forYou(String userId, int limit) {
         Taste taste = userTaste(userId);
@@ -199,7 +199,11 @@ public class MusicService {
 
     /** 무드 유사도 + 유저 취향(무드·아티스트) 블렌드로 후보 풀을 정렬. */
     private List<MusicTrack> rankByProfile(
-            List<String> seedMoods, Taste taste, Long excludeSeedId, Set<Long> excludeIds, int limit) {
+            List<String> seedMoods,
+            Taste taste,
+            Long excludeSeedId,
+            Set<Long> excludeIds,
+            int limit) {
         return trackRepo.findTopPlayed(PageRequest.of(0, RECOMMENDATION_CANDIDATE_POOL)).stream()
                 .filter(t -> excludeSeedId == null || !t.getId().equals(excludeSeedId))
                 .filter(t -> !excludeIds.contains(t.getId()))
@@ -245,8 +249,10 @@ public class MusicService {
         }
         List<String> moods =
                 moodFreq.entrySet().stream()
-                        .sorted(Comparator.<Map.Entry<String, Integer>>comparingInt(Map.Entry::getValue)
-                                .reversed())
+                        .sorted(
+                                Comparator.<Map.Entry<String, Integer>>comparingInt(
+                                                Map.Entry::getValue)
+                                        .reversed())
                         .map(Map.Entry::getKey)
                         .toList();
         return new Taste(moods, artists, played);

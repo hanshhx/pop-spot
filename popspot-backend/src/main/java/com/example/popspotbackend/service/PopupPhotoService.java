@@ -13,8 +13,9 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * 팝업 커버 사진 백필.
  *
- * <p>이미지(PopupImage)가 없는 공개 팝업은 {@code PopupStore.getImageUrl()} 이 단일 기본 이미지로 떨어진다. 여기서 Pexels 로 이름/카테고리에
- * 어울리는 사진을 찾아 대표 이미지(mainYn="Y")로 한 장 붙이면, 그 이후로는 각 팝업이 서로 다른 커버를 갖는다. 신규 수집분은 스케줄러가 주기적으로 채운다.
+ * <p>이미지(PopupImage)가 없는 공개 팝업은 {@code PopupStore.getImageUrl()} 이 단일 기본 이미지로 떨어진다. 여기서 Pexels 로
+ * 이름/카테고리에 어울리는 사진을 찾아 대표 이미지(mainYn="Y")로 한 장 붙이면, 그 이후로는 각 팝업이 서로 다른 커버를 갖는다. 신규 수집분은 스케줄러가 주기적으로
+ * 채운다.
  */
 @Slf4j
 @Service

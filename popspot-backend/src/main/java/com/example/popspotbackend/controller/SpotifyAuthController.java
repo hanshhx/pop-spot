@@ -182,11 +182,11 @@ public class SpotifyAuthController {
     /**
      * 콜백 완료 후 프론트로 보낼 redirect URL 구성.
      *
-     * <p>항상 음악 탭으로 복귀하도록 {@code ?tab=MUSIC&spotify=<status>} 를 붙인다.
-     * SpotifyConnectButton 이 음악 탭 안에 있어, 다른 탭으로 가면 결과 토스트가 안 뜬다.
+     * <p>항상 음악 탭으로 복귀하도록 {@code ?tab=MUSIC&spotify=<status>} 를 붙인다. SpotifyConnectButton 이 음악 탭 안에
+     * 있어, 다른 탭으로 가면 결과 토스트가 안 뜬다.
      *
-     * <p>frontendRedirect 에 이미 쿼리(예: {@code ?tab=MUSIC})가 있어도 이중 {@code ?} 가
-     * 생기지 않도록 기존 쿼리를 제거하고 의도한 쿼리만 부착한다.
+     * <p>frontendRedirect 에 이미 쿼리(예: {@code ?tab=MUSIC})가 있어도 이중 {@code ?} 가 생기지 않도록 기존 쿼리를 제거하고
+     * 의도한 쿼리만 부착한다.
      */
     private String frontendRedirectWith(String status) {
         String base = frontendRedirect;

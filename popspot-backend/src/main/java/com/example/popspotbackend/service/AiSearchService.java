@@ -14,8 +14,8 @@ import org.springframework.stereotype.Service;
 /**
  * 자연어(AI) 팝업 검색 — 사용자의 검색 의도를 LLM(Groq)이 해석해 '지도에 떠 있는 팝업 중' 맞는 것들을 고른다.
  *
- * <p>후보군은 지도 마커와 동일한 {@code findVisibleMapMarkers}. LLM 에는 id 만 JSON 배열로 답하게 강제하고, 실재하는
- * 후보 id 로만 필터해 환각을 차단한 뒤, 프론트가 지도 핀 필터(맵) / 결과 목록(모달) 양쪽에 쓰도록 id·이름·위치를 함께 돌려준다.
+ * <p>후보군은 지도 마커와 동일한 {@code findVisibleMapMarkers}. LLM 에는 id 만 JSON 배열로 답하게 강제하고, 실재하는 후보 id 로만
+ * 필터해 환각을 차단한 뒤, 프론트가 지도 핀 필터(맵) / 결과 목록(모달) 양쪽에 쓰도록 id·이름·위치를 함께 돌려준다.
  */
 @Slf4j
 @Service

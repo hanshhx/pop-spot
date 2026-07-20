@@ -80,7 +80,10 @@ public class EmailService {
             return true;
         } catch (Exception e) {
             // 보안(v2.22): 수신자 이메일 평문 + 예외 메시지 로깅 금지(PII). 마스킹 + 예외 타입만.
-            log.warn("[Email] 알림 발송 실패 to={} err={}", maskEmail(toEmail), e.getClass().getSimpleName());
+            log.warn(
+                    "[Email] 알림 발송 실패 to={} err={}",
+                    maskEmail(toEmail),
+                    e.getClass().getSimpleName());
             return false;
         }
     }
