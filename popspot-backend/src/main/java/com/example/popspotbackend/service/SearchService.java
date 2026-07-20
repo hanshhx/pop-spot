@@ -124,7 +124,25 @@ public class SearchService {
     /* ============================== 인덱싱 정책 ============================== */
 
     private boolean isIndexable(PopupStore popup) {
-        return passesReviewStatus(popup) && passesStatus(popup) && passesConfidence(popup);
+        return passesReviewStatus(popup)
+                && passesStatus(popup)
+                && passesConfidence(popup)
+                && passesEndDate(popup);
+    }
+
+    /**
+     * 종료일이 지난 팝업은 인덱싱하지 않는다.
+     *
+     * <p>{@code status=EXPIRED} 는 {@link #passesStatus} 가 이미 거르지만, 그 전환은 하루 1회 스케줄러가 한다. 스케줄러가
+     * 지연·실패하면 이미 끝난 팝업이 인덱스에 그대로 남는데, 인덱스에서 빠지는 유일한 경로가 그 스케줄러라 스스로 회복되지 않는다. DB 조회에 건 이중 차단과 같은
+     * 기준을 인덱스에도 적용한다.
+     *
+     * <p>값이 없거나 형식이 다르면 통과 — 날짜 미상은 종료 근거가 아니다(DB 필터와 동일 정책).
+     */
+    private boolean passesEndDate(PopupStore popup) {
+        String end = popup.getEndDate();
+        if (end == null || end.isBlank()) return true;
+        return end.compareTo(PopupStoreRepository.todayKst()) >= 0;
     }
 
     private boolean passesReviewStatus(PopupStore popup) {

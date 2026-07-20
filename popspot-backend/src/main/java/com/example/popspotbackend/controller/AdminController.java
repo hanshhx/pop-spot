@@ -7,6 +7,7 @@ import com.example.popspotbackend.service.AdminService;
 import com.example.popspotbackend.service.ChatService;
 import com.example.popspotbackend.service.PopupDedupService;
 import com.example.popspotbackend.service.PopupPhotoService;
+import com.example.popspotbackend.service.PopupStoreService;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
@@ -35,6 +36,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class AdminController {
 
     private final AdminService adminService;
+    private final PopupStoreService popupStoreService;
     private final PopupPhotoService popupPhotoService;
     private final PopupDedupService popupDedupService;
     private final ChatService chatService;
@@ -173,5 +175,17 @@ public class AdminController {
     public ResponseEntity<String> forceDeleteMatePost(@PathVariable Long id) {
         adminService.forceDeleteMatePost(id);
         return ResponseEntity.ok("게시글이 강제 삭제되었습니다.");
+    }
+
+    /**
+     * 굿즈 등록 화면에서 팝업을 고르기 위한 전체 목록 (검수 상태 무관).
+     *
+     * <p>{@code GoodsController} 의 {@code GET /api/goods/stores} 에서 옮겨왔다. 그 경로는 {@code
+     * SecurityConfig} 의 {@code /api/**} permitAll 에 걸려 무인증이었고 응답이 {@code findAll()} 이라 필터가 하나도 없어서,
+     * 숨긴 PENDING · REJECTED · TAKEDOWN 팝업의 이름 · 위치 · 설명이 누구에게나 나갔다.
+     */
+    @GetMapping("/goods/stores")
+    public ResponseEntity<List<PopupStore>> getGoodsPopupStores() {
+        return ResponseEntity.ok(popupStoreService.findAll());
     }
 }
