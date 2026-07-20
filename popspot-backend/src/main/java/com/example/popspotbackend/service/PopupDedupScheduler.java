@@ -19,7 +19,7 @@ public class PopupDedupScheduler {
 
     private final PopupDedupService popupDedupService;
 
-    @Scheduled(cron = "${popspot.dedup.cron:0 10 5,11,17,23 * * *}", zone = "Asia/Seoul")
+    @Scheduled(cron = "${popspot.dedup.cron:0 10 5,17 * * *}", zone = "Asia/Seoul")
     public void autoDedup() {
         try {
             Map<String, Object> result = popupDedupService.dedupe();

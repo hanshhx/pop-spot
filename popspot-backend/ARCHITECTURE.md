@@ -86,7 +86,7 @@ flowchart TB
 
     subgraph ExtAPI["🌍 외부 API"]
         direction TB
-        Groq[/"Groq LLM<br/>llama-3.3-70b<br/>(14,400 req/일)"/]:::ext
+        Groq[/"Groq LLM<br/>user: gpt-oss-120b<br/>crawler: gpt-oss-20b"/]:::ext
         Spotify[/"Spotify Search<br/>Client Credentials"/]:::ext
         YouTube[/"YouTube IFrame<br/>+ Suggest"/]:::ext
         Naver[/"Naver Search<br/>Blog / News / Image"/]:::ext
@@ -191,7 +191,7 @@ flowchart LR
     GCP --> Mid
     GCP --> PG[(PostgreSQL<br/>+ Flyway<br/>ddl-auto=validate)]:::new
     GCP --> Redis[(Redis<br/>인증코드 TTL)]:::new
-    GCP --> Groq[/"Groq LLM<br/>14,400/일 ⬆️"/]:::new
+    GCP --> Groq[/"Groq LLM<br/>모델 2종 분리 ⬆️"/]:::new
     Groq -.대체.-> GeminiOld[/"~~Gemini~~"/]:::old
 
     GCP --> Iamport[/"Iamport<br/>+ 서버 검증 신규"/]:::new
@@ -206,7 +206,7 @@ flowchart LR
 - 🔐 Rate Limit (Bucket4j): 로그인 5회/분, 메일 5회/시간
 - 🔐 `System.out.println` PII 노출 → SLF4J 전환
 - 🔐 `ddl-auto=update` → `validate` + Flyway 마이그레이션
-- 🤖 **Gemini → Groq** 마이그레이션 (200/일 → 14,400/일 약 72배)
+- 🤖 **Gemini → Groq** 마이그레이션. 무료 한도는 모델별·조직 단위이며 병목은 RPD 가 아니라 TPD(일일 토큰)다 — https://console.groq.com/docs/rate-limits
 - 🎨 인트로 페이지 + AuthGuard 공개 경로
 
 ---
