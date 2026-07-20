@@ -39,18 +39,18 @@ public class PopupCrawlScheduler {
     @Value("${popspot.photo.backfill-limit:150}")
     private int photoBackfillLimit;
 
-    @Scheduled(cron = "${popspot.crawler.cron:0 0 4 * * *}", zone = "Asia/Seoul")
+    @Scheduled(cron = "${popspot.crawler.cron:0 0 4,10 * * *}", zone = "Asia/Seoul")
     public void scheduledRunMorning() {
         runIfEnabled("morning");
     }
 
-    @Scheduled(cron = "${popspot.crawler.cron-afternoon:0 0 16 * * *}", zone = "Asia/Seoul")
+    @Scheduled(cron = "${popspot.crawler.cron-afternoon:0 0 16,22 * * *}", zone = "Asia/Seoul")
     public void scheduledRunAfternoon() {
         runIfEnabled("afternoon");
     }
 
     /** 좌표 누락된 자동수집 row 일괄 백필. 매일 04:30 — 본 수집 직후라 새로 들어온 row 중 좌표가 빠진 것들을 따로 채워 지도 노출량을 늘린다. */
-    @Scheduled(cron = "${popspot.crawler.geocode-backfill-cron:0 30 4 * * *}", zone = "Asia/Seoul")
+    @Scheduled(cron = "${popspot.crawler.geocode-backfill-cron:0 50 4 * * *}", zone = "Asia/Seoul")
     public void scheduledGeocodeBackfill() {
         if (!enabled) {
             log.debug("[PopupCrawlScheduler] geocode-backfill disabled — 스킵");
@@ -66,10 +66,10 @@ public class PopupCrawlScheduler {
     }
 
     /**
-     * 이미지 없는 공개 팝업에 Pexels 커버 배정. 매일 04:45 — 본 수집·지오코딩 직후라 새로 들어온 팝업의 커버를 채운다. Pexels 키 미설정이면
-     * 서비스 레이어에서 스킵된다.
+     * 이미지 없는 공개 팝업에 Pexels 커버 배정. 매일 04:45 — 본 수집·지오코딩 직후라 새로 들어온 팝업의 커버를 채운다. Pexels 키 미설정이면 서비스
+     * 레이어에서 스킵된다.
      */
-    @Scheduled(cron = "${popspot.photo.backfill-cron:0 45 4 * * *}", zone = "Asia/Seoul")
+    @Scheduled(cron = "${popspot.photo.backfill-cron:0 0 5 * * *}", zone = "Asia/Seoul")
     public void scheduledPhotoBackfill() {
         if (!enabled) {
             log.debug("[PopupCrawlScheduler] photo-backfill disabled — 스킵");

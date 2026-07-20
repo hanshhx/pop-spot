@@ -28,7 +28,14 @@ public class PopupNormalizationService {
 
     // v2.33 — 8 → 40. API 가 이미 가져온 snippet(키워드당 최대 120개) 중 앞 8개만 보던 병목 해소.
     // Groq context/RPM 여유 안에서 다건 추출이 가능한 상한.
-    private static final int MAX_SNIPPETS_PER_REQUEST = 40;
+    /**
+     * LLM 한 번에 넘길 스니펫 수.
+     *
+     * <p>키워드당 4채널 × 30건 = 최대 120건을 수집하는데 40건만 넘겨 2/3 를 버리고 있었다. Groq(llama-3.3-70b) 컨텍스트는 128k 라
+     * 90건(스니펫당 수백 토큰 → 2만 토큰 안팎)도 여유롭다. <b>LLM 호출 수는 그대로인데 추출되는 팝업 수만 늘어나는 무료 개선</b>이라 상한을 올린다.
+     */
+    private static final int MAX_SNIPPETS_PER_REQUEST = 90;
+
     private static final String DEFAULT_CATEGORY = "ETC";
     private static final String SEOUL_KEYWORD = "서울";
 
