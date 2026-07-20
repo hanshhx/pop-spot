@@ -36,16 +36,16 @@ public class RateLimitInterceptor implements HandlerInterceptor {
     /**
      * 권리자 takedown 신고 핸들러 메서드명 — {@link PopupStoreController#requestTakedown}.
      *
-     * <p>이 엔드포인트는 인증 없이 호출 가능하고 즉시 노출을 차단한다(약관 §11 · about 페이지에 공표된 정책이라
-     * 동작 자체는 유지해야 한다). 따라서 남은 방어선은 호출 빈도 제한뿐이다.
+     * <p>이 엔드포인트는 인증 없이 호출 가능하고 즉시 노출을 차단한다(약관 §11 · about 페이지에 공표된 정책이라 동작 자체는 유지해야 한다). 따라서 남은
+     * 방어선은 호출 빈도 제한뿐이다.
      */
     private static final String TAKEDOWN_METHOD_NAME = "requestTakedown";
 
     /**
      * takedown 전용 버킷 이름.
      *
-     * <p>버킷 키를 URI 로 잡으면 팝업마다 키가 달라져 "팝업 1건당 3회" 가 된다. 공격자는 서로 다른 팝업
-     * 1000개를 각각 1회씩 내려버리면 그만이라 제한이 사실상 없는 것과 같다. 기능 단위로 묶어 IP 당 총량을 센다.
+     * <p>버킷 키를 URI 로 잡으면 팝업마다 키가 달라져 "팝업 1건당 3회" 가 된다. 공격자는 서로 다른 팝업 1000개를 각각 1회씩 내려버리면 그만이라 제한이
+     * 사실상 없는 것과 같다. 기능 단위로 묶어 IP 당 총량을 센다.
      */
     private static final String BUCKET_TAKEDOWN = "takedown";
 
@@ -58,9 +58,9 @@ public class RateLimitInterceptor implements HandlerInterceptor {
     /**
      * 경로를 알아보지 못했을 때 적용할 보수적 기본값.
      *
-     * <p>이 인터셉터는 등록된 민감 경로에서만 호출된다. 그런데도 {@code resolveLimit} 가 못 알아봤다는 건
-     * 인코딩 우회 같은 변형 표기일 개연성이 높다(예: {@code /api/v1/auth/%6Cogin}). 예전처럼 무제한 통과시키면
-     * 문자열 한 글자만 바꿔 제한을 벗어날 수 있으므로 fail-closed 로 둔다.
+     * <p>이 인터셉터는 등록된 민감 경로에서만 호출된다. 그런데도 {@code resolveLimit} 가 못 알아봤다는 건 인코딩 우회 같은 변형 표기일 개연성이
+     * 높다(예: {@code /api/v1/auth/%6Cogin}). 예전처럼 무제한 통과시키면 문자열 한 글자만 바꿔 제한을 벗어날 수 있으므로 fail-closed 로
+     * 둔다.
      */
     private static final Bandwidth FALLBACK_LIMIT =
             Bandwidth.classic(10, Refill.intervally(10, Duration.ofMinutes(1)));
@@ -101,7 +101,8 @@ public class RateLimitInterceptor implements HandlerInterceptor {
         }
 
         String key = (takedown ? BUCKET_TAKEDOWN : uri) + "|" + clientIp(request);
-        Bucket bucket = buckets.get(key, k -> Bucket.builder().addLimit(limit).build());
+        Bandwidth effectiveLimit = limit;
+        Bucket bucket = buckets.get(key, k -> Bucket.builder().addLimit(effectiveLimit).build());
 
         if (bucket.tryConsume(1)) return true;
 
@@ -151,10 +152,9 @@ public class RateLimitInterceptor implements HandlerInterceptor {
     /**
      * 신뢰 가능한 클라이언트 IP.
      *
-     * <p>보안: 이전 구현은 {@code X-Forwarded-For} 의 <b>첫</b> 항목을 썼는데, 이는 클라이언트가 보낸 값이다.
-     * nginx 의 {@code $proxy_add_x_forwarded_for} 는 "클라이언트가 보낸 XFF + 실제 IP" 로 <b>덧붙이기</b> 때문에,
-     * 공격자가 매 요청마다 {@code X-Forwarded-For: 1.2.3.4} 를 바꿔 보내면 버킷 키가 매번 달라져
-     * 레이트리밋이 통째로 무력화됐다.
+     * <p>보안: 이전 구현은 {@code X-Forwarded-For} 의 <b>첫</b> 항목을 썼는데, 이는 클라이언트가 보낸 값이다. nginx 의 {@code
+     * $proxy_add_x_forwarded_for} 는 "클라이언트가 보낸 XFF + 실제 IP" 로 <b>덧붙이기</b> 때문에, 공격자가 매 요청마다 {@code
+     * X-Forwarded-For: 1.2.3.4} 를 바꿔 보내면 버킷 키가 매번 달라져 레이트리밋이 통째로 무력화됐다.
      *
      * <p>순서를 바꾼다:
      *
