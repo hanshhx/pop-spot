@@ -1,8 +1,11 @@
 package com.example.popspotbackend.service.crawler;
 
+import com.example.popspotbackend.entity.CrawlSourceLedger;
 import com.example.popspotbackend.entity.PopupStore;
 import com.example.popspotbackend.repository.PopupStoreRepository;
 import com.example.popspotbackend.service.SearchService;
+import com.example.popspotbackend.service.ai.LlmQuotaExhaustedException;
+import com.example.popspotbackend.service.ai.LlmUsageTracker;
 import com.example.popspotbackend.service.geocoding.Coordinates;
 import com.example.popspotbackend.service.geocoding.GeocodingService;
 import java.math.BigDecimal;
@@ -11,7 +14,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -539,6 +542,12 @@ public class PopupCrawlOrchestrator {
     private final PopupStoreRepository popupStoreRepository;
     private final GeocodingService geocodingService;
     private final SearchService searchService;
+    private final LlmUsageTracker usageTracker;
+    private final CrawlSourceLedgerService ledgerService;
+
+    /** 대장에 "어떤 모델로 해석했는지" 를 남기기 위한 값. 모델 교체 후 재처리 판단에 쓴다. */
+    @Value("${ai.crawler.model-name:unknown}")
+    private String crawlerModelName;
 
     @Value("${popspot.crawler.confidence-threshold:0.8}")
     private double confidenceThreshold;
@@ -552,6 +561,12 @@ public class PopupCrawlOrchestrator {
         if (areAllCrawlersUnconfigured()) {
             log.warn("[PopupCrawlOrchestrator] Naver/Kakao 둘 다 미설정 → 실행 스킵");
             return Map.of("skipped", 1);
+        }
+        // 정규화가 어차피 막혀 있으면 검색 API 쿼터를 쓸 이유가 없다. 수집을 완주한 뒤 첫 키워드에서
+        // 멈추면 키워드 × 4채널(≈1,600회) 호출과 슬립 5~10분을 통째로 버리게 된다.
+        if (usageTracker.isDailyQuotaExhausted(LlmUsageTracker.Role.CRAWLER)) {
+            log.warn("[PopupCrawlOrchestrator] QUOTA_EXHAUSTED 상태 — 수집 자체를 스킵");
+            return Map.of("skippedQuota", 1);
         }
 
         CrawlStatistics stats = new CrawlStatistics();
@@ -588,7 +603,9 @@ public class PopupCrawlOrchestrator {
     }
 
     private Map<String, List<PopupCrawlSource>> collectSnippetsByKeyword(CrawlStatistics stats) {
-        Map<String, List<PopupCrawlSource>> grouped = new HashMap<>();
+        // LinkedHashMap — 키워드 순서를 보존한다. HashMap 은 LinkedHashSet 으로 지켜온 순서를 버리는데,
+        // 중단이 생기면 "어디까지 처리했는지" 가 순서에 의존하므로 유지해야 한다.
+        Map<String, List<PopupCrawlSource>> grouped = new LinkedHashMap<>();
 
         // 키워드 목록은 append-only 로 자라서 확장 블록이 기존 항목과 겹치기 쉽다(실제로 51개 중복 발생).
         // 중복 키워드는 같은 검색을 두 번 돌려 API 쿼터·실행시간만 축내므로 순서를 유지한 채 dedup 한다.
@@ -629,26 +646,98 @@ public class PopupCrawlOrchestrator {
     private void processNormalizationAndSave(
             Map<String, List<PopupCrawlSource>> grouped, CrawlStatistics stats) {
         boolean isFirstCall = true;
+        int processedKeywords = 0;
+        // 회차 전체에서 이미 넘기기로 한 URL. 키워드 A·B 결과에 같은 글이 있으면 한 번만 보낸다.
+        Set<String> seenInThisRun = new HashSet<>();
 
         for (Map.Entry<String, List<PopupCrawlSource>> entry : grouped.entrySet()) {
             if (shouldStopEarly(stats)) break;
 
-            List<PopupCrawlSource> snippets = entry.getValue();
-            if (snippets.isEmpty()) continue;
+            List<PopupCrawlSource> rawSnippets = entry.getValue();
+            if (rawSnippets.isEmpty()) continue;
+
+            // LLM 에 넘기기 전에 "이미 본 글" 을 걸러낸다. 이 단계가 무료 운영의 핵심 —
+            // 같은 블로그 글을 매 회차 다시 해석하면 새 글을 보기도 전에 토큰 예산이 바닥난다.
+            CrawlSourceLedgerService.FilterResult filtered =
+                    ledgerService.filterFresh(rawSnippets, seenInThisRun);
+            stats.skippedKnown += filtered.alreadyProcessed();
+            stats.skippedDuplicate += filtered.duplicateInRun();
+
+            // "오늘도 검색에 나왔다" 는 사실은 새 글 포함 여부와 무관하게 남긴다. 이걸 아래 isEmpty
+            // 분기 안에만 두면, 새 글이 하나라도 섞인 배치에서는 아는 글의 관측 시각이 멈춰
+            // 90일 뒤 정리 대상이 되고 결국 다시 LLM 을 타게 된다.
+            ledgerService.touchSeen(ledgerService.hashesOf(rawSnippets));
+
+            if (filtered.isEmpty()) continue;
+
+            // 프롬프트에 실제로 들어갈 목록만 들고 간다. 키워드당 스니펫은 4채널 × 30 = 최대 120건인데
+            // LLM 은 앞 40개만 본다. 잘려 나간 것까지 PROCESSED 로 기록하면 읽지도 않은 글이 영영
+            // 후보에서 사라진다. 남겨 두면 다음 회차에 자연히 앞으로 올라온다.
+            List<PopupCrawlSource> snippets = normalizer.limitFor(filtered.fresh());
 
             if (!isFirstCall) sleepQuietly(GROQ_RPM_THROTTLE_MS);
             isFirstCall = false;
 
             // v2.33 — 한 키워드 묶음에서 서로 다른 팝업을 여러 개 추출(LLM 호출은 키워드당 1회 유지).
-            List<NormalizedPopup> candidates = normalizer.normalizeAll(snippets);
+            List<NormalizedPopup> candidates;
+            try {
+                candidates = normalizer.normalizeAll(snippets);
+            } catch (LlmQuotaExhaustedException e) {
+                // 일일 한도는 그날 회복되지 않는다. 남은 키워드를 계속 돌리면 429 만 더 맞고 끝난다.
+                stats.quotaExhausted = 1;
+                log.error(
+                        "[PopupCrawlOrchestrator] QUOTA_EXHAUSTED — 크롤 중단({})."
+                                + " 처리한 키워드 {}개 / 전체 {}개, 성공 LLM 호출 {}회."
+                                + " 재개 커서가 없어 다음 회차도 같은 앞부분부터 시작한다.",
+                        e.getMessage(),
+                        processedKeywords,
+                        grouped.size(),
+                        stats.llmCalls);
+                break;
+            } catch (PopupNormalizationService.LlmCallFailedException e) {
+                // 이 키워드만 실패. 성공 카운터를 올리지 않는 것이 핵심 — 예전엔 실패도 llmCalls 로 세어
+                // "호출은 됐는데 결과가 없다" 처럼 보였다.
+                // 다음 회차에 다시 시도하도록 RETRYABLE 로 남긴다(처리했다고 표시하면 영영 못 본다).
+                ledgerService.markProcessed(
+                        snippets, CrawlSourceLedger.STATUS_RETRYABLE, crawlerModelName);
+                processedKeywords++;
+                continue;
+            }
             stats.llmCalls++;
+            processedKeywords++;
 
+            // 후보를 전부 저장한 뒤에 대장을 확정한다. 자동게시 상한(maxAutoPublished)에 걸려 중간에
+            // 멈추면 남은 후보는 저장되지 않는데, 원문을 먼저 PROCESSED 로 찍어 두면 그 후보들은
+            // 다음 회차에도 다시 읽히지 않아 영영 사라진다.
+            boolean allCandidatesHandled = true;
             for (NormalizedPopup candidate : candidates) {
-                if (shouldStopEarly(stats)) break;
+                if (shouldStopEarly(stats)) {
+                    allCandidatesHandled = false;
+                    break;
+                }
                 stats.normalized++;
                 handleNormalizedResult(candidate, snippets, stats);
             }
+
+            // 끝까지 처리했으면 PROCESSED. 결과가 비어도 PROCESSED 다 — "이 글에는 팝업이 없다" 도
+            // 유효한 결론이고 같은 글을 다시 해석할 이유가 없다.
+            // 중간에 멈췄으면 RETRYABLE 로 남겨 다음 회차가 이어받게 한다.
+            ledgerService.markProcessed(
+                    snippets,
+                    allCandidatesHandled
+                            ? CrawlSourceLedger.STATUS_PROCESSED
+                            : CrawlSourceLedger.STATUS_RETRYABLE,
+                    crawlerModelName);
+
+            if (!allCandidatesHandled) break;
         }
+        usageTracker.logSummary(LlmUsageTracker.Role.CRAWLER);
+        log.info(
+                "[PopupCrawlOrchestrator] 선중복제거 — 기존 처리분 {}건, 회차 내 중복 {}건 스킵 (LLM 호출 {}회)",
+                stats.skippedKnown,
+                stats.skippedDuplicate,
+                stats.llmCalls);
+        ledgerService.pruneStale();
     }
 
     private boolean shouldStopEarly(CrawlStatistics stats) {
@@ -824,10 +913,28 @@ public class PopupCrawlOrchestrator {
         int duplicates;
         int rejected;
 
+        /**
+         * 일일 한도로 중단했는가(0/1).
+         *
+         * <p>이 필드가 없으면 쿼터 소진이 {@code llmCalls=0, autoPublished=0} 인 "조용한 정상 응답" 과 구별되지 않는다. 스케줄러는
+         * 예외를 받지 않으므로 "자동수집 완료" 로 남고, 어드민 수동 실행도 JSON 만으로는 판별할 수 없다. 이 변경의 목적이 바로 그 구분이므로 반환값에
+         * 드러낸다.
+         */
+        int quotaExhausted;
+
+        /** 대장에 이미 있어 LLM 에 안 넘긴 스니펫 수. 선중복제거가 실제로 얼마를 아꼈는지 보여준다. */
+        int skippedKnown;
+
+        /** 같은 회차 안에서 중복이라 뺀 스니펫 수(키워드 A·B 결과에 같은 글). */
+        int skippedDuplicate;
+
         Map<String, Integer> toMap() {
             Map<String, Integer> map = new LinkedHashMap<>();
             map.put("totalSnippets", totalSnippets);
             map.put("llmCalls", llmCalls);
+            map.put("skippedKnown", skippedKnown);
+            map.put("skippedDuplicate", skippedDuplicate);
+            map.put("quotaExhausted", quotaExhausted);
             map.put("normalized", normalized);
             map.put("autoPublished", autoPublished);
             map.put("pendingReview", pendingReview);
