@@ -34,7 +34,7 @@ export async function GET() {
       title: "POP-SPOT 서비스 소개",
       link: `${SITE_URL}/about`,
       description:
-        "서울 팝업스토어 정보를 지도 한 화면에서 보는 무료 큐레이션 서비스. 위시 · 메이트 · D-3 알림.",
+        "서울 팝업스토어 정보를 지도 한 화면에서 보는 무료 큐레이션 서비스. 지역 · 브랜드 · 마감임박순.",
       pubDate: now,
     },
     {
