@@ -1,14 +1,23 @@
 package com.example.popspotbackend.service.crawler;
 
+import com.example.popspotbackend.service.ai.LlmErrors;
+import com.example.popspotbackend.service.ai.LlmFailureKind;
+import com.example.popspotbackend.service.ai.LlmQuotaExhaustedException;
+import com.example.popspotbackend.service.ai.LlmUsageTracker;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
+import dev.langchain4j.data.message.AiMessage;
+import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.model.chat.ChatLanguageModel;
+import dev.langchain4j.model.output.Response;
+import dev.langchain4j.model.output.TokenUsage;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
-import lombok.RequiredArgsConstructor;
+import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 /**
@@ -23,18 +32,22 @@ import org.springframework.stereotype.Service;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class PopupNormalizationService {
 
-    // v2.33 — 8 → 40. API 가 이미 가져온 snippet(키워드당 최대 120개) 중 앞 8개만 보던 병목 해소.
-    // Groq context/RPM 여유 안에서 다건 추출이 가능한 상한.
     /**
      * LLM 한 번에 넘길 스니펫 수.
      *
-     * <p>키워드당 4채널 × 30건 = 최대 120건을 수집하는데 40건만 넘겨 2/3 를 버리고 있었다. Groq(llama-3.3-70b) 컨텍스트는 128k 라
-     * 90건(스니펫당 수백 토큰 → 2만 토큰 안팎)도 여유롭다. <b>LLM 호출 수는 그대로인데 추출되는 팝업 수만 늘어나는 무료 개선</b>이라 상한을 올린다.
+     * <p>한때 90 으로 올렸다가 40 으로 되돌렸다. 당시 근거는 "컨텍스트가 128k 라 여유롭다 · 호출 수는 그대로니 무료 개선" 이었는데, <b>컨텍스트 크기가
+     * 아니라 일일 토큰 한도(TPD)가 병목</b>이라는 걸 놓친 판단이었다. 스니펫을 2배로 늘리면 호출당 토큰이 2배가 되고, TPD 가 고정이라 <b>하루에 처리
+     * 가능한 키워드 수가 절반</b>이 된다. 호출 수가 같아도 무료가 아니다.
+     *
+     * <p>최종 값은 실측(호출당 입출력 토큰 p95, 추출 정확도)으로 8 · 20 · 40 중에서 정한다. 계측이 붙기 전까지는 이전에 운영되던 40 을 기준값으로
+     * 둔다.
      */
-    private static final int MAX_SNIPPETS_PER_REQUEST = 90;
+    public static final int MAX_SNIPPETS_PER_REQUEST = 40;
+
+    /** 성공 없이 이 횟수만큼 연속 실패하면 크롤을 멈춘다. 원인을 몰라도 계속 돌 이유가 없다. */
+    private static final int MAX_CONSECUTIVE_FAILURES = 5;
 
     private static final String DEFAULT_CATEGORY = "ETC";
     private static final String SEOUL_KEYWORD = "서울";
@@ -87,34 +100,160 @@ public class PopupNormalizationService {
             """;
 
     private final ChatLanguageModel chatLanguageModel;
+    private final LlmUsageTracker usageTracker;
     private final ObjectMapper objectMapper = new ObjectMapper();
+
+    /**
+     * 크롤러 전용 모델을 명시 주입한다.
+     *
+     * <p>Lombok {@code @RequiredArgsConstructor} 는 필드의 {@code @Qualifier} 를 생성자 파라미터로 복사하지 않는다
+     * (프로젝트에 {@code lombok.config} 의 {@code copyableAnnotations} 설정이 없다). 그래서 이 클래스만 생성자를 직접 쓴다. 안
+     * 그러면 {@code @Primary} 인 사용자 모델이 주입되어 크롤러가 사용자 기능의 토큰 예산을 먹는다.
+     */
+    public PopupNormalizationService(
+            @Qualifier("crawlerChatModel") ChatLanguageModel chatLanguageModel,
+            LlmUsageTracker usageTracker) {
+        this.chatLanguageModel = chatLanguageModel;
+        this.usageTracker = usageTracker;
+    }
+
+    /**
+     * 실제로 프롬프트에 실릴 슬라이스.
+     *
+     * <p>호출자가 "LLM 이 실제로 본 목록" 을 알아야 한다. 그것을 모른 채 넘긴 목록 전체를 처리 완료로 기록하면, 상한에 잘려 한 글자도 안 들어간 스니펫이
+     * "해석했다" 로 남아 다시는 후보에 오르지 않는다. 출처(sourceIndex) 매핑도 이 목록 기준이어야 맞다.
+     */
+    public List<PopupCrawlSource> limitFor(List<PopupCrawlSource> snippets) {
+        if (snippets == null || snippets.isEmpty()) return List.of();
+        return snippets.stream().limit(MAX_SNIPPETS_PER_REQUEST).toList();
+    }
 
     /**
      * snippet 묶음을 LLM 에 한 번 넘겨 그 안의 서로 다른 팝업을 <b>모두</b> {@link NormalizedPopup} 목록으로 받는다.
      *
-     * <p>파싱/호출 실패 시 빈 목록을 반환(예외 전파 없음). 각 원소는 후처리 검증(이름 누락·서울 외 강제 0.0)을 통과한 상태이며, confidence
-     * 게이트/중복제거는 호출자(Orchestrator)가 담당한다.
+     * <p><b>빈 목록은 "이 글에 팝업이 없다" 는 뜻이며, 실패는 반드시 예외로 나간다.</b> 둘을 같은 값으로 뭉개면 호출자가 실패한 글까지 처리 완료로 확정해
+     * 다시는 해석하지 않는다. 일일 한도 소진과 연속 실패는 {@link LlmQuotaExhaustedException}(크롤 중단), 그 외는 {@link
+     * LlmCallFailedException}(이 키워드만 건너뜀).
+     *
+     * <p>각 원소는 후처리 검증(이름 누락·서울 외 강제 0.0)을 통과한 상태이며, confidence 게이트/중복제거는 호출자(Orchestrator)가 담당한다.
      */
     public List<NormalizedPopup> normalizeAll(List<PopupCrawlSource> snippets) {
         if (snippets == null || snippets.isEmpty()) {
             return List.of();
         }
+        // 이미 오늘 일일 한도를 맞았으면 호출하지 않는다. 남은 키워드마다 429 를 한 번씩 더 맞는 것을 막는다.
+        if (usageTracker.isDailyQuotaExhausted(LlmUsageTracker.Role.CRAWLER)) {
+            throw new LlmQuotaExhaustedException("일일 LLM 한도 소진 상태 — 호출 생략");
+        }
 
-        List<PopupCrawlSource> limited = snippets.stream().limit(MAX_SNIPPETS_PER_REQUEST).toList();
+        List<PopupCrawlSource> limited = limitFor(snippets);
         String prompt = buildPrompt(limited);
 
+        usageTracker.recordAttempt(LlmUsageTracker.Role.CRAWLER);
+        Response<AiMessage> response;
         try {
-            String response = chatLanguageModel.generate(prompt);
-            JsonNode array = extractArray(parseJsonResponse(response));
+            // generate(String) 대신 메시지 버전을 쓰는 이유: 이쪽만 TokenUsage 를 돌려준다.
+            // 토큰 실측이 없으면 스니펫 수·키워드 수를 정할 근거가 계속 추측으로 남는다.
+            response = chatLanguageModel.generate(List.of(new UserMessage(prompt)));
+        } catch (Exception e) {
+            throw handleCallFailure(e);
+        }
 
+        recordTokens(response.tokenUsage());
+
+        try {
+            JsonNode array = extractArray(parseJsonResponse(response.content().text()));
             List<NormalizedPopup> results = new ArrayList<>();
             for (JsonNode node : array) {
                 results.add(applyPostValidations(parseNormalizedPopup(node)));
             }
+            usageTracker.recordSuccess(LlmUsageTracker.Role.CRAWLER);
             return results;
         } catch (Exception e) {
-            log.error("[PopupNormalization] LLM 호출/파싱 실패: {}", e.toString());
-            return List.of();
+            // 모델은 응답했는데 JSON 이 아니었다 — 쿼터 문제와 전혀 다른 원인이므로 따로 센다.
+            //
+            // 빈 목록을 반환하면 안 된다. 호출자가 "이 글에는 팝업이 없다" 로 읽고 원문을 PROCESSED 로
+            // 확정해 버려, 실제로는 팝업이 실려 있던 글이 영영 다시 해석되지 않는다. 예외로 올려
+            // RETRYABLE 로 남기고 다음 회차에 재시도하게 한다.
+            usageTracker.recordFailure(LlmUsageTracker.Role.CRAWLER, LlmFailureKind.PARSE);
+            int streak = usageTracker.recordConsecutiveFailure(LlmUsageTracker.Role.CRAWLER);
+            log.warn("[PopupNormalization] 응답 JSON 파싱 실패 (연속 {}회): {}", streak, e.toString());
+            if (streak >= MAX_CONSECUTIVE_FAILURES) {
+                // 모델이 계속 형식을 어기는 상황. 남은 키워드를 돌아봐야 토큰만 태운다.
+                throw new LlmQuotaExhaustedException("연속 JSON 파싱 실패 " + streak + "회");
+            }
+            throw new LlmCallFailedException(LlmFailureKind.PARSE);
+        }
+    }
+
+    private void recordTokens(TokenUsage tokens) {
+        if (tokens == null) {
+            usageTracker.recordResponse(LlmUsageTracker.Role.CRAWLER, null, null);
+            return;
+        }
+        usageTracker.recordResponse(
+                LlmUsageTracker.Role.CRAWLER, tokens.inputTokenCount(), tokens.outputTokenCount());
+    }
+
+    /**
+     * 호출 실패를 분류해 기록하고, 크롤을 멈춰야 하는 경우에만 예외를 밖으로 내보낸다.
+     *
+     * @return 호출자가 던질 예외. 일일 한도면 {@link LlmQuotaExhaustedException}, 그 외는 이 키워드만 건너뛰게 하는 표식.
+     */
+    private RuntimeException handleCallFailure(Exception error) {
+        LlmFailureKind kind = LlmErrors.classify(error);
+        usageTracker.recordFailure(LlmUsageTracker.Role.CRAWLER, kind);
+        Optional<Long> retryAfter = LlmErrors.retryAfterSeconds(error);
+        String retryAfterText = retryAfter.map(s -> s + "s").orElse("미제공");
+
+        if (kind == LlmFailureKind.RATE_LIMIT_DAY) {
+            usageTracker.markDailyQuotaExhausted(
+                    LlmUsageTracker.Role.CRAWLER, retryAfter.orElse(null));
+            log.error(
+                    "[PopupNormalization] QUOTA_EXHAUSTED — 일일 LLM 한도 초과. retry-after={} 원인={}",
+                    retryAfterText,
+                    error.toString());
+            return new LlmQuotaExhaustedException("일일 LLM 한도 초과");
+        }
+
+        // 한도 종류를 알 수 없는 429(본문이 빈 경우)나 키 만료·네트워크 장애 같은 지속 실패는
+        // 키워드마다 건너뛰기만 하면 400개를 도는 데 수 시간이 걸린다. 연속 실패로 차단한다.
+        int streak = usageTracker.recordConsecutiveFailure(LlmUsageTracker.Role.CRAWLER);
+        if (streak >= MAX_CONSECUTIVE_FAILURES) {
+            log.error(
+                    "[PopupNormalization] 연속 실패 {}회({}) — 크롤 중단. 원인={}",
+                    streak,
+                    kind,
+                    error.toString());
+            return new LlmQuotaExhaustedException("연속 LLM 실패 " + streak + "회 (" + kind + ")");
+        }
+
+        if (kind == LlmFailureKind.RATE_LIMIT_MINUTE) {
+            log.warn(
+                    "[PopupNormalization] 분당 한도 초과 — 이 키워드 건너뜀. retry-after={} (연속 {}회)",
+                    retryAfterText,
+                    streak);
+        } else {
+            log.error(
+                    "[PopupNormalization] LLM 호출 실패({}, 연속 {}회): {}",
+                    kind,
+                    streak,
+                    error.toString());
+        }
+        return new LlmCallFailedException(kind);
+    }
+
+    /** 이 키워드만 건너뛰라는 표식. 크롤 전체를 멈추지 않는다. */
+    public static class LlmCallFailedException extends RuntimeException {
+        private final transient LlmFailureKind kind;
+
+        LlmCallFailedException(LlmFailureKind kind) {
+            super("LLM 호출 실패: " + kind);
+            this.kind = kind;
+        }
+
+        public LlmFailureKind kind() {
+            return kind;
         }
     }
 
