@@ -40,3 +40,16 @@ popspot.env
 
 # 개인 대화 로그 — GitHub 에 올리지 않음
 대화기록.txt
+
+# ===== 로컬 전용 문서 / 도구 설정 =====
+/.claude/
+/docs/screenshots/
+/ARCHITECTURE.md
+/BACKEND_CLEAN_CODE_REFACTOR.md
+/CODEBASE_ANATOMY.md
+/PROJECT_CHANGELOG.md
+/README.md
+/README_OLD.md
+/SYNOLOGY_MIGRATION_GUIDE.md
+/architecture.svg
+/icon.svg
