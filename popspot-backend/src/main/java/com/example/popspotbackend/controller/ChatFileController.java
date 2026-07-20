@@ -58,10 +58,10 @@ public class ChatFileController {
     /**
      * 저장 위치. 정적 서빙(WebConfig)과 <b>같은 프로퍼티</b>를 읽어야 한다.
      *
-     * <p>이전에는 {@code user.dir/uploads} 로 하드코딩돼 있었고 WebConfig 는 {@code app.upload.path} 를 봤다.
-     * 기본값이 {@code ${user.dir}/uploads/} 라 우연히 일치했을 뿐이고, {@code .env.example} 이 안내하는 대로
-     * {@code APP_UPLOAD_PATH=/var/popspot/uploads/} 를 설정하는 순간 저장 위치와 공개 위치가 갈려 모든 업로드가
-     * 404 가 됐다. 한 곳에서 읽어 그 지뢰를 제거한다.
+     * <p>이전에는 {@code user.dir/uploads} 로 하드코딩돼 있었고 WebConfig 는 {@code app.upload.path} 를 봤다. 기본값이
+     * {@code ${user.dir}/uploads/} 라 우연히 일치했을 뿐이고, {@code .env.example} 이 안내하는 대로 {@code
+     * APP_UPLOAD_PATH=/var/popspot/uploads/} 를 설정하는 순간 저장 위치와 공개 위치가 갈려 모든 업로드가 404 가 됐다. 한 곳에서 읽어
+     * 그 지뢰를 제거한다.
      */
     private final String uploadDir;
 
