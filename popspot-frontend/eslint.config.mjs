@@ -20,6 +20,12 @@ const eslintConfig = defineConfig([
   ...nextTs,
 
   {
+    // files 를 반드시 명시한다. eslint-config-next 는 react-hooks 플러그인을
+    // `**/*.{js,jsx,mjs,ts,tsx,mts,cts}` 로 스코프된 config 안에서만 등록하는데, 이 객체에 files 가
+    // 없으면 "모든 파일" 에 적용되는 설정이 되어 그 글로브 밖 파일에는 플러그인이 없는 상태로
+    // react-hooks/exhaustive-deps 를 요구하게 된다. 그러면 ESLint 가 파일 검사를 시작하기도 전에
+    // "could not find plugin react-hooks" 로 죽어 린트 전체가 무력화된다.
+    files: ['**/*.{js,jsx,mjs,ts,tsx,mts,cts}'],
     rules: {
       // 사용 안 하는 변수 / import — error 가 아닌 warn 으로 (개발 흐름 방해 최소화)
       '@typescript-eslint/no-unused-vars': [
