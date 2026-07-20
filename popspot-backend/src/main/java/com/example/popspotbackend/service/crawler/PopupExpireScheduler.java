@@ -3,8 +3,6 @@ package com.example.popspotbackend.service.crawler;
 import com.example.popspotbackend.entity.PopupStore;
 import com.example.popspotbackend.repository.PopupStoreRepository;
 import com.example.popspotbackend.service.SearchService;
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,15 +23,17 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class PopupExpireScheduler {
 
-    private static final DateTimeFormatter ISO_DATE = DateTimeFormatter.ISO_LOCAL_DATE;
-
     private final PopupStoreRepository popupStoreRepository;
     private final SearchService searchService;
 
     @Scheduled(cron = "0 0 5 * * *", zone = "Asia/Seoul")
     @Transactional
     public void scheduledExpire() {
-        String today = LocalDate.now().format(ISO_DATE);
+        // KST 를 명시한다. cron 의 zone 은 "언제 실행할지" 만 정하고 LocalDate.now() 는 JVM 기본
+        // 시간대를 따르는데, 운영 서버가 UTC 면 05:00 KST 실행 시점의 UTC 날짜는 전날이다.
+        // 그러면 findToExpire(어제) 가 되어 "어제 끝난 팝업" 이 만료 대상에서 빠지고, 하루 늦게
+        // 처리된다 — 종료된 팝업이 계속 노출되던 원인.
+        String today = PopupStoreRepository.todayKst();
         List<PopupStore> targets = popupStoreRepository.findToExpire(today);
 
         if (targets.isEmpty()) {
