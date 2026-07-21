@@ -1,7 +1,6 @@
 package com.example.popspotbackend.service.music;
 
-import dev.langchain4j.data.message.UserMessage;
-import dev.langchain4j.model.chat.ChatLanguageModel;
+import com.example.popspotbackend.service.ai.UserLlmInvoker;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import lombok.RequiredArgsConstructor;
@@ -56,7 +55,7 @@ public class MusicQueryNormalizationService {
               입력: 사랑                     → 출력: 사랑
             """;
 
-    private final ChatLanguageModel chatModel;
+    private final UserLlmInvoker userLlmInvoker;
     private final ConcurrentMap<String, String> normalizationCache = new ConcurrentHashMap<>();
 
     /** AI 호출이 실패하면 입력을 그대로 돌려준다. */
@@ -75,7 +74,7 @@ public class MusicQueryNormalizationService {
     private String requestNormalizationFromModel(String query) {
         try {
             String prompt = SYSTEM_PROMPT + "\n\n입력: " + query + "\n출력:";
-            String rawResponse = chatModel.generate(UserMessage.from(prompt)).content().text();
+            String rawResponse = userLlmInvoker.generate(prompt, "MusicQuery");
 
             String cleaned = cleanResponse(rawResponse);
             return isValidNormalization(cleaned) ? cleaned : query;

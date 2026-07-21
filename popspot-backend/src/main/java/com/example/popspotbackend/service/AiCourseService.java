@@ -1,7 +1,7 @@
 package com.example.popspotbackend.service;
 
+import com.example.popspotbackend.service.ai.UserLlmInvoker;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import dev.langchain4j.model.chat.ChatLanguageModel;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -36,13 +36,14 @@ public class AiCourseService {
             ]
             """;
 
-    private final ChatLanguageModel chatLanguageModel;
+    private final UserLlmInvoker userLlmInvoker;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public List<Map<String, Object>> recommendCourse(String vibe) {
         log.info("[AiCourse] 추천 요청 vibe='{}'", vibe);
         try {
-            String response = chatLanguageModel.generate(String.format(PROMPT_TEMPLATE, vibe));
+            String response =
+                    userLlmInvoker.generate(String.format(PROMPT_TEMPLATE, vibe), "AiCourse");
             return parseResponse(response);
         } catch (Exception e) {
             log.error("[AiCourse] LLM 호출 실패", e);

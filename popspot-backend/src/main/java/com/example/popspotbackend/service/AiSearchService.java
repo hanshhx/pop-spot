@@ -1,8 +1,8 @@
 package com.example.popspotbackend.service;
 
 import com.example.popspotbackend.entity.PopupStore;
+import com.example.popspotbackend.service.ai.UserLlmInvoker;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import dev.langchain4j.model.chat.ChatLanguageModel;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -25,7 +25,7 @@ public class AiSearchService {
     private static final int MAX_CANDIDATES = 400;
     private static final int MAX_RESULTS = 40;
 
-    private final ChatLanguageModel chatLanguageModel;
+    private final UserLlmInvoker userLlmInvoker;
     private final PopupStoreService popupStoreService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -51,7 +51,7 @@ public class AiSearchService {
 
         log.info("[AiSearch] q='{}' 후보={}", q, bounded.size());
         try {
-            String response = chatLanguageModel.generate(buildPrompt(q, bounded));
+            String response = userLlmInvoker.generate(buildPrompt(q, bounded), "AiSearch");
             return parseIds(response).stream()
                     .filter(byId::containsKey)
                     .distinct()
