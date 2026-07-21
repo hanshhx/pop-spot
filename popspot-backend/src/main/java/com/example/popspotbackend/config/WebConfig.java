@@ -37,6 +37,16 @@ public class WebConfig implements WebMvcConfigurer {
      */
     private static final String TAKEDOWN_PATH_PATTERN = "/api/popups/*/takedown";
 
+    /**
+     * 회원 콘텐츠 경로 — 약관 §14 비색인 대상(동행·의견·채팅).
+     *
+     * <p>{@code /api/mates} 처럼 하위 세그먼트가 없는 경로와 {@code /api/mates/{id}/chat} 같은 하위 경로를 모두 덮기 위해 정확
+     * 경로와 {@code /**} 를 함께 등록한다.
+     */
+    private static final String[] MEMBER_CONTENT_PATTERNS = {
+        "/api/mates", "/api/mates/**", "/api/feedback", "/api/feedback/**"
+    };
+
     @Value("${app.upload.path}")
     private String uploadPath;
 
@@ -71,6 +81,9 @@ public class WebConfig implements WebMvcConfigurer {
         // 보안(v2.22): 업로드 파일 응답에 nosniff — 이미지로 위장한 HTML/SVG 가 브라우저 MIME
         // 스니핑으로 실행되는 것을 차단. inline 이미지 표시는 유지(Content-Disposition 미설정).
         registry.addInterceptor(new NoSniffInterceptor()).addPathPatterns(UPLOAD_URL_PATTERN);
+        // 약관 §14: 회원 콘텐츠(동행·의견·채팅)는 검색엔진에 색인하지 않는다. 응답 헤더로 구조적으로 막는다.
+        registry.addInterceptor(new MemberContentNoIndexInterceptor())
+                .addPathPatterns(MEMBER_CONTENT_PATTERNS);
     }
 
     /** {@code /uploads/**} 응답에 {@code X-Content-Type-Options: nosniff} 부착. */
@@ -79,6 +92,21 @@ public class WebConfig implements WebMvcConfigurer {
         public boolean preHandle(
                 HttpServletRequest request, HttpServletResponse response, Object handler) {
             response.setHeader("X-Content-Type-Options", "nosniff");
+            return true;
+        }
+    }
+
+    /**
+     * 회원 콘텐츠 응답에 {@code X-Robots-Tag: noindex} 부착 — 약관 §14 비색인 약속의 구조적 보장.
+     *
+     * <p>이 콘텐츠는 지금 홈 안 클라이언트 렌더라 검색엔진이 볼 경로가 없지만, 그 안전은 설계가 아니라 우연이다. API 는 인증 없이 열려 있고, 새 조회 경로나
+     * SSR 이 생기면 언제든 노출될 수 있다. 응답 헤더로 색인을 막아 우연에 기대지 않는다.
+     */
+    static class MemberContentNoIndexInterceptor implements HandlerInterceptor {
+        @Override
+        public boolean preHandle(
+                HttpServletRequest request, HttpServletResponse response, Object handler) {
+            response.setHeader("X-Robots-Tag", "noindex, nofollow");
             return true;
         }
     }
