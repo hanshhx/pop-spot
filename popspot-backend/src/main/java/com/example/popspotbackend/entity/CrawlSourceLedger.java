@@ -30,7 +30,14 @@ import lombok.Setter;
 @AllArgsConstructor
 @Table(
         name = "crawl_source_ledger",
-        indexes = {@Index(name = "idx_crawl_ledger_seen", columnList = "last_seen_at")})
+        indexes = {
+            // source_url_hash 는 upsert 의 ON CONFLICT 대상이라 반드시 유니크여야 한다.
+            // 이 매핑이 없으면 프로덕션처럼 Hibernate ddl-auto 가 스키마를 만드는 환경에서
+            // 유니크 인덱스가 생기지 않아 크롤의 ledger INSERT 가 통째로 실패한다(실제로 그랬다).
+            // V18 SQL 에도 같은 인덱스가 있지만, Flyway 가 도는 환경에서만 유효하므로 여기에도 둔다.
+            @Index(name = "uk_crawl_ledger_url", columnList = "source_url_hash", unique = true),
+            @Index(name = "idx_crawl_ledger_seen", columnList = "last_seen_at")
+        })
 public class CrawlSourceLedger {
 
     /** 처리 상태. */
@@ -49,7 +56,7 @@ public class CrawlSourceLedger {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    /** 정규화된 URL 의 SHA-256(hex 64자). DB 에 유니크 인덱스가 걸려 있다. */
+    /** 정규화된 URL 의 SHA-256(hex 64자). uk_crawl_ledger_url 유니크 인덱스가 걸려 upsert 의 충돌 키가 된다. */
     @Column(name = "source_url_hash", nullable = false, length = 64)
     private String sourceUrlHash;
 

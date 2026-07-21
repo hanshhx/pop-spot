@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 /**
@@ -27,24 +28,29 @@ import org.springframework.stereotype.Service;
  * 병목이었다 — 같은 API 로 이미 가져온 snippet 을 더 깊게 활용해 추가 크롤/쿼터 없이 수확만 끌어올린다. confidence 점수는 팝업마다 LLM 이 직접
  * 매기고, 0.8 게이트/중복제거/PII 규칙은 그대로 유지된다.
  *
- * <p>토큰과 Groq RPM 을 아끼기 위해 snippet 은 최대 {@link #MAX_SNIPPETS_PER_REQUEST} 개까지만 프롬프트에 넣는다(호출 수는 키워드당
- * 1회로 고정).
+ * <p>토큰과 Groq TPM 을 아끼기 위해 snippet 은 {@link #DEFAULT_MAX_SNIPPETS_PER_REQUEST} 개까지만 프롬프트에 넣는다(호출 수는
+ * 키워드당 1회로 고정).
  */
 @Slf4j
 @Service
 public class PopupNormalizationService {
 
     /**
-     * LLM 한 번에 넘길 스니펫 수.
+     * LLM 한 번에 넘길 스니펫 수(기본값). {@code popspot.crawler.max-snippets-per-request} 로 조정한다.
      *
-     * <p>한때 90 으로 올렸다가 40 으로 되돌렸다. 당시 근거는 "컨텍스트가 128k 라 여유롭다 · 호출 수는 그대로니 무료 개선" 이었는데, <b>컨텍스트 크기가
-     * 아니라 일일 토큰 한도(TPD)가 병목</b>이라는 걸 놓친 판단이었다. 스니펫을 2배로 늘리면 호출당 토큰이 2배가 되고, TPD 가 고정이라 <b>하루에 처리
-     * 가능한 키워드 수가 절반</b>이 된다. 호출 수가 같아도 무료가 아니다.
+     * <p>한때 90 으로 올렸다가 40 으로 되돌렸고, 이제 12 로 낮춘다. 근거는 실측이다 — gpt-oss-20b 로 스니펫 40 개를 넣으니 호출당 약 7,810
+     * 토큰(입력 5,762 + 출력 2,048)이 나왔는데, 무료 티어의 <b>분당 토큰(TPM)이 8,000</b>이라 한 호출이 1 분 예산을 거의 다 태웠다. 큰
+     * 회차는 단일 요청이 8,060 으로 한도 자체를 넘겨 즉시 거부됐다. 스니펫을 줄이면 호출당 토큰이 줄어 분당 여러 번 호출할 수 있고, 고정된 일일 토큰(TPD)으로
+     * 하루에 더 많은 키워드를 처리한다.
      *
-     * <p>최종 값은 실측(호출당 입출력 토큰 p95, 추출 정확도)으로 8 · 20 · 40 중에서 정한다. 계측이 붙기 전까지는 이전에 운영되던 40 을 기준값으로
-     * 둔다.
+     * <p>추론 모델이라 출력 토큰(≈2,048)이 스니펫 수와 무관하게 붙는 게 다음 병목이다. 그건 별도로 {@code reasoning_effort} 를 낮춰 다뤄야
+     * 한다.
      */
-    public static final int MAX_SNIPPETS_PER_REQUEST = 40;
+    public static final int DEFAULT_MAX_SNIPPETS_PER_REQUEST = 12;
+
+    /** 실측으로 조정 가능한 실제 상한. {@link #DEFAULT_MAX_SNIPPETS_PER_REQUEST} 참고. */
+    @Value("${popspot.crawler.max-snippets-per-request:" + DEFAULT_MAX_SNIPPETS_PER_REQUEST + "}")
+    private int maxSnippetsPerRequest;
 
     /** 성공 없이 이 횟수만큼 연속 실패하면 크롤을 멈춘다. 원인을 몰라도 계속 돌 이유가 없다. */
     private static final int MAX_CONSECUTIVE_FAILURES = 5;
@@ -125,7 +131,11 @@ public class PopupNormalizationService {
      */
     public List<PopupCrawlSource> limitFor(List<PopupCrawlSource> snippets) {
         if (snippets == null || snippets.isEmpty()) return List.of();
-        return snippets.stream().limit(MAX_SNIPPETS_PER_REQUEST).toList();
+        int limit =
+                maxSnippetsPerRequest > 0
+                        ? maxSnippetsPerRequest
+                        : DEFAULT_MAX_SNIPPETS_PER_REQUEST;
+        return snippets.stream().limit(limit).toList();
     }
 
     /**
