@@ -544,6 +544,7 @@ public class PopupCrawlOrchestrator {
     private final SearchService searchService;
     private final LlmUsageTracker usageTracker;
     private final CrawlSourceLedgerService ledgerService;
+    private final CrawlCursorService cursorService;
 
     /** 대장에 "어떤 모델로 해석했는지" 를 남기기 위한 값. 모델 교체 후 재처리 판단에 쓴다. */
     @Value("${ai.crawler.model-name:unknown}")
@@ -555,6 +556,15 @@ public class PopupCrawlOrchestrator {
     /** 자동게시 목표치 — 이 수에 도달하면 LLM 호출/시간 절약을 위해 조기 종료. 0 이면 제한 없음. */
     @Value("${popspot.crawler.max-auto-published:0}")
     private int maxAutoPublished;
+
+    /**
+     * 한 회차에 다룰 키워드 수. 커서 위치부터 이만큼만 검색·처리하고 커서를 전진시킨다.
+     *
+     * <p>무료 티어의 분당 토큰(TPM 8000)이 한 호출로 거의 소진돼 회차당 실제 LLM 성공 호출은 십수 회가 한계다. 전체 키워드(≈390)를 한 회차에 다 돌면
+     * 앞부분에서 rate limit 으로 멈추고 뒤는 버려진다. 감당 가능한 만큼만 잘라 여러 회차에 나눠 순회한다. 하루 2회차 기준 이 값 × 2 만큼 매일 전진한다.
+     */
+    @Value("${popspot.crawler.max-keywords-per-run:20}")
+    private int maxKeywordsPerRun;
 
     /** 전체 크롤 1회 실행. 처리 통계를 맵으로 반환. */
     public Map<String, Integer> runOnce() {
@@ -603,18 +613,30 @@ public class PopupCrawlOrchestrator {
     }
 
     private Map<String, List<PopupCrawlSource>> collectSnippetsByKeyword(CrawlStatistics stats) {
-        // LinkedHashMap — 키워드 순서를 보존한다. HashMap 은 LinkedHashSet 으로 지켜온 순서를 버리는데,
-        // 중단이 생기면 "어디까지 처리했는지" 가 순서에 의존하므로 유지해야 한다.
-        Map<String, List<PopupCrawlSource>> grouped = new LinkedHashMap<>();
-
         // 키워드 목록은 append-only 로 자라서 확장 블록이 기존 항목과 겹치기 쉽다(실제로 51개 중복 발생).
         // 중복 키워드는 같은 검색을 두 번 돌려 API 쿼터·실행시간만 축내므로 순서를 유지한 채 dedup 한다.
-        for (String keyword : new LinkedHashSet<>(SEARCH_KEYWORDS)) {
+        List<String> keywords = new ArrayList<>(new LinkedHashSet<>(SEARCH_KEYWORDS));
+        int total = keywords.size();
+        int cursor = cursorService.currentCursor(total);
+        int batchSize = Math.min(Math.max(maxKeywordsPerRun, 1), total);
+
+        // LinkedHashMap — 커서로 정한 처리 순서를 보존한다. 중단이 생기면 "어디까지 처리했는지" 가
+        // 순서에 의존하므로 유지해야 한다.
+        Map<String, List<PopupCrawlSource>> grouped = new LinkedHashMap<>();
+        for (int i = 0; i < batchSize; i++) {
+            String keyword = keywords.get(Math.floorMod(cursor + i, total));
             List<PopupCrawlSource> snippets = fetchSnippetsForKeyword(keyword);
             stats.totalSnippets += snippets.size();
             grouped.computeIfAbsent("kw:" + keyword, k -> new ArrayList<>()).addAll(snippets);
             sleepQuietly(NAVER_KAKAO_API_INTERVAL_MS);
         }
+
+        // 검색 구간을 정했으면 즉시 커서를 전진시킨다(독립 트랜잭션). LLM 처리가 rate limit 으로 중간에
+        // 멈춰 뒤이어 크롤이 예외로 끝나도, 커서는 이미 커밋돼 다음 회차가 다음 구간을 본다.
+        cursorService.advance(batchSize, total);
+        stats.keywordsTotal = total;
+        stats.keywordsCovered = batchSize;
+        stats.keywordCursorStart = cursor;
         return grouped;
     }
 
@@ -687,11 +709,12 @@ public class PopupCrawlOrchestrator {
                 stats.quotaExhausted = 1;
                 log.error(
                         "[PopupCrawlOrchestrator] QUOTA_EXHAUSTED — 크롤 중단({})."
-                                + " 처리한 키워드 {}개 / 전체 {}개, 성공 LLM 호출 {}회."
-                                + " 재개 커서가 없어 다음 회차도 같은 앞부분부터 시작한다.",
+                                + " 이번 회차 처리 키워드 {}개(구간 {}~ / 전체 {}개), 성공 LLM 호출 {}회."
+                                + " 커서는 이미 전진했으므로 다음 회차는 다음 구간부터 시작한다.",
                         e.getMessage(),
                         processedKeywords,
-                        grouped.size(),
+                        stats.keywordCursorStart,
+                        stats.keywordsTotal,
                         stats.llmCalls);
                 break;
             } catch (PopupNormalizationService.LlmCallFailedException e) {
@@ -928,6 +951,12 @@ public class PopupCrawlOrchestrator {
         /** 같은 회차 안에서 중복이라 뺀 스니펫 수(키워드 A·B 결과에 같은 글). */
         int skippedDuplicate;
 
+        /** 이번 회차가 커서 순회에서 다룬 키워드 수 / 전체 키워드 수 / 시작 커서. 진행률 가시성용. */
+        int keywordsCovered;
+
+        int keywordsTotal;
+        int keywordCursorStart;
+
         Map<String, Integer> toMap() {
             Map<String, Integer> map = new LinkedHashMap<>();
             map.put("totalSnippets", totalSnippets);
@@ -940,6 +969,9 @@ public class PopupCrawlOrchestrator {
             map.put("pendingReview", pendingReview);
             map.put("duplicates", duplicates);
             map.put("rejected", rejected);
+            map.put("keywordCursorStart", keywordCursorStart);
+            map.put("keywordsCovered", keywordsCovered);
+            map.put("keywordsTotal", keywordsTotal);
             return map;
         }
     }
