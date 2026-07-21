@@ -1,9 +1,9 @@
 package com.example.popspotbackend.service.music;
 
 import com.example.popspotbackend.entity.MusicTrack;
+import com.example.popspotbackend.service.ai.UserLlmInvoker;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import dev.langchain4j.model.chat.ChatLanguageModel;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -32,7 +32,7 @@ public class MusicMoodAnalysisService {
                     "가을", "데이트", "혼자", "친구", "파티", "카페", "산책", "드라이브", "감각적", "트렌디", "키치", "키덜트",
                     "아련", "꿈", "하이틴");
 
-    private final ChatLanguageModel chatLanguageModel;
+    private final UserLlmInvoker userLlmInvoker;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     /** 곡 메타데이터를 입력으로 받아 무드 키워드 최대 5개 반환. */
@@ -40,7 +40,7 @@ public class MusicMoodAnalysisService {
         String prompt = buildPrompt(track);
 
         try {
-            String response = chatLanguageModel.generate(prompt);
+            String response = userLlmInvoker.generate(prompt, "MusicMood");
             return parseMoodTags(response);
         } catch (Exception e) {
             log.warn(
