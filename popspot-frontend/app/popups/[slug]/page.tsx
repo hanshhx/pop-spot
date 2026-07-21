@@ -33,8 +33,15 @@ import {
  * 최상단으로 — 긴급 스트립 + 마감임박순 정렬 + D-day 배지. (2) '무료·로그인 없이' 마찰 제거 +
  * 편익 예고. (3) 하단 링크 클라우드를 '지금 찾는 팝업' 회유 동선으로 승격.
  *
- * <p>약관 §10-2: 자동수집 팝업 '상세'는 노출 X. 카운트 + 최소목록(이름·위치·기간·D-day) + 메인
- * 지도 링크만. D-day 는 새 정보가 아니라 기존 endDate 의 재포맷이라 허용.
+ * <p>약관 §10-2 가 실제로 요구하는 것은 두 가지다 — 원문 텍스트를 그대로 복제·저장·노출하지 않을 것,
+ * 그리고 <b>상세페이지에서 원문으로 이동할 출처 링크를 노출할 것</b>. 상세로 가는 링크를 막으라는
+ * 조항이 아니다(예전 주석이 그렇게 읽고 있었다). 여기서 이름·위치·기간·D-day 만 쓰는 것은 원문 미복제
+ * 요건을 지키기 위해서고, D-day 는 새 정보가 아니라 기존 endDate 의 재포맷이라 허용된다.
+ *
+ * <p>각 행은 /popup/[id] 로 링크한다. 같은 /api/map/markers 데이터의 같은 최소 목록을 홈
+ * (BrowseSection) 이 이미 상세로 링크하고 있어서, 랜딩만 막아둘 이유가 없었다. 다만 상세는
+ * app/popup/[id]/layout.tsx 에서 noindex 다 — §10-2 때문이 아니라 §14(회원 채팅이 같은 URL 에
+ * 산다) 때문이다. 이유를 잘못 귀속시키면 다음 사람이 엉뚱한 걸 되돌린다.
  *
  * <p>SSG(generateStaticParams) + ISR(revalidate=3600). 실시간 데이터는 메인 지도로 유도.
  */
@@ -465,8 +472,16 @@ export default async function PopupsBySlugPage({
                   return (
                     <li
                       key={m.id}
-                      className="flex items-start gap-3 py-2 border-b border-gray-100 dark:border-white/5 last:border-0"
+                      className="relative flex items-start gap-3 py-2 border-b border-gray-100 dark:border-white/5 last:border-0 transition-colors hover:bg-black/[0.02] dark:hover:bg-white/[0.03]"
                     >
+                      {/* 행 전체를 덮는 링크. 배지·기간 텍스트를 링크 본문에 넣으면 스크린리더가
+                          "누데이크 팝업 D-3 서울 성동구 2026-07-01 ~ 2026-07-31 링크" 로 읽어
+                          목록 훑기가 불가능해진다. aria-label 로 이름만 읽히게 한다. */}
+                      <Link
+                        href={`/popup/${m.id}`}
+                        aria-label={`${m.name} 상세 보기`}
+                        className="absolute inset-0 z-10 rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lime-500"
+                      />
                       <span className="text-lime-500 mt-1">
                         <MapPin size={14} />
                       </span>

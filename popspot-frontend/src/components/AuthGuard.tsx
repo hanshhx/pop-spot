@@ -20,7 +20,8 @@ const PUBLIC_PATHS = [
 ];
 
 // slug 가 붙는 동적 공개 경로 — prefix 매칭.
-// /popups/[slug] = SEO long-tail 랜딩, /popup/[id] = 팝업 상세(공유/색인 대상).
+// /popups/[slug] = SEO long-tail 랜딩(색인 O), /popup/[id] = 팝업 상세 — 비로그인 열람은
+// 되지만 색인은 막혀 있다(회원 채팅이 같은 URL 에 있어 약관 §14. app/popup/[id]/layout.tsx).
 const PUBLIC_PREFIXES = ["/popups/", "/popup/"];
 
 const TOKEN_KEY = "token";
