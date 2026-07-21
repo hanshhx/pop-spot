@@ -13,9 +13,12 @@ import dev.langchain4j.model.chat.ChatLanguageModel;
 import dev.langchain4j.model.output.Response;
 import dev.langchain4j.model.output.TokenUsage;
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.regex.Pattern;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
@@ -326,8 +329,8 @@ public class PopupNormalizationService {
                 .name(sanitize(node.path("name").asText(""), MAX_NAME_LEN))
                 .location(sanitize(node.path("location").asText(""), MAX_LOCATION_LEN))
                 .category(node.path("category").asText(DEFAULT_CATEGORY))
-                .startDate(nullableText(node, "startDate"))
-                .endDate(nullableText(node, "endDate"))
+                .startDate(normalizeDate(nullableText(node, "startDate")))
+                .endDate(normalizeDate(nullableText(node, "endDate")))
                 .description(sanitize(node.path("description").asText(""), MAX_DESC_LEN))
                 .content(sanitize(node.path("content").asText(""), MAX_CONTENT_LEN))
                 .confidence(node.path("confidence").asDouble(0.0))
@@ -344,6 +347,7 @@ public class PopupNormalizationService {
      * <ul>
      *   <li>name 이 비어있으면 강제 0.0
      *   <li>서울 외 지역이면 강제 0.0
+     *   <li>시작일이 종료일보다 늦으면 두 날짜를 폐기(추측 보충하지 않음)
      * </ul>
      */
     private NormalizedPopup applyPostValidations(NormalizedPopup result) {
@@ -353,7 +357,24 @@ public class PopupNormalizationService {
         if (isLocationOutsideSeoul(result)) {
             forceRejection(result, ERROR_NOT_IN_SEOUL);
         }
+        rejectInvertedDateRange(result);
         return result;
+    }
+
+    /**
+     * 시작일이 종료일보다 늦으면 두 날짜를 모두 버린다.
+     *
+     * <p>정규화된 날짜는 ISO({@code 2026-05-01}) 라 사전순 비교가 곧 시간순이다. 뒤집힌 구간은 LLM 이 잘못 뽑은 것이므로 어느 쪽도 믿을 수 없다
+     * — 한쪽만 살리면 오히려 잘못된 만료 판정을 낳는다. 추측으로 바로잡지 않고 둘 다 null 로 둔다(날짜 없는 팝업으로 처리).
+     */
+    private void rejectInvertedDateRange(NormalizedPopup result) {
+        String start = result.getStartDate();
+        String end = result.getEndDate();
+        if (start != null && end != null && start.compareTo(end) > 0) {
+            log.warn("[PopupNormalization] 시작일이 종료일보다 늦음: {} > {} — 날짜 폐기", start, end);
+            result.setStartDate(null);
+            result.setEndDate(null);
+        }
     }
 
     private boolean isNameMissing(NormalizedPopup result) {
@@ -383,6 +404,29 @@ public class PopupNormalizationService {
     private Integer nullableInt(JsonNode node, String field) {
         JsonNode value = node.path(field);
         return value.canConvertToInt() ? value.asInt() : null;
+    }
+
+    /** {@code YYYY-M-D} 대략 형태만 걸러 두고 실제 유효성은 {@link LocalDate#parse} 로 확정한다. */
+    private static final Pattern DATE_SHAPE = Pattern.compile("^\\d{4}-\\d{1,2}-\\d{1,2}$");
+
+    private static final DateTimeFormatter LENIENT_INPUT = DateTimeFormatter.ofPattern("yyyy-M-d");
+
+    /**
+     * LLM 이 준 날짜 문자열을 엄격 검증해 ISO({@code 2026-05-01})로 정규화한다. 형식이 어긋나거나 실재하지 않는 날짜({@code
+     * 2026-13-45})면 {@code null} 을 돌려준다.
+     *
+     * <p><b>추측 보충하지 않는다.</b> 모르는 날짜를 오늘·이번달로 채우면 잘못된 만료·캘린더 판정을 낳는다. 없으면 없는 채로 둔다. ISO 로 통일해 두면 이후
+     * 문자열 비교(만료·정렬)가 그대로 시간순이 된다.
+     */
+    private String normalizeDate(String raw) {
+        if (raw == null) return null;
+        String s = raw.trim();
+        if (!DATE_SHAPE.matcher(s).matches()) return null;
+        try {
+            return LocalDate.parse(s, LENIENT_INPUT).format(DateTimeFormatter.ISO_LOCAL_DATE);
+        } catch (DateTimeParseException e) {
+            return null;
+        }
     }
 
     private String safe(String s) {
