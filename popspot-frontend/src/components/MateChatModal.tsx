@@ -247,7 +247,7 @@ export default function MateChatModal({
   const checkIsImage = (msg: string) => /\.(png|jpg|jpeg|gif|webp)$/i.test(msg);
 
   const getImageUrl = (msg: Message) => {
-    let rawUrl = msg.fileUrl || `${API_BASE_URL}/uploads/${msg.message}`;
+    const rawUrl = msg.fileUrl || `${API_BASE_URL}/uploads/${msg.message}`;
     if (msg.fileUrl && msg.fileUrl.startsWith("http")) return msg.fileUrl;
     const parts = rawUrl.split('/uploads/');
     if (parts.length === 2) {

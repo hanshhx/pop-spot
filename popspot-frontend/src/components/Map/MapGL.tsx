@@ -134,7 +134,7 @@ export function MapGL({ center, zoom, mode = "dark", onCreate, onClick, classNam
     if (appliedModeRef.current === mode) return;
     appliedModeRef.current = mode;
     m.setStyle(buildBaseStyle(mode, tileUrlRef.current || basemapTileUrl()));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [mode, ctx.map]);
 
   // center prop 이 실제로 바뀌면 지도를 그쪽으로 이동한다. 좌표가 갱신되는 소비자(예: DetailMap
@@ -145,7 +145,7 @@ export function MapGL({ center, zoom, mode = "dark", onCreate, onClick, classNam
     const m = ctx.map;
     if (!m) return;
     m.easeTo({ center: [center.lng, center.lat], duration: 500 });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [center.lat, center.lng, ctx.map]);
 
   return (

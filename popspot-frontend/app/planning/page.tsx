@@ -136,8 +136,8 @@ export default function PlanningPage() {
       if (markers.length < 3) return notify("최적화하려면 장소가 3개 이상 필요합니다!");
       if (!(await confirmAction({ text: "현재 위치를 시작점으로 최적 경로를 계산하시겠습니까?" }))) return;
 
-      let sorted = [markers[0]];
-      let remaining = markers.slice(1);
+      const sorted = [markers[0]];
+      const remaining = markers.slice(1);
 
       while (remaining.length > 0) {
           const last = sorted[sorted.length - 1];
