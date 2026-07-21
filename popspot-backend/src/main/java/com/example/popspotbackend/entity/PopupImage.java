@@ -26,6 +26,18 @@ import lombok.Setter;
 @Table(name = "POPUP_IMAGE")
 public class PopupImage {
 
+    /** 검색 결과 원문에서 가져온 실제 팝업 사진. */
+    public static final String ORIGIN_CRAWLED = "CRAWLED";
+
+    /** Pexels 스톡 자동 배정 — 실제 팝업과 무관한 대체 이미지. */
+    public static final String ORIGIN_PEXELS = "PEXELS";
+
+    /** 관리자·사용자가 직접 올린 사진. */
+    public static final String ORIGIN_USER = "USER";
+
+    /** 이미지 자체가 없어 상수 폴백을 쓰는 상태(엔티티 저장 안 됨, 표현용). */
+    public static final String ORIGIN_PLACEHOLDER = "PLACEHOLDER";
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -35,4 +47,12 @@ public class PopupImage {
 
     @Column(name = "MAIN_YN")
     private String mainYn;
+
+    /**
+     * 사진 출처. 실사진(CRAWLED·USER)과 스톡(PEXELS)을 구분해, 랜딩·상세가 스톡·플레이스홀더를 실제 사진처럼 보여주지 않게 한다.
+     *
+     * <p>지금까지 이미지 저장 경로는 Pexels 백필 하나뿐이라 기존 행은 전부 PEXELS 로 백필된다(V20).
+     */
+    @Column(name = "PHOTO_ORIGIN", length = 20)
+    private String photoOrigin;
 }

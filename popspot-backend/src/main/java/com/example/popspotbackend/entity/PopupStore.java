@@ -167,11 +167,25 @@ public class PopupStore {
     /** 대표 이미지 URL. main flag 가 있는 row 를 우선하고, 없으면 첫 번째 이미지, 그것도 없으면 fallback. */
     public String getImageUrl() {
         if (images == null || images.isEmpty()) return FALLBACK_IMAGE_URL;
-        return images.stream()
-                .filter(img -> MAIN_IMAGE_FLAG.equals(img.getMainYn()))
-                .findFirst()
-                .map(PopupImage::getImageUrl)
-                .orElse(images.get(0).getImageUrl());
+        return mainImage().map(PopupImage::getImageUrl).orElse(images.get(0).getImageUrl());
+    }
+
+    /**
+     * 대표 이미지의 출처. 이미지가 없으면 {@link PopupImage#ORIGIN_PLACEHOLDER}. 프론트가 스톡·플레이스홀더를 실사진과 구분하는 데 쓴다.
+     *
+     * <p>{@code getImageUrl()} 과 같은 getter 라 {@code photoOrigin} 프로퍼티로 직렬화돼 공개 API 응답에 실린다. 마이그레이션
+     * 이전에 저장된 행은 값이 {@code null} 일 수 있는데, 지금까지 이미지 저장 경로가 Pexels 백필뿐이었으므로 {@code null} 은 PEXELS 로
+     * 본다.
+     */
+    public String getPhotoOrigin() {
+        if (images == null || images.isEmpty()) return PopupImage.ORIGIN_PLACEHOLDER;
+        String origin = mainImage().orElse(images.get(0)).getPhotoOrigin();
+        return origin != null ? origin : PopupImage.ORIGIN_PEXELS;
+    }
+
+    /** main flag 가 있는 이미지 하나. 없으면 비어 있다(호출자가 첫 이미지로 폴백). */
+    private java.util.Optional<PopupImage> mainImage() {
+        return images.stream().filter(img -> MAIN_IMAGE_FLAG.equals(img.getMainYn())).findFirst();
     }
 
     /** 외부 API 가 보낸 Map 으로 필드를 부분 업데이트. null 값은 덮어쓰지 않는다. */
