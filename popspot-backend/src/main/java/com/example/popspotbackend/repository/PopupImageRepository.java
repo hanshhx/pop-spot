@@ -22,7 +22,11 @@ public interface PopupImageRepository extends JpaRepository<PopupImage, Long> {
     @Transactional
     @Query(
             value =
-                    "INSERT INTO popup_image (image_url, main_yn, popup_id) VALUES (:url, 'Y', :popupId)",
+                    "INSERT INTO popup_image (image_url, main_yn, popup_id, photo_origin) VALUES"
+                            + " (:url, 'Y', :popupId, :origin)",
             nativeQuery = true)
-    void insertMainImage(@Param("popupId") Long popupId, @Param("url") String url);
+    void insertMainImage(
+            @Param("popupId") Long popupId,
+            @Param("url") String url,
+            @Param("origin") String origin);
 }

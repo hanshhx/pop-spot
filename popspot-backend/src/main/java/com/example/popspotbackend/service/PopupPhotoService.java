@@ -1,6 +1,7 @@
 package com.example.popspotbackend.service;
 
 import com.example.popspotbackend.entity.PopupStore;
+import com.example.popspotbackend.entity.PopupImage;
 import com.example.popspotbackend.repository.PopupImageRepository;
 import com.example.popspotbackend.repository.PopupStoreRepository;
 import java.util.List;
@@ -48,7 +49,8 @@ public class PopupPhotoService {
                 Optional<String> url =
                         pexelsPhotoService.resolvePhotoUrl(p.getName(), p.getCategory(), p.getId());
                 if (url.isPresent()) {
-                    popupImageRepository.insertMainImage(p.getId(), url.get());
+                    popupImageRepository.insertMainImage(
+                            p.getId(), url.get(), PopupImage.ORIGIN_PEXELS);
                     assigned++;
                 }
             } catch (Exception e) {

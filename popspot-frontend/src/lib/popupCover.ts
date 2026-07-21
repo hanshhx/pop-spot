@@ -101,6 +101,25 @@ export interface CoverInput {
   id: string | number;
   category?: string | null;
   imageUrl?: string | null;
+  /** 백엔드 사진 출처(CRAWLED/USER/PEXELS/PLACEHOLDER). 실사진 여부 판단에 쓴다. */
+  photoOrigin?: string | null;
+}
+
+/** 백엔드가 실사진으로 표시하는 출처. 이 외(PEXELS·PLACEHOLDER·미상)는 큐레이션 스톡으로 본다. */
+const REAL_PHOTO_ORIGINS = new Set(["CRAWLED", "USER"]);
+
+/**
+ * 이 팝업의 커버가 큐레이션 스톡인가(= 실제 촬영 사진이 아닌가).
+ *
+ * <p>실제 팝업 사진이 아닌데 사진처럼 보이면 방문자가 오해한다. photoOrigin 이 실사진(CRAWLED/USER)을 명시하면 실사진으로 보고,
+ * 그 외거나 photoOrigin 이 없으면(구버전 응답) imageUrl 이 진짜 사진일 때만 실사진으로 본다. 나머지는 스톡이라 라벨 대상이다.
+ */
+export function isCuratedCover(input: {
+  photoOrigin?: string | null;
+  imageUrl?: string | null;
+}): boolean {
+  if (input.photoOrigin) return !REAL_PHOTO_ORIGINS.has(input.photoOrigin);
+  return !isRealImage(input.imageUrl);
 }
 
 /**
