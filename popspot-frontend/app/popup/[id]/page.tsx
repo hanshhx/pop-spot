@@ -110,6 +110,8 @@ interface PopupDetail {
   sourceUrl?: string;
   sourceName?: string;
   reviewStatus?: string;
+  officialUrl?: string;
+  reservationUrl?: string;
 }
 
 const CAT_KO: Record<string, string> = {
@@ -222,6 +224,8 @@ export default function PopupDetail() {
           sourceUrl: data.sourceUrl,
           sourceName: data.sourceName,
           reviewStatus: data.reviewStatus,
+          officialUrl: data.officialUrl,
+          reservationUrl: data.reservationUrl,
         });
         setLoading(false);
         // v2.18 — 최근 본 팝업 자동 기록.
@@ -529,6 +533,32 @@ export default function PopupDetail() {
           </p>
           <ChatRoom roomId={popup.id} nickname={user?.nickname || "익명"} />
         </section>
+
+        {/* 공식 사이트 · 예약 — 크롤이 snippet 에서 URL 을 실제로 뽑았을 때만 노출 */}
+        {(popup.reservationUrl || popup.officialUrl) && (
+          <div className="mt-8 flex flex-wrap gap-2.5">
+            {popup.reservationUrl && (
+              <a
+                href={popup.reservationUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-lime-500 px-4 py-3 text-sm font-bold text-ink-900 transition hover:bg-lime-400"
+              >
+                예약하기 <ExternalLink size={14} className="shrink-0" />
+              </a>
+            )}
+            {popup.officialUrl && (
+              <a
+                href={popup.officialUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-gray-300 px-4 py-3 text-sm font-bold text-foreground transition hover:bg-black/[0.03] dark:border-white/15 dark:hover:bg-white/[0.05]"
+              >
+                공식 사이트 <ExternalLink size={14} className="shrink-0" />
+              </a>
+            )}
+          </div>
+        )}
 
         {/* 출처 / 신고 */}
         <section className="mt-8 space-y-4 rounded-2xl border border-gray-200 bg-white p-5 dark:border-white/10 dark:bg-[#111] md:p-6">

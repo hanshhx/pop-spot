@@ -847,6 +847,8 @@ public class PopupCrawlOrchestrator {
                         .sourceType(SOURCE_TYPE_CRAWLED)
                         .sourceUrl(primarySource.getLink())
                         .sourceName(primarySource.getSourceName())
+                        .officialUrl(result.getOfficialUrl())
+                        .reservationUrl(result.getReservationUrl())
                         .externalId(externalId)
                         .confidenceScore(
                                 BigDecimal.valueOf(result.getConfidence())
