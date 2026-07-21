@@ -119,6 +119,16 @@ public class PopupStore {
     @Column(name = "source_name", length = 100)
     private String sourceName;
 
+    /**
+     * 팝업 공식 사이트·예약 링크. 스니펫에 명시적으로 있을 때만 크롤이 채운다(환각 방지). 방문자를 원 출처(sourceUrl, 블로그 원문)가 아니라 팝업 자체의 공식
+     * 정보·예약으로 보내기 위한 것이라 별도 필드로 둔다.
+     */
+    @Column(name = "official_url", columnDefinition = "TEXT")
+    private String officialUrl;
+
+    @Column(name = "reservation_url", columnDefinition = "TEXT")
+    private String reservationUrl;
+
     /** 중복 수집 방어용 SHA-256 (name + location + startDate). */
     @Column(name = "external_id", length = 64, unique = true)
     private String externalId;

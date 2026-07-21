@@ -22,6 +22,8 @@ public class NormalizedPopup {
     private String category;
     private String startDate;
     private String endDate;
+    private String officialUrl;
+    private String reservationUrl;
     private String description;
     private String content;
     private Double confidence;

@@ -89,6 +89,8 @@ public class PopupNormalizationService {
                - category (string): FASHION / FOOD / CULTURE / CHARACTER / BEAUTY / TECH / ETC 중 하나.
                - startDate (string): YYYY-MM-DD. 모르면 null.
                - endDate (string): YYYY-MM-DD. 모르면 null.
+               - officialUrl (string): snippet 에 팝업 공식 홈페이지/공식 SNS/예약 페이지 URL 이 그대로 적혀 있으면 그 URL. 없으면 null. 절대 지어내지 마.
+               - reservationUrl (string): snippet 에 예약/신청 링크 URL 이 그대로 적혀 있으면 그 URL. 없으면 null. 절대 지어내지 마.
                - description (string): 50자 내외 한 줄 설명.
                - content (string): 200자 내외 상세 설명.
                - confidence (number 0.0 ~ 1.0): name 명확 +0.3, location 구 단위 이상 +0.2,
@@ -331,6 +333,8 @@ public class PopupNormalizationService {
                 .category(node.path("category").asText(DEFAULT_CATEGORY))
                 .startDate(normalizeDate(nullableText(node, "startDate")))
                 .endDate(normalizeDate(nullableText(node, "endDate")))
+                .officialUrl(validateUrl(nullableText(node, "officialUrl")))
+                .reservationUrl(validateUrl(nullableText(node, "reservationUrl")))
                 .description(sanitize(node.path("description").asText(""), MAX_DESC_LEN))
                 .content(sanitize(node.path("content").asText(""), MAX_CONTENT_LEN))
                 .confidence(node.path("confidence").asDouble(0.0))
@@ -427,6 +431,20 @@ public class PopupNormalizationService {
         } catch (DateTimeParseException e) {
             return null;
         }
+    }
+
+    /**
+     * 공백 없는 http(s) URL 만 통과시킨다. 길이 상한으로 비정상 출력을 막는다. LLM 이 지어낸 값은 형식으로 완전히 거를 수 없으나 명백한 쓰레기는 차단한다.
+     */
+    private static final Pattern URL_SHAPE = Pattern.compile("^https?://\\S+$");
+
+    private static final int MAX_URL_LEN = 500;
+
+    private String validateUrl(String raw) {
+        if (raw == null) return null;
+        String s = raw.trim();
+        if (s.length() > MAX_URL_LEN || !URL_SHAPE.matcher(s).matches()) return null;
+        return s;
     }
 
     private String safe(String s) {
