@@ -14,6 +14,7 @@ import {
   ShieldAlert,
   Sparkles,
   Navigation,
+  CalendarPlus,
 } from "lucide-react";
 import { TakedownModal } from "../../../src/features/popup/TakedownModal";
 
@@ -25,6 +26,7 @@ import { apiFetch } from "../../../src/lib/api";
 import { notify, notifyError } from "@/lib/notify";
 import { escapeHtml } from "@/lib/escapeHtml";
 import { popupCoverUrl, isCuratedCover } from "@/lib/popupCover";
+import { addToCalendar, toCalendarEvent } from "@/lib/calendar";
 import type { User } from "@/types/popup";
 
 declare global {
@@ -494,6 +496,26 @@ export default function PopupDetail() {
             {isStamped ? "인증됨" : "방문 인증"}
           </button>
         </div>
+
+        {/* 캘린더 추가 — 시작·종료일이 둘 다 검증된 경우에만 노출(날짜 없는 팝업은 숨김).
+            iOS 는 .ics, Android·데스크톱은 Google Calendar 웹 딥링크(Android 는 .ics import 불가). */}
+        {(() => {
+          const calInput = {
+            id: popup.id,
+            name: popup.name,
+            address: popup.address,
+            startDate: popup.openDate,
+            endDate: popup.closeDate,
+          };
+          return toCalendarEvent(calInput) ? (
+            <button
+              onClick={() => addToCalendar(calInput)}
+              className="mt-2.5 flex w-full items-center justify-center gap-2 rounded-2xl border border-gray-300 bg-white py-3 text-sm font-bold text-foreground transition hover:border-lime-400 dark:border-white/15 dark:bg-white/5"
+            >
+              <CalendarPlus size={18} /> 캘린더에 추가
+            </button>
+          ) : null;
+        })()}
 
         {/* 지금 어때요? — 원터치 대기 제보. 실시간 채팅과 달리 혼자 눌러도 다음 방문자에게 남는 신호라
             방문자가 적어도 작동한다(로그인 불필요 = 참여 문턱 최소). */}
