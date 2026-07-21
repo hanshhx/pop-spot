@@ -1,5 +1,6 @@
 package com.example.popspotbackend.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -136,12 +137,28 @@ public class PopupStore {
     @Column(name = "review_status", length = 20)
     private String reviewStatus;
 
+    /*
+     * takedown 3종은 직렬화하지 않는다.
+     *
+     * 이 엔티티는 GET /api/popups/{id} 에서 무인증으로 통째로 직렬화된다(PopupStoreController#getPopupById 가
+     * result.put("data", popup) 로 넘긴다). 평소에는 takedown 필드가 붙은 행이 곧 reviewStatus=TAKEDOWN 이고
+     * passesModerationGate 가 404 로 막아 노출되지 않지만, 그 안전은 설계가 아니라 우연이다 —
+     * 악의적 신고로 판단해 admin 이 승인(PopupAdminReviewController#approve)하면 reviewStatus 만 APPROVED 로
+     * 바뀌고 takedown 필드는 그대로 남는다. 그 순간 신고자 이메일이 공개 API 로 나간다.
+     *
+     * 권리침해를 신고한 사람은 신원이 드러나면 안 되는 쪽에 가깝다. 조회 경로가 하나 늘 때마다
+     * 다시 검토해야 하는 구조를 없애기 위해, 노출 여부를 게이트가 아니라 필드에 고정한다.
+     * admin 이 신고 내용을 봐야 한다면 전용 DTO 로 별도 노출한다(현재 이 필드들을 읽는 화면은 없다).
+     */
+    @JsonIgnore
     @Column(name = "takedown_requested_at")
     private LocalDateTime takedownRequestedAt;
 
+    @JsonIgnore
     @Column(name = "takedown_reason", length = 500)
     private String takedownReason;
 
+    @JsonIgnore
     @Column(name = "takedown_requester", length = 255)
     private String takedownRequester;
 
