@@ -3,6 +3,7 @@ package com.example.popspotbackend.service.crawler;
 import com.example.popspotbackend.entity.CrawlSourceLedger;
 import com.example.popspotbackend.entity.PopupStore;
 import com.example.popspotbackend.repository.PopupStoreRepository;
+import com.example.popspotbackend.service.PopupPhotoService;
 import com.example.popspotbackend.service.SearchService;
 import com.example.popspotbackend.service.ai.CrawlerLlm;
 import com.example.popspotbackend.service.ai.LlmQuotaExhaustedException;
@@ -548,6 +549,7 @@ public class PopupCrawlOrchestrator {
     private final PopupStoreRepository popupStoreRepository;
     private final GeocodingService geocodingService;
     private final SearchService searchService;
+    private final PopupPhotoService popupPhotoService;
     private final LlmUsageTracker usageTracker;
     private final CrawlSourceLedgerService ledgerService;
     private final CrawlCursorService cursorService;
@@ -1010,6 +1012,18 @@ public class PopupCrawlOrchestrator {
                         .build();
 
         PopupStore saved = popupStoreRepository.save(newPopup);
+
+        // 신규 수집분도 저장 직후 고유한 Pexels 연출 이미지를 배정한다. API 장애·키 미설정 시 수집 자체는
+        // 성공시키고, 매일 05시 백필이 다시 시도한다.
+        try {
+            popupPhotoService.assignPhotoIfMissing(saved);
+            saved = popupStoreRepository.findById(saved.getId()).orElse(saved);
+        } catch (Exception e) {
+            log.warn(
+                    "[PopupCrawlOrchestrator] 신규 사진 배정 실패 id={} err={}",
+                    saved.getId(),
+                    e.toString());
+        }
 
         // v2.13 — 신규 자동게시 row 는 즉시 Algolia 인덱스에 push (다음 수집 주기까지 검색에서
         // 누락되던 문제 해소). 인덱싱 가드는 SearchService.addPopup 안에서 다시 한 번 검증.

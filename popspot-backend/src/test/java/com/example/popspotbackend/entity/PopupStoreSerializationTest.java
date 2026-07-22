@@ -63,11 +63,31 @@ class PopupStoreSerializationTest {
     void 공개에_필요한_필드는_그대로_나간다() throws Exception {
         popup.setSourceType("CRAWLED");
         popup.setSourceUrl("https://blog.naver.com/example/123");
+        popup.setImages(
+                java.util.List.of(
+                        PopupImage.builder()
+                                .imageUrl("https://images.pexels.com/photos/1234/photo.jpeg")
+                                .mainYn("Y")
+                                .photoOrigin(PopupImage.ORIGIN_PEXELS)
+                                .photoSourceUrl("https://www.pexels.com/photo/1234/")
+                                .photoCreditName("Sample Artist")
+                                .photoCreditUrl("https://www.pexels.com/@sample-artist/")
+                                .build()));
 
         @SuppressWarnings("unchecked")
         Map<String, Object> fields = objectMapper.convertValue(popup, Map.class);
 
         // sourceUrl 은 약관 §10-2 가 요구하는 출처 링크라 반드시 나가야 한다.
-        assertThat(fields).containsKeys("id", "name", "sourceUrl", "sourceType", "reviewStatus");
+        assertThat(fields)
+                .containsKeys(
+                        "id",
+                        "name",
+                        "sourceUrl",
+                        "sourceType",
+                        "reviewStatus",
+                        "photoOrigin",
+                        "photoSourceUrl",
+                        "photoCreditName",
+                        "photoCreditUrl");
     }
 }

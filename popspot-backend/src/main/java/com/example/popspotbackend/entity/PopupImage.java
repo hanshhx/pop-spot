@@ -55,4 +55,18 @@ public class PopupImage {
      */
     @Column(name = "PHOTO_ORIGIN", length = 20)
     private String photoOrigin;
+
+    /** Pexels 고유 사진 ID. DB 고유 인덱스로 한 사진이 둘 이상의 팝업에 배정되는 것을 막는다. */
+    @Column(name = "PEXELS_PHOTO_ID")
+    private Long pexelsPhotoId;
+
+    /** 해당 사진의 Pexels 상세 페이지. */
+    @Column(name = "PHOTO_SOURCE_URL", columnDefinition = "TEXT")
+    private String photoSourceUrl;
+
+    @Column(name = "PHOTO_CREDIT_NAME", length = 200)
+    private String photoCreditName;
+
+    @Column(name = "PHOTO_CREDIT_URL", columnDefinition = "TEXT")
+    private String photoCreditUrl;
 }

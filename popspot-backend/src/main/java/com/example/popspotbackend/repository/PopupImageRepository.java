@@ -1,6 +1,7 @@
 package com.example.popspotbackend.repository;
 
 import com.example.popspotbackend.entity.PopupImage;
+import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -29,4 +30,29 @@ public interface PopupImageRepository extends JpaRepository<PopupImage, Long> {
             @Param("popupId") Long popupId,
             @Param("url") String url,
             @Param("origin") String origin);
+
+    @Query("select i.pexelsPhotoId from PopupImage i where i.pexelsPhotoId is not null")
+    List<Long> findAllUsedPexelsPhotoIds();
+
+    /**
+     * 아직 이미지가 없는 팝업에, 다른 팝업이 사용하지 않은 Pexels 사진만 원자적으로 배정한다. DB 고유 인덱스와 {@code ON CONFLICT DO
+     * NOTHING}이 동시 실행에서도 중복을 차단한다.
+     */
+    @Modifying
+    @Transactional
+    @Query(
+            value =
+                    "INSERT INTO popup_image (image_url, main_yn, popup_id, photo_origin,"
+                            + " pexels_photo_id, photo_source_url, photo_credit_name, photo_credit_url)"
+                            + " SELECT :imageUrl, 'Y', :popupId, 'PEXELS', :photoId, :sourceUrl,"
+                            + " :creditName, :creditUrl WHERE NOT EXISTS (SELECT 1 FROM popup_image"
+                            + " WHERE popup_id = :popupId) ON CONFLICT DO NOTHING",
+            nativeQuery = true)
+    int insertMainPexelsImageIfUnused(
+            @Param("popupId") Long popupId,
+            @Param("photoId") Long photoId,
+            @Param("imageUrl") String imageUrl,
+            @Param("sourceUrl") String sourceUrl,
+            @Param("creditName") String creditName,
+            @Param("creditUrl") String creditUrl);
 }
