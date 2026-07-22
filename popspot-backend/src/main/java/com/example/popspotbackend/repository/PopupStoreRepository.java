@@ -172,6 +172,26 @@ public interface PopupStoreRepository extends JpaRepository<PopupStore, Long> {
            """)
     List<PopupStore> findCrawledMissingCoordinates();
 
+    /**
+     * 시작일이 비어있는 자동수집 row 중 이름·위치가 일치하는 것 — 날짜 점진 보강용.
+     *
+     * <p>왜 external_id 가 아니라 이름·위치인가: null-date row 의 external_id 는 {@code hash(name|location|"")}
+     * 인데, 재크롤이 유효 startDate 를 뽑으면 external_id 가 {@code hash(name|location|날짜)} 로 바뀌어 {@link
+     * #findByExternalId} 를 빗나간다(= 지금까지 중복 row 를 만들던 원인). 이름 기준으로 원본 row 를 되찾아 null 인 날짜만 채워
+     * in-place 로 갱신한다. 정규화(trim + lower)는 크롤러의 external_id 계산·dedup 정책과 맞춘다. external_id 가 unique 라
+     * 매칭은 사실상 1건이지만 방어적으로 List.
+     */
+    @Query(
+            """
+           SELECT p FROM PopupStore p
+            WHERE p.sourceType = 'CRAWLED'
+              AND LOWER(TRIM(p.name)) = :name
+              AND LOWER(TRIM(p.location)) = :location
+              AND (p.startDate IS NULL OR p.startDate = '')
+           """)
+    List<PopupStore> findCrawledMissingStartDate(
+            @Param("name") String name, @Param("location") String location);
+
     /* ============================================================
      *  어드민 대시보드 — 자동수집 메트릭 (v2.10)
      * ============================================================ */
