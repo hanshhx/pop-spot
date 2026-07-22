@@ -816,8 +816,17 @@ public class PopupCrawlOrchestrator {
         String externalId =
                 computeExternalId(result.getName(), result.getLocation(), result.getStartDate());
 
-        if (markDuplicateAsSeen(externalId)) {
+        if (markDuplicateAsSeen(externalId, result)) {
             stats.duplicates++;
+            return;
+        }
+
+        // 날짜 점진 보강: 이 결과가 유효 startDate 를 담았는데(= 위 external_id 조회를 빗나간 케이스), 같은 이름·위치의
+        // 기존 null-date row 가 있으면 새 row 를 만들지 말고 그 row 의 빈 날짜만 채운다. external_id 가 startDate 를
+        // 포함해, 예전엔 이 경우가 중복 row 를 만들고 dedup 이 dated row 를 숨겨 날짜를 유실시켰다. 추측은 없다 —
+        // result 의 날짜는 STRICT 파싱 + 역전검증을 통과한 값이다.
+        if (result.getStartDate() != null && backfillMissingDates(result, externalId)) {
+            stats.datesBackfilled++;
             return;
         }
 
@@ -841,14 +850,103 @@ public class PopupCrawlOrchestrator {
                 || result.getName().isBlank();
     }
 
-    private boolean markDuplicateAsSeen(String externalId) {
+    private boolean markDuplicateAsSeen(String externalId, NormalizedPopup result) {
         Optional<PopupStore> existing = popupStoreRepository.findByExternalId(externalId);
         if (existing.isEmpty()) return false;
 
         PopupStore popup = existing.get();
         popup.setLastSeenAt(LocalDateTime.now());
+
+        // startDate 는 external_id 의 일부라 이미 일치한다. 다만 endDate 가 비어 있던 기존 row 는, 이번 재크롤이
+        // 유효 endDate 를 담았으면 그 빈칸만 채운다(추측 아님 — STRICT 통과값). 기존 값은 절대 덮지 않는다.
+        // 새 endDate 가 기존 startDate 보다 앞서 역전이 되면 채우지 않는다 — 어느 쪽이 틀렸는지 알 수 없으니
+        // row 를 훼손하지 않고 그대로 둔다.
+        boolean enriched = false;
+        if (isBlank(popup.getEndDate())
+                && result.getEndDate() != null
+                && !isInverted(popup.getStartDate(), result.getEndDate())) {
+            popup.setEndDate(result.getEndDate());
+            enriched = true;
+        }
+
         popupStoreRepository.save(popup);
+        if (enriched) {
+            reindexQuietly(popup);
+            log.info(
+                    "[DateBackfill] 기존 row endDate 보강 id={} endDate={}",
+                    popup.getId(),
+                    result.getEndDate());
+        }
         return true;
+    }
+
+    /**
+     * 같은 이름·위치의 기존 null-date row 를 찾아 빈 날짜만 채운다. 채웠으면 true(신규 삽입 스킵).
+     *
+     * <p>external_id 를 새 날짜 반영값으로 재설정해, 다음 재크롤이 {@link #markDuplicateAsSeen} 경로로 정상 매치되게 한다. unique
+     * 충돌은 없다 — 호출부에서 이미 findByExternalId(newExternalId) 가 비어 있음을 확인한 분기다.
+     *
+     * <p>새 startDate 가 기존 row 의 endDate 보다 뒤라 역전이 되면 in-place 갱신을 포기한다(false 반환). 어느 값이 틀렸는지 알 수 없어
+     * 기존 row 를 훼손하는 대신, 호출부가 일반 경로로 자기정합적인(자체 start/end 는 정규화 단계 역전검증을 통과함) 새 row 를 만들게 둔다.
+     */
+    private boolean backfillMissingDates(NormalizedPopup result, String newExternalId) {
+        List<PopupStore> targets =
+                popupStoreRepository.findCrawledMissingStartDate(
+                        normalizePart(result.getName()), normalizePart(result.getLocation()));
+        if (targets.isEmpty()) return false;
+
+        PopupStore existing = targets.get(0);
+        String newStart = result.getStartDate();
+        String finalEnd =
+                isBlank(existing.getEndDate()) ? result.getEndDate() : existing.getEndDate();
+        if (isInverted(newStart, finalEnd)) {
+            log.warn(
+                    "[DateBackfill] 역전 감지 — 백필 건너뜀 id={} newStart={} end={}",
+                    existing.getId(),
+                    newStart,
+                    finalEnd);
+            return false;
+        }
+
+        existing.setStartDate(newStart);
+        if (isBlank(existing.getEndDate()) && result.getEndDate() != null) {
+            existing.setEndDate(result.getEndDate());
+        }
+        existing.setExternalId(newExternalId);
+        existing.setLastSeenAt(LocalDateTime.now());
+
+        PopupStore saved = popupStoreRepository.save(existing);
+        reindexQuietly(saved);
+        log.info(
+                "[DateBackfill] 기존 row 날짜 채움 id={} {} ~ {}",
+                saved.getId(),
+                saved.getStartDate(),
+                saved.getEndDate());
+        return true;
+    }
+
+    /** 검색 인덱스 갱신 — 실패해도 크롤 흐름을 막지 않는다(다음 주기 동기화가 다시 시도). */
+    private void reindexQuietly(PopupStore popup) {
+        try {
+            searchService.addPopup(popup);
+        } catch (Exception e) {
+            log.warn(
+                    "[PopupCrawlOrchestrator] Algolia 동기화 실패 id={} err={}",
+                    popup.getId(),
+                    e.toString());
+        }
+    }
+
+    private boolean isBlank(String s) {
+        return s == null || s.isBlank();
+    }
+
+    /**
+     * start 가 end 보다 뒤인가(역전). 둘 다 값이 있을 때만 판정한다 — 하나라도 비면 역전이 아니다. startDate/endDate 는
+     * ISO(YYYY-MM-DD) 문자열이라 사전식 비교가 곧 시간순 비교다.
+     */
+    private boolean isInverted(String start, String end) {
+        return !isBlank(start) && !isBlank(end) && start.compareTo(end) > 0;
     }
 
     private void saveNewPopup(
@@ -886,14 +984,7 @@ public class PopupCrawlOrchestrator {
 
         // v2.13 — 신규 자동게시 row 는 즉시 Algolia 인덱스에 push (다음 수집 주기까지 검색에서
         // 누락되던 문제 해소). 인덱싱 가드는 SearchService.addPopup 안에서 다시 한 번 검증.
-        try {
-            searchService.addPopup(saved);
-        } catch (Exception e) {
-            log.warn(
-                    "[PopupCrawlOrchestrator] Algolia 동기화 실패 id={} err={}",
-                    saved.getId(),
-                    e.toString());
-        }
+        reindexQuietly(saved);
     }
 
     /* =========================== Geocoding backfill =========================== */
@@ -986,6 +1077,9 @@ public class PopupCrawlOrchestrator {
         /** 검색 API 일일 예산(기본 50%)에 걸려 조기 종료했는가(0/1). */
         int searchBudgetExhausted;
 
+        /** 신규 삽입 대신 기존 null-date row 의 빈 날짜를 채운 건수(점진 보강). */
+        int datesBackfilled;
+
         Map<String, Integer> toMap() {
             Map<String, Integer> map = new LinkedHashMap<>();
             map.put("totalSnippets", totalSnippets);
@@ -997,6 +1091,7 @@ public class PopupCrawlOrchestrator {
             map.put("autoPublished", autoPublished);
             map.put("pendingReview", pendingReview);
             map.put("duplicates", duplicates);
+            map.put("datesBackfilled", datesBackfilled);
             map.put("rejected", rejected);
             map.put("keywordCursorStart", keywordCursorStart);
             map.put("keywordsCovered", keywordsCovered);
