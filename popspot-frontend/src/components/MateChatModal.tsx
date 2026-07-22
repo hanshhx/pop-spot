@@ -10,6 +10,7 @@ import {
 import { motion, AnimatePresence, useDragControls } from "framer-motion";
 import { apiFetch, SOCKET_BASE_URL, API_BASE_URL } from "../lib/api";
 import { notify, notifyError, confirmAction } from "@/lib/notify";
+import { addPromiseToCalendar } from "@/lib/calendar";
 
 interface MateChatModalProps {
   postId: number;
@@ -263,7 +264,18 @@ export default function MateChatModal({
   };
 
   const addToCalendar = (p: { date: string, time: string, location: string }) => {
-    notify(`📅 일정이 내 캘린더에 등록되었습니다!\n\n날짜: ${p.date}\n시간: ${p.time}\n장소: ${p.location}`);
+    // 실제로 캘린더에 등록한다. 예전엔 아무것도 안 하고 성공 메시지만 띄우는 가짜 버튼이었다.
+    const ok = addPromiseToCalendar({
+      title: `팝스팟 동행 · ${p.location || "약속"}`,
+      date: p.date,
+      time: p.time,
+      location: p.location,
+    });
+    if (ok) {
+      notify(`📅 캘린더 앱을 열었어요!\n\n날짜: ${p.date}\n시간: ${p.time}\n장소: ${p.location}`);
+    } else {
+      notify(`⚠️ 날짜·시간이 올바르지 않아 캘린더에 추가하지 못했어요.`);
+    }
   };
 
   return (

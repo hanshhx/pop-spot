@@ -130,17 +130,88 @@ export function addToCalendar(input: CalendarInput): boolean {
     typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent);
 
   if (isIOS) {
-    const blob = new Blob([buildIcs(ev)], { type: 'text/calendar;charset=utf-8' });
-    const href = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = href;
-    a.download = `${ev.title}.ics`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(href);
+    downloadIcs(buildIcs(ev), ev.title);
   } else {
     window.open(googleCalendarUrl(ev), '_blank', 'noopener,noreferrer');
+  }
+  return true;
+}
+
+/** .ics 본문을 파일로 내려받게 한다(iOS 캘린더가 바로 연다). */
+function downloadIcs(icsBody: string, filename: string): void {
+  const blob = new Blob([icsBody], { type: 'text/calendar;charset=utf-8' });
+  const href = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = href;
+  a.download = `${filename}.ics`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(href);
+}
+
+function isIOSDevice(): boolean {
+  return typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent);
+}
+
+/**
+ * 동행 약속(날짜 + 시간)을 캘린더에 실제로 추가한다.
+ *
+ * <p>상세 페이지의 종일 이벤트와 달리 시간이 있는 이벤트다. iOS 는 .ics, 그 외는 Google Calendar 딥링크. 날짜·시간이 유효하지 않으면 아무 것도
+ * 하지 않고 {@code false} 를 돌려준다 — 호출부는 이 값을 보고 "추가했다" 는 가짜 성공 메시지를 띄우지 말아야 한다.
+ */
+export function addPromiseToCalendar(input: {
+  title: string;
+  date: string; // YYYY-MM-DD
+  time: string; // HH:MM
+  location: string;
+}): boolean {
+  const day = parseDate(input.date);
+  const tm = /^(\d{1,2}):(\d{2})$/.exec((input.time ?? '').trim());
+  if (!day || !tm) return false;
+
+  const start = new Date(day.getFullYear(), day.getMonth(), day.getDate(), Number(tm[1]), Number(tm[2]));
+  const end = new Date(start.getTime() + 2 * 60 * 60 * 1000); // 약속 기본 2시간
+
+  const fmt = (x: Date): string => {
+    const p = (n: number) => String(n).padStart(2, '0');
+    return (
+      `${x.getFullYear()}${p(x.getMonth() + 1)}${p(x.getDate())}` +
+      `T${p(x.getHours())}${p(x.getMinutes())}00`
+    );
+  };
+  const startStr = fmt(start);
+  const endStr = fmt(end);
+
+  if (isIOSDevice()) {
+    const ics = [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'PRODID:-//popspot//KR',
+      'CALSCALE:GREGORIAN',
+      'BEGIN:VEVENT',
+      `UID:${startStr}-${escapeIcs(input.title)}`,
+      `DTSTAMP:${icsTimestamp()}`,
+      `SUMMARY:${escapeIcs(input.title)}`,
+      `LOCATION:${escapeIcs(input.location)}`,
+      `DTSTART:${startStr}`,
+      `DTEND:${endStr}`,
+      'END:VEVENT',
+      'END:VCALENDAR',
+    ].join('\r\n');
+    downloadIcs(ics, input.title);
+  } else {
+    const params = new URLSearchParams({
+      action: 'TEMPLATE',
+      text: input.title,
+      dates: `${startStr}/${endStr}`,
+      location: input.location,
+    });
+    window.open(
+      `https://calendar.google.com/calendar/render?${params.toString()}`,
+      '_blank',
+      'noopener,noreferrer',
+    );
   }
   return true;
 }

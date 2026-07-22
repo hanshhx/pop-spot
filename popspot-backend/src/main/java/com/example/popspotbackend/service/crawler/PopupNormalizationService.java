@@ -149,17 +149,27 @@ public class PopupNormalizationService {
         if (snippets == null || snippets.isEmpty()) {
             return List.of();
         }
-        // 이미 오늘 일일 한도를 맞았으면 호출하지 않는다. 남은 키워드마다 429 를 한 번씩 더 맞는 것을 막는다.
-        if (usageTracker.isDailyQuotaExhausted(LlmUsageTracker.Role.CRAWLER)) {
-            throw new LlmQuotaExhaustedException("일일 LLM 한도 소진 상태 — 호출 생략");
+        // 로컬 Ollama(PC 켜짐) 우선, 아니면 Groq fallback. 헬스체크는 CrawlerLlm 안에서 캐시된다.
+        CrawlerLlm.Selection selection = crawlerLlm.select();
+
+        // 일일 한도 차단은 클라우드(Groq)에만 적용한다. 로컬 Ollama 는 쿼터가 없으므로, Groq 가 오전에
+        // 429 로 막혀도 PC 를 켜면 로컬로 계속 수집된다. 이 검사를 모델 선택보다 앞에 두면 — Groq 가 막힌
+        // 바로 그 순간, 로컬이 가장 필요한데 — 로컬의 무제한 이점이 통째로 막힌다(실제 버그였다).
+        if (!selection.local()
+                && usageTracker.isDailyQuotaExhausted(LlmUsageTracker.Role.CRAWLER)) {
+            throw new LlmQuotaExhaustedException("Groq 일일 한도 소진 — 로컬 Ollama(PC)를 켜면 계속 수집됩니다");
         }
 
         List<PopupCrawlSource> limited = limitFor(snippets);
         String prompt = buildPrompt(limited);
 
+        log.info(
+                "[PopupNormalization] {} 모델로 정규화 — 스니펫 {}개",
+                selection.local()
+                        ? "로컬 Ollama(" + selection.modelName() + ")"
+                        : "Groq(" + selection.modelName() + ")",
+                limited.size());
         usageTracker.recordAttempt(LlmUsageTracker.Role.CRAWLER);
-        // 로컬 Ollama(PC 켜짐) 우선, 아니면 Groq fallback. 헬스체크는 CrawlerLlm 안에서 캐시된다.
-        CrawlerLlm.Selection selection = crawlerLlm.select();
         Response<AiMessage> response;
         try {
             // generate(String) 대신 메시지 버전을 쓰는 이유: 이쪽만 TokenUsage 를 돌려준다.
@@ -173,9 +183,13 @@ public class PopupNormalizationService {
 
         try {
             JsonNode array = extractArray(parseJsonResponse(response.content().text()));
+            // 환각 URL 차단용 — 프롬프트에 실제로 들어간 스니펫 텍스트. LLM 이 지어낸 URL 은 여기 없다.
+            String snippetHaystack = buildSnippetHaystack(limited);
             List<NormalizedPopup> results = new ArrayList<>();
             for (JsonNode node : array) {
-                results.add(applyPostValidations(parseNormalizedPopup(node)));
+                NormalizedPopup popup = applyPostValidations(parseNormalizedPopup(node));
+                rejectHallucinatedUrls(popup, snippetHaystack);
+                results.add(popup);
             }
             usageTracker.recordSuccess(LlmUsageTracker.Role.CRAWLER);
             return results;
@@ -446,6 +460,42 @@ public class PopupNormalizationService {
         String s = raw.trim();
         if (s.length() > MAX_URL_LEN || !URL_SHAPE.matcher(s).matches()) return null;
         return s;
+    }
+
+    /** 프롬프트에 들어간 스니펫 원문을 하나로 이어 붙인다. 환각 URL 대조용 건초더미. */
+    private String buildSnippetHaystack(List<PopupCrawlSource> snippets) {
+        StringBuilder sb = new StringBuilder();
+        for (PopupCrawlSource s : snippets) {
+            sb.append(safe(s.getTitle()))
+                    .append(' ')
+                    .append(safe(s.getDescription()))
+                    .append(' ')
+                    .append(safe(s.getLink()))
+                    .append('\n');
+        }
+        return sb.toString();
+    }
+
+    /**
+     * officialUrl/reservationUrl 이 스니펫 원문에 문자 그대로 없으면 폐기한다.
+     *
+     * <p>프롬프트에 "지어내지 마" 라고 지시해도 형식만 맞는 가짜 URL 이 나올 수 있다(형식 검증만으로는 못 거른다). 프롬프트에 실제로 들어간 스니펫 텍스트에 그
+     * URL 이 있는지 대조해, 없으면 환각으로 보고 null 처리한다. 실재하는 URL 만 남는다.
+     */
+    private void rejectHallucinatedUrls(NormalizedPopup popup, String snippetHaystack) {
+        if (popup.getOfficialUrl() != null && !snippetHaystack.contains(popup.getOfficialUrl())) {
+            log.warn(
+                    "[PopupNormalization] officialUrl 이 스니펫에 없음(환각 의심) — 폐기: {}",
+                    popup.getOfficialUrl());
+            popup.setOfficialUrl(null);
+        }
+        if (popup.getReservationUrl() != null
+                && !snippetHaystack.contains(popup.getReservationUrl())) {
+            log.warn(
+                    "[PopupNormalization] reservationUrl 이 스니펫에 없음(환각 의심) — 폐기: {}",
+                    popup.getReservationUrl());
+            popup.setReservationUrl(null);
+        }
     }
 
     private String safe(String s) {
