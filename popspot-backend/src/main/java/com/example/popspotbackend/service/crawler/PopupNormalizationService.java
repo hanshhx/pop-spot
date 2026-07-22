@@ -15,6 +15,7 @@ import dev.langchain4j.model.output.TokenUsage;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.time.format.ResolverStyle;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -407,7 +408,13 @@ public class PopupNormalizationService {
     /** {@code YYYY-M-D} 대략 형태만 걸러 두고 실제 유효성은 {@link LocalDate#parse} 로 확정한다. */
     private static final Pattern DATE_SHAPE = Pattern.compile("^\\d{4}-\\d{1,2}-\\d{1,2}$");
 
-    private static final DateTimeFormatter LENIENT_INPUT = DateTimeFormatter.ofPattern("yyyy-M-d");
+    /**
+     * 날짜 파싱기 — <b>반드시 STRICT</b>. 기본(SMART) 모드는 "2026-02-30"(없는 날)을 조용히 2026-02-28 로 조정해 잘못된 날짜를
+     * 그럴듯한 값으로 둔갑시킨다. 우리는 이런 값을 거부(null)해야 하므로 STRICT 로 실제 존재하는 날짜만 통과시킨다. {@code uuuu} 는 era 없이
+     * 연도를 받기 위한 것(STRICT + {@code yyyy} 는 era 를 요구해 실패한다).
+     */
+    private static final DateTimeFormatter STRICT_INPUT =
+            DateTimeFormatter.ofPattern("uuuu-M-d").withResolverStyle(ResolverStyle.STRICT);
 
     /**
      * LLM 이 준 날짜 문자열을 엄격 검증해 ISO({@code 2026-05-01})로 정규화한다. 형식이 어긋나거나 실재하지 않는 날짜({@code
@@ -421,7 +428,7 @@ public class PopupNormalizationService {
         String s = raw.trim();
         if (!DATE_SHAPE.matcher(s).matches()) return null;
         try {
-            return LocalDate.parse(s, LENIENT_INPUT).format(DateTimeFormatter.ISO_LOCAL_DATE);
+            return LocalDate.parse(s, STRICT_INPUT).format(DateTimeFormatter.ISO_LOCAL_DATE);
         } catch (DateTimeParseException e) {
             return null;
         }
