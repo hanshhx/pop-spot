@@ -91,6 +91,8 @@ function buildIcs(ev: CalendarEvent): string {
     'CALSCALE:GREGORIAN',
     'BEGIN:VEVENT',
     `UID:${ev.startCompact}-${ev.url}`,
+    // DTSTAMP 는 RFC 5545 에서 VEVENT 필수 — 없으면 엄격한 캘린더가 파일을 거부해 "추가해도 아무 일 없는" 버튼이 된다.
+    `DTSTAMP:${icsTimestamp()}`,
     `SUMMARY:${escapeIcs(ev.title)}`,
     `LOCATION:${escapeIcs(ev.location)}`,
     `URL:${ev.url}`,
@@ -104,6 +106,16 @@ function buildIcs(ev: CalendarEvent): string {
 
 function escapeIcs(v: string): string {
   return v.replace(/([,;\\])/g, '\\$1').replace(/\n/g, '\\n');
+}
+
+/** 파일 생성 시각 — RFC 5545 형식(UTC, {@code YYYYMMDDTHHMMSSZ}). */
+function icsTimestamp(): string {
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return (
+    `${d.getUTCFullYear()}${pad(d.getUTCMonth() + 1)}${pad(d.getUTCDate())}` +
+    `T${pad(d.getUTCHours())}${pad(d.getUTCMinutes())}${pad(d.getUTCSeconds())}Z`
+  );
 }
 
 /**

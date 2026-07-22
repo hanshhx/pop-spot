@@ -44,7 +44,12 @@ public class WebConfig implements WebMvcConfigurer {
      * 경로와 {@code /**} 를 함께 등록한다.
      */
     private static final String[] MEMBER_CONTENT_PATTERNS = {
-        "/api/mates", "/api/mates/**", "/api/feedback", "/api/feedback/**"
+        "/api/mates",
+        "/api/mates/**",
+        "/api/feedback",
+        "/api/feedback/**",
+        "/api/chat",
+        "/api/chat/**"
     };
 
     @Value("${app.upload.path}")
