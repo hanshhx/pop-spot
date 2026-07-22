@@ -26,6 +26,7 @@ import { apiFetch } from "../../../src/lib/api";
 import { notify, notifyError } from "@/lib/notify";
 import { escapeHtml } from "@/lib/escapeHtml";
 import { popupCoverUrl } from "@/lib/popupCover";
+import { PhotoDisclosure } from "@/components/popup/PhotoDisclosure";
 import { addToCalendar, toCalendarEvent } from "@/lib/calendar";
 import type { User } from "@/types/popup";
 
@@ -107,6 +108,9 @@ interface PopupDetail {
   longitude?: string;
   imageUrl?: string;
   photoOrigin?: string;
+  photoSourceUrl?: string;
+  photoCreditName?: string;
+  photoCreditUrl?: string;
   // [V4] 자동수집/검수/저작권 메타
   sourceType?: string;
   sourceUrl?: string;
@@ -222,6 +226,9 @@ export default function PopupDetail() {
           longitude: data.longitude,
           imageUrl: data.imageUrl || data.image,
           photoOrigin: data.photoOrigin,
+          photoSourceUrl: data.photoSourceUrl,
+          photoCreditName: data.photoCreditName,
+          photoCreditUrl: data.photoCreditUrl,
           sourceType: data.sourceType,
           sourceUrl: data.sourceUrl,
           sourceName: data.sourceName,
@@ -430,6 +437,7 @@ export default function PopupDetail() {
 
         {/* 제목 오버레이 */}
         <div className="absolute inset-x-0 bottom-0 z-10 p-5 text-white md:p-7">
+          <PhotoDisclosure popup={popup} showCredit className="mb-3" />
           <div className="mb-2 flex items-center gap-2">
             {catKo && (
               <span className="rounded-pill bg-white/15 px-2.5 py-1 text-[11px] font-bold backdrop-blur">

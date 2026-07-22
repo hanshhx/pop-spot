@@ -13,7 +13,8 @@ import {
 import { motion, Variants, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import Image from "next/image";
-import { popupCoverUrl } from "@/lib/popupCover";
+import { isPexelsPhoto, popupCoverUrl } from "@/lib/popupCover";
+import { PhotoDisclosure } from "@/components/popup/PhotoDisclosure";
 
 import { 
   DndContext, 
@@ -1735,21 +1736,41 @@ function PopupCoverVisual({
   location,
   compact = false,
 }: {
-  popup: { id: string | number; category?: string | null; imageUrl?: string | null; photoOrigin?: string | null };
+  popup: {
+    id: string | number;
+    category?: string | null;
+    imageUrl?: string | null;
+    photoOrigin?: string | null;
+    photoSourceUrl?: string | null;
+    photoCreditName?: string | null;
+    photoCreditUrl?: string | null;
+  };
   name: string;
   location?: string | null;
   compact?: boolean;
 }) {
   const coverUrl = popupCoverUrl(popup, 400);
+  const isStyledPhoto = isPexelsPhoto(popup);
   if (coverUrl) {
     return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
-        src={coverUrl}
-        alt={name}
-        loading="lazy"
-        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-      />
+      <>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={coverUrl}
+          alt={name}
+          title={isStyledPhoto ? "연출 이미지 · 실제 팝업 현장 아님" : undefined}
+          loading="lazy"
+          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+        />
+        {!compact && (
+          <PhotoDisclosure popup={popup} className="absolute bottom-2 left-2 right-2 w-fit" />
+        )}
+        {compact && isStyledPhoto && (
+          <span className="absolute left-1 top-1 rounded bg-black/65 px-1 py-0.5 text-[8px] font-bold text-white">
+            연출
+          </span>
+        )}
+      </>
     );
   }
 

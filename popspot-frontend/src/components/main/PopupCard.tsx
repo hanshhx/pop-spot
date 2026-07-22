@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Heart, MapPin, Shirt, Coffee, Palette, Star, Sparkles, Cpu, Store } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { popupCoverUrl } from "@/lib/popupCover";
+import { PhotoDisclosure } from "@/components/popup/PhotoDisclosure";
 import type { PopupStore } from "@/types/popup";
 
 /**
@@ -123,6 +124,7 @@ export function PopupCard({ popup, onClick, onWish, wished, className }: PopupCa
             <Heart size={15} fill={wished ? "currentColor" : "none"} />
           </button>
         )}
+        <PhotoDisclosure popup={popup} className="absolute bottom-2.5 left-2.5 right-2.5 w-fit" />
       </div>
 
       <div className="flex flex-col gap-1 p-3">

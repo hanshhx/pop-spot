@@ -64,9 +64,12 @@ export interface PopupStore {
   imageUrl?: string;
   /**
    * 사진 출처(CRAWLED/USER/PEXELS/PLACEHOLDER). 목록 API 는 PopupStore 엔티티를 그대로 직렬화하므로
-   * 이 필드가 함께 내려온다. CRAWLED/USER만 실제 사진으로 노출하고 스톡·플레이스홀더는 정보형 UI로 바꾸는 데 쓴다.
+   * 이 필드가 함께 내려온다. PEXELS는 연출 이미지 고지·출처와 함께 노출하고 PLACEHOLDER는 정보형 UI로 바꾼다.
    */
   photoOrigin?: string;
+  photoSourceUrl?: string;
+  photoCreditName?: string;
+  photoCreditUrl?: string;
   reporterId?: string;
 
   /* === V4 자동수집 / 검수 / 저작권 메타데이터 === */
