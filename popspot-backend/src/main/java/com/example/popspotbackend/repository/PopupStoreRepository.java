@@ -192,6 +192,18 @@ public interface PopupStoreRepository extends JpaRepository<PopupStore, Long> {
     List<PopupStore> findCrawledMissingStartDate(
             @Param("name") String name, @Param("location") String location);
 
+    /** 날짜가 하나라도 비어 있고 원본 URL이 남아 있는 자동수집 팝업. 기존 데이터 재정규화 대상을 제한된 배치로 고르는 용도다. */
+    @Query(
+            """
+           SELECT p FROM PopupStore p
+            WHERE p.sourceType = 'CRAWLED'
+              AND p.sourceUrl IS NOT NULL AND p.sourceUrl <> ''
+              AND (p.startDate IS NULL OR p.startDate = ''
+                   OR p.endDate IS NULL OR p.endDate = '')
+            ORDER BY p.lastSeenAt ASC, p.id ASC
+           """)
+    List<PopupStore> findCrawledMissingDates();
+
     /* ============================================================
      *  어드민 대시보드 — 자동수집 메트릭 (v2.10)
      * ============================================================ */

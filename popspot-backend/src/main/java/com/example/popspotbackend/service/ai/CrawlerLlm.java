@@ -50,9 +50,24 @@ public class CrawlerLlm {
      * <p>헬스체크는 {@link OllamaHealthChecker} 가 짧게 캐시하므로 회차 중 여러 번 불러도 비용이 없다.
      */
     public Selection select() {
-        if (localModel != null && healthChecker.isAvailable()) {
+        if (hasAvailableLocal()) {
             return new Selection(localModel, localModelName, true);
         }
+        return cloudSelection();
+    }
+
+    /** Groq 일일 차단 중에도 검색을 시작해도 되는지 판단할 때 사용한다. */
+    public boolean hasAvailableLocal() {
+        return localModel != null && healthChecker.isAvailable();
+    }
+
+    /** 로컬 추론 실패 뒤 한 번만 사용할 명시적인 Groq fallback. */
+    public Selection cloudSelection() {
         return new Selection(cloudModel, cloudModelName, false);
+    }
+
+    /** 방금 로컬 추론이 실패했음을 알려 캐시된 "정상" 판정을 즉시 폐기한다. */
+    public void markLocalUnavailable() {
+        healthChecker.invalidate();
     }
 }

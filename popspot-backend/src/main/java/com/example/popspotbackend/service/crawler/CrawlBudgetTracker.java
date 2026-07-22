@@ -4,7 +4,6 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -22,11 +21,9 @@ import org.springframework.stereotype.Component;
  * crawl:budget:used-seconds:YYYY-MM-DD})에 누적한다. 재시작해도 이어지고, 키에 날짜가 있어 자정이 지나면 새 키(=0)로 자연 리셋된다 — 별도
  * 리셋 스케줄러가 필요 없다({@code LlmUsageTracker.keyOf} 와 같은 발상).
  *
- * <p><b>Redis 불가 시 폴백 — 미러 + max 읽기.</b> 이 트래커는 크롤 스케줄러 핫패스에서 호출되므로, Redis 다운이 크롤 전체를 죽이면 안 된다. 그래서
- * 인메모리 미러({@code mirrorSeconds})에 <b>항상</b> 누적하고(= 이 JVM 이 오늘 센 전량), Redis 에는 best-effort 로 별도
- * 누적한다. 읽을 때는 {@code max(redis, mirror)} 를 쓴다 — 합산이 아니라 max 라 둘에 같은 증가분이 들어가도 이중계상이 없고, 재시작 후엔 이전
- * 인스턴스가 남긴 Redis 값이 미러(0에서 시작)보다 커서 자연히 우세하며(크로스-재시작 보존), Redis 가 읽히지 않는 아웃테이지에도 미러가 오늘 전량을 쥐고 있어
- * 예산이 0 으로 리셋되지 않는다. Redis 예외는 모두 삼켜 크롤을 죽이지 않는다.
+ * <p><b>Redis 불가 시 폴백.</b> Redis 기준값을 먼저 읽고, 장애 중 증가분은 {@code pendingSeconds} 로 별도 보관한다. 복구되면 미동기화
+ * 증가분 전량을 원자적 INCR 로 합친다. 단순 {@code max(redis, mirror)} 는 재시작 뒤 장애가 끼면 서로 겹치지 않는 두 구간 중 하나를 잃으므로
+ * 사용하지 않는다.
  */
 @Slf4j
 @Component
@@ -46,10 +43,12 @@ public class CrawlBudgetTracker {
     @Value("${popspot.crawler.local.daily-budget-minutes:180}")
     private int dailyBudgetMinutes;
 
-    /** 이 JVM 이 오늘 센 전량(항상 누적하는 미러). 날짜가 바뀌면 {@link #rollMirrorIfNewDay()} 가 리셋한다. */
+    /** Redis 기준값과 이 JVM 증가분을 합친 보수적 총량. */
     private volatile LocalDate mirrorDay = LocalDate.now(SEOUL);
 
-    private final AtomicLong mirrorSeconds = new AtomicLong();
+    private long mirrorSeconds;
+    private long pendingSeconds;
+    private boolean redisBaselineLoaded;
 
     /** 오늘 예산이 남았는가. */
     public synchronized boolean hasBudgetLeft() {
@@ -61,13 +60,29 @@ public class CrawlBudgetTracker {
         long delta = Math.max(0, seconds);
         if (delta == 0) return;
         rollMirrorIfNewDay();
-        mirrorSeconds.addAndGet(delta);
-        String key = key();
+        loadRedisBaseline();
+        mirrorSeconds += delta;
+        pendingSeconds += delta;
+        flushPending();
+    }
+
+    private void flushPending() {
+        if (pendingSeconds == 0) return;
+        long pending = pendingSeconds;
         try {
-            redis.opsForValue().increment(key, delta);
-            redis.expire(key, KEY_TTL_DAYS, TimeUnit.DAYS);
+            Long persisted = redis.opsForValue().increment(key(), pending);
+            pendingSeconds -= pending;
+            if (persisted != null) mirrorSeconds = Math.max(mirrorSeconds, persisted);
+            redisBaselineLoaded = true;
         } catch (Exception e) {
             degrade("addUsedSeconds", e);
+            return;
+        }
+        try {
+            redis.expire(key(), KEY_TTL_DAYS, TimeUnit.DAYS);
+        } catch (Exception e) {
+            // INCR 은 이미 성공했다. TTL 실패를 증가분 실패로 취급하면 다음 호출에서 이중 반영된다.
+            degrade("expire", e);
         }
     }
 
@@ -79,17 +94,24 @@ public class CrawlBudgetTracker {
         return dailyBudgetMinutes;
     }
 
-    /** 오늘 사용한 초 = max(Redis, 미러). 합산이 아니라 max 라 이중계상이 없다. Redis 불가면 미러만. */
+    /** 오늘 사용한 초 = Redis 기준값 + 아직 동기화하지 못한 증가분. Redis 불가면 보수적 미러를 유지한다. */
     private long currentUsedSeconds() {
         rollMirrorIfNewDay();
-        long mirror = mirrorSeconds.get();
+        loadRedisBaseline();
+        // 장애가 복구된 뒤 새 사용량이 생기지 않아도 조회 시점에 미동기화분을 밀어 넣는다.
+        flushPending();
+        return mirrorSeconds;
+    }
+
+    private void loadRedisBaseline() {
+        if (redisBaselineLoaded) return;
         try {
             String v = redis.opsForValue().get(key());
             long fromRedis = v == null ? 0L : Long.parseLong(v);
-            return Math.max(fromRedis, mirror);
+            mirrorSeconds = Math.max(mirrorSeconds, fromRedis + pendingSeconds);
+            redisBaselineLoaded = true;
         } catch (Exception e) {
             degrade("read", e);
-            return mirror;
         }
     }
 
@@ -101,7 +123,9 @@ public class CrawlBudgetTracker {
         LocalDate today = LocalDate.now(SEOUL);
         if (!today.equals(mirrorDay)) {
             mirrorDay = today;
-            mirrorSeconds.set(0);
+            mirrorSeconds = 0;
+            pendingSeconds = 0;
+            redisBaselineLoaded = false;
         }
     }
 

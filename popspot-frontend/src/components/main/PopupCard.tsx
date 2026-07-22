@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Heart, MapPin, Shirt, Coffee, Palette, Star, Sparkles, Cpu, Store } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { popupCoverUrl, isCuratedCover } from "@/lib/popupCover";
+import { popupCoverUrl } from "@/lib/popupCover";
 import type { PopupStore } from "@/types/popup";
 
 /**
@@ -66,6 +66,7 @@ export function PopupCard({ popup, onClick, onWish, wished, className }: PopupCa
     : null;
   const region = (popup.location || "").split(" ").slice(0, 2).join(" ") || "서울";
   const catStyle = CATEGORY_STYLE[popup.category?.toUpperCase() ?? "ETC"] ?? CATEGORY_STYLE.ETC;
+  const coverUrl = popupCoverUrl(popup);
 
   return (
     <div
@@ -84,10 +85,10 @@ export function PopupCard({ popup, onClick, onWish, wished, className }: PopupCa
       )}
     >
       <div className="relative aspect-[4/5] w-full overflow-hidden bg-gray-100 dark:bg-white/5">
-        {!imgError ? (
+        {coverUrl && !imgError ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={popupCoverUrl(popup)}
+            src={coverUrl}
             alt={popup.name}
             loading="lazy"
             onError={() => setImgError(true)}
@@ -97,14 +98,6 @@ export function PopupCard({ popup, onClick, onWish, wished, className }: PopupCa
           <div className={`flex h-full w-full items-center justify-center bg-gradient-to-br ${catStyle.grad}`}>
             <catStyle.Icon size={40} strokeWidth={1.5} className="text-white/60" />
           </div>
-        )}
-
-        {/* 실제 촬영 사진이 아니면(스톡·플레이스홀더) 오해 방지 라벨 — 상세 페이지 히어로와 같은 규칙.
-            이미지가 정상 로드된 경우에만(플레이스홀더 그라디언트엔 사진이 없으니 불필요). */}
-        {!imgError && isCuratedCover(popup) && (
-          <span className="absolute bottom-2 right-2 z-10 rounded-full bg-black/55 px-2 py-0.5 text-[9px] font-medium text-white/85 backdrop-blur-sm">
-            분위기 이미지
-          </span>
         )}
 
         {dday && (

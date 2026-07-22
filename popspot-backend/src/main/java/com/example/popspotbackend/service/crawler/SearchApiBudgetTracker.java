@@ -4,7 +4,6 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -21,10 +20,8 @@ import org.springframework.stereotype.Component;
  * 차단될 수 있었다. 이제 KST 날짜를 키에 넣은 Redis 카운터({@code crawl:budget:naver|kakao:YYYY-MM-DD})에 누적한다. 재시작해도
  * 이어지고, 자정에 날짜-키가 바뀌어 자연 리셋된다({@link CrawlBudgetTracker} 와 동일 발상).
  *
- * <p><b>Redis 불가 시 폴백 — 미러 + max 읽기.</b> 크롤 핫패스라 Redis 다운이 크롤을 죽이면 안 된다. 인메모리 미러에 <b>항상</b> 누적하고 (=
- * 이 JVM 이 오늘 센 전량) Redis 에는 best-effort 로 누적하며, 읽을 때 {@code max(redis, mirror)} 를 쓴다. 합산이 아니라 max 라
- * 이중계상이 없고, 재시작 후엔 Redis 값이 우세하며(크로스-재시작 보존), 아웃테이지에도 미러가 오늘 전량을 유지해 상한 체크가 무력화되지 않는다({@link
- * CrawlBudgetTracker} 와 동일 설계). 상한(50%)이 하드 한도의 절반이라 안전 여유도 크다.
+ * <p><b>Redis 불가 시 폴백.</b> Redis 기준값과 장애 중 미동기화 증가분을 분리한다. 복구되면 증가분 전량을 INCR 로 합치므로 재시작→Redis 장애가
+ * 이어져도 이전 인스턴스 사용량과 장애 중 사용량 중 하나를 잃지 않는다({@link CrawlBudgetTracker} 와 동일 설계).
  */
 @Slf4j
 @Component
@@ -51,15 +48,28 @@ public class SearchApiBudgetTracker {
     @Value("${popspot.crawler.search.usage-ratio:0.5}")
     private double usageRatio;
 
-    /** 이 JVM 이 오늘 센 전량(항상 누적하는 미러). 날짜가 바뀌면 리셋한다. */
+    /** Redis 기준값 + 이 JVM 증가분. 날짜가 바뀌면 리셋한다. */
     private volatile LocalDate mirrorDay = LocalDate.now(SEOUL);
 
-    private final AtomicLong mirrorNaver = new AtomicLong();
-    private final AtomicLong mirrorKakao = new AtomicLong();
+    private final Counter mirrorNaver = new Counter();
+    private final Counter mirrorKakao = new Counter();
+
+    private static class Counter {
+        long total;
+        long pending;
+        boolean baselineLoaded;
+    }
 
     /** 두 API 모두 상한 안이면 true. 하나라도 상한에 닿으면 false(크롤 중단 신호). */
     public synchronized boolean withinBudget() {
-        return naverUsed() < naverCap() && kakaoUsed() < kakaoCap();
+        return withinBudget(0, 0);
+    }
+
+    /** 다음 작업의 예상 호출 수까지 더해도 상한을 넘지 않는가. 검사 뒤 2회 기록해 상한을 1회 초과하던 경계를 막는다. */
+    public synchronized boolean withinBudget(int nextNaverCalls, int nextKakaoCalls) {
+        long nextNaver = Math.max(0, nextNaverCalls);
+        long nextKakao = Math.max(0, nextKakaoCalls);
+        return naverUsed() + nextNaver <= naverCap() && kakaoUsed() + nextKakao <= kakaoCap();
     }
 
     /** 이번 키워드가 쓴 채널 수를 누적한다. */
@@ -85,30 +95,52 @@ public class SearchApiBudgetTracker {
     }
 
     /** 한 API 카운터에 delta 누적 — 미러에 항상 더하고, Redis 에는 best-effort. */
-    private void add(String prefix, AtomicLong mirror, long delta) {
+    private void add(String prefix, Counter counter, long delta) {
         if (delta == 0) return;
         rollMirrorIfNewDay();
-        mirror.addAndGet(delta);
-        String key = key(prefix);
+        loadBaseline(prefix, counter);
+        counter.total += delta;
+        counter.pending += delta;
+        flushPending(prefix, counter);
+    }
+
+    private void flushPending(String prefix, Counter counter) {
+        if (counter.pending == 0) return;
+        long pending = counter.pending;
         try {
-            redis.opsForValue().increment(key, delta);
-            redis.expire(key, KEY_TTL_DAYS, TimeUnit.DAYS);
+            Long persisted = redis.opsForValue().increment(key(prefix), pending);
+            counter.pending -= pending;
+            if (persisted != null) counter.total = Math.max(counter.total, persisted);
+            counter.baselineLoaded = true;
         } catch (Exception e) {
             degrade("record", e);
+            return;
+        }
+        try {
+            redis.expire(key(prefix), KEY_TTL_DAYS, TimeUnit.DAYS);
+        } catch (Exception e) {
+            degrade("expire", e);
         }
     }
 
-    /** 한 API 의 오늘 사용량 = max(Redis, 미러). 합산이 아니라 max 라 이중계상이 없다. Redis 불가면 미러만. */
-    private long read(String prefix, AtomicLong mirror) {
+    /** 한 API 의 오늘 사용량 = Redis 기준값 + 미동기화 증가분. */
+    private long read(String prefix, Counter counter) {
         rollMirrorIfNewDay();
-        long m = mirror.get();
+        loadBaseline(prefix, counter);
+        // 장애 복구 뒤 추가 호출이 없어도 예산 조회가 미동기화분을 복구한다.
+        flushPending(prefix, counter);
+        return counter.total;
+    }
+
+    private void loadBaseline(String prefix, Counter counter) {
+        if (counter.baselineLoaded) return;
         try {
             String v = redis.opsForValue().get(key(prefix));
             long fromRedis = v == null ? 0L : Long.parseLong(v);
-            return Math.max(fromRedis, m);
+            counter.total = Math.max(counter.total, fromRedis + counter.pending);
+            counter.baselineLoaded = true;
         } catch (Exception e) {
             degrade("read", e);
-            return m;
         }
     }
 
@@ -120,9 +152,15 @@ public class SearchApiBudgetTracker {
         LocalDate today = LocalDate.now(SEOUL);
         if (!today.equals(mirrorDay)) {
             mirrorDay = today;
-            mirrorNaver.set(0);
-            mirrorKakao.set(0);
+            reset(mirrorNaver);
+            reset(mirrorKakao);
         }
+    }
+
+    private void reset(Counter counter) {
+        counter.total = 0;
+        counter.pending = 0;
+        counter.baselineLoaded = false;
     }
 
     private void degrade(String op, Exception e) {
