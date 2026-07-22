@@ -193,6 +193,23 @@ public class PopupStore {
         return origin != null ? origin : PopupImage.ORIGIN_PEXELS;
     }
 
+    public String getPhotoSourceUrl() {
+        return coverImage().map(PopupImage::getPhotoSourceUrl).orElse(null);
+    }
+
+    public String getPhotoCreditName() {
+        return coverImage().map(PopupImage::getPhotoCreditName).orElse(null);
+    }
+
+    public String getPhotoCreditUrl() {
+        return coverImage().map(PopupImage::getPhotoCreditUrl).orElse(null);
+    }
+
+    private java.util.Optional<PopupImage> coverImage() {
+        if (images == null || images.isEmpty()) return java.util.Optional.empty();
+        return mainImage().or(() -> java.util.Optional.of(images.get(0)));
+    }
+
     /** main flag 가 있는 이미지 하나. 없으면 비어 있다(호출자가 첫 이미지로 폴백). */
     private java.util.Optional<PopupImage> mainImage() {
         return images.stream().filter(img -> MAIN_IMAGE_FLAG.equals(img.getMainYn())).findFirst();

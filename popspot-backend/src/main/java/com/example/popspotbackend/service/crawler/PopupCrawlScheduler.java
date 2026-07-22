@@ -42,8 +42,8 @@ public class PopupCrawlScheduler {
     @Value("${popspot.photo.backfill-limit:150}")
     private int photoBackfillLimit;
 
-    /** 스톡 사진은 기본 비활성. 운영자가 명시적으로 켠 경우에만 기존 Pexels 백필을 수행한다. */
-    @Value("${popspot.photo.backfill-enabled:false}")
+    /** 사진이 없는 팝업에 고유 Pexels 연출 이미지를 배정한다. 키가 없으면 서비스 계층에서 안전하게 스킵한다. */
+    @Value("${popspot.photo.backfill-enabled:true}")
     private boolean photoBackfillEnabled;
 
     @Scheduled(cron = "${popspot.crawler.cron:0 0 4 * * *}", zone = "Asia/Seoul")

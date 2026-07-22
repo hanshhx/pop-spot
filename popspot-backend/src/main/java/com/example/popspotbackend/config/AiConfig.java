@@ -126,7 +126,7 @@ public class AiConfig {
         if (localBaseUrl == null || localBaseUrl.isBlank()) {
             throw new IllegalStateException(
                     "ai.crawler.local.enabled=true 인데 base-url 이 비어 있습니다. AI_CRAWLER_LOCAL_BASE_URL"
-                        + " 을 PC 의 Ollama 주소로 설정하세요(.env.example 참고).");
+                            + " 을 PC 의 Ollama 주소로 설정하세요(.env.example 참고).");
         }
         log.info("[AiConfig] 로컬 크롤러 모델 활성화 — {} @ {}", localModelName, localBaseUrl);
         return OpenAiChatModel.builder()
