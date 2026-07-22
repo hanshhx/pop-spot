@@ -42,6 +42,11 @@ import org.springframework.stereotype.Service;
 public class PopupCrawlOrchestrator {
 
     private static final long NAVER_KAKAO_API_INTERVAL_MS = 800L;
+
+    /** 키워드당 검색 채널 수 — {@code fetchSnippetsForKeyword} 가 네이버 2(블로그·뉴스) + 카카오 2(웹·블로그)를 호출한다. */
+    private static final int NAVER_CHANNELS_PER_KEYWORD = 2;
+
+    private static final int KAKAO_CHANNELS_PER_KEYWORD = 2;
     private static final long GROQ_RPM_THROTTLE_MS = 2200L; // Groq 30 RPM = 2초 간격
     private static final long KAKAO_GEOCODING_INTERVAL_MS = 300L;
 
@@ -545,6 +550,7 @@ public class PopupCrawlOrchestrator {
     private final LlmUsageTracker usageTracker;
     private final CrawlSourceLedgerService ledgerService;
     private final CrawlCursorService cursorService;
+    private final SearchApiBudgetTracker searchApiBudget;
 
     /** 대장에 "어떤 모델로 해석했는지" 를 남기기 위한 값. 모델 교체 후 재처리 판단에 쓴다. */
     @Value("${ai.crawler.model-name:unknown}")
@@ -623,19 +629,37 @@ public class PopupCrawlOrchestrator {
         // LinkedHashMap — 커서로 정한 처리 순서를 보존한다. 중단이 생기면 "어디까지 처리했는지" 가
         // 순서에 의존하므로 유지해야 한다.
         Map<String, List<PopupCrawlSource>> grouped = new LinkedHashMap<>();
+        int covered = 0;
         for (int i = 0; i < batchSize; i++) {
+            // 검색 API 일일 예산(기본 한도의 50%)을 넘기기 전에 멈춘다. 로컬 LLM 으로 크롤이 무제한이 되면
+            // 검색이 새 병목이라, 한도 초과로 크롤 자체가 막히는 것을 막는다.
+            if (!searchApiBudget.withinBudget()) {
+                log.warn(
+                        "[PopupCrawlOrchestrator] 검색 API 예산 도달 — 이번 회차 조기 종료."
+                                + " 네이버 {}/{}, 카카오 {}/{}",
+                        searchApiBudget.naverUsed(),
+                        searchApiBudget.naverCap(),
+                        searchApiBudget.kakaoUsed(),
+                        searchApiBudget.kakaoCap());
+                stats.searchBudgetExhausted = 1;
+                break;
+            }
             String keyword = keywords.get(Math.floorMod(cursor + i, total));
             List<PopupCrawlSource> snippets = fetchSnippetsForKeyword(keyword);
+            // 키워드당 네이버 2채널(블로그·뉴스) + 카카오 2채널(웹·블로그).
+            searchApiBudget.record(NAVER_CHANNELS_PER_KEYWORD, KAKAO_CHANNELS_PER_KEYWORD);
             stats.totalSnippets += snippets.size();
             grouped.computeIfAbsent("kw:" + keyword, k -> new ArrayList<>()).addAll(snippets);
             sleepQuietly(NAVER_KAKAO_API_INTERVAL_MS);
+            covered++;
         }
 
-        // 검색 구간을 정했으면 즉시 커서를 전진시킨다(독립 트랜잭션). LLM 처리가 rate limit 으로 중간에
-        // 멈춰 뒤이어 크롤이 예외로 끝나도, 커서는 이미 커밋돼 다음 회차가 다음 구간을 본다.
-        cursorService.advance(batchSize, total);
+        // 실제 검색한 키워드 수만큼 커서를 전진시킨다(독립 트랜잭션). 예산 초과로 중간에 멈추면 covered <
+        // batchSize 라, 남은 구간은 다음 회차가 이어받는다. LLM 처리가 rate limit 으로 뒤이어 죽어도
+        // 커서는 이미 커밋돼 있다.
+        cursorService.advance(covered, total);
         stats.keywordsTotal = total;
-        stats.keywordsCovered = batchSize;
+        stats.keywordsCovered = covered;
         stats.keywordCursorStart = cursor;
         return grouped;
     }
@@ -959,6 +983,9 @@ public class PopupCrawlOrchestrator {
         int keywordsTotal;
         int keywordCursorStart;
 
+        /** 검색 API 일일 예산(기본 50%)에 걸려 조기 종료했는가(0/1). */
+        int searchBudgetExhausted;
+
         Map<String, Integer> toMap() {
             Map<String, Integer> map = new LinkedHashMap<>();
             map.put("totalSnippets", totalSnippets);
@@ -974,6 +1001,7 @@ public class PopupCrawlOrchestrator {
             map.put("keywordCursorStart", keywordCursorStart);
             map.put("keywordsCovered", keywordsCovered);
             map.put("keywordsTotal", keywordsTotal);
+            map.put("searchBudgetExhausted", searchBudgetExhausted);
             return map;
         }
     }

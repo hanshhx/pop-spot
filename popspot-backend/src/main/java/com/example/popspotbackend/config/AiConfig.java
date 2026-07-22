@@ -7,6 +7,7 @@ import java.time.Duration;
 import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
@@ -31,6 +32,9 @@ public class AiConfig {
     private static final double DEFAULT_TEMPERATURE = 0.7;
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(60);
 
+    /** 로컬 Ollama 는 자체 하드웨어 추론이라 클라우드보다 느리다. 7B 가 배치를 처리할 여유를 준다. */
+    private static final Duration LOCAL_REQUEST_TIMEOUT = Duration.ofSeconds(180);
+
     /**
      * 2026-08-16 종료 예정 모델. 무료 · Developer 티어 대상이며 committed-spend Enterprise 만 제외된다.
      *
@@ -54,6 +58,13 @@ public class AiConfig {
     /** 크롤러 정규화용. 구조화 추출이라 작은 모델로 충분하고, 호출량이 많아 사용자 기능과 예산을 나눠야 한다. */
     @Value("${ai.crawler.model-name}")
     private String crawlerModelName;
+
+    /** 로컬 Ollama(4060 Ti PC) 크롤러 모델. {@code ai.crawler.local.enabled=true} 일 때만 빈이 만들어진다. */
+    @Value("${ai.crawler.local.base-url:}")
+    private String localBaseUrl;
+
+    @Value("${ai.crawler.local.model-name:qwen2.5:7b}")
+    private String localModelName;
 
     /**
      * 종료 예정 모델을 쓰고 있으면 부팅 로그에 남긴다.
@@ -96,10 +107,30 @@ public class AiConfig {
         return build(userModelName);
     }
 
-    /** 크롤러 전용. {@code @Qualifier("crawlerChatModel")} 로 명시 주입해야 한다. */
+    /** 크롤러 전용(클라우드=Groq). {@code @Qualifier("crawlerChatModel")} 로 명시 주입해야 한다. */
     @Bean
     public ChatLanguageModel crawlerChatModel() {
         return build(crawlerModelName);
+    }
+
+    /**
+     * 로컬 Ollama 크롤러 모델(4060 Ti PC).
+     *
+     * <p>{@code ai.crawler.local.enabled=true} 일 때만 생성된다 — 기본값이 false 라 이 코드를 배포해도 로컬을 켜기 전까지는 이 빈이
+     * 없고 크롤러는 Groq 만 쓴다(동작 불변). Ollama 는 OpenAI 호환 API 를 제공하므로 baseUrl 만 로컬로 바꿔 같은 빌더를 쓴다. 인증은 하지
+     * 않으므로 apiKey 는 더미다.
+     */
+    @Bean
+    @ConditionalOnProperty(name = "ai.crawler.local.enabled", havingValue = "true")
+    public ChatLanguageModel crawlerLocalChatModel() {
+        log.info("[AiConfig] 로컬 크롤러 모델 활성화 — {} @ {}", localModelName, localBaseUrl);
+        return OpenAiChatModel.builder()
+                .baseUrl(localBaseUrl)
+                .apiKey("ollama")
+                .modelName(localModelName)
+                .temperature(DEFAULT_TEMPERATURE)
+                .timeout(LOCAL_REQUEST_TIMEOUT)
+                .build();
     }
 
     private ChatLanguageModel build(String modelName) {
