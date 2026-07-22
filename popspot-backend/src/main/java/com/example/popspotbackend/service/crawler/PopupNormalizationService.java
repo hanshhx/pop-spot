@@ -1,5 +1,6 @@
 package com.example.popspotbackend.service.crawler;
 
+import com.example.popspotbackend.service.ai.CrawlerLlm;
 import com.example.popspotbackend.service.ai.LlmErrors;
 import com.example.popspotbackend.service.ai.LlmFailureKind;
 import com.example.popspotbackend.service.ai.LlmQuotaExhaustedException;
@@ -9,7 +10,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import dev.langchain4j.data.message.AiMessage;
 import dev.langchain4j.data.message.UserMessage;
-import dev.langchain4j.model.chat.ChatLanguageModel;
 import dev.langchain4j.model.output.Response;
 import dev.langchain4j.model.output.TokenUsage;
 import java.time.LocalDate;
@@ -19,8 +19,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.regex.Pattern;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -36,6 +36,7 @@ import org.springframework.stereotype.Service;
  */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class PopupNormalizationService {
 
     /**
@@ -110,23 +111,14 @@ public class PopupNormalizationService {
             [{"name":"○○ 팝업스토어","location":"서울 성동구 성수동","category":"FASHION","startDate":"2026-05-01","endDate":"2026-05-31","description":"○○ 브랜드 신상 컬렉션 팝업","content":"...","confidence":0.85,"sourceIndex":3,"error":null}]
             """;
 
-    private final ChatLanguageModel chatLanguageModel;
+    /**
+     * 크롤러 LLM 선택기. 로컬 Ollama(PC 켜짐) 우선, 아니면 Groq. 모델 격리(크롤러 전용 모델)와 로컬/클라우드 전환을 {@link CrawlerLlm}
+     * 이 캡슐화하므로, 여기서는 {@code select()} 로 이번 호출에 쓸 모델만 받는다.
+     */
+    private final CrawlerLlm crawlerLlm;
+
     private final LlmUsageTracker usageTracker;
     private final ObjectMapper objectMapper = new ObjectMapper();
-
-    /**
-     * 크롤러 전용 모델을 명시 주입한다.
-     *
-     * <p>Lombok {@code @RequiredArgsConstructor} 는 필드의 {@code @Qualifier} 를 생성자 파라미터로 복사하지 않는다
-     * (프로젝트에 {@code lombok.config} 의 {@code copyableAnnotations} 설정이 없다). 그래서 이 클래스만 생성자를 직접 쓴다. 안
-     * 그러면 {@code @Primary} 인 사용자 모델이 주입되어 크롤러가 사용자 기능의 토큰 예산을 먹는다.
-     */
-    public PopupNormalizationService(
-            @Qualifier("crawlerChatModel") ChatLanguageModel chatLanguageModel,
-            LlmUsageTracker usageTracker) {
-        this.chatLanguageModel = chatLanguageModel;
-        this.usageTracker = usageTracker;
-    }
 
     /**
      * 실제로 프롬프트에 실릴 슬라이스.
@@ -165,11 +157,13 @@ public class PopupNormalizationService {
         String prompt = buildPrompt(limited);
 
         usageTracker.recordAttempt(LlmUsageTracker.Role.CRAWLER);
+        // 로컬 Ollama(PC 켜짐) 우선, 아니면 Groq fallback. 헬스체크는 CrawlerLlm 안에서 캐시된다.
+        CrawlerLlm.Selection selection = crawlerLlm.select();
         Response<AiMessage> response;
         try {
             // generate(String) 대신 메시지 버전을 쓰는 이유: 이쪽만 TokenUsage 를 돌려준다.
             // 토큰 실측이 없으면 스니펫 수·키워드 수를 정할 근거가 계속 추측으로 남는다.
-            response = chatLanguageModel.generate(List.of(new UserMessage(prompt)));
+            response = selection.model().generate(List.of(new UserMessage(prompt)));
         } catch (Exception e) {
             throw handleCallFailure(e);
         }
