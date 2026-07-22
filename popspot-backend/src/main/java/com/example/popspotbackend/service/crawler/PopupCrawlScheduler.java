@@ -2,6 +2,7 @@ package com.example.popspotbackend.service.crawler;
 
 import com.example.popspotbackend.service.PopupPhotoService;
 import com.example.popspotbackend.service.PopupStoreService;
+import com.example.popspotbackend.service.ai.OllamaHealthChecker;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -32,6 +33,8 @@ public class PopupCrawlScheduler {
     private final PopupCrawlOrchestrator orchestrator;
     private final PopupStoreService popupStoreService;
     private final PopupPhotoService popupPhotoService;
+    private final OllamaHealthChecker ollamaHealthChecker;
+    private final CrawlBudgetTracker crawlBudgetTracker;
 
     @Value("${popspot.crawler.enabled:false}")
     private boolean enabled;
@@ -47,6 +50,46 @@ public class PopupCrawlScheduler {
     @Scheduled(cron = "${popspot.crawler.cron-afternoon:0 0 16 * * *}", zone = "Asia/Seoul")
     public void scheduledRunAfternoon() {
         runIfEnabled("afternoon");
+    }
+
+    /**
+     * 로컬 Ollama(4060 Ti PC)가 켜져 있을 때 주기적으로 크롤한다 — 로컬은 rate limit 이 없으니 PC 가 켜진 동안 계속 돌려 하루에 전체 키워드를
+     * 순회한다. 04/16 시 고정 스케줄만으로는 로컬의 무제한 이점을 못 살린다.
+     *
+     * <p>세 가지 조건을 모두 만족할 때만 돈다: (1) 크롤 활성, (2) PC 응답, (3) 오늘 예산(기본 3시간) 남음. PC 가 꺼져 있으면 아무 것도 하지 않고
+     * 04/16 시 Groq 회차에 맡긴다. 커서가 진행 지점을 기억하므로 껐다 켜도 이어서 순회한다.
+     */
+    @Scheduled(
+            fixedDelayString = "${popspot.crawler.local.tick-ms:600000}",
+            initialDelayString = "${popspot.crawler.local.initial-delay-ms:60000}")
+    public void scheduledLocalTick() {
+        if (!enabled) return;
+        if (!ollamaHealthChecker.isAvailable()) return; // PC 꺼짐 → 04/16 시 Groq 에 맡김
+        if (!crawlBudgetTracker.hasBudgetLeft()) {
+            log.info(
+                    "[LocalCrawl] 오늘 로컬 크롤 예산({}분) 소진 — 다음 날 이어서 순회",
+                    crawlBudgetTracker.dailyBudgetMinutes());
+            return;
+        }
+
+        long startMs = System.currentTimeMillis();
+        try {
+            log.info(
+                    "[LocalCrawl] === 로컬 주기 수집 시작 (오늘 누적 {}분) ===",
+                    crawlBudgetTracker.usedMinutes());
+            orchestrator.runOnce();
+            popupStoreService.evictPopupCaches();
+        } catch (Exception e) {
+            log.error("[LocalCrawl] 로컬 주기 수집 실패", e);
+        } finally {
+            long elapsedSeconds = (System.currentTimeMillis() - startMs) / 1000;
+            crawlBudgetTracker.addUsedSeconds(elapsedSeconds);
+            log.info(
+                    "[LocalCrawl] 회차 완료 — {}초 사용, 오늘 누적 {}/{}분",
+                    elapsedSeconds,
+                    crawlBudgetTracker.usedMinutes(),
+                    crawlBudgetTracker.dailyBudgetMinutes());
+        }
     }
 
     /** 좌표 누락된 자동수집 row 일괄 백필. 매일 04:30 — 본 수집 직후라 새로 들어온 row 중 좌표가 빠진 것들을 따로 채워 지도 노출량을 늘린다. */
