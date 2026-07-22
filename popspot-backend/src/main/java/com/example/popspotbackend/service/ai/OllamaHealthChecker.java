@@ -1,5 +1,7 @@
 package com.example.popspotbackend.service.ai;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -34,6 +36,11 @@ public class OllamaHealthChecker {
     @Value("${ai.crawler.local.health-url:}")
     private String healthUrl;
 
+    @Value("${ai.crawler.local.model-name:qwen2.5:7b}")
+    private String modelName;
+
+    private final ObjectMapper objectMapper = new ObjectMapper();
+
     private final HttpClient httpClient =
             HttpClient.newBuilder().connectTimeout(CHECK_TIMEOUT).build();
 
@@ -51,6 +58,12 @@ public class OllamaHealthChecker {
         return lastResult;
     }
 
+    /** 추론 요청이 실패하면 30초 캐시를 기다리지 않고 다음 선택부터 클라우드로 전환한다. */
+    public void invalidate() {
+        lastResult = false;
+        lastCheckAt = System.currentTimeMillis();
+    }
+
     private boolean ping() {
         try {
             HttpRequest request =
@@ -59,15 +72,16 @@ public class OllamaHealthChecker {
                             .timeout(CHECK_TIMEOUT)
                             .GET()
                             .build();
-            HttpResponse<Void> response =
-                    httpClient.send(request, HttpResponse.BodyHandlers.discarding());
-            boolean ok = response.statusCode() == 200;
+            HttpResponse<String> response =
+                    httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            boolean ok = response.statusCode() == 200 && containsConfiguredModel(response.body());
             if (ok) {
-                log.info("[Ollama] 로컬 LLM 응답 확인 — 로컬로 크롤합니다. ({})", healthUrl);
+                log.info("[Ollama] 로컬 모델 {} 확인 — 로컬로 크롤합니다. ({})", modelName, healthUrl);
             } else {
                 log.info(
-                        "[Ollama] 로컬 LLM HTTP {} → Groq 로 fallback. ({})",
+                        "[Ollama] HTTP {} 또는 모델 {} 없음 → Groq 로 fallback. ({})",
                         response.statusCode(),
+                        modelName,
                         healthUrl);
             }
             return ok;
@@ -76,5 +90,21 @@ public class OllamaHealthChecker {
             log.info("[Ollama] 로컬 LLM 미응답({}) → Groq 로 fallback.", e.getClass().getSimpleName());
             return false;
         }
+    }
+
+    private boolean containsConfiguredModel(String body) {
+        try {
+            JsonNode models = objectMapper.readTree(body).path("models");
+            if (!models.isArray()) return false;
+            for (JsonNode model : models) {
+                if (modelName.equals(model.path("name").asText())
+                        || modelName.equals(model.path("model").asText())) {
+                    return true;
+                }
+            }
+        } catch (Exception e) {
+            log.info("[Ollama] /api/tags 응답 파싱 실패 → Groq 로 fallback: {}", e.toString());
+        }
+        return false;
     }
 }

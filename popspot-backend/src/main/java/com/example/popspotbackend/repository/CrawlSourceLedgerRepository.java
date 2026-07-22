@@ -28,6 +28,16 @@ public interface CrawlSourceLedgerRepository extends JpaRepository<CrawlSourceLe
     @Query("DELETE FROM CrawlSourceLedger l WHERE l.lastSeenAt < :cutoff")
     int deleteStale(@Param("cutoff") LocalDateTime cutoff);
 
+    /** 날짜 결손 팝업의 원문만 제한적으로 재정규화한다. 최근 처리한 글은 cooldown 동안 다시 큐에 넣지 않는다. */
+    @Modifying
+    @Query(
+            "UPDATE CrawlSourceLedger l SET l.status = 'RETRYABLE' "
+                    + "WHERE l.sourceUrlHash IN :hashes "
+                    + "AND l.status = 'PROCESSED' "
+                    + "AND (l.lastProcessedAt IS NULL OR l.lastProcessedAt < :cutoff)")
+    int markDateBackfillRetryable(
+            @Param("hashes") List<String> hashes, @Param("cutoff") LocalDateTime cutoff);
+
     /**
      * 처리 결과 기록 — 있으면 갱신, 없으면 삽입.
      *

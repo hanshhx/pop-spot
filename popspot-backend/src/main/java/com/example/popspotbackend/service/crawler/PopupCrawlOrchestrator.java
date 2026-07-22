@@ -4,6 +4,7 @@ import com.example.popspotbackend.entity.CrawlSourceLedger;
 import com.example.popspotbackend.entity.PopupStore;
 import com.example.popspotbackend.repository.PopupStoreRepository;
 import com.example.popspotbackend.service.SearchService;
+import com.example.popspotbackend.service.ai.CrawlerLlm;
 import com.example.popspotbackend.service.ai.LlmQuotaExhaustedException;
 import com.example.popspotbackend.service.ai.LlmUsageTracker;
 import com.example.popspotbackend.service.geocoding.Coordinates;
@@ -551,10 +552,7 @@ public class PopupCrawlOrchestrator {
     private final CrawlSourceLedgerService ledgerService;
     private final CrawlCursorService cursorService;
     private final SearchApiBudgetTracker searchApiBudget;
-
-    /** 대장에 "어떤 모델로 해석했는지" 를 남기기 위한 값. 모델 교체 후 재처리 판단에 쓴다. */
-    @Value("${ai.crawler.model-name:unknown}")
-    private String crawlerModelName;
+    private final CrawlerLlm crawlerLlm;
 
     @Value("${popspot.crawler.confidence-threshold:0.8}")
     private double confidenceThreshold;
@@ -572,6 +570,13 @@ public class PopupCrawlOrchestrator {
     @Value("${popspot.crawler.max-keywords-per-run:20}")
     private int maxKeywordsPerRun;
 
+    /** 날짜 결손 원문을 회차마다 재시도 큐에 넣는 최대 수와 동일 원문 재시도 간격. */
+    @Value("${popspot.crawler.date-backfill-limit:25}")
+    private int dateBackfillLimit;
+
+    @Value("${popspot.crawler.date-backfill-cooldown-days:7}")
+    private int dateBackfillCooldownDays;
+
     /** 전체 크롤 1회 실행. 처리 통계를 맵으로 반환. */
     public Map<String, Integer> runOnce() {
         if (areAllCrawlersUnconfigured()) {
@@ -580,18 +585,41 @@ public class PopupCrawlOrchestrator {
         }
         // 정규화가 어차피 막혀 있으면 검색 API 쿼터를 쓸 이유가 없다. 수집을 완주한 뒤 첫 키워드에서
         // 멈추면 키워드 × 4채널(≈1,600회) 호출과 슬립 5~10분을 통째로 버리게 된다.
-        if (usageTracker.isDailyQuotaExhausted(LlmUsageTracker.Role.CRAWLER)) {
+        if (usageTracker.isDailyQuotaExhausted(LlmUsageTracker.Role.CRAWLER)
+                && !crawlerLlm.hasAvailableLocal()) {
             log.warn("[PopupCrawlOrchestrator] QUOTA_EXHAUSTED 상태 — 수집 자체를 스킵");
             return Map.of("skippedQuota", 1);
         }
 
         CrawlStatistics stats = new CrawlStatistics();
+        stats.dateSourcesQueued = queueMissingDateSources();
         Map<String, List<PopupCrawlSource>> snippetsByKeyword = collectSnippetsByKeyword(stats);
         processNormalizationAndSave(snippetsByKeyword, stats);
 
         Map<String, Integer> result = stats.toMap();
         log.info("[PopupCrawlOrchestrator] 통계 = {}", result);
         return result;
+    }
+
+    /**
+     * 기존 날짜 결손 행의 원문을 제한적으로 RETRYABLE 처리한다. 다음 검색 결과에 그 URL이 나타날 때만 LLM을 다시 타므로 전체 ledger 초기화보다
+     * 안전하다.
+     */
+    private int queueMissingDateSources() {
+        int limit = Math.max(1, dateBackfillLimit);
+        List<String> sourceUrls =
+                popupStoreRepository.findCrawledMissingDates().stream()
+                        .map(PopupStore::getSourceUrl)
+                        .toList();
+        int queued =
+                ledgerService.requeueDateBackfill(
+                        sourceUrls,
+                        LocalDateTime.now().minusDays(Math.max(1, dateBackfillCooldownDays)),
+                        limit);
+        if (queued > 0) {
+            log.info("[Date-Backfill] 날짜 결손 원문 {}건 재처리 큐 등록", queued);
+        }
+        return queued;
     }
 
     /** 좌표 누락된 자동수집 row 를 일괄 backfill. admin 이 1회 호출. */
@@ -633,7 +661,8 @@ public class PopupCrawlOrchestrator {
         for (int i = 0; i < batchSize; i++) {
             // 검색 API 일일 예산(기본 한도의 50%)을 넘기기 전에 멈춘다. 로컬 LLM 으로 크롤이 무제한이 되면
             // 검색이 새 병목이라, 한도 초과로 크롤 자체가 막히는 것을 막는다.
-            if (!searchApiBudget.withinBudget()) {
+            if (!searchApiBudget.withinBudget(
+                    NAVER_CHANNELS_PER_KEYWORD, KAKAO_CHANNELS_PER_KEYWORD)) {
                 log.warn(
                         "[PopupCrawlOrchestrator] 검색 API 예산 도달 — 이번 회차 조기 종료."
                                 + " 네이버 {}/{}, 카카오 {}/{}",
@@ -725,9 +754,9 @@ public class PopupCrawlOrchestrator {
             isFirstCall = false;
 
             // v2.33 — 한 키워드 묶음에서 서로 다른 팝업을 여러 개 추출(LLM 호출은 키워드당 1회 유지).
-            List<NormalizedPopup> candidates;
+            PopupNormalizationService.NormalizationBatch normalization;
             try {
-                candidates = normalizer.normalizeAll(snippets);
+                normalization = normalizer.normalizeBatch(snippets);
             } catch (LlmQuotaExhaustedException e) {
                 // 일일 한도는 그날 회복되지 않는다. 남은 키워드를 계속 돌리면 429 만 더 맞고 끝난다.
                 stats.quotaExhausted = 1;
@@ -746,7 +775,7 @@ public class PopupCrawlOrchestrator {
                 // "호출은 됐는데 결과가 없다" 처럼 보였다.
                 // 다음 회차에 다시 시도하도록 RETRYABLE 로 남긴다(처리했다고 표시하면 영영 못 본다).
                 ledgerService.markProcessed(
-                        snippets, CrawlSourceLedger.STATUS_RETRYABLE, crawlerModelName);
+                        snippets, CrawlSourceLedger.STATUS_RETRYABLE, e.modelName());
                 processedKeywords++;
                 continue;
             }
@@ -757,7 +786,7 @@ public class PopupCrawlOrchestrator {
             // 멈추면 남은 후보는 저장되지 않는데, 원문을 먼저 PROCESSED 로 찍어 두면 그 후보들은
             // 다음 회차에도 다시 읽히지 않아 영영 사라진다.
             boolean allCandidatesHandled = true;
-            for (NormalizedPopup candidate : candidates) {
+            for (NormalizedPopup candidate : normalization.popups()) {
                 if (shouldStopEarly(stats)) {
                     allCandidatesHandled = false;
                     break;
@@ -774,7 +803,7 @@ public class PopupCrawlOrchestrator {
                     allCandidatesHandled
                             ? CrawlSourceLedger.STATUS_PROCESSED
                             : CrawlSourceLedger.STATUS_RETRYABLE,
-                    crawlerModelName);
+                    normalization.modelName());
 
             if (!allCandidatesHandled) break;
         }
@@ -1080,6 +1109,9 @@ public class PopupCrawlOrchestrator {
         /** 신규 삽입 대신 기존 null-date row 의 빈 날짜를 채운 건수(점진 보강). */
         int datesBackfilled;
 
+        /** 기존 날짜 결손 팝업의 원문을 이번 회차 재처리 대상으로 되돌린 수. */
+        int dateSourcesQueued;
+
         Map<String, Integer> toMap() {
             Map<String, Integer> map = new LinkedHashMap<>();
             map.put("totalSnippets", totalSnippets);
@@ -1092,6 +1124,7 @@ public class PopupCrawlOrchestrator {
             map.put("pendingReview", pendingReview);
             map.put("duplicates", duplicates);
             map.put("datesBackfilled", datesBackfilled);
+            map.put("dateSourcesQueued", dateSourcesQueued);
             map.put("rejected", rejected);
             map.put("keywordCursorStart", keywordCursorStart);
             map.put("keywordsCovered", keywordsCovered);

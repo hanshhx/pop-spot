@@ -170,7 +170,12 @@ export function addPromiseToCalendar(input: {
   const tm = /^(\d{1,2}):(\d{2})$/.exec((input.time ?? '').trim());
   if (!day || !tm) return false;
 
-  const start = new Date(day.getFullYear(), day.getMonth(), day.getDate(), Number(tm[1]), Number(tm[2]));
+  const hour = Number(tm[1]);
+  const minute = Number(tm[2]);
+  if (!Number.isInteger(hour) || hour < 0 || hour > 23) return false;
+  if (!Number.isInteger(minute) || minute < 0 || minute > 59) return false;
+
+  const start = new Date(day.getFullYear(), day.getMonth(), day.getDate(), hour, minute);
   const end = new Date(start.getTime() + 2 * 60 * 60 * 1000); // 약속 기본 2시간
 
   const fmt = (x: Date): string => {

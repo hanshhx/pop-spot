@@ -17,8 +17,11 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.time.format.ResolverStyle;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -39,6 +42,10 @@ import org.springframework.stereotype.Service;
 @Service
 @RequiredArgsConstructor
 public class PopupNormalizationService {
+
+    /** 정규화 결과와 실제 응답을 만든 모델. 대장에 설정값이 아니라 이 값을 기록한다. */
+    public record NormalizationBatch(
+            List<NormalizedPopup> popups, String modelName, boolean local) {}
 
     /**
      * LLM 한 번에 넘길 스니펫 수(기본값). {@code popspot.crawler.max-snippets-per-request} 로 조정한다.
@@ -146,8 +153,13 @@ public class PopupNormalizationService {
      * <p>각 원소는 후처리 검증(이름 누락·서울 외 강제 0.0)을 통과한 상태이며, confidence 게이트/중복제거는 호출자(Orchestrator)가 담당한다.
      */
     public List<NormalizedPopup> normalizeAll(List<PopupCrawlSource> snippets) {
+        return normalizeBatch(snippets).popups();
+    }
+
+    /** 실제 선택 모델까지 돌려주는 크롤러용 진입점. 로컬 호출 자체가 실패하면 캐시를 폐기하고 Groq 로 한 번만 대체한다. */
+    public NormalizationBatch normalizeBatch(List<PopupCrawlSource> snippets) {
         if (snippets == null || snippets.isEmpty()) {
-            return List.of();
+            return new NormalizationBatch(List.of(), "none", false);
         }
         // 로컬 Ollama(PC 켜짐) 우선, 아니면 Groq fallback. 헬스체크는 CrawlerLlm 안에서 캐시된다.
         CrawlerLlm.Selection selection = crawlerLlm.select();
@@ -169,30 +181,47 @@ public class PopupNormalizationService {
                         ? "로컬 Ollama(" + selection.modelName() + ")"
                         : "Groq(" + selection.modelName() + ")",
                 limited.size());
-        usageTracker.recordAttempt(LlmUsageTracker.Role.CRAWLER);
         Response<AiMessage> response;
         try {
-            // generate(String) 대신 메시지 버전을 쓰는 이유: 이쪽만 TokenUsage 를 돌려준다.
-            // 토큰 실측이 없으면 스니펫 수·키워드 수를 정할 근거가 계속 추측으로 남는다.
-            response = selection.model().generate(List.of(new UserMessage(prompt)));
+            response = invoke(selection, prompt);
         } catch (Exception e) {
-            throw handleCallFailure(e);
+            if (!selection.local()) {
+                throw handleCallFailure(e, selection.modelName());
+            }
+
+            LlmFailureKind localFailure = LlmErrors.classify(e);
+            usageTracker.recordFailure(LlmUsageTracker.Role.CRAWLER, localFailure);
+            crawlerLlm.markLocalUnavailable();
+            CrawlerLlm.Selection cloud = crawlerLlm.cloudSelection();
+            if (usageTracker.isDailyQuotaExhausted(LlmUsageTracker.Role.CRAWLER)) {
+                throw new LlmQuotaExhaustedException(
+                        "로컬 LLM 실패 후 Groq 일일 한도도 소진됨: " + selection.modelName());
+            }
+            log.warn(
+                    "[PopupNormalization] 로컬 모델 {} 호출 실패({}) — Groq {} 로 1회 fallback",
+                    selection.modelName(),
+                    localFailure,
+                    cloud.modelName());
+            selection = cloud;
+            try {
+                response = invoke(selection, prompt);
+            } catch (Exception cloudError) {
+                throw handleCallFailure(cloudError, selection.modelName());
+            }
         }
 
         recordTokens(response.tokenUsage());
 
         try {
             JsonNode array = extractArray(parseJsonResponse(response.content().text()));
-            // 환각 URL 차단용 — 프롬프트에 실제로 들어간 스니펫 텍스트. LLM 이 지어낸 URL 은 여기 없다.
-            String snippetHaystack = buildSnippetHaystack(limited);
             List<NormalizedPopup> results = new ArrayList<>();
             for (JsonNode node : array) {
                 NormalizedPopup popup = applyPostValidations(parseNormalizedPopup(node));
-                rejectHallucinatedUrls(popup, snippetHaystack);
+                rejectUnsupportedUrls(popup, limited);
                 results.add(popup);
             }
             usageTracker.recordSuccess(LlmUsageTracker.Role.CRAWLER);
-            return results;
+            return new NormalizationBatch(results, selection.modelName(), selection.local());
         } catch (Exception e) {
             // 모델은 응답했는데 JSON 이 아니었다 — 쿼터 문제와 전혀 다른 원인이므로 따로 센다.
             //
@@ -206,8 +235,15 @@ public class PopupNormalizationService {
                 // 모델이 계속 형식을 어기는 상황. 남은 키워드를 돌아봐야 토큰만 태운다.
                 throw new LlmQuotaExhaustedException("연속 JSON 파싱 실패 " + streak + "회");
             }
-            throw new LlmCallFailedException(LlmFailureKind.PARSE);
+            throw new LlmCallFailedException(LlmFailureKind.PARSE, selection.modelName());
         }
+    }
+
+    private Response<AiMessage> invoke(CrawlerLlm.Selection selection, String prompt) {
+        usageTracker.recordAttempt(LlmUsageTracker.Role.CRAWLER);
+        // generate(String) 대신 메시지 버전을 쓰는 이유: 이쪽만 TokenUsage 를 돌려준다.
+        // 토큰 실측이 없으면 스니펫 수·키워드 수를 정할 근거가 계속 추측으로 남는다.
+        return selection.model().generate(List.of(new UserMessage(prompt)));
     }
 
     private void recordTokens(TokenUsage tokens) {
@@ -224,7 +260,7 @@ public class PopupNormalizationService {
      *
      * @return 호출자가 던질 예외. 일일 한도면 {@link LlmQuotaExhaustedException}, 그 외는 이 키워드만 건너뛰게 하는 표식.
      */
-    private RuntimeException handleCallFailure(Exception error) {
+    private RuntimeException handleCallFailure(Exception error, String modelName) {
         LlmFailureKind kind = LlmErrors.classify(error);
         usageTracker.recordFailure(LlmUsageTracker.Role.CRAWLER, kind);
         Optional<Long> retryAfter = LlmErrors.retryAfterSeconds(error);
@@ -264,20 +300,26 @@ public class PopupNormalizationService {
                     streak,
                     error.toString());
         }
-        return new LlmCallFailedException(kind);
+        return new LlmCallFailedException(kind, modelName);
     }
 
     /** 이 키워드만 건너뛰라는 표식. 크롤 전체를 멈추지 않는다. */
     public static class LlmCallFailedException extends RuntimeException {
         private final transient LlmFailureKind kind;
+        private final String modelName;
 
-        LlmCallFailedException(LlmFailureKind kind) {
+        LlmCallFailedException(LlmFailureKind kind, String modelName) {
             super("LLM 호출 실패: " + kind);
             this.kind = kind;
+            this.modelName = modelName;
         }
 
         public LlmFailureKind kind() {
             return kind;
+        }
+
+        public String modelName() {
+            return modelName;
         }
     }
 
@@ -462,40 +504,52 @@ public class PopupNormalizationService {
         return s;
     }
 
-    /** 프롬프트에 들어간 스니펫 원문을 하나로 이어 붙인다. 환각 URL 대조용 건초더미. */
-    private String buildSnippetHaystack(List<PopupCrawlSource> snippets) {
-        StringBuilder sb = new StringBuilder();
-        for (PopupCrawlSource s : snippets) {
-            sb.append(safe(s.getTitle()))
-                    .append(' ')
-                    .append(safe(s.getDescription()))
-                    .append(' ')
-                    .append(safe(s.getLink()))
-                    .append('\n');
-        }
-        return sb.toString();
-    }
+    private static final Pattern URL_TOKEN = Pattern.compile("https?://[^\\s<>\\\"']+");
 
     /**
-     * officialUrl/reservationUrl 이 스니펫 원문에 문자 그대로 없으면 폐기한다.
+     * officialUrl/reservationUrl 이 해당 팝업이 지목한 스니펫 원문에 정확한 URL 토큰으로 없으면 폐기한다.
      *
      * <p>프롬프트에 "지어내지 마" 라고 지시해도 형식만 맞는 가짜 URL 이 나올 수 있다(형식 검증만으로는 못 거른다). 프롬프트에 실제로 들어간 스니펫 텍스트에 그
-     * URL 이 있는지 대조해, 없으면 환각으로 보고 null 처리한다. 실재하는 URL 만 남는다.
+     * URL 이 있는지 대조해, 없으면 환각으로 보고 null 처리한다. 다른 팝업의 스니펫 URL과 출처 글 자체의 링크는 근거로 인정하지 않는다.
      */
-    private void rejectHallucinatedUrls(NormalizedPopup popup, String snippetHaystack) {
-        if (popup.getOfficialUrl() != null && !snippetHaystack.contains(popup.getOfficialUrl())) {
+    void rejectUnsupportedUrls(NormalizedPopup popup, List<PopupCrawlSource> snippets) {
+        Set<String> supported = supportedUrls(popup.getSourceIndex(), snippets);
+        if (popup.getOfficialUrl() != null && !supported.contains(popup.getOfficialUrl())) {
             log.warn(
                     "[PopupNormalization] officialUrl 이 스니펫에 없음(환각 의심) — 폐기: {}",
                     popup.getOfficialUrl());
             popup.setOfficialUrl(null);
         }
-        if (popup.getReservationUrl() != null
-                && !snippetHaystack.contains(popup.getReservationUrl())) {
+        if (popup.getReservationUrl() != null && !supported.contains(popup.getReservationUrl())) {
             log.warn(
                     "[PopupNormalization] reservationUrl 이 스니펫에 없음(환각 의심) — 폐기: {}",
                     popup.getReservationUrl());
             popup.setReservationUrl(null);
         }
+    }
+
+    private Set<String> supportedUrls(Integer sourceIndex, List<PopupCrawlSource> snippets) {
+        if (sourceIndex == null || sourceIndex < 1 || sourceIndex > snippets.size()) {
+            return Set.of();
+        }
+        PopupCrawlSource source = snippets.get(sourceIndex - 1);
+        String evidence = safe(source.getTitle()) + " " + safe(source.getDescription());
+        Set<String> urls = new LinkedHashSet<>();
+        Matcher matcher = URL_TOKEN.matcher(evidence);
+        while (matcher.find()) {
+            String token = trimUrlPunctuation(matcher.group());
+            if (validateUrl(token) != null) urls.add(token);
+        }
+        return urls;
+    }
+
+    private String trimUrlPunctuation(String value) {
+        String result = value;
+        while (!result.isEmpty()
+                && ".,;:!?)]}〉》」』。 ，".indexOf(result.charAt(result.length() - 1)) >= 0) {
+            result = result.substring(0, result.length() - 1);
+        }
+        return result;
     }
 
     private String safe(String s) {
