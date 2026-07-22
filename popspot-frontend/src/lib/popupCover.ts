@@ -1,135 +1,47 @@
-/**
- * 팝업 커버 이미지 결정 로직.
- *
- * <p>배경: 백엔드가 (정책상 팝업 본문 사진을 스크랩하지 않으므로) 모든 팝업에 <b>동일한 기본 이미지</b>
- * (Unsplash 나이키 운동화 한 장)를 imageUrl 로 박아 내려준다. 그대로 쓰면 모든 팝업 커버가 똑같아진다.
- *
- * <p>해결: 진짜 사진(그 기본 이미지가 아닌 URL)이면 그대로 쓰고, 없거나 기본 플레이스홀더면
- * <b>카테고리·id 로 결정적 배정한 큐레이션 스톡 사진</b>을 돌려준다. 결과적으로 모든 팝업이 사진을 갖고,
- * 서로 다르며(같은 팝업은 항상 같은 사진), 얼굴이 없고, 카테고리 무드에 맞는다. 미래 수집분도 자동 적용된다.
- *
- * <p>사진 출처: Pexels(License = 상업 무료·출처 불필요). 전부 사람 얼굴이 없는 인테리어/제품/전시 컷으로 큐레이션.
- */
+/** 팝업 대표 이미지의 출처와 URL을 함께 검증한다. */
 
-/** Pexels CDN 직접 URL(키 불필요). w 로 크기 조절. */
-function px(id: number, w: number): string {
-  return `https://images.pexels.com/photos/${id}/pexels-photo-${id}.jpeg?auto=compress&cs=tinysrgb&w=${w}`;
-}
-
-/**
- * 카테고리별 큐레이션 커버 풀(사람 얼굴 없음). 각 id 는 실제 로드 확인(HTTP 200)된 값.
- * 팝업 수가 풀보다 많으면 해시 분포로 겹칠 수 있으나, 단일 기본 이미지 대비 충분히 다양하다.
- */
-const COVERS: Record<string, number[]> = {
-  FASHION: [
-    8386651, 5202048, 7679757, 18699670, 31168538, 16470015, 5418892, 38283677,
-    38269427, 26292716, 12191199, 11911863, 4903412, 37080685, 32549955, 17293347,
-    5531542, 35045845, 36772528, 21382459, 32549963, 37080700, 35717265, 5531709,
-    8306359, 21835299, 14833749, 33499645, 135620, 9327162, 12741292, 36933384,
-    18671151, 7953286, 11955680, 14806252, 18101857, 7996793, 8335273, 219023,
-    34928936, 35753873, 581344, 37728173,
-  ],
-  FOOD: [
-    17057406, 10513887, 6612572, 30948318, 24549022, 18832554, 30915537, 7934522,
-    18721982, 29833130, 34746696, 34006322, 34104248, 34839408, 29273043, 20825644,
-    2079448, 37122057, 32166402, 31358983, 2079452, 30327133, 36484101, 29843056,
-    9172769, 10036540, 10940365, 20418285, 3341067, 31132630, 28965344, 29170275,
-    29445730, 14131856, 7405059, 24862653, 31484077, 27304295, 5112580, 27304344,
-    18656839, 30512697, 30667453, 37347581, 38279077,
-  ],
-  BEAUTY: [
-    32645088, 15096784, 30836145, 30408335, 12969358, 20849460, 4938498, 4938508,
-    29229021, 2536009, 3552894, 7712466, 2732197, 14649431, 7290611, 9859962,
-    4938513, 2537930, 7256102, 4620873, 5043161, 3989775, 3993398, 3750640, 7256108,
-    1470165, 4889710, 7256160, 4938510, 12955707, 7290632, 7256120, 212236, 3785147,
-    30644430, 5632335, 6167446, 5632324, 31547790, 5632331, 6167442, 4202382, 8904066,
-    7797440, 8101674, 7795684, 8015836, 8166408, 8015471, 6476122, 5928033,
-  ],
-  CULTURE: [
-    35719467, 35336001, 26605624, 11489989, 11489991, 15138863, 15138850, 6580004,
-    9221307, 18684949, 35101544, 1134208, 18250532, 14793955, 29985393, 14777415,
-    997048, 13787663, 9221309, 310435, 11774231, 6925113, 11489976, 15138864,
-    15138858, 15138857, 15138856, 15138855, 15138862, 15138859, 12705474, 12705477,
-    12705468, 15138865, 12705466,
-  ],
-  CHARACTER: [
-    311268, 4491702, 4491703, 4491711, 6693300, 6990411, 8289844, 6743161, 1329305,
-    5217758, 5217759, 29820833, 9227230, 5257406, 9227241, 5257435, 8014548, 7123553,
-    9643176, 8409850, 8148534, 6990412, 9227215, 13464155, 8409851, 6989953, 8385976,
-    5257282, 5257283, 8281126, 7123080, 7123024, 7123083, 31061855, 31061860,
-    31061852, 31061847,
-  ],
-  TECH: [
-    3945679, 682933, 9984695, 12743408, 6373212, 32583519, 4267775, 3981749,
-    14666036, 6969676, 5208774, 12116184, 6372998, 3184451, 4087262, 6373177,
-    7987845, 1470167, 8346914, 5208305, 4526396, 20540728, 9902654, 3945336,
-    13987300, 6370358, 10346738, 1447252, 13987296, 8568004, 6370386, 3945312,
-    7698475, 14677439, 1447261, 57750, 8636869, 6902890, 821651, 11294012,
-  ],
-  ETC: [
-    1884579, 18699686, 8311878, 1827130, 37549254, 5864245, 29188766, 8619007,
-    5865202, 5531549, 6107680, 10689371, 1488467, 8386654, 5531541, 1850021, 6309853,
-    31600275, 38310336, 34876271, 19336409, 18176580, 33626369, 11153539, 35434504,
-    37267653, 16986346, 33388636, 29586775, 28948075, 34368509, 32472616, 20131334,
-  ],
-};
-
-/**
- * 백엔드가 모든 팝업에 박아 내려주는 단일 기본 이미지(Unsplash 나이키 운동화).
- * 이 마커가 포함된 URL 은 "진짜 사진"이 아니라고 보고 큐레이션 커버로 교체한다.
- */
 const PLACEHOLDER_MARKERS = ["photo-1542291026-7eec264c27ff"];
-
-/** imageUrl 이 그대로 쓸 만한 진짜 사진인가(비어있지 않고, 단일 기본 플레이스홀더가 아니고, http URL). */
-function isRealImage(url?: string | null): boolean {
-  if (!url) return false;
-  const u = url.trim();
-  if (!u) return false;
-  if (PLACEHOLDER_MARKERS.some((m) => u.includes(m))) return false;
-  return /^https?:\/\//.test(u);
-}
-
-/** 문자열/숫자 id → 안정적 해시(같은 팝업은 항상 같은 사진). */
-function hashId(id: string | number): number {
-  const s = String(id);
-  let h = 0;
-  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
-  return h;
-}
+const STOCK_IMAGE_HOSTS = new Set(["images.pexels.com", "images.unsplash.com"]);
+const REAL_PHOTO_ORIGINS = new Set(["CRAWLED", "USER"]);
 
 export interface CoverInput {
   id: string | number;
   category?: string | null;
   imageUrl?: string | null;
-  /** 백엔드 사진 출처(CRAWLED/USER/PEXELS/PLACEHOLDER). 실사진 여부 판단에 쓴다. */
+  /** 백엔드 사진 출처(CRAWLED/USER/PEXELS/PLACEHOLDER). */
   photoOrigin?: string | null;
 }
 
-/** 백엔드가 실사진으로 표시하는 출처. 이 외(PEXELS·PLACEHOLDER·미상)는 큐레이션 스톡으로 본다. */
-const REAL_PHOTO_ORIGINS = new Set(["CRAWLED", "USER"]);
+function isHttpImage(url?: string | null): url is string {
+  if (!url?.trim()) return false;
+  try {
+    const parsed = new URL(url.trim());
+    return parsed.protocol === "http:" || parsed.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+function isKnownStockOrPlaceholder(url: string): boolean {
+  if (PLACEHOLDER_MARKERS.some((marker) => url.includes(marker))) return true;
+  try {
+    return STOCK_IMAGE_HOSTS.has(new URL(url).hostname.toLowerCase());
+  } catch {
+    return true;
+  }
+}
 
 /**
- * 이 팝업의 커버가 큐레이션 스톡인가(= 실제 촬영 사진이 아닌가).
+ * 실제 팝업 사진만 반환한다. Pexels·Unsplash 스톡과 PLACEHOLDER는 사진보다 정보형 UI가 정확하므로 null을 반환한다.
  *
- * <p>실제 팝업 사진이 아닌데 사진처럼 보이면 방문자가 오해한다. photoOrigin 이 실사진(CRAWLED/USER)을 명시하면 실사진으로 보고,
- * 그 외거나 photoOrigin 이 없으면(구버전 응답) imageUrl 이 진짜 사진일 때만 실사진으로 본다. 나머지는 스톡이라 라벨 대상이다.
+ * photoOrigin이 없는 구버전 응답은 알려진 스톡 호스트와 플레이스홀더만 차단해, 기존 사용자 업로드 사진을 잃지 않는다.
  */
-export function isCuratedCover(input: {
-  photoOrigin?: string | null;
-  imageUrl?: string | null;
-}): boolean {
-  if (input.photoOrigin) return !REAL_PHOTO_ORIGINS.has(input.photoOrigin);
-  return !isRealImage(input.imageUrl);
-}
+export function popupCoverUrl(popup: CoverInput, _width = 800): string | null {
+  if (!isHttpImage(popup.imageUrl)) return null;
+  const imageUrl = popup.imageUrl.trim();
 
-/**
- * 팝업 커버 이미지 URL. 진짜 사진이면 그대로, 아니면 카테고리·id 로 결정적 배정한 큐레이션 스톡 사진.
- * @param w 요청 이미지 폭(px). 카드 기본 800, 상세 히어로 등 큰 곳은 1200 권장.
- */
-export function popupCoverUrl(popup: CoverInput, w = 800): string {
-  if (isRealImage(popup.imageUrl)) return popup.imageUrl as string;
-  const cat = (popup.category || "ETC").toUpperCase();
-  const pool = COVERS[cat]?.length ? COVERS[cat] : COVERS.ETC;
-  const id = pool[hashId(popup.id) % pool.length];
-  return px(id, w);
+  if (popup.photoOrigin) {
+    return REAL_PHOTO_ORIGINS.has(popup.photoOrigin.toUpperCase()) ? imageUrl : null;
+  }
+  return isKnownStockOrPlaceholder(imageUrl) ? null : imageUrl;
 }

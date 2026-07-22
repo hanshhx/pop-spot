@@ -11,6 +11,7 @@ import {
   SkipBack,
   SkipForward,
   Sparkles,
+  Store,
   X,
 } from "lucide-react";
 
@@ -351,20 +352,27 @@ function FullScreenPlayer() {
           )}
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {match?.popups.map((popup: PopupMatch) => (
-              <Link
+            {match?.popups.map((popup: PopupMatch) => {
+              const coverUrl = popupCoverUrl({ id: popup.popupId, imageUrl: popup.imageUrl });
+              return (
+                <Link
                 key={popup.popupId}
                 href={`/popup/${popup.popupId}`}
                 onClick={collapse}
                 className="group flex gap-3 rounded-xl bg-white/5 p-3 backdrop-blur transition hover:bg-white/10"
               >
-                {/* 커버는 popupCoverUrl 로 통일 — 진짜 사진 없으면 카테고리·id 결정적 큐레이션 사진. */}
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={popupCoverUrl({ id: popup.popupId, imageUrl: popup.imageUrl })}
-                  alt={popup.name}
-                  className="h-16 w-16 shrink-0 rounded-lg object-cover"
-                />
+                {coverUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={coverUrl}
+                    alt={popup.name}
+                    className="h-16 w-16 shrink-0 rounded-lg object-cover"
+                  />
+                ) : (
+                  <div className="grid h-16 w-16 shrink-0 place-items-center rounded-lg bg-lime-300/15">
+                    <Store className="h-6 w-6 text-lime-200/70" />
+                  </div>
+                )}
                 <div className="min-w-0 flex-1 text-white">
                   <h3 className="truncate text-sm font-bold">{popup.name}</h3>
                   <p className="mt-0.5 flex items-center gap-1 truncate text-[11px] text-white/60">
@@ -375,8 +383,9 @@ function FullScreenPlayer() {
                     매칭 {popup.score}%
                   </span>
                 </div>
-              </Link>
-            ))}
+                </Link>
+              );
+            })}
           </div>
         </section>
 

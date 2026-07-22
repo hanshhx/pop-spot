@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -146,6 +147,37 @@ public class CrawlSourceLedgerService {
             log.info("[CrawlSourceLedger] {}일 이상 안 보인 이력 {}건 정리", STALE_AFTER_DAYS, removed);
         }
         return removed;
+    }
+
+    /** 이미 PROCESSED 된 원문 중 날짜 결손 팝업의 출처만 재시도 상태로 되돌린다. 전체 대장을 비우지 않아 무료 LLM 예산을 보호한다. */
+    @Transactional
+    public int requeueDateBackfill(List<String> sourceUrls, LocalDateTime cutoff, int limit) {
+        if (sourceUrls == null || sourceUrls.isEmpty()) return 0;
+        Set<String> hashes =
+                sourceUrls.stream()
+                        .filter(url -> url != null && !url.isBlank())
+                        .map(SourceUrlNormalizer::hash)
+                        .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+        if (hashes.isEmpty()) return 0;
+
+        List<String> eligible =
+                loadKnown(hashes).values().stream()
+                        .filter(
+                                row ->
+                                        CrawlSourceLedger.STATUS_PROCESSED.equals(row.getStatus())
+                                                && (row.getLastProcessedAt() == null
+                                                        || row.getLastProcessedAt()
+                                                                .isBefore(cutoff)))
+                        .sorted(
+                                java.util.Comparator.comparing(
+                                        CrawlSourceLedger::getLastProcessedAt,
+                                        java.util.Comparator.nullsFirst(
+                                                java.util.Comparator.naturalOrder())))
+                        .limit(Math.max(1, limit))
+                        .map(CrawlSourceLedger::getSourceUrlHash)
+                        .toList();
+        if (eligible.isEmpty()) return 0;
+        return ledgerRepository.markDateBackfillRetryable(eligible, cutoff);
     }
 
     /* ============================== 내부 ============================== */

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Flame, Ticket, Users, ArrowRight } from "lucide-react";
+import { Flame, Ticket, Users, ArrowRight, Store } from "lucide-react";
 import type { PopupStore } from "@/types/popup";
 import { popupCoverUrl } from "@/lib/popupCover";
 
@@ -112,8 +112,10 @@ export default function HomeBento1a({ popups, total, onOpenRanking, onNavigate }
               이 조건에 맞는 팝업이 없어요.
             </p>
           ) : (
-            top.map((p, i) => (
-              <button
+            top.map((p, i) => {
+              const coverUrl = popupCoverUrl(p, 200);
+              return (
+                <button
                 key={p.id}
                 type="button"
                 onClick={onOpenRanking}
@@ -124,9 +126,13 @@ export default function HomeBento1a({ popups, total, onOpenRanking, onNavigate }
                 >
                   {i + 1}
                 </span>
-                <div className="h-11 w-11 shrink-0 overflow-hidden rounded-xl bg-black/5 dark:bg-white/5">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={popupCoverUrl(p, 200)} alt="" className="h-full w-full object-cover" />
+                <div className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-xl bg-gradient-to-br from-lime-200 to-emerald-300 dark:from-lime-900 dark:to-emerald-950">
+                  {coverUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={coverUrl} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    <Store size={18} className="text-ink-700/55 dark:text-lime-200/60" />
+                  )}
                 </div>
                 <div className="min-w-0 flex-1">
                   <strong className="block truncate text-sm font-bold">{p.name}</strong>
@@ -135,8 +141,9 @@ export default function HomeBento1a({ popups, total, onOpenRanking, onNavigate }
                     <span className={statusTone(p.status)}>{p.status || "영업중"}</span>
                   </span>
                 </div>
-              </button>
-            ))
+                </button>
+              );
+            })
           )}
         </div>
 

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Lock, Check } from "lucide-react";
+import { Lock, Check, Store } from "lucide-react";
 import { apiFetch } from "../../lib/api";
 import { popupCoverUrl } from "@/lib/popupCover";
 import type { User } from "@/types/popup";
@@ -22,6 +22,7 @@ interface StampData {
     name: string;
     category: string;
     imageUrl?: string;
+    photoOrigin?: string;
   };
 }
 
@@ -106,6 +107,12 @@ export default function PassportView() {
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
         {stamps.map((s, idx) => {
           const grad = CAT_GRAD[s.popupStore.category?.toUpperCase()] ?? CAT_GRAD.ETC;
+          const coverUrl = popupCoverUrl({
+            id: s.popupStore.popupId,
+            category: s.popupStore.category,
+            imageUrl: s.popupStore.imageUrl,
+            photoOrigin: s.popupStore.photoOrigin,
+          });
           return (
             <motion.div
               key={s.id}
@@ -115,16 +122,14 @@ export default function PassportView() {
               className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-white/10 dark:bg-white/[0.04]"
             >
               <div className={`relative aspect-square bg-gradient-to-br ${grad}`}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={popupCoverUrl({
-                    id: s.popupStore.popupId,
-                    category: s.popupStore.category,
-                    imageUrl: s.popupStore.imageUrl,
-                  })}
-                  alt=""
-                  className="h-full w-full object-cover"
-                />
+                {coverUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={coverUrl} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  <div className="grid h-full w-full place-items-center">
+                    <Store size={34} className="text-white/55" />
+                  </div>
+                )}
                 <span className="absolute right-2 top-2 grid h-7 w-7 place-items-center rounded-full bg-lime-400 text-ink-900 shadow-md">
                   <Check size={15} strokeWidth={3} />
                 </span>

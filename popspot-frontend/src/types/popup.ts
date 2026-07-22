@@ -64,7 +64,7 @@ export interface PopupStore {
   imageUrl?: string;
   /**
    * 사진 출처(CRAWLED/USER/PEXELS/PLACEHOLDER). 목록 API 는 PopupStore 엔티티를 그대로 직렬화하므로
-   * 이 필드가 함께 내려온다. 커버가 실사진인지(=오해 방지 라벨을 달지) 판단하는 데 쓴다({@link isCuratedCover}).
+   * 이 필드가 함께 내려온다. CRAWLED/USER만 실제 사진으로 노출하고 스톡·플레이스홀더는 정보형 UI로 바꾸는 데 쓴다.
    */
   photoOrigin?: string;
   reporterId?: string;

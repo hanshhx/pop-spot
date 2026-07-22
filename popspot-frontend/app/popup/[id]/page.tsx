@@ -25,7 +25,7 @@ import MusicForPopup from "../../../src/components/music/MusicForPopup";
 import { apiFetch } from "../../../src/lib/api";
 import { notify, notifyError } from "@/lib/notify";
 import { escapeHtml } from "@/lib/escapeHtml";
-import { popupCoverUrl, isCuratedCover } from "@/lib/popupCover";
+import { popupCoverUrl } from "@/lib/popupCover";
 import { addToCalendar, toCalendarEvent } from "@/lib/calendar";
 import type { User } from "@/types/popup";
 
@@ -382,23 +382,20 @@ export default function PopupDetail() {
   const catGrad = CAT_GRAD[catKey] ?? CAT_GRAD.ETC;
   const dday = ddayLabel(popup.closeDate);
   const directionsUrl = `https://map.kakao.com/link/to/${encodeURIComponent(popup.name)},${lat},${lng}`;
+  const coverUrl = popupCoverUrl(popup, 1200);
 
   return (
     <main className="min-h-screen bg-background text-foreground pb-24">
       {/* 사진 히어로 — 실제 커버 이미지(없으면 카테고리 그라디언트) + 제목 오버레이 */}
       <div className="relative h-[38vh] min-h-[240px] max-h-[440px] w-full overflow-hidden">
         <div className={`absolute inset-0 bg-gradient-to-br ${catGrad}`} />
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={popupCoverUrl(popup, 1200)}
-          alt={popup.name}
-          className="absolute inset-0 h-full w-full object-cover"
-        />
-        {/* 실제 촬영 사진이 아니면(스톡·플레이스홀더) 오해를 막는 라벨. 커버 자체는 유지해 화면이 휑하지 않게 한다. */}
-        {isCuratedCover(popup) && (
-          <span className="absolute right-4 top-16 z-10 rounded-full bg-black/55 px-2.5 py-1 text-[11px] font-medium text-white/90 backdrop-blur-sm md:top-20">
-            분위기 이미지
-          </span>
+        {coverUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={coverUrl}
+            alt={popup.name}
+            className="absolute inset-0 h-full w-full object-cover"
+          />
         )}
         <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
 

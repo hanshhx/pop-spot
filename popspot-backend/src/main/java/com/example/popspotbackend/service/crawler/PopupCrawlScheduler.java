@@ -42,6 +42,10 @@ public class PopupCrawlScheduler {
     @Value("${popspot.photo.backfill-limit:150}")
     private int photoBackfillLimit;
 
+    /** 스톡 사진은 기본 비활성. 운영자가 명시적으로 켠 경우에만 기존 Pexels 백필을 수행한다. */
+    @Value("${popspot.photo.backfill-enabled:false}")
+    private boolean photoBackfillEnabled;
+
     @Scheduled(cron = "${popspot.crawler.cron:0 0 4 * * *}", zone = "Asia/Seoul")
     public void scheduledRunMorning() {
         runIfEnabled("morning");
@@ -114,7 +118,7 @@ public class PopupCrawlScheduler {
      */
     @Scheduled(cron = "${popspot.photo.backfill-cron:0 0 5 * * *}", zone = "Asia/Seoul")
     public void scheduledPhotoBackfill() {
-        if (!enabled) {
+        if (!enabled || !photoBackfillEnabled) {
             log.debug("[PopupCrawlScheduler] photo-backfill disabled — 스킵");
             return;
         }

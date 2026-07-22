@@ -8,7 +8,7 @@ import {
   Instagram, Plus, X, ArrowUp, ArrowDown, Minus,
   Map as MapIcon, Route, Ticket, User as UserIcon, LogOut, Sparkles, Lock, ArrowRight, Loader2, RefreshCw,
   Shirt, Video, ShoppingBag, Crown, GripVertical, PlusCircle, Zap, MessageCircle, Heart, Star, Gift,
-  FolderOpen, Save, Trash2, ShieldCheck, ChevronLeft, ChevronRight, Camera, Coffee, Clock
+  FolderOpen, Save, Trash2, ShieldCheck, ChevronLeft, ChevronRight, Camera, Coffee, Clock, Store
 } from "lucide-react";
 import { motion, Variants, AnimatePresence } from "framer-motion";
 import Link from "next/link";
@@ -830,7 +830,7 @@ export default function Home() {
                                         팝업이 열렸어요
                                     </h2>
                                     <p className="mt-2 text-sm md:text-base text-gray-600 dark:text-white/70">
-                                        지도에서 사진으로 훑어보고, 마음에 드는 팝업을 저장하세요.
+                                        지도에서 일정과 장소를 확인하고, 마음에 드는 팝업을 저장하세요.
                                     </p>
                                     <div className="mt-5 flex flex-col sm:flex-row gap-2.5 justify-center md:justify-start">
                                         <button
@@ -846,7 +846,7 @@ export default function Home() {
                                     </div>
                                 </div>
 
-                                {/* 팝업 사진 클러스터 — 들어오자마자 '볼 게 많다'는 첫인상 훅. 클릭 시 상세로. */}
+                                {/* 팝업 정보 클러스터 — 실제 사진이 없으면 이름·장소를 우선 표시. */}
                                 {hotPopups.length > 0 && (
                                     <div className="grid grid-cols-2 gap-2 shrink-0 md:w-[280px]">
                                         {hotPopups.slice(0, 4).map((p, i) => (
@@ -857,8 +857,7 @@ export default function Home() {
                                                 aria-label={`${p.name} 상세 보기`}
                                                 className={`aspect-[4/5] overflow-hidden rounded-xl ring-1 ring-black/5 dark:ring-white/10 transition hover:-translate-y-0.5 hover:shadow-lg ${i % 2 === 1 ? "sm:translate-y-3" : ""}`}
                                             >
-                                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                                <img src={popupCoverUrl(p, 400)} alt="" loading="lazy" className="h-full w-full object-cover" />
+                                                <PopupCoverVisual popup={p} name={p.name} location={p.location} />
                                             </button>
                                         ))}
                                     </div>
@@ -1423,13 +1422,11 @@ export default function Home() {
                             <div className="grid grid-cols-2 gap-2 lg:gap-3">
                                 {myWishlist.map((item, i) => (
                                     <div key={i} className="relative rounded-md overflow-hidden aspect-video group cursor-pointer border border-[var(--color-border)] bg-cream-300 dark:bg-ink-800">
-                                            <Image
-                                                src={popupCoverUrl({ id: item.popupId, imageUrl: item.popupImage })}
-                                                alt={item.popupName}
-                                                fill
-                                                sizes="(max-width: 768px) 50vw, 25vw"
-                                                className="object-cover group-hover:scale-110 transition-transform duration-500"
-                                                unoptimized
+                                            <PopupCoverVisual
+                                                popup={{ id: item.popupId, imageUrl: item.popupImage }}
+                                                name={item.popupName}
+                                                location={item.location}
+                                                compact
                                             />
                                             
                                             <div className="absolute inset-0 bg-gradient-to-t from-ink-900/85 via-ink-900/30 to-transparent flex flex-col justify-end p-3">
@@ -1713,13 +1710,10 @@ function RecentVisitsCard() {
             href={`/popup/${v.popupId}`}
             className="group block rounded-md overflow-hidden border border-[var(--color-border)] bg-cream-300 dark:bg-ink-800 aspect-square relative"
           >
-            <Image
-              src={popupCoverUrl({ id: v.popupId, imageUrl: v.popupImage })}
-              alt={v.popupName}
-              fill
-              sizes="(max-width: 768px) 33vw, 15vw"
-              className="object-cover group-hover:scale-105 transition-transform duration-300"
-              unoptimized
+            <PopupCoverVisual
+              popup={{ id: v.popupId, imageUrl: v.popupImage }}
+              name={v.popupName}
+              compact
             />
             <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-ink-900/85 to-transparent p-1.5">
               <span className="text-cream-200 text-[10px] font-semibold truncate block">
@@ -1729,6 +1723,43 @@ function RecentVisitsCard() {
           </Link>
         ))}
       </div>
+    </div>
+  );
+}
+
+function PopupCoverVisual({
+  popup,
+  name,
+  location,
+  compact = false,
+}: {
+  popup: { id: string | number; category?: string | null; imageUrl?: string | null; photoOrigin?: string | null };
+  name: string;
+  location?: string | null;
+  compact?: boolean;
+}) {
+  const coverUrl = popupCoverUrl(popup, 400);
+  if (coverUrl) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={coverUrl}
+        alt={name}
+        loading="lazy"
+        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+      />
+    );
+  }
+
+  return (
+    <div className="flex h-full w-full flex-col items-center justify-center bg-gradient-to-br from-lime-100 via-cream-200 to-amber-100 p-2 text-center dark:from-lime-950 dark:via-ink-900 dark:to-amber-950">
+      <Store size={compact ? 18 : 24} className="mb-1.5 text-lime-700/55 dark:text-lime-200/55" />
+      {!compact && <strong className="line-clamp-2 text-xs text-ink-900 dark:text-cream-100">{name}</strong>}
+      {!compact && location && (
+        <span className="mt-1 line-clamp-1 text-[10px] text-ink-500 dark:text-cream-200/55">
+          {location.split(" ").slice(0, 2).join(" ")}
+        </span>
+      )}
     </div>
   );
 }
