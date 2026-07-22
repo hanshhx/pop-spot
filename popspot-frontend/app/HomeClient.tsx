@@ -667,10 +667,10 @@ export default function Home() {
         setGuestRemainingDays(getRemainingGuestDays());
         return;
       }
-      if (isGuestExpired(firstVisit)) {
-        router.replace("/signup?reason=guest_expired");
-        return;
-      }
+      // 만료돼도 홈은 계속 열람 가능 — 강제 회원가입 리다이렉트 제거.
+      // 예전엔 7일 뒤 홈 진입 시 /signup 으로 튕겨, 검색·SEO 재방문자까지 하드월에 막혀 이탈했다.
+      // 이제 getRemainingGuestDays 가 만료 시 0 을 반환해 상단 배너가 소프트 가입 유도로 바뀌고,
+      // 참여형 탭(COURSE/MUSIC/MATE)만 canAccessTab 이 계속 가입을 유도한다(하드월 아님).
       setGuestRemainingDays(getRemainingGuestDays(firstVisit));
     } else {
       setGuestRemainingDays(null);
@@ -779,20 +779,22 @@ export default function Home() {
         />
 
         {/*
-         * 게스트 D-N 안내 — 로그인 안 한 게스트 사용자에게 잔여일을 상시 노출.
-         * "로그인하면 영구로 쓸 수 있어요" CTA 를 같이 제공해 자연스러운 가입 유도.
-         * 만료 시점에는 mount useEffect 가 이미 /signup 으로 redirect 했으므로 여기서는 D-1 까지만 노출된다.
+         * 게스트 안내 배너 — 로그인 안 한 게스트에게 상시 노출.
+         * 유예 중(D-N)엔 잔여일을, 만료(0) 후엔 하드월 대신 "가입하면 계속" 소프트 유도만 띄운다.
+         * 실제 가입 강제는 찜·코스·메이트 같은 참여형 액션(canAccessTab)에서만.
          */}
         {guestRemainingDays != null && (
           <div className="mb-4 md:mb-6 flex items-center justify-between gap-3 rounded-pill bg-lime-300/85 px-4 py-2 text-ink-900 ring-1 ring-ink-900/10 shadow-sm dark:bg-lime-400/95">
             <span className="inline-flex items-center gap-1.5 text-xs md:text-sm font-bold">
-              <Clock className="size-3.5 md:size-4" aria-hidden />
-              게스트 모드 · D-{guestRemainingDays}
+              <Clock className="size-3.5 md:size-4 shrink-0" aria-hidden />
+              {guestRemainingDays > 0
+                ? `게스트 모드 · D-${guestRemainingDays}`
+                : "회원가입하면 찜·코스·메이트까지 계속 이용할 수 있어요"}
             </span>
             <button
               type="button"
               onClick={() => router.push("/signup")}
-              className="text-[11px] md:text-xs font-semibold underline-offset-2 hover:underline"
+              className="shrink-0 text-[11px] md:text-xs font-semibold underline-offset-2 hover:underline"
             >
               지금 가입하기
             </button>
