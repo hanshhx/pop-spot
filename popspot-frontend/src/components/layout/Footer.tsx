@@ -160,6 +160,18 @@ function DisclaimerBox() {
           </Link>{' '}
           를 참고해주세요.
         </p>
+        <p className="mt-2">
+          일부 커버는 실제 팝업 현장이 아닌 주제별 연출 이미지이며 화면에 별도 표시됩니다. 연출 이미지는{' '}
+          <a
+            href="https://www.pexels.com/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-semibold text-lime-500 hover:underline"
+          >
+            Photos provided by Pexels
+          </a>
+          를 통해 제공됩니다.
+        </p>
         <p>
           저작권 · 정보 오류 등으로 정보 삭제 · 수정이 필요한 경우 각 팝업 상세페이지의 신고 버튼 또는 아래 이메일로 연락
           주시면 <strong>접수 즉시 노출이 차단되며 24시간 내 조치</strong>됩니다.

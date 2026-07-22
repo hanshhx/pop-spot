@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { Flame, Ticket, Users, ArrowRight, Store } from "lucide-react";
 import type { PopupStore } from "@/types/popup";
-import { popupCoverUrl } from "@/lib/popupCover";
+import { isPexelsPhoto, popupCoverUrl } from "@/lib/popupCover";
 
 /**
  * 홈 하단 발견 존 — 1a안 (히어로 + 서브 타일).
@@ -114,6 +114,7 @@ export default function HomeBento1a({ popups, total, onOpenRanking, onNavigate }
           ) : (
             top.map((p, i) => {
               const coverUrl = popupCoverUrl(p, 200);
+              const isStyledPhoto = isPexelsPhoto(p);
               return (
                 <button
                 key={p.id}
@@ -139,6 +140,7 @@ export default function HomeBento1a({ popups, total, onOpenRanking, onNavigate }
                   <span className="block truncate text-[11px] text-ink-500 dark:text-cream-200/45">
                     {(p.location || "").split(" ").slice(0, 2).join(" ")} ·{" "}
                     <span className={statusTone(p.status)}>{p.status || "영업중"}</span>
+                    {isStyledPhoto && " · 연출 이미지"}
                   </span>
                 </div>
                 </button>

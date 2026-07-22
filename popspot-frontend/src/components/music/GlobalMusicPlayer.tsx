@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 
 import { PopupMatch } from "@/types/music";
-import { popupCoverUrl } from "@/lib/popupCover";
+import { isPexelsPhoto, popupCoverUrl } from "@/lib/popupCover";
 import { useMusicPlayer } from "./MusicPlayerProvider";
 
 function formatSeconds(sec: number) {
@@ -353,7 +353,9 @@ function FullScreenPlayer() {
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {match?.popups.map((popup: PopupMatch) => {
-              const coverUrl = popupCoverUrl({ id: popup.popupId, imageUrl: popup.imageUrl });
+              const photoInput = { id: popup.popupId, imageUrl: popup.imageUrl };
+              const coverUrl = popupCoverUrl(photoInput);
+              const isStyledPhoto = isPexelsPhoto(photoInput);
               return (
                 <Link
                 key={popup.popupId}
@@ -382,6 +384,9 @@ function FullScreenPlayer() {
                   <span className="mt-1 inline-block rounded-full bg-lime-300/20 px-2 py-0.5 text-[10px] font-bold text-lime-300">
                     매칭 {popup.score}%
                   </span>
+                  {isStyledPhoto && (
+                    <span className="ml-1 text-[9px] font-semibold text-white/45">연출 이미지</span>
+                  )}
                 </div>
                 </Link>
               );
