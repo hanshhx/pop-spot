@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTheme } from "next-themes";
 import { 
   Search, MapPin, Flame, Calendar, Menu, Users,
   Instagram, Plus, X, ArrowUp, ArrowDown, Minus,
-  Map as MapIcon, Route, Ticket, User as UserIcon, LogOut, Sparkles, Lock, ArrowRight, Loader2, RefreshCw,
-  Shirt, Video, ShoppingBag, Crown, GripVertical, PlusCircle, Zap, MessageCircle, Heart, Star, Gift,
+  Route, Ticket, User as UserIcon, LogOut, Sparkles, Lock, ArrowRight, Loader2, RefreshCw,
+  ShoppingBag, Crown, GripVertical, PlusCircle, Zap, MessageCircle, Heart, Star, Gift,
   FolderOpen, Save, Trash2, ShieldCheck, ChevronLeft, ChevronRight, Camera, Coffee, Clock, Store
 } from "lucide-react";
 import { motion, Variants, AnimatePresence } from "framer-motion";
@@ -15,6 +15,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { isPexelsPhoto, popupCoverUrl } from "@/lib/popupCover";
 import { PhotoDisclosure } from "@/components/popup/PhotoDisclosure";
+import { useDragScroll } from "@/hooks/useDragScroll";
 
 import { 
   DndContext, 
@@ -38,7 +39,7 @@ import LiveChatTicker from "../src/components/LiveChatTicker";
 import { SortableItem } from "../src/components/SortableItem";
 import MateBoard from "../src/components/MateBoard"; 
 import { apiFetch, API_BASE_URL, SOCKET_BASE_URL } from "../src/lib/api";
-import { isExpired, kstTodayStart } from "../src/lib/popupSlices";
+import { isExpired, kstTodayStart, classifyCategory, categoryLabel, CATEGORIES, parseDate, type CategoryCode } from "../src/lib/popupSlices";
 import { Header } from "../src/components/layout/Header";
 import { Footer } from "../src/components/layout/Footer";
 import { BottomDock, type DockTab } from "../src/components/layout/BottomDock";
@@ -77,7 +78,6 @@ import type {
   User,
   PopupStore,
   CongestionData,
-  TrendOotd,
   MyPageData,
   WishlistItem,
   CourseItem,
@@ -150,7 +150,11 @@ export default function Home() {
 
   const [hotPopups, setHotPopups] = useState<PopupStore[]>([]);
   const [allPopups, setAllPopups] = useState<PopupStore[]>([]);
-  
+  // "지금 뜨는 팝업" 레일 정렬/필터. 전체(allPopups)에서 파생 — hotPopups(인기 top5)는 히어로·랭킹 재사용용으로 그대로 둔다.
+  const [railSort, setRailSort] = useState<"popular" | "deadline" | "latest">("popular");
+  const [railCat, setRailCat] = useState<CategoryCode | "all">("all");
+  const rail = useDragScroll<HTMLDivElement>();
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [isReportPopupOpen, setIsReportPopupOpen] = useState(false);
@@ -174,7 +178,6 @@ export default function Home() {
   const [customVibeInput, setCustomVibeInput] = useState(""); 
   const [showCustomInput, setShowCustomInput] = useState(false); 
   const [congestionData, setCongestionData] = useState<CongestionData | null>(null);
-  const [ootd, setOotd] = useState<TrendOotd | null>(null);
   const [calendarDate, setCalendarDate] = useState(new Date());
   /** 게스트 모드 활성 시 남은 일수. null = 비활성 (로그인 사용자거나 게스트 미시작). */
   const [guestRemainingDays, setGuestRemainingDays] = useState<number | null>(null);
@@ -185,7 +188,37 @@ export default function Home() {
   // AI 검색 결과 id 목록 — 지도에 이 핀들만 표시(null=전체). 서치존의 'AI로 찾기'가 세팅.
   const [mapFilterIds, setMapFilterIds] = useState<string[] | null>(null);
 
-  const videoRef = useRef<HTMLVideoElement>(null);
+  /**
+   * "지금 뜨는 팝업" 레일에 실제로 렌더할 목록 — 전체(allPopups)에 카테고리 필터 + 정렬 적용.
+   * hotPopups(인기 top5)는 히어로·랭킹 재사용을 위해 그대로 두고, 레일만 이 파생 리스트를 쓴다.
+   */
+  const railPopups = useMemo(() => {
+    const base = railCat === "all" ? allPopups : allPopups.filter((p) => classifyCategory(p.category) === railCat);
+    const list = [...base];
+    if (railSort === "deadline") {
+      // 마감임박순 — endDate 없는 건 뒤로(Infinity). parseDate 로 달력 실재성까지 검증(이월 방지).
+      const end = (p: PopupStore) => { const d = parseDate(p.endDate); return d ? d.getTime() : Infinity; };
+      list.sort((a, b) => end(a) - end(b) || (b.viewCount || 0) - (a.viewCount || 0));
+    } else if (railSort === "latest") {
+      // 최신순 — startDate desc, 없으면 id desc(auto-increment 라 항상 존재해 안정적 tie-break).
+      const start = (p: PopupStore) => { const d = parseDate(p.startDate); return d ? d.getTime() : -Infinity; };
+      list.sort((a, b) => start(b) - start(a) || b.id - a.id);
+    } else {
+      // 인기순 — viewCount desc, 동점은 id desc 로 안정화(크롤 팝업 다수가 viewCount=0).
+      list.sort((a, b) => (b.viewCount || 0) - (a.viewCount || 0) || b.id - a.id);
+    }
+    return list.slice(0, 15);
+  }, [allPopups, railSort, railCat]);
+
+  /** 필터 칩 노출 대상 — 전체 목록에 실제로 존재하는 카테고리만(카운트 0 은 숨김). */
+  const railCategories = useMemo(() => {
+    const present = new Set(allPopups.map((p) => classifyCategory(p.category)));
+    return CATEGORIES.filter((c) => present.has(c.code));
+  }, [allPopups]);
+
+  // pop-look → "오늘의 추천 팝업": 실제 인기순 상위(랜덤 아님). hotPopups 가 이미 viewCount desc 정렬.
+  const featuredPopup = hotPopups[0];
+  const featuredRunnerUps = hotPopups.slice(1, 4);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -529,16 +562,6 @@ export default function Home() {
     }
   };
 
-  /** 이 코스를 작전지도(협업)로 넘겨 함께 편집. 방 접속 후 planningSeedCourse 를 마커로 시드(백엔드 필요). */
-  const handleOpenCourseInPlanning = () => {
-    if (aiCourse.length === 0) {
-      notifyWarning('먼저 코스를 추천받아주세요.');
-      return;
-    }
-    sessionStorage.setItem('planningSeedCourse', JSON.stringify(aiCourse));
-    handleCreateRoom();
-  };
-
   const handleSaveCourse = async () => {
     if (!user) {
       notify('로그인이 필요합니다.');
@@ -625,19 +648,6 @@ export default function Home() {
           }
       })
       .catch(err => console.error("혼잡도 데이터 실패:", err));
-
-    const cachedOotd = localStorage.getItem("cached_ootd");
-    if (cachedOotd) {
-        setOotd(JSON.parse(cachedOotd));
-    }
-
-    apiFetch('/api/trends/ootd')
-        .then(res => res.json())
-        .then(data => {
-            setOotd(data);
-            localStorage.setItem("cached_ootd", JSON.stringify(data)); 
-        })
-        .catch(err => console.error("OOTD 로딩 실패:", err));
   }, []);
 
   /*
@@ -969,68 +979,149 @@ export default function Home() {
                     variants={sectionVariants}
                     className="mb-16"
                 >
-                    <header className="mb-5 flex items-end justify-between gap-3">
+                    <header className="mb-4 flex items-end justify-between gap-3">
                         <div>
                             <h2 className="text-xl md:text-2xl font-bold text-foreground">지금 뜨는 팝업</h2>
-                            <p className="mt-1 text-xs md:text-sm text-muted-foreground">서울에서 가장 많이 찾는 팝업을 사진으로 훑어보세요.</p>
+                            <p className="mt-1 text-xs md:text-sm text-muted-foreground">정렬·필터로 원하는 팝업을 골라 사진으로 훑어보세요.</p>
                         </div>
                         <button type="button" onClick={handleOpenModal} className="shrink-0 text-xs font-semibold text-primary hover:underline">전체 보기</button>
                     </header>
-                    {hotPopups.length > 0 ? (
-                        <div className="custom-scrollbar -mx-1 flex snap-x gap-4 overflow-x-auto px-1 pb-3">
-                            {hotPopups.map((p) => (
-                                <div key={p.id} className="snap-start">
-                                    <PopupCard
-                                        popup={p}
-                                        onClick={() => { handleTabChange("MAP"); router.push(`/popup/${p.id}`); }}
-                                    />
-                                </div>
+
+                    {/* 정렬 세그먼트 + 카테고리 필터 (전체 목록 기준) */}
+                    <div className="mb-4 flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="inline-flex shrink-0 rounded-full border border-gray-200 bg-white p-0.5 dark:border-white/10 dark:bg-white/5">
+                            {([["popular", "인기순"], ["deadline", "마감임박"], ["latest", "최신순"]] as const).map(([key, label]) => (
+                                <button key={key} type="button" onClick={() => setRailSort(key)}
+                                    className={`rounded-full px-3 py-1.5 text-xs font-bold transition ${railSort === key ? "bg-lime-300 text-ink-900" : "text-muted-foreground hover:text-foreground"}`}>
+                                    {label}
+                                </button>
                             ))}
                         </div>
-                    ) : (
+                        {railCategories.length > 0 && (
+                            <div className="custom-scrollbar -mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1">
+                                <button type="button" onClick={() => setRailCat("all")}
+                                    className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold transition ${railCat === "all" ? "bg-ink-900 text-white dark:bg-white dark:text-ink-900" : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-white/10 dark:text-white/60"}`}>
+                                    전체
+                                </button>
+                                {railCategories.map((c) => (
+                                    <button key={c.code} type="button" onClick={() => setRailCat(c.code)}
+                                        className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold transition ${railCat === c.code ? "bg-ink-900 text-white dark:bg-white dark:text-ink-900" : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-white/10 dark:text-white/60"}`}>
+                                        {c.label}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    {allPopups.length === 0 ? (
                         <div className="flex gap-4 overflow-hidden">
                             {[...Array(5)].map((_, i) => (
                                 <div key={i} className="h-[320px] w-[220px] shrink-0 animate-pulse rounded-2xl bg-gray-100 dark:bg-white/5" />
                             ))}
                         </div>
+                    ) : railPopups.length === 0 ? (
+                        <p className="rounded-2xl border border-dashed border-gray-200 py-10 text-center text-sm text-muted-foreground dark:border-white/10">이 조건에 맞는 팝업이 없어요.</p>
+                    ) : (
+                        <div className="relative">
+                            {rail.hasOverflow && (
+                                <>
+                                    <button type="button" aria-label="이전" onClick={() => rail.scrollByPage(-1)} disabled={rail.atStart}
+                                        className={`absolute left-0 top-1/2 z-10 hidden h-9 w-9 -translate-y-1/2 place-items-center rounded-full border border-gray-200 bg-white/90 shadow-md backdrop-blur transition dark:border-white/10 dark:bg-black/60 md:grid ${rail.atStart ? "pointer-events-none opacity-0" : "hover:bg-white dark:hover:bg-black"}`}>
+                                        <ChevronLeft size={18} />
+                                    </button>
+                                    <button type="button" aria-label="다음" onClick={() => rail.scrollByPage(1)} disabled={rail.atEnd}
+                                        className={`absolute right-0 top-1/2 z-10 hidden h-9 w-9 -translate-y-1/2 place-items-center rounded-full border border-gray-200 bg-white/90 shadow-md backdrop-blur transition dark:border-white/10 dark:bg-black/60 md:grid ${rail.atEnd ? "pointer-events-none opacity-0" : "hover:bg-white dark:hover:bg-black"}`}>
+                                        <ChevronRight size={18} />
+                                    </button>
+                                </>
+                            )}
+                            <div
+                                ref={rail.ref}
+                                {...rail.dragBind}
+                                className="custom-scrollbar -mx-1 flex cursor-grab snap-x select-none gap-4 overflow-x-auto px-1 pb-3 active:cursor-grabbing"
+                            >
+                                {railPopups.map((p) => (
+                                    <div key={p.id} className="snap-start">
+                                        <PopupCard
+                                            popup={p}
+                                            onClick={() => { handleTabChange("MAP"); router.push(`/popup/${p.id}`); }}
+                                        />
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
                     )}
                 </motion.section>
 
-                {/* OOTD Section */}
-                <motion.section aria-label="Style Recommendation" initial="hidden" whileInView="visible" viewport={{ once: true }} variants={sectionVariants} className="mb-16">
-                    <header className="flex flex-col md:flex-row items-center md:items-end justify-between mb-8 md:mb-12 text-center md:text-left">
+                {/* 오늘의 추천 팝업 (구 pop-look) — 랜덤 스톡 영상이 아니라 실제 인기(조회수) 상위를 추천한다. */}
+                {featuredPopup && (
+                <motion.section aria-label="오늘의 추천 팝업" initial="hidden" whileInView="visible" viewport={{ once: true }} variants={sectionVariants} className="mb-16">
+                    <header className="flex flex-col md:flex-row items-center md:items-end justify-between mb-6 md:mb-8 text-center md:text-left">
                         <SectionLogo name="pop-look" label="POP-LOOK" className="h-10 md:h-16 relative z-10 text-foreground" />
-                        <p className="text-gray-500 dark:text-white/60 max-w-md mt-2 md:mt-0 relative z-10 text-xs md:text-base">서울 갈 때 뭐 입지?<br/>오늘의 분위기에 딱 맞는 OOTD를 제안합니다.</p>
+                        <p className="text-gray-500 dark:text-white/60 max-w-md mt-2 md:mt-0 relative z-10 text-xs md:text-base">지금 서울에서 가장 많이 찾는 팝업,<br/>진짜로 붐비는 곳만 골랐어요.</p>
                     </header>
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-auto lg:h-[500px]">
-                        <article className="lg:col-span-1 rounded-[2rem] lg:rounded-[2.5rem] overflow-hidden relative shadow-2xl border border-gray-200 dark:border-white/10 group bg-black h-[300px] lg:h-full">
-                            {ootd?.data ? (
-                                <>
-                                    <video ref={videoRef} src={ootd.data.videoUrl} poster={ootd.data.thumbnail} autoPlay muted loop playsInline className="w-full h-full object-cover opacity-90 group-hover:scale-105 lg:group-hover:scale-110 transition-transform duration-700"/>
-                                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/20 pointer-events-none"/>
-                                    <div className="absolute top-4 right-4 lg:top-6 lg:right-6 bg-black/30 backdrop-blur-md px-2 py-1 lg:px-3 lg:py-1 rounded-full text-white text-[10px] lg:text-xs font-bold border border-white/20 flex items-center gap-1"><Video size={10} className="lg:w-3 lg:h-3"/> Pexels Shorts</div>
-                                    <div className="absolute bottom-4 left-4 right-4 lg:bottom-6 lg:left-6 lg:right-6 text-white"><p className="text-[10px] lg:text-xs font-medium opacity-80 mb-1 uppercase tracking-wider">Today's Pick</p><h3 className="text-xl lg:text-2xl font-black leading-none mb-1 lg:mb-2">{ootd.data.keyword}</h3><p className="text-[9px] lg:text-[10px] opacity-60">Creator: {ootd.data.photographer}</p></div>
-                                </>
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 lg:gap-6 h-auto lg:h-[440px]">
+                        {/* 1위 히어로 */}
+                        <article
+                            role="button" tabIndex={0}
+                            onClick={() => { handleTabChange("MAP"); router.push(`/popup/${featuredPopup.id}`); }}
+                            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleTabChange("MAP"); router.push(`/popup/${featuredPopup.id}`); } }}
+                            className="lg:col-span-1 rounded-[2rem] lg:rounded-[2.5rem] overflow-hidden relative shadow-2xl border border-gray-200 dark:border-white/10 group cursor-pointer h-[320px] lg:h-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-400"
+                        >
+                            {popupCoverUrl(featuredPopup) ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img src={popupCoverUrl(featuredPopup) as string} alt={featuredPopup.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
                             ) : (
-                                <div className="w-full h-full flex flex-col items-center justify-center text-white/50 gap-4"><Loader2 size={24} className="lg:w-8 lg:h-8 animate-spin"/><span className="text-xs lg:text-sm">Fetching OOTD...</span></div>
+                                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-lime-100 via-cream-200 to-amber-100 dark:from-lime-950 dark:via-ink-900 dark:to-amber-950">
+                                    <Store size={44} className="text-lime-700/40 dark:text-lime-200/40" />
+                                </div>
                             )}
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent pointer-events-none" />
+                            <span className="absolute top-4 left-4 inline-flex items-center gap-1 rounded-full bg-hot-400 px-2.5 py-1 text-[11px] font-bold text-white shadow-md"><Flame size={12} /> 지금 1위</span>
+                            <PhotoDisclosure popup={featuredPopup} className="absolute top-4 right-4" />
+                            <div className="absolute bottom-5 left-5 right-5 text-white">
+                                <div className="mb-2 flex items-center gap-2">
+                                    <span className="rounded-pill bg-white/20 px-2.5 py-0.5 text-[11px] font-bold backdrop-blur">{categoryLabel(classifyCategory(featuredPopup.category))}</span>
+                                    {(() => { const d = getDday(featuredPopup.endDate ?? null); return d !== null ? (
+                                        <span className="rounded-pill bg-lime-300 px-2.5 py-0.5 text-[11px] font-bold text-ink-900">{d === 0 ? "오늘 마감" : `D-${d}`}</span>
+                                    ) : null; })()}
+                                </div>
+                                <h3 className="text-2xl lg:text-3xl font-black leading-tight">{featuredPopup.name}</h3>
+                                <p className="mt-1.5 flex items-center gap-1 text-sm text-white/85"><MapPin size={14} className="shrink-0" /> {(featuredPopup.location || "").split(" ").slice(0, 2).join(" ") || "서울"}</p>
+                            </div>
                         </article>
-                        <div className="lg:col-span-2 flex flex-col gap-4 lg:gap-6">
-                            <article className="flex-1 rounded-[2rem] lg:rounded-[2.5rem] p-6 lg:p-10 bg-white dark:bg-[#111] border border-gray-200 dark:border-white/5 flex flex-col justify-center items-start relative overflow-hidden">
-                                <Shirt size={80} className="lg:w-[120px] lg:h-[120px] absolute -right-4 -bottom-4 lg:-right-6 lg:-bottom-6 text-gray-100 dark:text-white/5 rotate-[-15deg]"/>
-                                <span className="text-lime-700 dark:text-lime-300 font-bold tracking-wide text-xs lg:text-sm mb-3 lg:mb-4 border border-lime-500/40 bg-lime-50 dark:bg-lime-300/10 px-2.5 py-1 lg:px-3 lg:py-1 rounded-full">오늘의 스타일</span>
-                                <h3 className="text-xl md:text-3xl lg:text-4xl font-bold text-gray-900 dark:text-white mb-4 lg:mb-6 leading-tight">{ootd?.comment || "트렌디한 서울 바이브를 분석 중입니다..."}</h3>
-                                <div className="flex flex-wrap gap-2 lg:gap-3">{['#SeongsuVibe', '#PopUpStyle', '#OOTD', `#${ootd?.data?.keyword.replace(" ", "") || 'Fashion'}`].map((tag, i) => (<span key={i} className="text-xs lg:text-sm text-gray-500 dark:text-white/40 font-medium">{tag}</span>))}</div>
-                            </article>
-                            {/* 이전 문구는 "해당 스타일로 방문 시 스탬프 2배 적립" 이었다. 백엔드에 스탬프 배수
-                                로직이 존재하지 않아 지킬 수 없는 약속이었고, cursor-pointer + 화살표로 눌리는 것처럼
-                                보이지만 클릭 핸들러도 없었다. 실제로 제공하는 것만 적고 가짜 인터랙션을 제거한다. */}
-                            <article className="h-24 lg:h-32 rounded-[1.5rem] lg:rounded-[2rem] bg-gradient-to-r from-gray-900 to-black dark:from-white dark:to-gray-200 flex items-center px-6 lg:px-10 relative overflow-hidden">
-                                <div className="z-10"><p className="text-gray-400 dark:text-gray-600 text-[10px] lg:text-xs font-bold mb-0.5 lg:mb-1">POP-SPOT EXCLUSIVE</p><p className="text-white dark:text-black text-sm lg:text-xl font-black">오늘의 무드로 고른 서울 팝업 스타일</p></div>
-                            </article>
+                        {/* 인기 급상승 TOP (2~4위) */}
+                        <div className="lg:col-span-2 rounded-[2rem] lg:rounded-[2.5rem] p-5 lg:p-8 bg-white dark:bg-[#111] border border-gray-200 dark:border-white/5 flex flex-col">
+                            <p className="mb-3 lg:mb-4 text-sm lg:text-base font-bold text-foreground">인기 급상승 <span className="text-lime-500">TOP</span></p>
+                            {featuredRunnerUps.length > 0 ? (
+                                <div className="flex flex-col divide-y divide-gray-100 dark:divide-white/5">
+                                    {featuredRunnerUps.map((p, i) => (
+                                        <button key={p.id} type="button" onClick={() => { handleTabChange("MAP"); router.push(`/popup/${p.id}`); }}
+                                            className="flex items-center gap-3 py-3 -mx-2 rounded-xl px-2 text-left transition hover:bg-black/[0.03] dark:hover:bg-white/[0.04]">
+                                            <span className="w-5 shrink-0 text-center text-lg font-black text-ink-400 dark:text-cream-200/40">{i + 2}</span>
+                                            <div className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-xl bg-gradient-to-br from-lime-100 to-amber-100 dark:from-lime-950 dark:to-amber-950">
+                                                {popupCoverUrl(p) ? (
+                                                    // eslint-disable-next-line @next/next/no-img-element
+                                                    <img src={popupCoverUrl(p) as string} alt="" className="h-full w-full object-cover" />
+                                                ) : (
+                                                    <Store size={18} className="text-lime-700/40 dark:text-lime-200/40" />
+                                                )}
+                                            </div>
+                                            <div className="min-w-0 flex-1">
+                                                <strong className="block truncate text-sm lg:text-base font-bold text-foreground">{p.name}</strong>
+                                                <span className="block truncate text-xs text-muted-foreground">{(p.location || "").split(" ").slice(0, 2).join(" ") || "서울"} · {categoryLabel(classifyCategory(p.category))}</span>
+                                            </div>
+                                            <ArrowRight size={16} className="shrink-0 text-muted-foreground" />
+                                        </button>
+                                    ))}
+                                </div>
+                            ) : (
+                                <p className="flex-1 grid place-items-center text-sm text-muted-foreground">추천할 팝업을 모으는 중이에요.</p>
+                            )}
                         </div>
                     </div>
                 </motion.section>
+                )}
 
                 {/* Live Chat Ticker Section */}
                 <motion.section aria-label="Live Community Updates" initial="hidden" whileInView="visible" viewport={{ once: true }} variants={sectionVariants} className="mb-16 relative">
@@ -1290,18 +1381,12 @@ export default function Home() {
                                     ))}
                                 </div>
                                 
-                                <div className="mt-4 flex flex-col gap-2 lg:mt-6 lg:flex-row">
+                                <div className="mt-4 lg:mt-6">
                                     <button
                                         onClick={handleSaveAiCourse}
-                                        className="flex flex-1 items-center justify-center gap-2 rounded-pill bg-lime-300 py-3.5 text-sm font-semibold text-ink-900 transition-colors hover:bg-lime-400 lg:text-base"
+                                        className="flex w-full items-center justify-center gap-2 rounded-pill bg-lime-300 py-3.5 text-sm font-semibold text-ink-900 transition-colors hover:bg-lime-400 lg:text-base"
                                     >
                                         <Ticket size={16} /> 마이페이지에 저장
-                                    </button>
-                                    <button
-                                        onClick={handleOpenCourseInPlanning}
-                                        className="flex flex-1 items-center justify-center gap-2 rounded-pill border border-[var(--color-border-strong)] py-3.5 text-sm font-semibold text-foreground transition-colors hover:bg-foreground/5 lg:text-base"
-                                    >
-                                        <MapIcon size={16} /> 작전지도에서 함께 짜기
                                     </button>
                                 </div>
                             </div>
