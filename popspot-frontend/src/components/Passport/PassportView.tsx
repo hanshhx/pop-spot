@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { Lock, Check, Store } from "lucide-react";
 import { apiFetch } from "../../lib/api";
 import { popupCoverUrl } from "@/lib/popupCover";
+import { PhotoDisclosure } from "@/components/popup/PhotoDisclosure";
 import type { User } from "@/types/popup";
 
 /**
@@ -23,6 +24,9 @@ interface StampData {
     category: string;
     imageUrl?: string;
     photoOrigin?: string;
+    photoSourceUrl?: string;
+    photoCreditName?: string;
+    photoCreditUrl?: string;
   };
 }
 
@@ -75,9 +79,12 @@ export default function PassportView() {
     };
 
     if (user) {
+      // fetch 는 403 같은 HTTP 에러에 reject 하지 않는다 — res.ok 를 확인하지 않으면 에러 body
+      // ({"error":..,"status":403})가 그대로 stamps 로 들어가 배열이 아니게 되고, 아래 stamps.map 이
+      // "map is not a function" 으로 앱 전체를 죽인다(토큰 만료 시 재현). ok 검사 + 배열 가드로 막는다.
       apiFetch(`/api/stamps/my?userId=${user.userId}`)
-        .then((res) => res.json())
-        .then((data) => setStamps(data))
+        .then((res) => (res.ok ? res.json() : Promise.reject(new Error(`stamps ${res.status}`))))
+        .then((data) => setStamps(Array.isArray(data) ? data : []))
         .catch(loadDevStamps);
     } else {
       // 비로그인/게스트: 실서비스는 빈 여권(0/12), 로컬 개발은 미리보기 목업.
@@ -113,6 +120,14 @@ export default function PassportView() {
             imageUrl: s.popupStore.imageUrl,
             photoOrigin: s.popupStore.photoOrigin,
           });
+          const photoInput = {
+            id: s.popupStore.popupId,
+            imageUrl: s.popupStore.imageUrl,
+            photoOrigin: s.popupStore.photoOrigin,
+            photoSourceUrl: s.popupStore.photoSourceUrl,
+            photoCreditName: s.popupStore.photoCreditName,
+            photoCreditUrl: s.popupStore.photoCreditUrl,
+          };
           return (
             <motion.div
               key={s.id}
@@ -133,6 +148,7 @@ export default function PassportView() {
                 <span className="absolute right-2 top-2 grid h-7 w-7 place-items-center rounded-full bg-lime-400 text-ink-900 shadow-md">
                   <Check size={15} strokeWidth={3} />
                 </span>
+                <PhotoDisclosure popup={photoInput} className="absolute bottom-2 left-2 right-2 w-fit" />
               </div>
               <div className="p-2.5">
                 <p className="truncate text-xs font-bold text-foreground">{s.popupStore.name}</p>
