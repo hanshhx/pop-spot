@@ -224,17 +224,23 @@ public interface PopupStoreRepository extends JpaRepository<PopupStore, Long> {
     @Query("SELECT COUNT(p) FROM PopupStore p WHERE p.reviewStatus = 'PENDING_REVIEW'")
     long countPendingReview();
 
+    @Query(
+            "SELECT p FROM PopupStore p WHERE p.takedownRequestedAt IS NOT NULL "
+                    + "AND (p.reviewStatus IS NULL OR p.reviewStatus <> 'TAKEDOWN') "
+                    + "ORDER BY p.takedownRequestedAt ASC")
+    List<PopupStore> findPendingTakedown(Pageable pageable);
+
     /**
-     * v2.17 — Takedown SLA 알림용. 권리자 신고로 TAKEDOWN 차단되었지만 admin 이 24h 안에 결정 (영구 삭제 / 수정 후 복구 / 부적절 신고
-     * 거부) 을 못 한 row 카운트.
+     * Takedown SLA 알림용. 권리자 신고가 접수됐지만 admin 이 24시간 안에 결정(임시 차단·영구 삭제·수정·신고 거부)하지 못한
+     * 검증 대기 row를 센다.
      *
      * <p>기준 시각을 {@code lastSeenAt} → {@code takedownRequestedAt} 으로 바로잡았다. {@code lastSeenAt} 은
      * 크롤러가 원본 글을 마지막으로 본 시각이라, 소스 블로그에 글이 살아 있으면 계속 갱신된다. 그러면 차단된 지 며칠이 지나도 cutoff 를 넘지 않아 <b>알림이
-     * 영원히 울리지 않았다</b> — "24시간 내 검토" 약속(약관 §11)이 조용히 깨지고, 악의적 신고로 내려간 팝업이 아무도 모르게 묻힌다. SLA 는 "언제
+     * 영원히 울리지 않았다</b> — "24시간 내 검토" 약속(약관 §11)이 조용히 깨진다. SLA 는 "언제
      * 신고됐나" 로 재야 한다.
      */
     @Query(
-            "SELECT COUNT(p) FROM PopupStore p WHERE p.reviewStatus = 'TAKEDOWN' "
-                    + "AND (p.takedownRequestedAt IS NULL OR p.takedownRequestedAt < :cutoff)")
+            "SELECT COUNT(p) FROM PopupStore p WHERE p.takedownRequestedAt < :cutoff "
+                    + "AND (p.reviewStatus IS NULL OR p.reviewStatus <> 'TAKEDOWN')")
     long countTakedownOlderThan(@Param("cutoff") java.time.LocalDateTime cutoff);
 }

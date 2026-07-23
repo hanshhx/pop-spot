@@ -1,11 +1,11 @@
-"use client";
+'use client';
 
-import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
-import { Search, X, Loader2, MapPin } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { Search, X, Loader2, MapPin } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
-import { apiFetch } from "@/lib/api";
+import { apiFetch } from '@/lib/api';
 
 /**
  * v2.21-S5 — 헤더 인라인 통합검색.
@@ -35,7 +35,7 @@ const DEBOUNCE_MS = 200;
 export default function InlineGlobalSearch() {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState('');
   const [hits, setHits] = useState<Hit[]>([]);
   const [loading, setLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -46,17 +46,17 @@ export default function InlineGlobalSearch() {
   useEffect(() => {
     if (!isOpen) return;
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") close();
+      if (e.key === 'Escape') close();
     }
     function onClickOutside(e: MouseEvent) {
       if (!containerRef.current) return;
       if (!containerRef.current.contains(e.target as Node)) close();
     }
-    document.addEventListener("keydown", onKey);
-    document.addEventListener("mousedown", onClickOutside);
+    document.addEventListener('keydown', onKey);
+    document.addEventListener('mousedown', onClickOutside);
     return () => {
-      document.removeEventListener("keydown", onKey);
-      document.removeEventListener("mousedown", onClickOutside);
+      document.removeEventListener('keydown', onKey);
+      document.removeEventListener('mousedown', onClickOutside);
     };
   }, [isOpen]);
 
@@ -66,15 +66,15 @@ export default function InlineGlobalSearch() {
     function onGlobalKey(e: KeyboardEvent) {
       const isMod = e.ctrlKey || e.metaKey;
       if (!isMod) return;
-      if (e.key.toLowerCase() !== "k") return;
+      if (e.key.toLowerCase() !== 'k') return;
       const target = e.target as HTMLElement | null;
       const tag = target?.tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA" || target?.isContentEditable) return;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || target?.isContentEditable) return;
       e.preventDefault();
       open();
     }
-    window.addEventListener("keydown", onGlobalKey);
-    return () => window.removeEventListener("keydown", onGlobalKey);
+    window.addEventListener('keydown', onGlobalKey);
+    return () => window.removeEventListener('keydown', onGlobalKey);
   }, []);
 
   // 펼침 시 input focus
@@ -120,7 +120,7 @@ export default function InlineGlobalSearch() {
 
   function close() {
     setIsOpen(false);
-    setQuery("");
+    setQuery('');
     setHits([]);
   }
 
@@ -165,8 +165,8 @@ export default function InlineGlobalSearch() {
             initial={{ opacity: 0, scale: 0.97 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.97 }}
-            transition={{ duration: 0.16, ease: "easeOut" }}
-            style={{ transformOrigin: "right center" }}
+            transition={{ duration: 0.16, ease: 'easeOut' }}
+            style={{ transformOrigin: 'right center' }}
             className="flex items-center h-10 rounded-pill border bg-white dark:bg-[#1a1a1a] border-lime-400 dark:border-lime-300/50 shadow-md w-[220px] md:w-[320px] overflow-hidden"
             role="search"
             aria-label="통합검색"
@@ -235,9 +235,7 @@ export default function InlineGlobalSearch() {
                           {h.name}
                         </p>
                         {h.location && (
-                          <p className="text-[11px] text-muted-foreground truncate">
-                            {h.location}
-                          </p>
+                          <p className="text-[11px] text-muted-foreground truncate">{h.location}</p>
                         )}
                       </div>
                     </button>

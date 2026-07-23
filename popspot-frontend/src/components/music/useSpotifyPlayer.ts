@@ -1,8 +1,8 @@
-"use client";
+'use client';
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from 'react';
 
-import { apiFetch } from "@/lib/api";
+import { apiFetch } from '@/lib/api';
 
 /**
  * v2.21-S13 — Spotify Web Playback SDK (Premium 풀트랙 320kbps).
@@ -61,7 +61,7 @@ let sdkLoading = false;
 const sdkReadyCallbacks: Array<() => void> = [];
 
 function loadSpotifySdk(cb: () => void) {
-  if (typeof window === "undefined") return;
+  if (typeof window === 'undefined') return;
   if (window.Spotify) {
     cb();
     return;
@@ -75,15 +75,15 @@ function loadSpotifySdk(cb: () => void) {
     sdkReadyCallbacks.length = 0;
   };
 
-  const tag = document.createElement("script");
-  tag.src = "https://sdk.scdn.co/spotify-player.js";
+  const tag = document.createElement('script');
+  tag.src = 'https://sdk.scdn.co/spotify-player.js';
   tag.async = true;
   document.head.appendChild(tag);
 }
 
 async function fetchAccessToken(): Promise<string | null> {
   try {
-    const res = await apiFetch("/api/spotify/token");
+    const res = await apiFetch('/api/spotify/token');
     if (!res.ok) return null;
     const data = (await res.json()) as { accessToken?: string };
     return data.accessToken ?? null;
@@ -100,10 +100,10 @@ async function playTrackOnDevice(deviceId: string, spotifyTrackId: string): Prom
     const res = await fetch(
       `https://api.spotify.com/v1/me/player/play?device_id=${encodeURIComponent(deviceId)}`,
       {
-        method: "PUT",
+        method: 'PUT',
         headers: {
           Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify({ uris: [`spotify:track:${spotifyTrackId}`] }),
       },
@@ -140,14 +140,14 @@ export function useSpotifyPlayer({
 
   // 1) SDK 초기화 + device 등록 (enabled 일 때 1회)
   useEffect(() => {
-    if (!enabled || typeof window === "undefined") return;
+    if (!enabled || typeof window === 'undefined') return;
     let cancelled = false;
 
     loadSpotifySdk(() => {
       if (cancelled || !window.Spotify) return;
 
       const player = new window.Spotify.Player({
-        name: "POP-SPOT Player",
+        name: 'POP-SPOT Player',
         getOAuthToken: (cb) => {
           void fetchAccessToken().then((t) => {
             if (t) cb(t);
@@ -157,18 +157,18 @@ export function useSpotifyPlayer({
       });
       playerRef.current = player;
 
-      player.addListener("ready", (payload) => {
+      player.addListener('ready', (payload) => {
         if (cancelled) return;
         const { device_id } = payload as { device_id: string };
         deviceIdRef.current = device_id;
         setIsReady(true);
       });
 
-      player.addListener("not_ready", () => {
+      player.addListener('not_ready', () => {
         if (!cancelled) setIsReady(false);
       });
 
-      player.addListener("player_state_changed", (payload) => {
+      player.addListener('player_state_changed', (payload) => {
         if (cancelled || !payload) return;
         const s = payload as {
           paused: boolean;

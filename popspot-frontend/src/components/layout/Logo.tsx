@@ -1,4 +1,4 @@
-import { cn } from "@/lib/utils";
+import { cn } from '@/lib/utils';
 
 /*
  * popspot 공식 CI 로고 (v2.25).
@@ -37,7 +37,7 @@ export function Logo({ className, symbolOnly = false }: LogoProps) {
       role="img"
       aria-label="popspot"
       className={cn(
-        "inline-flex items-center text-foreground [&>svg]:block [&>svg]:h-full [&>svg]:w-auto",
+        'inline-flex items-center text-foreground [&>svg]:block [&>svg]:h-full [&>svg]:w-auto',
         className,
       )}
       dangerouslySetInnerHTML={{ __html: symbolOnly ? SYMBOL_SVG : LOGO_SVG }}

@@ -1,22 +1,14 @@
-"use client";
+'use client';
 
-import { useState, useEffect, useRef } from "react";
-import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
-import {
-  ChevronLeft,
-  Eye,
-  EyeOff,
-  CheckCircle2,
-  XCircle,
-  Check,
-  ExternalLink,
-} from "lucide-react";
-import Swal from "sweetalert2";
+import { useState, useEffect, useRef } from 'react';
+import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { ChevronLeft, Eye, EyeOff, CheckCircle2, XCircle, Check, ExternalLink } from 'lucide-react';
+import Swal from 'sweetalert2';
 
-import { apiFetch } from "@/lib/api";
-import { Button } from "@/components/ui/button";
-import { Input, Field } from "@/components/ui/input";
+import { apiFetch } from '@/lib/api';
+import { Button } from '@/components/ui/button';
+import { Input, Field } from '@/components/ui/input';
 
 // 이메일 인증번호 유효 시간 카운트다운의 틱 주기 (1초).
 const COUNTDOWN_TICK_MS = 1000;
@@ -74,17 +66,17 @@ export default function SignupPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   /** 인트로/메인에서 게스트 7일 만료 후 강제 리다이렉트된 경우 안내 배너를 띄운다. */
-  const guestExpired = searchParams.get("reason") === "guest_expired";
+  const guestExpired = searchParams.get('reason') === 'guest_expired';
 
   const [formData, setFormData] = useState({
-    email: "",
-    password: "",
-    passwordConfirm: "",
-    name: "",
-    birthdate: "",
-    gender: "M",
-    phoneNumber: "",
-    authCode: "",
+    email: '',
+    password: '',
+    passwordConfirm: '',
+    name: '',
+    birthdate: '',
+    gender: 'M',
+    phoneNumber: '',
+    authCode: '',
   });
 
   /**
@@ -94,25 +86,25 @@ export default function SignupPage() {
    * 채울 수 없음) 가 비어 있으면 사람, 채워져 있으면 봇으로 간주. 외부 reCAPTCHA 없이도 일반
    * 봇 90% 차단 가능. 정교한 봇은 못 막지만 외부 의존성 0 으로 가장 가벼운 트레이드오프.
    */
-  const [honeypot, setHoneypot] = useState("");
+  const [honeypot, setHoneypot] = useState('');
   const formMountAtRef = useRef<number>(Date.now());
 
   const [showPassword, setShowPassword] = useState(false);
   const [showPasswordConfirm, setShowPasswordConfirm] = useState(false);
 
   // 생년월일 — 세 개의 select 를 분리 보관했다가 제출 직전 ISO 문자열로 합친다.
-  const [birthYear, setBirthYear] = useState("");
-  const [birthMonth, setBirthMonth] = useState("");
-  const [birthDay, setBirthDay] = useState("");
+  const [birthYear, setBirthYear] = useState('');
+  const [birthMonth, setBirthMonth] = useState('');
+  const [birthDay, setBirthDay] = useState('');
 
   // 셋 다 선택되면 YYYY-MM-DD 형태로 formData.birthdate 동기화.
   useEffect(() => {
     if (birthYear && birthMonth && birthDay) {
-      const mm = String(birthMonth).padStart(2, "0");
-      const dd = String(birthDay).padStart(2, "0");
+      const mm = String(birthMonth).padStart(2, '0');
+      const dd = String(birthDay).padStart(2, '0');
       setFormData((prev) => ({ ...prev, birthdate: `${birthYear}-${mm}-${dd}` }));
     } else {
-      setFormData((prev) => ({ ...prev, birthdate: "" }));
+      setFormData((prev) => ({ ...prev, birthdate: '' }));
     }
   }, [birthYear, birthMonth, birthDay]);
 
@@ -127,19 +119,16 @@ export default function SignupPage() {
 
   // 실시간 유효성 검사
   const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email);
-  const isValidPassword =
-    /^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{8,20}$/.test(
-      formData.password
-    );
+  const isValidPassword = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{8,20}$/.test(
+    formData.password,
+  );
   const isPasswordMatch =
-    formData.password !== "" &&
-    formData.password === formData.passwordConfirm;
+    formData.password !== '' && formData.password === formData.passwordConfirm;
   const isPasswordMismatch =
-    formData.passwordConfirm !== "" &&
-    formData.password !== formData.passwordConfirm;
+    formData.passwordConfirm !== '' && formData.password !== formData.passwordConfirm;
   const isValidName = /^[a-zA-Z0-9가-힣]{2,8}$/.test(formData.name);
   const isValidPhone = /^010\d{8}$/.test(formData.phoneNumber);
-  const isValidBirthdate = formData.birthdate !== "";
+  const isValidBirthdate = formData.birthdate !== '';
   const isAllAgreed = agreements.terms && agreements.privacy;
 
   const isFormValid =
@@ -164,17 +153,15 @@ export default function SignupPage() {
    * <p>이메일은 ASCII 만 (한글 입력 차단), 휴대전화는 숫자만 (붙여넣기 시에도 다른 문자 strip).
    * 사용자 입장에선 "잘못된 키를 누르면 무시" 처럼 자연스럽게 동작.
    */
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
-  ) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     let sanitized = value;
-    if (name === "email") {
+    if (name === 'email') {
       // 이메일은 ASCII 외 문자 (한글 등) 제거 — 유효성 검사 이전에 입력 단에서 막음.
-      sanitized = value.replace(/[^\x20-\x7E]/g, "");
-    } else if (name === "phoneNumber") {
+      sanitized = value.replace(/[^\x20-\x7E]/g, '');
+    } else if (name === 'phoneNumber') {
       // 휴대전화는 숫자만 — 붙여넣기로 들어온 하이픈/공백도 제거.
-      sanitized = value.replace(/\D/g, "");
+      sanitized = value.replace(/\D/g, '');
     }
     setFormData({ ...formData, [name]: sanitized });
   };
@@ -184,81 +171,82 @@ export default function SignupPage() {
     setAgreements({ terms: v, privacy: v });
   };
 
-  const handleAgreeItem = (name: "terms" | "privacy") => {
+  const handleAgreeItem = (name: 'terms' | 'privacy') => {
     setAgreements({ ...agreements, [name]: !agreements[name] });
   };
 
   const handleSendAuth = async () => {
     if (!formData.email) {
-      Swal.fire({ icon: "warning", title: "이메일을 입력해주세요" });
+      Swal.fire({ icon: 'warning', title: '이메일을 입력해주세요' });
       return;
     }
     if (!isValidEmail) {
-      Swal.fire({ icon: "warning", title: "이메일 형식이 올바르지 않습니다" });
+      Swal.fire({ icon: 'warning', title: '이메일 형식이 올바르지 않습니다' });
       return;
     }
 
     try {
-      const res = await apiFetch("/api/v1/auth/email/send", {
-        method: "POST",
+      const res = await apiFetch('/api/v1/auth/email/send', {
+        method: 'POST',
         body: JSON.stringify({ email: formData.email }),
       });
       if (res.ok) {
         setIsAuthSent(true);
         setTimer(300); // Redis 5분
         Swal.fire({
-          icon: "success",
-          title: "인증번호 발송 완료",
-          text: "메일함을 확인해주세요.",
+          icon: 'success',
+          title: '인증번호 발송 완료',
+          text: '메일함을 확인해주세요.',
         });
       } else {
         Swal.fire({
-          icon: "error",
-          title: "메일 전송 실패",
-          text: "이미 가입된 이메일이거나 서버 오류입니다.",
+          icon: 'error',
+          title: '메일 전송 실패',
+          text: '이미 가입된 이메일이거나 서버 오류입니다.',
         });
       }
     } catch {
-      Swal.fire({ icon: "error", title: "서버 연결 오류" });
+      Swal.fire({ icon: 'error', title: '서버 연결 오류' });
     }
   };
 
   const handleVerifyAuth = async () => {
     if (!formData.authCode) return;
     try {
-      const res = await apiFetch("/api/v1/auth/email/verify", {
-        method: "POST",
+      const res = await apiFetch('/api/v1/auth/email/verify', {
+        method: 'POST',
         body: JSON.stringify({
           email: formData.email,
           code: formData.authCode,
+          purpose: 'SIGNUP',
         }),
       });
       if (res.ok) {
         setIsAuthVerified(true);
         Swal.fire({
-          icon: "success",
-          title: "이메일 인증 완료",
+          icon: 'success',
+          title: '이메일 인증 완료',
           showConfirmButton: false,
           timer: 1200,
         });
       } else {
         Swal.fire({
-          icon: "error",
-          title: "인증 실패",
-          text: "인증번호가 일치하지 않습니다.",
+          icon: 'error',
+          title: '인증 실패',
+          text: '인증번호가 일치하지 않습니다.',
         });
       }
     } catch {
-      Swal.fire({ icon: "error", title: "인증 오류" });
+      Swal.fire({ icon: 'error', title: '인증 오류' });
     }
   };
 
   const handleSignup = async () => {
     if (!isFormValid) {
       Swal.fire({
-        icon: "warning",
-        title: "입력 정보를 확인해주세요",
-        text: "필수 약관 동의와 인증을 완료해주세요.",
+        icon: 'warning',
+        title: '입력 정보를 확인해주세요',
+        text: '필수 약관 동의와 인증을 완료해주세요.',
       });
       return;
     }
@@ -268,14 +256,14 @@ export default function SignupPage() {
     if (honeypot.length > 0 || Date.now() - formMountAtRef.current < 3000) {
       // 메시지 노출 없이 조용히 실패 처리 — 진짜 봇이면 실패 사실 자체를 숨김.
       await Swal.fire({
-        icon: "info",
-        title: "잠시 후 다시 시도해 주세요",
+        icon: 'info',
+        title: '잠시 후 다시 시도해 주세요',
       });
       return;
     }
     try {
-      const res = await apiFetch("/api/v1/auth/signup", {
-        method: "POST",
+      const res = await apiFetch('/api/v1/auth/signup', {
+        method: 'POST',
         body: JSON.stringify({
           email: formData.email,
           password: formData.password,
@@ -285,20 +273,20 @@ export default function SignupPage() {
       });
       if (res.ok) {
         await Swal.fire({
-          icon: "success",
-          title: "환영합니다",
+          icon: 'success',
+          title: '환영합니다',
           text:
-            "회원가입이 완료되었습니다. 로그인 후 헤더의 프로필을 눌러" +
-            " 닉네임과 프로필 사진을 변경하실 수 있습니다.",
-          confirmButtonText: "로그인하러 가기",
+            '회원가입이 완료되었습니다. 로그인 후 헤더의 프로필을 눌러' +
+            ' 닉네임과 프로필 사진을 변경하실 수 있습니다.',
+          confirmButtonText: '로그인하러 가기',
         });
-        router.push("/login");
+        router.push('/login');
       } else {
         const msg = await res.text();
-        Swal.fire({ icon: "error", title: "가입 실패", text: msg });
+        Swal.fire({ icon: 'error', title: '가입 실패', text: msg });
       }
     } catch {
-      Swal.fire({ icon: "error", title: "서버 오류가 발생했습니다" });
+      Swal.fire({ icon: 'error', title: '서버 오류가 발생했습니다' });
     }
   };
 
@@ -322,11 +310,7 @@ export default function SignupPage() {
         >
           <ChevronLeft className="size-6" aria-hidden />
         </button>
-        <button
-          type="button"
-          onClick={() => router.push("/")}
-          className="w-full text-center"
-        >
+        <button type="button" onClick={() => router.push('/')} className="w-full text-center">
           <h1 className="font-display-en text-2xl md:text-3xl font-extrabold tracking-tighter">
             POP-SPOT<span className="text-lime-300">.</span>
           </h1>
@@ -374,21 +358,19 @@ export default function SignupPage() {
               value={formData.email}
               onChange={handleChange}
               disabled={isAuthVerified}
-              invalid={
-                formData.email.length > 0 && !isValidEmail && !isAuthVerified
-              }
+              invalid={formData.email.length > 0 && !isValidEmail && !isAuthVerified}
               autoComplete="email"
               className="flex-1 bg-ink-800 border-cream-200/15 text-cream-200 placeholder:text-cream-200/30"
             />
             <Button
               type="button"
-              variant={isAuthVerified ? "outline" : "primary"}
+              variant={isAuthVerified ? 'outline' : 'primary'}
               size="md"
               onClick={handleSendAuth}
               disabled={isAuthVerified}
               className="shrink-0"
             >
-              {isAuthVerified ? "인증완료" : "인증하기"}
+              {isAuthVerified ? '인증완료' : '인증하기'}
             </Button>
           </div>
         </Field>
@@ -442,7 +424,7 @@ export default function SignupPage() {
         >
           <Input
             name="password"
-            type={showPassword ? "text" : "password"}
+            type={showPassword ? 'text' : 'password'}
             placeholder="영문, 숫자, 특수문자 포함 8~20자"
             value={formData.password}
             onChange={handleChange}
@@ -453,7 +435,7 @@ export default function SignupPage() {
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                aria-label={showPassword ? "비밀번호 숨기기" : "비밀번호 보기"}
+                aria-label={showPassword ? '비밀번호 숨기기' : '비밀번호 보기'}
                 className="text-cream-200/50 hover:text-cream-200 transition-colors"
               >
                 {/* state-icon 컨벤션 — 눈 뜸 = 현재 보이는 상태, 눈 감김 = 현재 가려진 상태. */}
@@ -487,7 +469,7 @@ export default function SignupPage() {
         >
           <Input
             name="passwordConfirm"
-            type={showPasswordConfirm ? "text" : "password"}
+            type={showPasswordConfirm ? 'text' : 'password'}
             placeholder="비밀번호를 한 번 더 입력해주세요"
             value={formData.passwordConfirm}
             onChange={handleChange}
@@ -498,9 +480,7 @@ export default function SignupPage() {
               <button
                 type="button"
                 onClick={() => setShowPasswordConfirm(!showPasswordConfirm)}
-                aria-label={
-                  showPasswordConfirm ? "비밀번호 숨기기" : "비밀번호 보기"
-                }
+                aria-label={showPasswordConfirm ? '비밀번호 숨기기' : '비밀번호 보기'}
                 className="text-cream-200/50 hover:text-cream-200 transition-colors"
               >
                 {/* state-icon — 눈 뜸 = 현재 보이는 상태, 눈 감김 = 현재 가려진 상태. */}
@@ -582,8 +562,8 @@ export default function SignupPage() {
             aria-label="성별"
           >
             {[
-              { v: "M", label: "남자" },
-              { v: "F", label: "여자" },
+              { v: 'M', label: '남자' },
+              { v: 'F', label: '여자' },
             ].map((g) => {
               const active = formData.gender === g.v;
               return (
@@ -595,8 +575,8 @@ export default function SignupPage() {
                   onClick={() => setFormData({ ...formData, gender: g.v })}
                   className={`flex-1 h-11 text-sm font-medium transition-colors ${
                     active
-                      ? "bg-lime-300 text-ink-900 font-semibold"
-                      : "text-cream-200/60 hover:text-cream-200"
+                      ? 'bg-lime-300 text-ink-900 font-semibold'
+                      : 'text-cream-200/60 hover:text-cream-200'
                   }`}
                 >
                   {g.label}
@@ -641,8 +621,8 @@ export default function SignupPage() {
         {/* 약관 동의 */}
         <div className="bg-ink-800 p-4 rounded-md border border-cream-200/15 space-y-3 mt-6">
           <p className="text-xs text-cream-200/60 pb-2 leading-relaxed">
-            POP-SPOT 은 <strong className="text-cream-200">만 14세 이상</strong>만 가입할 수 있습니다.
-            가입을 진행하면 본인이 만 14세 이상임을 확인한 것으로 봅니다.
+            POP-SPOT 은 <strong className="text-cream-200">만 14세 이상</strong>만 가입할 수
+            있습니다. 가입을 진행하면 본인이 만 14세 이상임을 확인한 것으로 봅니다.
           </p>
           <label className="flex items-center gap-3 cursor-pointer pb-3 border-b border-cream-200/10 select-none">
             <input
@@ -654,34 +634,27 @@ export default function SignupPage() {
             <span
               aria-hidden
               className={`size-5 rounded-pill border flex items-center justify-center transition-colors ${
-                isAllAgreed
-                  ? "bg-lime-300 border-lime-300"
-                  : "border-cream-200/30 bg-ink-900"
+                isAllAgreed ? 'bg-lime-300 border-lime-300' : 'border-cream-200/30 bg-ink-900'
               }`}
             >
               {isAllAgreed && <Check className="size-3 text-ink-900" />}
             </span>
-            <span className="font-bold text-sm text-cream-200">
-              전체 약관에 동의합니다
-            </span>
+            <span className="font-bold text-sm text-cream-200">전체 약관에 동의합니다</span>
           </label>
 
           {[
             {
-              key: "terms" as const,
-              label: "[필수] POP-SPOT 서비스 이용약관",
-              href: "/terms",
+              key: 'terms' as const,
+              label: '[필수] POP-SPOT 서비스 이용약관',
+              href: '/terms',
             },
             {
-              key: "privacy" as const,
-              label: "[필수] 개인정보 수집 및 이용 (만 14세 이상)",
-              href: "/privacy",
+              key: 'privacy' as const,
+              label: '[필수] 개인정보 수집 및 이용 (만 14세 이상)',
+              href: '/privacy',
             },
           ].map((item) => (
-            <div
-              key={item.key}
-              className="flex items-center justify-between gap-3"
-            >
+            <div key={item.key} className="flex items-center justify-between gap-3">
               {/* 체크박스 + 라벨은 클릭 시 동의 토글 */}
               <label className="flex items-center gap-3 cursor-pointer select-none flex-1 min-w-0">
                 <input
@@ -693,18 +666,12 @@ export default function SignupPage() {
                 <span
                   aria-hidden
                   className={`size-4 rounded border flex items-center justify-center transition-colors shrink-0 ${
-                    agreements[item.key]
-                      ? "bg-lime-300 border-lime-300"
-                      : "border-cream-200/30"
+                    agreements[item.key] ? 'bg-lime-300 border-lime-300' : 'border-cream-200/30'
                   }`}
                 >
-                  {agreements[item.key] && (
-                    <Check className="size-2.5 text-ink-900" />
-                  )}
+                  {agreements[item.key] && <Check className="size-2.5 text-ink-900" />}
                 </span>
-                <span className="text-xs text-cream-200/60 truncate">
-                  {item.label}
-                </span>
+                <span className="text-xs text-cream-200/60 truncate">{item.label}</span>
               </label>
 
               {/* 약관 본문 새 탭으로 — "동의 전 열람" 절차 보장 */}

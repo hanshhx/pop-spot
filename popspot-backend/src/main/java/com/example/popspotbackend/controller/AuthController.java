@@ -1,7 +1,9 @@
 package com.example.popspotbackend.controller;
 
+import com.example.popspotbackend.config.OAuth2SuccessHandler;
 import com.example.popspotbackend.dto.LoginRequestDto;
 import com.example.popspotbackend.dto.LoginResponseDto;
+import com.example.popspotbackend.dto.ResetPasswordRequestDto;
 import com.example.popspotbackend.dto.SignupRequestDto;
 import com.example.popspotbackend.entity.User;
 import com.example.popspotbackend.service.AuthService;
@@ -42,6 +44,8 @@ public class AuthController {
     private static final String KEY_AUTH_ATTEMPTS = "AUTH_ATTEMPTS:";
     private static final String KEY_AUTH_VERIFIED = "AUTH_VERIFIED:";
     private static final String VERIFIED_TRUE = "TRUE";
+    private static final String PURPOSE_SIGNUP = "SIGNUP";
+    private static final String PURPOSE_PASSWORD_RESET = "PASSWORD_RESET";
 
     private static final String SOCIAL_USER_ERROR_PREFIX = "SOCIAL_USER";
 
@@ -51,6 +55,9 @@ public class AuthController {
 
     @PostMapping("/signup")
     public ResponseEntity<String> signup(@Valid @RequestBody SignupRequestDto requestDto) {
+        if (!consumeEmailVerification(requestDto.getEmail(), PURPOSE_SIGNUP)) {
+            return ResponseEntity.status(403).body("회원가입 이메일 인증이 완료되지 않았거나 만료되었습니다.");
+        }
         String userId = authService.signup(requestDto);
         return ResponseEntity.ok("회원가입 성공! User ID: " + userId);
     }
@@ -58,6 +65,22 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<LoginResponseDto> login(@RequestBody LoginRequestDto requestDto) {
         return ResponseEntity.ok(authService.login(requestDto));
+    }
+
+    @PostMapping("/oauth/exchange")
+    public ResponseEntity<?> exchangeOAuthCode(@RequestBody Map<String, String> body) {
+        String code = body.get("code");
+        if (isBlank(code) || code.length() > 100) {
+            return ResponseEntity.badRequest().body("유효하지 않은 로그인 교환 코드입니다.");
+        }
+        String token =
+                redisTemplate
+                        .opsForValue()
+                        .getAndDelete(OAuth2SuccessHandler.OAUTH_EXCHANGE_KEY_PREFIX + code);
+        if (token == null) {
+            return ResponseEntity.status(401).body("로그인 교환 코드가 만료되었거나 이미 사용되었습니다.");
+        }
+        return ResponseEntity.ok(Map.of("token", token));
     }
 
     @GetMapping("/check-email")
@@ -82,7 +105,7 @@ public class AuthController {
         if (isBlank(email)) {
             return ResponseEntity.badRequest().body("이메일을 입력해주세요.");
         }
-        issueNewAuthCode(email);
+        issueNewAuthCode(email, PURPOSE_SIGNUP);
         return ResponseEntity.ok("인증번호가 발송되었습니다.");
     }
 
@@ -92,7 +115,7 @@ public class AuthController {
         String nickname = body.get("nickname");
         try {
             authService.checkUserForPasswordReset(email, nickname);
-            issueNewAuthCode(email);
+            issueNewAuthCode(email, PURPOSE_PASSWORD_RESET);
             return ResponseEntity.ok("인증번호 발송 완료");
         } catch (RuntimeException e) {
             return mapPasswordResetError(e);
@@ -103,34 +126,32 @@ public class AuthController {
     public ResponseEntity<String> verifyEmail(@RequestBody Map<String, String> body) {
         String email = body.get("email");
         String code = body.get("code");
+        String purpose = normalizePurpose(body.get("purpose"));
 
         if (email == null || code == null) {
             return ResponseEntity.badRequest().body("이메일/코드를 입력해주세요.");
         }
 
-        String savedCode = redisTemplate.opsForValue().get(KEY_AUTH_CODE + email);
+        String savedCode = redisTemplate.opsForValue().get(authCodeKey(email, purpose));
         if (savedCode == null) {
             return ResponseEntity.status(400).body("인증번호가 만료되었거나 발송되지 않았습니다. 다시 발송해주세요.");
         }
 
         if (savedCode.equals(code)) {
-            markEmailVerified(email);
+            markEmailVerified(email, purpose);
             return ResponseEntity.ok("인증 성공");
         }
-        return handleFailedAttempt(email);
+        return handleFailedAttempt(email, purpose);
     }
 
     @PostMapping("/reset-password")
-    public ResponseEntity<String> resetPassword(@RequestBody Map<String, String> request) {
-        String email = request.get("email");
-        String newPassword = request.get("newPassword");
-
-        if (!isEmailVerified(email)) {
+    public ResponseEntity<String> resetPassword(
+            @Valid @RequestBody ResetPasswordRequestDto request) {
+        if (!consumeEmailVerification(request.getEmail(), PURPOSE_PASSWORD_RESET)) {
             return ResponseEntity.status(403).body("이메일 인증이 완료되지 않았거나 만료되었습니다. 다시 인증해주세요.");
         }
 
-        authService.updatePassword(email, newPassword);
-        redisTemplate.delete(KEY_AUTH_VERIFIED + email);
+        authService.updatePassword(request.getEmail(), request.getNewPassword());
         return ResponseEntity.ok("비밀번호가 성공적으로 변경되었습니다.");
     }
 
@@ -150,37 +171,42 @@ public class AuthController {
 
     /* ============================== 내부 헬퍼 ============================== */
 
-    private void issueNewAuthCode(String email) {
+    private void issueNewAuthCode(String email, String purpose) {
         String authCode = emailService.sendMail(email);
         redisTemplate
                 .opsForValue()
-                .set(KEY_AUTH_CODE + email, authCode, AUTH_CODE_TTL_MINUTES, TimeUnit.MINUTES);
-        redisTemplate.delete(KEY_AUTH_ATTEMPTS + email);
+                .set(
+                        authCodeKey(email, purpose),
+                        authCode,
+                        AUTH_CODE_TTL_MINUTES,
+                        TimeUnit.MINUTES);
+        redisTemplate.delete(authAttemptsKey(email, purpose));
     }
 
-    private void markEmailVerified(String email) {
-        redisTemplate.delete(KEY_AUTH_CODE + email);
-        redisTemplate.delete(KEY_AUTH_ATTEMPTS + email);
+    private void markEmailVerified(String email, String purpose) {
+        redisTemplate.delete(authCodeKey(email, purpose));
+        redisTemplate.delete(authAttemptsKey(email, purpose));
         redisTemplate
                 .opsForValue()
                 .set(
-                        KEY_AUTH_VERIFIED + email,
+                        authVerifiedKey(email, purpose),
                         VERIFIED_TRUE,
                         AUTH_VERIFIED_TTL_MINUTES,
                         TimeUnit.MINUTES);
     }
 
-    private boolean isEmailVerified(String email) {
-        return VERIFIED_TRUE.equals(redisTemplate.opsForValue().get(KEY_AUTH_VERIFIED + email));
+    private boolean consumeEmailVerification(String email, String purpose) {
+        return VERIFIED_TRUE.equals(
+                redisTemplate.opsForValue().getAndDelete(authVerifiedKey(email, purpose)));
     }
 
-    private ResponseEntity<String> handleFailedAttempt(String email) {
-        String attemptsKey = KEY_AUTH_ATTEMPTS + email;
+    private ResponseEntity<String> handleFailedAttempt(String email, String purpose) {
+        String attemptsKey = authAttemptsKey(email, purpose);
         Long attempts = redisTemplate.opsForValue().increment(attemptsKey);
         redisTemplate.expire(attemptsKey, AUTH_CODE_TTL_MINUTES, TimeUnit.MINUTES);
 
         if (attempts != null && attempts >= MAX_VERIFY_ATTEMPTS) {
-            redisTemplate.delete(KEY_AUTH_CODE + email);
+            redisTemplate.delete(authCodeKey(email, purpose));
             redisTemplate.delete(attemptsKey);
             // 보안(v2.22): 이메일 평문을 로그에 남기지 않는다(PII). 마스킹 후 기록.
             log.warn("인증코드 brute-force 의심: email={}, 시도={}", maskEmail(email), attempts);
@@ -225,5 +251,21 @@ public class AuthController {
         int at = email.indexOf('@');
         if (at <= 0) return "***";
         return email.charAt(0) + "***" + email.substring(at);
+    }
+
+    private static String normalizePurpose(String purpose) {
+        return PURPOSE_PASSWORD_RESET.equals(purpose) ? PURPOSE_PASSWORD_RESET : PURPOSE_SIGNUP;
+    }
+
+    private static String authCodeKey(String email, String purpose) {
+        return KEY_AUTH_CODE + purpose + ":" + email;
+    }
+
+    private static String authAttemptsKey(String email, String purpose) {
+        return KEY_AUTH_ATTEMPTS + purpose + ":" + email;
+    }
+
+    private static String authVerifiedKey(String email, String purpose) {
+        return KEY_AUTH_VERIFIED + purpose + ":" + email;
     }
 }

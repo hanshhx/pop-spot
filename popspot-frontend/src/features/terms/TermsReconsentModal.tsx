@@ -1,11 +1,11 @@
-"use client";
+'use client';
 
-import { useEffect, useState } from "react";
-import Link from "next/link";
-import { FileText, LogOut } from "lucide-react";
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { FileText, LogOut } from 'lucide-react';
 
-import { apiFetch } from "@/lib/api";
-import { Button } from "@/components/ui/button";
+import { apiFetch } from '@/lib/api';
+import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
@@ -13,7 +13,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
+} from '@/components/ui/dialog';
 
 interface TermsStatus {
   currentVersion: string;
@@ -45,7 +45,7 @@ export function TermsReconsentModal({ enabled, onDecline }: TermsReconsentModalP
   useEffect(() => {
     if (!enabled) return;
     let cancelled = false;
-    apiFetch("/api/v1/terms/status")
+    apiFetch('/api/v1/terms/status')
       .then(async (res) => {
         if (!res.ok || cancelled) return;
         const data = (await res.json()) as TermsStatus;
@@ -65,8 +65,8 @@ export function TermsReconsentModal({ enabled, onDecline }: TermsReconsentModalP
     if (accepting) return;
     setAccepting(true);
     try {
-      const res = await apiFetch("/api/v1/terms/accept", { method: "POST" });
-      if (!res.ok) throw new Error("동의 처리에 실패했습니다.");
+      const res = await apiFetch('/api/v1/terms/accept', { method: 'POST' });
+      if (!res.ok) throw new Error('동의 처리에 실패했습니다.');
       setOpen(false);
     } catch {
       /* 실패 — 모달 유지 */
@@ -98,11 +98,10 @@ export function TermsReconsentModal({ enabled, onDecline }: TermsReconsentModalP
 
         <div className="py-2 text-sm text-foreground space-y-3">
           <p>
-            현재 버전:{" "}
-            <strong className="text-lime-500">v{status.currentVersion}</strong>
+            현재 버전: <strong className="text-lime-500">v{status.currentVersion}</strong>
           </p>
           <p className="text-muted-foreground text-xs">
-            마지막 동의 버전: v{status.agreedVersion ?? "(없음)"}
+            마지막 동의 버전: v{status.agreedVersion ?? '(없음)'}
           </p>
 
           <div className="flex flex-col gap-1.5 text-xs">

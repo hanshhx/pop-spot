@@ -28,7 +28,9 @@ public class GameController {
     private final TicketService ticketService;
 
     @PostMapping("/start")
-    public ResponseEntity<String> startSimulation(@RequestParam String itemId) {
+    public ResponseEntity<String> startSimulation(
+            Authentication authentication, @RequestParam String itemId) {
+        requireAuthenticatedUserId(authentication);
         ticketService.resetGame(itemId);
         ticketService.startSimulation(itemId);
         return ResponseEntity.ok("START");

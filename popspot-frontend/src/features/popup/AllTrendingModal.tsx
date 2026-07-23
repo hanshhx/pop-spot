@@ -1,15 +1,15 @@
-"use client";
+'use client';
 
-import { useRouter } from "next/navigation";
+import { useRouter } from 'next/navigation';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogDescription,
-} from "@/components/ui/dialog";
-import { PopupCard } from "@/components/main/PopupCard";
-import type { PopupStore } from "@/types/popup";
+} from '@/components/ui/dialog';
+import { PopupCard } from '@/components/main/PopupCard';
+import type { PopupStore } from '@/types/popup';
 
 interface AllTrendingModalProps {
   open: boolean;
@@ -23,15 +23,9 @@ interface AllTrendingModalProps {
  * <p>메인 랭킹 타일을 누르면 열린다. 텍스트 리스트 대신 팝업 <b>사진 + 이름</b> 카드로 보여주고,
  * 조회수(인기) 내림차순으로 정렬한다.
  */
-export function AllTrendingModal({
-  open,
-  onOpenChange,
-  popups,
-}: AllTrendingModalProps) {
+export function AllTrendingModal({ open, onOpenChange, popups }: AllTrendingModalProps) {
   const router = useRouter();
-  const ranked = [...popups].sort(
-    (a, b) => (b.viewCount || 0) - (a.viewCount || 0)
-  );
+  const ranked = [...popups].sort((a, b) => (b.viewCount || 0) - (a.viewCount || 0));
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -41,9 +35,7 @@ export function AllTrendingModal({
             실시간 랭킹
             <span className="text-lime-400">·</span>
           </DialogTitle>
-          <DialogDescription>
-            서울에서 지금 가장 많이 찾는 팝업스토어 순
-          </DialogDescription>
+          <DialogDescription>서울에서 지금 가장 많이 찾는 팝업스토어 순</DialogDescription>
         </DialogHeader>
 
         <div className="overflow-y-auto custom-scrollbar -mx-1 px-1">
@@ -62,9 +54,7 @@ export function AllTrendingModal({
                 <div key={popup.id} className="relative">
                   <span
                     className={`absolute right-2 top-2 z-10 grid h-7 min-w-7 place-items-center rounded-full px-2 text-xs font-black tabular-nums shadow ${
-                      idx < 3
-                        ? "bg-lime-300 text-ink-900"
-                        : "bg-black/55 text-white backdrop-blur"
+                      idx < 3 ? 'bg-lime-300 text-ink-900' : 'bg-black/55 text-white backdrop-blur'
                     }`}
                   >
                     {idx + 1}

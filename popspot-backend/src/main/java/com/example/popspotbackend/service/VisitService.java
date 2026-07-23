@@ -9,15 +9,22 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /** 방문 로그 기록 + 어드민 집계. IP·개인정보는 다루지 않는다. */
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class VisitService {
 
     private final VisitLogRepository visitLogRepository;
+
+    @Value("${popspot.visit-log.retention-days:90}")
+    private int retentionDays;
 
     /** 익명 방문 1건 기록. visitorId 가 비면 무시, 길이 초과 값은 컬럼 한도로 절단. UA 는 봇 식별용으로 저장. */
     @Transactional
@@ -96,6 +103,22 @@ public class VisitService {
                             return m;
                         })
                 .toList();
+    }
+
+    /** 개인정보 처리방침의 3개월 보관 약속을 코드로 강제한다. 매일 04:40 KST에 만료 로그를 제거한다. */
+    @Scheduled(cron = "${popspot.visit-log.cleanup-cron:0 40 4 * * *}", zone = "Asia/Seoul")
+    @Transactional
+    public void deleteExpiredVisitLogs() {
+        int safeRetentionDays = Math.max(1, retentionDays);
+        int deleted =
+                visitLogRepository.deleteByCreatedAtBefore(
+                        LocalDateTime.now().minusDays(safeRetentionDays));
+        if (deleted > 0) {
+            log.info(
+                    "[VisitLog] 보관기간 초과 로그 삭제 count={} retentionDays={}",
+                    deleted,
+                    safeRetentionDays);
+        }
     }
 
     private static String clamp(String s, int max) {

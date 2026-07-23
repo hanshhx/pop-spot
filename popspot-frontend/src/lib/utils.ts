@@ -1,5 +1,5 @@
-import { clsx, type ClassValue } from "clsx";
-import { twMerge } from "tailwind-merge";
+import { clsx, type ClassValue } from 'clsx';
+import { twMerge } from 'tailwind-merge';
 
 /**
  * Tailwind 클래스 병합 헬퍼.
@@ -18,8 +18,8 @@ export function cn(...inputs: ClassValue[]) {
  */
 export function formatCompactNumber(n: number): string {
   if (n < 1000) return n.toString();
-  if (n < 1_000_000) return `${(n / 1000).toFixed(1).replace(/\.0$/, "")}K`;
-  return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
+  if (n < 1_000_000) return `${(n / 1000).toFixed(1).replace(/\.0$/, '')}K`;
+  return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
 }
 
 /** D-day 계산. 만료된 경우 0 반환. */

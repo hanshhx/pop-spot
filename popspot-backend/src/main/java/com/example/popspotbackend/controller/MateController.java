@@ -1,13 +1,14 @@
 package com.example.popspotbackend.controller;
 
+import com.example.popspotbackend.dto.MateChatMessageResponseDto;
 import com.example.popspotbackend.dto.MateDto;
-import com.example.popspotbackend.entity.MateChatMessage;
-import com.example.popspotbackend.entity.MatePost;
+import com.example.popspotbackend.dto.MatePostResponseDto;
 import com.example.popspotbackend.service.MateService;
 import com.example.popspotbackend.service.MateService.AccessDeniedToPostException;
 import com.example.popspotbackend.service.MateService.BoostQuotaExceededException;
 import com.example.popspotbackend.service.MateService.BoostStatus;
 import com.example.popspotbackend.service.MateService.JoinResult;
+import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -39,18 +40,20 @@ public class MateController {
     private final MateService mateService;
 
     @GetMapping
-    public List<MatePost> getAllPosts() {
+    public List<MatePostResponseDto> getAllPosts() {
         return mateService.findAllPostsOrdered();
     }
 
     @GetMapping("/{postId}/chat")
-    public ResponseEntity<List<MateChatMessage>> getChatMessages(@PathVariable Long postId) {
-        return ResponseEntity.ok(mateService.findChatMessages(postId));
+    public ResponseEntity<List<MateChatMessageResponseDto>> getChatMessages(
+            Authentication authentication, @PathVariable Long postId) {
+        return ResponseEntity.ok(
+                mateService.findChatMessages(postId, requireUserId(authentication)));
     }
 
     @PostMapping
-    public ResponseEntity<MatePost> createPost(
-            Authentication authentication, @RequestBody MateDto dto) {
+    public ResponseEntity<MatePostResponseDto> createPost(
+            Authentication authentication, @Valid @RequestBody MateDto dto) {
         return ResponseEntity.ok(mateService.createPost(dto, requireUserId(authentication)));
     }
 

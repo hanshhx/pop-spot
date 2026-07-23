@@ -1,10 +1,10 @@
-"use client";
+'use client';
 
-import { useMemo, useState } from "react";
-import Link from "next/link";
-import { Sparkles, Loader2, MapPin, ArrowRight } from "lucide-react";
-import { apiFetch } from "@/lib/api";
-import { SectionLogo } from "@/components/layout/BrandLogos";
+import { useMemo, useState } from 'react';
+import Link from 'next/link';
+import { Sparkles, Loader2, MapPin, ArrowRight } from 'lucide-react';
+import { apiFetch } from '@/lib/api';
+import { SectionLogo } from '@/components/layout/BrandLogos';
 
 /**
  * AI 검색존 — 기존 Algolia 서치바를 걷어내고 자연어 'AI 검색'을 메인 검색으로 승격.
@@ -25,17 +25,22 @@ interface SearchZoneProps {
   popups?: { id: number; name: string; location: string }[];
 }
 
-const EXAMPLES = ["비 오는 날 감성 카페", "성수 캐릭터 굿즈", "주말 전시 팝업", "아이랑 가기 좋은 곳"];
+const EXAMPLES = [
+  '비 오는 날 감성 카페',
+  '성수 캐릭터 굿즈',
+  '주말 전시 팝업',
+  '아이랑 가기 좋은 곳',
+];
 
 export function SearchZone({ onAiFilter, onSelectPopup, popups }: SearchZoneProps = {}) {
-  const [q, setQ] = useState("");
+  const [q, setQ] = useState('');
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<AiResult[] | null>(null);
   const [erred, setErred] = useState(false);
   // 이름 매칭 드롭다운 표시 여부(입력/포커스 중에만).
   const [showSuggest, setShowSuggest] = useState(false);
 
-  const mapMode = typeof onAiFilter === "function"; // 지도 필터 vs 결과 목록
+  const mapMode = typeof onAiFilter === 'function'; // 지도 필터 vs 결과 목록
 
   // 이름 부분일치(대소문자 무시) — AI 호출 없이 즉시. "마뗑킴" → "마뗑킴 전시" 처럼 부분 이름도 잡는다.
   const nameMatches = useMemo(() => {
@@ -44,7 +49,7 @@ export function SearchZone({ onAiFilter, onSelectPopup, popups }: SearchZoneProp
     return popups.filter((p) => p.name?.toLowerCase().includes(low)).slice(0, 6);
   }, [q, popups]);
 
-  const canSuggest = typeof onSelectPopup === "function";
+  const canSuggest = typeof onSelectPopup === 'function';
 
   /** 이름 매칭 결과 선택 → 지도가 그 핀으로 이동하고 카드를 연다. */
   function pick(p: { id: number; name: string; location: string }) {
@@ -67,8 +72,8 @@ export function SearchZone({ onAiFilter, onSelectPopup, popups }: SearchZoneProp
       const list: AiResult[] = Array.isArray(data?.results)
         ? data.results.map((r: { id: unknown; name?: string; location?: string }) => ({
             id: String(r.id),
-            name: r.name ?? "",
-            location: r.location ?? "",
+            name: r.name ?? '',
+            location: r.location ?? '',
           }))
         : [];
       setResults(list);
@@ -83,7 +88,7 @@ export function SearchZone({ onAiFilter, onSelectPopup, popups }: SearchZoneProp
   }
 
   function reset() {
-    setQ("");
+    setQ('');
     setResults(null);
     setErred(false);
     onAiFilter?.(null);
@@ -126,7 +131,7 @@ export function SearchZone({ onAiFilter, onSelectPopup, popups }: SearchZoneProp
           // 따라서 지연 없이 즉시 닫아도 안전하다(지연을 두면 딴 곳을 눌러도 드롭다운이 잠깐 남았다).
           onBlur={() => setShowSuggest(false)}
           onKeyDown={(e) => {
-            if (e.key === "Enter") {
+            if (e.key === 'Enter') {
               // 이름 후보가 있으면 첫 후보로 바로 이동(핀+카드). 없으면 자연어 AI 검색.
               if (canSuggest && showSuggest && nameMatches.length > 0) {
                 pick(nameMatches[0]);
@@ -134,7 +139,7 @@ export function SearchZone({ onAiFilter, onSelectPopup, popups }: SearchZoneProp
                 setShowSuggest(false);
                 run();
               }
-            } else if (e.key === "Escape") {
+            } else if (e.key === 'Escape') {
               setShowSuggest(false);
             }
           }}
@@ -171,15 +176,17 @@ export function SearchZone({ onAiFilter, onSelectPopup, popups }: SearchZoneProp
                 >
                   <MapPin size={16} className="shrink-0 text-lime-500" />
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-bold text-foreground">{p.name}</span>
+                    <span className="block truncate text-sm font-bold text-foreground">
+                      {p.name}
+                    </span>
                     <span className="block truncate text-xs text-muted-foreground">
-                      {p.location || "위치 정보 없음"}
+                      {p.location || '위치 정보 없음'}
                     </span>
                   </span>
                   {/* 지도 모드면 해당 핀으로 이동하고, 모달(글로벌 검색)에선 상세로 보낸다.
                       문구가 실제 동작과 어긋나면 사용자가 어디로 가는지 예측할 수 없다. */}
                   <span className="shrink-0 text-[10px] font-bold text-lime-600 dark:text-lime-300">
-                    {mapMode ? "지도에서 보기" : "상세 보기"}
+                    {mapMode ? '지도에서 보기' : '상세 보기'}
                   </span>
                 </button>
               </li>
@@ -191,11 +198,11 @@ export function SearchZone({ onAiFilter, onSelectPopup, popups }: SearchZoneProp
       {/* 결과 피드백 */}
       {(count !== null || erred) && (
         <div className="mt-3 flex items-center justify-between gap-2 text-xs">
-          <span className={erred ? "font-medium text-hot-500" : "text-muted-foreground"}>
+          <span className={erred ? 'font-medium text-hot-500' : 'text-muted-foreground'}>
             {erred
-              ? "AI 검색이 잠시 안 돼요. 다시 시도해 주세요."
+              ? 'AI 검색이 잠시 안 돼요. 다시 시도해 주세요.'
               : count === 0
-                ? "맞는 팝업을 못 찾았어요. 다르게 말해볼까요?"
+                ? '맞는 팝업을 못 찾았어요. 다르게 말해볼까요?'
                 : mapMode
                   ? `지도에 ${count}곳만 표시 중 ✨`
                   : `${count}곳 찾았어요 ✨`}
@@ -205,7 +212,7 @@ export function SearchZone({ onAiFilter, onSelectPopup, popups }: SearchZoneProp
             onClick={reset}
             className="shrink-0 font-bold text-lime-700 hover:underline dark:text-lime-300"
           >
-            {mapMode ? "전체 지도 보기" : "초기화"}
+            {mapMode ? '전체 지도 보기' : '초기화'}
           </button>
         </div>
       )}
@@ -227,7 +234,7 @@ export function SearchZone({ onAiFilter, onSelectPopup, popups }: SearchZoneProp
                     {r.name}
                   </p>
                   <p className="truncate text-xs text-muted-foreground">
-                    {r.location || "위치 정보 없음"}
+                    {r.location || '위치 정보 없음'}
                   </p>
                 </div>
                 <ArrowRight

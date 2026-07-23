@@ -1,8 +1,8 @@
-"use client";
+'use client';
 
-import { AnimatePresence, motion } from "framer-motion";
-import { PlusCircle, X } from "lucide-react";
-import type { PopupStore } from "@/types/popup";
+import { AnimatePresence, motion } from 'framer-motion';
+import { PlusCircle, X } from 'lucide-react';
+import type { PopupStore } from '@/types/popup';
 
 interface AddPlaceModalProps {
   open: boolean;
@@ -18,19 +18,14 @@ interface AddPlaceModalProps {
  * 으로 채우는 로컬 시트. 따라서 Radix Dialog 가 아닌 자체 motion 래퍼를 유지한다.
  * 비즈니스 로직(중복 체크/state 변경)은 부모에 두고 여기서는 선택 이벤트만 흘려보낸다.
  */
-export function AddPlaceModal({
-  open,
-  onClose,
-  popups,
-  onSelect,
-}: AddPlaceModalProps) {
+export function AddPlaceModal({ open, onClose, popups, onSelect }: AddPlaceModalProps) {
   return (
     <AnimatePresence>
       {open && (
         <motion.div
-          initial={{ y: "100%" }}
+          initial={{ y: '100%' }}
           animate={{ y: 0 }}
-          exit={{ y: "100%" }}
+          exit={{ y: '100%' }}
           className="fixed inset-0 bg-surface z-[100] flex flex-col"
           role="dialog"
           aria-label="장소 추가하기"
@@ -55,12 +50,8 @@ export function AddPlaceModal({
                 className="w-full text-left flex justify-between items-center p-3 mb-2 border border-[var(--color-border)] rounded-md cursor-pointer hover:bg-cream-300 dark:hover:bg-ink-800 hover:border-lime-300/60 hover:scale-[1.01] active:scale-[0.99] transition-all"
               >
                 <div>
-                  <h4 className="font-semibold text-sm text-foreground">
-                    {popup.name}
-                  </h4>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {popup.location}
-                  </p>
+                  <h4 className="font-semibold text-sm text-foreground">{popup.name}</h4>
+                  <p className="text-xs text-muted-foreground mt-0.5">{popup.location}</p>
                 </div>
                 <PlusCircle size={18} className="text-lime-500" />
               </button>

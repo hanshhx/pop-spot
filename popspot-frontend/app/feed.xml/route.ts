@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse } from 'next/server';
 
 /**
  * v2.20.3 — RSS 2.0 피드 (Naver SearchAdvisor / 일반 RSS 리더용).
@@ -12,10 +12,9 @@ import { NextResponse } from "next/server";
  * <p>캐시 정책: ISR 1시간. 정적 페이지는 자주 안 바뀌므로 충분.
  */
 
-const SITE_URL = "https://popspot.co.kr";
-const SITE_TITLE = "POP-SPOT — 서울 팝업스토어 큐레이션";
-const SITE_DESCRIPTION =
-  "서울 팝업스토어를 지도와 위시 · 메이트 보드로 모아보는 큐레이션 서비스";
+const SITE_URL = 'https://popspot.co.kr';
+const SITE_TITLE = 'POP-SPOT — 서울 팝업스토어 큐레이션';
+const SITE_DESCRIPTION = '서울 팝업스토어를 지도와 위시 · 메이트 보드로 모아보는 큐레이션 서비스';
 
 export const revalidate = 3600;
 
@@ -31,28 +30,28 @@ export async function GET() {
 
   const items: FeedItem[] = [
     {
-      title: "POP-SPOT 서비스 소개",
+      title: 'POP-SPOT 서비스 소개',
       link: `${SITE_URL}/about`,
       description:
-        "서울 팝업스토어 정보를 지도 한 화면에서 보는 무료 큐레이션 서비스. 지역 · 브랜드 · 마감임박순.",
+        '서울 팝업스토어 정보를 지도 한 화면에서 보는 무료 큐레이션 서비스. 지역 · 브랜드 · 마감임박순.',
       pubDate: now,
     },
     {
-      title: "POP-SPOT 시작하기",
+      title: 'POP-SPOT 시작하기',
       link: `${SITE_URL}/`,
-      description: "서울 팝업을 지도 · 캘린더 · 랭킹 한 화면에서. 바로 둘러보세요.",
+      description: '서울 팝업을 지도 · 캘린더 · 랭킹 한 화면에서. 바로 둘러보세요.',
       pubDate: now,
     },
     {
-      title: "이용 약관",
+      title: '이용 약관',
       link: `${SITE_URL}/terms`,
-      description: "POP-SPOT 서비스 이용 약관. 자동수집 정책 (§10-2) 포함.",
+      description: 'POP-SPOT 서비스 이용 약관. 자동수집 정책 (§10-2) 포함.',
       pubDate: now,
     },
     {
-      title: "개인정보 처리방침",
+      title: '개인정보 처리방침',
       link: `${SITE_URL}/privacy`,
-      description: "수집 항목 · 보관 기간 · DPO 연락처 등 개인정보 처리방침.",
+      description: '수집 항목 · 보관 기간 · DPO 연락처 등 개인정보 처리방침.',
       pubDate: now,
     },
   ];
@@ -67,15 +66,15 @@ export async function GET() {
     <language>ko-KR</language>
     <lastBuildDate>${now}</lastBuildDate>
     <generator>Next.js (popspot)</generator>
-${items.map(renderItem).join("\n")}
+${items.map(renderItem).join('\n')}
   </channel>
 </rss>
 `;
 
   return new NextResponse(xml, {
     headers: {
-      "Content-Type": "application/rss+xml; charset=utf-8",
-      "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=86400",
+      'Content-Type': 'application/rss+xml; charset=utf-8',
+      'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=86400',
     },
   });
 }
@@ -92,9 +91,9 @@ function renderItem(item: FeedItem): string {
 
 function escapeXml(s: string): string {
   return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&apos;");
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
 }

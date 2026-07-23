@@ -5,7 +5,7 @@
  * 로컬 시간 기준 (KST 사용자 가정).
  */
 
-export type PeriodCode = "today" | "tomorrow" | "this-week" | "this-weekend" | "this-month";
+export type PeriodCode = 'today' | 'tomorrow' | 'this-week' | 'this-weekend' | 'this-month';
 
 export type PeriodDef = {
   code: PeriodCode;
@@ -32,7 +32,7 @@ export type PeriodDef = {
  */
 export function getPeriods(now: Date = new Date()): PeriodDef[] {
   const md = (d: Date) => `${d.getMonth() + 1}/${d.getDate()}`;
-  const dow = (d: Date) => ["일", "월", "화", "수", "목", "금", "토"][d.getDay()];
+  const dow = (d: Date) => ['일', '월', '화', '수', '목', '금', '토'][d.getDay()];
 
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const tomorrow = new Date(today);
@@ -50,20 +50,18 @@ export function getPeriods(now: Date = new Date()): PeriodDef[] {
   const saturday = new Date(today);
   saturday.setDate(saturday.getDate() + offsetToSat);
   const weekendLabel =
-    today.getDay() === 0
-      ? `다음 주말 (${md(saturday)})`
-      : `이번 주말 (${md(saturday)})`;
+    today.getDay() === 0 ? `다음 주말 (${md(saturday)})` : `이번 주말 (${md(saturday)})`;
 
   return [
-    { code: "today", label: `오늘 (${md(today)} ${dow(today)})`, slug: "today" },
-    { code: "tomorrow", label: `내일 (${md(tomorrow)} ${dow(tomorrow)})`, slug: "tomorrow" },
+    { code: 'today', label: `오늘 (${md(today)} ${dow(today)})`, slug: 'today' },
+    { code: 'tomorrow', label: `내일 (${md(tomorrow)} ${dow(tomorrow)})`, slug: 'tomorrow' },
     {
-      code: "this-week",
+      code: 'this-week',
       label: `이번 주 (${md(weekStart)}~${md(weekEnd)})`,
-      slug: "this-week",
+      slug: 'this-week',
     },
-    { code: "this-weekend", label: weekendLabel, slug: "this-weekend" },
-    { code: "this-month", label: `${today.getMonth() + 1}월`, slug: "this-month" },
+    { code: 'this-weekend', label: weekendLabel, slug: 'this-weekend' },
+    { code: 'this-month', label: `${today.getMonth() + 1}월`, slug: 'this-month' },
   ];
 }
 
@@ -74,14 +72,7 @@ export function getPeriods(now: Date = new Date()): PeriodDef[] {
 export const PERIODS: PeriodDef[] = getPeriods();
 
 export type CategoryCode =
-  | "fashion"
-  | "beauty"
-  | "character"
-  | "dessert"
-  | "lifestyle"
-  | "art"
-  | "tech"
-  | "other";
+  'fashion' | 'beauty' | 'character' | 'dessert' | 'lifestyle' | 'art' | 'tech' | 'other';
 
 export type CategoryDef = {
   code: CategoryCode;
@@ -95,46 +86,46 @@ export type CategoryDef = {
 // 라벨만 조정(디저트→푸드, 아트→문화)하고 slug/code/keywords 는 유지 → 기존 SEO 랜딩 URL 보존.
 export const CATEGORIES: CategoryDef[] = [
   {
-    code: "character",
-    label: "캐릭터",
-    slug: "character",
-    keywords: ["캐릭터", "굿즈", "애니", "character", "CHARACTER"],
+    code: 'character',
+    label: '캐릭터',
+    slug: 'character',
+    keywords: ['캐릭터', '굿즈', '애니', 'character', 'CHARACTER'],
   },
   {
-    code: "fashion",
-    label: "패션",
-    slug: "fashion",
-    keywords: ["패션", "의류", "잡화", "fashion", "FASHION"],
+    code: 'fashion',
+    label: '패션',
+    slug: 'fashion',
+    keywords: ['패션', '의류', '잡화', 'fashion', 'FASHION'],
   },
   {
-    code: "beauty",
-    label: "뷰티",
-    slug: "beauty",
-    keywords: ["뷰티", "화장품", "코스메틱", "beauty", "BEAUTY"],
+    code: 'beauty',
+    label: '뷰티',
+    slug: 'beauty',
+    keywords: ['뷰티', '화장품', '코스메틱', 'beauty', 'BEAUTY'],
   },
   {
-    code: "dessert",
-    label: "푸드",
-    slug: "dessert",
-    keywords: ["디저트", "베이커리", "카페", "푸드", "음료", "dessert", "FOOD"],
+    code: 'dessert',
+    label: '푸드',
+    slug: 'dessert',
+    keywords: ['디저트', '베이커리', '카페', '푸드', '음료', 'dessert', 'FOOD'],
   },
   {
-    code: "art",
-    label: "문화",
-    slug: "art",
-    keywords: ["아트", "전시", "갤러리", "art", "CULTURE"],
+    code: 'art',
+    label: '문화',
+    slug: 'art',
+    keywords: ['아트', '전시', '갤러리', 'art', 'CULTURE'],
   },
   {
-    code: "lifestyle",
-    label: "라이프",
-    slug: "lifestyle",
-    keywords: ["라이프", "리빙", "홈", "lifestyle"],
+    code: 'lifestyle',
+    label: '라이프',
+    slug: 'lifestyle',
+    keywords: ['라이프', '리빙', '홈', 'lifestyle'],
   },
   {
-    code: "tech",
-    label: "테크",
-    slug: "tech",
-    keywords: ["테크", "전자", "IT", "tech"],
+    code: 'tech',
+    label: '테크',
+    slug: 'tech',
+    keywords: ['테크', '전자', 'IT', 'tech'],
   },
 ];
 
@@ -158,7 +149,7 @@ export function parseDate(s: string | null | undefined): Date | null {
   // 1) 구분자 정규화 후 시각 성분을 떼어낸다("2026-07-25T09:00:00Z", "2026-07-25 09:00").
   //    잘라내기(slice)로 길이를 맞추면 안 된다 — "2026-002-28" 을 "2026-002-2" 로 만들어
   //    2월 2일이라는 엉뚱한 날짜를 조용히 만들어낸다.
-  const head = s.trim().replace(/\./g, "-").split(/[T\s]/)[0];
+  const head = s.trim().replace(/\./g, '-').split(/[T\s]/)[0];
 
   // 2) 모양을 먼저 확정한다. parseInt 는 "2x" 를 2 로 읽어 "2026-2x-28" 을 2월 28일로
   //    통과시키므로, 숫자 변환 전에 정규식으로 걸러야 한다.
@@ -219,14 +210,14 @@ export function matchesPeriod(
   const day = today.getDay(); // 0 일 ~ 6 토
 
   switch (period) {
-    case "today":
+    case 'today':
       return isOpenOn(start, end, today);
-    case "tomorrow": {
+    case 'tomorrow': {
       const t = new Date(today);
       t.setDate(t.getDate() + 1);
       return isOpenOn(start, end, t);
     }
-    case "this-week": {
+    case 'this-week': {
       // 월요일 ~ 일요일 범위 중 단 하루라도 겹치면 매치.
       const weekStart = new Date(today);
       const offsetToMon = (day + 6) % 7; // 일=0 → 6, 월=1 → 0
@@ -235,7 +226,7 @@ export function matchesPeriod(
       weekEnd.setDate(weekEnd.getDate() + 6);
       return start <= weekEnd && end >= weekStart;
     }
-    case "this-weekend": {
+    case 'this-weekend': {
       // 토~일 두 날 중 하나라도 열리면.
       const weekStart = new Date(today);
       const offsetToSat = (6 - day + 7) % 7;
@@ -244,7 +235,7 @@ export function matchesPeriod(
       weekEnd.setDate(weekEnd.getDate() + 1);
       return start <= weekEnd && end >= weekStart;
     }
-    case "this-month": {
+    case 'this-month': {
       const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
       const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
       return start <= monthEnd && end >= monthStart;
@@ -255,20 +246,20 @@ export function matchesPeriod(
 /* ============================== 카테고리 ============================== */
 
 export function classifyCategory(category: string | null | undefined): CategoryCode {
-  if (!category) return "other";
+  if (!category) return 'other';
   const text = category.trim().toLowerCase();
-  if (!text) return "other";
+  if (!text) return 'other';
 
   for (const cat of CATEGORIES) {
     for (const kw of cat.keywords) {
       if (text.includes(kw.toLowerCase())) return cat.code;
     }
   }
-  return "other";
+  return 'other';
 }
 
 export function categoryLabel(code: CategoryCode): string {
-  return CATEGORIES.find((c) => c.code === code)?.label ?? "기타";
+  return CATEGORIES.find((c) => c.code === code)?.label ?? '기타';
 }
 
 export function categoryBySlug(slug: string): CategoryDef | undefined {
@@ -289,83 +280,152 @@ export type BrandDef = {
  * 매칭 팝업이 0곳이면 thin content 방지로 noindex(진행 중일 때만 색인). 구글 트렌드(2026-07) 고관심·급상승어 기반.
  */
 export const BRANDS: BrandDef[] = [
-  { slug: "stellive", label: "스텔라이브", keywords: ["스텔라이브", "스텔 라이브"] },
-  { slug: "overwatch", label: "오버워치", keywords: ["오버워치", "오버 워치", "overwatch", "옵치"] },
-  { slug: "pokemon", label: "포켓몬", keywords: ["포켓몬", "pokemon", "피카츄", "메타몽", "이브이"] },
+  { slug: 'stellive', label: '스텔라이브', keywords: ['스텔라이브', '스텔 라이브'] },
   {
-    slug: "sanrio",
-    label: "산리오",
-    keywords: ["산리오", "sanrio", "쿠로미", "시나모롤", "마이멜로디", "폼폼푸린", "헬로키티", "포차코"],
+    slug: 'overwatch',
+    label: '오버워치',
+    keywords: ['오버워치', '오버 워치', 'overwatch', '옵치'],
   },
-  { slug: "genshin", label: "원신", keywords: ["원신", "genshin"] },
-  { slug: "toy-story", label: "토이스토리", keywords: ["토이스토리", "토이 스토리", "toy story"] },
-  { slug: "demon-slayer", label: "귀멸의 칼날", keywords: ["귀멸의 칼날", "귀멸의칼날", "귀칼"] },
-  { slug: "jujutsu-kaisen", label: "주술회전", keywords: ["주술회전", "주술 회전"] },
-  { slug: "nikke", label: "니케", keywords: ["니케", "nikke"] },
-  { slug: "project-sekai", label: "프로젝트 세카이", keywords: ["프로젝트 세카이", "프세카", "project sekai"] },
-  { slug: "hatsune-miku", label: "하츠네 미쿠", keywords: ["하츠네 미쿠", "하츠네미쿠", "미쿠", "miku"] },
-  { slug: "djmax", label: "디맥", keywords: ["디맥", "djmax", "디제이맥스"] },
-  { slug: "roblox", label: "로블록스", keywords: ["로블록스", "roblox"] },
-  { slug: "blue-archive", label: "블루아카이브", keywords: ["블루아카이브", "블루 아카이브", "블아"] },
-  { slug: "disney", label: "디즈니", keywords: ["디즈니", "disney"] },
-  { slug: "kakao-friends", label: "카카오프렌즈", keywords: ["카카오프렌즈", "춘식이"] },
-  { slug: "line-friends", label: "라인프렌즈", keywords: ["라인프렌즈"] },
-  { slug: "one-piece", label: "원피스", keywords: ["원피스", "one piece"] },
+  {
+    slug: 'pokemon',
+    label: '포켓몬',
+    keywords: ['포켓몬', 'pokemon', '피카츄', '메타몽', '이브이'],
+  },
+  {
+    slug: 'sanrio',
+    label: '산리오',
+    keywords: [
+      '산리오',
+      'sanrio',
+      '쿠로미',
+      '시나모롤',
+      '마이멜로디',
+      '폼폼푸린',
+      '헬로키티',
+      '포차코',
+    ],
+  },
+  { slug: 'genshin', label: '원신', keywords: ['원신', 'genshin'] },
+  { slug: 'toy-story', label: '토이스토리', keywords: ['토이스토리', '토이 스토리', 'toy story'] },
+  { slug: 'demon-slayer', label: '귀멸의 칼날', keywords: ['귀멸의 칼날', '귀멸의칼날', '귀칼'] },
+  { slug: 'jujutsu-kaisen', label: '주술회전', keywords: ['주술회전', '주술 회전'] },
+  { slug: 'nikke', label: '니케', keywords: ['니케', 'nikke'] },
+  {
+    slug: 'project-sekai',
+    label: '프로젝트 세카이',
+    keywords: ['프로젝트 세카이', '프세카', 'project sekai'],
+  },
+  {
+    slug: 'hatsune-miku',
+    label: '하츠네 미쿠',
+    keywords: ['하츠네 미쿠', '하츠네미쿠', '미쿠', 'miku'],
+  },
+  { slug: 'djmax', label: '디맥', keywords: ['디맥', 'djmax', '디제이맥스'] },
+  { slug: 'roblox', label: '로블록스', keywords: ['로블록스', 'roblox'] },
+  {
+    slug: 'blue-archive',
+    label: '블루아카이브',
+    keywords: ['블루아카이브', '블루 아카이브', '블아'],
+  },
+  { slug: 'disney', label: '디즈니', keywords: ['디즈니', 'disney'] },
+  { slug: 'kakao-friends', label: '카카오프렌즈', keywords: ['카카오프렌즈', '춘식이'] },
+  { slug: 'line-friends', label: '라인프렌즈', keywords: ['라인프렌즈'] },
+  { slug: 'one-piece', label: '원피스', keywords: ['원피스', 'one piece'] },
   // 2026-07 트렌드 신규 — 좀비고는 "팝업 스토어" 다음가는 검색량(35)으로 급상승 중.
   {
-    slug: "zombie-high",
-    label: "좀비고등학교",
-    keywords: ["좀비고", "좀비 고", "좀비고등학교"],
+    slug: 'zombie-high',
+    label: '좀비고등학교',
+    keywords: ['좀비고', '좀비 고', '좀비고등학교'],
   },
-  { slug: "kim-hamzzi", label: "김햄찌", keywords: ["김햄찌", "김 햄찌"] },
-  { slug: "oasis", label: "오아시스", keywords: ["오아시스", "oasis"] },
-  { slug: "tft", label: "롤토체스", keywords: ["롤체", "롤토체스", "teamfight"] },
+  { slug: 'kim-hamzzi', label: '김햄찌', keywords: ['김햄찌', '김 햄찌'] },
+  { slug: 'oasis', label: '오아시스', keywords: ['오아시스', 'oasis'] },
+  { slug: 'tft', label: '롤토체스', keywords: ['롤체', '롤토체스', 'teamfight'] },
   {
-    slug: "arknights",
-    label: "명일방주",
-    keywords: ["명일방주", "명방", "arknights"],
+    slug: 'arknights',
+    label: '명일방주',
+    keywords: ['명일방주', '명방', 'arknights'],
   },
-  { slug: "t1", label: "T1", keywords: ["t1 팝업", "티원"] },
-  { slug: "the-hyundai", label: "더현대 서울", keywords: ["더현대", "더 현대"] },
-  { slug: "yongsan-ipark", label: "용산 아이파크몰", keywords: ["용산 아이파크", "아이파크몰"] },
-  { slug: "coex", label: "코엑스", keywords: ["코엑스", "coex"] },
-  { slug: "starfield", label: "스타필드", keywords: ["스타필드"] },
-  { slug: "lotte-world-mall", label: "롯데월드몰", keywords: ["롯데월드몰", "롯데월드 몰"] },
-  { slug: "ak-plaza", label: "AK플라자", keywords: ["ak플라자", "ak 플라자"] },
+  { slug: 't1', label: 'T1', keywords: ['t1 팝업', '티원'] },
+  { slug: 'the-hyundai', label: '더현대 서울', keywords: ['더현대', '더 현대'] },
+  { slug: 'yongsan-ipark', label: '용산 아이파크몰', keywords: ['용산 아이파크', '아이파크몰'] },
+  { slug: 'coex', label: '코엑스', keywords: ['코엑스', 'coex'] },
+  { slug: 'starfield', label: '스타필드', keywords: ['스타필드'] },
+  { slug: 'lotte-world-mall', label: '롯데월드몰', keywords: ['롯데월드몰', '롯데월드 몰'] },
+  { slug: 'ak-plaza', label: 'AK플라자', keywords: ['ak플라자', 'ak 플라자'] },
   // 2026-07 트렌드 신규(최근 3개월 급상승·고관심) — 넥슨·호요버스·애니·K-pop IP 다수.
-  { slug: "maplestory", label: "메이플스토리", keywords: ["메이플스토리", "메이플 스토리", "메이플", "maplestory"] },
-  { slug: "honkai-star-rail", label: "붕괴 스타레일", keywords: ["스타레일", "스타 레일", "붕괴 스타레일", "honkai"] },
-  { slug: "umamusume", label: "우마무스메", keywords: ["우마무스메", "우마 무스메", "umamusume"] },
-  { slug: "wuthering-waves", label: "명조", keywords: ["명조", "wuthering"] },
-  { slug: "chiikawa", label: "치이카와", keywords: ["치이카와", "치이 카와", "chiikawa"] },
-  { slug: "naruto", label: "나루토", keywords: ["나루토", "naruto"] },
-  { slug: "jojo", label: "죠죠", keywords: ["죠죠", "조조의 기묘한", "jojo"] },
-  { slug: "dungeon-meshi", label: "던전밥", keywords: ["던전밥", "던전 밥"] },
-  { slug: "yumeiro-patissiere", label: "꿈빛 파티시엘", keywords: ["꿈빛 파티시엘", "꿈빛파티시엘"] },
-  { slug: "nmixx", label: "엔믹스", keywords: ["엔믹스", "nmixx"] },
-  { slug: "yorushika", label: "요루시카", keywords: ["요루시카", "요루 시카", "yorushika"] },
-  { slug: "sega", label: "세가", keywords: ["세가", "sega"] },
+  {
+    slug: 'maplestory',
+    label: '메이플스토리',
+    keywords: ['메이플스토리', '메이플 스토리', '메이플', 'maplestory'],
+  },
+  {
+    slug: 'honkai-star-rail',
+    label: '붕괴 스타레일',
+    keywords: ['스타레일', '스타 레일', '붕괴 스타레일', 'honkai'],
+  },
+  { slug: 'umamusume', label: '우마무스메', keywords: ['우마무스메', '우마 무스메', 'umamusume'] },
+  { slug: 'wuthering-waves', label: '명조', keywords: ['명조', 'wuthering'] },
+  { slug: 'chiikawa', label: '치이카와', keywords: ['치이카와', '치이 카와', 'chiikawa'] },
+  { slug: 'naruto', label: '나루토', keywords: ['나루토', 'naruto'] },
+  { slug: 'jojo', label: '죠죠', keywords: ['죠죠', '조조의 기묘한', 'jojo'] },
+  { slug: 'dungeon-meshi', label: '던전밥', keywords: ['던전밥', '던전 밥'] },
+  {
+    slug: 'yumeiro-patissiere',
+    label: '꿈빛 파티시엘',
+    keywords: ['꿈빛 파티시엘', '꿈빛파티시엘'],
+  },
+  { slug: 'nmixx', label: '엔믹스', keywords: ['엔믹스', 'nmixx'] },
+  { slug: 'yorushika', label: '요루시카', keywords: ['요루시카', '요루 시카', 'yorushika'] },
+  { slug: 'sega', label: '세가', keywords: ['세가', 'sega'] },
   // 2026-07 트렌드 3차(최근 1달·1주 급상승, 웹리서치로 정체 확인 + 충돌 없는 키워드).
-  { slug: "omniscient-reader", label: "전지적 독자 시점", keywords: ["전독시", "전지적 독자", "전지적독자"] },
-  { slug: "lookism", label: "외모지상주의", keywords: ["외모지상주의", "외지주"] },
-  { slug: "hearts2hearts", label: "하츠투하츠", keywords: ["하츠투하츠", "하투하", "hearts2hearts"] },
-  { slug: "alien-stage", label: "에일리언 스테이지", keywords: ["에일리언 스테이지", "에이스테", "alien stage"] },
-  { slug: "cutie-street", label: "큐티 스트리트", keywords: ["큐티 스트리트", "cutie street", "큐스토"] },
-  { slug: "ghost-story-commute", label: "괴담출근", keywords: ["괴담출근", "괴담에 떨어져도 출근", "괴출 팝업"] },
-  { slug: "minive", label: "미니브", keywords: ["미니브", "minive"] },
-  { slug: "angyeong-mandu", label: "안경만두", keywords: ["안경만두"] },
-  { slug: "ganadi", label: "가나디", keywords: ["가나디"] },
-  { slug: "latale", label: "라테일", keywords: ["라테일"] },
-  { slug: "street-restaurant-fighter", label: "스트릿 레스토랑 파이터", keywords: ["스트릿 레스토랑 파이터", "스트릿레스토랑파이터"] },
-  { slug: "gintama", label: "은혼", keywords: ["은혼", "긴타마", "gintama"] },
-  { slug: "hells-kitchen", label: "헬스키친", keywords: ["헬스키친"] },
-  { slug: "digimon", label: "디지몬", keywords: ["디지몬", "digimon"] },
-  { slug: "spider-man", label: "스파이더맨", keywords: ["스파이더맨", "spider-man", "spiderman"] },
-  { slug: "ive", label: "아이브", keywords: ["아이브"] },
-  { slug: "fromis-9", label: "프로미스나인", keywords: ["프로미스나인", "fromis_9", "fromis"] },
-  { slug: "yoasobi", label: "요아소비", keywords: ["요아소비", "yoasobi"] },
-  { slug: "project-i", label: "프로젝트아이", keywords: ["프로젝트아이", "프로젝트 아이", "프젝아"] },
-  { slug: "offside", label: "오프사이드", keywords: ["오프사이드"] },
+  {
+    slug: 'omniscient-reader',
+    label: '전지적 독자 시점',
+    keywords: ['전독시', '전지적 독자', '전지적독자'],
+  },
+  { slug: 'lookism', label: '외모지상주의', keywords: ['외모지상주의', '외지주'] },
+  {
+    slug: 'hearts2hearts',
+    label: '하츠투하츠',
+    keywords: ['하츠투하츠', '하투하', 'hearts2hearts'],
+  },
+  {
+    slug: 'alien-stage',
+    label: '에일리언 스테이지',
+    keywords: ['에일리언 스테이지', '에이스테', 'alien stage'],
+  },
+  {
+    slug: 'cutie-street',
+    label: '큐티 스트리트',
+    keywords: ['큐티 스트리트', 'cutie street', '큐스토'],
+  },
+  {
+    slug: 'ghost-story-commute',
+    label: '괴담출근',
+    keywords: ['괴담출근', '괴담에 떨어져도 출근', '괴출 팝업'],
+  },
+  { slug: 'minive', label: '미니브', keywords: ['미니브', 'minive'] },
+  { slug: 'angyeong-mandu', label: '안경만두', keywords: ['안경만두'] },
+  { slug: 'ganadi', label: '가나디', keywords: ['가나디'] },
+  { slug: 'latale', label: '라테일', keywords: ['라테일'] },
+  {
+    slug: 'street-restaurant-fighter',
+    label: '스트릿 레스토랑 파이터',
+    keywords: ['스트릿 레스토랑 파이터', '스트릿레스토랑파이터'],
+  },
+  { slug: 'gintama', label: '은혼', keywords: ['은혼', '긴타마', 'gintama'] },
+  { slug: 'hells-kitchen', label: '헬스키친', keywords: ['헬스키친'] },
+  { slug: 'digimon', label: '디지몬', keywords: ['디지몬', 'digimon'] },
+  { slug: 'spider-man', label: '스파이더맨', keywords: ['스파이더맨', 'spider-man', 'spiderman'] },
+  { slug: 'ive', label: '아이브', keywords: ['아이브'] },
+  { slug: 'fromis-9', label: '프로미스나인', keywords: ['프로미스나인', 'fromis_9', 'fromis'] },
+  { slug: 'yoasobi', label: '요아소비', keywords: ['요아소비', 'yoasobi'] },
+  {
+    slug: 'project-i',
+    label: '프로젝트아이',
+    keywords: ['프로젝트아이', '프로젝트 아이', '프젝아'],
+  },
+  { slug: 'offside', label: '오프사이드', keywords: ['오프사이드'] },
 ];
 
 const BRAND_BY_SLUG = new Map(BRANDS.map((b) => [b.slug, b]));

@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata } from 'next';
 
 /**
  * 팝업 상세 — 검색엔진 색인 차단.
@@ -31,9 +31,7 @@ export async function generateMetadata({
     robots: { index: false, follow: false },
     // 루트 layout 이 모든 페이지에 홈 canonical 을 물려준다. noindex 여도 자기 URL 을 가리키는 편이
     // 정확하고, 홈을 가리키는 canonical 이 남으면 홈 평가에까지 잡음이 섞인다.
-    alternates: /^\d+$/.test(id)
-      ? { canonical: `https://popspot.co.kr/popup/${id}` }
-      : undefined,
+    alternates: /^\d+$/.test(id) ? { canonical: `https://popspot.co.kr/popup/${id}` } : undefined,
   };
 }
 

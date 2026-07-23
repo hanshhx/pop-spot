@@ -10,12 +10,7 @@ import { SectionLogo } from '@/components/layout/BrandLogos';
  */
 function XLogo({ className }: { className?: string }) {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="currentColor"
-      aria-hidden
-      className={className}
-    >
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden className={className}>
       <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
     </svg>
   );
@@ -90,7 +85,11 @@ function BrandColumn() {
         매일 새로 열리는 팝업을 찾고, 가고, 기록해요.
       </p>
       <div className="flex gap-3">
-        <SocialLink href="https://instagram.com" label="Instagram" icon={<Instagram className="size-4" aria-hidden />} />
+        <SocialLink
+          href="https://instagram.com"
+          label="Instagram"
+          icon={<Instagram className="size-4" aria-hidden />}
+        />
         <SocialLink href="https://x.com" label="X" icon={<XLogo className="size-4" />} />
       </div>
     </div>
@@ -120,7 +119,9 @@ interface LinkColumnProps {
 function LinkColumn({ title, links, external }: LinkColumnProps) {
   return (
     <div>
-      <h4 className="font-bold mb-5 uppercase tracking-[0.15em] text-xs text-foreground">{title}</h4>
+      <h4 className="font-bold mb-5 uppercase tracking-[0.15em] text-xs text-foreground">
+        {title}
+      </h4>
       <ul className="space-y-3 text-sm text-muted-foreground">
         {links.map((l) =>
           external ? (
@@ -150,18 +151,20 @@ function DisclaimerBox() {
           [정보 안내] 서울 팝업스토어 정보를 모아 안내하는 서비스입니다.
         </p>
         <p className="mb-2">
-          본 서비스는 실제 티켓 예매 및 금전적 거래를 처리하지 않습니다. 팝업스토어 자체의 입장 / 예약 / 구매는 각 운영사의 공식 채널을 이용해 주세요.
+          본 서비스는 실제 티켓 예매 및 금전적 거래를 처리하지 않습니다. 팝업스토어 자체의 입장 /
+          예약 / 구매는 각 운영사의 공식 채널을 이용해 주세요.
         </p>
         <p>
-          팝업스토어 정보 일부는 공개된 검색 API (네이버 · 카카오) 와 사용자 제보를 기반으로 자동 / 수동 수집 · 정리됩니다.
-          정보 정확성을 보장하지 않으며, 자세한 내용은{' '}
+          팝업스토어 정보 일부는 공개된 검색 API (네이버 · 카카오) 와 사용자 제보를 기반으로 자동 /
+          수동 수집 · 정리됩니다. 정보 정확성을 보장하지 않으며, 자세한 내용은{' '}
           <Link href="/terms" className="text-lime-500 hover:underline">
             이용약관 §10
           </Link>{' '}
           를 참고해주세요.
         </p>
         <p className="mt-2">
-          일부 커버는 실제 팝업 현장이 아닌 주제별 연출 이미지이며 화면에 별도 표시됩니다. 연출 이미지는{' '}
+          일부 커버는 실제 팝업 현장이 아닌 주제별 연출 이미지이며 화면에 별도 표시됩니다. 연출
+          이미지는{' '}
           <a
             href="https://www.pexels.com/"
             target="_blank"
@@ -173,8 +176,9 @@ function DisclaimerBox() {
           를 통해 제공됩니다.
         </p>
         <p>
-          저작권 · 정보 오류 등으로 정보 삭제 · 수정이 필요한 경우 각 팝업 상세페이지의 신고 버튼 또는 아래 이메일로 연락
-          주시면 <strong>접수 즉시 노출이 차단되며 24시간 내 조치</strong>됩니다.
+          저작권 · 정보 오류 등으로 정보 삭제 · 수정이 필요한 경우 각 팝업 상세페이지의 신고 버튼
+          또는 아래 이메일로 연락 주시면 <strong>접수 즉시 노출이 차단되며 24시간 내 조치</strong>
+          됩니다.
         </p>
         <p className="mt-3 font-bold">
           개인정보 보호 / 권리자 문의:{' '}
@@ -190,8 +194,14 @@ function DisclaimerBox() {
           <p>실제 결제 / 예매: 처리하지 않음 — 안내 서비스 한정</p>
         </div>
 
-        <SectionLogo name="powered-by" label="Powered by popspot" className="mt-4 h-4 text-muted-foreground/80" />
-        <p className="mt-2 opacity-60">© {new Date().getFullYear()} POP-SPOT. All rights reserved.</p>
+        <SectionLogo
+          name="powered-by"
+          label="Powered by popspot"
+          className="mt-4 h-4 text-muted-foreground/80"
+        />
+        <p className="mt-2 opacity-60">
+          © {new Date().getFullYear()} POP-SPOT. All rights reserved.
+        </p>
       </div>
     </div>
   );

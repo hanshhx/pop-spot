@@ -11,7 +11,7 @@
  * </ul>
  */
 
-const STORAGE_KEY = "popspot:recent-visits";
+const STORAGE_KEY = 'popspot:recent-visits';
 const MAX_ITEMS = 10;
 
 export interface RecentVisit {
@@ -22,8 +22,8 @@ export interface RecentVisit {
   visitedAt: string;
 }
 
-export function recordVisit(visit: Omit<RecentVisit, "visitedAt">): void {
-  if (typeof window === "undefined") return;
+export function recordVisit(visit: Omit<RecentVisit, 'visitedAt'>): void {
+  if (typeof window === 'undefined') return;
   const list = readVisits();
   const filtered = list.filter((v) => v.popupId !== visit.popupId);
   const updated: RecentVisit[] = [
@@ -38,7 +38,7 @@ export function recordVisit(visit: Omit<RecentVisit, "visitedAt">): void {
 }
 
 export function readVisits(): RecentVisit[] {
-  if (typeof window === "undefined") return [];
+  if (typeof window === 'undefined') return [];
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return [];
@@ -51,6 +51,6 @@ export function readVisits(): RecentVisit[] {
 }
 
 export function clearVisits(): void {
-  if (typeof window === "undefined") return;
+  if (typeof window === 'undefined') return;
   window.localStorage.removeItem(STORAGE_KEY);
 }

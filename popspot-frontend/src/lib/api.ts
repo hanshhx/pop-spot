@@ -4,14 +4,15 @@
  * env 모듈에서 검증·폴백 처리 후 받아온다. 호출부 (legacy) 호환을 위해 그대로 re-export.
  */
 import { env } from './env';
+import { clearAuthToken, getAuthToken } from './authStorage';
 
 export const API_BASE_URL = env.apiUrl;
 export const SOCKET_BASE_URL = env.socketUrl;
 
-const TOKEN_STORAGE_KEY = 'token';
 const HEADER_AUTHORIZATION = 'Authorization';
 const HEADER_CONTENT_TYPE = 'Content-Type';
 const CONTENT_TYPE_JSON = 'application/json';
+export const AUTH_EXPIRED_EVENT = 'popspot:auth-expired';
 
 type FetchOptions = RequestInit & { headers?: HeadersInit };
 
@@ -45,6 +46,9 @@ export const apiFetch = async (endpoint: string, options: FetchOptions = {}): Pr
         if (text) console.error(`API Error body: ${text.slice(0, 500)}`);
       } catch {
         /* body 읽기 실패는 무시 */
+      }
+      if (response.status === 401 && readToken()) {
+        clearStaleAuthentication();
       }
     }
     return response;
@@ -89,7 +93,8 @@ const buildUrl = (endpoint: string, options: FetchOptions = {}): string => {
   if (typeof window === 'undefined') return `${API_BASE_URL}${endpoint}`;
   // FormData = 업로드. 응답 URL 이 요청 호스트를 반사하므로 프록시를 태우면 안 된다.
   if (options.body instanceof FormData) return `${API_BASE_URL}${endpoint}`;
-  if (FORCE_ABSOLUTE_PREFIXES.some((p) => endpoint.startsWith(p))) return `${API_BASE_URL}${endpoint}`;
+  if (FORCE_ABSOLUTE_PREFIXES.some((p) => endpoint.startsWith(p)))
+    return `${API_BASE_URL}${endpoint}`;
   return endpoint;
 };
 
@@ -118,6 +123,12 @@ const buildHeaders = (options: FetchOptions, url: string): Record<string, string
 };
 
 const readToken = (): string | null => {
-  if (typeof window === 'undefined') return null;
-  return window.localStorage.getItem(TOKEN_STORAGE_KEY);
+  return getAuthToken();
+};
+
+const clearStaleAuthentication = (): void => {
+  if (typeof window === 'undefined') return;
+  clearAuthToken();
+  window.localStorage.removeItem('user');
+  window.dispatchEvent(new Event(AUTH_EXPIRED_EVENT));
 };

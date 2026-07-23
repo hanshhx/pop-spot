@@ -25,6 +25,13 @@ public class OrderController {
 
     private final OrderService orderService;
 
+    /** 결제창을 열기 전에 서버가 사용자·상품·금액에 묶인 merchantUid를 발급한다. */
+    @PostMapping("/prepare")
+    public ResponseEntity<OrderService.PreparedOrder> prepareOrder(
+            @RequestBody PrepareOrderDto dto, Authentication authentication) {
+        return ResponseEntity.ok(orderService.prepareOrder(dto.getGoodsId(), authentication));
+    }
+
     @PostMapping("/complete")
     public ResponseEntity<String> completeOrder(
             @RequestBody OrderDto dto, Authentication authentication) {
@@ -49,5 +56,10 @@ public class OrderController {
 
         /** 무시 — 서버는 아임포트 조회 금액 사용. */
         private Integer amount;
+    }
+
+    @Data
+    public static class PrepareOrderDto {
+        private Long goodsId;
     }
 }

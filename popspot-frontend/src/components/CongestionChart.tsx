@@ -6,7 +6,7 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  ResponsiveContainer
+  ResponsiveContainer,
 } from 'recharts';
 
 // 1. 데이터 타입 정의
@@ -23,7 +23,11 @@ interface CongestionChartProps {
 
 const CongestionChart: React.FC<CongestionChartProps> = ({ data }) => {
   if (!data || data.length === 0) {
-    return <div className="text-center p-4 text-xs md:text-sm text-gray-500 dark:text-cream-200/60">데이터 로딩 중...</div>;
+    return (
+      <div className="text-center p-4 text-xs md:text-sm text-gray-500 dark:text-cream-200/60">
+        데이터 로딩 중...
+      </div>
+    );
   }
 
   return (
@@ -33,14 +37,11 @@ const CongestionChart: React.FC<CongestionChartProps> = ({ data }) => {
       </h3>
 
       <ResponsiveContainer width="100%" height="100%">
-        <AreaChart
-          data={data}
-          margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
-        >
+        <AreaChart data={data} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
           <defs>
             <linearGradient id="colorPop" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#8884d8" stopOpacity={0.8}/>
-              <stop offset="95%" stopColor="#8884d8" stopOpacity={0}/>
+              <stop offset="5%" stopColor="#8884d8" stopOpacity={0.8} />
+              <stop offset="95%" stopColor="#8884d8" stopOpacity={0} />
             </linearGradient>
           </defs>
 
@@ -54,17 +55,21 @@ const CongestionChart: React.FC<CongestionChartProps> = ({ data }) => {
             tickLine={false}
           />
 
-          <YAxis
-            hide={true}
-            domain={['dataMin - 1000', 'dataMax + 1000']}
-          />
+          <YAxis hide={true} domain={['dataMin - 1000', 'dataMax + 1000']} />
 
           <Tooltip
-            contentStyle={{ backgroundColor: '#fff', borderRadius: '10px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', color: '#000' }}
+            contentStyle={{
+              backgroundColor: '#fff',
+              borderRadius: '10px',
+              border: 'none',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+              color: '#000',
+            }}
             // Recharts formatter value 는 ValueType (string | number | array | undefined).
             // 차트 데이터는 number 만 들어오지만 라이브러리 시그니처에 맞춰 안전하게 좁힌다.
             formatter={(value) => {
-              const display = typeof value === 'number' ? value.toLocaleString() : String(value ?? 0);
+              const display =
+                typeof value === 'number' ? value.toLocaleString() : String(value ?? 0);
               return [`${display}명`, '예측 인구'];
             }}
           />

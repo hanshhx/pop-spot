@@ -1,7 +1,7 @@
-"use client";
+'use client';
 
-import Link from "next/link";
-import { AnimatePresence, motion } from "framer-motion";
+import Link from 'next/link';
+import { AnimatePresence, motion } from 'framer-motion';
 import {
   ChevronDown,
   ChevronUp,
@@ -13,17 +13,17 @@ import {
   Sparkles,
   Store,
   X,
-} from "lucide-react";
+} from 'lucide-react';
 
-import { PopupMatch } from "@/types/music";
-import { isPexelsPhoto, popupCoverUrl } from "@/lib/popupCover";
-import { useMusicPlayer } from "./MusicPlayerProvider";
+import { PopupMatch } from '@/types/music';
+import { isPexelsPhoto, popupCoverUrl } from '@/lib/popupCover';
+import { useMusicPlayer } from './MusicPlayerProvider';
 
 function formatSeconds(sec: number) {
-  if (!Number.isFinite(sec) || sec <= 0) return "0:00";
+  if (!Number.isFinite(sec) || sec <= 0) return '0:00';
   const m = Math.floor(sec / 60);
   const s = Math.floor(sec % 60);
-  return `${m}:${s.toString().padStart(2, "0")}`;
+  return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
 /**
@@ -40,12 +40,12 @@ export function GlobalMusicPlayer() {
   const player = useMusicPlayer();
   const { current, mode } = player;
 
-  if (!current || mode === "hidden") return null;
+  if (!current || mode === 'hidden') return null;
 
   return (
     <>
-      <AnimatePresence>{mode === "full" && <FullScreenPlayer />}</AnimatePresence>
-      <AnimatePresence>{mode === "mini" && <MiniPlayerBar />}</AnimatePresence>
+      <AnimatePresence>{mode === 'full' && <FullScreenPlayer />}</AnimatePresence>
+      <AnimatePresence>{mode === 'mini' && <MiniPlayerBar />}</AnimatePresence>
     </>
   );
 }
@@ -53,17 +53,8 @@ export function GlobalMusicPlayer() {
 /* ---------------- Mini Player (화면 하단 바) ---------------- */
 
 function MiniPlayerBar() {
-  const {
-    current,
-    isPlaying,
-    progress,
-    toggle,
-    next,
-    prev,
-    expand,
-    close,
-    match,
-  } = useMusicPlayer();
+  const { current, isPlaying, progress, toggle, next, prev, expand, close, match } =
+    useMusicPlayer();
   if (!current) return null;
 
   const topPopup = match?.popups?.[0];
@@ -73,16 +64,13 @@ function MiniPlayerBar() {
       initial={{ y: 80, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       exit={{ y: 80, opacity: 0 }}
-      transition={{ type: "spring", stiffness: 300, damping: 30 }}
+      transition={{ type: 'spring', stiffness: 300, damping: 30 }}
       className="fixed bottom-20 left-1/2 z-[90] w-[95%] max-w-[480px] -translate-x-1/2 md:bottom-24 md:max-w-[600px]"
     >
       <div className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-surface/95 shadow-pop backdrop-blur-md">
         {/* 진행바 */}
         <div className="h-0.5 w-full bg-foreground/10">
-          <div
-            className="h-full bg-lime-300 transition-all"
-            style={{ width: `${progress}%` }}
-          />
+          <div className="h-full bg-lime-300 transition-all" style={{ width: `${progress}%` }} />
         </div>
 
         <div className="flex items-center gap-2 p-2">
@@ -100,12 +88,8 @@ function MiniPlayerBar() {
               className="h-10 w-10 shrink-0 rounded-md object-cover"
             />
             <div className="min-w-0">
-              <p className="truncate text-sm font-bold text-foreground">
-                {current.trackName}
-              </p>
-              <p className="truncate text-xs text-muted-foreground">
-                {current.artistName}
-              </p>
+              <p className="truncate text-sm font-bold text-foreground">{current.trackName}</p>
+              <p className="truncate text-xs text-muted-foreground">{current.artistName}</p>
             </div>
             <ChevronUp className="ml-auto h-4 w-4 text-muted-foreground" />
           </button>
@@ -121,7 +105,7 @@ function MiniPlayerBar() {
           <button
             type="button"
             onClick={toggle}
-            aria-label={isPlaying ? "일시정지" : "재생"}
+            aria-label={isPlaying ? '일시정지' : '재생'}
             className="grid h-10 w-10 place-items-center rounded-full bg-lime-300 text-ink-900 shadow-sm transition hover:scale-105"
           >
             {isPlaying ? (
@@ -238,7 +222,7 @@ function FullScreenPlayer() {
             <motion.div
               className="absolute inset-0 grid place-items-center"
               animate={isPlaying ? { scale: [1, 1.015, 1] } : { scale: 1 }}
-              transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+              transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
             >
               <div className="relative">
                 <div
@@ -257,13 +241,9 @@ function FullScreenPlayer() {
         </div>
 
         <div className="mt-6 max-w-md text-center text-white">
-          <h1 className="text-2xl font-black tracking-tight sm:text-3xl">
-            {current.trackName}
-          </h1>
+          <h1 className="text-2xl font-black tracking-tight sm:text-3xl">{current.trackName}</h1>
           <p className="mt-1 text-base text-white/70">{current.artistName}</p>
-          {current.albumName && (
-            <p className="mt-0.5 text-sm text-white/40">{current.albumName}</p>
-          )}
+          {current.albumName && <p className="mt-0.5 text-sm text-white/40">{current.albumName}</p>}
         </div>
 
         <div className="mt-8 flex w-full max-w-md flex-col gap-2">
@@ -303,7 +283,7 @@ function FullScreenPlayer() {
             type="button"
             onClick={toggle}
             className="grid h-16 w-16 place-items-center rounded-full bg-white text-black shadow-2xl transition hover:scale-105"
-            aria-label={isPlaying ? "일시정지" : "재생"}
+            aria-label={isPlaying ? '일시정지' : '재생'}
           >
             {isPlaying ? (
               <Pause className="h-8 w-8" />
@@ -343,9 +323,7 @@ function FullScreenPlayer() {
             </div>
           )}
 
-          {matchLoading && (
-            <p className="text-sm text-white/50">분위기 분석 중...</p>
-          )}
+          {matchLoading && <p className="text-sm text-white/50">분위기 분석 중...</p>}
 
           {match && match.popups.length === 0 && !matchLoading && (
             <p className="text-sm text-white/50">매칭된 팝업이 아직 없어요.</p>
@@ -358,36 +336,38 @@ function FullScreenPlayer() {
               const isStyledPhoto = isPexelsPhoto(photoInput);
               return (
                 <Link
-                key={popup.popupId}
-                href={`/popup/${popup.popupId}`}
-                onClick={collapse}
-                className="group flex gap-3 rounded-xl bg-white/5 p-3 backdrop-blur transition hover:bg-white/10"
-              >
-                {coverUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={coverUrl}
-                    alt={popup.name}
-                    className="h-16 w-16 shrink-0 rounded-lg object-cover"
-                  />
-                ) : (
-                  <div className="grid h-16 w-16 shrink-0 place-items-center rounded-lg bg-lime-300/15">
-                    <Store className="h-6 w-6 text-lime-200/70" />
-                  </div>
-                )}
-                <div className="min-w-0 flex-1 text-white">
-                  <h3 className="truncate text-sm font-bold">{popup.name}</h3>
-                  <p className="mt-0.5 flex items-center gap-1 truncate text-[11px] text-white/60">
-                    <MapPin className="h-3 w-3 shrink-0" />
-                    {popup.location}
-                  </p>
-                  <span className="mt-1 inline-block rounded-full bg-lime-300/20 px-2 py-0.5 text-[10px] font-bold text-lime-300">
-                    매칭 {popup.score}%
-                  </span>
-                  {isStyledPhoto && (
-                    <span className="ml-1 text-[9px] font-semibold text-white/45">연출 이미지</span>
+                  key={popup.popupId}
+                  href={`/popup/${popup.popupId}`}
+                  onClick={collapse}
+                  className="group flex gap-3 rounded-xl bg-white/5 p-3 backdrop-blur transition hover:bg-white/10"
+                >
+                  {coverUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={coverUrl}
+                      alt={popup.name}
+                      className="h-16 w-16 shrink-0 rounded-lg object-cover"
+                    />
+                  ) : (
+                    <div className="grid h-16 w-16 shrink-0 place-items-center rounded-lg bg-lime-300/15">
+                      <Store className="h-6 w-6 text-lime-200/70" />
+                    </div>
                   )}
-                </div>
+                  <div className="min-w-0 flex-1 text-white">
+                    <h3 className="truncate text-sm font-bold">{popup.name}</h3>
+                    <p className="mt-0.5 flex items-center gap-1 truncate text-[11px] text-white/60">
+                      <MapPin className="h-3 w-3 shrink-0" />
+                      {popup.location}
+                    </p>
+                    <span className="mt-1 inline-block rounded-full bg-lime-300/20 px-2 py-0.5 text-[10px] font-bold text-lime-300">
+                      매칭 {popup.score}%
+                    </span>
+                    {isStyledPhoto && (
+                      <span className="ml-1 text-[9px] font-semibold text-white/45">
+                        연출 이미지
+                      </span>
+                    )}
+                  </div>
                 </Link>
               );
             })}

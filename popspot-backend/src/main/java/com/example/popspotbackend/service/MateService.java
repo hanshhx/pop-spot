@@ -1,6 +1,10 @@
 package com.example.popspotbackend.service;
 
+import com.example.popspotbackend.dto.MateAuthorResponseDto;
+import com.example.popspotbackend.dto.MateChatMessageRequestDto;
+import com.example.popspotbackend.dto.MateChatMessageResponseDto;
 import com.example.popspotbackend.dto.MateDto;
+import com.example.popspotbackend.dto.MatePostResponseDto;
 import com.example.popspotbackend.entity.MateChatMessage;
 import com.example.popspotbackend.entity.MatePost;
 import com.example.popspotbackend.entity.User;
@@ -35,12 +39,18 @@ public class MateService {
     private final UserRepository userRepository;
     private final MateChatMessageRepository mateChatMessageRepository;
 
-    public List<MatePost> findAllPostsOrdered() {
-        return matePostRepository.findAllByOrderByIsMegaphoneDescCreatedAtDesc();
+    public List<MatePostResponseDto> findAllPostsOrdered() {
+        return matePostRepository.findAllByOrderByIsMegaphoneDescCreatedAtDesc().stream()
+                .map(this::toPostResponse)
+                .toList();
     }
 
-    public List<MateChatMessage> findChatMessages(Long postId) {
-        return mateChatMessageRepository.findByMatePostIdOrderBySendTimeAsc(postId);
+    @Transactional(readOnly = true)
+    public List<MateChatMessageResponseDto> findChatMessages(Long postId, String userId) {
+        requireParticipant(findPostOrThrow(postId), userId);
+        return mateChatMessageRepository.findByMatePostIdOrderBySendTimeAsc(postId).stream()
+                .map(this::toChatResponse)
+                .toList();
     }
 
     /**
@@ -49,11 +59,20 @@ public class MateService {
      * @return 영속화된 채팅 메시지 (브로드캐스트 용도)
      */
     @Transactional
-    public MateChatMessage persistChatMessage(Long postId, MateChatMessage message) {
+    public MateChatMessageResponseDto persistChatMessage(
+            Long postId, MateChatMessageRequestDto request, String sender, String userId) {
         MatePost post = findPostOrThrow(postId);
+        requireParticipant(post, userId);
+        MateChatMessage message =
+                MateChatMessage.builder()
+                        .sender(sender)
+                        .message(request.getMessage().trim())
+                        .type(request.getType() == null ? "TALK" : request.getType())
+                        .fileUrl(normalizeFileUrl(request.getFileUrl()))
+                        .build();
         message.setMatePost(post);
         message.setSendTime(java.time.LocalDateTime.now());
-        return mateChatMessageRepository.save(message);
+        return toChatResponse(mateChatMessageRepository.save(message));
     }
 
     /**
@@ -63,12 +82,12 @@ public class MateService {
      * @throws BoostQuotaExceededException 부스트 사용 요청인데 이번 달 한도를 이미 다 썼을 때
      */
     @Transactional
-    public MatePost createPost(MateDto dto, String userId) {
+    public MatePostResponseDto createPost(MateDto dto, String userId) {
         User user = findUserOrThrow(userId);
         boolean boostApplied = tryConsumeBoost(user, dto.isUseBoost());
 
         MatePost post = buildMatePost(dto, user, boostApplied);
-        return matePostRepository.save(post);
+        return toPostResponse(matePostRepository.save(post));
     }
 
     /**
@@ -79,7 +98,7 @@ public class MateService {
      */
     @Transactional
     public JoinResult joinMate(Long postId, String userId) {
-        MatePost post = findPostOrThrow(postId);
+        MatePost post = findPostForUpdateOrThrow(postId);
 
         if (post.hasJoined(userId)) {
             return JoinResult.ALREADY_JOINED;
@@ -168,6 +187,62 @@ public class MateService {
                 .orElseThrow(() -> ResourceNotFoundException.matePost(postId));
     }
 
+    private MatePost findPostForUpdateOrThrow(Long postId) {
+        return matePostRepository
+                .findByIdForUpdate(postId)
+                .orElseThrow(() -> ResourceNotFoundException.matePost(postId));
+    }
+
+    @Transactional(readOnly = true)
+    public boolean isParticipant(Long postId, String userId) {
+        return userId != null && findPostOrThrow(postId).hasJoined(userId);
+    }
+
+    private void requireParticipant(MatePost post, String userId) {
+        if (userId == null || !post.hasJoined(userId)) {
+            throw new AccessDeniedToPostException("동행 참여자만 채팅을 이용할 수 있습니다.");
+        }
+    }
+
+    private MatePostResponseDto toPostResponse(MatePost post) {
+        User author = post.getAuthor();
+        MateAuthorResponseDto authorDto =
+                new MateAuthorResponseDto(
+                        author.getUserId(),
+                        author.getNickname(),
+                        author.getPicture(),
+                        author.isPremium(),
+                        author.getMannerTemp());
+        return new MatePostResponseDto(
+                post.getId(),
+                post.getTitle(),
+                post.getContent(),
+                post.getStatus(),
+                post.getTargetPopup(),
+                post.getMaxPeople(),
+                post.getCurrentPeople(),
+                authorDto,
+                post.getCreatedAt(),
+                post.isMegaphone());
+    }
+
+    private MateChatMessageResponseDto toChatResponse(MateChatMessage message) {
+        return new MateChatMessageResponseDto(
+                message.getId(),
+                message.getSender(),
+                message.getMessage(),
+                message.getType(),
+                message.getFileUrl(),
+                message.getSendTime());
+    }
+
+    private String normalizeFileUrl(String fileUrl) {
+        if (fileUrl == null || fileUrl.isBlank()) return null;
+        String trimmed = fileUrl.trim();
+        if (trimmed.startsWith("/uploads/") || trimmed.startsWith("uploads/")) return trimmed;
+        throw new IllegalArgumentException("채팅 파일은 서버 업로드 경로만 사용할 수 있습니다.");
+    }
+
     /**
      * 부스트 소비 시도.
      *
@@ -240,6 +315,10 @@ public class MateService {
     public static class AccessDeniedToPostException extends RuntimeException {
         public AccessDeniedToPostException() {
             super("본인이 작성한 글만 삭제할 수 있습니다.");
+        }
+
+        public AccessDeniedToPostException(String message) {
+            super(message);
         }
     }
 }

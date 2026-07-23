@@ -1,6 +1,6 @@
-"use client";
+'use client';
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 /**
  * 가로 스크롤 레일에 <b>마우스 드래그</b> + <b>좌우 화살표</b> 네비게이션을 붙이는 훅.
@@ -40,25 +40,25 @@ export function useDragScroll<T extends HTMLElement = HTMLDivElement>() {
       setAtEnd(node.scrollLeft + node.clientWidth >= node.scrollWidth - 1);
     };
     update();
-    node.addEventListener("scroll", update, { passive: true });
-    window.addEventListener("resize", update);
+    node.addEventListener('scroll', update, { passive: true });
+    window.addEventListener('resize', update);
     // 자식(카드/이미지)이 늦게 로드돼 스크롤폭이 바뀌는 경우까지 반영.
-    const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(update) : null;
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(update) : null;
     ro?.observe(node);
     return () => {
-      node.removeEventListener("scroll", update);
-      window.removeEventListener("resize", update);
+      node.removeEventListener('scroll', update);
+      window.removeEventListener('resize', update);
       ro?.disconnect();
     };
   }, [node]);
 
   const scrollByPage = (dir: number) => {
     if (!node) return;
-    node.scrollBy({ left: dir * Math.round(node.clientWidth * 0.8), behavior: "smooth" });
+    node.scrollBy({ left: dir * Math.round(node.clientWidth * 0.8), behavior: 'smooth' });
   };
 
   const onPointerDown = (e: React.PointerEvent<T>) => {
-    if (e.pointerType !== "mouse" || !node) return;
+    if (e.pointerType !== 'mouse' || !node) return;
     drag.current = { active: true, startX: e.clientX, startLeft: node.scrollLeft, moved: false };
     node.setPointerCapture(e.pointerId);
   };

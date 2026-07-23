@@ -1,10 +1,10 @@
-"use client";
+'use client';
 
-import { useCallback, useEffect, useState } from "react";
-import { Clock, Users } from "lucide-react";
+import { useCallback, useEffect, useState } from 'react';
+import { Clock, Users } from 'lucide-react';
 
-import { apiFetch } from "@/lib/api";
-import { getVisitorId } from "@/lib/visitorId";
+import { apiFetch } from '@/lib/api';
+import { getVisitorId } from '@/lib/visitorId';
 
 /**
  * "지금 어때요?" — 원터치 대기 제보.
@@ -16,33 +16,33 @@ import { getVisitorId } from "@/lib/visitorId";
 type WaitStatus = { level: number | null; count: number; updatedAt: string | null };
 
 const LEVELS = [
-  { value: 0, label: "바로 입장", short: "바로 입장 가능", tone: "lime" as const },
-  { value: 1, label: "조금 대기", short: "조금 기다려요", tone: "amber" as const },
-  { value: 2, label: "많이 대기", short: "많이 기다려요", tone: "rose" as const },
+  { value: 0, label: '바로 입장', short: '바로 입장 가능', tone: 'lime' as const },
+  { value: 1, label: '조금 대기', short: '조금 기다려요', tone: 'amber' as const },
+  { value: 2, label: '많이 대기', short: '많이 기다려요', tone: 'rose' as const },
 ];
 
 const TONE_CLASS: Record<string, { chip: string; btn: string }> = {
   lime: {
-    chip: "bg-lime-300/25 text-lime-700 dark:text-lime-300",
-    btn: "hover:border-lime-400 hover:bg-lime-300/15",
+    chip: 'bg-lime-300/25 text-lime-700 dark:text-lime-300',
+    btn: 'hover:border-lime-400 hover:bg-lime-300/15',
   },
   amber: {
-    chip: "bg-amber-300/25 text-amber-700 dark:text-amber-300",
-    btn: "hover:border-amber-400 hover:bg-amber-300/15",
+    chip: 'bg-amber-300/25 text-amber-700 dark:text-amber-300',
+    btn: 'hover:border-amber-400 hover:bg-amber-300/15',
   },
   rose: {
-    chip: "bg-rose-300/25 text-rose-700 dark:text-rose-300",
-    btn: "hover:border-rose-400 hover:bg-rose-300/15",
+    chip: 'bg-rose-300/25 text-rose-700 dark:text-rose-300',
+    btn: 'hover:border-rose-400 hover:bg-rose-300/15',
   },
 };
 
 /** "20분 전" 처럼 상대 시간으로. */
 function timeAgo(iso: string | null): string {
-  if (!iso) return "";
+  if (!iso) return '';
   const t = new Date(iso).getTime();
-  if (Number.isNaN(t)) return "";
+  if (Number.isNaN(t)) return '';
   const min = Math.max(0, Math.round((Date.now() - t) / 60000));
-  if (min < 1) return "방금";
+  if (min < 1) return '방금';
   if (min < 60) return `${min}분 전`;
   return `${Math.round(min / 60)}시간 전`;
 }
@@ -74,7 +74,7 @@ export default function NowWait({ popupId }: { popupId: number }) {
     setSending(true);
     try {
       const res = await apiFetch(`/api/popups/${popupId}/wait`, {
-        method: "POST",
+        method: 'POST',
         body: JSON.stringify({ level, visitorId: getVisitorId() }),
       });
       if (res.ok) {
@@ -89,7 +89,7 @@ export default function NowWait({ popupId }: { popupId: number }) {
     }
   };
 
-  const current = status && status.level !== null ? LEVELS[status.level] ?? null : null;
+  const current = status && status.level !== null ? (LEVELS[status.level] ?? null) : null;
 
   return (
     <section className="mt-8">
@@ -100,7 +100,7 @@ export default function NowWait({ popupId }: { popupId: number }) {
             <Users size={13} /> {status.count}명 제보
             {status.updatedAt && (
               <>
-                {" · "}
+                {' · '}
                 <Clock size={12} /> {timeAgo(status.updatedAt)}
               </>
             )}
@@ -112,15 +112,17 @@ export default function NowWait({ popupId }: { popupId: number }) {
         {/* 현재 집계 */}
         {current ? (
           <div className="mb-3 flex items-center gap-2">
-            <span className={`rounded-pill px-3 py-1 text-sm font-black ${TONE_CLASS[current.tone].chip}`}>
+            <span
+              className={`rounded-pill px-3 py-1 text-sm font-black ${TONE_CLASS[current.tone].chip}`}
+            >
               {current.short}
             </span>
             <span className="text-xs text-muted-foreground">최근 3시간 방문자 제보</span>
           </div>
         ) : (
           <p className="mb-3 text-sm text-muted-foreground">
-            아직 제보가 없어요. <b className="text-foreground">첫 제보</b>를 남겨주시면 다음 방문자에게 큰 도움이
-            돼요!
+            아직 제보가 없어요. <b className="text-foreground">첫 제보</b>를 남겨주시면 다음
+            방문자에게 큰 도움이 돼요!
           </p>
         )}
 
@@ -145,7 +147,7 @@ export default function NowWait({ popupId }: { popupId: number }) {
               고마워요! 다음 방문자에게 바로 보여요 🙌
             </span>
           ) : (
-            "버튼만 누르면 끝 · 로그인 없이도 참여할 수 있어요"
+            '버튼만 누르면 끝 · 로그인 없이도 참여할 수 있어요'
           )}
         </p>
       </div>

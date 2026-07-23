@@ -4,10 +4,15 @@ import com.example.popspotbackend.entity.VisitLog;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface VisitLogRepository extends JpaRepository<VisitLog, Long> {
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("DELETE FROM VisitLog v WHERE v.createdAt < :cutoff")
+    int deleteByCreatedAtBefore(@Param("cutoff") LocalDateTime cutoff);
 
     @Query(
             value = "SELECT COUNT(DISTINCT visitor_id) FROM visit_log WHERE created_at >= :since",

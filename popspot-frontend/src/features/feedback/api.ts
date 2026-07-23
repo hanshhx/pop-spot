@@ -74,10 +74,7 @@ export async function fetchAdminFeedbackMetrics(): Promise<FeedbackStatusCounts>
   return readJsonOrThrow<FeedbackStatusCounts>(res);
 }
 
-export async function replyFeedback(
-  id: number,
-  payload: FeedbackReplyPayload,
-): Promise<Feedback> {
+export async function replyFeedback(id: number, payload: FeedbackReplyPayload): Promise<Feedback> {
   const res = await apiFetch(`${ADMIN_BASE}/${id}/reply`, {
     method: 'POST',
     body: JSON.stringify(payload),

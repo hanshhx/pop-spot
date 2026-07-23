@@ -82,6 +82,33 @@ public class PopupStoreService {
         return popupStoreRepository.findPendingReview(PageRequest.of(0, pageSize));
     }
 
+    @Transactional(readOnly = true)
+    public List<PopupStore> findPendingTakedown(int pageSize) {
+        int safeSize = Math.max(1, Math.min(pageSize, 100));
+        return popupStoreRepository.findPendingTakedown(PageRequest.of(0, safeSize));
+    }
+
+    @Transactional
+    @Caching(
+            evict = {
+                @CacheEvict(value = CacheConfig.CACHE_POPUPS_VISIBLE, allEntries = true),
+                @CacheEvict(value = CacheConfig.CACHE_POPUPS_HOT, allEntries = true)
+            })
+    public PopupStore resolveTakedown(Long id, boolean hide) {
+        PopupStore popup = findOrThrow(id);
+        if (popup.getTakedownRequestedAt() == null) {
+            throw new IllegalStateException("검토할 권리자 신고가 없습니다.");
+        }
+        if (hide) {
+            popup.setReviewStatus("TAKEDOWN");
+        } else {
+            popup.setTakedownRequestedAt(null);
+            popup.setTakedownReason(null);
+            popup.setTakedownRequester(null);
+        }
+        return popupStoreRepository.save(popup);
+    }
+
     /** 검수 결과로 reviewStatus 갱신 후 저장. */
     @Transactional
     @Caching(

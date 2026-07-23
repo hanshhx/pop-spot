@@ -1,38 +1,30 @@
-"use client";
+'use client';
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import {
-  ArrowLeft,
-  Mail,
-  Lock,
-  MessageCircle,
-  Eye,
-  EyeOff,
-  Check,
-  Clock,
-} from "lucide-react";
-import { motion } from "framer-motion";
-import Link from "next/link";
-import { Logo } from "@/components/layout/Logo";
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { ArrowLeft, Mail, Lock, MessageCircle, Eye, EyeOff, Check, Clock } from 'lucide-react';
+import { motion } from 'framer-motion';
+import Link from 'next/link';
+import { Logo } from '@/components/layout/Logo';
 
-import { apiFetch, API_BASE_URL } from "@/lib/api";
-import { Button } from "@/components/ui/button";
-import { Input, Field } from "@/components/ui/input";
-import { notify, notifyError, notifySuccess } from "@/lib/notify";
-import { GUEST_GRACE_PERIOD_DAYS, startGuestMode } from "@/lib/guestMode";
+import { apiFetch, API_BASE_URL } from '@/lib/api';
+import { setAuthToken } from '@/lib/authStorage';
+import { Button } from '@/components/ui/button';
+import { Input, Field } from '@/components/ui/input';
+import { notify, notifyError, notifySuccess } from '@/lib/notify';
+import { GUEST_GRACE_PERIOD_DAYS, startGuestMode } from '@/lib/guestMode';
 
 export default function LoginPage() {
   const router = useRouter();
 
-  const [formData, setFormData] = useState({ email: "", password: "" });
+  const [formData, setFormData] = useState({ email: '', password: '' });
   const [showPassword, setShowPassword] = useState(false);
   const [saveId, setSaveId] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   // 저장된 아이디 자동 입력
   useEffect(() => {
-    const savedEmail = localStorage.getItem("savedEmail");
+    const savedEmail = localStorage.getItem('savedEmail');
     if (savedEmail) {
       setFormData((prev) => ({ ...prev, email: savedEmail }));
       setSaveId(true);
@@ -44,33 +36,33 @@ export default function LoginPage() {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") handleLogin();
+    if (e.key === 'Enter') handleLogin();
   };
 
   const handleLogin = async () => {
     if (submitting) return;
     setSubmitting(true);
     try {
-      const res = await apiFetch("/api/v1/auth/login", {
-        method: "POST",
+      const res = await apiFetch('/api/v1/auth/login', {
+        method: 'POST',
         body: JSON.stringify(formData),
       });
 
       if (res.ok) {
         const data = await res.json();
-        localStorage.setItem("user", JSON.stringify(data));
-        if (data.token) localStorage.setItem("token", data.token);
-        if (saveId) localStorage.setItem("savedEmail", formData.email);
-        else localStorage.removeItem("savedEmail");
+        localStorage.setItem('user', JSON.stringify(data));
+        if (data.token) setAuthToken(data.token);
+        if (saveId) localStorage.setItem('savedEmail', formData.email);
+        else localStorage.removeItem('savedEmail');
 
         await notifySuccess(`${data.nickname}님 환영합니다`);
         // 인트로 미들웨어 우회 — 방금 인트로 거쳐서 로그인 왔으니 메인 직행
-        router.push("/?entered=1");
+        router.push('/?entered=1');
       } else {
-        notifyError({ title: "로그인 실패", text: "아이디나 비밀번호를 확인해주세요." });
+        notifyError({ title: '로그인 실패', text: '아이디나 비밀번호를 확인해주세요.' });
       }
     } catch {
-      notifyError({ title: "서버 연결 실패", text: "잠시 후 다시 시도해주세요." });
+      notifyError({ title: '서버 연결 실패', text: '잠시 후 다시 시도해주세요.' });
     } finally {
       setSubmitting(false);
     }
@@ -89,12 +81,12 @@ export default function LoginPage() {
   const handleGuestLogin = async () => {
     startGuestMode();
     await notify({
-      icon: "info",
+      icon: 'info',
       title: `게스트로 ${GUEST_GRACE_PERIOD_DAYS}일 동안 둘러보기`,
-      text: "기간이 끝나면 회원가입이 필요해요.",
+      text: '기간이 끝나면 회원가입이 필요해요.',
       timer: 1600,
     });
-    router.push("/?entered=1");
+    router.push('/?entered=1');
   };
 
   return (
@@ -105,10 +97,15 @@ export default function LoginPage() {
         loop
         muted
         playsInline
+        preload="metadata"
         aria-hidden
-        className="absolute inset-0 w-full h-full object-cover z-0 opacity-60"
+        className="absolute inset-0 w-full h-full object-cover z-0 opacity-60 motion-reduce:hidden"
       >
-        <source src="/bg.mp4" type="video/mp4" />
+        <source
+          src="/login-bg.mp4"
+          type="video/mp4"
+          media="(min-width: 768px) and (prefers-reduced-motion: no-preference)"
+        />
       </video>
 
       {/* 어두운 막 */}
@@ -139,9 +136,7 @@ export default function LoginPage() {
         <h1 className="flex justify-center mt-4 mb-1">
           <Logo className="h-7 md:h-8 text-cream-200" />
         </h1>
-        <p className="text-center text-cream-200/60 text-sm mb-8">
-          돌아오신 걸 환영합니다
-        </p>
+        <p className="text-center text-cream-200/60 text-sm mb-8">돌아오신 걸 환영합니다</p>
 
         <div className="space-y-4">
           <Field label={<span className="text-cream-200">이메일</span>}>
@@ -161,7 +156,7 @@ export default function LoginPage() {
           <Field label={<span className="text-cream-200">비밀번호</span>}>
             <Input
               name="password"
-              type={showPassword ? "text" : "password"}
+              type={showPassword ? 'text' : 'password'}
               placeholder="비밀번호 입력"
               value={formData.password}
               onChange={handleChange}
@@ -171,7 +166,7 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  aria-label={showPassword ? "비밀번호 숨기기" : "비밀번호 보기"}
+                  aria-label={showPassword ? '비밀번호 숨기기' : '비밀번호 보기'}
                   className="text-cream-200/50 hover:text-cream-200 transition-colors"
                 >
                   {showPassword ? (
@@ -199,8 +194,8 @@ export default function LoginPage() {
               aria-hidden
               className={`size-4 rounded border flex items-center justify-center transition-colors ${
                 saveId
-                  ? "bg-lime-300 border-lime-300"
-                  : "border-cream-200/30 group-hover:border-cream-200/60 bg-ink-900/60"
+                  ? 'bg-lime-300 border-lime-300'
+                  : 'border-cream-200/30 group-hover:border-cream-200/60 bg-ink-900/60'
               }`}
             >
               {saveId && <Check className="size-3 text-ink-900" aria-hidden />}
@@ -218,28 +213,20 @@ export default function LoginPage() {
           </Link>
         </div>
 
-        <Button
-          variant="primary"
-          size="lg"
-          block
-          onClick={handleLogin}
-          loading={submitting}
-        >
+        <Button variant="primary" size="lg" block onClick={handleLogin} loading={submitting}>
           로그인
         </Button>
 
         <div className="relative flex py-4 items-center">
           <div className="flex-grow border-t border-cream-200/10" />
-          <span className="flex-shrink-0 mx-4 text-cream-200/40 text-xs">
-            소셜 로그인
-          </span>
+          <span className="flex-shrink-0 mx-4 text-cream-200/40 text-xs">소셜 로그인</span>
           <div className="flex-grow border-t border-cream-200/10" />
         </div>
 
         <div className="space-y-2.5">
           <button
             type="button"
-            onClick={() => handleSocialLogin("kakao")}
+            onClick={() => handleSocialLogin('kakao')}
             className="w-full h-11 rounded-pill font-semibold bg-[#FEE500] text-ink-900 hover:bg-[#FDD835] transition-colors flex items-center justify-center gap-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FEE500] focus-visible:ring-offset-2 focus-visible:ring-offset-ink-800"
           >
             <MessageCircle className="size-4" fill="currentColor" aria-hidden />
@@ -248,7 +235,7 @@ export default function LoginPage() {
 
           <button
             type="button"
-            onClick={() => handleSocialLogin("naver")}
+            onClick={() => handleSocialLogin('naver')}
             className="w-full h-11 rounded-pill font-semibold bg-[#03C75A] text-white hover:bg-[#02b351] transition-colors flex items-center justify-center gap-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#03C75A] focus-visible:ring-offset-2 focus-visible:ring-offset-ink-800"
           >
             <span className="font-extrabold text-lg" aria-hidden>
@@ -259,7 +246,7 @@ export default function LoginPage() {
 
           <button
             type="button"
-            onClick={() => handleSocialLogin("google")}
+            onClick={() => handleSocialLogin('google')}
             className="w-full h-11 rounded-pill font-semibold bg-white text-ink-900 hover:bg-cream-300 transition-colors flex items-center justify-center gap-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cream-200 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-800"
           >
             <svg className="size-4" viewBox="0 0 24 24" aria-hidden>
@@ -292,9 +279,7 @@ export default function LoginPage() {
             aria-label={`게스트로 ${GUEST_GRACE_PERIOD_DAYS}일 동안 둘러보기`}
           >
             <Clock className="size-4" aria-hidden />
-            <span>
-              게스트로 {GUEST_GRACE_PERIOD_DAYS}일 둘러보기
-            </span>
+            <span>게스트로 {GUEST_GRACE_PERIOD_DAYS}일 둘러보기</span>
           </button>
           <p className="mt-2 text-center text-[11px] text-cream-200/45">
             가입 없이 바로 시작. 기간이 끝나면 회원가입이 필요해요.
@@ -302,7 +287,7 @@ export default function LoginPage() {
         </div>
 
         <div className="mt-6 text-center text-sm">
-          <span className="text-cream-200/50">아직 회원이 아니신가요?</span>{" "}
+          <span className="text-cream-200/50">아직 회원이 아니신가요?</span>{' '}
           <Link
             href="/signup"
             className="font-semibold text-lime-300 hover:text-lime-400 transition-colors"

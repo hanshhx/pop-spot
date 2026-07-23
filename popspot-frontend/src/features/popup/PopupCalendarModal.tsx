@@ -1,17 +1,17 @@
-"use client";
+'use client';
 
-import { useMemo, useState } from "react";
-import Link from "next/link";
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Sparkles } from "lucide-react";
+import { useMemo, useState } from 'react';
+import Link from 'next/link';
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Sparkles } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogDescription,
-} from "@/components/ui/dialog";
-import { cn } from "@/lib/utils";
-import type { PopupStore } from "@/types/popup";
+} from '@/components/ui/dialog';
+import { cn } from '@/lib/utils';
+import type { PopupStore } from '@/types/popup';
 
 interface PopupCalendarModalProps {
   open: boolean;
@@ -19,21 +19,15 @@ interface PopupCalendarModalProps {
   popups: PopupStore[];
 }
 
-const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"] as const;
+const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'] as const;
 
 /**
  * 월별 팝업 일정 캘린더 모달.
  * 날짜 클릭 시 해당 날짜에 진행 중인 팝업 목록 노출.
  */
-export function PopupCalendarModal({
-  open,
-  onOpenChange,
-  popups,
-}: PopupCalendarModalProps) {
+export function PopupCalendarModal({ open, onOpenChange, popups }: PopupCalendarModalProps) {
   const [currentDate, setCurrentDate] = useState(() => new Date());
-  const [selectedDay, setSelectedDay] = useState<number | null>(
-    new Date().getDate()
-  );
+  const [selectedDay, setSelectedDay] = useState<number | null>(new Date().getDate());
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
@@ -49,9 +43,10 @@ export function PopupCalendarModal({
 
   const getPopupsForDate = (day: number | null): PopupStore[] => {
     if (!day) return [];
-    const targetDate = `${year}-${String(month + 1).padStart(2, "0")}-${String(
-      day
-    ).padStart(2, "0")}`;
+    const targetDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(
+      2,
+      '0',
+    )}`;
     return popups.filter((p) => {
       if (!p.startDate) return false;
       const start = p.startDate;
@@ -79,9 +74,7 @@ export function PopupCalendarModal({
             <CalendarIcon className="size-5 text-lime-500" aria-hidden />
             팝업 캘린더
           </DialogTitle>
-          <DialogDescription>
-            원하는 날짜를 눌러 일정을 확인하세요.
-          </DialogDescription>
+          <DialogDescription>원하는 날짜를 눌러 일정을 확인하세요.</DialogDescription>
         </DialogHeader>
 
         <div className="flex flex-col">
@@ -112,12 +105,8 @@ export function PopupCalendarModal({
               <div
                 key={d}
                 className={cn(
-                  "text-xs font-bold py-1",
-                  i === 0
-                    ? "text-hot-400"
-                    : i === 6
-                    ? "text-lime-500"
-                    : "text-muted-foreground"
+                  'text-xs font-bold py-1',
+                  i === 0 ? 'text-hot-400' : i === 6 ? 'text-lime-500' : 'text-muted-foreground',
                 )}
               >
                 {d}
@@ -140,21 +129,24 @@ export function PopupCalendarModal({
                   aria-label={day ? `${month + 1}월 ${day}일` : undefined}
                   aria-pressed={isSelected}
                   className={cn(
-                    "aspect-square flex flex-col items-center justify-center rounded-md transition-colors relative focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                    !day && "invisible cursor-default",
-                    day && !isSelected && "bg-cream-300 dark:bg-ink-800 hover:bg-cream-400 dark:hover:bg-ink-700",
-                    isSelected && "bg-ink-900 dark:bg-cream-200 text-cream-200 dark:text-ink-900 shadow-md"
+                    'aspect-square flex flex-col items-center justify-center rounded-md transition-colors relative focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                    !day && 'invisible cursor-default',
+                    day &&
+                      !isSelected &&
+                      'bg-cream-300 dark:bg-ink-800 hover:bg-cream-400 dark:hover:bg-ink-700',
+                    isSelected &&
+                      'bg-ink-900 dark:bg-cream-200 text-cream-200 dark:text-ink-900 shadow-md',
                   )}
                 >
                   <span
                     className={cn(
-                      "text-sm font-bold",
+                      'text-sm font-bold',
                       !isSelected &&
                         (dayOfWeek === 0
-                          ? "text-hot-400"
+                          ? 'text-hot-400'
                           : dayOfWeek === 6
-                          ? "text-lime-500"
-                          : "text-foreground")
+                            ? 'text-lime-500'
+                            : 'text-foreground'),
                     )}
                   >
                     {day}
@@ -163,8 +155,8 @@ export function PopupCalendarModal({
                     <span
                       aria-hidden
                       className={cn(
-                        "size-1.5 rounded-full mt-0.5",
-                        isSelected ? "bg-cream-200 dark:bg-ink-900" : "bg-lime-500"
+                        'size-1.5 rounded-full mt-0.5',
+                        isSelected ? 'bg-cream-200 dark:bg-ink-900' : 'bg-lime-500',
                       )}
                     />
                   )}
@@ -175,10 +167,7 @@ export function PopupCalendarModal({
 
           <div className="mt-6 border-t border-[var(--color-border)] pt-4 max-h-[280px] overflow-y-auto custom-scrollbar">
             <h4 className="text-sm font-bold mb-3 flex items-center gap-2 text-foreground">
-              <span
-                aria-hidden
-                className="size-2 bg-lime-500 rounded-full animate-pulse"
-              />
+              <span aria-hidden className="size-2 bg-lime-500 rounded-full animate-pulse" />
               {month + 1}월 {selectedDay}일 진행 팝업 ({selectedPopups.length})
             </h4>
 
@@ -199,7 +188,7 @@ export function PopupCalendarModal({
                         <h5 className="font-semibold text-sm text-foreground group-hover:text-lime-500 transition-colors truncate flex items-center gap-1.5">
                           {popup.name}
                           {/* [V4] 자동수집 정보임을 한눈에 알리는 뱃지 — 정확성 면책의 가시성 확보 */}
-                          {popup.sourceType === "CRAWLED" && (
+                          {popup.sourceType === 'CRAWLED' && (
                             <span
                               title="AI 자동수집 정보 — 상세페이지에서 출처 확인"
                               className="shrink-0 inline-flex items-center gap-0.5 text-[9px] font-bold px-1.5 py-0.5 bg-blue-100 dark:bg-blue-950/60 text-blue-600 dark:text-blue-300 border border-blue-200 dark:border-blue-900 rounded-pill"

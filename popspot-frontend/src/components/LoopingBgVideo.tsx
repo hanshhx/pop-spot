@@ -1,6 +1,6 @@
-"use client";
+'use client';
 
-import { useCallback, useEffect, useRef, type SyntheticEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type SyntheticEvent } from 'react';
 
 const CROSSFADE_MS = 1200;
 
@@ -17,7 +17,7 @@ const CROSSFADE_MS = 1200;
 export default function LoopingBgVideo({
   src,
   rate = 1,
-  className = "",
+  className = '',
 }: {
   src: string;
   rate?: number;
@@ -28,6 +28,15 @@ export default function LoopingBgVideo({
   const activeIsA = useRef(true);
   const swapping = useRef(false);
   const rafRef = useRef(0);
+  const [reduceMotion, setReduceMotion] = useState(false);
+
+  useEffect(() => {
+    const query = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const sync = () => setReduceMotion(query.matches);
+    sync();
+    query.addEventListener('change', sync);
+    return () => query.removeEventListener('change', sync);
+  }, []);
 
   const applyRate = useCallback(
     (v: HTMLVideoElement | null) => {
@@ -57,8 +66,8 @@ export default function LoopingBgVideo({
       rafRef.current = requestAnimationFrame(step);
       // 폴백: 백그라운드 탭 등 rAF 가 멈춘 경우에도 최종 상태를 보장(setTimeout 은 백그라운드에서도 발화).
       window.setTimeout(() => {
-        if (incoming) incoming.style.opacity = "1";
-        if (outgoing) outgoing.style.opacity = "0";
+        if (incoming) incoming.style.opacity = '1';
+        if (outgoing) outgoing.style.opacity = '0';
       }, CROSSFADE_MS + 80);
     },
     [],
@@ -75,17 +84,17 @@ export default function LoopingBgVideo({
     const a = aRef.current;
     const b = bRef.current;
     if (a) {
-      a.style.opacity = "1";
+      a.style.opacity = '1';
       try {
         a.currentTime = 0;
       } catch {
         /* noop */
       }
       applyRate(a);
-      void a.play().catch(() => {});
+      void a.play().catch(() => undefined);
     }
     if (b) {
-      b.style.opacity = "0";
+      b.style.opacity = '0';
       b.pause();
       try {
         b.currentTime = 0;
@@ -117,7 +126,7 @@ export default function LoopingBgVideo({
           /* noop */
         }
         applyRate(incoming);
-        void incoming.play().catch(() => {});
+        void incoming.play().catch(() => undefined);
       }
       crossfade(incoming, outgoing);
       activeIsA.current = !isA;
@@ -128,7 +137,9 @@ export default function LoopingBgVideo({
     [rate, applyRate, crossfade],
   );
 
-  const base = "absolute inset-0 h-full w-full object-cover";
+  const base = 'absolute inset-0 h-full w-full object-cover';
+
+  if (reduceMotion) return null;
 
   return (
     <>
@@ -137,23 +148,31 @@ export default function LoopingBgVideo({
         autoPlay
         muted
         playsInline
-        preload="auto"
+        preload="metadata"
         onLoadedMetadata={(e) => applyRate(e.currentTarget)}
         onTimeUpdate={handleTimeUpdate(true)}
         className={`${base} ${className}`}
       >
-        <source src={src} type="video/mp4" />
+        <source
+          src={src}
+          type="video/mp4"
+          media="(min-width: 768px) and (prefers-reduced-motion: no-preference)"
+        />
       </video>
       <video
         ref={bRef}
         muted
         playsInline
-        preload="auto"
+        preload="none"
         onLoadedMetadata={(e) => applyRate(e.currentTarget)}
         onTimeUpdate={handleTimeUpdate(false)}
         className={`${base} ${className}`}
       >
-        <source src={src} type="video/mp4" />
+        <source
+          src={src}
+          type="video/mp4"
+          media="(min-width: 768px) and (prefers-reduced-motion: no-preference)"
+        />
       </video>
     </>
   );

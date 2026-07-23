@@ -1,16 +1,23 @@
 package com.example.popspotbackend.service.backup;
 
+import io.sentry.Sentry;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.PosixFilePermissions;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -19,8 +26,8 @@ import org.springframework.stereotype.Component;
 /**
  * v2.17 — PostgreSQL 자동 백업 cron.
  *
- * <p>매일 03:00 KST 에 {@code pg_dump} 를 ProcessBuilder 로 호출해 {@code backups/} 폴더에 압축 파일 (.sql.gz) 로
- * 저장한다. 7일 보관 후 자동 삭제.
+ * <p>매일 03:00 KST 에 {@code pg_dump} 를 ProcessBuilder 로 직접 호출해 {@code backups/} 폴더에 압축된 custom-format
+ * 파일(.dump)로 저장한다. 셸 파이프를 쓰지 않아 pg_dump 실패를 gzip 성공으로 오인하지 않는다. 7일 보관 후 자동 삭제.
  *
  * <p>설정 키:
  *
@@ -42,8 +49,15 @@ public class DatabaseBackupScheduler {
     private static final DateTimeFormatter TIMESTAMP_FORMAT =
             DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss");
     private static final String BACKUP_FILE_PREFIX = "popspot-";
-    private static final String BACKUP_FILE_SUFFIX = ".sql.gz";
+    private static final String BACKUP_FILE_SUFFIX = ".dump";
+    private static final String LEGACY_BACKUP_FILE_SUFFIX = ".sql.gz";
     private static final long PROCESS_TIMEOUT_SECONDS = 1800L; // 30분
+
+    private volatile LocalDateTime lastAttemptAt;
+    private volatile LocalDateTime lastSuccessAt;
+    private volatile String lastFailure;
+    private volatile String lastFile;
+    private volatile long lastFileBytes;
 
     @Value("${popspot.backup.enabled:false}")
     private boolean enabled;
@@ -72,17 +86,65 @@ public class DatabaseBackupScheduler {
             log.debug("[DB-Backup] disabled — 스킵");
             return;
         }
+        lastAttemptAt = LocalDateTime.now();
         log.info("[DB-Backup] === 시작 ===");
         try {
             File outputFile = runPgDump();
+            lastSuccessAt = LocalDateTime.now();
+            lastFailure = null;
+            lastFile = outputFile.getName();
+            lastFileBytes = outputFile.length();
             log.info(
                     "[DB-Backup] 완료 — {} ({} bytes)",
                     outputFile.getAbsolutePath(),
                     outputFile.length());
             cleanupOldBackups();
         } catch (Exception e) {
+            lastFailure = e.getClass().getSimpleName() + ": " + safeMessage(e.getMessage());
             log.error("[DB-Backup] 실패: {}", e.getClass().getSimpleName(), e);
+            Sentry.captureException(e);
         }
+    }
+
+    /** 관리자 점검용 상태. DB 비밀번호·호스트·절대 경로는 노출하지 않는다. */
+    public Map<String, Object> status() {
+        File observed = latestBackupFile();
+        LocalDateTime observedSuccessAt =
+                lastSuccessAt != null
+                        ? lastSuccessAt
+                        : observed == null
+                                ? null
+                                : LocalDateTime.ofInstant(
+                                        Instant.ofEpochMilli(observed.lastModified()),
+                                        ZoneId.systemDefault());
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("enabled", enabled);
+        out.put("retentionDays", retentionDays);
+        out.put("lastAttemptAt", lastAttemptAt);
+        out.put("lastSuccessAt", observedSuccessAt);
+        out.put("lastFailure", lastFailure);
+        out.put(
+                "lastFile",
+                lastFile != null ? lastFile : observed == null ? null : observed.getName());
+        out.put(
+                "lastFileBytes",
+                lastFile != null ? lastFileBytes : observed == null ? 0L : observed.length());
+        out.put(
+                "healthy",
+                enabled
+                        && observedSuccessAt != null
+                        && observedSuccessAt.isAfter(LocalDateTime.now().minusDays(2))
+                        && lastFailure == null);
+        return out;
+    }
+
+    private File latestBackupFile() {
+        File[] files =
+                new File(backupDir)
+                        .listFiles(
+                                (dir, name) -> isBackupFileName(name));
+        if (files == null || files.length == 0) return null;
+        return Arrays.stream(files).max(Comparator.comparingLong(File::lastModified)).orElse(null);
     }
 
     private File runPgDump() throws IOException, InterruptedException {
@@ -94,41 +156,63 @@ public class DatabaseBackupScheduler {
         String dbHost = extractHost(datasourceUrl);
         String dbPort = extractPort(datasourceUrl);
 
-        // pg_dump -h host -p port -U user dbName | gzip > outputFile
-        // v2.22 — 모든 설정 유래 값을 single-quote escape (shell 인젝션 방어 강화).
+        // pg_dump custom format은 자체 압축되며 pg_restore로 복원한다. 셸을 거치지 않으므로
+        // 명령 인젝션과 pipefail 누락으로 인한 빈 백업 성공 오판을 함께 차단한다.
         ProcessBuilder pb =
                 new ProcessBuilder(
-                        "/bin/sh",
-                        "-c",
-                        String.format(
-                                "'%s' -h '%s' -p '%s' -U '%s' -F p '%s' | gzip > '%s'",
-                                escapeShell(pgDumpPath),
-                                escapeShell(dbHost),
-                                escapeShell(dbPort),
-                                escapeShell(datasourceUsername),
-                                escapeShell(dbName),
-                                escapeShell(outputFile.getAbsolutePath())));
+                        pgDumpPath,
+                        "-h",
+                        dbHost,
+                        "-p",
+                        dbPort,
+                        "-U",
+                        datasourceUsername,
+                        "-Fc",
+                        "-Z",
+                        "9",
+                        "-f",
+                        outputFile.getAbsolutePath(),
+                        dbName);
         // v2.22 — 비밀번호를 커맨드라인 대신 환경변수로 전달 (ps / process list 노출 방지).
         pb.environment().put("PGPASSWORD", datasourcePassword == null ? "" : datasourcePassword);
         pb.redirectErrorStream(true);
 
         Process process = pb.start();
+        ByteArrayOutputStream processOutput = new ByteArrayOutputStream();
+        Thread outputDrainer =
+                Thread.startVirtualThread(
+                        () -> {
+                            try {
+                                process.getInputStream().transferTo(processOutput);
+                            } catch (IOException ignored) {
+                                // 종료 코드와 파일 검증에서 실패로 처리한다.
+                            }
+                        });
         boolean finished =
                 process.waitFor(PROCESS_TIMEOUT_SECONDS, java.util.concurrent.TimeUnit.SECONDS);
         if (!finished) {
             process.destroyForcibly();
+            outputDrainer.join();
+            Files.deleteIfExists(outputFile.toPath());
             throw new IOException("pg_dump 타임아웃 (30분 초과)");
         }
+        outputDrainer.join();
         if (process.exitValue() != 0) {
-            String output = new String(process.getInputStream().readAllBytes());
+            Files.deleteIfExists(outputFile.toPath());
+            String output = processOutput.toString(StandardCharsets.UTF_8);
             throw new IOException("pg_dump exit " + process.exitValue() + ": " + output);
         }
+        if (!outputFile.isFile() || outputFile.length() == 0L) {
+            Files.deleteIfExists(outputFile.toPath());
+            throw new IOException("pg_dump가 비어 있는 백업 파일을 생성했습니다.");
+        }
+        restrictFilePermissions(outputFile.toPath());
         return outputFile;
     }
 
     private void cleanupOldBackups() {
         File dir = new File(backupDir);
-        File[] files = dir.listFiles((d, name) -> name.startsWith(BACKUP_FILE_PREFIX));
+        File[] files = dir.listFiles((d, name) -> isBackupFileName(name));
         if (files == null) return;
 
         long cutoff = System.currentTimeMillis() - retentionDays * 24L * 60 * 60 * 1000;
@@ -200,9 +284,25 @@ public class DatabaseBackupScheduler {
         return "5432";
     }
 
-    private String escapeShell(String value) {
-        if (value == null) return "";
-        return value.replace("'", "'\\''");
+    private static boolean isBackupFileName(String name) {
+        return name.startsWith(BACKUP_FILE_PREFIX)
+                && (name.endsWith(BACKUP_FILE_SUFFIX)
+                        || name.endsWith(LEGACY_BACKUP_FILE_SUFFIX));
+    }
+
+    private void restrictFilePermissions(Path file) {
+        try {
+            if (file.getFileSystem().supportedFileAttributeViews().contains("posix")) {
+                Files.setPosixFilePermissions(file, PosixFilePermissions.fromString("rw-------"));
+            }
+        } catch (IOException | UnsupportedOperationException e) {
+            log.warn("[DB-Backup] 백업 파일 권한 설정 실패(무시): {}", e.getClass().getSimpleName());
+        }
+    }
+
+    private String safeMessage(String value) {
+        if (value == null) return "unknown";
+        return value.length() > 300 ? value.substring(0, 300) : value;
     }
 
     /** Mover 메서드가 실제로 호출되었는지 단위 테스트에서 검증할 때 사용. 운영에서는 호출 안 함. */

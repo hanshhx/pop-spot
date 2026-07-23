@@ -137,7 +137,7 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
   }, [current, spotifyTrackId, spotifyAuth.connected, spotifyAuth.isPremium]);
 
   const yt = useYouTubePlayer({
-    videoId: engine === 'youtube' ? current?.youtubeVideoId ?? null : null,
+    videoId: engine === 'youtube' ? (current?.youtubeVideoId ?? null) : null,
     onEnded: () => playNextFromQueue(),
     onError: (code) => {
       const failed = current;
@@ -148,16 +148,16 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
 
       const reason = describeYouTubeError(code);
       notify({
-        icon: "info",
-        title: "다음 곡으로 넘어가요",
-        text: `"${failed.trackName ?? "이 곡"}" — ${reason}`,
+        icon: 'info',
+        title: '다음 곡으로 넘어가요',
+        text: `"${failed.trackName ?? '이 곡'}" — ${reason}`,
         timer: 2500,
       });
 
       // 백엔드에 실패 마킹 — 다음에 같은 트랙이 후보로 안 나오게.
       apiFetch(`/api/music/${failed.id}/playback-failed`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ code }),
       }).catch(() => {
         /* 마킹 실패는 무시 — 다음 트랙 진행이 더 중요 */
@@ -168,7 +168,7 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
   });
 
   const previewPlayer = usePreviewPlayer({
-    previewUrl: engine === 'preview' ? current?.previewUrl ?? null : null,
+    previewUrl: engine === 'preview' ? (current?.previewUrl ?? null) : null,
     enabled: engine === 'preview',
     onEnded: () => playNextFromQueue(),
   });

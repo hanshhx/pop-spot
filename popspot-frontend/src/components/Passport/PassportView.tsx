@@ -1,12 +1,12 @@
-"use client";
+'use client';
 
-import { useEffect, useState } from "react";
-import { motion } from "framer-motion";
-import { Lock, Check, Store } from "lucide-react";
-import { apiFetch } from "../../lib/api";
-import { popupCoverUrl } from "@/lib/popupCover";
-import { PhotoDisclosure } from "@/components/popup/PhotoDisclosure";
-import type { User } from "@/types/popup";
+import { useEffect, useState } from 'react';
+import { motion } from 'framer-motion';
+import { Lock, Check, Store } from 'lucide-react';
+import { apiFetch } from '../../lib/api';
+import { popupCoverUrl } from '@/lib/popupCover';
+import { PhotoDisclosure } from '@/components/popup/PhotoDisclosure';
+import type { User } from '@/types/popup';
 
 /**
  * 여권 — '스탬프 = 방문한 팝업의 추억'.
@@ -30,14 +30,18 @@ interface StampData {
   };
 }
 
+export function normalizeStampResponse(data: unknown): StampData[] {
+  return Array.isArray(data) ? data : [];
+}
+
 const CAT_GRAD: Record<string, string> = {
-  FASHION: "from-pink-300 to-rose-400",
-  FOOD: "from-amber-300 to-orange-400",
-  CULTURE: "from-violet-300 to-indigo-400",
-  CHARACTER: "from-lime-300 to-emerald-400",
-  BEAUTY: "from-fuchsia-300 to-pink-400",
-  TECH: "from-sky-300 to-cyan-400",
-  ETC: "from-gray-300 to-gray-400",
+  FASHION: 'from-pink-300 to-rose-400',
+  FOOD: 'from-amber-300 to-orange-400',
+  CULTURE: 'from-violet-300 to-indigo-400',
+  CHARACTER: 'from-lime-300 to-emerald-400',
+  BEAUTY: 'from-fuchsia-300 to-pink-400',
+  TECH: 'from-sky-300 to-cyan-400',
+  ETC: 'from-gray-300 to-gray-400',
 };
 
 const TOTAL_COUNT = 12;
@@ -47,7 +51,7 @@ export default function PassportView() {
   const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
+    const storedUser = localStorage.getItem('user');
     if (storedUser) {
       try {
         setUser(JSON.parse(storedUser));
@@ -60,8 +64,8 @@ export default function PassportView() {
   useEffect(() => {
     // [redesign/test 전용] 백엔드 없을 때(로컬 개발) 여권을 채우는 목업.
     const loadDevStamps = async () => {
-      if (process.env.NODE_ENV !== "development") return;
-      const { devMockPopups } = await import("@/lib/devMockPopups");
+      if (process.env.NODE_ENV !== 'development') return;
+      const { devMockPopups } = await import('@/lib/devMockPopups');
       setStamps(
         devMockPopups()
           .slice(0, 5)
@@ -71,7 +75,7 @@ export default function PassportView() {
             popupStore: {
               popupId: Number(p.id),
               name: p.name,
-              category: p.category || "ETC",
+              category: p.category || 'ETC',
               imageUrl: p.imageUrl,
             },
           })),
@@ -84,7 +88,7 @@ export default function PassportView() {
       // "map is not a function" 으로 앱 전체를 죽인다(토큰 만료 시 재현). ok 검사 + 배열 가드로 막는다.
       apiFetch(`/api/stamps/my?userId=${user.userId}`)
         .then((res) => (res.ok ? res.json() : Promise.reject(new Error(`stamps ${res.status}`))))
-        .then((data) => setStamps(Array.isArray(data) ? data : []))
+        .then((data) => setStamps(normalizeStampResponse(data)))
         .catch(loadDevStamps);
     } else {
       // 비로그인/게스트: 실서비스는 빈 여권(0/12), 로컬 개발은 미리보기 목업.
@@ -148,12 +152,15 @@ export default function PassportView() {
                 <span className="absolute right-2 top-2 grid h-7 w-7 place-items-center rounded-full bg-lime-400 text-ink-900 shadow-md">
                   <Check size={15} strokeWidth={3} />
                 </span>
-                <PhotoDisclosure popup={photoInput} className="absolute bottom-2 left-2 right-2 w-fit" />
+                <PhotoDisclosure
+                  popup={photoInput}
+                  className="absolute bottom-2 left-2 right-2 w-fit"
+                />
               </div>
               <div className="p-2.5">
                 <p className="truncate text-xs font-bold text-foreground">{s.popupStore.name}</p>
                 <p className="mt-0.5 text-[10px] text-muted-foreground">
-                  {s.stampDate.split("T")[0]}
+                  {s.stampDate.split('T')[0]}
                 </p>
               </div>
             </motion.div>
@@ -167,7 +174,7 @@ export default function PassportView() {
           >
             <Lock size={22} className="text-gray-300 dark:text-white/20" />
             <span className="text-[11px] font-semibold text-muted-foreground">
-              {i === 0 ? "다음 팝업" : "방문하면 열림"}
+              {i === 0 ? '다음 팝업' : '방문하면 열림'}
             </span>
           </div>
         ))}

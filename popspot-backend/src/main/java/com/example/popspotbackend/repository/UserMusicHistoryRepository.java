@@ -12,4 +12,6 @@ public interface UserMusicHistoryRepository extends JpaRepository<UserMusicHisto
 
     /** 사용자가 같은 곡 중복 등록 방지용 카운트 */
     long countByUserIdAndTrackId(String userId, Long trackId);
+
+    void deleteByUserId(String userId);
 }

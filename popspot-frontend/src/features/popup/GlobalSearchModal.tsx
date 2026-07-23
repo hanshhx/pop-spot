@@ -1,7 +1,7 @@
-"use client";
+'use client';
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 
 import {
   Dialog,
@@ -9,9 +9,9 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
+} from '@/components/ui/dialog';
 
-import { SearchZone } from "./SearchBox";
+import { SearchZone } from './SearchBox';
 
 interface GlobalSearchModalProps {
   open: boolean;
@@ -67,14 +67,14 @@ export function GlobalSearchModal({ open, onOpenChange, popups }: GlobalSearchMo
 export function useGlobalSearchHotkey(setOpen: (open: boolean) => void) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const isMacCmd = e.metaKey && e.key.toLowerCase() === "k";
-      const isCtrl = e.ctrlKey && e.key.toLowerCase() === "k";
+      const isMacCmd = e.metaKey && e.key.toLowerCase() === 'k';
+      const isCtrl = e.ctrlKey && e.key.toLowerCase() === 'k';
       if (isMacCmd || isCtrl) {
         e.preventDefault();
         setOpen(true);
       }
     };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
   }, [setOpen]);
 }
