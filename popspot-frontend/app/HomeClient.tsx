@@ -1026,12 +1026,12 @@ export default function Home() {
                             {rail.hasOverflow && (
                                 <>
                                     <button type="button" aria-label="이전" onClick={() => rail.scrollByPage(-1)} disabled={rail.atStart}
-                                        className={`absolute left-0 top-1/2 z-10 hidden h-9 w-9 -translate-y-1/2 place-items-center rounded-full border border-gray-200 bg-white/90 shadow-md backdrop-blur transition dark:border-white/10 dark:bg-black/60 md:grid ${rail.atStart ? "pointer-events-none opacity-0" : "hover:bg-white dark:hover:bg-black"}`}>
-                                        <ChevronLeft size={18} />
+                                        className={`absolute -left-5 top-1/2 z-10 hidden h-12 w-12 -translate-y-1/2 place-items-center rounded-full text-ink-900/90 transition hover:bg-black/5 dark:text-white/90 dark:hover:bg-white/10 md:grid lg:-left-8 ${rail.atStart ? "pointer-events-none opacity-0" : ""}`}>
+                                        <ChevronLeft size={30} strokeWidth={2.5} className="drop-shadow-md" />
                                     </button>
                                     <button type="button" aria-label="다음" onClick={() => rail.scrollByPage(1)} disabled={rail.atEnd}
-                                        className={`absolute right-0 top-1/2 z-10 hidden h-9 w-9 -translate-y-1/2 place-items-center rounded-full border border-gray-200 bg-white/90 shadow-md backdrop-blur transition dark:border-white/10 dark:bg-black/60 md:grid ${rail.atEnd ? "pointer-events-none opacity-0" : "hover:bg-white dark:hover:bg-black"}`}>
-                                        <ChevronRight size={18} />
+                                        className={`absolute -right-5 top-1/2 z-10 hidden h-12 w-12 -translate-y-1/2 place-items-center rounded-full text-ink-900/90 transition hover:bg-black/5 dark:text-white/90 dark:hover:bg-white/10 md:grid lg:-right-8 ${rail.atEnd ? "pointer-events-none opacity-0" : ""}`}>
+                                        <ChevronRight size={30} strokeWidth={2.5} className="drop-shadow-md" />
                                     </button>
                                 </>
                             )}
