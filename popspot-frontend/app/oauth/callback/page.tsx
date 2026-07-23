@@ -26,10 +26,15 @@ function CallbackContent() {
     const fetchUserInfo = async () => {
       try {
         const exchangeCode = searchParams.get('code');
+        // 과도기 호환: 백엔드 v2.40(1회성 교환코드) 배포 전에는 구버전이 URL 로 JWT 를
+        // 직접 실어 준다(?token=). 프론트만 먼저 배포되는 스큐 구간에도 소셜 로그인이
+        // 끊기지 않도록 두 방식을 모두 처리한다. 백엔드 배포 후엔 ?code= 만 오므로
+        // 아래 legacyToken 경로는 자연히 쓰이지 않는다.
+        const legacyToken = searchParams.get('token');
 
         if (exchangeCode) {
-          // 이제 apiFetch가 실행될 때 이 토큰을 헤더에 자동으로 실어 보냅니다.
-          // 보안: 토큰을 URL/히스토리에서 즉시 제거 (프록시 로그·뒤로가기 노출 최소화).
+          // 신규(보안) 흐름: 1회성 교환코드를 서버에서 토큰으로 교환.
+          // 보안: 코드를 URL/히스토리에서 즉시 제거 (프록시 로그·뒤로가기 노출 최소화).
           window.history.replaceState({}, '', '/oauth/callback');
           const exchangeResponse = await apiFetch('/api/v1/auth/oauth/exchange', {
             method: 'POST',
@@ -43,8 +48,13 @@ function CallbackContent() {
           if (!exchangeBody.token) throw new Error('로그인 토큰을 받지 못했습니다.');
           setAuthToken(exchangeBody.token);
           setStatus('인증 정보 저장 중...');
+        } else if (legacyToken) {
+          // 구버전 백엔드 폴백: URL 로 받은 JWT 를 바로 저장하고 URL 에서 즉시 제거.
+          window.history.replaceState({}, '', '/oauth/callback');
+          setAuthToken(legacyToken);
+          setStatus('인증 정보 저장 중...');
         } else {
-          // 만약 토큰이 아예 없다면 에러 처리 후 로그인 페이지로 보냅니다.
+          // 코드도 토큰도 없으면 에러 처리 후 로그인 페이지로 보냅니다.
           setStatus('인증 토큰을 찾을 수 없습니다.');
           setTimeout(() => router.push('/login'), AUTH_ERROR_REDIRECT_MS);
           return;
