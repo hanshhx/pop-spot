@@ -1,8 +1,9 @@
-"use client";
+'use client';
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from 'react';
 
-import { API_BASE_URL } from "@/lib/api";
+import { API_BASE_URL } from '@/lib/api';
+import { getAuthToken } from '@/lib/authStorage';
 
 /**
  * 인증된 SSE 스트림 구독 훅.
@@ -25,9 +26,8 @@ interface UseSseStreamOptions {
   enabled?: boolean;
 }
 
-type Status = "connecting" | "open" | "closed" | "error";
+type Status = 'connecting' | 'open' | 'closed' | 'error';
 
-const TOKEN_KEY = "token";
 const INITIAL_BACKOFF_MS = 1000;
 const MAX_BACKOFF_MS = 30000;
 
@@ -38,7 +38,7 @@ export function useSseStream({
   paused = false,
   enabled = true,
 }: UseSseStreamOptions): { status: Status } {
-  const [status, setStatus] = useState<Status>("connecting");
+  const [status, setStatus] = useState<Status>('connecting');
   const onMessageRef = useRef(onMessage);
   const pausedRef = useRef(paused);
   onMessageRef.current = onMessage;
@@ -46,48 +46,74 @@ export function useSseStream({
 
   useEffect(() => {
     if (!enabled) {
-      setStatus("closed");
+      setStatus('closed');
       return;
     }
     let cancelled = false;
-    let source: EventSource | null = null;
+    let controller: AbortController | null = null;
     let backoffMs = INITIAL_BACKOFF_MS;
     let retryTimer: ReturnType<typeof setTimeout> | null = null;
 
-    const connect = () => {
-      const token = typeof window !== "undefined" ? localStorage.getItem(TOKEN_KEY) : null;
-      const url = `${API_BASE_URL}${path}${token ? `?token=${encodeURIComponent(token)}` : ""}`;
+    const connect = async () => {
+      const token = getAuthToken();
+      if (!token) {
+        setStatus('error');
+        return;
+      }
+      const url = `${API_BASE_URL}${path}`;
 
-      setStatus("connecting");
-      source = new EventSource(url);
-
-      source.onopen = () => {
-        if (cancelled) return;
-        setStatus("open");
+      setStatus('connecting');
+      controller = new AbortController();
+      try {
+        const response = await fetch(url, {
+          headers: { Authorization: `Bearer ${token}`, Accept: 'text/event-stream' },
+          signal: controller.signal,
+        });
+        if (!response.ok || !response.body) throw new Error(`SSE ${response.status}`);
+        setStatus('open');
         backoffMs = INITIAL_BACKOFF_MS;
-      };
-
-      source.addEventListener(eventName, (e) => {
-        if (cancelled || pausedRef.current) return;
-        onMessageRef.current((e as MessageEvent).data);
-      });
-
-      source.onerror = () => {
-        if (cancelled) return;
-        setStatus("error");
-        source?.close();
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        while (!cancelled) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true }).replace(/\r\n/g, '\n');
+          let boundary = buffer.indexOf('\n\n');
+          while (boundary >= 0) {
+            const block = buffer.slice(0, boundary);
+            buffer = buffer.slice(boundary + 2);
+            const lines = block.split('\n');
+            const type = lines
+              .find((line) => line.startsWith('event:'))
+              ?.slice(6)
+              .trim();
+            const data = lines
+              .filter((line) => line.startsWith('data:'))
+              .map((line) => line.slice(5).trimStart())
+              .join('\n');
+            if ((!type || type === eventName) && data && !pausedRef.current) {
+              onMessageRef.current(data);
+            }
+            boundary = buffer.indexOf('\n\n');
+          }
+        }
+        if (!cancelled) throw new Error('SSE stream closed');
+      } catch (error) {
+        if (cancelled || (error instanceof DOMException && error.name === 'AbortError')) return;
+        setStatus('error');
         const wait = Math.min(backoffMs, MAX_BACKOFF_MS);
         backoffMs = Math.min(backoffMs * 2, MAX_BACKOFF_MS);
-        retryTimer = setTimeout(connect, wait);
-      };
+        retryTimer = setTimeout(() => void connect(), wait);
+      }
     };
 
-    connect();
+    void connect();
     return () => {
       cancelled = true;
       if (retryTimer) clearTimeout(retryTimer);
-      source?.close();
-      setStatus("closed");
+      controller?.abort();
+      setStatus('closed');
     };
   }, [path, eventName, enabled]);
 

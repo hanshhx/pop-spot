@@ -3,6 +3,9 @@ package com.example.popspotbackend.controller;
 import com.example.popspotbackend.entity.ChatMessage;
 import com.example.popspotbackend.service.ChatIdentityResolver;
 import com.example.popspotbackend.service.ChatService;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import java.util.List;
 import java.util.Map;
 import lombok.Data;
@@ -34,7 +37,7 @@ public class ChatController {
     @SendTo("/sub/chat/room/{roomId}")
     public ChatMessage sendMessage(
             @DestinationVariable Long roomId,
-            ChatMessageDto dto,
+            @Valid ChatMessageDto dto,
             SimpMessageHeaderAccessor headerAccessor) {
         // 보안: sender 는 클라이언트 값(dto)을 신뢰하지 않고 인증 세션 기준으로 서버가 확정(사칭 차단).
         String sender = identityResolver.resolveSender(headerAccessor);
@@ -55,6 +58,9 @@ public class ChatController {
     @Data
     public static class ChatMessageDto {
         private String sender;
+
+        @NotBlank
+        @Size(max = 500)
         private String message;
     }
 }

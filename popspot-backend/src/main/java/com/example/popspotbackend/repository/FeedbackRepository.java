@@ -13,6 +13,8 @@ public interface FeedbackRepository extends JpaRepository<Feedback, Long> {
     /** 본인 의견 목록 (최신순). */
     List<Feedback> findAllByUserIdOrderByCreatedAtDesc(String userId);
 
+    void deleteByUserId(String userId);
+
     /** 어드민 검수 큐 — 상태 필터 + 페이징 + 최신순. */
     @Query(
             "SELECT f FROM Feedback f "

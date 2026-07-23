@@ -1,7 +1,7 @@
-@import url("https://cdn.jsdelivr.net/gh/wanteddev/wanted-sans@v1.0.3/packages/wanted-sans/fonts/webfonts/variable/split/WantedSansVariable.min.css");
-@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css");
-@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap");
-@import "tailwindcss";
+@import url('https://cdn.jsdelivr.net/gh/wanteddev/wanted-sans@v1.0.3/packages/wanted-sans/fonts/webfonts/variable/split/WantedSansVariable.min.css');
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap');
+@import 'tailwindcss';
 
 @source "../src";
 @source ".";
@@ -9,7 +9,7 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-  --color-lime-50:  #f5fde6;
+  --color-lime-50: #f5fde6;
   --color-lime-100: #e7fbc2;
   --color-lime-200: #d3f796;
   --color-lime-300: #c2f970;
@@ -20,7 +20,7 @@
   --color-lime-800: #3a570a;
   --color-lime-900: #243605;
 
-  --color-hot-50:  #ffe7ef;
+  --color-hot-50: #ffe7ef;
   --color-hot-100: #ffc2d4;
   --color-hot-200: #ff8eb1;
   --color-hot-300: #ff6094;
@@ -31,7 +31,7 @@
   --color-hot-800: #6a052b;
   --color-hot-900: #43021a;
 
-  --color-violet-50:  #efeaff;
+  --color-violet-50: #efeaff;
   --color-violet-100: #d8cdff;
   --color-violet-200: #b9a4ff;
   --color-violet-300: #9a7eff;
@@ -42,7 +42,7 @@
   --color-violet-800: #221363;
   --color-violet-900: #110a36;
 
-  --color-ink-50:  #f7f7f7;
+  --color-ink-50: #f7f7f7;
   --color-ink-100: #e6e6e6;
   --color-ink-200: #cfcfcf;
   --color-ink-300: #a5a5a5;
@@ -53,7 +53,7 @@
   --color-ink-800: #0f0f0f;
   --color-ink-900: #0a0a0a;
 
-  --color-cream-50:  #fefdfa;
+  --color-cream-50: #fefdfa;
   --color-cream-100: #fbf9f3;
   --color-cream-200: #f5f3ee;
   --color-cream-300: #ece9e0;
@@ -97,9 +97,12 @@
   --shadow-glow: 0 0 0 4px rgba(194, 249, 112, 0.3);
 
   /* v2.24 — 브랜드 폰트: Wanted Sans (한·영 균형 + 트렌디 브랜드 톤). Pretendard 는 fallback 로 유지. */
-  --font-sans: "Wanted Sans Variable", "Wanted Sans", "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
-  --font-display: "Wanted Sans Variable", "Wanted Sans", "Pretendard Variable", Pretendard, sans-serif;
-  --font-mono: "JetBrains Mono", "D2Coding", ui-monospace, "SFMono-Regular", monospace;
+  --font-sans:
+    'Wanted Sans Variable', 'Wanted Sans', 'Pretendard Variable', Pretendard, -apple-system,
+    BlinkMacSystemFont, system-ui, 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+  --font-display:
+    'Wanted Sans Variable', 'Wanted Sans', 'Pretendard Variable', Pretendard, sans-serif;
+  --font-mono: 'JetBrains Mono', 'D2Coding', ui-monospace, 'SFMono-Regular', monospace;
 
   --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -130,7 +133,9 @@
  * 배경과 대비가 너무 강해서 가독성이 떨어진다. 본문 톤으로 부드럽게 덮어쓴다.
  * (강조 색상은 text-foreground/색상 변수를 쓰는 곳은 영향 없음)
  */
-:root.dark body { color-scheme: dark; }
+:root.dark body {
+  color-scheme: dark;
+}
 
 /*
  * 밝은 라임/크림 계열 배경 위 텍스트 가독성 강제.
@@ -143,9 +148,9 @@
 :root:not(.dark) .bg-lime-300,
 :root:not(.dark) .bg-cream-100,
 :root:not(.dark) .bg-cream-200,
-:root:not(.dark) [class*="bg-[#d2f797]"],
-:root:not(.dark) [class*="bg-[#fbffda]"],
-:root:not(.dark) [class*="bg-[#c2f970]"] {
+:root:not(.dark) [class*='bg-[#d2f797]'],
+:root:not(.dark) [class*='bg-[#fbffda]'],
+:root:not(.dark) [class*='bg-[#c2f970]'] {
   color: var(--color-ink-900);
 }
 :root:not(.dark) .bg-lime-100 .text-white,
@@ -168,13 +173,16 @@ body {
   background-color: var(--color-background);
   color: var(--color-foreground);
   font-family: var(--font-sans);
-  font-feature-settings: "ss01", "ss02", "cv11";
+  font-feature-settings: 'ss01', 'ss02', 'cv11';
   letter-spacing: -0.01em;
   min-height: 100svh;
-  transition: background-color 0.3s var(--ease-out-quart), color 0.3s var(--ease-out-quart);
+  transition:
+    background-color 0.3s var(--ease-out-quart),
+    color 0.3s var(--ease-out-quart);
 }
 
-p, li {
+p,
+li {
   line-height: 1.65;
   word-break: keep-all;
 }
@@ -194,16 +202,25 @@ p, li {
   outline-offset: 2px;
 }
 
-::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
 ::-webkit-scrollbar-thumb {
   background: var(--color-border-strong);
   border-radius: var(--radius-pill);
 }
-::-webkit-scrollbar-thumb:hover { background: var(--color-lime-300); }
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-lime-300);
+}
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
+  *,
+  *::before,
+  *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
@@ -217,8 +234,12 @@ p, li {
 }
 
 @keyframes marquee {
-  from { transform: translateX(0); }
-  to { transform: translateX(-50%); }
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
 }
 .animate-marquee {
   animation: marquee 40s linear infinite;

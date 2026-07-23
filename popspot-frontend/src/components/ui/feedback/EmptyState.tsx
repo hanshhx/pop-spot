@@ -1,9 +1,9 @@
-"use client";
+'use client';
 
-import { type ReactNode } from "react";
-import { Inbox } from "lucide-react";
+import { type ReactNode } from 'react';
+import { Inbox } from 'lucide-react';
 
-import { cn } from "@/lib/utils";
+import { cn } from '@/lib/utils';
 
 interface EmptyStateProps {
   /** 좌측 또는 상단 아이콘. 미지정 시 lucide Inbox. */
@@ -41,10 +41,9 @@ export function EmptyState({
   return (
     <div
       className={cn(
-        "flex flex-col items-center justify-center text-center",
-        "py-10 px-6 gap-3",
-        bordered &&
-          "rounded-md border border-dashed border-[var(--color-border-strong)]",
+        'flex flex-col items-center justify-center text-center',
+        'py-10 px-6 gap-3',
+        bordered && 'rounded-md border border-dashed border-[var(--color-border-strong)]',
         className,
       )}
     >
@@ -53,9 +52,7 @@ export function EmptyState({
       </div>
       <p className="text-sm font-semibold text-foreground">{title}</p>
       {description && (
-        <p className="text-xs text-muted-foreground max-w-xs whitespace-pre-line">
-          {description}
-        </p>
+        <p className="text-xs text-muted-foreground max-w-xs whitespace-pre-line">{description}</p>
       )}
       {action && <div className="mt-1">{action}</div>}
     </div>

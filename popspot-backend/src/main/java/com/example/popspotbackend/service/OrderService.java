@@ -8,8 +8,10 @@ import com.example.popspotbackend.repository.GoodsRepository;
 import com.example.popspotbackend.repository.OrderRepository;
 import com.example.popspotbackend.repository.UserRepository;
 import java.time.LocalDateTime;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,6 +35,8 @@ import org.springframework.transaction.annotation.Transactional;
 public class OrderService {
 
     private static final String PAYMENT_STATUS_PAID = "paid";
+    private static final String ORDER_STATUS_PREPARED = "PREPARED";
+    private static final String ORDER_STATUS_PAID = "PAID";
     private static final String CANCEL_REASON_AMOUNT_MISMATCH = "amount_mismatch";
 
     private static final int POPPASS_GRANT_DAYS = 30;
@@ -43,15 +47,54 @@ public class OrderService {
     private final IamportService iamportService;
 
     @Transactional
+    public PreparedOrder prepareOrder(Long goodsId, Authentication authentication) {
+        String userId = requireAuthenticatedUser(authentication);
+        if (goodsId == null) throw new IllegalArgumentException("상품 ID 누락");
+        Goods goods = findGoodsOrThrow(goodsId);
+        String merchantUid = "popspot_" + UUID.randomUUID().toString().replace("-", "");
+        Orders prepared =
+                Orders.builder()
+                        .userId(userId)
+                        .merchantUid(merchantUid)
+                        .goodsId(goods.getId())
+                        .goodsName(goods.getName())
+                        .amount(goods.getPrice())
+                        .status(ORDER_STATUS_PREPARED)
+                        .build();
+        orderRepository.saveAndFlush(prepared);
+        return new PreparedOrder(merchantUid, goods.getId(), goods.getName(), goods.getPrice());
+    }
+
+    @Transactional
     public void processOrder(OrderController.OrderDto dto, Authentication authentication) {
         String authUserId = requireAuthenticatedUser(authentication);
         validatePaymentDtoOrThrow(dto);
-        rejectDuplicatePayment(dto.getImpUid());
+        Orders order = findPreparedOrder(dto, authUserId);
+        if (ORDER_STATUS_PAID.equals(order.getStatus())) {
+            if (dto.getImpUid().equals(order.getImpUid())) return;
+            throw new IllegalStateException("이미 완료된 주문입니다.");
+        }
+        orderRepository
+                .findByImpUid(dto.getImpUid())
+                .ifPresent(
+                        existing -> {
+                            throw new IllegalStateException("이미 처리된 결제입니다.");
+                        });
 
-        Goods goods = findGoodsOrThrow(dto.getGoodsId());
+        Goods goods = findGoodsOrThrow(order.getGoodsId());
         IamportService.PaymentInfo payment = verifyPaymentOrThrow(dto.getImpUid(), goods);
+        if (!order.getMerchantUid().equals(payment.merchantUid())) {
+            throw new SecurityException("결제 주문번호가 서버 준비 주문과 일치하지 않습니다.");
+        }
 
-        orderRepository.save(buildOrderRecord(authUserId, payment, goods));
+        order.setImpUid(payment.impUid());
+        order.setAmount(payment.amount());
+        order.setStatus(ORDER_STATUS_PAID);
+        try {
+            orderRepository.saveAndFlush(order);
+        } catch (DataIntegrityViolationException e) {
+            throw new IllegalStateException("이미 처리된 결제입니다.", e);
+        }
         grantPurchaseEntitlements(authUserId, goods);
         log.info(
                 "주문 완료 impUid={} userId={} amount={}",
@@ -78,10 +121,13 @@ public class OrderService {
         }
     }
 
-    private void rejectDuplicatePayment(String impUid) {
-        if (orderRepository.existsByImpUid(impUid)) {
-            throw new IllegalStateException("이미 처리된 주문입니다.");
+    private Orders findPreparedOrder(OrderController.OrderDto dto, String userId) {
+        if (dto.getMerchantUid() == null || dto.getMerchantUid().isBlank()) {
+            throw new IllegalArgumentException("merchant_uid 누락");
         }
+        return orderRepository
+                .findPreparedForUpdate(dto.getMerchantUid(), userId)
+                .orElseThrow(() -> new SecurityException("서버가 발급한 준비 주문이 아닙니다."));
     }
 
     private Goods findGoodsOrThrow(Long goodsId) {
@@ -117,18 +163,6 @@ public class OrderService {
 
     /* ============================== 저장 / 지급 ============================== */
 
-    private Orders buildOrderRecord(
-            String userId, IamportService.PaymentInfo payment, Goods goods) {
-        return Orders.builder()
-                .userId(userId)
-                .impUid(payment.impUid())
-                .merchantUid(payment.merchantUid())
-                .goodsId(goods.getId())
-                .goodsName(goods.getName())
-                .amount(payment.amount())
-                .build();
-    }
-
     private void grantPurchaseEntitlements(String userId, Goods goods) {
         User user =
                 userRepository
@@ -158,4 +192,7 @@ public class OrderService {
         if (name == null) return "";
         return name.toUpperCase().replace(" ", "").replace("-", "");
     }
+
+    public record PreparedOrder(
+            String merchantUid, Long goodsId, String goodsName, Integer amount) {}
 }

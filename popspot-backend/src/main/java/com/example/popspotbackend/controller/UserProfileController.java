@@ -2,13 +2,15 @@ package com.example.popspotbackend.controller;
 
 import com.example.popspotbackend.entity.User;
 import com.example.popspotbackend.exception.ResourceNotFoundException;
-import com.example.popspotbackend.repository.SpotifyAuthRepository;
 import com.example.popspotbackend.repository.UserRepository;
+import com.example.popspotbackend.service.AccountDeletionService;
 import com.example.popspotbackend.service.media.ImageUploadGuard;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.Size;
 import java.io.File;
 import java.io.IOException;
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.HashMap;
@@ -69,8 +71,9 @@ public class UserProfileController {
     private static final String ALLOWED_HOST_PATTERNS_PROP = "app.upload.allowed-host-patterns";
 
     private final UserRepository userRepository;
-    private final SpotifyAuthRepository spotifyAuthRepository;
+    private final AccountDeletionService accountDeletionService;
     private final List<Pattern> allowedHostPatterns;
+    private final boolean trustProxyHeaders;
 
     /**
      * 아바타 저장 위치. 정적 서빙(WebConfig)과 <b>같은 프로퍼티</b>({@code app.upload.path})를 읽는다.
@@ -85,13 +88,15 @@ public class UserProfileController {
 
     public UserProfileController(
             UserRepository userRepository,
-            SpotifyAuthRepository spotifyAuthRepository,
+            AccountDeletionService accountDeletionService,
             @Value("${" + ALLOWED_HOST_PATTERNS_PROP + ":}") String allowedHostPatternsCsv,
+            @Value("${app.trust-proxy-headers:false}") boolean trustProxyHeaders,
             @Value("${app.upload.path}") String uploadPath,
             ImageUploadGuard imageGuard) {
         this.userRepository = userRepository;
-        this.spotifyAuthRepository = spotifyAuthRepository;
+        this.accountDeletionService = accountDeletionService;
         this.allowedHostPatterns = compilePatterns(allowedHostPatternsCsv);
+        this.trustProxyHeaders = trustProxyHeaders;
         this.avatarDir = Paths.get(uploadPath, "avatar").toAbsolutePath().normalize().toString();
         this.imageGuard = imageGuard;
     }
@@ -185,7 +190,7 @@ public class UserProfileController {
     @PatchMapping("/me")
     @Transactional
     public ResponseEntity<Map<String, Object>> updateMe(
-            @RequestBody UpdateProfileRequest dto, Authentication authentication) {
+            @Valid @RequestBody UpdateProfileRequest dto, Authentication authentication) {
         String userId = requireAuthenticatedUserId(authentication);
 
         User user =
@@ -205,7 +210,12 @@ public class UserProfileController {
         }
 
         if (dto.getPicture() != null) {
-            user.setPicture(dto.getPicture().isBlank() ? null : dto.getPicture());
+            String picture = dto.getPicture().trim();
+            boolean unchangedUploadedPicture = picture.equals(user.getPicture());
+            if (!picture.isBlank() && !unchangedUploadedPicture && !isAllowedAvatarUrl(picture)) {
+                throw new IllegalArgumentException("업로드된 프로필 사진 URL만 사용할 수 있습니다.");
+            }
+            user.setPicture(picture.isBlank() ? null : picture);
         }
 
         userRepository.save(user);
@@ -222,9 +232,7 @@ public class UserProfileController {
     /**
      * v2.17 — PIPA 의무 회원 탈퇴.
      *
-     * <p>이메일 / 닉네임 / 휴대전화 / 프로필 사진 등 식별 정보를 즉시 익명화하고 비밀번호를 무효화한다. 사용자가 작성한 동행 글 / 의견 / 코스 등은 데이터
-     * 무결성 + 운영 통계 목적으로 닉네임만 {@code [탈퇴한 회원]} 으로 익명화한 채 유지한다. 30일 후 영구 삭제는 별도 cron 으로 처리할 수 있다 (현재는
-     * 즉시 익명화만).
+     * <p>식별 정보를 즉시 익명화하고, 찜·스탬프·코스·의견·동행 글·채팅·음악 이력과 Spotify 토큰을 같은 트랜잭션에서 삭제한다.
      *
      * <p>비밀번호 확인 본인 인증은 추후 강화 가능. 현재는 토큰 보유 자체가 본인 인증.
      */
@@ -232,26 +240,8 @@ public class UserProfileController {
     @Transactional
     public ResponseEntity<Map<String, Object>> deleteMe(Authentication authentication) {
         String userId = requireAuthenticatedUserId(authentication);
-        User user =
-                userRepository
-                        .findById(userId)
-                        .orElseThrow(() -> ResourceNotFoundException.user(userId));
-
-        // 식별 정보 즉시 익명화 — 이메일 / 휴대전화 unique 충돌 방지를 위해 무작위 suffix.
-        String anonSuffix = UUID.randomUUID().toString().substring(0, 8);
-        user.setNickname("[탈퇴한 회원]");
-        user.setEmail("deleted-" + anonSuffix + "@popspot.invalid");
-        user.setPhoneNumber(null);
-        user.setPicture(null);
-        // 비밀번호를 사용 불가 토큰으로 — 재로그인 불가.
-        user.changePassword("DELETED-" + anonSuffix);
-        userRepository.save(user);
-
-        // v2.21-S14 — Spotify 연결 토큰 즉시 삭제 (PIPA + Spotify Developer Policy 의무).
-        // FK CASCADE 도 있지만 users 는 익명화만 하고 삭제 안 하므로 명시적 삭제 필요.
-        spotifyAuthRepository.deleteByUserId(userId);
-
-        log.info("[User] 회원 탈퇴 — userId={} 익명화 + Spotify 토큰 삭제 완료", userId);
+        accountDeletionService.deleteAccount(userId);
+        log.info("[User] 회원 탈퇴 및 사용자 데이터 정리 완료 userId={}", userId);
         return ResponseEntity.ok(Map.of("status", "DELETED", "userId", userId));
     }
 
@@ -333,17 +323,23 @@ public class UserProfileController {
 
     private String resolveScheme(HttpServletRequest request) {
         String forwardedProto = request.getHeader(HEADER_X_FORWARDED_PROTO);
-        return forwardedProto != null ? forwardedProto : request.getScheme();
+        // 값은 http/https 두 개로 제한한다. 이 헤더는 공개 URL 스킴에만 쓰며 IP 판정에는 사용하지 않는다.
+        if ("https".equalsIgnoreCase(forwardedProto) || "http".equalsIgnoreCase(forwardedProto)) {
+            return forwardedProto.toLowerCase();
+        }
+        return request.getScheme();
     }
 
     private String resolveHost(HttpServletRequest request) {
         String forwardedHost = request.getHeader(HEADER_X_FORWARDED_HOST);
-        if (forwardedHost != null && isAllowedHost(forwardedHost)) {
+        if (trustProxyHeaders && forwardedHost != null && isAllowedHost(forwardedHost)) {
             return forwardedHost;
         }
         int port = request.getServerPort();
         boolean omitPort = port == HTTP_PORT || port == HTTPS_PORT;
-        return request.getServerName() + (omitPort ? "" : ":" + port);
+        String authority = request.getServerName() + (omitPort ? "" : ":" + port);
+        if (isAllowedHost(authority) || isLocalhost(authority)) return authority;
+        throw new SecurityException("허용되지 않은 업로드 요청 호스트");
     }
 
     private boolean isAllowedHost(String host) {
@@ -352,6 +348,28 @@ public class UserProfileController {
             if (p.matcher(host).matches()) return true;
         }
         return false;
+    }
+
+    private boolean isLocalhost(String host) {
+        return host != null
+                && (host.matches("localhost(?::\\d+)?")
+                        || host.matches("127\\.0\\.0\\.1(?::\\d+)?"));
+    }
+
+    private boolean isAllowedAvatarUrl(String value) {
+        try {
+            URI uri = URI.create(value);
+            String path = uri.getPath();
+            if (path == null || !path.startsWith("/uploads/avatar/")) return false;
+            if (uri.getHost() == null) return value.startsWith("/uploads/avatar/");
+            if (!("https".equalsIgnoreCase(uri.getScheme())
+                    || "http".equalsIgnoreCase(uri.getScheme()))) return false;
+            String authority =
+                    uri.getPort() < 0 ? uri.getHost() : uri.getHost() + ":" + uri.getPort();
+            return isAllowedHost(authority);
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
     }
 
     private static List<Pattern> compilePatterns(String csv) {

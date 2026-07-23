@@ -1,24 +1,16 @@
-"use client";
+'use client';
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { motion } from "framer-motion";
-import {
-  Dice5,
-  Loader2,
-  Music2,
-  Play,
-  Search,
-  Ticket,
-  X,
-} from "lucide-react";
-import Link from "next/link";
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Dice5, Loader2, Music2, Play, Search, Ticket, X } from 'lucide-react';
+import Link from 'next/link';
 
-import { apiFetch } from "@/lib/api";
-import { SpotifyConnectButton } from "@/features/music/SpotifyConnectButton";
-import { MatchResult, MusicTrack } from "@/types/music";
-import type { PopupStore } from "@/types/popup";
-import { PopupCard } from "@/components/main/PopupCard";
-import { useMusicPlayer } from "./MusicPlayerProvider";
+import { apiFetch } from '@/lib/api';
+import { getAuthToken } from '@/lib/authStorage';
+import { SpotifyConnectButton } from '@/features/music/SpotifyConnectButton';
+import { MatchResult, MusicTrack } from '@/types/music';
+import type { PopupStore } from '@/types/popup';
+import { PopupCard } from '@/components/main/PopupCard';
+import { useMusicPlayer } from './MusicPlayerProvider';
 
 /**
  * 검색 디바운스 — 입력이 멈추고 N ms 후 한 번만 호출.
@@ -48,12 +40,48 @@ const MOODS: {
   music: string;
   cats: string[];
 }[] = [
-  { id: "chill", label: "감성·카페", desc: "잔잔하게 둘러보기", music: "korean lofi cafe chill", cats: ["FOOD", "CULTURE"] },
-  { id: "trend", label: "트렌디·K팝", desc: "지금 가장 힙한", music: "k-pop hits 2025", cats: ["FASHION", "BEAUTY"] },
-  { id: "cute", label: "아기자기", desc: "귀여운 캐릭터", music: "korean cute bright pop", cats: ["CHARACTER"] },
-  { id: "art", label: "전시·아트", desc: "감각을 채우는", music: "korean indie art", cats: ["CULTURE", "TECH"] },
-  { id: "date", label: "데이트", desc: "둘이 설레는", music: "korean rnb soul love", cats: ["FASHION", "FOOD", "BEAUTY"] },
-  { id: "rainy", label: "비 오는 날", desc: "차분하게 젖어드는", music: "korean rainy day ballad", cats: ["CULTURE", "FOOD"] },
+  {
+    id: 'chill',
+    label: '감성·카페',
+    desc: '잔잔하게 둘러보기',
+    music: 'korean lofi cafe chill',
+    cats: ['FOOD', 'CULTURE'],
+  },
+  {
+    id: 'trend',
+    label: '트렌디·K팝',
+    desc: '지금 가장 힙한',
+    music: 'k-pop hits 2025',
+    cats: ['FASHION', 'BEAUTY'],
+  },
+  {
+    id: 'cute',
+    label: '아기자기',
+    desc: '귀여운 캐릭터',
+    music: 'korean cute bright pop',
+    cats: ['CHARACTER'],
+  },
+  {
+    id: 'art',
+    label: '전시·아트',
+    desc: '감각을 채우는',
+    music: 'korean indie art',
+    cats: ['CULTURE', 'TECH'],
+  },
+  {
+    id: 'date',
+    label: '데이트',
+    desc: '둘이 설레는',
+    music: 'korean rnb soul love',
+    cats: ['FASHION', 'FOOD', 'BEAUTY'],
+  },
+  {
+    id: 'rainy',
+    label: '비 오는 날',
+    desc: '차분하게 젖어드는',
+    music: 'korean rainy day ballad',
+    cats: ['CULTURE', 'FOOD'],
+  },
 ];
 
 const MAX_POPUPS = 12;
@@ -86,7 +114,7 @@ export default function MusicTab({ popups, onOpenPopup }: MusicTabProps) {
     const list = popups ?? [];
     if (list.length === 0) return [];
     const matched = list.filter((p) =>
-      activeMood.cats.includes((p.category || "ETC").toUpperCase()),
+      activeMood.cats.includes((p.category || 'ETC').toUpperCase()),
     );
     if (matched.length >= MAX_POPUPS) return matched.slice(0, MAX_POPUPS);
     const matchedIds = new Set(matched.map((p) => p.id));
@@ -97,7 +125,7 @@ export default function MusicTab({ popups, onOpenPopup }: MusicTabProps) {
   }, [popups, activeMood]);
 
   // 정렬 기준 — 추천순(무드 매칭 순) / 인기순 / 마감임박순 / 카테고리순.
-  const [sortBy, setSortBy] = useState<"default" | "popular" | "dday" | "category">("default");
+  const [sortBy, setSortBy] = useState<'default' | 'popular' | 'dday' | 'category'>('default');
 
   const sortedMoodPopups = useMemo(() => {
     const arr = [...moodPopups];
@@ -107,16 +135,16 @@ export default function MusicTab({ popups, onOpenPopup }: MusicTabProps) {
       if (Number.isNaN(end.getTime())) return Number.POSITIVE_INFINITY;
       return Math.ceil((end.getTime() - Date.now()) / 86_400_000);
     };
-    if (sortBy === "popular") arr.sort((a, b) => (b.viewCount || 0) - (a.viewCount || 0));
-    else if (sortBy === "dday") arr.sort((a, b) => dday(a) - dday(b));
-    else if (sortBy === "category")
-      arr.sort((a, b) => (a.category || "ETC").localeCompare(b.category || "ETC"));
+    if (sortBy === 'popular') arr.sort((a, b) => (b.viewCount || 0) - (a.viewCount || 0));
+    else if (sortBy === 'dday') arr.sort((a, b) => dday(a) - dday(b));
+    else if (sortBy === 'category')
+      arr.sort((a, b) => (a.category || 'ETC').localeCompare(b.category || 'ETC'));
     return arr;
   }, [moodPopups, sortBy]);
 
   /* -------- 배경음악(강등된 위젯) -------- */
-  const [query, setQuery] = useState("");
-  const [submittedQuery, setSubmittedQuery] = useState("");
+  const [query, setQuery] = useState('');
+  const [submittedQuery, setSubmittedQuery] = useState('');
   const debouncedQuery = useDebounce(query, 250);
 
   const [suggestions, setSuggestions] = useState<string[]>([]);
@@ -140,7 +168,7 @@ export default function MusicTab({ popups, onOpenPopup }: MusicTabProps) {
 
   // 인기곡(검색·무드 트랙이 모두 비었을 때의 최종 폴백)
   useEffect(() => {
-    apiFetch("/api/music/popular?limit=12")
+    apiFetch('/api/music/popular?limit=12')
       .then((r) => (r.ok ? r.json() : []))
       .then((data: MusicTrack[]) => setPopular(data || []))
       .catch(() => setPopular([]));
@@ -149,10 +177,10 @@ export default function MusicTab({ popups, onOpenPopup }: MusicTabProps) {
   // '당신을 위한' — 로그인 상태에서만. 재생 이력이 쌓일수록 각자 다른 추천이 뜬다.
   useEffect(() => {
     let alive = true;
-    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    const token = getAuthToken();
     setIsLoggedIn(!!token);
     if (!token) return;
-    apiFetch("/api/music/for-you?limit=12")
+    apiFetch('/api/music/for-you?limit=12')
       .then((r) => (r.ok ? r.json() : []))
       .then((data: MusicTrack[]) => {
         if (alive) setForYou(data || []);
@@ -169,9 +197,7 @@ export default function MusicTab({ popups, onOpenPopup }: MusicTabProps) {
   useEffect(() => {
     let alive = true;
     setMoodLoading(true);
-    apiFetch(
-      `/api/music/category?keyword=${encodeURIComponent(activeMood.music)}&limit=12`,
-    )
+    apiFetch(`/api/music/category?keyword=${encodeURIComponent(activeMood.music)}&limit=12`)
       .then((r) => (r.ok ? r.json() : []))
       .then((data: MusicTrack[]) => {
         if (alive) setMoodTracks(data || []);
@@ -236,8 +262,8 @@ export default function MusicTab({ popups, onOpenPopup }: MusicTabProps) {
         setSuggestOpen(false);
       }
     }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   const submitSearch = (q: string) => {
@@ -250,28 +276,28 @@ export default function MusicTab({ popups, onOpenPopup }: MusicTabProps) {
   };
 
   const clearSearch = () => {
-    setQuery("");
-    setSubmittedQuery("");
+    setQuery('');
+    setSubmittedQuery('');
     setSuggestions([]);
     setSuggestOpen(false);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (!suggestOpen || suggestions.length === 0) {
-      if (e.key === "Enter") submitSearch(query);
+      if (e.key === 'Enter') submitSearch(query);
       return;
     }
-    if (e.key === "ArrowDown") {
+    if (e.key === 'ArrowDown') {
       e.preventDefault();
       setActiveIndex((i) => Math.min(i + 1, suggestions.length - 1));
-    } else if (e.key === "ArrowUp") {
+    } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       setActiveIndex((i) => Math.max(i - 1, -1));
-    } else if (e.key === "Enter") {
+    } else if (e.key === 'Enter') {
       e.preventDefault();
       const target = activeIndex >= 0 ? suggestions[activeIndex] : query;
       submitSearch(target);
-    } else if (e.key === "Escape") {
+    } else if (e.key === 'Escape') {
       setSuggestOpen(false);
     }
   };
@@ -279,7 +305,7 @@ export default function MusicTab({ popups, onOpenPopup }: MusicTabProps) {
   const handleRoulette = async () => {
     setRouletteLoading(true);
     try {
-      const r = await apiFetch("/api/music/roulette", { method: "POST" });
+      const r = await apiFetch('/api/music/roulette', { method: 'POST' });
       if (!r.ok) return;
       const data: MatchResult = await r.json();
       if (data?.track) player.play(data.track);
@@ -290,11 +316,7 @@ export default function MusicTab({ popups, onOpenPopup }: MusicTabProps) {
 
   const showSearch = submittedQuery.trim().length > 0;
   // 배경음악 스트립: 검색 중이면 검색결과, 아니면 무드 트랙, 그것도 없으면 인기곡.
-  const strip: MusicTrack[] = showSearch
-    ? results
-    : moodTracks.length > 0
-      ? moodTracks
-      : popular;
+  const strip: MusicTrack[] = showSearch ? results : moodTracks.length > 0 ? moodTracks : popular;
 
   return (
     <div className="relative w-full">
@@ -306,8 +328,7 @@ export default function MusicTab({ popups, onOpenPopup }: MusicTabProps) {
               POP · MUSIC
             </p>
             <h2 className="mt-2 text-2xl font-black leading-tight tracking-tight text-foreground sm:text-4xl">
-              무드로 고르는,{" "}
-              <span className="text-lime-500 dark:text-lime-300">오늘의 팝업</span>
+              무드로 고르는, <span className="text-lime-500 dark:text-lime-300">오늘의 팝업</span>
             </h2>
             <p className="mt-2 max-w-md text-sm text-muted-foreground">
               지금 기분에 맞는 무드를 고르면, 어울리는 팝업과 배경음악을 함께 골라드려요.
@@ -349,13 +370,13 @@ export default function MusicTab({ popups, onOpenPopup }: MusicTabProps) {
               aria-pressed={active}
               className={`flex flex-col items-start rounded-2xl border px-3.5 py-3 text-left transition ${
                 active
-                  ? "border-lime-400 bg-lime-300 text-ink-900 shadow-md"
-                  : "border-[var(--color-border)] bg-cream-200 text-foreground hover:border-lime-300/60 dark:bg-ink-800"
+                  ? 'border-lime-400 bg-lime-300 text-ink-900 shadow-md'
+                  : 'border-[var(--color-border)] bg-cream-200 text-foreground hover:border-lime-300/60 dark:bg-ink-800'
               }`}
             >
               <span className="text-sm font-black leading-tight">{m.label}</span>
               <span
-                className={`mt-0.5 text-[11px] leading-tight ${active ? "text-ink-900/70" : "text-muted-foreground"}`}
+                className={`mt-0.5 text-[11px] leading-tight ${active ? 'text-ink-900/70' : 'text-muted-foreground'}`}
               >
                 {m.desc}
               </span>
@@ -369,7 +390,8 @@ export default function MusicTab({ popups, onOpenPopup }: MusicTabProps) {
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-baseline gap-2">
             <h3 className="text-base font-black text-foreground">
-              <span className="text-lime-500 dark:text-lime-300">{activeMood.label}</span> 무드의 팝업
+              <span className="text-lime-500 dark:text-lime-300">{activeMood.label}</span> 무드의
+              팝업
             </h3>
             <span className="text-xs text-muted-foreground">사진으로 훑어보세요</span>
           </div>
@@ -378,7 +400,7 @@ export default function MusicTab({ popups, onOpenPopup }: MusicTabProps) {
             <select
               value={sortBy}
               onChange={(e) =>
-                setSortBy(e.target.value as "default" | "popular" | "dday" | "category")
+                setSortBy(e.target.value as 'default' | 'popular' | 'dday' | 'category')
               }
               aria-label="팝업 정렬 기준"
               className="rounded-pill border border-[var(--color-border)] bg-surface px-3 py-1.5 text-xs font-semibold text-foreground focus:outline-none focus:border-lime-400"
@@ -498,8 +520,8 @@ export default function MusicTab({ popups, onOpenPopup }: MusicTabProps) {
                   onClick={() => submitSearch(s)}
                   className={`flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm transition ${
                     activeIndex === i
-                      ? "bg-foreground/5 text-foreground"
-                      : "text-foreground/80 hover:bg-foreground/5"
+                      ? 'bg-foreground/5 text-foreground'
+                      : 'text-foreground/80 hover:bg-foreground/5'
                   }`}
                 >
                   <Music2 className="h-4 w-4 shrink-0 text-muted-foreground" />
@@ -527,7 +549,8 @@ export default function MusicTab({ popups, onOpenPopup }: MusicTabProps) {
 
         {/* 어트리뷰션 (Spotify Branding Guidelines) */}
         <p className="mt-4 text-center text-[10px] tracking-wide text-muted-foreground">
-          음원 제공 · <span className="font-bold text-[#1DB954]">Spotify</span> · Apple Music · YouTube
+          음원 제공 · <span className="font-bold text-[#1DB954]">Spotify</span> · Apple Music ·
+          YouTube
         </p>
       </section>
 

@@ -25,7 +25,7 @@ import org.springframework.web.bind.annotation.RestController;
  * 팝업스토어 공개 엔드포인트.
  *
  * <p>CORS 는 {@code SecurityConfig} 의 전역 설정에 위임하므로 컨트롤러 단 {@code @CrossOrigin} 은 두지 않는다. 팝업 takedown
- * 은 즉시 노출만 차단하고 실제 row 삭제는 admin 승인 후 별도 처리 (악성 신고 방어).
+ * 은 신고 이력을 남긴 뒤 admin 검증을 거쳐 차단한다. 이메일만으로 공개 페이지를 즉시 내릴 수 없게 한다.
  */
 @Slf4j
 @RestController
@@ -84,7 +84,7 @@ public class PopupStoreController {
         return ResponseEntity.ok(popupStoreService.getCalendar(from, to));
     }
 
-    /** 권리자 takedown 요청. 즉시 노출 차단하고 admin 후속 조사로 넘긴다. */
+    /** 권리자 takedown 요청. 신고를 기록하고 admin 후속 조사로 넘긴다. */
     @PostMapping("/{id}/takedown")
     public ResponseEntity<Map<String, Object>> requestTakedown(
             @PathVariable Long id, @Valid @RequestBody PopupTakedownRequestDto dto) {
@@ -93,7 +93,7 @@ public class PopupStoreController {
         popupStoreService.save(popup);
 
         log.warn(
-                "[Takedown] 팝업 id={} name='{}' 요청자={} 사유='{}' → 노출 즉시 차단",
+                "[Takedown] 팝업 id={} name='{}' 요청자={} 사유='{}' → 관리자 검증 대기",
                 id,
                 popup.getName(),
                 dto.getRequesterEmail(),
@@ -118,13 +118,13 @@ public class PopupStoreController {
     /* ============================== 내부 헬퍼 ============================== */
 
     private void applyTakedown(PopupStore popup, PopupTakedownRequestDto dto) {
-        if (REVIEW_STATUS_TAKEDOWN.equals(popup.getReviewStatus())) {
+        if (popup.getTakedownRequestedAt() != null
+                || REVIEW_STATUS_TAKEDOWN.equals(popup.getReviewStatus())) {
             // 이미 차단된 건이면 최초 신고 기록(시각·사유·신고자)을 그대로 보존한다.
             // 재신고마다 시각을 갱신하면 SLA cutoff 가 계속 뒤로 밀려 admin 알림이 울리지 않고,
             // 주기적으로 재신고하는 것만으로 영구 은폐가 가능해진다.
             return;
         }
-        popup.setReviewStatus(REVIEW_STATUS_TAKEDOWN);
         popup.setTakedownRequestedAt(LocalDateTime.now());
         popup.setTakedownReason(dto.getReason());
         popup.setTakedownRequester(dto.getRequesterEmail());
@@ -132,8 +132,8 @@ public class PopupStoreController {
 
     private Map<String, Object> buildTakedownResponse(Long id) {
         Map<String, Object> resp = new HashMap<>();
-        resp.put("status", "ACCEPTED");
-        resp.put("message", "신고가 접수되었습니다. 24시간 내 검토 후 조치합니다.");
+        resp.put("status", "PENDING_REVIEW");
+        resp.put("message", "신고가 접수되었습니다. 권리 관계 확인 후 24시간 내 조치합니다.");
         resp.put("popupId", id);
         return resp;
     }

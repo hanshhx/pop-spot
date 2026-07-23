@@ -1,5 +1,9 @@
 package com.example.popspotbackend.dto;
 
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -14,9 +18,21 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class MateDto {
     private String userId;
+
+    @NotBlank
+    @Size(max = 80)
     private String title;
+
+    @NotBlank
+    @Size(max = 1000)
     private String content;
+
+    @NotBlank
+    @Size(max = 120)
     private String targetPopup;
+
+    @Min(2)
+    @Max(10)
     private Integer maxPeople;
 
     /**

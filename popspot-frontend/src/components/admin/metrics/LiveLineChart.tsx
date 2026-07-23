@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import {
   CartesianGrid,
@@ -8,7 +8,7 @@ import {
   Tooltip,
   XAxis,
   YAxis,
-} from "recharts";
+} from 'recharts';
 
 /**
  * 실시간 시계열 라인 차트. 부모가 시계열 데이터를 push 만 해주면 된다.
@@ -35,26 +35,20 @@ export function LiveLineChart({ data, series, height = 200 }: LiveLineChartProps
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={data}>
           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#88888820" />
-          <XAxis
-            dataKey="time"
-            stroke="#555"
-            fontSize={10}
-            tickLine={false}
-            axisLine={false}
-          />
+          <XAxis dataKey="time" stroke="#555" fontSize={10} tickLine={false} axisLine={false} />
           <YAxis
             stroke="#555"
             fontSize={10}
             tickLine={false}
             axisLine={false}
-            domain={[0, "auto"]}
+            domain={[0, 'auto']}
           />
           <Tooltip
             contentStyle={{
-              backgroundColor: "#1a1a1a",
-              border: "none",
-              borderRadius: "8px",
-              color: "#fff",
+              backgroundColor: '#1a1a1a',
+              border: 'none',
+              borderRadius: '8px',
+              color: '#fff',
             }}
           />
           {series.map((s) => (

@@ -1,8 +1,11 @@
 package com.example.popspotbackend.repository;
 
 import com.example.popspotbackend.entity.MatePost;
+import jakarta.persistence.LockModeType;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 
 public interface MatePostRepository extends JpaRepository<MatePost, Long> {
@@ -13,4 +16,10 @@ public interface MatePostRepository extends JpaRepository<MatePost, Long> {
     List<MatePost> findAllByOrderByIsMegaphoneDescCreatedAtDesc();
 
     int countByAuthor_UserId(String userId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT m FROM MatePost m WHERE m.id = :id")
+    Optional<MatePost> findByIdForUpdate(Long id);
+
+    List<MatePost> findByAuthor_UserId(String userId);
 }

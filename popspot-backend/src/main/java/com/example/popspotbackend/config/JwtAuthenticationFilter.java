@@ -1,5 +1,7 @@
 package com.example.popspotbackend.config;
 
+import com.example.popspotbackend.entity.User;
+import com.example.popspotbackend.repository.UserRepository;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
@@ -13,12 +15,14 @@ import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.util.Collections;
 import java.util.List;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -30,6 +34,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
  */
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private static final int JWT_SECRET_MIN_BYTES = 32;
@@ -37,11 +42,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private static final String ROLE_PREFIX = "ROLE_";
     private static final String CLAIM_ROLE = "role";
 
+    private final UserRepository userRepository;
+
     /** 브라우저 EventSource 가 헤더를 못 보내는 SSE 엔드포인트만 쿼리 토큰 허용. */
-    private static final String SSE_TOKEN_PATH_PREFIX = "/api/admin/logs/stream";
-
-    private static final String QUERY_TOKEN_PARAM = "token";
-
     @Value("${jwt.secret:}")
     private String jwtSecret;
 
@@ -73,7 +76,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
         String token = extractToken(request);
         if (token != null) {
-            tryAuthenticate(token);
+            if (!tryAuthenticate(token)) {
+                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "만료되었거나 유효하지 않은 인증입니다.");
+                return;
+            }
         }
         filterChain.doFilter(request, response);
     }
@@ -84,18 +90,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if (bearerHeader != null && bearerHeader.startsWith(BEARER_PREFIX)) {
             return bearerHeader.substring(BEARER_PREFIX.length());
         }
-        if (isSseTokenPath(request)) {
-            return request.getParameter(QUERY_TOKEN_PARAM);
-        }
         return null;
     }
 
-    private boolean isSseTokenPath(HttpServletRequest request) {
-        String path = request.getRequestURI();
-        return path != null && path.startsWith(SSE_TOKEN_PATH_PREFIX);
-    }
-
-    private void tryAuthenticate(String token) {
+    private boolean tryAuthenticate(String token) {
         try {
             Claims claims =
                     Jwts.parserBuilder()
@@ -105,16 +103,32 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                             .getBody();
             String userId = claims.getSubject();
             String role = ensureRolePrefix(claims.get(CLAIM_ROLE, String.class));
-            if (userId == null || role == null) return;
+            if (userId == null || role == null) return false;
+
+            User user = userRepository.findById(userId).orElse(null);
+            Number tokenVersion = claims.get("ver", Number.class);
+            if (user == null
+                    || !user.isAccountActive()
+                    || tokenVersion == null
+                    || tokenVersion.longValue() != user.getTokenVersion()) {
+                return false;
+            }
 
             List<SimpleGrantedAuthority> authorities =
                     Collections.singletonList(new SimpleGrantedAuthority(role));
+            UserDetails principal =
+                    org.springframework.security.core.userdetails.User.withUsername(userId)
+                            .password("")
+                            .authorities(authorities)
+                            .build();
             SecurityContext context = SecurityContextHolder.createEmptyContext();
             context.setAuthentication(
-                    new UsernamePasswordAuthenticationToken(userId, null, authorities));
+                    new UsernamePasswordAuthenticationToken(principal, null, authorities));
             SecurityContextHolder.setContext(context);
+            return true;
         } catch (Exception e) {
             log.warn("JWT 검증 실패: {}", e.getClass().getSimpleName());
+            return false;
         }
     }
 

@@ -1,12 +1,12 @@
-"use client";
+'use client';
 
-import { useEffect, useState } from "react";
-import { motion } from "framer-motion";
-import { Music2, Play, Sparkles } from "lucide-react";
+import { useEffect, useState } from 'react';
+import { motion } from 'framer-motion';
+import { Music2, Play, Sparkles } from 'lucide-react';
 
-import { apiFetch } from "@/lib/api";
-import { MusicTrack } from "@/types/music";
-import { useMusicPlayer } from "./MusicPlayerProvider";
+import { apiFetch } from '@/lib/api';
+import { MusicTrack } from '@/types/music';
+import { useMusicPlayer } from './MusicPlayerProvider';
 
 interface TrackMatch {
   track: MusicTrack;
@@ -75,7 +75,12 @@ export default function MusicForPopup({ popupId }: Props) {
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.04 }}
-              onClick={() => player.play(m.track, matches.map((x) => x.track))}
+              onClick={() =>
+                player.play(
+                  m.track,
+                  matches.map((x) => x.track),
+                )
+              }
               className="group text-left"
             >
               <div className="relative aspect-square overflow-hidden rounded-lg bg-foreground/5 ring-1 ring-[var(--color-border)] transition group-hover:ring-foreground/30">
@@ -106,17 +111,12 @@ export default function MusicForPopup({ popupId }: Props) {
                 </div>
               </div>
 
-              <p className="mt-2 truncate text-sm font-bold text-foreground">
-                {m.track.trackName}
-              </p>
-              <p className="truncate text-xs text-muted-foreground">
-                {m.track.artistName}
-              </p>
+              <p className="mt-2 truncate text-sm font-bold text-foreground">{m.track.trackName}</p>
+              <p className="truncate text-xs text-muted-foreground">{m.track.artistName}</p>
             </motion.button>
           ))}
         </div>
       </section>
-
     </>
   );
 }

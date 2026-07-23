@@ -1,19 +1,19 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import { ShieldAlert } from "lucide-react";
+import { useState } from 'react';
+import { ShieldAlert } from 'lucide-react';
 
-import { apiFetch } from "@/lib/api";
-import { notifySuccess, notifyError } from "@/lib/notify";
-import { Button } from "@/components/ui/button";
-import { Input, Field } from "@/components/ui/input";
+import { apiFetch } from '@/lib/api';
+import { notifySuccess, notifyError } from '@/lib/notify';
+import { Button } from '@/components/ui/button';
+import { Input, Field } from '@/components/ui/input';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogDescription,
-} from "@/components/ui/dialog";
+} from '@/components/ui/dialog';
 
 interface TakedownModalProps {
   open: boolean;
@@ -23,10 +23,10 @@ interface TakedownModalProps {
 }
 
 const REASON_OPTIONS = [
-  { value: "COPYRIGHT", label: "저작권 침해 (이미지/문구 무단 사용)" },
-  { value: "INACCURATE", label: "정보가 부정확함 (날짜/장소 등)" },
-  { value: "OWNER_REQUEST", label: "본인이 운영하는 팝업이며 동의 없이 게시됨" },
-  { value: "OTHER", label: "기타" },
+  { value: 'COPYRIGHT', label: '저작권 침해 (이미지/문구 무단 사용)' },
+  { value: 'INACCURATE', label: '정보가 부정확함 (날짜/장소 등)' },
+  { value: 'OWNER_REQUEST', label: '본인이 운영하는 팝업이며 동의 없이 게시됨' },
+  { value: 'OTHER', label: '기타' },
 ];
 
 /**
@@ -36,15 +36,10 @@ const REASON_OPTIONS = [
  * 백엔드: POST /api/popups/{id}/takedown
  * → 즉시 reviewStatus='TAKEDOWN' 으로 변경, 24시간 내 admin 검토 (이용약관 §11).
  */
-export function TakedownModal({
-  open,
-  onOpenChange,
-  popupId,
-  popupName,
-}: TakedownModalProps) {
-  const [requesterEmail, setRequesterEmail] = useState("");
+export function TakedownModal({ open, onOpenChange, popupId, popupName }: TakedownModalProps) {
+  const [requesterEmail, setRequesterEmail] = useState('');
   const [reasonType, setReasonType] = useState(REASON_OPTIONS[0].value);
-  const [reasonDetail, setReasonDetail] = useState("");
+  const [reasonDetail, setReasonDetail] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -52,12 +47,11 @@ export function TakedownModal({
     if (submitting) return;
     setSubmitting(true);
     try {
-      const reasonLabel =
-        REASON_OPTIONS.find((r) => r.value === reasonType)?.label ?? reasonType;
+      const reasonLabel = REASON_OPTIONS.find((r) => r.value === reasonType)?.label ?? reasonType;
       const finalReason = `[${reasonLabel}] ${reasonDetail}`.slice(0, 500);
 
       const res = await apiFetch(`/api/popups/${popupId}/takedown`, {
-        method: "POST",
+        method: 'POST',
         body: JSON.stringify({
           requesterEmail,
           reason: finalReason,
@@ -66,18 +60,18 @@ export function TakedownModal({
 
       if (res.ok) {
         await notifySuccess({
-          title: "신고가 접수되었습니다",
-          text: "24시간 내 검토 후 조치합니다. 해당 정보는 즉시 노출이 차단됩니다.",
+          title: '신고가 접수되었습니다',
+          text: '24시간 내 검토 후 조치합니다. 해당 정보는 즉시 노출이 차단됩니다.',
         });
         onOpenChange(false);
         // 모달 외부 페이지가 새로고침되도록 살짝 반영하거나 caller 가 처리
-        setRequesterEmail("");
-        setReasonDetail("");
+        setRequesterEmail('');
+        setReasonDetail('');
       } else {
-        notifyError("신고 처리에 실패했습니다. 잠시 후 다시 시도해주세요.");
+        notifyError('신고 처리에 실패했습니다. 잠시 후 다시 시도해주세요.');
       }
     } catch {
-      notifyError("서버와 연결할 수 없습니다.");
+      notifyError('서버와 연결할 수 없습니다.');
     } finally {
       setSubmitting(false);
     }
@@ -92,9 +86,8 @@ export function TakedownModal({
             정보 삭제·수정 요청
           </DialogTitle>
           <DialogDescription>
-            본 팝업 정보가 부정확하거나 저작권을 침해한다고 판단되시면
-            아래 폼으로 알려주세요. 접수 즉시 노출이 차단되며 24시간 내
-            검토합니다.
+            본 팝업 정보가 부정확하거나 저작권을 침해한다고 판단되시면 아래 폼으로 알려주세요. 접수
+            즉시 노출이 차단되며 24시간 내 검토합니다.
             <br />
             (이용약관 §11 권리자 정보 삭제 요청 절차)
           </DialogDescription>
@@ -102,8 +95,7 @@ export function TakedownModal({
 
         {popupName && (
           <p className="text-sm text-muted-foreground border-l-2 border-red-500 pl-3 mb-2">
-            대상 팝업:{" "}
-            <span className="font-bold text-foreground">{popupName}</span>
+            대상 팝업: <span className="font-bold text-foreground">{popupName}</span>
           </p>
         )}
 

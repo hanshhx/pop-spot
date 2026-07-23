@@ -13,14 +13,10 @@
  * </ul>
  */
 
-const STORAGE_KEY = "popspot:notifications";
+const STORAGE_KEY = 'popspot:notifications';
 const MAX_ITEMS = 30;
 
-export type NotificationType =
-  | "feedback_reply"
-  | "mate_chat"
-  | "wishlist_expiring"
-  | "system";
+export type NotificationType = 'feedback_reply' | 'mate_chat' | 'wishlist_expiring' | 'system';
 
 export interface AppNotification {
   id: string;
@@ -35,9 +31,9 @@ export interface AppNotification {
 }
 
 export function pushNotification(
-  notification: Omit<AppNotification, "id" | "read" | "createdAt">,
+  notification: Omit<AppNotification, 'id' | 'read' | 'createdAt'>,
 ): void {
-  if (typeof window === "undefined") return;
+  if (typeof window === 'undefined') return;
   const list = readNotifications();
   const next: AppNotification = {
     ...notification,
@@ -48,11 +44,11 @@ export function pushNotification(
   const updated = [next, ...list].slice(0, MAX_ITEMS);
   writeNotifications(updated);
   // 같은 탭 안의 다른 구독자에게 알림.
-  window.dispatchEvent(new CustomEvent("popspot:notifications-changed"));
+  window.dispatchEvent(new CustomEvent('popspot:notifications-changed'));
 }
 
 export function readNotifications(): AppNotification[] {
-  if (typeof window === "undefined") return [];
+  if (typeof window === 'undefined') return [];
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return [];
@@ -82,13 +78,13 @@ export function markAllAsRead(): void {
 }
 
 export function clearAll(): void {
-  if (typeof window === "undefined") return;
+  if (typeof window === 'undefined') return;
   window.localStorage.removeItem(STORAGE_KEY);
   notifyChange();
 }
 
 function writeNotifications(list: AppNotification[]): void {
-  if (typeof window === "undefined") return;
+  if (typeof window === 'undefined') return;
   try {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
   } catch {
@@ -97,6 +93,6 @@ function writeNotifications(list: AppNotification[]): void {
 }
 
 function notifyChange(): void {
-  if (typeof window === "undefined") return;
-  window.dispatchEvent(new CustomEvent("popspot:notifications-changed"));
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(new CustomEvent('popspot:notifications-changed'));
 }

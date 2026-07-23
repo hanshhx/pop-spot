@@ -10,6 +10,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.time.Duration;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.method.HandlerMethod;
@@ -36,8 +37,7 @@ public class RateLimitInterceptor implements HandlerInterceptor {
     /**
      * 권리자 takedown 신고 핸들러 메서드명 — {@link PopupStoreController#requestTakedown}.
      *
-     * <p>이 엔드포인트는 인증 없이 호출 가능하고 즉시 노출을 차단한다(약관 §11 · about 페이지에 공표된 정책이라 동작 자체는 유지해야 한다). 따라서 남은
-     * 방어선은 호출 빈도 제한뿐이다.
+     * <p>이 엔드포인트는 인증 없이 호출 가능하지만 즉시 숨기지 않고 관리자 검토 큐에 넣는다. 호출 빈도 제한은 검토 큐 스팸을 막는 추가 방어선이다.
      */
     private static final String TAKEDOWN_METHOD_NAME = "requestTakedown";
 
@@ -45,7 +45,7 @@ public class RateLimitInterceptor implements HandlerInterceptor {
      * takedown 전용 버킷 이름.
      *
      * <p>버킷 키를 URI 로 잡으면 팝업마다 키가 달라져 "팝업 1건당 3회" 가 된다. 공격자는 서로 다른 팝업 1000개를 각각 1회씩 내려버리면 그만이라 제한이
-     * 사실상 없는 것과 같다. 기능 단위로 묶어 IP 당 총량을 센다.
+     * 검토 큐를 스팸으로 채울 수 있다. 기능 단위로 묶어 IP 당 총량을 센다.
      */
     private static final String BUCKET_TAKEDOWN = "takedown";
 
@@ -54,6 +54,11 @@ public class RateLimitInterceptor implements HandlerInterceptor {
     private static final int LIMIT_VERIFY_PER_MIN = 10;
     private static final int LIMIT_ENUM_PER_MIN = 20;
     private static final int LIMIT_TAKEDOWN_PER_HOUR = 3;
+    private static final int LIMIT_GAME_START_PER_MIN = 3;
+    private static final int LIMIT_GENERAL_PER_MIN = 60;
+
+    @Value("${app.trust-proxy-headers:false}")
+    private boolean trustProxyHeaders;
 
     /**
      * 경로를 알아보지 못했을 때 적용할 보수적 기본값.
@@ -124,6 +129,24 @@ public class RateLimitInterceptor implements HandlerInterceptor {
     }
 
     private Bandwidth resolveLimit(String uri) {
+        if ("/api/game/start".equals(uri)) {
+            return Bandwidth.classic(
+                    LIMIT_GAME_START_PER_MIN,
+                    Refill.intervally(LIMIT_GAME_START_PER_MIN, Duration.ofMinutes(1)));
+        }
+        if (uri.startsWith("/api/game/")
+                || uri.startsWith("/api/visits")
+                || uri.startsWith("/api/planning/")
+                || uri.startsWith("/api/chat/")
+                || uri.startsWith("/api/mates/")
+                || uri.startsWith("/api/music/")
+                || "/api/popups/report".equals(uri)
+                || uri.matches("/api/popups/[^/]+/wait")
+                || "/api/client-errors".equals(uri)) {
+            return Bandwidth.classic(
+                    LIMIT_GENERAL_PER_MIN,
+                    Refill.intervally(LIMIT_GENERAL_PER_MIN, Duration.ofMinutes(1)));
+        }
         return switch (uri) {
             case PATH_LOGIN -> Bandwidth.classic(
                     LIMIT_LOGIN_PER_MIN,
@@ -167,6 +190,7 @@ public class RateLimitInterceptor implements HandlerInterceptor {
      * <p>주의: 앞단에 프록시를 하나 더 두게 되면 "마지막에서 N번째" 로 조정해야 한다.
      */
     private String clientIp(HttpServletRequest req) {
+        if (!trustProxyHeaders) return req.getRemoteAddr();
         String real = req.getHeader("X-Real-IP");
         if (real != null && !real.isBlank()) return real.trim();
 

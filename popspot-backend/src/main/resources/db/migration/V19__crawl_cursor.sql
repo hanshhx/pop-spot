@@ -5,8 +5,8 @@
 -- (실제로 390개 중 앞 5개만 반복 처리됐다). 회차마다 커서를 전진시켜 전체 키워드를 며칠에 걸쳐 순회한다.
 -- 커서는 서비스 전체에서 하나뿐이라 id=1 단일 행으로 관리한다.
 --
--- 주의: 운영은 현재 dev 프로파일(ddl-auto=update)로 떠 Flyway 가 실행되지 않으므로 Hibernate 가 이 테이블을 자동 생성한다.
--- 이 마이그레이션은 prod 프로파일(ddl-auto=validate)로 전환하거나 새 환경을 띄울 때를 위한 것이며, 엔티티 CrawlCursor 의
+-- 과거 dev/update 운영에서 Hibernate가 만든 테이블과도 호환된다.
+-- prod/validate 전환 및 새 환경을 위한 마이그레이션이며, 엔티티 CrawlCursor 의
 -- 매핑과 반드시 일치해야 한다.
 CREATE TABLE IF NOT EXISTS crawl_cursor (
     id INTEGER PRIMARY KEY,

@@ -10,11 +10,11 @@
  * 문자열을 직접 만들 때만 사용한다.
  */
 export function escapeHtml(input: string | null | undefined): string {
-  if (input == null) return "";
+  if (input == null) return '';
   return String(input)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }

@@ -1,10 +1,10 @@
-import type { Metadata } from "next";
-import Link from "next/link";
-import { notFound } from "next/navigation";
-import { ArrowLeft, MapPin, Calendar, Tag, Clock, Flame } from "lucide-react";
+import type { Metadata } from 'next';
+import Link from 'next/link';
+import { notFound } from 'next/navigation';
+import { ArrowLeft, MapPin, Calendar, Tag, Clock, Flame } from 'lucide-react';
 
-import { REGIONS, classifyRegion, regionBySlug } from "@/lib/regions";
-import { CRAWL_REFRESH_COPY } from "@/lib/siteCopy";
+import { REGIONS, classifyRegion, regionBySlug } from '@/lib/regions';
+import { CRAWL_REFRESH_COPY } from '@/lib/siteCopy';
 import {
   PERIODS,
   CATEGORIES,
@@ -18,7 +18,7 @@ import {
   startOfDay,
   kstTodayStart,
   isExpired,
-} from "@/lib/popupSlices";
+} from '@/lib/popupSlices';
 
 /**
  * v2.21-S3 / v2.33 — Long-tail SEO 랜딩 페이지 (전환 강화 리디자인).
@@ -46,7 +46,7 @@ import {
  * <p>SSG(generateStaticParams) + ISR(revalidate=3600). 실시간 데이터는 메인 지도로 유도.
  */
 
-const SITE_URL = "https://popspot.co.kr";
+const SITE_URL = 'https://popspot.co.kr';
 // 갱신 주기 카피는 홈 SEO 블록과도 공유한다(한 곳만 고치면 전부 반영). @see src/lib/siteCopy.ts
 const REFRESH_COPY = CRAWL_REFRESH_COPY;
 
@@ -60,12 +60,12 @@ type Marker = {
 };
 
 type Slice =
-  | { kind: "region"; slug: string; label: string }
-  | { kind: "period"; slug: string; label: string }
-  | { kind: "category"; slug: string; label: string }
-  | { kind: "brand"; slug: string; label: string; keywords: string[] }
+  | { kind: 'region'; slug: string; label: string }
+  | { kind: 'period'; slug: string; label: string }
+  | { kind: 'category'; slug: string; label: string }
+  | { kind: 'brand'; slug: string; label: string; keywords: string[] }
   | {
-      kind: "region-category";
+      kind: 'region-category';
       slug: string;
       label: string;
       regionSlug: string;
@@ -90,19 +90,19 @@ export function generateStaticParams() {
 
 function resolveSlice(slug: string): Slice | null {
   const r = regionBySlug(slug);
-  if (r) return { kind: "region", slug: r.slug, label: r.label };
+  if (r) return { kind: 'region', slug: r.slug, label: r.label };
   const p = periodBySlug(slug);
-  if (p) return { kind: "period", slug: p.slug, label: p.label };
+  if (p) return { kind: 'period', slug: p.slug, label: p.label };
   const c = categoryBySlug(slug);
-  if (c) return { kind: "category", slug: c.slug, label: c.label };
+  if (c) return { kind: 'category', slug: c.slug, label: c.label };
   const b = brandBySlug(slug);
-  if (b) return { kind: "brand", slug: b.slug, label: b.label, keywords: b.keywords };
+  if (b) return { kind: 'brand', slug: b.slug, label: b.label, keywords: b.keywords };
   for (const reg of REGIONS) {
     if (!slug.startsWith(`${reg.slug}-`)) continue;
     const cat = categoryBySlug(slug.slice(reg.slug.length + 1));
     if (cat) {
       return {
-        kind: "region-category",
+        kind: 'region-category',
         slug,
         label: `${reg.label} ${cat.label}`,
         regionSlug: reg.slug,
@@ -116,16 +116,16 @@ function resolveSlice(slug: string): Slice | null {
 /** 슬라이스 → 메인 지도 deep link 쿼리스트링. */
 function deepLinkQuery(slice: Slice): string {
   switch (slice.kind) {
-    case "region":
+    case 'region':
       return `region=${slice.slug}`;
-    case "period":
+    case 'period':
       return `period=${slice.slug}`;
-    case "category":
+    case 'category':
       return `category=${slice.slug}`;
-    case "brand":
+    case 'brand':
       // 지도엔 브랜드 필터 파라미터가 없어 전체 지도로 유도(랜딩 목록이 SEO 본체).
-      return "";
-    case "region-category":
+      return '';
+    case 'region-category':
       return `region=${slice.regionSlug}&category=${slice.categorySlug}`;
   }
 }
@@ -140,7 +140,7 @@ const MARKER_RETRY_BASE_MS = 1500;
  * <p>백엔드가 길게 내려간 동안에도 프론트 핫픽스를 내보내야 할 때만 쓴다. 켜져 있으면 빌드는 통과하지만
  * 로그에 크게 남는다. 기본값은 꺼짐 — 조용히 빈 페이지를 만드는 것이 원래 문제였다.
  */
-const ALLOW_EMPTY_BUILD = process.env.ALLOW_EMPTY_SEO_BUILD === "true";
+const ALLOW_EMPTY_BUILD = process.env.ALLOW_EMPTY_SEO_BUILD === 'true';
 
 /**
  * 백엔드 visible markers — SSG 빌드 타임에 fetch.
@@ -157,12 +157,12 @@ async function fetchMarkers(): Promise<Marker[]> {
   // 설정 오류 — 재시도해도 소용없다. 즉시 멈춘다.
   if (!apiBase || !/^https?:\/\//.test(apiBase)) {
     throw new Error(
-      `[popups/slug] NEXT_PUBLIC_API_URL 이 없거나 형식이 잘못되었습니다(값: ${apiBase ?? "미설정"}). ` +
+      `[popups/slug] NEXT_PUBLIC_API_URL 이 없거나 형식이 잘못되었습니다(값: ${apiBase ?? '미설정'}). ` +
         `빈 SEO 페이지를 만들지 않기 위해 빌드를 중단합니다.`,
     );
   }
 
-  let lastError = "";
+  let lastError = '';
   for (let attempt = 1; attempt <= MARKER_FETCH_ATTEMPTS; attempt++) {
     try {
       const res = await fetch(`${apiBase}/api/map/markers`, { next: { revalidate: 3600 } });
@@ -196,20 +196,20 @@ async function fetchMarkers(): Promise<Marker[]> {
 
 function filterBySlice(markers: Marker[], slice: Slice): Marker[] {
   switch (slice.kind) {
-    case "region":
+    case 'region':
       return markers.filter((m) => classifyRegion(m.location) === slice.slug);
-    case "period":
+    case 'period':
       return markers.filter((m) => matchesPeriod(m.startDate, m.endDate, slice.slug as never));
-    case "category":
+    case 'category':
       return markers.filter((m) => classifyCategory(m.category) === slice.slug);
-    case "brand": {
+    case 'brand': {
       const kws = slice.keywords.map((k) => k.toLowerCase());
       return markers.filter((m) => {
-        const hay = `${m.name ?? ""} ${m.location ?? ""}`.toLowerCase();
+        const hay = `${m.name ?? ''} ${m.location ?? ''}`.toLowerCase();
         return kws.some((k) => hay.includes(k));
       });
     }
-    case "region-category":
+    case 'region-category':
       return markers.filter(
         (m) =>
           classifyRegion(m.location) === slice.regionSlug &&
@@ -242,11 +242,11 @@ function ddayOf(endDate: string | null, today: Date): number | null {
 /** D-day → 배지(문구·색). 상시(null)·종료(음수)는 무배지. */
 function ddayBadge(dday: number | null): { text: string; cls: string } | null {
   if (dday === null || dday < 0) return null;
-  if (dday === 0) return { text: "오늘 마감", cls: "bg-red-500 text-white" };
-  if (dday === 1) return { text: "내일 마감", cls: "bg-red-500 text-white" };
-  if (dday <= 3) return { text: `D-${dday}`, cls: "bg-orange-500 text-white" };
-  if (dday <= 7) return { text: `D-${dday}`, cls: "bg-amber-400 text-ink-900" };
-  return { text: "진행 중", cls: "bg-lime-300 text-ink-900" };
+  if (dday === 0) return { text: '오늘 마감', cls: 'bg-red-500 text-white' };
+  if (dday === 1) return { text: '내일 마감', cls: 'bg-red-500 text-white' };
+  if (dday <= 3) return { text: `D-${dday}`, cls: 'bg-orange-500 text-white' };
+  if (dday <= 7) return { text: `D-${dday}`, cls: 'bg-amber-400 text-ink-900' };
+  return { text: '진행 중', cls: 'bg-lime-300 text-ink-900' };
 }
 
 /** 매칭 팝업들이 몰린 상위 지역 slug (브랜드 랜딩 크로스셀용 — 지도에서 바로 좁히게). */
@@ -271,21 +271,21 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug } = await params;
   const slice = resolveSlice(slug);
-  if (!slice) return { title: "찾을 수 없음", robots: { index: false } };
+  if (!slice) return { title: '찾을 수 없음', robots: { index: false } };
 
-  const titles: Record<Slice["kind"], string> = {
+  const titles: Record<Slice['kind'], string> = {
     region: `${slice.label} 팝업스토어 추천`,
     period: `${slice.label} 진행 팝업스토어`,
     category: `${slice.label} 팝업스토어`,
     brand: `${slice.label} 팝업스토어 일정·위치`,
-    "region-category": `${slice.label} 팝업스토어 추천`,
+    'region-category': `${slice.label} 팝업스토어 추천`,
   };
-  const descriptions: Record<Slice["kind"], string> = {
+  const descriptions: Record<Slice['kind'], string> = {
     region: `${slice.label}에서 진행 중인 팝업스토어 일정과 위치를 한눈에. 위시 등록과 마감임박순 정렬까지 무료.`,
     period: `${slice.label} 서울에서 열리는 팝업스토어 목록. 영업 시간, 위치, 종료일까지 정리.`,
     category: `${slice.label} 관련 팝업스토어 모음. 신상 / 인기 / 마감 임박 한눈에 보기.`,
     brand: `${slice.label} 팝업스토어 일정과 위치를 지도로 한눈에. 서울에서 진행 중인 ${slice.label} 팝업을 확인하고 위시 등록과 마감일 확인까지 무료.`,
-    "region-category": `${slice.label} 팝업스토어를 한눈에. 위치·일정·카테고리별 큐레이션, 위시 등록과 마감일 확인까지 무료.`,
+    'region-category': `${slice.label} 팝업스토어를 한눈에. 위치·일정·카테고리별 큐레이션, 위시 등록과 마감일 확인까지 무료.`,
   };
 
   const title = titles[slice.kind];
@@ -293,8 +293,8 @@ export async function generateMetadata({
   const url = `${SITE_URL}/popups/${slice.slug}`;
 
   // 결과 0곳이면 thin content 방지 위해 noindex (페이지 접근·내부링크는 유지).
-  let robots: Metadata["robots"] | undefined;
-  if (slice.kind === "region-category" || slice.kind === "brand") {
+  let robots: Metadata['robots'] | undefined;
+  if (slice.kind === 'region-category' || slice.kind === 'brand') {
     // 본문과 동일한 liveMarkers 기준. 만료 팝업만 남은 슬라이스는 본문이 "0곳" 이므로
     // 메타데이터도 같은 판정을 해야 빈 페이지가 색인되지 않는다.
     const count = filterBySlice(await liveMarkers(), slice).length;
@@ -306,18 +306,14 @@ export async function generateMetadata({
     description,
     robots,
     alternates: { canonical: url },
-    openGraph: { title: `${title} · POP-SPOT`, description, url, type: "website" },
-    twitter: { card: "summary_large_image", title, description },
+    openGraph: { title: `${title} · POP-SPOT`, description, url, type: 'website' },
+    twitter: { card: 'summary_large_image', title, description },
   };
 }
 
 /* ============================== 페이지 ============================== */
 
-export default async function PopupsBySlugPage({
-  params,
-}: {
-  params: Promise<{ slug: string }>;
-}) {
+export default async function PopupsBySlugPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const slice = resolveSlice(slug);
   if (!slice) notFound();
@@ -329,7 +325,7 @@ export default async function PopupsBySlugPage({
   const filtered = filterBySlice(await liveMarkers(), slice);
   const count = filtered.length;
   const deepLink = deepLinkQuery(slice);
-  const mapHref = `/?tab=MAP${deepLink ? `&${deepLink}` : ""}`;
+  const mapHref = `/?tab=MAP${deepLink ? `&${deepLink}` : ''}`;
   const mainHref = `${SITE_URL}${mapHref}`;
 
   // "지금 가야 할 이유" 훅 — 전부 기존 endDate/startDate 의 파생값(무료).
@@ -354,19 +350,19 @@ export default async function PopupsBySlugPage({
   const soonest = sorted.length > 0 ? rank(sorted[0].dday) : Infinity;
   const minDday = Number.isFinite(soonest) ? soonest : null;
 
-  const headingByKind: Record<Slice["kind"], string> = {
+  const headingByKind: Record<Slice['kind'], string> = {
     region: `${slice.label} 팝업스토어 ${count}곳`,
     period: `${slice.label} 진행 중인 팝업 ${count}곳`,
     category: `${slice.label} 팝업스토어 ${count}곳`,
     brand: `${slice.label} 팝업스토어 ${count}곳`,
-    "region-category": `${slice.label} 팝업스토어 ${count}곳`,
+    'region-category': `${slice.label} 팝업스토어 ${count}곳`,
   };
-  const introByKind: Record<Slice["kind"], string> = {
+  const introByKind: Record<Slice['kind'], string> = {
     region: `${slice.label}에서 진행 중인 팝업스토어를 POP-SPOT 이 자동 큐레이션 합니다. 영업 기간이 끝난 팝업은 자동으로 빠지고, 신규 팝업은 ${REFRESH_COPY}에 갱신.`,
     period: `${slice.label} 서울 곳곳에서 열리는 팝업스토어. 위치 · 카테고리 · 마감일을 지도 한 화면에서 확인.`,
     category: `${slice.label} 관련 신상 / 인기 팝업스토어. 마감 임박순으로 정렬해 한눈에.`,
     brand: `${slice.label} 관련 팝업스토어를 POP-SPOT 이 자동 큐레이션. 서울에서 진행 중인 ${slice.label} 팝업의 위치·일정을 한눈에. 마감 임박순으로 정렬해 제공.`,
-    "region-category": `${slice.label} 팝업스토어를 POP-SPOT 이 자동 큐레이션. 해당 지역·카테고리에 맞는 팝업만 모아 위치와 일정을 한눈에.`,
+    'region-category': `${slice.label} 팝업스토어를 POP-SPOT 이 자동 큐레이션. 해당 지역·카테고리에 맞는 팝업만 모아 위치와 일정을 한눈에.`,
   };
 
   // subcopy — 마감 임박이 있으면 손실회피 훅, 없으면 편익.
@@ -376,12 +372,12 @@ export default async function PopupsBySlugPage({
       : `${slice.label} 팝업 위치·영업기간·마감일을 지도 한 화면에서. 로그인 없이 무료로 지금 바로.`;
 
   // Record 로 둬야 슬라이스 종류가 늘 때 헤딩·소개문과 함께 타입 검사에 걸린다(삼항은 조용히 통과).
-  const kickerByKind: Record<Slice["kind"], string> = {
-    region: "REGION",
-    period: "WHEN",
-    category: "CATEGORY",
-    brand: "BRAND",
-    "region-category": "REGION × CATEGORY",
+  const kickerByKind: Record<Slice['kind'], string> = {
+    region: 'REGION',
+    period: 'WHEN',
+    category: 'CATEGORY',
+    brand: 'BRAND',
+    'region-category': 'REGION × CATEGORY',
   };
   const kicker = kickerByKind[slice.kind];
 
@@ -398,11 +394,11 @@ export default async function PopupsBySlugPage({
         {/* 배지 — 진행 중이면 라임 펄스 점 + 카운트로 '살아있는' 신호 */}
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mb-3">
           <SliceIcon kind={slice.kind} />
-          <span className="text-[10px] font-bold uppercase tracking-[0.4em] text-muted-foreground">
+          <span className="text-xs font-bold uppercase tracking-[0.3em] text-muted-foreground">
             {kicker}
           </span>
           {count > 0 && (
-            <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-lime-600 dark:text-lime-300">
+            <span className="inline-flex items-center gap-1.5 text-xs font-bold text-lime-600 dark:text-lime-300">
               <span className="inline-block w-1.5 h-1.5 rounded-full bg-lime-400 motion-safe:animate-pulse" />
               지금 진행 중 {count}곳
               {closingSoon > 0 && (
@@ -428,9 +424,9 @@ export default async function PopupsBySlugPage({
               {minDday !== null && (
                 <StatCard
                   label="가장 빠른 마감"
-                  value={minDday === 0 ? "오늘" : `D-${minDday}`}
+                  value={minDday === 0 ? '오늘' : `D-${minDday}`}
                   big
-                  tone={minDday <= 3 ? "hot" : "lime"}
+                  tone={minDday <= 3 ? 'hot' : 'lime'}
                 />
               )}
               {openingToday > 0 && <StatCard label="오늘 오픈" value={`${openingToday}곳`} />}
@@ -444,16 +440,16 @@ export default async function PopupsBySlugPage({
               >
                 지도에서 {slice.label} 팝업 위치·마감일 보기 →
               </Link>
-              <p className="mt-2.5 text-center text-[11px] text-muted-foreground">
+              <p className="mt-2.5 text-center text-xs text-muted-foreground">
                 무료 · 로그인 없이 · {REFRESH_COPY} 자동 갱신
               </p>
               <div className="mt-3 flex flex-wrap justify-center gap-1.5">
                 {/* 실행 경로가 있는 것만 적는다. 알림·동행 매칭은 이 페이지에서 누를 수 있는
                     진입점이 없어(그리고 알림 기능 자체가 없어) 빼고, 실제로 되는 것만 남긴다. */}
-                {["지도 한눈에", "마감임박순 정렬", "무료 · 로그인 없이"].map((b) => (
+                {['지도 한눈에', '마감임박순 정렬', '무료 · 로그인 없이'].map((b) => (
                   <span
                     key={b}
-                    className="inline-flex items-center rounded-pill border border-lime-300/50 bg-white/60 px-2.5 py-0.5 text-[11px] font-medium text-gray-700 dark:bg-white/5 dark:text-white/70"
+                    className="inline-flex items-center rounded-pill border border-lime-300/50 bg-white/60 px-2.5 py-0.5 text-xs font-medium text-gray-700 dark:bg-white/5 dark:text-white/70"
                   >
                     {b}
                   </span>
@@ -490,18 +486,18 @@ export default async function PopupsBySlugPage({
                           <h3 className="text-sm md:text-base font-bold truncate">{m.name}</h3>
                           {badge && (
                             <span
-                              className={`shrink-0 rounded-pill px-2 py-0.5 text-[10px] font-black ${badge.cls}`}
+                              className={`shrink-0 rounded-pill px-2 py-0.5 text-xs font-black ${badge.cls}`}
                             >
                               {badge.text}
                             </span>
                           )}
                         </div>
                         <p className="text-xs text-muted-foreground truncate">
-                          {m.location ?? "위치 정보 없음"}
+                          {m.location ?? '위치 정보 없음'}
                         </p>
                         {(m.startDate || m.endDate) && (
-                          <p className="text-[11px] text-muted-foreground mt-0.5">
-                            {m.startDate ?? "?"} ~ {m.endDate ?? "?"}
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {m.startDate ?? '?'} ~ {m.endDate ?? '?'}
                           </p>
                         )}
                       </div>
@@ -531,7 +527,8 @@ export default async function PopupsBySlugPage({
               {slice.label} 팝업은 지금 잠시 쉬어가는 중이에요
             </h2>
             <p className="text-sm text-muted-foreground mb-4">
-              서울 전체는 지금도 열려 있어요. 새 팝업은 {REFRESH_COPY}에 자동 수집됩니다 — 지금 진행 중인 팝업부터 지도에서 둘러보세요.
+              서울 전체는 지금도 열려 있어요. 새 팝업은 {REFRESH_COPY}에 자동 수집됩니다 — 지금 진행
+              중인 팝업부터 지도에서 둘러보세요.
             </p>
             <Link
               href="/?tab=MAP"
@@ -539,7 +536,7 @@ export default async function PopupsBySlugPage({
             >
               지금 열린 팝업 지도에서 보기 →
             </Link>
-            <p className="mt-3 text-[11px] text-muted-foreground">
+            <p className="mt-3 text-xs text-muted-foreground">
               {/* "새 팝업 열릴 때 알림" 은 구현이 존재하지 않아 제거했다. 위시 등록 자체는 되므로
                   그것만 남긴다. */}
               무료 · 로그인 없이 · 메인에서 위시 등록 가능
@@ -547,7 +544,7 @@ export default async function PopupsBySlugPage({
           </section>
         )}
 
-        <CrossSell current={slice} filtered={filtered} openingToday={openingToday} closingSoon={closingSoon} />
+        <CrossSell current={slice} filtered={filtered} />
 
         <FaqSection slice={slice} count={count} />
       </div>
@@ -557,8 +554,8 @@ export default async function PopupsBySlugPage({
         type="application/ld+json"
         dangerouslySetInnerHTML={{
           __html: JSON.stringify({
-            "@context": "https://schema.org",
-            "@type": "ItemList",
+            '@context': 'https://schema.org',
+            '@type': 'ItemList',
             name: headingByKind[slice.kind],
             description: introByKind[slice.kind],
             url: mainHref,
@@ -576,41 +573,43 @@ function StatCard({
   label,
   value,
   big = false,
-  tone = "neutral",
+  tone = 'neutral',
 }: {
   label: string;
   value: string;
   big?: boolean;
-  tone?: "neutral" | "lime" | "hot";
+  tone?: 'neutral' | 'lime' | 'hot';
 }) {
   const valueColor =
-    tone === "hot"
-      ? "text-orange-500"
-      : tone === "lime"
-        ? "text-lime-600 dark:text-lime-300"
-        : "text-foreground";
+    tone === 'hot'
+      ? 'text-orange-500'
+      : tone === 'lime'
+        ? 'text-lime-600 dark:text-lime-300'
+        : 'text-foreground';
   return (
     <div
       className={`flex-1 rounded-2xl border p-3 md:p-4 text-center ${
         big
-          ? "border-lime-300/60 bg-lime-50 dark:bg-lime-300/[0.06]"
-          : "border-gray-200 bg-gray-50 dark:border-white/10 dark:bg-white/5"
+          ? 'border-lime-300/60 bg-lime-50 dark:bg-lime-300/[0.06]'
+          : 'border-gray-200 bg-gray-50 dark:border-white/10 dark:bg-white/5'
       }`}
     >
-      <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+      <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
         {label}
       </div>
-      <div className={`font-black leading-tight ${big ? "text-2xl md:text-3xl" : "text-lg md:text-xl"} ${valueColor}`}>
+      <div
+        className={`font-black leading-tight ${big ? 'text-2xl md:text-3xl' : 'text-lg md:text-xl'} ${valueColor}`}
+      >
         {value}
       </div>
     </div>
   );
 }
 
-function SliceIcon({ kind }: { kind: Slice["kind"] }) {
-  const cls = "text-lime-500";
-  if (kind === "region") return <MapPin size={16} className={cls} />;
-  if (kind === "period") return <Calendar size={16} className={cls} />;
+function SliceIcon({ kind }: { kind: Slice['kind'] }) {
+  const cls = 'text-lime-500';
+  if (kind === 'region') return <MapPin size={16} className={cls} />;
+  if (kind === 'period') return <Calendar size={16} className={cls} />;
   return <Tag size={16} className={cls} />;
 }
 
@@ -619,41 +618,31 @@ function SliceIcon({ kind }: { kind: Slice["kind"] }) {
  * (1) 고의도 칩(오늘 오픈 / 주말 마감임박) (2) 브랜드 랜딩이면 매칭 팝업의 상위 지역 칩
  * (3) 브랜드/IP 우선 + 지역·시점·카테고리 전체 링크(SEO 내부링크 밀도 유지).
  */
-function CrossSell({
-  current,
-  filtered,
-  openingToday,
-  closingSoon,
-}: {
-  current: Slice;
-  filtered: Marker[];
-  openingToday: number;
-  closingSoon: number;
-}) {
+function CrossSell({ current, filtered }: { current: Slice; filtered: Marker[] }) {
   // 고의도 칩
-  const intent: { href: string; label: string; icon: "flame" | "clock" }[] = [];
+  const intent: { href: string; label: string; icon: 'flame' | 'clock' }[] = [];
   // 자기 자신으로 가는 순환 링크만 빼고 항상 노출한다.
   // (이전엔 `openingToday > 0 ||` 가 앞에 붙어 있었는데, today 가 아닌 페이지에선 뒤 절이 이미 참이라
   //  카운트 절이 아무것도 결정하지 못했고, 정작 /popups/today 에선 자기 자신을 가리키는 칩이 떴다.)
-  if (current.slug !== "today")
-    intent.push({ href: "/popups/today", label: "오늘 오픈 팝업", icon: "flame" });
-  if (current.slug !== "this-weekend")
-    intent.push({ href: "/popups/this-weekend", label: "이번 주말 마감 임박", icon: "clock" });
+  if (current.slug !== 'today')
+    intent.push({ href: '/popups/today', label: '오늘 오픈 팝업', icon: 'flame' });
+  if (current.slug !== 'this-weekend')
+    intent.push({ href: '/popups/this-weekend', label: '이번 주말 마감 임박', icon: 'clock' });
 
   // 브랜드 랜딩은 지도 필터가 없어 → 매칭 팝업 상위 지역으로 좁히게 유도
   const regionChips =
-    current.kind === "brand"
+    current.kind === 'brand'
       ? topRegionSlugs(filtered, 3)
           .map((s) => regionBySlug(s))
           .filter((r): r is NonNullable<typeof r> => !!r)
       : [];
 
   // 전체 링크(SEO) — 브랜드/IP 먼저
-  const links: { slug: string; label: string; kind: Slice["kind"] }[] = [
-    ...BRANDS.map((b) => ({ slug: b.slug, label: b.label, kind: "brand" as const })),
-    ...REGIONS.map((r) => ({ slug: r.slug, label: r.label, kind: "region" as const })),
-    ...PERIODS.map((p) => ({ slug: p.slug, label: p.label, kind: "period" as const })),
-    ...CATEGORIES.map((c) => ({ slug: c.slug, label: c.label, kind: "category" as const })),
+  const links: { slug: string; label: string; kind: Slice['kind'] }[] = [
+    ...BRANDS.map((b) => ({ slug: b.slug, label: b.label, kind: 'brand' as const })),
+    ...REGIONS.map((r) => ({ slug: r.slug, label: r.label, kind: 'region' as const })),
+    ...PERIODS.map((p) => ({ slug: p.slug, label: p.label, kind: 'period' as const })),
+    ...CATEGORIES.map((c) => ({ slug: c.slug, label: c.label, kind: 'category' as const })),
   ].filter((s) => s.slug !== current.slug);
 
   return (
@@ -671,7 +660,7 @@ function CrossSell({
               href={c.href}
               className="inline-flex items-center gap-1.5 rounded-pill border border-lime-300/60 bg-lime-50 px-3 py-1.5 text-xs font-bold text-lime-700 transition hover:bg-lime-100 dark:bg-lime-300/10 dark:text-lime-300 dark:hover:bg-lime-300/20"
             >
-              {c.icon === "flame" ? <Flame size={13} /> : <Clock size={13} />}
+              {c.icon === 'flame' ? <Flame size={13} /> : <Clock size={13} />}
               {c.label}
             </Link>
           ))}
@@ -707,22 +696,22 @@ function CrossSell({
 function FaqSection({ slice, count }: { slice: Slice; count: number }) {
   const faqs = [
     {
-      q: "팝업 정보는 얼마나 자주 갱신되나요?",
+      q: '팝업 정보는 얼마나 자주 갱신되나요?',
       a: `${REFRESH_COPY}에 자동 수집합니다. 신규 팝업이 등록되면 BROWSE 와 지도에 즉시 반영됩니다.`,
     },
     {
       q: `${slice.label} 슬라이스는 어떻게 분류되나요?`,
       a:
-        slice.kind === "region"
-          ? "팝업 주소의 동/로 이름을 기준으로 분류합니다. 정확한 위치는 지도에서 확인하세요."
-          : slice.kind === "period"
-            ? "팝업의 운영 시작일·종료일을 기준으로 해당 기간 안에 한 번이라도 열리면 포함됩니다."
-            : slice.kind === "brand"
-              ? "팝업 이름에 해당 브랜드/IP 이름이 포함되면 자동으로 모읍니다. 진행 중인 팝업만 표시됩니다."
-              : "팝업 카테고리 필드의 한글/영문 키워드를 매칭해 분류합니다.",
+        slice.kind === 'region'
+          ? '팝업 주소의 동/로 이름을 기준으로 분류합니다. 정확한 위치는 지도에서 확인하세요.'
+          : slice.kind === 'period'
+            ? '팝업의 운영 시작일·종료일을 기준으로 해당 기간 안에 한 번이라도 열리면 포함됩니다.'
+            : slice.kind === 'brand'
+              ? '팝업 이름에 해당 브랜드/IP 이름이 포함되면 자동으로 모읍니다. 진행 중인 팝업만 표시됩니다.'
+              : '팝업 카테고리 필드의 한글/영문 키워드를 매칭해 분류합니다.',
     },
     {
-      q: "위시 등록은 어디서 하나요?",
+      q: '위시 등록은 어디서 하나요?',
       a: `메인 지도의 팝업 마커를 누른 뒤 상세 페이지에서 위시 등록할 수 있습니다. 현재 ${count}곳 진행 중.`,
     },
   ];
@@ -745,12 +734,12 @@ function FaqSection({ slice, count }: { slice: Slice; count: number }) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{
           __html: JSON.stringify({
-            "@context": "https://schema.org",
-            "@type": "FAQPage",
+            '@context': 'https://schema.org',
+            '@type': 'FAQPage',
             mainEntity: faqs.map((f) => ({
-              "@type": "Question",
+              '@type': 'Question',
               name: f.q,
-              acceptedAnswer: { "@type": "Answer", text: f.a },
+              acceptedAnswer: { '@type': 'Answer', text: f.a },
             })),
           }),
         }}

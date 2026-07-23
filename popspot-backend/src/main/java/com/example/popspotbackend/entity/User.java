@@ -1,5 +1,6 @@
 package com.example.popspotbackend.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
@@ -38,9 +39,11 @@ public class User {
     private String userId;
 
     @Column(nullable = false, unique = true)
+    @JsonIgnore
     private String email;
 
     @Column(nullable = false)
+    @JsonIgnore
     private String password;
 
     /** 닉네임. 소셜 로그인 시 provider 의 이름이 그대로 들어온다. */
@@ -51,11 +54,25 @@ public class User {
     @Column private String picture;
 
     @Column(name = "PHONE_NUMBER", unique = true)
+    @JsonIgnore
     private String phoneNumber;
 
     /** ROLE_USER / ROLE_ADMIN. Spring Security 접두사 규칙을 따른다. */
     @Column(nullable = false)
+    @JsonIgnore
     private String role;
+
+    /** 비밀번호 변경·탈퇴 시 기존 JWT를 즉시 무효화하기 위한 버전. */
+    @Column(name = "TOKEN_VERSION", nullable = false)
+    @Builder.Default
+    @JsonIgnore
+    private long tokenVersion = 0L;
+
+    /** 탈퇴 계정은 기존 토큰과 무관하게 모든 인증을 거부한다. */
+    @Column(name = "ACCOUNT_ACTIVE", nullable = false)
+    @Builder.Default
+    @JsonIgnore
+    private boolean accountActive = true;
 
     @Column(name = "MANNER_TEMP")
     private Double mannerTemp;
@@ -120,6 +137,7 @@ public class User {
         return this;
     }
 
+    @JsonIgnore
     public String getRoleKey() {
         return this.role;
     }

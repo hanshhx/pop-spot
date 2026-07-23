@@ -1,39 +1,34 @@
-"use client";
+'use client';
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from 'react';
 
-import { Button } from "@/components/ui/button";
-import { Field } from "@/components/ui/input";
-import { notifySuccess, notifyError, confirmAction } from "@/lib/notify";
+import { Button } from '@/components/ui/button';
+import { Field } from '@/components/ui/input';
+import { notifySuccess, notifyError, confirmAction } from '@/lib/notify';
 import {
   CATEGORY_LABEL,
   STATUS_LABEL,
   type Feedback,
   type FeedbackStatus,
   type FeedbackStatusCounts,
-} from "@/types/feedback";
+} from '@/types/feedback';
 
 import {
   deleteFeedback,
   fetchAdminFeedback,
   fetchAdminFeedbackMetrics,
   replyFeedback,
-} from "./api";
+} from './api';
 
-const STATUS_FILTERS: Array<{ value: FeedbackStatus | "ALL"; label: string }> = [
-  { value: "ALL", label: "전체" },
-  { value: "PENDING", label: "확인 대기" },
-  { value: "REVIEWING", label: "검토 중" },
-  { value: "RESOLVED", label: "처리 완료" },
-  { value: "WONT_FIX", label: "반영 안함" },
+const STATUS_FILTERS: Array<{ value: FeedbackStatus | 'ALL'; label: string }> = [
+  { value: 'ALL', label: '전체' },
+  { value: 'PENDING', label: '확인 대기' },
+  { value: 'REVIEWING', label: '검토 중' },
+  { value: 'RESOLVED', label: '처리 완료' },
+  { value: 'WONT_FIX', label: '반영 안함' },
 ];
 
-const REPLY_STATUS_OPTIONS: FeedbackStatus[] = [
-  "PENDING",
-  "REVIEWING",
-  "RESOLVED",
-  "WONT_FIX",
-];
+const REPLY_STATUS_OPTIONS: FeedbackStatus[] = ['PENDING', 'REVIEWING', 'RESOLVED', 'WONT_FIX'];
 
 const EMPTY_COUNTS: FeedbackStatusCounts = {
   PENDING: 0,
@@ -49,7 +44,7 @@ const EMPTY_COUNTS: FeedbackStatusCounts = {
  * 목록 조회 / 카운트 조회 / 답변 / 삭제 4종 API 만 호출.
  */
 export function AdminFeedbackPanel() {
-  const [filter, setFilter] = useState<FeedbackStatus | "ALL">("ALL");
+  const [filter, setFilter] = useState<FeedbackStatus | 'ALL'>('ALL');
   const [items, setItems] = useState<Feedback[]>([]);
   const [counts, setCounts] = useState<FeedbackStatusCounts>(EMPTY_COUNTS);
   const [loading, setLoading] = useState(false);
@@ -61,14 +56,13 @@ export function AdminFeedbackPanel() {
     setErrorMessage(null);
     try {
       const [list, metrics] = await Promise.all([
-        fetchAdminFeedback(filter === "ALL" ? {} : { status: filter }),
+        fetchAdminFeedback(filter === 'ALL' ? {} : { status: filter }),
         fetchAdminFeedbackMetrics(),
       ]);
       setItems(list);
       setCounts({ ...EMPTY_COUNTS, ...metrics });
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "목록을 불러오지 못했습니다.";
+      const message = err instanceof Error ? err.message : '목록을 불러오지 못했습니다.';
       setErrorMessage(message);
     } finally {
       setLoading(false);
@@ -92,10 +86,10 @@ export function AdminFeedbackPanel() {
               type="button"
               onClick={() => setFilter(opt.value)}
               className={
-                "rounded-md border px-3 py-1.5 text-sm transition-colors " +
+                'rounded-md border px-3 py-1.5 text-sm transition-colors ' +
                 (active
-                  ? "border-foreground bg-foreground text-background"
-                  : "border-[var(--color-border-strong)] bg-surface text-surface-foreground hover:bg-muted")
+                  ? 'border-foreground bg-foreground text-background'
+                  : 'border-[var(--color-border-strong)] bg-surface text-surface-foreground hover:bg-muted')
               }
             >
               {opt.label}
@@ -111,9 +105,7 @@ export function AdminFeedbackPanel() {
         </button>
       </div>
 
-      {loading && (
-        <p className="text-sm text-muted-foreground">불러오는 중...</p>
-      )}
+      {loading && <p className="text-sm text-muted-foreground">불러오는 중...</p>}
       {errorMessage && <p className="text-sm text-danger">{errorMessage}</p>}
       {!loading && !errorMessage && items.length === 0 && (
         <p className="text-sm text-muted-foreground">해당 조건의 의견이 없습니다.</p>
@@ -138,22 +130,16 @@ export function AdminFeedbackPanel() {
                   <span>·</span>
                   <span>{authorLabel(f)}</span>
                 </div>
-                <p className="mt-1 truncate font-medium text-surface-foreground">
-                  {f.title}
-                </p>
+                <p className="mt-1 truncate font-medium text-surface-foreground">{f.title}</p>
               </div>
-              <span className="shrink-0 text-xs font-semibold">
-                {STATUS_LABEL[f.status]}
-              </span>
+              <span className="shrink-0 text-xs font-semibold">{STATUS_LABEL[f.status]}</span>
             </button>
 
             {expandedId === f.id && (
               <ReplyEditor
                 feedback={f}
                 onSaved={(updated) => {
-                  setItems((prev) =>
-                    prev.map((it) => (it.id === updated.id ? updated : it)),
-                  );
+                  setItems((prev) => prev.map((it) => (it.id === updated.id ? updated : it)));
                   reload();
                 }}
                 onDeleted={() => {
@@ -176,10 +162,10 @@ interface MetricRowProps {
 
 function MetricRow({ counts }: MetricRowProps) {
   const cards: Array<{ key: FeedbackStatus; label: string }> = [
-    { key: "PENDING", label: "확인 대기" },
-    { key: "REVIEWING", label: "검토 중" },
-    { key: "RESOLVED", label: "처리 완료" },
-    { key: "WONT_FIX", label: "반영 안함" },
+    { key: 'PENDING', label: '확인 대기' },
+    { key: 'REVIEWING', label: '검토 중' },
+    { key: 'RESOLVED', label: '처리 완료' },
+    { key: 'WONT_FIX', label: '반영 안함' },
   ];
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -189,9 +175,7 @@ function MetricRow({ counts }: MetricRowProps) {
           className="rounded-md border border-[var(--color-border-strong)] bg-surface p-3"
         >
           <p className="text-xs text-muted-foreground">{c.label}</p>
-          <p className="mt-1 text-2xl font-semibold text-surface-foreground">
-            {counts[c.key]}
-          </p>
+          <p className="mt-1 text-2xl font-semibold text-surface-foreground">{counts[c.key]}</p>
         </div>
       ))}
     </div>
@@ -205,7 +189,7 @@ interface ReplyEditorProps {
 }
 
 function ReplyEditor({ feedback, onSaved, onDeleted }: ReplyEditorProps) {
-  const [reply, setReply] = useState(feedback.adminReply ?? "");
+  const [reply, setReply] = useState(feedback.adminReply ?? '');
   const [status, setStatus] = useState<FeedbackStatus>(feedback.status);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -219,10 +203,9 @@ function ReplyEditor({ feedback, onSaved, onDeleted }: ReplyEditorProps) {
         status,
       });
       onSaved(updated);
-      notifySuccess("저장되었습니다.");
+      notifySuccess('저장되었습니다.');
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "저장하지 못했습니다.";
+      const message = err instanceof Error ? err.message : '저장하지 못했습니다.';
       notifyError(message);
     } finally {
       setSaving(false);
@@ -232,8 +215,8 @@ function ReplyEditor({ feedback, onSaved, onDeleted }: ReplyEditorProps) {
   const handleDelete = async () => {
     if (deleting) return;
     const ok = await confirmAction({
-      title: "이 의견을 삭제할까요?",
-      text: "삭제하면 되돌릴 수 없습니다.",
+      title: '이 의견을 삭제할까요?',
+      text: '삭제하면 되돌릴 수 없습니다.',
       destructive: true,
     });
     if (!ok) return;
@@ -241,10 +224,9 @@ function ReplyEditor({ feedback, onSaved, onDeleted }: ReplyEditorProps) {
     try {
       await deleteFeedback(feedback.id);
       onDeleted();
-      notifySuccess("삭제되었습니다.");
+      notifySuccess('삭제되었습니다.');
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "삭제하지 못했습니다.";
+      const message = err instanceof Error ? err.message : '삭제하지 못했습니다.';
       notifyError(message);
     } finally {
       setDeleting(false);
@@ -258,9 +240,7 @@ function ReplyEditor({ feedback, onSaved, onDeleted }: ReplyEditorProps) {
       </div>
 
       {feedback.guestEmail && (
-        <p className="text-xs text-muted-foreground">
-          답신용 이메일: {feedback.guestEmail}
-        </p>
+        <p className="text-xs text-muted-foreground">답신용 이메일: {feedback.guestEmail}</p>
       )}
 
       <Field label="상태" required>
@@ -271,10 +251,10 @@ function ReplyEditor({ feedback, onSaved, onDeleted }: ReplyEditorProps) {
               <label
                 key={value}
                 className={
-                  "cursor-pointer rounded-md border px-3 py-1.5 text-sm " +
+                  'cursor-pointer rounded-md border px-3 py-1.5 text-sm ' +
                   (active
-                    ? "border-foreground bg-foreground text-background"
-                    : "border-[var(--color-border-strong)] bg-surface text-surface-foreground hover:bg-muted")
+                    ? 'border-foreground bg-foreground text-background'
+                    : 'border-[var(--color-border-strong)] bg-surface text-surface-foreground hover:bg-muted')
                 }
               >
                 <input
@@ -304,22 +284,10 @@ function ReplyEditor({ feedback, onSaved, onDeleted }: ReplyEditorProps) {
       </Field>
 
       <div className="flex flex-wrap items-center gap-2">
-        <Button
-          type="button"
-          variant="primary"
-          size="md"
-          loading={saving}
-          onClick={handleSave}
-        >
+        <Button type="button" variant="primary" size="md" loading={saving} onClick={handleSave}>
           저장
         </Button>
-        <Button
-          type="button"
-          variant="outline"
-          size="md"
-          loading={deleting}
-          onClick={handleDelete}
-        >
+        <Button type="button" variant="outline" size="md" loading={deleting} onClick={handleDelete}>
           삭제
         </Button>
         {feedback.repliedAt && (
@@ -333,12 +301,11 @@ function ReplyEditor({ feedback, onSaved, onDeleted }: ReplyEditorProps) {
 }
 
 function formatDate(iso: string | null): string {
-  if (!iso) return "";
+  if (!iso) return '';
   return iso.length >= 10 ? iso.slice(0, 10) : iso;
 }
 
 function authorLabel(f: Feedback): string {
   if (f.userId) return f.userId;
-  return f.guestEmail ? `게스트 (${f.guestEmail})` : "게스트";
+  return f.guestEmail ? `게스트 (${f.guestEmail})` : '게스트';
 }
-

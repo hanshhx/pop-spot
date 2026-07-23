@@ -1,13 +1,13 @@
-"use client";
+'use client';
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Download, Pause, Play, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Download, Pause, Play, Trash2 } from 'lucide-react';
 
-import { useSseStream } from "./useSseStream";
+import { useSseStream } from './useSseStream';
 
 const MAX_LINES = 500;
-const SSE_PATH = "/api/admin/logs/stream";
-const SSE_EVENT_NAME = "log";
+const SSE_PATH = '/api/admin/logs/stream';
+const SSE_EVENT_NAME = 'log';
 
 /**
  * 어드민 실시간 로그 뷰어.
@@ -18,7 +18,7 @@ const SSE_EVENT_NAME = "log";
  */
 export function LogViewer({ active }: { active: boolean }) {
   const [lines, setLines] = useState<string[]>([]);
-  const [filter, setFilter] = useState("");
+  const [filter, setFilter] = useState('');
   const [paused, setPaused] = useState(false);
   const [autoScroll, setAutoScroll] = useState(true);
   const scrollRef = useRef<HTMLPreElement>(null);
@@ -40,7 +40,7 @@ export function LogViewer({ active }: { active: boolean }) {
   const filtered = useMemo(() => {
     if (!filter.trim()) return lines;
     try {
-      const re = new RegExp(filter, "i");
+      const re = new RegExp(filter, 'i');
       return lines.filter((l) => re.test(l));
     } catch {
       return lines.filter((l) => l.toLowerCase().includes(filter.toLowerCase()));
@@ -54,11 +54,11 @@ export function LogViewer({ active }: { active: boolean }) {
   }, [filtered, autoScroll]);
 
   const handleDownload = () => {
-    const blob = new Blob([lines.join("\n")], { type: "text/plain" });
+    const blob = new Blob([lines.join('\n')], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
+    const a = document.createElement('a');
     a.href = url;
-    a.download = `popspot-log-${new Date().toISOString().replace(/[:.]/g, "-")}.txt`;
+    a.download = `popspot-log-${new Date().toISOString().replace(/[:.]/g, '-')}.txt`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -78,13 +78,13 @@ export function LogViewer({ active }: { active: boolean }) {
           onClick={() => setPaused((p) => !p)}
           className={`px-3 py-1.5 rounded-lg text-xs font-bold inline-flex items-center gap-1.5 transition-colors ${
             paused
-              ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
-              : "bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/15"
+              ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+              : 'bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/15'
           }`}
-          aria-label={paused ? "재개" : "일시정지"}
+          aria-label={paused ? '재개' : '일시정지'}
         >
           {paused ? <Play size={12} /> : <Pause size={12} />}
-          {paused ? "재개" : "일시정지"}
+          {paused ? '재개' : '일시정지'}
         </button>
         <label className="text-xs flex items-center gap-1.5 px-2 cursor-pointer select-none">
           <input
@@ -135,12 +135,12 @@ export function LogViewer({ active }: { active: boolean }) {
   );
 }
 
-function ConnectionBadge({ status }: { status: "connecting" | "open" | "closed" | "error" }) {
+function ConnectionBadge({ status }: { status: 'connecting' | 'open' | 'closed' | 'error' }) {
   const map = {
-    connecting: { text: "연결 중", color: "bg-gray-400" },
-    open: { text: "연결됨", color: "bg-green-500 animate-pulse" },
-    closed: { text: "닫힘", color: "bg-gray-500" },
-    error: { text: "재연결", color: "bg-red-500" },
+    connecting: { text: '연결 중', color: 'bg-gray-400' },
+    open: { text: '연결됨', color: 'bg-green-500 animate-pulse' },
+    closed: { text: '닫힘', color: 'bg-gray-500' },
+    error: { text: '재연결', color: 'bg-red-500' },
   } as const;
   const { text, color } = map[status];
   return (
@@ -153,9 +153,9 @@ function ConnectionBadge({ status }: { status: "connecting" | "open" | "closed" 
 
 /** 라인 안에 어떤 로그 레벨이 나오는지 보고 색 결정. */
 function lineColor(line: string): string {
-  if (/\bERROR\b/.test(line)) return "text-red-400";
-  if (/\bWARN\b/.test(line)) return "text-amber-300";
-  if (/\bINFO\b/.test(line)) return "text-gray-200";
-  if (/\bDEBUG\b/.test(line)) return "text-gray-400";
-  return "text-gray-300";
+  if (/\bERROR\b/.test(line)) return 'text-red-400';
+  if (/\bWARN\b/.test(line)) return 'text-amber-300';
+  if (/\bINFO\b/.test(line)) return 'text-gray-200';
+  if (/\bDEBUG\b/.test(line)) return 'text-gray-400';
+  return 'text-gray-300';
 }

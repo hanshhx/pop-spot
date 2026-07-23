@@ -4,13 +4,14 @@ plugins {
     id 'io.spring.dependency-management' version '1.1.7'
     id "io.sentry.jvm.gradle" version "6.1.0"
     id 'com.diffplug.spotless' version '6.25.0'
+    id 'org.owasp.dependencycheck' version '12.2.2'
 }
 
 spotless {
     // 크로스플랫폼 line ending 일관성 — Windows/macOS/Linux 어디서 빌드해도 LF 로 강제.
     // 기본값(GIT_ATTRIBUTES → OS 네이티브)은 Windows 에서 CRLF 를 원해서 LF 로 커밋된 .java 파일
     // 120 개가 spotlessCheck 에 걸렸다. .gitattributes 의 'text eol=lf' 와 짝.
-    lineEndings 'UNIX'
+    lineEndings = 'UNIX'
 
     java {
         target 'src/**/*.java'
@@ -51,7 +52,6 @@ dependencies {
     implementation 'org.mybatis.spring.boot:mybatis-spring-boot-starter:4.0.1'
     compileOnly 'org.projectlombok:lombok'
     developmentOnly 'org.springframework.boot:spring-boot-devtools'
-    runtimeOnly 'com.oracle.database.jdbc:ojdbc11'
     annotationProcessor 'org.projectlombok:lombok'
     testImplementation 'org.springframework.boot:spring-boot-starter-actuator-test'
     testImplementation 'org.springframework.boot:spring-boot-starter-data-jpa-test'
@@ -61,9 +61,7 @@ dependencies {
     testImplementation 'org.springframework.boot:spring-boot-starter-websocket-test'
     testImplementation 'org.mybatis.spring.boot:mybatis-spring-boot-starter-test:4.0.1'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
-    // 1. 웹 관련 기능 (UriComponentsBuilder, RestTemplate 사용 시 필수)
-    implementation 'org.springframework.boot:spring-boot-starter-web'
-
+    testRuntimeOnly 'com.h2database:h2'
     // 2. JSON 처리 라이브러리 (ObjectMapper, JsonNode 사용 시 필수)
     // 스프링 부트 웹 스타터에 기본 포함되어 있지만, 에러가 난다면 명시적으로 추가해야 합니다.
     implementation 'com.fasterxml.jackson.core:jackson-databind'
@@ -81,9 +79,7 @@ dependencies {
     runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.11.5'
     runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.11.5'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
-    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
-    implementation 'io.sentry:sentry-spring-boot-starter:7.3.0'
-    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation 'io.sentry:sentry-spring-boot-starter:8.33.0'
 
     // 🔥 [추가] Rate Limiting (브루트포스/이메일 폭탄 방어)
     implementation 'com.bucket4j:bucket4j-core:8.10.1'
@@ -105,4 +101,15 @@ sentry {
     org = "kimdonghyun-oz"
     projectName = "java-spring-boot"
     authToken = System.getenv("SENTRY_AUTH_TOKEN")
+}
+
+dependencyCheck {
+    // 운영 런타임 의존성의 High/Critical CVE를 CI에서 차단한다.
+    scanConfigurations = ['runtimeClasspath']
+    failBuildOnCVSS = 7.0
+    failOnError = true
+    formats = ['HTML', 'SARIF']
+    nvd {
+        apiKey = System.getenv('NVD_API_KEY')
+    }
 }

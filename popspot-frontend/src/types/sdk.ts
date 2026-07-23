@@ -19,21 +19,21 @@ export type YouTubeIframeSdk = any;
 
 /** YouTube Player 이벤트 객체. `onReady` / `onStateChange` 콜백이 받는 인자. */
 export interface YouTubePlayerEvent {
-    target: YouTubePlayer;
-    data?: number;
+  target: YouTubePlayer;
+  data?: number;
 }
 
 /** YouTube Player 인스턴스 — 우리가 실제로 호출하는 메서드만 모았다. */
 export interface YouTubePlayer {
-    playVideo(): void;
-    pauseVideo(): void;
-    stopVideo(): void;
-    seekTo(seconds: number, allowSeekAhead?: boolean): void;
-    getCurrentTime(): number;
-    getDuration(): number;
-    getPlayerState(): number;
-    setVolume(volume: number): void;
-    mute(): void;
-    unMute(): void;
-    destroy(): void;
+  playVideo(): void;
+  pauseVideo(): void;
+  stopVideo(): void;
+  seekTo(seconds: number, allowSeekAhead?: boolean): void;
+  getCurrentTime(): number;
+  getDuration(): number;
+  getPlayerState(): number;
+  setVolume(volume: number): void;
+  mute(): void;
+  unMute(): void;
+  destroy(): void;
 }

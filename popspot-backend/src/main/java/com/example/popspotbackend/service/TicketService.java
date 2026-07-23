@@ -1,8 +1,10 @@
 package com.example.popspotbackend.service;
 
 import jakarta.annotation.PreDestroy;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -29,18 +31,34 @@ public class TicketService {
     private static final String STOCK_KEY_PREFIX = "ticket:stock:";
     private static final String RESULT_SUCCESS = "SUCCESS";
     private static final String RESULT_FAIL = "FAIL";
+    private static final String RUNNING_KEY_PREFIX = "ticket:running:";
 
     private final StringRedisTemplate redisTemplate;
     private final ExecutorService executorService =
-            Executors.newFixedThreadPool(BOT_THREAD_POOL_SIZE);
+            new ThreadPoolExecutor(
+                    BOT_THREAD_POOL_SIZE,
+                    BOT_THREAD_POOL_SIZE,
+                    0L,
+                    TimeUnit.MILLISECONDS,
+                    new ArrayBlockingQueue<>(50),
+                    new ThreadPoolExecutor.AbortPolicy());
 
     public void resetGame(String itemId) {
+        validateItemId(itemId);
         redisTemplate.opsForValue().set(stockKey(itemId), String.valueOf(INITIAL_STOCK));
         log.info("[Ticket] {} 리셋 완료. 재고 {}개", itemId, INITIAL_STOCK);
     }
 
     /** 봇 {@value #BOT_COUNT} 마리가 동시에 재고를 깎기 시작한다. */
     public void startSimulation(String itemId) {
+        validateItemId(itemId);
+        Boolean acquired =
+                redisTemplate
+                        .opsForValue()
+                        .setIfAbsent(RUNNING_KEY_PREFIX + itemId, "1", 2, TimeUnit.MINUTES);
+        if (!Boolean.TRUE.equals(acquired)) {
+            throw new IllegalStateException("이미 실행 중인 게임입니다.");
+        }
         String key = stockKey(itemId);
         for (int i = 0; i < BOT_COUNT; i++) {
             executorService.submit(() -> runBotLoop(key));
@@ -48,6 +66,7 @@ public class TicketService {
     }
 
     public String attemptReservation(String userId, String itemId) {
+        validateItemId(itemId);
         Long stock = redisTemplate.opsForValue().decrement(stockKey(itemId));
         if (stock != null && stock >= 0) {
             log.info("[Ticket] USER {} 성공 (남은 재고: {})", userId, stock);
@@ -71,6 +90,12 @@ public class TicketService {
 
     private String stockKey(String itemId) {
         return STOCK_KEY_PREFIX + itemId;
+    }
+
+    private void validateItemId(String itemId) {
+        if (itemId == null || !itemId.matches("^[A-Za-z0-9_-]{1,64}$")) {
+            throw new IllegalArgumentException("유효하지 않은 게임 상품 ID입니다.");
+        }
     }
 
     private void runBotLoop(String key) {

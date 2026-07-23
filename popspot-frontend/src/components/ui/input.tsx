@@ -1,7 +1,7 @@
-"use client";
+'use client';
 
-import * as React from "react";
-import { cn } from "@/lib/utils";
+import * as React from 'react';
+import { cn } from '@/lib/utils';
 
 /**
  * 텍스트 입력 — `<Input>`.
@@ -34,10 +34,10 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
             ref={ref}
             className={cn(
               inputBase,
-              iconLeft && "pl-10",
-              iconRight && "pr-10",
+              iconLeft && 'pl-10',
+              iconRight && 'pr-10',
               invalid && invalidClass,
-              className
+              className,
             )}
             aria-invalid={invalid || undefined}
             {...props}
@@ -61,24 +61,23 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
         {...props}
       />
     );
-  }
+  },
 );
-Input.displayName = "Input";
+Input.displayName = 'Input';
 
 const inputBase = cn(
-  "flex h-11 w-full rounded-md border border-[var(--color-border-strong)]",
-  "bg-surface text-surface-foreground",
-  "px-4 py-2 text-sm",
-  "placeholder:text-muted-foreground",
-  "transition-colors duration-150",
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-  "focus-visible:border-transparent",
-  "disabled:opacity-50 disabled:cursor-not-allowed",
-  "file:border-0 file:bg-transparent file:text-sm file:font-medium"
+  'flex h-11 w-full rounded-md border border-[var(--color-border-strong)]',
+  'bg-surface text-surface-foreground',
+  'px-4 py-2 text-sm',
+  'placeholder:text-muted-foreground',
+  'transition-colors duration-150',
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+  'focus-visible:border-transparent',
+  'disabled:opacity-50 disabled:cursor-not-allowed',
+  'file:border-0 file:bg-transparent file:text-sm file:font-medium',
 );
 
-const invalidClass =
-  "border-danger focus-visible:ring-danger";
+const invalidClass = 'border-danger focus-visible:ring-danger';
 
 /* ------------------------------------------------------------ */
 /*  <Field>  — label + helper + error wrapper                   */
@@ -106,12 +105,9 @@ export function Field({
   const id = htmlFor ?? generatedId;
 
   return (
-    <div className={cn("flex flex-col gap-1.5", className)}>
+    <div className={cn('flex flex-col gap-1.5', className)}>
       {label && (
-        <label
-          htmlFor={id}
-          className="text-xs font-semibold text-foreground tracking-wide"
-        >
+        <label htmlFor={id} className="text-xs font-semibold text-foreground tracking-wide">
           {label}
           {required && (
             <span className="text-danger ml-0.5" aria-label="필수">

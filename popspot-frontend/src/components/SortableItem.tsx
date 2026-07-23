@@ -16,14 +16,9 @@ interface Props {
 }
 
 export function SortableItem({ id, place, index }: Props) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging
-  } = useSortable({ id });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id,
+  });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -39,7 +34,11 @@ export function SortableItem({ id, place, index }: Props) {
       className="bg-white dark:bg-ink-800 p-3 md:p-4 rounded-lg md:rounded-xl border border-gray-200 dark:border-white/10 flex items-center gap-2.5 md:gap-4 shadow-sm mb-2 md:mb-3 group touch-none hover:border-lime-300 transition-colors"
     >
       {/* ✋ 드래그 핸들 (모바일 아이콘 크기 및 여백 축소) */}
-      <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-lime-500 p-0.5 md:p-1 shrink-0">
+      <div
+        {...attributes}
+        {...listeners}
+        className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-lime-500 p-0.5 md:p-1 shrink-0"
+      >
         <GripVertical className="w-4 h-4 md:w-5 md:h-5" />
       </div>
 
@@ -51,8 +50,12 @@ export function SortableItem({ id, place, index }: Props) {
       {/* 텍스트 영역 (min-w-0 추가하여 truncate가 제대로 작동하도록 함) */}
       <div className="flex-1 min-w-0">
         {/* 긴 글자 말줄임표 처리 및 폰트 축소 */}
-        <h4 className="font-bold text-gray-900 dark:text-white text-xs md:text-sm truncate">{place.name}</h4>
-        <p className="text-[9px] md:text-[11px] text-gray-500 dark:text-cream-200/50 mt-0.5">{place.category}</p>
+        <h4 className="font-bold text-gray-900 dark:text-white text-xs md:text-sm truncate">
+          {place.name}
+        </h4>
+        <p className="text-[9px] md:text-[11px] text-gray-500 dark:text-cream-200/50 mt-0.5">
+          {place.category}
+        </p>
       </div>
     </div>
   );

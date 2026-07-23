@@ -1,19 +1,20 @@
-"use client";
+'use client';
 
-import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { motion } from "framer-motion";
-import { ArrowLeft, Ticket, Music2, MapPin, Sparkles } from "lucide-react";
+import { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { motion } from 'framer-motion';
+import { ArrowLeft, Ticket, Music2, MapPin, Sparkles } from 'lucide-react';
 
-import { apiFetch } from "@/lib/api";
-import { MusicTrack, UserMusicHistory } from "@/types/music";
-import { useMusicPlayer } from "@/components/music/MusicPlayerProvider";
+import { apiFetch } from '@/lib/api';
+import { MusicTrack, UserMusicHistory } from '@/types/music';
+import { useMusicPlayer } from '@/components/music/MusicPlayerProvider';
 
-interface HistoryItem extends UserMusicHistory {
+type HistoryItem = UserMusicHistory;
+/*
   // 백엔드가 entity 그대로 보내고 있어서 일단 raw 사용.
   // track / popup join 정보는 별도 fetch로 보강한다.
-}
+*/
 
 export default function MusicPassportPage() {
   const router = useRouter();
@@ -24,15 +25,13 @@ export default function MusicPassportPage() {
 
   useEffect(() => {
     setLoading(true);
-    apiFetch("/api/music/history?limit=50")
+    apiFetch('/api/music/history?limit=50')
       .then((r) => (r.ok ? r.json() : []))
       .then(async (data: HistoryItem[]) => {
         setHistory(data || []);
         // 트랙 메타 보강: history에 trackId만 있으니 popular 캐시에서 일단 매칭
         // (backend가 join 추가하기 전 임시)
-        const popularRes = await apiFetch("/api/music/popular?limit=100").catch(
-          () => null
-        );
+        const popularRes = await apiFetch('/api/music/popular?limit=100').catch(() => null);
         if (popularRes?.ok) {
           const list: MusicTrack[] = await popularRes.json();
           const map: Record<number, MusicTrack> = {};
@@ -47,9 +46,7 @@ export default function MusicPassportPage() {
   // 통계
   const stats = useMemo(() => {
     const trackIds = new Set(history.map((h) => h.trackId));
-    const popupIds = new Set(
-      history.filter((h) => h.matchedPopupId).map((h) => h.matchedPopupId)
-    );
+    const popupIds = new Set(history.filter((h) => h.matchedPopupId).map((h) => h.matchedPopupId));
     return {
       plays: history.length,
       uniqueTracks: trackIds.size,
@@ -92,9 +89,7 @@ export default function MusicPassportPage() {
               <p className="text-[10px] font-bold uppercase tracking-[0.4em] text-white/50">
                 Pop·Spot Music Passport
               </p>
-              <p className="text-base font-black text-white">
-                내가 들었던 음악으로 만든 팝업 기록
-              </p>
+              <p className="text-base font-black text-white">내가 들었던 음악으로 만든 팝업 기록</p>
             </div>
           </div>
 
@@ -154,7 +149,7 @@ export default function MusicPassportPage() {
                       {t?.trackName ?? `Track #${h.trackId}`}
                     </p>
                     <p className="truncate text-xs text-white/50">
-                      {t?.artistName ?? "—"} · {fmtDate(h.playedAt)}
+                      {t?.artistName ?? '—'} · {fmtDate(h.playedAt)}
                     </p>
                   </div>
 
@@ -173,27 +168,16 @@ export default function MusicPassportPage() {
           </ol>
         )}
       </div>
-
     </div>
   );
 }
 
 /* -------------------- SubComponents -------------------- */
 
-function StatCell({
-  label,
-  value,
-  suffix,
-}: {
-  label: string;
-  value: number;
-  suffix: string;
-}) {
+function StatCell({ label, value, suffix }: { label: string; value: number; suffix: string }) {
   return (
     <div className="rounded-2xl border border-white/5 bg-black/30 p-4 text-center backdrop-blur">
-      <p className="text-[10px] font-bold uppercase tracking-widest text-white/40">
-        {label}
-      </p>
+      <p className="text-[10px] font-bold uppercase tracking-widest text-white/40">{label}</p>
       <p className="mt-1 font-mono text-3xl font-black text-white">
         {value}
         <span className="ml-1 text-sm font-bold text-white/50">{suffix}</span>
@@ -206,10 +190,7 @@ function SkeletonRows() {
   return (
     <div className="space-y-2">
       {Array.from({ length: 6 }).map((_, i) => (
-        <div
-          key={i}
-          className="flex items-center gap-4 rounded-2xl bg-white/5 p-3"
-        >
+        <div key={i} className="flex items-center gap-4 rounded-2xl bg-white/5 p-3">
           <div className="h-14 w-14 shrink-0 animate-pulse rounded-lg bg-white/10" />
           <div className="flex-1 space-y-2">
             <div className="h-3 w-1/2 animate-pulse rounded bg-white/10" />
@@ -227,9 +208,7 @@ function EmptyHistory() {
       <div className="mb-3 grid h-14 w-14 place-items-center rounded-2xl bg-white/10">
         <Music2 className="h-6 w-6 text-white/50" />
       </div>
-      <p className="text-sm font-bold text-white/70">
-        아직 재생한 곡이 없어요
-      </p>
+      <p className="text-sm font-bold text-white/70">아직 재생한 곡이 없어요</p>
       <p className="mt-1 text-xs text-white/40">
         음악 페이지에서 곡을 재생하면 패스포트에 기록됩니다.
       </p>
@@ -245,14 +224,14 @@ function EmptyHistory() {
 }
 
 function fmtDate(iso?: string) {
-  if (!iso) return "—";
+  if (!iso) return '—';
   try {
     const d = new Date(iso);
-    return d.toLocaleString("ko-KR", {
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
+    return d.toLocaleString('ko-KR', {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
     });
   } catch {
     return iso;

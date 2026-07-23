@@ -1,9 +1,9 @@
-"use client";
+'use client';
 
-import { useMemo, useState } from "react";
-import { Flame, Ticket, Users, ArrowRight, Store } from "lucide-react";
-import type { PopupStore } from "@/types/popup";
-import { isPexelsPhoto, popupCoverUrl } from "@/lib/popupCover";
+import { useMemo, useState } from 'react';
+import { Flame, Ticket, Users, ArrowRight, Store } from 'lucide-react';
+import type { PopupStore } from '@/types/popup';
+import { isPexelsPhoto, popupCoverUrl } from '@/lib/popupCover';
 
 /**
  * 홈 하단 발견 존 — 1a안 (히어로 + 서브 타일).
@@ -24,12 +24,12 @@ function ddayNum(endDate?: string): number | null {
 }
 
 function statusTone(status?: string): string {
-  if (status === "혼잡") return "text-hot-500 dark:text-hot-400";
-  if (status === "여유") return "text-lime-600 dark:text-lime-400";
-  return "text-amber-500 dark:text-amber-300";
+  if (status === '혼잡') return 'text-hot-500 dark:text-hot-400';
+  if (status === '여유') return 'text-lime-600 dark:text-lime-400';
+  return 'text-amber-500 dark:text-amber-300';
 }
 
-type ChipKey = "전체" | "이번 주" | "마감임박" | "혼잡";
+type ChipKey = '전체' | '이번 주' | '마감임박' | '혼잡';
 
 interface Props {
   popups: PopupStore[];
@@ -39,30 +39,30 @@ interface Props {
 }
 
 export default function HomeBento1a({ popups, total, onOpenRanking, onNavigate }: Props) {
-  const [chip, setChip] = useState<ChipKey>("전체");
+  const [chip, setChip] = useState<ChipKey>('전체');
 
   const filtered = useMemo(() => {
-    if (chip === "마감임박")
+    if (chip === '마감임박')
       return popups.filter((p) => {
         const d = ddayNum(p.endDate);
         return d !== null && d >= 0 && d <= 3;
       });
-    if (chip === "이번 주")
+    if (chip === '이번 주')
       return popups.filter((p) => {
         const d = ddayNum(p.endDate);
         return d !== null && d >= 0 && d <= 7;
       });
-    if (chip === "혼잡") return popups.filter((p) => p.status === "혼잡");
+    if (chip === '혼잡') return popups.filter((p) => p.status === '혼잡');
     return popups;
   }, [popups, chip]);
 
   const top = filtered.slice(0, 4);
 
   const chips: { key: ChipKey; label: string }[] = [
-    { key: "전체", label: `전체 ${total || popups.length}` },
-    { key: "이번 주", label: "이번 주" },
-    { key: "마감임박", label: "마감임박" },
-    { key: "혼잡", label: "혼잡" },
+    { key: '전체', label: `전체 ${total || popups.length}` },
+    { key: '이번 주', label: '이번 주' },
+    { key: '마감임박', label: '마감임박' },
+    { key: '혼잡', label: '혼잡' },
   ];
 
   return (
@@ -81,8 +81,8 @@ export default function HomeBento1a({ popups, total, onOpenRanking, onNavigate }
               aria-pressed={chip === c.key}
               className={`rounded-pill px-3 py-1 text-[11px] font-bold transition ${
                 chip === c.key
-                  ? "bg-lime-300 text-ink-900"
-                  : "border border-black/15 text-ink-500 hover:text-ink-900 dark:border-ink-700 dark:text-cream-200/60 dark:hover:text-cream-200"
+                  ? 'bg-lime-300 text-ink-900'
+                  : 'border border-black/15 text-ink-500 hover:text-ink-900 dark:border-ink-700 dark:text-cream-200/60 dark:hover:text-cream-200'
               }`}
             >
               {c.label}
@@ -117,32 +117,32 @@ export default function HomeBento1a({ popups, total, onOpenRanking, onNavigate }
               const isStyledPhoto = isPexelsPhoto(p);
               return (
                 <button
-                key={p.id}
-                type="button"
-                onClick={onOpenRanking}
-                className="flex w-full items-center gap-3 rounded-2xl p-2 text-left transition hover:bg-black/5 dark:hover:bg-white/5"
-              >
-                <span
-                  className={`w-4 shrink-0 text-center text-sm font-black ${i === 0 ? "text-lime-600 dark:text-lime-300" : "text-ink-400 dark:text-cream-200/40"}`}
+                  key={p.id}
+                  type="button"
+                  onClick={onOpenRanking}
+                  className="flex w-full items-center gap-3 rounded-2xl p-2 text-left transition hover:bg-black/5 dark:hover:bg-white/5"
                 >
-                  {i + 1}
-                </span>
-                <div className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-xl bg-gradient-to-br from-lime-200 to-emerald-300 dark:from-lime-900 dark:to-emerald-950">
-                  {coverUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={coverUrl} alt="" className="h-full w-full object-cover" />
-                  ) : (
-                    <Store size={18} className="text-ink-700/55 dark:text-lime-200/60" />
-                  )}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <strong className="block truncate text-sm font-bold">{p.name}</strong>
-                  <span className="block truncate text-[11px] text-ink-500 dark:text-cream-200/45">
-                    {(p.location || "").split(" ").slice(0, 2).join(" ")} ·{" "}
-                    <span className={statusTone(p.status)}>{p.status || "영업중"}</span>
-                    {isStyledPhoto && " · 연출 이미지"}
+                  <span
+                    className={`w-4 shrink-0 text-center text-sm font-black ${i === 0 ? 'text-lime-600 dark:text-lime-300' : 'text-ink-400 dark:text-cream-200/40'}`}
+                  >
+                    {i + 1}
                   </span>
-                </div>
+                  <div className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-xl bg-gradient-to-br from-lime-200 to-emerald-300 dark:from-lime-900 dark:to-emerald-950">
+                    {coverUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={coverUrl} alt="" className="h-full w-full object-cover" />
+                    ) : (
+                      <Store size={18} className="text-ink-700/55 dark:text-lime-200/60" />
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <strong className="block truncate text-sm font-bold">{p.name}</strong>
+                    <span className="block truncate text-[11px] text-ink-500 dark:text-cream-200/45">
+                      {(p.location || '').split(' ').slice(0, 2).join(' ')} ·{' '}
+                      <span className={statusTone(p.status)}>{p.status || '영업중'}</span>
+                      {isStyledPhoto && ' · 연출 이미지'}
+                    </span>
+                  </div>
                 </button>
               );
             })
@@ -161,7 +161,7 @@ export default function HomeBento1a({ popups, total, onOpenRanking, onNavigate }
       {/* 나의 기록 (여권) — 유저별 값 없이 기능 설명만 */}
       <button
         type="button"
-        onClick={() => onNavigate("PASSPORT")}
+        onClick={() => onNavigate('PASSPORT')}
         className="group relative overflow-hidden rounded-[2rem] border border-black/[0.06] bg-white p-5 text-left text-ink-900 shadow-pop transition hover:scale-[1.02] md:p-6 lg:col-span-1 dark:border-transparent dark:bg-ink-900 dark:text-cream-200"
       >
         <div
@@ -183,7 +183,8 @@ export default function HomeBento1a({ popups, total, onOpenRanking, onNavigate }
               방문한 팝업을 도장으로 기록하고 스탬프를 모아요.
             </p>
             <span className="mt-3 inline-flex items-center gap-1 text-xs font-bold text-amber-600 dark:text-amber-300">
-              여권 열기 <ArrowRight size={13} className="transition-transform group-hover:translate-x-0.5" />
+              여권 열기{' '}
+              <ArrowRight size={13} className="transition-transform group-hover:translate-x-0.5" />
             </span>
           </div>
         </div>
@@ -192,7 +193,7 @@ export default function HomeBento1a({ popups, total, onOpenRanking, onNavigate }
       {/* 같이 갈 사람 (동행) — 유저별 값 없이 기능 설명만 */}
       <button
         type="button"
-        onClick={() => onNavigate("MATE")}
+        onClick={() => onNavigate('MATE')}
         className="group relative overflow-hidden rounded-[2rem] border border-black/[0.06] bg-white p-5 text-left text-ink-900 shadow-pop transition hover:scale-[1.02] md:p-6 lg:col-span-1 dark:border-transparent dark:bg-ink-900 dark:text-cream-200"
       >
         <div
@@ -205,8 +206,11 @@ export default function HomeBento1a({ popups, total, onOpenRanking, onNavigate }
           </span>
           <div>
             <div className="mb-2 flex -space-x-2" aria-hidden>
-              {["bg-lime-300", "bg-hot-400", "bg-sky-400"].map((c, i) => (
-                <span key={i} className={`h-7 w-7 rounded-full ring-2 ring-white dark:ring-ink-900 ${c}`} />
+              {['bg-lime-300', 'bg-hot-400', 'bg-sky-400'].map((c, i) => (
+                <span
+                  key={i}
+                  className={`h-7 w-7 rounded-full ring-2 ring-white dark:ring-ink-900 ${c}`}
+                />
               ))}
             </div>
             <h3 className="text-base font-black">같이 갈 사람</h3>
@@ -214,7 +218,8 @@ export default function HomeBento1a({ popups, total, onOpenRanking, onNavigate }
               관심사 맞는 동행을 찾아 함께 다녀와요.
             </p>
             <span className="mt-3 inline-flex items-center gap-1 text-xs font-bold text-sky-600 dark:text-sky-300">
-              동행 찾기 <ArrowRight size={13} className="transition-transform group-hover:translate-x-0.5" />
+              동행 찾기{' '}
+              <ArrowRight size={13} className="transition-transform group-hover:translate-x-0.5" />
             </span>
           </div>
         </div>

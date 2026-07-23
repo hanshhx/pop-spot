@@ -1,14 +1,10 @@
-"use client";
+'use client';
 
-import { useEffect, useState } from "react";
+import { useEffect, useState } from 'react';
 
-import {
-  CATEGORY_LABEL,
-  STATUS_LABEL,
-  type Feedback,
-} from "@/types/feedback";
+import { CATEGORY_LABEL, STATUS_LABEL, type Feedback } from '@/types/feedback';
 
-import { fetchMyFeedback } from "./api";
+import { fetchMyFeedback } from './api';
 
 interface MyFeedbackListProps {
   /** 로그인 사용자 ID. 없으면 안내 문구만 표시. */
@@ -31,7 +27,7 @@ export function MyFeedbackList({
   userId,
   refreshKey = 0,
   limit,
-  emptyText = "아직 보낸 의견이 없습니다.",
+  emptyText = '아직 보낸 의견이 없습니다.',
 }: MyFeedbackListProps) {
   const [items, setItems] = useState<Feedback[]>([]);
   const [loading, setLoading] = useState(false);
@@ -50,8 +46,7 @@ export function MyFeedbackList({
       })
       .catch((err: unknown) => {
         if (cancelled) return;
-        const message =
-          err instanceof Error ? err.message : "목록을 불러오지 못했습니다.";
+        const message = err instanceof Error ? err.message : '목록을 불러오지 못했습니다.';
         setErrorMessage(message);
       })
       .finally(() => {
@@ -80,7 +75,7 @@ export function MyFeedbackList({
     return <p className="text-sm text-muted-foreground">{emptyText}</p>;
   }
 
-  const visible = typeof limit === "number" ? items.slice(0, limit) : items;
+  const visible = typeof limit === 'number' ? items.slice(0, limit) : items;
 
   return (
     <ul className="flex flex-col gap-3">
@@ -93,13 +88,9 @@ export function MyFeedbackList({
             <span className="text-xs text-muted-foreground">
               {CATEGORY_LABEL[f.category]} · {formatDate(f.createdAt)}
             </span>
-            <span className="text-xs font-semibold">
-              {STATUS_LABEL[f.status]}
-            </span>
+            <span className="text-xs font-semibold">{STATUS_LABEL[f.status]}</span>
           </div>
-          <p className="mt-1 truncate font-medium text-surface-foreground">
-            {f.title}
-          </p>
+          <p className="mt-1 truncate font-medium text-surface-foreground">{f.title}</p>
           {f.adminReply && (
             <p className="mt-2 whitespace-pre-wrap rounded bg-muted p-2 text-xs text-foreground">
               답변: {f.adminReply}

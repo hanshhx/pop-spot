@@ -11,19 +11,20 @@
 
 `src/main/resources/application.properties` 안에 다음이 평문으로 박혀 있음:
 
-| 종류 | 값 (마스킹) |
-|---|---|
-| Gmail 앱 비밀번호 | `ikfc htay ibqs qmwv` |
-| DB 비밀번호 | `1234` |
-| Google OAuth Secret | `GOCSPX-79fmnrpVZH...` |
-| Naver OAuth Secret | `zagKzs...` |
-| Kakao API 키 | `9a7c6b14c55c2907bd...` |
-| Gemini API 키 | `AIzaSyBmkEEOg4...` |
-| Pexels / Tmap / Algolia / Seoul 공공API | 모두 평문 |
+| 종류                                    | 값 (마스킹)             |
+| --------------------------------------- | ----------------------- |
+| Gmail 앱 비밀번호                       | `ikfc htay ibqs qmwv`   |
+| DB 비밀번호                             | `1234`                  |
+| Google OAuth Secret                     | `GOCSPX-79fmnrpVZH...`  |
+| Naver OAuth Secret                      | `zagKzs...`             |
+| Kakao API 키                            | `9a7c6b14c55c2907bd...` |
+| Gemini API 키                           | `AIzaSyBmkEEOg4...`     |
+| Pexels / Tmap / Algolia / Seoul 공공API | 모두 평문               |
 
 **파급:** 이 파일이 Git에 커밋돼 있다면 GitHub 검색에 노출되고 즉시 봇이 키 탈취. Gmail 앱 비밀번호 유출은 본인 계정 도용으로 이어짐.
 
 **조치:**
+
 1. **모든 키 즉시 재발급** (특히 Gmail 앱 비밀번호 → 2단계 인증에서 폐기)
 2. Git history에서 제거 (`git filter-repo --path application.properties --invert-paths`) 또는 새 레포로 이전
 3. `application.properties` 에 환경변수 참조만 남기고 실제 값은 `.env` (.gitignore 추가) 또는 GCP Secret Manager 로 이전
@@ -51,6 +52,7 @@ if (!goods.getPrice().equals(dto.getAmount())) {
 ```
 
 **공격 벡터:**
+
 - 프론트에서 `amount: 100` (또는 `0`) 으로 위조해 보내면 서버가 "테스트 결제"로 인식해 무조건 승인 → 사용자가 무료로 PRO 결제 완료
 - `impUid` 가짜 값을 보내도 검증이 없어서 통과
 
@@ -93,6 +95,7 @@ public void processOrder(OrderDto dto) {
 ### 1-3. JWT 시크릿 기본값이 코드에 박혀 있음
 
 `JwtAuthenticationFilter.java`:
+
 ```java
 @Value("${jwt.secret:defaultSecretKeyForLocalDevelopmentMustBe32BytesLong!}")
 ```
@@ -100,6 +103,7 @@ public void processOrder(OrderDto dto) {
 **파급:** 환경변수 누락 시 누구나 아는 기본 키로 토큰 위조 가능 → 임의 사용자로 로그인 가능.
 
 **조치:** 기본값 제거하고 시작 시 검증.
+
 ```java
 @Value("${jwt.secret}")
 private String jwtSecret;
@@ -115,6 +119,7 @@ void validate() {
 ### 1-4. WebSocket CORS 와일드카드 + 인증 없음
 
 `WebSocketConfig.java`:
+
 ```java
 .setAllowedOriginPatterns("*")
 ```
@@ -122,6 +127,7 @@ void validate() {
 **파급:** `evil.com` 에서 사용자 브라우저로 WebSocket 연결해 채팅 도청·조작 가능.
 
 **조치:**
+
 ```java
 @Value("${app.allowed-origins}")
 private String[] allowedOrigins;
@@ -151,9 +157,11 @@ registry.addEndpoint("/ws-stomp")
 - 인증번호 6자리 무제한 시도 → 100만 가지 brute force
 
 **조치:** Bucket4j 또는 Spring Cloud Gateway RateLimiter.
+
 ```gradle
 implementation 'com.bucket4j:bucket4j-core:8.10.1'
 ```
+
 - `/api/v1/auth/login` → IP별 분당 5회
 - `/api/v1/auth/email/send` → IP/이메일별 분당 1회, 시간당 5회
 - `/api/v1/auth/email/verify` → 이메일별 5회 실패 시 인증코드 무효
@@ -161,9 +169,11 @@ implementation 'com.bucket4j:bucket4j-core:8.10.1'
 ### 1-7. 토큰/사용자 정보가 로그에 평문 노출
 
 `CustomOAuth2UserService.java`:
+
 ```java
 System.out.println("🔥 [2] 소셜 로그인 정보 가져오기 성공: " + oAuth2User.getAttributes());
 ```
+
 → 이메일, 프로필 URL 등 PII 가 로그 파일에 평문 저장. 로그 파일 유출 시 사용자 정보 유출.
 
 **조치:** `System.out.println` 전부 제거 또는 마스킹.
@@ -173,6 +183,7 @@ System.out.println("🔥 [2] 소셜 로그인 정보 가져오기 성공: " + oA
 운영 환경에서 `update` 는 위험 — 엔티티 변경 시 자동으로 ALTER TABLE 실행.
 
 **조치:**
+
 - 운영: `validate` (스키마 일치만 확인)
 - 개발: `update` 또는 `create-drop`
 - Flyway/Liquibase 도입해 마이그레이션 명시적 관리
@@ -184,6 +195,7 @@ System.out.println("🔥 [2] 소셜 로그인 정보 가져오기 성공: " + oA
 ### 2-1. 스탬프 / 좌석예약 등 Race Condition
 
 `StampService.java`:
+
 ```java
 if (stampRepository.existsByUserIdAndStampDateBetween(...)) throw ...;
 stampRepository.save(stamp);
@@ -196,6 +208,7 @@ stampRepository.save(stamp);
 ### 2-2. N+1 / 비효율 쿼리
 
 `PopupStoreService.getTrendingPopups()` 가 `findAll()` 후 메모리 정렬:
+
 ```java
 return popupStoreRepository.findAll().stream()
     .sorted(...)
@@ -204,6 +217,7 @@ return popupStoreRepository.findAll().stream()
 ```
 
 팝업 1만 개면 매번 1만 row 로드. JPQL 로 DB 정렬 + LIMIT.
+
 ```java
 @Query("SELECT p FROM PopupStore p WHERE p.status <> 'PENDING' ORDER BY p.viewCount DESC")
 List<PopupStore> findTopTrending(Pageable pageable);
@@ -212,6 +226,7 @@ List<PopupStore> findTopTrending(Pageable pageable);
 ### 2-3. DTO 와 Entity 분리 부족
 
 `PopupStoreController#reportPopup` 이 `PopupStore` 엔티티를 그대로 요청 받음:
+
 ```java
 @PostMapping("/report")
 public ResponseEntity<PopupStore> reportPopup(@RequestBody PopupStore popupStore) {
@@ -224,9 +239,11 @@ public ResponseEntity<PopupStore> reportPopup(@RequestBody PopupStore popupStore
 ### 2-4. 파일 업로드 검증 보강 필요
 
 `ChatFileController` 의 확장자 화이트리스트는 OK. 하지만:
+
 - MIME 타입 검증 없음 (`.png` 라 이름만 바꾼 실행 파일)
 - 파일 크기 제한이 컨트롤러에서 명시적으로 안 잡힘 (Spring 기본 1MB 만 의존)
 - Path traversal 추가 검증 필요:
+
 ```java
 File destFile = new File(UPLOAD_DIR, savedFileName).getCanonicalFile();
 String uploadDirCanon = new File(UPLOAD_DIR).getCanonicalPath();
@@ -250,6 +267,7 @@ if (!destFile.getAbsolutePath().startsWith(uploadDirCanon)) {
 여러 컨트롤러가 `ResponseEntity.badRequest().body(e.getMessage())` 형태로 그대로 반환. 메시지 안에 스택트레이스/내부 정보가 들어갈 수 있음.
 
 **조치:**
+
 1. `@ControllerAdvice` 로 글로벌 예외 처리 일원화
 2. 표준 `ErrorResponse` DTO (`code`, `message`, `timestamp`, optional `traceId`)
 3. 운영에서는 stack trace 절대 응답에 포함 금지
@@ -267,38 +285,49 @@ if (!destFile.getAbsolutePath().startsWith(uploadDirCanon)) {
 ## 3. 권장 (🟢)
 
 ### 3-1. 캐싱 부재
+
 인기 팝업 / 혼잡도 / OOTD 같이 동일 결과 반복 호출되는 데이터에 `@Cacheable(value="trending", cacheManager="caffeineCacheManager")`. Caffeine 5분 TTL 정도면 충분.
 
 ### 3-2. 페이징 없는 무제한 조회
+
 `GoodsController#randomGoods` 가 `findAll()` + `Collections.shuffle()` — 상품 1000개면 매번 1000 row 로드. `Pageable` + `nativeQuery RANDOM()` 으로.
 
 ### 3-3. Actuator 엔드포인트 노출 점검
+
 `management.endpoints.web.exposure.include=health,metrics,prometheus` 로 추정. 운영에서는 `health` 만 외부 노출, 나머지는 별도 포트(`management.server.port=9090`) + 내부 IP 만 허용.
 
 ### 3-4. 테스트 코드 부재
+
 `src/test/` 디렉터리가 비어 있음. 결제 / 인증 / 스탬프 같은 핵심 비즈니스 로직은 단위 테스트라도 작성 권장.
 
 ### 3-5. `application-prod.yml` 분리
+
 운영 / 개발 설정이 한 파일에 섞여 있음. profile 분리:
+
 - `application.yml` (공통)
 - `application-dev.yml` (로컬)
 - `application-prod.yml` (운영, 시크릿은 환경변수)
 
 ### 3-6. 헬스체크 + 모니터링
+
 - `/actuator/health` 에 DB 연결 / Redis 연결 / 디스크 / 메일 서버 상태 포함
 - Sentry 는 통합돼 있는 것 같으니 OK
 - Prometheus + Grafana 면 좋음 (이미 actuator 에 prometheus 있음)
 
 ### 3-7. `BCryptPasswordEncoder` 라운드 명시
+
 기본 10 라운드는 OK. 운영 환경에서 `new BCryptPasswordEncoder(12)` 정도로 명시하면 좋음.
 
 ### 3-8. JPA `@OneToMany` Lazy 정책
+
 모든 연관관계가 LAZY 인지 확인. EAGER 가 섞여 있으면 N+1 + 메모리 폭증.
 
 ### 3-9. 회원 탈퇴 시 연관 데이터 처리
+
 `User` 삭제 시 채팅 메시지 / 스탬프 / 위시리스트 / 코스 / 주문이 어떻게 되는가? 카스케이드 정책 명시 (개인정보보호법상 보존 의무 vs 즉시 삭제 트레이드오프).
 
 ### 3-10. CI/CD 파이프라인
+
 GitHub Actions 로 자동 빌드 + 테스트 + 보안 스캔(`gradle dependencyCheck`) 권장. 배포는 GCP Cloud Run 또는 Docker 이미지 푸시.
 
 ---
@@ -317,18 +346,18 @@ GitHub Actions 로 자동 빌드 + 테스트 + 보안 스캔(`gradle dependencyC
 
 ## 5. 우선순위 정리표
 
-| 순위 | 항목 | 예상 작업 | 마감 |
-|---|---|---|---|
-| 1 | 시크릿/키 환경변수 분리 + Git 이력 정리 | 1~2시간 | 즉시 |
-| 2 | iamport 서버 검증 추가 | 2~3시간 | 즉시 |
-| 3 | JWT 시크릿 기본값 제거 | 30분 | 즉시 |
-| 4 | WebSocket CORS 화이트리스트 + 핸드셰이크 인증 | 1시간 | 즉시 |
-| 5 | 관리자 `@PreAuthorize` 추가 | 30분 | 즉시 |
-| 6 | Rate limiting (로그인/이메일) | 2~3시간 | 1주 |
-| 7 | `System.out.println` 제거 + slf4j 통일 | 1시간 | 1주 |
-| 8 | 스탬프 race condition 방지 | 1시간 | 1주 |
-| 9 | DTO/Entity 분리 (특히 reportPopup) | 2시간 | 1주 |
-| 10 | `ddl-auto=validate` + Flyway | 반나절 | 1주 |
+| 순위 | 항목                                          | 예상 작업 | 마감 |
+| ---- | --------------------------------------------- | --------- | ---- |
+| 1    | 시크릿/키 환경변수 분리 + Git 이력 정리       | 1~2시간   | 즉시 |
+| 2    | iamport 서버 검증 추가                        | 2~3시간   | 즉시 |
+| 3    | JWT 시크릿 기본값 제거                        | 30분      | 즉시 |
+| 4    | WebSocket CORS 화이트리스트 + 핸드셰이크 인증 | 1시간     | 즉시 |
+| 5    | 관리자 `@PreAuthorize` 추가                   | 30분      | 즉시 |
+| 6    | Rate limiting (로그인/이메일)                 | 2~3시간   | 1주  |
+| 7    | `System.out.println` 제거 + slf4j 통일        | 1시간     | 1주  |
+| 8    | 스탬프 race condition 방지                    | 1시간     | 1주  |
+| 9    | DTO/Entity 분리 (특히 reportPopup)            | 2시간     | 1주  |
+| 10   | `ddl-auto=validate` + Flyway                  | 반나절    | 1주  |
 
 ---
 

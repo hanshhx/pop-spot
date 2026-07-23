@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 /**
  * @deprecated 글로벌 플레이어(MusicPlayerProvider + GlobalMusicPlayer)로 대체되었다.

@@ -14,7 +14,7 @@
  * <p>편법으로 localStorage 를 지우면 다시 7일이 갱신되지만, 의도적인 우회는 비즈니스 임팩트가 작아 무시.
  */
 
-export const GUEST_FIRST_VISIT_KEY = "popspot:guest:firstVisit";
+export const GUEST_FIRST_VISIT_KEY = 'popspot:guest:firstVisit';
 export const GUEST_GRACE_PERIOD_DAYS = 7;
 
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
@@ -26,7 +26,7 @@ const DAY_IN_MS = 24 * 60 * 60 * 1000;
  * 현재 시각을 기록하고 그 값을 반환한다. 호출자는 반환값으로 D-N 표시 등에 활용할 수 있다.
  */
 export function startGuestMode(): number {
-  if (typeof window === "undefined") return Date.now();
+  if (typeof window === 'undefined') return Date.now();
   const existing = getGuestFirstVisit();
   if (existing != null) return existing;
   const now = Date.now();
@@ -36,7 +36,7 @@ export function startGuestMode(): number {
 
 /** 첫 방문 timestamp 를 반환. 미설정 (= 게스트 모드 미시작) 시 null. 부작용 없음. */
 export function getGuestFirstVisit(): number | null {
-  if (typeof window === "undefined") return null;
+  if (typeof window === 'undefined') return null;
   const stored = window.localStorage.getItem(GUEST_FIRST_VISIT_KEY);
   if (!stored) return null;
   const parsed = Number(stored);
@@ -76,6 +76,6 @@ export function getRemainingGuestDays(firstVisit: number | null = getGuestFirstV
 
 /** 게스트 모드 리셋 — 가입 완료 / 로그아웃 시 호출해 localStorage 정리. */
 export function clearGuestMode(): void {
-  if (typeof window === "undefined") return;
+  if (typeof window === 'undefined') return;
   window.localStorage.removeItem(GUEST_FIRST_VISIT_KEY);
 }

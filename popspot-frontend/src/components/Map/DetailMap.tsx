@@ -1,9 +1,9 @@
-"use client";
+'use client';
 
-import { MapPin } from "lucide-react";
-import { MapGL, MapMarker } from "./MapGL";
-import { zoomFromLevel } from "./mapStyle";
-import { useMapMode } from "./useMapMode";
+import { MapPin } from 'lucide-react';
+import { MapGL, MapMarker } from './MapGL';
+import { zoomFromLevel } from './mapStyle';
+import { useMapMode } from './useMapMode';
 
 interface DetailMapProps {
   latitude: number;

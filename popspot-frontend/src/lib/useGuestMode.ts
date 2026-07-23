@@ -1,12 +1,12 @@
-"use client";
+'use client';
 
-import { useEffect, useState } from "react";
+import { useEffect, useState } from 'react';
 import {
   clearGuestMode,
   getGuestFirstVisit,
   getRemainingGuestDays,
   isGuestExpired,
-} from "./guestMode";
+} from './guestMode';
 
 /**
  * 게스트 모드 상태를 컴포넌트에서 쉽게 쓰기 위한 훅 — v2.7 read-only 화.

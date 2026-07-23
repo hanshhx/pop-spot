@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata } from 'next';
 
 /**
  * v2.15 — 작전 회의실 (planning) 페이지는 검색엔진 색인 차단. 회원 전용 협업 공간이고

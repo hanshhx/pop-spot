@@ -1,9 +1,9 @@
-"use client";
+'use client';
 
-import { useEffect, useRef, useState } from "react";
-import { MapPin, AlertCircle } from "lucide-react";
+import { useEffect, useRef, useState } from 'react';
+import { MapPin, AlertCircle } from 'lucide-react';
 
-import { escapeHtml } from "@/lib/escapeHtml";
+import { escapeHtml } from '@/lib/escapeHtml';
 
 interface KakaoRoadviewProps {
   lat: number;
@@ -92,7 +92,7 @@ export default function KakaoRoadview({ lat, lng, name }: KakaoRoadviewProps) {
           new window.kakao.maps.CustomOverlay({
             position: position,
             content: content,
-            map: rv // map 속성에 로드뷰 객체를 전달하여 로드뷰 위에 표시
+            map: rv, // map 속성에 로드뷰 객체를 전달하여 로드뷰 위에 표시
           });
         } else {
           setIsError(true);
@@ -106,7 +106,9 @@ export default function KakaoRoadview({ lat, lng, name }: KakaoRoadviewProps) {
       <div className="w-full h-full min-h-[200px] md:min-h-[300px] bg-gray-900 flex flex-col items-center justify-center text-gray-400 p-4 md:p-6 text-center rounded-2xl md:rounded-3xl overflow-hidden">
         <AlertCircle className="w-8 h-8 md:w-12 md:h-12 mb-2 md:mb-4 text-red-500 opacity-80" />
         <p className="text-sm md:text-lg font-bold">로드뷰를 표시할 수 없는 구역입니다.</p>
-        <p className="text-[10px] md:text-sm opacity-60 mt-0.5 md:mt-1">골목 깊숙한 곳이나 실내 장소일 수 있습니다.</p>
+        <p className="text-[10px] md:text-sm opacity-60 mt-0.5 md:mt-1">
+          골목 깊숙한 곳이나 실내 장소일 수 있습니다.
+        </p>
       </div>
     );
   }

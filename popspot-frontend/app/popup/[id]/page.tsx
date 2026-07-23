@@ -1,7 +1,7 @@
-"use client";
+'use client';
 
-import { useEffect, useRef, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from 'react';
+import { useParams, useRouter } from 'next/navigation';
 import {
   ArrowLeft,
   MapPin,
@@ -15,24 +15,24 @@ import {
   Sparkles,
   Navigation,
   CalendarPlus,
-} from "lucide-react";
-import { TakedownModal } from "../../../src/features/popup/TakedownModal";
+} from 'lucide-react';
+import { TakedownModal } from '../../../src/features/popup/TakedownModal';
 
-import DetailMap from "../../../src/components/Map/DetailMap";
-import ChatRoom from "../../../src/components/ChatRoom";
-import NowWait from "@/components/popup/NowWait";
-import MusicForPopup from "../../../src/components/music/MusicForPopup";
-import { apiFetch } from "../../../src/lib/api";
-import { notify, notifyError } from "@/lib/notify";
-import { escapeHtml } from "@/lib/escapeHtml";
-import { popupCoverUrl } from "@/lib/popupCover";
-import { PhotoDisclosure } from "@/components/popup/PhotoDisclosure";
-import { addToCalendar, toCalendarEvent } from "@/lib/calendar";
-import type { User } from "@/types/popup";
+import DetailMap from '../../../src/components/Map/DetailMap';
+import ChatRoom from '../../../src/components/ChatRoom';
+import NowWait from '@/components/popup/NowWait';
+import MusicForPopup from '../../../src/components/music/MusicForPopup';
+import { apiFetch } from '../../../src/lib/api';
+import { notify, notifyError } from '@/lib/notify';
+import { escapeHtml } from '@/lib/escapeHtml';
+import { popupCoverUrl } from '@/lib/popupCover';
+import { PhotoDisclosure } from '@/components/popup/PhotoDisclosure';
+import { addToCalendar, toCalendarEvent } from '@/lib/calendar';
+import type { User } from '@/types/popup';
 
 declare global {
   interface Window {
-    kakao: import("@/types/sdk").KakaoMapsSdk;
+    kakao: import('@/types/sdk').KakaoMapsSdk;
   }
 }
 
@@ -48,7 +48,7 @@ export function KakaoRoadview({ lat, lng, name }: KakaoRoadviewProps) {
   const [isError, setIsError] = useState(false);
 
   useEffect(() => {
-    if (typeof window === "undefined" || !window.kakao || !window.kakao.maps) return;
+    if (typeof window === 'undefined' || !window.kakao || !window.kakao.maps) return;
     const container = containerRef.current;
     if (!container) return;
 
@@ -121,23 +121,23 @@ interface PopupDetail {
 }
 
 const CAT_KO: Record<string, string> = {
-  FASHION: "패션",
-  FOOD: "푸드",
-  CULTURE: "문화",
-  CHARACTER: "캐릭터",
-  BEAUTY: "뷰티",
-  TECH: "테크",
-  ETC: "기타",
+  FASHION: '패션',
+  FOOD: '푸드',
+  CULTURE: '문화',
+  CHARACTER: '캐릭터',
+  BEAUTY: '뷰티',
+  TECH: '테크',
+  ETC: '기타',
 };
 
 const CAT_GRAD: Record<string, string> = {
-  FASHION: "from-pink-300 to-rose-400",
-  FOOD: "from-amber-300 to-orange-400",
-  CULTURE: "from-violet-300 to-indigo-400",
-  CHARACTER: "from-lime-300 to-emerald-400",
-  BEAUTY: "from-fuchsia-300 to-pink-400",
-  TECH: "from-sky-300 to-cyan-400",
-  ETC: "from-gray-300 to-gray-400",
+  FASHION: 'from-pink-300 to-rose-400',
+  FOOD: 'from-amber-300 to-orange-400',
+  CULTURE: 'from-violet-300 to-indigo-400',
+  CHARACTER: 'from-lime-300 to-emerald-400',
+  BEAUTY: 'from-fuchsia-300 to-pink-400',
+  TECH: 'from-sky-300 to-cyan-400',
+  ETC: 'from-gray-300 to-gray-400',
 };
 
 function ddayLabel(closeDate?: string): string | null {
@@ -148,8 +148,8 @@ function ddayLabel(closeDate?: string): string | null {
   today.setHours(0, 0, 0, 0);
   end.setHours(0, 0, 0, 0);
   const diff = Math.round((end.getTime() - today.getTime()) / 86_400_000);
-  if (diff < 0) return "종료";
-  if (diff === 0) return "오늘 마감";
+  if (diff < 0) return '종료';
+  if (diff === 0) return '오늘 마감';
   return `D-${diff}`;
 }
 
@@ -166,11 +166,11 @@ export default function PopupDetail() {
   const [user, setUser] = useState<User | null>(null);
   const [takedownOpen, setTakedownOpen] = useState(false);
 
-  const TEST_USER_ID = "test_user";
+  const TEST_USER_ID = 'test_user';
 
   /** 본문 내 http/https 링크를 클릭 가능한 a 태그로 변환. */
   const renderContentWithLinks = (text: string) => {
-    if (!text) return "";
+    if (!text) return '';
     const urlRegex = /(https?:\/\/[^\s]+)/g;
     const parts = text.split(urlRegex);
     return parts.map((part, index) => {
@@ -193,7 +193,7 @@ export default function PopupDetail() {
 
   useEffect(() => {
     // 팝업 상세는 비로그인/게스트도 열람 가능(공유·SEO·게스트 둘러보기). 로그인은 스탬프·찜 등 액션에서만 요구.
-    const storedUser = localStorage.getItem("user");
+    const storedUser = localStorage.getItem('user');
     if (storedUser) {
       try {
         setUser(JSON.parse(storedUser));
@@ -217,7 +217,7 @@ export default function PopupDetail() {
           content: data.content,
           address: data.location || data.address,
           category: data.category,
-          status: data.status || "운영중",
+          status: data.status || '운영중',
           openDate: data.startDate || data.openDate,
           closeDate: data.endDate || data.closeDate,
           openTime: data.openTime,
@@ -239,7 +239,7 @@ export default function PopupDetail() {
         setLoading(false);
         // v2.18 — 최근 본 팝업 자동 기록.
         try {
-          import("@/lib/recentVisits").then(({ recordVisit }) => {
+          import('@/lib/recentVisits').then(({ recordVisit }) => {
             const popupId = Number(data.popupId || data.id);
             if (!Number.isNaN(popupId)) {
               recordVisit({
@@ -257,8 +257,8 @@ export default function PopupDetail() {
       })
       .catch(() => {
         // [redesign/test 전용] 로컬(백엔드 없음)에서 재설계 상세를 보기 위한 목업 폴백.
-        if (process.env.NODE_ENV === "development") {
-          import("@/lib/devMockPopups").then(({ devMockPopups }) => {
+        if (process.env.NODE_ENV === 'development') {
+          import('@/lib/devMockPopups').then(({ devMockPopups }) => {
             const list = devMockPopups();
             const m = list.find((p) => String(p.id) === String(params.id)) || list[0];
             if (m) {
@@ -266,13 +266,13 @@ export default function PopupDetail() {
                 id: Number(m.id),
                 name: m.name,
                 content:
-                  "성수동에 처음 문을 여는 팝업스토어입니다. 포토존과 한정판 굿즈, 시즌 한정 메뉴를 만나보세요. 방문 인증하면 스탬프가 적립됩니다. 자세한 내용은 공식 SNS를 참고해주세요.",
+                  '성수동에 처음 문을 여는 팝업스토어입니다. 포토존과 한정판 굿즈, 시즌 한정 메뉴를 만나보세요. 방문 인증하면 스탬프가 적립됩니다. 자세한 내용은 공식 SNS를 참고해주세요.',
                 address: m.location,
-                category: m.category || "ETC",
-                status: m.status || "운영중",
+                category: m.category || 'ETC',
+                status: m.status || '운영중',
                 closeDate: m.endDate,
-                openTime: "11:00",
-                closeTime: "20:00",
+                openTime: '11:00',
+                closeTime: '20:00',
                 latitude: m.latitude,
                 longitude: m.longitude,
                 imageUrl: m.imageUrl,
@@ -295,9 +295,9 @@ export default function PopupDetail() {
           popupStore: { popupId: number };
         }
         const myStamps: StampRow[] = await res.json();
-        const todayString = new Date().toISOString().split("T")[0];
+        const todayString = new Date().toISOString().split('T')[0];
         const hasStampToday = myStamps.some((s) => {
-          const dbDate = s.stampDate?.split("T")[0];
+          const dbDate = s.stampDate?.split('T')[0];
           return s.popupStore.popupId === popupId && dbDate === todayString;
         });
         setIsStamped(hasStampToday);
@@ -324,52 +324,52 @@ export default function PopupDetail() {
   const handleStamp = async () => {
     if (!popup) return;
     if (!user) {
-      notify("로그인이 필요합니다.");
-      router.push("/login");
+      notify('로그인이 필요합니다.');
+      router.push('/login');
       return;
     }
     try {
       const res = await apiFetch(`/api/stamps?userId=${user?.userId}&popupId=${popup.id}`, {
-        method: "POST",
+        method: 'POST',
       });
       if (res.ok) {
         setIsStamped(true);
-        notify("🎉 스탬프 완료!");
+        notify('🎉 스탬프 완료!');
       } else {
-        notifyError("이미 스탬프를 찍었거나 서버 오류입니다.");
+        notifyError('이미 스탬프를 찍었거나 서버 오류입니다.');
       }
     } catch (e) {
-      notifyError("오류 발생");
+      notifyError('오류 발생');
     }
   };
 
   const handleToggleLike = async () => {
     if (!popup) return;
     if (!user) {
-      notify("로그인이 필요합니다.");
-      router.push("/login");
+      notify('로그인이 필요합니다.');
+      router.push('/login');
       return;
     }
     const prevStatus = isLiked;
     setIsLiked(!isLiked);
     try {
       const res = await apiFetch(`/api/wishlist/${user.userId}/${popup.id}`, {
-        method: "POST",
+        method: 'POST',
       });
       if (!res.ok) throw new Error();
     } catch (e) {
       setIsLiked(prevStatus);
-      notifyError("찜하기 처리에 실패했습니다.");
+      notifyError('찜하기 처리에 실패했습니다.');
     }
   };
 
   const handleShare = async () => {
     if (!popup) return;
-    const { share } = await import("@/lib/share");
+    const { share } = await import('@/lib/share');
     await share({
       title: popup.name,
-      text: `${popup.name} — ${popup.address ?? ""}`,
-      url: typeof window !== "undefined" ? window.location.href : "",
+      text: `${popup.name} — ${popup.address ?? ''}`,
+      url: typeof window !== 'undefined' ? window.location.href : '',
     });
   };
 
@@ -381,10 +381,10 @@ export default function PopupDetail() {
     );
   if (!popup) return null;
 
-  const lat = parseFloat(popup.latitude || "37.5445");
-  const lng = parseFloat(popup.longitude || "127.0560");
+  const lat = parseFloat(popup.latitude || '37.5445');
+  const lng = parseFloat(popup.longitude || '127.0560');
 
-  const catKey = popup.category?.toUpperCase() ?? "ETC";
+  const catKey = popup.category?.toUpperCase() ?? 'ETC';
   const catKo = CAT_KO[catKey] ?? popup.category;
   const catGrad = CAT_GRAD[catKey] ?? CAT_GRAD.ETC;
   const dday = ddayLabel(popup.closeDate);
@@ -427,10 +427,10 @@ export default function PopupDetail() {
               onClick={handleToggleLike}
               aria-label="찜하기"
               className={`grid h-10 w-10 place-items-center rounded-full backdrop-blur-md transition ${
-                isLiked ? "bg-hot-400 text-white" : "bg-black/40 text-white hover:bg-black/60"
+                isLiked ? 'bg-hot-400 text-white' : 'bg-black/40 text-white hover:bg-black/60'
               }`}
             >
-              <Heart size={18} className={isLiked ? "fill-current" : ""} />
+              <Heart size={18} className={isLiked ? 'fill-current' : ''} />
             </button>
           </div>
         </div>
@@ -445,7 +445,7 @@ export default function PopupDetail() {
               </span>
             )}
             <span className="inline-flex items-center gap-1 rounded-pill bg-lime-300 px-2.5 py-1 text-[11px] font-bold text-ink-900">
-              <span className="h-1.5 w-1.5 rounded-full bg-green-600" /> {popup.status || "운영중"}
+              <span className="h-1.5 w-1.5 rounded-full bg-green-600" /> {popup.status || '운영중'}
             </span>
           </div>
           <h1 className="text-2xl font-black leading-tight md:text-4xl">{popup.name}</h1>
@@ -461,19 +461,21 @@ export default function PopupDetail() {
           <div className="px-3 py-4 text-center">
             <p className="text-[10px] font-bold text-muted-foreground">기간</p>
             <p className="mt-1 text-sm font-bold">
-              {popup.closeDate ? `~${popup.closeDate.slice(5)}` : "-"}
+              {popup.closeDate ? `~${popup.closeDate.slice(5)}` : '-'}
             </p>
           </div>
           <div className="px-3 py-4 text-center">
             <p className="text-[10px] font-bold text-muted-foreground">운영</p>
             <p className="mt-1 text-sm font-bold">
-              {popup.openTime || "11:00"}~{popup.closeTime || "20:00"}
+              {popup.openTime || '11:00'}~{popup.closeTime || '20:00'}
             </p>
           </div>
           <div className="px-3 py-4 text-center">
             <p className="text-[10px] font-bold text-muted-foreground">마감</p>
-            <p className={`mt-1 text-sm font-black ${dday === "종료" ? "text-muted-foreground" : "text-hot-400"}`}>
-              {dday || "-"}
+            <p
+              className={`mt-1 text-sm font-black ${dday === '종료' ? 'text-muted-foreground' : 'text-hot-400'}`}
+            >
+              {dday || '-'}
             </p>
           </div>
         </div>
@@ -493,12 +495,12 @@ export default function PopupDetail() {
             disabled={isStamped}
             className={`flex flex-1 items-center justify-center gap-1.5 rounded-2xl border py-3.5 font-bold transition ${
               isStamped
-                ? "cursor-not-allowed border-gray-200 bg-gray-50 text-gray-400 dark:border-white/10 dark:bg-white/5 dark:text-white/30"
-                : "border-gray-300 bg-white text-foreground hover:border-lime-400 dark:border-white/15 dark:bg-white/5"
+                ? 'cursor-not-allowed border-gray-200 bg-gray-50 text-gray-400 dark:border-white/10 dark:bg-white/5 dark:text-white/30'
+                : 'border-gray-300 bg-white text-foreground hover:border-lime-400 dark:border-white/15 dark:bg-white/5'
             }`}
           >
             {isStamped ? <CheckCircle size={16} /> : <Ticket size={16} />}
-            {isStamped ? "인증됨" : "방문 인증"}
+            {isStamped ? '인증됨' : '방문 인증'}
           </button>
         </div>
 
@@ -558,7 +560,7 @@ export default function PopupDetail() {
           <p className="mb-4 text-xs text-muted-foreground">
             웨이팅·주차·굿즈 정보를 남겨주세요. 다음에 오는 사람이 봅니다.
           </p>
-          <ChatRoom roomId={popup.id} nickname={user?.nickname || "익명"} />
+          <ChatRoom roomId={popup.id} nickname={user?.nickname || '익명'} />
         </section>
 
         {/* 공식 사이트 · 예약 — 크롤이 snippet 에서 URL 을 실제로 뽑았을 때만 노출 */}
@@ -589,7 +591,7 @@ export default function PopupDetail() {
 
         {/* 출처 / 신고 */}
         <section className="mt-8 space-y-4 rounded-2xl border border-gray-200 bg-white p-5 dark:border-white/10 dark:bg-[#111] md:p-6">
-          {popup.sourceType === "CRAWLED" && (
+          {popup.sourceType === 'CRAWLED' && (
             <div className="flex items-start gap-3">
               <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-sky-300/30 bg-sky-300/10 text-sky-500">
                 <Sparkles size={16} />
@@ -597,8 +599,8 @@ export default function PopupDetail() {
               <div className="min-w-0 flex-1">
                 <p className="text-[11px] font-bold text-muted-foreground">AI 자동수집 정보</p>
                 <p className="mt-0.5 text-xs leading-relaxed text-foreground/70 md:text-sm">
-                  본 정보는 공개된 검색 API ({popup.sourceName || "외부 출처"})의 결과를 AI가 정리한 것입니다.
-                  정확성을 보장하지 않으니 항상 원문을 참고해주세요.
+                  본 정보는 공개된 검색 API ({popup.sourceName || '외부 출처'})의 결과를 AI가 정리한
+                  것입니다. 정확성을 보장하지 않으니 항상 원문을 참고해주세요.
                 </p>
                 {popup.sourceUrl && (
                   <a
@@ -613,14 +615,17 @@ export default function PopupDetail() {
               </div>
             </div>
           )}
-          <div className={`flex items-start gap-3 ${popup.sourceType === "CRAWLED" ? "border-t border-gray-100 pt-4 dark:border-white/5" : ""}`}>
+          <div
+            className={`flex items-start gap-3 ${popup.sourceType === 'CRAWLED' ? 'border-t border-gray-100 pt-4 dark:border-white/5' : ''}`}
+          >
             <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-red-300/30 bg-red-300/10 text-red-500">
               <ShieldAlert size={16} />
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-[11px] font-bold text-muted-foreground">신고 · 삭제 요청</p>
               <p className="mb-2 mt-0.5 text-xs leading-relaxed text-foreground/70 md:text-sm">
-                부정확한 정보거나 본인이 운영하는 팝업이 동의 없이 게시되었다면 신고해주세요. 24시간 내 검토 후 조치합니다.
+                부정확한 정보거나 본인이 운영하는 팝업이 동의 없이 게시되었다면 신고해주세요. 24시간
+                내 검토 후 조치합니다.
               </p>
               <button
                 onClick={() => setTakedownOpen(true)}

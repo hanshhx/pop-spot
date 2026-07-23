@@ -28,12 +28,24 @@ public class WebConfig implements WebMvcConfigurer {
 
     private static final String UPLOAD_URL_PATTERN = "/uploads/**";
     private static final String AUTH_PATH_PATTERN = "/api/v1/auth/**";
+    private static final String[] RATE_LIMITED_API_PATTERNS = {
+        "/api/game/**",
+        "/api/visits",
+        "/api/planning/**",
+        "/api/chat/**",
+        "/api/mates",
+        "/api/mates/**",
+        "/api/music/**",
+        "/api/popups/report",
+        "/api/popups/*/wait",
+        "/api/client-errors"
+    };
 
     /**
      * 권리자 takedown 신고 경로 — 레이트리밋 대상.
      *
-     * <p>이 엔드포인트는 인증 없이 즉시 노출 차단을 일으킨다(약관 §11 로 공표된 정책). 인증을 요구하면 약관을 어기게 되므로, 대량 악용을 막는 유일한 수단이 호출
-     * 빈도 제한이다. 실제 제한값은 {@link RateLimitInterceptor} 가 정한다.
+     * <p>이 엔드포인트는 인증 없이 관리자 검토 큐에 신고를 넣는다. 자동 숨김은 하지 않지만 대량 신고로 검토 큐를 마비시키는 행위를 막기 위해 호출 빈도를 제한한다.
+     * 실제 제한값은 {@link RateLimitInterceptor} 가 정한다.
      */
     private static final String TAKEDOWN_PATH_PATTERN = "/api/popups/*/takedown";
 
@@ -82,7 +94,8 @@ public class WebConfig implements WebMvcConfigurer {
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(rateLimitInterceptor)
-                .addPathPatterns(AUTH_PATH_PATTERN, TAKEDOWN_PATH_PATTERN);
+                .addPathPatterns(AUTH_PATH_PATTERN, TAKEDOWN_PATH_PATTERN)
+                .addPathPatterns(RATE_LIMITED_API_PATTERNS);
         // 보안(v2.22): 업로드 파일 응답에 nosniff — 이미지로 위장한 HTML/SVG 가 브라우저 MIME
         // 스니핑으로 실행되는 것을 차단. inline 이미지 표시는 유지(Content-Disposition 미설정).
         registry.addInterceptor(new NoSniffInterceptor()).addPathPatterns(UPLOAD_URL_PATTERN);

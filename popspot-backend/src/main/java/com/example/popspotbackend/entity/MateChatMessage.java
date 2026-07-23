@@ -48,6 +48,13 @@ public class MateChatMessage {
     @Column(length = 1000)
     private String message;
 
+    @Column(length = 20)
+    @Builder.Default
+    private String type = "TALK";
+
+    @Column(name = "FILE_URL", length = 2048)
+    private String fileUrl;
+
     private LocalDateTime sendTime;
 
     @PrePersist

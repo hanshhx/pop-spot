@@ -1,8 +1,8 @@
-"use client";
+'use client';
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from 'react';
 
-import { apiFetch } from "@/lib/api";
+import { apiFetch } from '@/lib/api';
 
 /**
  * v2.21-S11 — Spotify 연결 상태 + 액션 (login URL fetch / disconnect).
@@ -34,7 +34,7 @@ export function useSpotifyAuth() {
 
   const refresh = useCallback(async () => {
     try {
-      const res = await apiFetch("/api/spotify/me");
+      const res = await apiFetch('/api/spotify/me');
       if (!res.ok) {
         setState({ connected: false, isPremium: false, loading: false });
         return;
@@ -61,13 +61,13 @@ export function useSpotifyAuth() {
 
   /** Spotify 로그인 페이지로 사용자 redirect. */
   const startLogin = useCallback(async () => {
-    const res = await apiFetch("/api/spotify/login");
+    const res = await apiFetch('/api/spotify/login');
     if (!res.ok) {
-      throw new Error("Spotify 로그인 URL 요청 실패");
+      throw new Error('Spotify 로그인 URL 요청 실패');
     }
     const data = (await res.json()) as { authorizationUrl?: string };
     if (!data.authorizationUrl) {
-      throw new Error("로그인 URL 누락");
+      throw new Error('로그인 URL 누락');
     }
     // top-level navigation — popup 보다 안정적 (Safari 차단 회피)
     window.location.assign(data.authorizationUrl);
@@ -75,7 +75,7 @@ export function useSpotifyAuth() {
 
   /** 토큰 즉시 삭제 (DB row 제거). */
   const disconnect = useCallback(async () => {
-    await apiFetch("/api/spotify/disconnect", { method: "POST" });
+    await apiFetch('/api/spotify/disconnect', { method: 'POST' });
     await refresh();
   }, [refresh]);
 

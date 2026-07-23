@@ -27,4 +27,6 @@ public interface StampRepository extends JpaRepository<Stamp, Long> {
 
     // 🔥 [21번 임의 수정] 메모리 폭발을 막기 위해, 스탬프 전체 데이터를 끌어오지 않고 DB에서 숫자(개수)만 셉니다.
     int countByUserId(String userId);
+
+    void deleteByUserId(String userId);
 }

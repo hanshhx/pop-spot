@@ -71,7 +71,8 @@
 - [ ] `APP_OAUTH2_REDIRECT_URI=https://popspot.co.kr/oauth/callback`
 - [ ] `APP_ALLOWED_ORIGINS=https://popspot.co.kr,https://popspot.vercel.app,...` ← Vercel 모든 도메인 (preview 포함)
 - [ ] `SPRING_PROFILES_ACTIVE=prod`
-- [ ] `JPA_DDL_AUTO=validate` (단, **첫 부팅에만** `update` 로 띄워서 스키마 생성)
+- [ ] `JPA_DDL_AUTO=validate` (`update/create` 운영 사용 금지, 변경은 Flyway SQL로만 적용)
+- [ ] `POPSPOT_TERMS_VERSION=1.1` (takedown 검증 절차 개정에 따른 기존 회원 재동의)
 
 #### Vercel 측 — Settings > Environment Variables
 - [ ] `NEXT_PUBLIC_API_URL=https://api.popspot.co.kr`
@@ -93,25 +94,27 @@
 - [ ] GCP 방화벽: 80/443만 0.0.0.0/0 허용. 22는 본인 IP만. 5432/6379/8080 외부 차단
 - [ ] Let's Encrypt: `sudo certbot --nginx -d api.popspot.co.kr`
 
-### D. 첫 스키마 생성 (잘못하면 안 일어나는 일)
+### D. 스키마 적용
 
-신규 DB 라면 **딱 한 번**:
-```bash
-# /home/reo4321/popspot.env 에서 임시로:
-SPRING_PROFILES_ACTIVE=dev
-JPA_DDL_AUTO=update
+- 기존 운영 DB는 백업을 만든 뒤 `prod + validate + Flyway`로 기동하여 마이그레이션을 먼저 적용한다.
+- 운영 DB는 V22까지 수동 적용된 기존 스키마이므로, Flyway 이력이 없는 최초 prod 기동에서
+  `spring.flyway.baseline-version=22`가 기준 이력을 만들고 V23부터 실행해야 한다.
+- 최초 기동 전에 `flyway_schema_history` 존재 여부를 확인한다. 이미 이력이 있다면 최신 성공 버전과 실제
+  스키마가 일치하는지 확인하고, 임의로 이력 행을 추가하거나 삭제하지 않는다.
+- 신규 빈 DB는 검증된 schema-only 백업을 복원한 뒤 Flyway 이력을 맞춘다. `dev/update`로 테이블을 자동 생성하지 않는다.
+- 기동 전 `flyway_schema_history`와 최신 마이그레이션 번호를 확인하고, 기동 후 unique 인덱스를 실제 DB에서 조회한다.
+- V23 적용 전 아래 쿼리가 모두 0행인지 확인한다. 결과가 있으면 자동 삭제하지 말고 주문 원장과 PortOne 결제를 대조해 수동 정리한다.
 
-sudo systemctl restart popspot
-sudo journalctl -u popspot -f   # "Hibernate: create table ..." 로그 확인
+```sql
+SELECT imp_uid, COUNT(*) FROM orders
+WHERE imp_uid IS NOT NULL GROUP BY imp_uid HAVING COUNT(*) > 1;
 
-# 확인 후 즉시 prod 로 복귀
-SPRING_PROFILES_ACTIVE=prod
-JPA_DDL_AUTO=validate
-sudo systemctl restart popspot
-
-# Flyway 베이스라인:
-sudo -u postgres psql -d popspot_db -c "SELECT * FROM flyway_schema_history;"
+SELECT merchant_uid, COUNT(*) FROM orders
+WHERE merchant_uid IS NOT NULL AND BTRIM(merchant_uid) <> ''
+GROUP BY merchant_uid HAVING COUNT(*) > 1;
 ```
+
+- 기동 후 `flyway_schema_history`의 최신 성공 버전이 `23`인지, `uk_orders_imp_uid`와 `uk_orders_merchant_uid`가 존재하는지 확인한다.
 
 ---
 
@@ -196,7 +199,7 @@ curl -s https://api.popspot.co.kr/api/v1/auth/me \
 |---|---|---|
 | 부팅 시 `JWT_SECRET 환경변수 누락/짧음` | env 미설정 | `openssl rand -base64 48` → `popspot.env` |
 | `password authentication failed for user "popspot_user"` | DB 비번 불일치 | postgresql-setup.sh 비번과 env DB_PASSWORD 동일하게 |
-| `Could not open JPA EM ... validate ... missing column` | 운영에서 validate 인데 스키마 안 만들어짐 | `JPA_DDL_AUTO=update` 로 1회 부팅 → 즉시 validate |
+| `Could not open JPA EM ... validate ... missing column` | Flyway 미적용 또는 마이그레이션 실패 | 서비스를 중지하고 백업·`flyway_schema_history`·실패 SQL 확인 |
 | 502 Bad Gateway | 백엔드 죽음 | `journalctl -u popspot -n 200` |
 | Mixed Content 에러 (브라우저 콘솔) | 프론트가 http://136.115... 로 호출 | `NEXT_PUBLIC_API_URL=https://...` 로 갱신 + Vercel Redeploy |
 | 결제 후 권한 안 붙음 | IAMPORT 키 미설정 | `IAMPORT_API_KEY` / `_SECRET` 채우고 restart |

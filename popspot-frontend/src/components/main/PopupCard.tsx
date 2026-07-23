@@ -1,11 +1,11 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import { Heart, MapPin, Shirt, Coffee, Palette, Star, Sparkles, Cpu, Store } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { popupCoverUrl } from "@/lib/popupCover";
-import { PhotoDisclosure } from "@/components/popup/PhotoDisclosure";
-import type { PopupStore } from "@/types/popup";
+import { useState } from 'react';
+import { Heart, MapPin, Shirt, Coffee, Palette, Star, Sparkles, Cpu, Store } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { popupCoverUrl } from '@/lib/popupCover';
+import { PhotoDisclosure } from '@/components/popup/PhotoDisclosure';
+import type { PopupStore } from '@/types/popup';
 
 /**
  * 팝업 사진 카드 — 디자인 진단서 P0. 사진 + D-day + 지역 + 카테고리 + ♥ 를 한 장에.
@@ -22,19 +22,19 @@ function ddayLabel(endDate?: string): string | null {
   today.setHours(0, 0, 0, 0);
   end.setHours(0, 0, 0, 0);
   const diff = Math.round((end.getTime() - today.getTime()) / 86_400_000);
-  if (diff < 0) return "종료";
-  if (diff === 0) return "오늘 마감";
+  if (diff < 0) return '종료';
+  if (diff === 0) return '오늘 마감';
   return `D-${diff}`;
 }
 
 const CATEGORY_KO: Record<string, string> = {
-  FASHION: "패션",
-  FOOD: "푸드",
-  CULTURE: "문화",
-  CHARACTER: "캐릭터",
-  BEAUTY: "뷰티",
-  TECH: "테크",
-  ETC: "기타",
+  FASHION: '패션',
+  FOOD: '푸드',
+  CULTURE: '문화',
+  CHARACTER: '캐릭터',
+  BEAUTY: '뷰티',
+  TECH: '테크',
+  ETC: '기타',
 };
 
 /**
@@ -42,13 +42,13 @@ const CATEGORY_KO: Record<string, string> = {
  * 잘못된 사진을 붙이는 대신 "의도된 디자인"으로 보이게. 색은 소스에 문자열 리터럴로 박아 Tailwind JIT 가 인식.
  */
 const CATEGORY_STYLE: Record<string, { grad: string; Icon: typeof MapPin }> = {
-  FASHION: { grad: "from-pink-200 to-rose-300", Icon: Shirt },
-  FOOD: { grad: "from-amber-200 to-orange-300", Icon: Coffee },
-  CULTURE: { grad: "from-violet-200 to-indigo-300", Icon: Palette },
-  CHARACTER: { grad: "from-lime-200 to-emerald-300", Icon: Star },
-  BEAUTY: { grad: "from-fuchsia-200 to-pink-300", Icon: Sparkles },
-  TECH: { grad: "from-sky-200 to-cyan-300", Icon: Cpu },
-  ETC: { grad: "from-gray-200 to-gray-300", Icon: Store },
+  FASHION: { grad: 'from-pink-200 to-rose-300', Icon: Shirt },
+  FOOD: { grad: 'from-amber-200 to-orange-300', Icon: Coffee },
+  CULTURE: { grad: 'from-violet-200 to-indigo-300', Icon: Palette },
+  CHARACTER: { grad: 'from-lime-200 to-emerald-300', Icon: Star },
+  BEAUTY: { grad: 'from-fuchsia-200 to-pink-300', Icon: Sparkles },
+  TECH: { grad: 'from-sky-200 to-cyan-300', Icon: Cpu },
+  ETC: { grad: 'from-gray-200 to-gray-300', Icon: Store },
 };
 
 export interface PopupCardProps {
@@ -62,11 +62,9 @@ export interface PopupCardProps {
 export function PopupCard({ popup, onClick, onWish, wished, className }: PopupCardProps) {
   const [imgError, setImgError] = useState(false);
   const dday = ddayLabel(popup.endDate);
-  const cat = popup.category
-    ? CATEGORY_KO[popup.category.toUpperCase()] ?? popup.category
-    : null;
-  const region = (popup.location || "").split(" ").slice(0, 2).join(" ") || "서울";
-  const catStyle = CATEGORY_STYLE[popup.category?.toUpperCase() ?? "ETC"] ?? CATEGORY_STYLE.ETC;
+  const cat = popup.category ? (CATEGORY_KO[popup.category.toUpperCase()] ?? popup.category) : null;
+  const region = (popup.location || '').split(' ').slice(0, 2).join(' ') || '서울';
+  const catStyle = CATEGORY_STYLE[popup.category?.toUpperCase() ?? 'ETC'] ?? CATEGORY_STYLE.ETC;
   const coverUrl = popupCoverUrl(popup);
 
   return (
@@ -75,13 +73,13 @@ export function PopupCard({ popup, onClick, onWish, wished, className }: PopupCa
       tabIndex={0}
       onClick={onClick}
       onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
+        if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
           onClick?.();
         }
       }}
       className={cn(
-        "group relative flex w-[220px] shrink-0 cursor-pointer flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white text-left shadow-sm transition hover:-translate-y-1 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-400 dark:border-white/10 dark:bg-white/[0.04]",
+        'group relative flex w-[220px] shrink-0 cursor-pointer flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white text-left shadow-sm transition hover:-translate-y-1 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-400 dark:border-white/10 dark:bg-white/[0.04]',
         className,
       )}
     >
@@ -96,7 +94,9 @@ export function PopupCard({ popup, onClick, onWish, wished, className }: PopupCa
             className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
           />
         ) : (
-          <div className={`flex h-full w-full items-center justify-center bg-gradient-to-br ${catStyle.grad}`}>
+          <div
+            className={`flex h-full w-full items-center justify-center bg-gradient-to-br ${catStyle.grad}`}
+          >
             <catStyle.Icon size={40} strokeWidth={1.5} className="text-white/60" />
           </div>
         )}
@@ -104,7 +104,7 @@ export function PopupCard({ popup, onClick, onWish, wished, className }: PopupCa
         {dday && (
           <span
             className={`absolute left-2.5 top-2.5 rounded-full px-2.5 py-1 text-[11px] font-bold ${
-              dday === "종료" ? "bg-gray-800/80 text-white" : "bg-lime-300 text-ink-900"
+              dday === '종료' ? 'bg-gray-800/80 text-white' : 'bg-lime-300 text-ink-900'
             }`}
           >
             {dday}
@@ -121,7 +121,7 @@ export function PopupCard({ popup, onClick, onWish, wished, className }: PopupCa
             aria-label="위시리스트에 담기"
             className="absolute right-2.5 top-2.5 grid h-8 w-8 place-items-center rounded-full bg-white/85 text-hot-400 backdrop-blur transition hover:bg-white dark:bg-black/50"
           >
-            <Heart size={15} fill={wished ? "currentColor" : "none"} />
+            <Heart size={15} fill={wished ? 'currentColor' : 'none'} />
           </button>
         )}
         <PhotoDisclosure popup={popup} className="absolute bottom-2.5 left-2.5 right-2.5 w-fit" />

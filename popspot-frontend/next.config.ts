@@ -1,15 +1,20 @@
-import type { NextConfig } from "next";
-import path from "node:path";
+import type { NextConfig } from 'next';
+import path from 'node:path';
 
 const projectRoot = path.resolve(__dirname);
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 
-let backendHostname = "localhost";
+let backendHostname = 'localhost';
+let backendOrigin = 'http://localhost:8080';
+let backendWsOrigin = 'ws://localhost:8080';
 try {
-  backendHostname = new URL(API_URL).hostname;
+  const backendUrl = new URL(API_URL);
+  backendHostname = backendUrl.hostname;
+  backendOrigin = backendUrl.origin;
+  backendWsOrigin = `${backendUrl.protocol === 'https:' ? 'wss:' : 'ws:'}//${backendUrl.host}`;
 } catch {
-  console.warn("API_URL 형식이 올바르지 않아 이미지 호스트를 localhost로 설정합니다.");
+  console.warn('API_URL 형식이 올바르지 않아 이미지 호스트를 localhost로 설정합니다.');
 }
 
 const nextConfig: NextConfig = {
@@ -21,21 +26,19 @@ const nextConfig: NextConfig = {
 
   images: {
     remotePatterns: [
-      { protocol: "https", hostname: "images.unsplash.com" },
-      { protocol: "https", hostname: "images.pexels.com" },
-      { protocol: "http", hostname: "localhost" },
-      { protocol: "https", hostname: "k.kakaocdn.net" },
-      { protocol: "https", hostname: "ssl.pstatic.net" },
-      { protocol: "https", hostname: "lh3.googleusercontent.com" },
-      { protocol: "https", hostname: backendHostname },
-      { protocol: "http", hostname: backendHostname },
+      { protocol: 'https', hostname: 'images.unsplash.com' },
+      { protocol: 'https', hostname: 'images.pexels.com' },
+      { protocol: 'http', hostname: 'localhost' },
+      { protocol: 'https', hostname: 'k.kakaocdn.net' },
+      { protocol: 'https', hostname: 'ssl.pstatic.net' },
+      { protocol: 'https', hostname: 'lh3.googleusercontent.com' },
+      { protocol: 'https', hostname: backendHostname },
+      { protocol: 'http', hostname: backendHostname },
     ],
   },
 
   async rewrites() {
-    return [
-      { source: "/api/:path*", destination: `${API_URL}/api/:path*` },
-    ];
+    return [{ source: '/api/:path*', destination: `${API_URL}/api/:path*` }];
   },
 
   /**
@@ -43,8 +46,8 @@ const nextConfig: NextConfig = {
    *
    * <p>CSP 는 외부 OAuth (구글/카카오/네이버) + Kakao Map SDK + Algolia + Spotify embed +
    * YouTube IFrame 등 운영 중인 외부 리소스를 화이트리스트로 둔다. Next.js + React 의 inline
-   * script 호환을 위해 'unsafe-inline' + 'unsafe-eval' 은 script-src 에 한해 임시 허용.
-   * 추후 nonce 적용으로 강화 가능.
+   * script 호환을 위해 'unsafe-inline' 은 남기되, 'unsafe-eval' 은 개발 환경에서만 허용한다.
+   * 운영 nonce 적용은 Next.js 동적 렌더링 전환과 함께 별도 진행한다.
    */
   async headers() {
     /**
@@ -66,9 +69,9 @@ const nextConfig: NextConfig = {
       // 막혀서 useYouTubePlayer 가 player 인스턴스를 생성 못함 → 검은 화면. 음악 재생
       // "수두룩한 실패" 의 진짜 원인. v2.17 CSP 도입 시 누락된 도메인.
       // v2.21-S14 — script-src 에 Spotify Web Playback SDK (sdk.scdn.co) 추가.
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://dapi.kakao.com https://t1.daumcdn.net https://www.googletagmanager.com https://*.algolia.net https://*.algolianet.com https://www.youtube.com https://s.ytimg.com https://sdk.scdn.co",
+      `script-src 'self' 'unsafe-inline'${process.env.NODE_ENV === 'production' ? '' : " 'unsafe-eval'"} https://dapi.kakao.com https://t1.daumcdn.net https://www.googletagmanager.com https://*.algolia.net https://*.algolianet.com https://www.youtube.com https://s.ytimg.com https://sdk.scdn.co`,
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net",
-      "img-src 'self' data: blob: https: http:",
+      `img-src 'self' data: blob: ${backendOrigin} https://images.unsplash.com https://images.pexels.com https://*.kakaocdn.net https://*.pstatic.net https://lh3.googleusercontent.com`,
       // v2.21-S14/S15 — media-src 에 Spotify(p.scdn.co) + iTunes preview CDN.
       // iTunes preview 는 audio-ssl.itunes.apple.com / *.mzstatic.com 에서 m4a 제공.
       "media-src 'self' blob: https: https://p.scdn.co https://*.scdn.co https://audio-ssl.itunes.apple.com https://*.mzstatic.com",
@@ -77,7 +80,7 @@ const nextConfig: NextConfig = {
       // api.spotify.com (Web API play call), *.spotify.com (SDK websocket), *.scdn.co (CDN).
       // v2.32 — MapLibre 지도용: protomaps.github.io(라틴/숫자 글리프 fetch). 타일은 same-origin
       // /basemap 프록시로 받으므로 build.protomaps.com 은 서버측 fetch(브라우저 CSP 무관).
-      "connect-src 'self' https://*.algolia.net https://*.algolianet.com https://dapi.kakao.com https://accounts.kakao.com https://accounts.google.com https://nid.naver.com https://*.ts.net https://www.youtube.com https://s.ytimg.com https://api.spotify.com https://*.spotify.com https://*.scdn.co https://protomaps.github.io wss://*.spotify.com wss: ws:",
+      `connect-src 'self' ${backendOrigin} ${backendWsOrigin} https://*.algolia.net https://*.algolianet.com https://dapi.kakao.com https://accounts.kakao.com https://accounts.google.com https://nid.naver.com https://*.ts.net wss://*.ts.net https://www.youtube.com https://s.ytimg.com https://api.spotify.com https://*.spotify.com https://*.scdn.co https://protomaps.github.io wss://*.spotify.com${process.env.NODE_ENV === 'production' ? '' : ' ws://localhost:* http://localhost:*'}`,
       // v2.32 — MapLibre GL JS 는 타일 파싱을 blob URL 웹워커에서 한다. worker-src 미지정 시
       // default-src 'self' 로 폴백돼 blob: 워커가 차단된다 → 지도 렌더 실패.
       "worker-src 'self' blob:",
@@ -90,32 +93,29 @@ const nextConfig: NextConfig = {
       "frame-ancestors 'self'",
       // upgrade-insecure-requests 는 운영(https)에서만. 로컬 dev(http://localhost)에서 켜면
       // same-origin /basemap 요청까지 https 로 올려버려 지도 타일이 깨진다.
-      ...(process.env.NODE_ENV === "production" ? ["upgrade-insecure-requests"] : []),
-    ].join("; ");
+      ...(process.env.NODE_ENV === 'production' ? ['upgrade-insecure-requests'] : []),
+    ].join('; ');
 
     return [
       {
-        source: "/:path*",
+        source: '/:path*',
         headers: [
-          { key: "Content-Security-Policy", value: csp },
-          { key: "X-Frame-Options", value: "SAMEORIGIN" },
-          { key: "X-Content-Type-Options", value: "nosniff" },
-          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          { key: 'Content-Security-Policy', value: csp },
+          { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
           {
-            key: "Permissions-Policy",
-            value: "geolocation=(self), microphone=(), camera=(), payment=()",
+            key: 'Permissions-Policy',
+            value: 'geolocation=(self), microphone=(), camera=(), payment=()',
           },
-          { key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains" },
+          { key: 'Strict-Transport-Security', value: 'max-age=31536000; includeSubDomains' },
         ],
       },
     ];
   },
 
   compiler: {
-    removeConsole:
-      process.env.NODE_ENV === "production"
-        ? { exclude: ["error", "warn"] }
-        : false,
+    removeConsole: process.env.NODE_ENV === 'production' ? { exclude: ['error', 'warn'] } : false,
   },
 };
 
