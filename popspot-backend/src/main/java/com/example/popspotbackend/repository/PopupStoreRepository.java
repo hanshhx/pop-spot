@@ -36,6 +36,13 @@ public interface PopupStoreRepository extends JpaRepository<PopupStore, Long> {
     @EntityGraph(attributePaths = {"images"})
     List<PopupStore> findByStatus(String status);
 
+    /**
+     * 같은 좌표(위경도 문자열 정확 일치)에 이미 저장된 팝업 수. 주소가 모호한 팝업을 카카오가 지역
+     * 중심점 하나로 찍어 수백 개가 겹치는(지도에 링처럼 보이는) 문제를, 수집 시점에 그 좌표로의
+     * 추가 저장을 막아 방지하기 위해 사용한다.
+     */
+    long countByLatitudeAndLongitude(String latitude, String longitude);
+
     // 🔥 [임의 수정] findAll을 호출할 때도 이미지가 필요하므로 오버라이드하여 EntityGraph를 적용합니다.
     @Override
     @EntityGraph(attributePaths = {"images"})
