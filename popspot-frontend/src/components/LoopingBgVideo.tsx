@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState, type SyntheticEvent } from 'react';
+import { useCallback, useEffect, useRef, type SyntheticEvent } from 'react';
 
 const CROSSFADE_MS = 1200;
 
@@ -28,15 +28,6 @@ export default function LoopingBgVideo({
   const activeIsA = useRef(true);
   const swapping = useRef(false);
   const rafRef = useRef(0);
-  const [reduceMotion, setReduceMotion] = useState(false);
-
-  useEffect(() => {
-    const query = window.matchMedia('(prefers-reduced-motion: reduce)');
-    const sync = () => setReduceMotion(query.matches);
-    sync();
-    query.addEventListener('change', sync);
-    return () => query.removeEventListener('change', sync);
-  }, []);
 
   const applyRate = useCallback(
     (v: HTMLVideoElement | null) => {
@@ -91,7 +82,7 @@ export default function LoopingBgVideo({
         /* noop */
       }
       applyRate(a);
-      void a.play().catch(() => undefined);
+      void a.play().catch(() => {});
     }
     if (b) {
       b.style.opacity = '0';
@@ -126,7 +117,7 @@ export default function LoopingBgVideo({
           /* noop */
         }
         applyRate(incoming);
-        void incoming.play().catch(() => undefined);
+        void incoming.play().catch(() => {});
       }
       crossfade(incoming, outgoing);
       activeIsA.current = !isA;
@@ -139,8 +130,6 @@ export default function LoopingBgVideo({
 
   const base = 'absolute inset-0 h-full w-full object-cover';
 
-  if (reduceMotion) return null;
-
   return (
     <>
       <video
@@ -148,31 +137,23 @@ export default function LoopingBgVideo({
         autoPlay
         muted
         playsInline
-        preload="metadata"
+        preload="auto"
         onLoadedMetadata={(e) => applyRate(e.currentTarget)}
         onTimeUpdate={handleTimeUpdate(true)}
         className={`${base} ${className}`}
       >
-        <source
-          src={src}
-          type="video/mp4"
-          media="(min-width: 768px) and (prefers-reduced-motion: no-preference)"
-        />
+        <source src={src} type="video/mp4" />
       </video>
       <video
         ref={bRef}
         muted
         playsInline
-        preload="none"
+        preload="auto"
         onLoadedMetadata={(e) => applyRate(e.currentTarget)}
         onTimeUpdate={handleTimeUpdate(false)}
         className={`${base} ${className}`}
       >
-        <source
-          src={src}
-          type="video/mp4"
-          media="(min-width: 768px) and (prefers-reduced-motion: no-preference)"
-        />
+        <source src={src} type="video/mp4" />
       </video>
     </>
   );
