@@ -1,20 +1,20 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import { Megaphone, X } from "lucide-react";
+import { useState } from 'react';
+import { Megaphone } from 'lucide-react';
 
-import { apiFetch } from "@/lib/api";
-import { notifySuccess, notifyError } from "@/lib/notify";
-import { Button } from "@/components/ui/button";
-import { Input, Field } from "@/components/ui/input";
+import { apiFetch } from '@/lib/api';
+import { notifySuccess, notifyError } from '@/lib/notify';
+import { Button } from '@/components/ui/button';
+import { Input, Field } from '@/components/ui/input';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogDescription,
-} from "@/components/ui/dialog";
-import type { User, PopupReportPayload } from "@/types/popup";
+} from '@/components/ui/dialog';
+import type { User, PopupReportPayload } from '@/types/popup';
 
 interface ReportPopupModalProps {
   open: boolean;
@@ -23,34 +23,30 @@ interface ReportPopupModalProps {
 }
 
 const CATEGORY_OPTIONS = [
-  { value: "FASHION", label: "패션" },
-  { value: "FOOD", label: "음식" },
-  { value: "POPUP", label: "일반" },
+  { value: 'FASHION', label: '패션' },
+  { value: 'FOOD', label: '음식' },
+  { value: 'POPUP', label: '일반' },
 ];
 
 /**
  * 사용자가 발견한 팝업을 제보하는 모달.
  * 새 Dialog 컴포넌트(Radix) 사용 — 포커스 트랩 / ESC / 스크롤 잠금 자동.
  */
-export function ReportPopupModal({
-  open,
-  onOpenChange,
-  user,
-}: ReportPopupModalProps) {
+export function ReportPopupModal({ open, onOpenChange, user }: ReportPopupModalProps) {
   const [formData, setFormData] = useState<PopupReportPayload>({
-    name: "",
-    category: "FASHION",
-    location: "",
-    address: "",
-    startDate: "",
-    endDate: "",
-    description: "",
-    reporterId: user?.userId || "unknown",
+    name: '',
+    category: 'FASHION',
+    location: '',
+    address: '',
+    startDate: '',
+    endDate: '',
+    description: '',
+    reporterId: user?.userId || 'unknown',
   });
   const [submitting, setSubmitting] = useState(false);
 
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>,
   ) => {
     setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
@@ -60,24 +56,24 @@ export function ReportPopupModal({
     if (submitting) return;
     setSubmitting(true);
     try {
-      const res = await apiFetch("/api/popups/report", {
-        method: "POST",
+      const res = await apiFetch('/api/popups/report', {
+        method: 'POST',
         body: JSON.stringify({
           ...formData,
-          reporterId: user?.userId || "unknown",
+          reporterId: user?.userId || 'unknown',
         }),
       });
       if (res.ok) {
         await notifySuccess({
-          title: "제보 완료",
-          text: "관리자 승인 후 지도에 노출됩니다.",
+          title: '제보 완료',
+          text: '관리자 승인 후 지도에 노출됩니다.',
         });
         onOpenChange(false);
       } else {
-        notifyError("제보를 처리하지 못했습니다.");
+        notifyError('제보를 처리하지 못했습니다.');
       }
     } catch {
-      notifyError("서버와 연결할 수 없습니다.");
+      notifyError('서버와 연결할 수 없습니다.');
     } finally {
       setSubmitting(false);
     }

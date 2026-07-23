@@ -8,6 +8,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.SequenceGenerator;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -26,7 +27,12 @@ import lombok.Setter;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Table(name = "ORDERS")
+@Table(
+        name = "ORDERS",
+        uniqueConstraints = {
+            @UniqueConstraint(name = "uk_orders_imp_uid", columnNames = "IMP_UID"),
+            @UniqueConstraint(name = "uk_orders_merchant_uid", columnNames = "MERCHANT_UID")
+        })
 public class Orders {
 
     @Id
@@ -38,10 +44,10 @@ public class Orders {
     @Column(name = "USER_ID")
     private String userId;
 
-    @Column(name = "IMP_UID")
+    @Column(name = "IMP_UID", unique = true)
     private String impUid;
 
-    @Column(name = "MERCHANT_UID")
+    @Column(name = "MERCHANT_UID", nullable = false, unique = true)
     private String merchantUid;
 
     @Column(name = "GOODS_ID")
@@ -52,6 +58,11 @@ public class Orders {
 
     @Column(name = "AMOUNT")
     private Integer amount;
+
+    /** PREPARED / PAID. 서버가 발급한 준비 주문만 결제 완료할 수 있다. */
+    @Column(name = "STATUS", nullable = false, length = 20)
+    @Builder.Default
+    private String status = "PREPARED";
 
     @Column(name = "ORDER_DATE")
     private LocalDateTime orderDate;

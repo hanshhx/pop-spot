@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata } from 'next';
 
 /**
  * v2.15 — 어드민 콘솔은 검색엔진 색인 차단. 운영자 전용이고 PII / 운영 정보가 노출되면

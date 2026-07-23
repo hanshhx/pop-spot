@@ -1,7 +1,7 @@
-"use client";
+'use client';
 
-import { useTheme } from "next-themes";
-import type { MapMode } from "./mapStyle";
+import { useTheme } from 'next-themes';
+import type { MapMode } from './mapStyle';
 
 /**
  * 지도 소비자 공통 훅 — 사이트 전역 테마를 지도 mode 로 바꾸고, 테마가 확정된 뒤에만 지도를 만들게 한다.
@@ -19,7 +19,7 @@ import type { MapMode } from "./mapStyle";
 export function useMapMode(): { mode: MapMode; ready: boolean } {
   const { resolvedTheme } = useTheme();
   return {
-    mode: resolvedTheme === "light" ? "light" : "dark",
+    mode: resolvedTheme === 'light' ? 'light' : 'dark',
     ready: resolvedTheme !== undefined,
   };
 }

@@ -1,8 +1,8 @@
 /** 팝업 대표 이미지의 출처와 URL을 함께 검증한다. */
 
-const PLACEHOLDER_MARKERS = ["photo-1542291026-7eec264c27ff"];
-const STOCK_IMAGE_HOSTS = new Set(["images.pexels.com", "images.unsplash.com"]);
-const REAL_PHOTO_ORIGINS = new Set(["CRAWLED", "USER"]);
+const PLACEHOLDER_MARKERS = ['photo-1542291026-7eec264c27ff'];
+const STOCK_IMAGE_HOSTS = new Set(['images.pexels.com', 'images.unsplash.com']);
+const REAL_PHOTO_ORIGINS = new Set(['CRAWLED', 'USER']);
 
 export interface CoverInput {
   id: string | number;
@@ -19,7 +19,7 @@ function isHttpImage(url?: string | null): url is string {
   if (!url?.trim()) return false;
   try {
     const parsed = new URL(url.trim());
-    return parsed.protocol === "http:" || parsed.protocol === "https:";
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
   } catch {
     return false;
   }
@@ -46,9 +46,11 @@ function hasHost(url: string, host: string): boolean {
 export function isPexelsPhoto(popup: CoverInput): boolean {
   if (!isHttpImage(popup.imageUrl)) return false;
   if (popup.photoOrigin) {
-    return popup.photoOrigin.toUpperCase() === "PEXELS" && hasHost(popup.imageUrl, "images.pexels.com");
+    return (
+      popup.photoOrigin.toUpperCase() === 'PEXELS' && hasHost(popup.imageUrl, 'images.pexels.com')
+    );
   }
-  return hasHost(popup.imageUrl, "images.pexels.com");
+  return hasHost(popup.imageUrl, 'images.pexels.com');
 }
 
 /**
@@ -63,8 +65,8 @@ export function popupCoverUrl(popup: CoverInput, _width = 800): string | null {
   if (popup.photoOrigin) {
     const origin = popup.photoOrigin.toUpperCase();
     if (REAL_PHOTO_ORIGINS.has(origin)) return imageUrl;
-    return origin === "PEXELS" && hasHost(imageUrl, "images.pexels.com") ? imageUrl : null;
+    return origin === 'PEXELS' && hasHost(imageUrl, 'images.pexels.com') ? imageUrl : null;
   }
-  if (hasHost(imageUrl, "images.pexels.com")) return imageUrl;
+  if (hasHost(imageUrl, 'images.pexels.com')) return imageUrl;
   return isKnownStockOrPlaceholder(imageUrl) ? null : imageUrl;
 }

@@ -1,7 +1,7 @@
-"use client";
+'use client';
 
-import { motion, type Variants } from "framer-motion";
-import { Route, Music, Ticket, Users, ArrowRight } from "lucide-react";
+import { motion, type Variants } from 'framer-motion';
+import { Route, Music, Ticket, Users, ArrowRight } from 'lucide-react';
 
 /**
  * 기능 소개.
@@ -12,13 +12,12 @@ import { Route, Music, Ticket, Users, ArrowRight } from "lucide-react";
 
 const reveal: Variants = {
   hidden: { opacity: 0, y: 40 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.7, ease: "easeOut" } },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.7, ease: 'easeOut' } },
 };
 
 const DOTS: React.CSSProperties = {
-  backgroundImage:
-    "radial-gradient(circle, rgba(245,243,238,0.07) 1px, transparent 1px)",
-  backgroundSize: "16px 16px",
+  backgroundImage: 'radial-gradient(circle, rgba(245,243,238,0.07) 1px, transparent 1px)',
+  backgroundSize: '16px 16px',
 };
 
 /* =============================== 코스 풀폭 섹션 =============================== */
@@ -26,7 +25,10 @@ const DOTS: React.CSSProperties = {
 /** 코스 — 점선 경로 + 번호 핀 미니 지도. */
 function CourseVisual() {
   return (
-    <div className="rounded-xl border border-black/10 bg-cream-100 p-4 dark:border-ink-700 dark:bg-ink-900" style={DOTS}>
+    <div
+      className="rounded-xl border border-black/10 bg-cream-100 p-4 dark:border-ink-700 dark:bg-ink-900"
+      style={DOTS}
+    >
       <div className="relative h-48 lg:h-52">
         <svg
           className="absolute inset-0 h-full w-full"
@@ -45,11 +47,15 @@ function CourseVisual() {
           />
         </svg>
         {[
-          { top: "14%", left: "10%", n: "1", label: "성수" },
-          { top: "50%", left: "45%", n: "2", label: "한남" },
-          { top: "74%", left: "78%", n: "3", label: "압구정" },
+          { top: '14%', left: '10%', n: '1', label: '성수' },
+          { top: '50%', left: '45%', n: '2', label: '한남' },
+          { top: '74%', left: '78%', n: '3', label: '압구정' },
         ].map((p) => (
-          <div key={p.n} className="absolute flex items-center gap-1.5" style={{ top: p.top, left: p.left }}>
+          <div
+            key={p.n}
+            className="absolute flex items-center gap-1.5"
+            style={{ top: p.top, left: p.left }}
+          >
             <span className="grid h-6 w-6 place-items-center rounded-full bg-lime-300 text-[11px] font-black text-ink-900 ring-2 ring-ink-900">
               {p.n}
             </span>
@@ -100,16 +106,16 @@ function FeatureShell({
     <motion.section
       initial="hidden"
       whileInView="visible"
-      viewport={{ once: true, margin: "-100px" }}
+      viewport={{ once: true, margin: '-100px' }}
       variants={reveal}
       className="relative overflow-hidden rounded-[2rem] border border-black/[0.06] bg-white px-6 py-12 text-ink-900 shadow-pop lg:rounded-[2.5rem] lg:px-14 lg:py-16 dark:border-transparent dark:bg-ink-900 dark:text-cream-200"
     >
       <div
         aria-hidden
-        className={`pointer-events-none absolute -top-20 h-64 w-64 rounded-full blur-[90px] ${accent.glow} ${flip ? "-left-16" : "-right-16"}`}
+        className={`pointer-events-none absolute -top-20 h-64 w-64 rounded-full blur-[90px] ${accent.glow} ${flip ? '-left-16' : '-right-16'}`}
       />
       <div
-        className={`relative z-10 flex flex-col gap-10 lg:flex-row lg:items-center lg:justify-between ${flip ? "lg:flex-row-reverse" : ""}`}
+        className={`relative z-10 flex flex-col gap-10 lg:flex-row lg:items-center lg:justify-between ${flip ? 'lg:flex-row-reverse' : ''}`}
       >
         <div className="max-w-lg flex-1">
           <span
@@ -118,7 +124,9 @@ function FeatureShell({
             <EyeIcon size={13} /> {eyebrow}
           </span>
           <h2 className="mb-4 text-2xl font-black leading-tight md:text-4xl">{title}</h2>
-          <p className="mb-7 text-sm leading-relaxed text-ink-500 lg:text-base dark:text-cream-200/60">{desc}</p>
+          <p className="mb-7 text-sm leading-relaxed text-ink-500 lg:text-base dark:text-cream-200/60">
+            {desc}
+          </p>
           <button
             type="button"
             onClick={onCta}
@@ -155,10 +163,12 @@ function PassportMini() {
         <span
           key={i}
           className={`grid h-7 w-7 place-items-center rounded-full border-2 border-dashed text-[10px] font-black ${
-            s ? "border-amber-300/60 bg-amber-300/15 text-amber-300" : "border-ink-700 text-cream-200/25"
+            s
+              ? 'border-amber-300/60 bg-amber-300/15 text-amber-300'
+              : 'border-ink-700 text-cream-200/25'
           }`}
         >
-          {s ? "✓" : "?"}
+          {s ? '✓' : '?'}
         </span>
       ))}
     </div>
@@ -170,7 +180,7 @@ function MateMini() {
   return (
     <div className="flex items-center gap-2">
       <div className="flex -space-x-2">
-        {["bg-lime-300", "bg-hot-400", "bg-sky-400"].map((c, i) => (
+        {['bg-lime-300', 'bg-hot-400', 'bg-sky-400'].map((c, i) => (
           <span key={i} className={`h-7 w-7 rounded-full ring-2 ring-ink-900 ${c}`} />
         ))}
       </div>
@@ -219,7 +229,9 @@ function FeatureTile({ Icon, eyebrow, title, desc, cta, onClick, accent, visual 
         <p className="mt-1.5 text-xs leading-relaxed text-cream-200/55">{desc}</p>
       </div>
       <div className="relative z-10">{visual}</div>
-      <span className={`relative z-10 inline-flex items-center gap-1 text-xs font-bold ${accent.text}`}>
+      <span
+        className={`relative z-10 inline-flex items-center gap-1 text-xs font-bold ${accent.text}`}
+      >
         {cta} <ArrowRight size={13} className="transition-transform group-hover:translate-x-0.5" />
       </span>
     </motion.button>
@@ -237,7 +249,7 @@ export function FeatureTiles({ onNavigate }: Props) {
       aria-label="기능 바로가기"
       initial="hidden"
       whileInView="visible"
-      viewport={{ once: true, margin: "-80px" }}
+      viewport={{ once: true, margin: '-80px' }}
       variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.08 } } }}
       className="mb-10 grid grid-cols-1 gap-4 lg:grid-cols-12"
     >
@@ -247,9 +259,9 @@ export function FeatureTiles({ onNavigate }: Props) {
         title="듣는 곡으로 찾는 팝업"
         desc="지금 노래의 분위기에 맞는 팝업을 추천받아요."
         cta="음악으로 찾기"
-        onClick={() => onNavigate("MUSIC")}
+        onClick={() => onNavigate('MUSIC')}
         visual={<MusicMini />}
-        accent={{ glow: "bg-hot-400/25", chip: "bg-hot-400 text-white", text: "text-hot-400" }}
+        accent={{ glow: 'bg-hot-400/25', chip: 'bg-hot-400 text-white', text: 'text-hot-400' }}
       />
       <FeatureTile
         Icon={Ticket}
@@ -257,9 +269,13 @@ export function FeatureTiles({ onNavigate }: Props) {
         title="채워지는 나의 기록"
         desc="다녀올수록 도장이 쌓이는 디지털 팝업 여권."
         cta="내 여권 보기"
-        onClick={() => onNavigate("PASSPORT")}
+        onClick={() => onNavigate('PASSPORT')}
         visual={<PassportMini />}
-        accent={{ glow: "bg-amber-300/25", chip: "bg-amber-300 text-ink-900", text: "text-amber-300" }}
+        accent={{
+          glow: 'bg-amber-300/25',
+          chip: 'bg-amber-300 text-ink-900',
+          text: 'text-amber-300',
+        }}
       />
       <FeatureTile
         Icon={Users}
@@ -267,9 +283,9 @@ export function FeatureTiles({ onNavigate }: Props) {
         title="같이 갈 사람 찾기"
         desc="관심사 맞는 사람과 매칭하고 채팅으로 시간 조율."
         cta="동행 찾으러 가기"
-        onClick={() => onNavigate("MATE")}
+        onClick={() => onNavigate('MATE')}
         visual={<MateMini />}
-        accent={{ glow: "bg-sky-400/25", chip: "bg-sky-400 text-ink-900", text: "text-sky-300" }}
+        accent={{ glow: 'bg-sky-400/25', chip: 'bg-sky-400 text-ink-900', text: 'text-sky-300' }}
       />
     </motion.section>
   );
@@ -292,12 +308,12 @@ export default function FeatureSections({ onNavigate }: Props) {
         }
         desc="찜한 팝업들을 지도 위에서 순서대로 이어 나만의 하루 코스로. 이동 거리·시간까지 한눈에 계산해드려요."
         cta="코스 짜러 가기"
-        onCta={() => onNavigate("COURSE")}
+        onCta={() => onNavigate('COURSE')}
         visual={<CourseVisual />}
         accent={{
-          glow: "bg-lime-300/20",
-          pill: "border-lime-500/40 bg-lime-400/15 text-lime-700 dark:border-lime-300/40 dark:bg-lime-300/15 dark:text-lime-300",
-          btn: "bg-lime-300 text-ink-900 hover:bg-lime-400",
+          glow: 'bg-lime-300/20',
+          pill: 'border-lime-500/40 bg-lime-400/15 text-lime-700 dark:border-lime-300/40 dark:bg-lime-300/15 dark:text-lime-300',
+          btn: 'bg-lime-300 text-ink-900 hover:bg-lime-400',
         }}
       />
     </div>

@@ -1,79 +1,104 @@
-"use client";
+'use client';
 
-import { useEffect, useMemo, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { useTheme } from "next-themes";
-import { 
-  Search, MapPin, Flame, Calendar, Menu, Users,
-  Instagram, Plus, X, ArrowUp, ArrowDown, Minus,
-  Route, Ticket, User as UserIcon, LogOut, Sparkles, Lock, ArrowRight, Loader2, RefreshCw,
-  ShoppingBag, Crown, GripVertical, PlusCircle, Zap, MessageCircle, Heart, Star, Gift,
-  FolderOpen, Save, Trash2, ShieldCheck, ChevronLeft, ChevronRight, Camera, Coffee, Clock, Store
-} from "lucide-react";
-import { motion, Variants, AnimatePresence } from "framer-motion";
-import Link from "next/link";
-import Image from "next/image";
-import { isPexelsPhoto, popupCoverUrl } from "@/lib/popupCover";
-import { PhotoDisclosure } from "@/components/popup/PhotoDisclosure";
-import { useDragScroll } from "@/hooks/useDragScroll";
+import { useEffect, useMemo, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useTheme } from 'next-themes';
+import {
+  MapPin,
+  Flame,
+  Calendar,
+  Users,
+  X,
+  ArrowUp,
+  ArrowDown,
+  Minus,
+  Route,
+  Ticket,
+  User as UserIcon,
+  Sparkles,
+  ArrowRight,
+  Loader2,
+  RefreshCw,
+  PlusCircle,
+  MessageCircle,
+  Heart,
+  Star,
+  FolderOpen,
+  Save,
+  Trash2,
+  ChevronLeft,
+  ChevronRight,
+  Camera,
+  Coffee,
+  Clock,
+  Store,
+} from 'lucide-react';
+import { motion, Variants, AnimatePresence } from 'framer-motion';
+import Link from 'next/link';
+import Image from 'next/image';
+import { isPexelsPhoto, popupCoverUrl } from '@/lib/popupCover';
+import { PhotoDisclosure } from '@/components/popup/PhotoDisclosure';
+import { useDragScroll } from '@/hooks/useDragScroll';
 
-import { 
-  DndContext, 
-  closestCenter, 
-  KeyboardSensor, 
-  PointerSensor, 
-  useSensor, 
-  useSensors, 
-  DragEndEvent 
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
 } from '@dnd-kit/core';
-import { 
-  arrayMove, 
-  SortableContext, 
-  verticalListSortingStrategy 
-} from '@dnd-kit/sortable';
+import { arrayMove, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 
-import InteractiveMap from "../src/components/Map/InteractiveMap";
-import PassportView from "../src/components/Passport/PassportView";
-import AIReportModal from "../src/components/AIReportModal"; 
-import LiveChatTicker from "../src/components/LiveChatTicker";
-import { SortableItem } from "../src/components/SortableItem";
-import MateBoard from "../src/components/MateBoard"; 
-import { apiFetch, API_BASE_URL, SOCKET_BASE_URL } from "../src/lib/api";
-import { isExpired, kstTodayStart, classifyCategory, categoryLabel, CATEGORIES, parseDate, type CategoryCode } from "../src/lib/popupSlices";
-import { Header } from "../src/components/layout/Header";
-import { Footer } from "../src/components/layout/Footer";
-import { BottomDock, type DockTab } from "../src/components/layout/BottomDock";
-import MusicTab from "@/components/music/MusicTab";
-import RankCard from "@/components/rank/RankCard";
-import LoopingBgVideo from "@/components/LoopingBgVideo";
-import { notify, notifySuccess, notifyError, notifyWarning, confirmAction } from "@/lib/notify";
+import InteractiveMap from '../src/components/Map/InteractiveMap';
+import PassportView from '../src/components/Passport/PassportView';
+import AIReportModal from '../src/components/AIReportModal';
+import LiveChatTicker from '../src/components/LiveChatTicker';
+import { SortableItem } from '../src/components/SortableItem';
+import MateBoard from '../src/components/MateBoard';
+import { apiFetch } from '../src/lib/api';
+import { clearAuthToken } from '../src/lib/authStorage';
+import {
+  isExpired,
+  kstTodayStart,
+  classifyCategory,
+  categoryLabel,
+  CATEGORIES,
+  parseDate,
+  type CategoryCode,
+} from '../src/lib/popupSlices';
+import { Header } from '../src/components/layout/Header';
+import { Footer } from '../src/components/layout/Footer';
+import { BottomDock, type DockTab } from '../src/components/layout/BottomDock';
+import MusicTab from '@/components/music/MusicTab';
+import RankCard from '@/components/rank/RankCard';
+import LoopingBgVideo from '@/components/LoopingBgVideo';
+import { notify, notifySuccess, notifyError, notifyWarning, confirmAction } from '@/lib/notify';
 import {
   getGuestFirstVisit,
   getRemainingGuestDays,
   isGuestExpired,
   startGuestMode,
-} from "@/lib/guestMode";
-import { SearchZone } from "@/features/popup/SearchBox";
-import { SectionLogo } from "@/components/layout/BrandLogos";
-import { ReportPopupModal } from "@/features/popup/ReportPopupModal";
-import { PopupCalendarModal } from "@/features/popup/PopupCalendarModal";
-import { AllTrendingModal } from "@/features/popup/AllTrendingModal";
-import { AddPlaceModal } from "@/features/popup/AddPlaceModal";
-import {
-  GlobalSearchModal,
-  useGlobalSearchHotkey,
-} from "@/features/popup/GlobalSearchModal";
-import { OnboardingModal } from "@/features/onboarding/OnboardingModal";
-import { NotificationCenter } from "@/features/notifications/NotificationCenter";
-import { TermsReconsentModal } from "@/features/terms/TermsReconsentModal";
-import { MyFeedbackList } from "@/features/feedback/MyFeedbackList";
-import { FeedbackForm } from "@/features/feedback/FeedbackForm";
-import { ProfileEditModal } from "@/features/profile/ProfileEditModal";
-import BrowseSection from "@/components/main/BrowseSection";
-import { PopupCard } from "@/components/main/PopupCard";
-import { devMockPopups } from "@/lib/devMockPopups";
-import FeatureSections from "@/components/main/FeatureSections";
-import HomeBento1a from "@/components/main/HomeBento1a";
+} from '@/lib/guestMode';
+import { SearchZone } from '@/features/popup/SearchBox';
+import { SectionLogo } from '@/components/layout/BrandLogos';
+import { ReportPopupModal } from '@/features/popup/ReportPopupModal';
+import { PopupCalendarModal } from '@/features/popup/PopupCalendarModal';
+import { AllTrendingModal } from '@/features/popup/AllTrendingModal';
+import { AddPlaceModal } from '@/features/popup/AddPlaceModal';
+import { GlobalSearchModal, useGlobalSearchHotkey } from '@/features/popup/GlobalSearchModal';
+import { OnboardingModal } from '@/features/onboarding/OnboardingModal';
+import { NotificationCenter } from '@/features/notifications/NotificationCenter';
+import { TermsReconsentModal } from '@/features/terms/TermsReconsentModal';
+import { MyFeedbackList } from '@/features/feedback/MyFeedbackList';
+import { FeedbackForm } from '@/features/feedback/FeedbackForm';
+import { ProfileEditModal } from '@/features/profile/ProfileEditModal';
+import BrowseSection from '@/components/main/BrowseSection';
+import { PopupCard } from '@/components/main/PopupCard';
+import { devMockPopups } from '@/lib/devMockPopups';
+import FeatureSections from '@/components/main/FeatureSections';
+import HomeBento1a from '@/components/main/HomeBento1a';
 import type {
   User,
   PopupStore,
@@ -82,7 +107,7 @@ import type {
   WishlistItem,
   CourseItem,
   SavedCourse,
-} from "@/types/popup";
+} from '@/types/popup';
 
 const INITIAL_MY_COURSE: CourseItem[] = [];
 
@@ -95,8 +120,8 @@ const INITIAL_MY_COURSE: CourseItem[] = [];
 /*                  의 약속을 실제로 지키기 위함. 만료 후엔 회원가입 유도            */
 /*  - 비로그인+비게스트 : MAP / PASSPORT / MY / FEEDBACK 만 통과                  */
 /* -------------------------------------------------------------------------- */
-const DEFAULT_TAB = "MAP";
-const USER_ONLY_TABS = new Set<string>(["COURSE", "MUSIC", "MATE"]);
+const DEFAULT_TAB = 'MAP';
+const USER_ONLY_TABS = new Set<string>(['COURSE', 'MUSIC', 'MATE']);
 
 /**
  * 이미 끝난 팝업을 목록에서 제외한다. 판정은 랜딩과 같은 공용 함수를 쓴다 —
@@ -125,10 +150,10 @@ function canAccessTab(tab: string, hasUser: boolean, isGuestActive: boolean): bo
 
 /** USER_ONLY 탭을 게스트 만료 / 비로그인 사용자가 노크했을 때 보여줄 안내 문구. */
 function userOnlyTabHint(tab: string): string {
-  if (tab === "COURSE") return "AI 코스 추천은 가입 후 이용해주세요.";
-  if (tab === "MUSIC") return "음악 추천은 가입 후 이용해주세요.";
-  if (tab === "MATE") return "메이트 기능은 가입 후 이용해주세요.";
-  return "가입 후 이용해주세요.";
+  if (tab === 'COURSE') return 'AI 코스 추천은 가입 후 이용해주세요.';
+  if (tab === 'MUSIC') return '음악 추천은 가입 후 이용해주세요.';
+  if (tab === 'MATE') return '메이트 기능은 가입 후 이용해주세요.';
+  return '가입 후 이용해주세요.';
 }
 
 /* -------------------------------------------------------------------------- */
@@ -144,15 +169,15 @@ export default function Home() {
   const [themeReady, setThemeReady] = useState(false);
   useEffect(() => setThemeReady(true), []);
   // 라이트=매끄러운 루프(부메랑)로 재인코딩한 밝은 스카이라인(light-bg), 다크=서울 야경(login-bg).
-  const bgVideoSrc = resolvedTheme === "dark" ? "/login-bg.mp4" : "/light-bg.mp4";
+  const bgVideoSrc = resolvedTheme === 'dark' ? '/login-bg.mp4' : '/light-bg.mp4';
   // 라이트 영상은 도심 불빛 반짝임이 커서 0.5배속으로 차분하게. 다크(야경)는 원속도 유지.
-  const bgVideoRate = resolvedTheme === "dark" ? 1 : 0.5;
+  const bgVideoRate = resolvedTheme === 'dark' ? 1 : 0.5;
 
   const [hotPopups, setHotPopups] = useState<PopupStore[]>([]);
   const [allPopups, setAllPopups] = useState<PopupStore[]>([]);
   // "지금 뜨는 팝업" 레일 정렬/필터. 전체(allPopups)에서 파생 — hotPopups(인기 top5)는 히어로·랭킹 재사용용으로 그대로 둔다.
-  const [railSort, setRailSort] = useState<"popular" | "deadline" | "latest">("popular");
-  const [railCat, setRailCat] = useState<CategoryCode | "all">("all");
+  const [railSort, setRailSort] = useState<'popular' | 'deadline' | 'latest'>('popular');
+  const [railCat, setRailCat] = useState<CategoryCode | 'all'>('all');
   const rail = useDragScroll<HTMLDivElement>();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -165,20 +190,19 @@ export default function Home() {
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   useGlobalSearchHotkey(setIsGlobalSearchOpen);
 
-  const [currentTab, setCurrentTab] = useState("MAP");
+  const [currentTab, setCurrentTab] = useState('MAP');
   const [user, setUser] = useState<User | null>(null);
   const [myPageInfo, setMyPageInfo] = useState<MyPageData | null>(null);
   const [savedCourses, setSavedCourses] = useState<SavedCourse[]>([]);
   const [myWishlist, setMyWishlist] = useState<WishlistItem[]>([]);
-  const [aiCourse, setAiCourse] = useState<CourseItem[]>([]); 
+  const [aiCourse, setAiCourse] = useState<CourseItem[]>([]);
   const [myCourseItems, setMyCourseItems] = useState<CourseItem[]>(INITIAL_MY_COURSE);
 
-  const [isAiLoading, setIsAiLoading] = useState(false); 
-  const [selectedVibe, setSelectedVibe] = useState(""); 
-  const [customVibeInput, setCustomVibeInput] = useState(""); 
-  const [showCustomInput, setShowCustomInput] = useState(false); 
+  const [isAiLoading, setIsAiLoading] = useState(false);
+  const [selectedVibe, setSelectedVibe] = useState('');
+  const [customVibeInput, setCustomVibeInput] = useState('');
+  const [showCustomInput, setShowCustomInput] = useState(false);
   const [congestionData, setCongestionData] = useState<CongestionData | null>(null);
-  const [calendarDate, setCalendarDate] = useState(new Date());
   /** 게스트 모드 활성 시 남은 일수. null = 비활성 (로그인 사용자거나 게스트 미시작). */
   const [guestRemainingDays, setGuestRemainingDays] = useState<number | null>(null);
   /** 서치존에서 팝업 선택 시 지도를 그 위치로 이동시킬 좌표. */
@@ -193,15 +217,24 @@ export default function Home() {
    * hotPopups(인기 top5)는 히어로·랭킹 재사용을 위해 그대로 두고, 레일만 이 파생 리스트를 쓴다.
    */
   const railPopups = useMemo(() => {
-    const base = railCat === "all" ? allPopups : allPopups.filter((p) => classifyCategory(p.category) === railCat);
+    const base =
+      railCat === 'all'
+        ? allPopups
+        : allPopups.filter((p) => classifyCategory(p.category) === railCat);
     const list = [...base];
-    if (railSort === "deadline") {
+    if (railSort === 'deadline') {
       // 마감임박순 — endDate 없는 건 뒤로(Infinity). parseDate 로 달력 실재성까지 검증(이월 방지).
-      const end = (p: PopupStore) => { const d = parseDate(p.endDate); return d ? d.getTime() : Infinity; };
+      const end = (p: PopupStore) => {
+        const d = parseDate(p.endDate);
+        return d ? d.getTime() : Infinity;
+      };
       list.sort((a, b) => end(a) - end(b) || (b.viewCount || 0) - (a.viewCount || 0));
-    } else if (railSort === "latest") {
+    } else if (railSort === 'latest') {
       // 최신순 — startDate desc, 없으면 id desc(auto-increment 라 항상 존재해 안정적 tie-break).
-      const start = (p: PopupStore) => { const d = parseDate(p.startDate); return d ? d.getTime() : -Infinity; };
+      const start = (p: PopupStore) => {
+        const d = parseDate(p.startDate);
+        return d ? d.getTime() : -Infinity;
+      };
       list.sort((a, b) => start(b) - start(a) || b.id - a.id);
     } else {
       // 인기순 — viewCount desc, 동점은 id desc 로 안정화(크롤 팝업 다수가 viewCount=0).
@@ -222,7 +255,7 @@ export default function Home() {
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(KeyboardSensor)
+    useSensor(KeyboardSensor),
   );
 
   /* Event Handlers */
@@ -237,161 +270,170 @@ export default function Home() {
     }
   };
 
-  const handleCopyAiToMyCourse = () => {
-      if (aiCourse.length === 0) {
-          notifyWarning('먼저 AI 추천 코스를 생성해주세요.');
-          return;
-      }
-      setMyCourseItems([...aiCourse]);
-      handleTabChange("MY");
-      notifySuccess('AI 추천 코스가 적용되었습니다.');
-  };
-
   const handleAddPlace = (popup: PopupStore) => {
-      const newItem = {
-          id: popup.id.toString(), 
-          name: popup.name,
-          lat: parseFloat(popup.latitude || '37.5445'),
-          lng: parseFloat(popup.longitude || '127.0560'),
-          category: popup.category || 'POPUP',
-          reason: '사용자 추가 장소'
-      };
-        
-      if (myCourseItems.find(item => item.id === newItem.id)) {
-          notify('이미 코스에 추가된 장소입니다.');
-          return;
-      }
-      setMyCourseItems([...myCourseItems, newItem]);
-      setIsAddPlaceOpen(false); 
+    const newItem = {
+      id: popup.id.toString(),
+      name: popup.name,
+      lat: parseFloat(popup.latitude || '37.5445'),
+      lng: parseFloat(popup.longitude || '127.0560'),
+      category: popup.category || 'POPUP',
+      reason: '사용자 추가 장소',
+    };
+
+    if (myCourseItems.find((item) => item.id === newItem.id)) {
+      notify('이미 코스에 추가된 장소입니다.');
+      return;
+    }
+    setMyCourseItems([...myCourseItems, newItem]);
+    setIsAddPlaceOpen(false);
   };
 
   const handleCreateRoom = async () => {
     if (!user) {
-        if (await confirmAction({
-            title: '로그인이 필요합니다',
-            text: '작전 회의실은 회원 전용 기능입니다.',
-            confirmText: '로그인하기',
-        })) {
-            router.push("/login");
-        }
-        return;
+      if (
+        await confirmAction({
+          title: '로그인이 필요합니다',
+          text: '작전 회의실은 회원 전용 기능입니다.',
+          confirmText: '로그인하기',
+        })
+      ) {
+        router.push('/login');
+      }
+      return;
     }
     try {
-        const res = await apiFetch('/api/planning/create', { method: 'POST' });
-        const roomId = await res.text();
-        router.push(`/planning?room=${roomId}`);
+      const res = await apiFetch('/api/planning/create', { method: 'POST' });
+      const roomId = await res.text();
+      router.push(`/planning?room=${roomId}`);
     } catch (e) {
-        notifyError('서버 연결 실패!');
+      notifyError('서버 연결 실패!');
     }
   };
 
   const fetchMyPageData = async (userId: string) => {
-      try {
-          const res = await apiFetch(`/api/mypage/${userId}`);
-          if (res.ok) {
-              const data = await res.json();
-              setMyPageInfo(data);
-              if (user) {
-                  const updatedUser = { ...user, isPremium: data.isPremium };
-                  setUser(updatedUser); 
-                  localStorage.setItem("user", JSON.stringify(updatedUser));
-              }
-          }
-      } catch (e) {
-          console.error("마이페이지 로드 실패", e);
-          // [redesign/test 전용] 로컬(백엔드 없음)에서 '기록' 대시보드를 채우는 목업.
-          if (process.env.NODE_ENV === "development") {
-              setMyPageInfo({ likeCount: 12, stampCount: 5, reviewCount: 24, isPremium: false } as MyPageData);
-          }
+    try {
+      const res = await apiFetch(`/api/mypage/${userId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setMyPageInfo(data);
+        if (user) {
+          const updatedUser = { ...user, isPremium: data.isPremium };
+          setUser(updatedUser);
+          localStorage.setItem('user', JSON.stringify(updatedUser));
+        }
       }
+    } catch (e) {
+      console.error('마이페이지 로드 실패', e);
+      // [redesign/test 전용] 로컬(백엔드 없음)에서 '기록' 대시보드를 채우는 목업.
+      if (process.env.NODE_ENV === 'development') {
+        setMyPageInfo({
+          likeCount: 12,
+          stampCount: 5,
+          reviewCount: 24,
+          isPremium: false,
+        } as MyPageData);
+      }
+    }
   };
 
   const fetchMyCourses = async (userId: string, shouldAutoLoad = false) => {
     try {
-        const res = await apiFetch(`/api/my-courses?userId=${userId}`);
-        if (res.ok) {
-            const data = await res.json();
-            setSavedCourses(data); 
-            if (shouldAutoLoad && data.length > 0) {
-                const latestCourse = data[data.length - 1]; 
-                if (latestCourse.courseData) {
-                    const parsedItems = JSON.parse(latestCourse.courseData);
-                    setMyCourseItems(parsedItems); 
-                }
-            }
+      const res = await apiFetch(`/api/my-courses?userId=${userId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setSavedCourses(data);
+        if (shouldAutoLoad && data.length > 0) {
+          const latestCourse = data[data.length - 1];
+          if (latestCourse.courseData) {
+            const parsedItems = JSON.parse(latestCourse.courseData);
+            setMyCourseItems(parsedItems);
+          }
         }
-    } catch (e) { console.error("코스 불러오기 실패:", e); }
+      }
+    } catch (e) {
+      console.error('코스 불러오기 실패:', e);
+    }
   };
 
   const fetchWishlist = async (userId: string) => {
     try {
-        const res = await apiFetch(`/api/wishlist/${userId}`);
-        if (res.ok) {
-            const data = await res.json();
-            setMyWishlist(data);
-        }
+      const res = await apiFetch(`/api/wishlist/${userId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setMyWishlist(data);
+      }
     } catch (e) {
-        console.error("위시리스트 로드 실패:", e);
-        // [redesign/test 전용] 로컬에서 찜한 팝업 카드를 채우는 목업.
-        if (process.env.NODE_ENV === "development") {
-            const { devMockPopups } = await import("@/lib/devMockPopups");
-            setMyWishlist(
-                devMockPopups().slice(0, 12).map((p) => ({
-                    popupId: Number(p.id),
-                    popupName: p.name,
-                    location: p.location,
-                    popupImage: p.imageUrl,
-                } as WishlistItem)),
-            );
-        }
+      console.error('위시리스트 로드 실패:', e);
+      // [redesign/test 전용] 로컬에서 찜한 팝업 카드를 채우는 목업.
+      if (process.env.NODE_ENV === 'development') {
+        const { devMockPopups } = await import('@/lib/devMockPopups');
+        setMyWishlist(
+          devMockPopups()
+            .slice(0, 12)
+            .map(
+              (p) =>
+                ({
+                  popupId: Number(p.id),
+                  popupName: p.name,
+                  location: p.location,
+                  popupImage: p.imageUrl,
+                }) as WishlistItem,
+            ),
+        );
+      }
     }
   };
 
   const handleRemoveWishlist = async (e: React.MouseEvent, popupId: number) => {
-    e.preventDefault(); e.stopPropagation();
+    e.preventDefault();
+    e.stopPropagation();
     if (!user) return;
     const confirmed = await confirmAction({
-        title: '찜 삭제',
-        text: '목록에서 삭제하시겠습니까?',
-        destructive: true,
+      title: '찜 삭제',
+      text: '목록에서 삭제하시겠습니까?',
+      destructive: true,
     });
     if (!confirmed) return;
     try {
-        const res = await apiFetch(`/api/wishlist/${user.userId}/${popupId}`, { method: "DELETE" });
-        if (res.ok) {
-            setMyWishlist(prev => prev.filter(item => item.popupId !== popupId));
-            fetchMyPageData(user.userId);
-            notifySuccess('삭제되었습니다.');
-        }
-    } catch (e) { console.error("찜 삭제 오류:", e); }
+      const res = await apiFetch(`/api/wishlist/${user.userId}/${popupId}`, { method: 'DELETE' });
+      if (res.ok) {
+        setMyWishlist((prev) => prev.filter((item) => item.popupId !== popupId));
+        fetchMyPageData(user.userId);
+        notifySuccess('삭제되었습니다.');
+      }
+    } catch (e) {
+      console.error('찜 삭제 오류:', e);
+    }
   };
 
   const handleLoadCourse = async (courseDataStr: string) => {
-      const confirmed = await confirmAction({
-          title: '코스 불러오기',
-          text: '현재 편집 중인 내용은 사라집니다. 계속할까요?',
-          icon: 'warning',
-      });
-      if (!confirmed) return;
-      setMyCourseItems(JSON.parse(courseDataStr));
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-  }
+    const confirmed = await confirmAction({
+      title: '코스 불러오기',
+      text: '현재 편집 중인 내용은 사라집니다. 계속할까요?',
+      icon: 'warning',
+    });
+    if (!confirmed) return;
+    setMyCourseItems(JSON.parse(courseDataStr));
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const handleDeleteCourse = async (e: React.MouseEvent, courseId: number) => {
-      e.stopPropagation();
-      const confirmed = await confirmAction({
-          title: '코스 삭제',
-          text: '정말 삭제하시겠습니까?',
-          destructive: true,
-      });
-      if (!confirmed) return;
-      try {
-          const res = await apiFetch(`/api/my-courses/${courseId}`, { method: 'DELETE' });
-          if (res.ok) {
-              notifySuccess('삭제 완료');
-              if (user) fetchMyCourses(user.userId);
-          }
-      } catch (err) { console.error(err); }
+    e.stopPropagation();
+    const confirmed = await confirmAction({
+      title: '코스 삭제',
+      text: '정말 삭제하시겠습니까?',
+      destructive: true,
+    });
+    if (!confirmed) return;
+    try {
+      const res = await apiFetch(`/api/my-courses/${courseId}`, { method: 'DELETE' });
+      if (res.ok) {
+        notifySuccess('삭제 완료');
+        if (user) fetchMyCourses(user.userId);
+      }
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   /**
@@ -402,46 +444,50 @@ export default function Home() {
   const promptUpgradeOrLogin = async (tab: string) => {
     const guestExpiredOrInactive = !user; // canAccessTab 에서 hasUser=false 인 경우만 도달
     if (guestExpiredOrInactive) {
-        if (await confirmAction({
-            title: '회원 전용 기능',
-            text: userOnlyTabHint(tab),
-            confirmText: '회원가입',
-        })) {
-            router.push("/signup");
-        }
-        return;
+      if (
+        await confirmAction({
+          title: '회원 전용 기능',
+          text: userOnlyTabHint(tab),
+          confirmText: '회원가입',
+        })
+      ) {
+        router.push('/signup');
+      }
+      return;
     }
-    if (await confirmAction({
+    if (
+      await confirmAction({
         title: '로그인이 필요합니다',
         confirmText: '로그인',
-    })) {
-        router.push("/login");
+      })
+    ) {
+      router.push('/login');
     }
   };
 
   const handleTabChange = async (tab: string) => {
     const isGuestActive = guestRemainingDays != null && guestRemainingDays > 0;
     if (!canAccessTab(tab, !!user, isGuestActive)) {
-        await promptUpgradeOrLogin(tab);
-        return;
+      await promptUpgradeOrLogin(tab);
+      return;
     }
     setCurrentTab(tab);
-    sessionStorage.setItem("lastTab", tab);
+    sessionStorage.setItem('lastTab', tab);
     // 탭 전환 시 항상 상단부터 보이게 (아래로 스크롤한 상태에서 여권/동행 등을 누르면
     // 스크롤 위치가 유지돼 새 탭의 하단이 먼저 보이던 문제 수정).
-    if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "auto" });
+    if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'auto' });
 
-    if (tab === "MY" && user) {
-        fetchMyPageData(user.userId);
-        fetchMyCourses(user.userId);
-        fetchWishlist(user.userId);
+    if (tab === 'MY' && user) {
+      fetchMyPageData(user.userId);
+      fetchMyCourses(user.userId);
+      fetchWishlist(user.userId);
     }
   };
 
   const handleLogout = async () => {
-    localStorage.removeItem("user");
-    localStorage.removeItem("token");
-    sessionStorage.removeItem("aiCourseData");
+    localStorage.removeItem('user');
+    clearAuthToken();
+    sessionStorage.removeItem('aiCourseData');
     setUser(null);
     await notifySuccess('로그아웃 되었습니다.');
     window.location.reload();
@@ -458,39 +504,39 @@ export default function Home() {
   const handleDeleteAccount = async () => {
     if (!user) return;
     const firstOk = await confirmAction({
-      title: "정말 탈퇴하시겠어요?",
+      title: '정말 탈퇴하시겠어요?',
       text:
-        "탈퇴하면 본인 식별 정보 (이메일 / 닉네임 / 프로필 사진 / 휴대전화) 가 즉시 익명화되며 " +
-        "다시는 같은 계정으로 로그인할 수 없습니다.",
-      icon: "warning",
+        '탈퇴하면 본인 식별 정보 (이메일 / 닉네임 / 프로필 사진 / 휴대전화) 가 즉시 익명화되며 ' +
+        '다시는 같은 계정으로 로그인할 수 없습니다.',
+      icon: 'warning',
       destructive: true,
-      confirmText: "다음 단계",
+      confirmText: '다음 단계',
     });
     if (!firstOk) return;
     const finalOk = await confirmAction({
-      title: "마지막 확인",
-      text: "되돌릴 수 없습니다. 정말 탈퇴를 진행할까요?",
-      icon: "warning",
+      title: '마지막 확인',
+      text: '되돌릴 수 없습니다. 정말 탈퇴를 진행할까요?',
+      icon: 'warning',
       destructive: true,
-      confirmText: "탈퇴 진행",
+      confirmText: '탈퇴 진행',
     });
     if (!finalOk) return;
 
     try {
-      const res = await apiFetch("/api/v1/users/me", { method: "DELETE" });
+      const res = await apiFetch('/api/v1/users/me', { method: 'DELETE' });
       if (!res.ok) {
         const message = await res.text();
-        notifyError(message || "탈퇴 처리에 실패했습니다.");
+        notifyError(message || '탈퇴 처리에 실패했습니다.');
         return;
       }
-      localStorage.removeItem("user");
-      localStorage.removeItem("token");
+      localStorage.removeItem('user');
+      clearAuthToken();
       sessionStorage.clear();
       setUser(null);
-      await notifySuccess("탈퇴가 완료되었습니다. 이용해 주셔서 감사합니다.");
-      router.replace("/login");
+      await notifySuccess('탈퇴가 완료되었습니다. 이용해 주셔서 감사합니다.');
+      router.replace('/login');
     } catch {
-      notifyError("탈퇴 처리 중 오류가 발생했습니다.");
+      notifyError('탈퇴 처리 중 오류가 발생했습니다.');
     }
   };
 
@@ -509,24 +555,26 @@ export default function Home() {
       const jsonString = await res.text();
       const result = JSON.parse(jsonString);
       setAiCourse(result);
-      sessionStorage.setItem("aiCourseData", JSON.stringify({ vibe: vibe, course: result }));
+      sessionStorage.setItem('aiCourseData', JSON.stringify({ vibe: vibe, course: result }));
     } catch (e) {
       // [redesign/test 전용] 백엔드 없을 때(로컬) 동선 지도·저장 버튼을 미리볼 수 있도록 목업 코스로 폴백.
-      if (process.env.NODE_ENV === "development") {
-        const { devMockCourse } = await import("@/lib/devMockPopups");
+      if (process.env.NODE_ENV === 'development') {
+        const { devMockCourse } = await import('@/lib/devMockPopups');
         const mock = devMockCourse(vibe);
         setAiCourse(mock);
-        sessionStorage.setItem("aiCourseData", JSON.stringify({ vibe, course: mock }));
+        sessionStorage.setItem('aiCourseData', JSON.stringify({ vibe, course: mock }));
       } else {
         notifyError('AI 연결 실패');
       }
-    } finally { setIsAiLoading(false); }
+    } finally {
+      setIsAiLoading(false);
+    }
   };
 
   const handleResetCourse = () => {
     setAiCourse([]);
-    setSelectedVibe("");
-    sessionStorage.removeItem("aiCourseData");
+    setSelectedVibe('');
+    sessionStorage.removeItem('aiCourseData');
   };
 
   /** AI 추천 코스(aiCourse)를 마이페이지에 저장. */
@@ -571,31 +619,31 @@ export default function Home() {
     // v2.12: 모든 사용자가 코스를 무제한으로 저장 가능. 이전의 freemium 1개 제한은 폐지.
 
     try {
-        const res = await apiFetch("/api/my-courses", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                userId: user.userId,
-                courseName: `나만의 코스 (${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString().slice(0,5)})`,
-                courseData: JSON.stringify(myCourseItems)
-            })
-        });
+      const res = await apiFetch('/api/my-courses', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user.userId,
+          courseName: `나만의 코스 (${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString().slice(0, 5)})`,
+          courseData: JSON.stringify(myCourseItems),
+        }),
+      });
 
-        if (res.ok) {
-            notifySuccess('코스가 저장되었습니다.');
-            fetchMyCourses(user.userId);
-        } else {
-            notifyError('저장 실패: 서버 오류가 발생했습니다.');
-        }
+      if (res.ok) {
+        notifySuccess('코스가 저장되었습니다.');
+        fetchMyCourses(user.userId);
+      } else {
+        notifyError('저장 실패: 서버 오류가 발생했습니다.');
+      }
     } catch (e) {
-        notifyError('저장 중 오류가 발생했습니다.');
+      notifyError('저장 중 오류가 발생했습니다.');
     }
   };
 
   const handleOpenModal = () => setIsModalOpen(true);
 
   const handleMarkerClickToDetail = (popupId: number | string) => {
-      router.push(`/popup/${popupId}`);
+    router.push(`/popup/${popupId}`);
   };
 
   /*
@@ -607,47 +655,51 @@ export default function Home() {
    */
 
   useEffect(() => {
-    const cachedPopups = localStorage.getItem("cached_popups");
+    const cachedPopups = localStorage.getItem('cached_popups');
     if (cachedPopups) {
-        const data = dropExpired(JSON.parse(cachedPopups));
-        setAllPopups(data);
-        const sortedData = [...(data as PopupStore[])].sort((a, b) => (b.viewCount || 0) - (a.viewCount || 0));
-        setHotPopups(sortedData.slice(0, 5)); 
+      const data = dropExpired(JSON.parse(cachedPopups));
+      setAllPopups(data);
+      const sortedData = [...(data as PopupStore[])].sort(
+        (a, b) => (b.viewCount || 0) - (a.viewCount || 0),
+      );
+      setHotPopups(sortedData.slice(0, 5));
     }
-    
-    apiFetch('/api/popups')
-        .then(res => res.json())
-        .then(raw => {
-            const data = dropExpired(raw);
-            setAllPopups(data);
-            const sortedData = [...(data as PopupStore[])].sort((a, b) => (b.viewCount || 0) - (a.viewCount || 0));
-            setHotPopups(sortedData.slice(0, 5));
-            localStorage.setItem("cached_popups", JSON.stringify(data));
-        })
-        .catch(err => {
-            console.error("팝업 데이터 로딩 실패:", err);
-            // [redesign/test 전용] 로컬(백엔드 없음)에서 재설계 홈을 채우는 개발용 목업.
-            if (process.env.NODE_ENV === "development") {
-                const mock = devMockPopups();
-                setAllPopups(mock);
-                setHotPopups(mock.slice(0, 8));
-            }
-        });
 
-    const cachedCongestion = localStorage.getItem("cached_congestion");
+    apiFetch('/api/popups')
+      .then((res) => res.json())
+      .then((raw) => {
+        const data = dropExpired(raw);
+        setAllPopups(data);
+        const sortedData = [...(data as PopupStore[])].sort(
+          (a, b) => (b.viewCount || 0) - (a.viewCount || 0),
+        );
+        setHotPopups(sortedData.slice(0, 5));
+        localStorage.setItem('cached_popups', JSON.stringify(data));
+      })
+      .catch((err) => {
+        console.error('팝업 데이터 로딩 실패:', err);
+        // [redesign/test 전용] 로컬(백엔드 없음)에서 재설계 홈을 채우는 개발용 목업.
+        if (process.env.NODE_ENV === 'development') {
+          const mock = devMockPopups();
+          setAllPopups(mock);
+          setHotPopups(mock.slice(0, 8));
+        }
+      });
+
+    const cachedCongestion = localStorage.getItem('cached_congestion');
     if (cachedCongestion) {
-        setCongestionData(JSON.parse(cachedCongestion));
+      setCongestionData(JSON.parse(cachedCongestion));
     }
 
     apiFetch('/api/congestion')
-      .then(res => res.json())
-      .then(data => { 
-          if (data && data.level) {
-              setCongestionData(data); 
-              localStorage.setItem("cached_congestion", JSON.stringify(data)); 
-          }
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && data.level) {
+          setCongestionData(data);
+          localStorage.setItem('cached_congestion', JSON.stringify(data));
+        }
       })
-      .catch(err => console.error("혼잡도 데이터 실패:", err));
+      .catch((err) => console.error('혼잡도 데이터 실패:', err));
   }, []);
 
   /*
@@ -664,7 +716,7 @@ export default function Home() {
    * 초기화는 mount 시점 1회만 수행하도록 분리한다.
    */
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
+    const storedUser = localStorage.getItem('user');
 
     if (!storedUser) {
       const firstVisit = getGuestFirstVisit();
@@ -691,12 +743,12 @@ export default function Home() {
       fetchMyCourses(parsedUser.userId, true);
       fetchWishlist(parsedUser.userId);
 
-      if (sessionStorage.getItem("lastTab") === "MY") {
+      if (sessionStorage.getItem('lastTab') === 'MY') {
         fetchMyPageData(parsedUser.userId);
       }
     }
 
-    const savedCourse = sessionStorage.getItem("aiCourseData");
+    const savedCourse = sessionStorage.getItem('aiCourseData');
     if (savedCourse) {
       const parsed = JSON.parse(savedCourse);
       setAiCourse(parsed.course);
@@ -712,17 +764,17 @@ export default function Home() {
    * 다시 실행되지만 게스트/유저 상태에는 영향 없음 — setCurrentTab 한 번만 호출.
    */
   useEffect(() => {
-    const hasUser = !!localStorage.getItem("user");
+    const hasUser = !!localStorage.getItem('user');
     const firstVisit = getGuestFirstVisit();
     const isGuestActive = firstVisit != null && !isGuestExpired(firstVisit);
 
-    const tabParam = searchParams.get("tab");
+    const tabParam = searchParams.get('tab');
     if (tabParam) {
       const requested = tabParam.toUpperCase();
       setCurrentTab(canAccessTab(requested, hasUser, isGuestActive) ? requested : DEFAULT_TAB);
       return;
     }
-    const lastTab = sessionStorage.getItem("lastTab");
+    const lastTab = sessionStorage.getItem('lastTab');
     if (lastTab) {
       setCurrentTab(canAccessTab(lastTab, hasUser, isGuestActive) ? lastTab : DEFAULT_TAB);
     }
@@ -731,58 +783,50 @@ export default function Home() {
   /* Utilities */
   const sectionVariants: Variants = {
     hidden: { opacity: 0, y: 50 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.8, ease: "easeOut" } }
-  };
-
-  const renderRankChange = (change: number | undefined) => {
-      if (!change || change === 0) return <Minus size={10} className="text-gray-500"/>;
-      if (change > 0) return <span className="flex items-center text-red-500 text-[10px]"><ArrowUp size={10}/> {change}</span>;
-      return <span className="flex items-center text-blue-500 text-[10px]"><ArrowDown size={10}/> {Math.abs(change)}</span>;
+    visible: { opacity: 1, y: 0, transition: { duration: 0.8, ease: 'easeOut' } },
   };
 
   const getCongestionColor = (level: string) => {
-      switch (level) {
-          case "여유": return "text-green-500";
-          case "보통": return "text-yellow-500";
-          case "약간 붐빔": return "text-orange-500";
-          case "붐빔": return "text-red-500";
-          default: return "text-gray-400";
-      }
+    switch (level) {
+      case '여유':
+        return 'text-green-500';
+      case '보통':
+        return 'text-yellow-500';
+      case '약간 붐빔':
+        return 'text-orange-500';
+      case '붐빔':
+        return 'text-red-500';
+      default:
+        return 'text-gray-400';
+    }
   };
 
   const getDday = (dateStr: string | null) => {
-      if (!dateStr) return null;
-      const expiry = new Date(dateStr);
-      const now = new Date();
-      const diff = expiry.getTime() - now.getTime();
-      const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
-      return days > 0 ? days : 0;
+    if (!dateStr) return null;
+    const expiry = new Date(dateStr);
+    const now = new Date();
+    const diff = expiry.getTime() - now.getTime();
+    const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
+    return days > 0 ? days : 0;
   };
-  
-  const isAdmin = user?.role?.includes('ADMIN');
 
   return (
     <main className="min-h-screen font-sans relative pb-32 lg:pb-16 overflow-x-hidden transition-colors duration-500 text-gray-900 dark:text-white">
-
       {/* 모드별 풀 배경 영상 — 라이트=밝은 스카이라인(212404), 다크=생기있는 서울 야경(login-bg).
           영상이 '실제로 보이도록' 스크림은 얕게(home-video-scrim). 콘텐츠는 불투명 카드 위라 가독성은 카드가 담당.
           마운트 전엔 브랜드 단색(cream/ink)만 → 깜빡임 없이 영상 페이드 인. 활성 모드 영상 한 개만 로드. */}
       <div className="fixed inset-0 -z-10 bg-cream-100 dark:bg-ink-900 overflow-hidden" aria-hidden>
-        {themeReady && (
-          <LoopingBgVideo key={bgVideoSrc} src={bgVideoSrc} rate={bgVideoRate} />
-        )}
+        {themeReady && <LoopingBgVideo key={bgVideoSrc} src={bgVideoSrc} rate={bgVideoRate} />}
         <div className="home-video-scrim absolute inset-0"></div>
       </div>
 
       <div className="relative z-10 px-4 md:px-6 py-4 md:py-6 max-w-[1600px] mx-auto">
-        
         <Header
           user={user}
           onLogout={handleLogout}
-          onLogoClick={() => handleTabChange("MAP")}
+          onLogoClick={() => handleTabChange('MAP')}
           onReportClick={() => setIsReportPopupOpen(true)}
           onProfileClick={user ? () => setIsProfileEditOpen(true) : undefined}
-          onSearchClick={() => setIsGlobalSearchOpen(true)}
           onBellClick={() => setIsNotificationsOpen(true)}
           activeTab={currentTab}
           onNavChange={(t) => handleTabChange(t)}
@@ -800,11 +844,11 @@ export default function Home() {
               <Clock className="size-3.5 md:size-4 shrink-0" aria-hidden />
               {guestRemainingDays > 0
                 ? `게스트 모드 · D-${guestRemainingDays}`
-                : "회원가입하면 찜·코스·메이트까지 계속 이용할 수 있어요"}
+                : '회원가입하면 찜·코스·메이트까지 계속 이용할 수 있어요'}
             </span>
             <button
               type="button"
-              onClick={() => router.push("/signup")}
+              onClick={() => router.push('/signup')}
               className="shrink-0 text-[11px] md:text-xs font-semibold underline-offset-2 hover:underline"
             >
               지금 가입하기
@@ -813,895 +857,1249 @@ export default function Home() {
         )}
 
         {/* TAB: MAP */}
-        {currentTab === "MAP" && (
-            <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={sectionVariants}>
-                
-                {/* User Greeting Section */}
-                <section aria-label="Welcome Banner" className="mb-6">
-                    {user ? (
-                        <div className="w-full border rounded-xl p-5 md:p-8 relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-4 bg-ink-900 text-cream-200 border-ink-900 dark:bg-cream-200 dark:text-ink-900 dark:border-cream-200">
-                             <div className="relative z-10 text-center md:text-left">
-                                <h2 className="text-xl md:text-3xl font-bold mb-1 md:mb-2">반가워요, <span className="text-lime-300 dark:text-lime-700">{user.nickname}</span>님!</h2>
-                                <p className="text-xs md:text-base opacity-70">오늘 서울에 <span className="font-bold text-lime-400 dark:text-lime-700">{allPopups.length}개</span>의 팝업이 열려있어요.</p>
-                             </div>
-                             <button onClick={() => handleTabChange("PASSPORT")} className="relative z-10 w-full md:w-auto inline-flex px-5 py-3 bg-lime-300 hover:bg-lime-400 text-ink-900 font-semibold rounded-pill items-center justify-center gap-2 transition-colors text-sm md:text-base">
-                                <Ticket size={18}/> 내 여권 확인
-                             </button>
-                        </div>
-                    ) : (
-                        <div className="relative w-full overflow-hidden rounded-2xl border p-6 md:p-8 bg-white border-gray-200 dark:bg-[#1c1c1e] dark:border-white/10">
-                            {/* 은은한 라임 글로우 — 칙칙함 대신 활력. 밝지만 텍스트 대비는 유지. */}
-                            <div aria-hidden className="pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full bg-lime-300/35 blur-3xl dark:bg-lime-400/20" />
-                            <div className="relative z-10 flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-                                <div className="text-center md:text-left">
-                                    <span className="inline-block mb-3 rounded-pill bg-lime-300 px-3 py-1 text-[10px] md:text-xs font-black tracking-[0.2em] uppercase text-ink-900">
-                                        오늘의 서울 팝업
-                                    </span>
-                                    <h2 className="text-2xl md:text-4xl font-black leading-tight text-gray-900 dark:text-white">
-                                        지금 서울에{" "}
-                                        <span className="text-lime-600 dark:text-lime-300">{allPopups.length || "…"}개</span>의<br className="hidden md:block"/>{" "}
-                                        팝업이 열렸어요
-                                    </h2>
-                                    <p className="mt-2 text-sm md:text-base text-gray-600 dark:text-white/70">
-                                        지도에서 일정과 장소를 확인하고, 마음에 드는 팝업을 저장하세요.
-                                    </p>
-                                    <div className="mt-5 flex flex-col sm:flex-row gap-2.5 justify-center md:justify-start">
-                                        <button
-                                            type="button"
-                                            onClick={() => document.querySelector('[aria-label="서울 팝업 지도"]')?.scrollIntoView({ behavior: "smooth", block: "start" })}
-                                            className="inline-flex items-center justify-center gap-2 rounded-pill bg-lime-300 px-6 py-3 text-sm md:text-base font-bold text-ink-900 transition hover:bg-lime-400"
-                                        >
-                                            지도에서 둘러보기 <ArrowRight size={16} />
-                                        </button>
-                                        <Link href="/signup" className="inline-flex items-center justify-center gap-2 rounded-pill border border-gray-300 bg-white px-6 py-3 text-sm md:text-base font-bold text-gray-900 transition hover:bg-gray-100 dark:border-white/20 dark:bg-white/10 dark:text-white dark:hover:bg-white/20">
-                                            회원가입
-                                        </Link>
-                                    </div>
-                                </div>
+        {currentTab === 'MAP' && (
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+            variants={sectionVariants}
+          >
+            {/* User Greeting Section */}
+            <section aria-label="Welcome Banner" className="mb-6">
+              {user ? (
+                <div className="w-full border rounded-xl p-5 md:p-8 relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-4 bg-ink-900 text-cream-200 border-ink-900 dark:bg-cream-200 dark:text-ink-900 dark:border-cream-200">
+                  <div className="relative z-10 text-center md:text-left">
+                    <h2 className="text-xl md:text-3xl font-bold mb-1 md:mb-2">
+                      반가워요,{' '}
+                      <span className="text-lime-300 dark:text-lime-700">{user.nickname}</span>님!
+                    </h2>
+                    <p className="text-xs md:text-base opacity-70">
+                      오늘 서울에{' '}
+                      <span className="font-bold text-lime-400 dark:text-lime-700">
+                        {allPopups.length}개
+                      </span>
+                      의 팝업이 열려있어요.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => handleTabChange('PASSPORT')}
+                    className="relative z-10 w-full md:w-auto inline-flex px-5 py-3 bg-lime-300 hover:bg-lime-400 text-ink-900 font-semibold rounded-pill items-center justify-center gap-2 transition-colors text-sm md:text-base"
+                  >
+                    <Ticket size={18} /> 내 여권 확인
+                  </button>
+                </div>
+              ) : (
+                <div className="relative w-full overflow-hidden rounded-2xl border p-6 md:p-8 bg-white border-gray-200 dark:bg-[#1c1c1e] dark:border-white/10">
+                  {/* 은은한 라임 글로우 — 칙칙함 대신 활력. 밝지만 텍스트 대비는 유지. */}
+                  <div
+                    aria-hidden
+                    className="pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full bg-lime-300/35 blur-3xl dark:bg-lime-400/20"
+                  />
+                  <div className="relative z-10 flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+                    <div className="text-center md:text-left">
+                      <span className="inline-block mb-3 rounded-pill bg-lime-300 px-3 py-1 text-[10px] md:text-xs font-black tracking-[0.2em] uppercase text-ink-900">
+                        오늘의 서울 팝업
+                      </span>
+                      <h2 className="text-2xl md:text-4xl font-black leading-tight text-gray-900 dark:text-white">
+                        지금 서울에{' '}
+                        <span className="text-lime-600 dark:text-lime-300">
+                          {allPopups.length || '…'}개
+                        </span>
+                        의<br className="hidden md:block" /> 팝업이 열렸어요
+                      </h2>
+                      <p className="mt-2 text-sm md:text-base text-gray-600 dark:text-white/70">
+                        지도에서 일정과 장소를 확인하고, 마음에 드는 팝업을 저장하세요.
+                      </p>
+                      <div className="mt-5 flex flex-col sm:flex-row gap-2.5 justify-center md:justify-start">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            document
+                              .querySelector('[aria-label="서울 팝업 지도"]')
+                              ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                          }
+                          className="inline-flex items-center justify-center gap-2 rounded-pill bg-lime-300 px-6 py-3 text-sm md:text-base font-bold text-ink-900 transition hover:bg-lime-400"
+                        >
+                          지도에서 둘러보기 <ArrowRight size={16} />
+                        </button>
+                        <Link
+                          href="/signup"
+                          className="inline-flex items-center justify-center gap-2 rounded-pill border border-gray-300 bg-white px-6 py-3 text-sm md:text-base font-bold text-gray-900 transition hover:bg-gray-100 dark:border-white/20 dark:bg-white/10 dark:text-white dark:hover:bg-white/20"
+                        >
+                          회원가입
+                        </Link>
+                      </div>
+                    </div>
 
-                                {/* 팝업 정보 클러스터 — 실제 사진이 없으면 이름·장소를 우선 표시. */}
-                                {hotPopups.length > 0 && (
-                                    <div className="grid grid-cols-2 gap-2 shrink-0 md:w-[280px]">
-                                        {hotPopups.slice(0, 4).map((p, i) => (
-                                            <button
-                                                key={p.id}
-                                                type="button"
-                                                onClick={() => { handleTabChange("MAP"); router.push(`/popup/${p.id}`); }}
-                                                aria-label={`${p.name} 상세 보기`}
-                                                className={`aspect-[4/5] overflow-hidden rounded-xl ring-1 ring-black/5 dark:ring-white/10 transition hover:-translate-y-0.5 hover:shadow-lg ${i % 2 === 1 ? "sm:translate-y-3" : ""}`}
-                                            >
-                                                <PopupCoverVisual popup={p} name={p.name} location={p.location} />
-                                            </button>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-                        </div>
+                    {/* 팝업 정보 클러스터 — 실제 사진이 없으면 이름·장소를 우선 표시. */}
+                    {hotPopups.length > 0 && (
+                      <div className="grid grid-cols-2 gap-2 shrink-0 md:w-[280px]">
+                        {hotPopups.slice(0, 4).map((p, i) => (
+                          <button
+                            key={p.id}
+                            type="button"
+                            onClick={() => {
+                              handleTabChange('MAP');
+                              router.push(`/popup/${p.id}`);
+                            }}
+                            aria-label={`${p.name} 상세 보기`}
+                            className={`aspect-[4/5] overflow-hidden rounded-xl ring-1 ring-black/5 dark:ring-white/10 transition hover:-translate-y-0.5 hover:shadow-lg ${i % 2 === 1 ? 'sm:translate-y-3' : ''}`}
+                          >
+                            <PopupCoverVisual popup={p} name={p.name} location={p.location} />
+                          </button>
+                        ))}
+                      </div>
                     )}
-                </section>
+                  </div>
+                </div>
+              )}
+            </section>
 
-                {/* 지역 / 시점 / 카테고리 빠른 필터 (지도 위 진입점) */}
-                <BrowseSection />
+            {/* 지역 / 시점 / 카테고리 빠른 필터 (지도 위 진입점) */}
+            <BrowseSection />
 
-                {/* 서울 팝업 지도 — 홈의 주인공 (디자인 진단서 P0). 지도 전체폭·크게, 보조 정보는 아래 3열. */}
-                <section aria-label="서울 팝업 지도" className="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-10">
-                    
-                    {/* Search Zone */}
-                    <div className="col-span-1 lg:col-span-12 relative z-50 order-1 lg:order-none">
-                        <SearchZone
-                            popups={allPopups}
-                            onSelectPopup={(hit) => {
-                                // AI 필터가 걸려 있으면 해제 — 그래야 고른 핀이 지도에 보인다.
-                                setMapFilterIds(null);
-                                // 1순위: 지도가 자기 마커에서 그 팝업을 찾아 이동+정보창 오픈(allPopups 의존 X).
-                                setSearchFocus((prev) => ({ id: String(hit.objectID), nonce: (prev?.nonce ?? 0) + 1 }));
-                                // 2순위(보조): allPopups 에 좌표가 있으면 중심도 같이 이동(마커가 아직 안 실렸을 때 대비).
-                                const p = allPopups.find((x) => String(x.id) === String(hit.objectID));
-                                if (p?.latitude && p?.longitude) {
-                                    setMapCenter({ lat: parseFloat(p.latitude), lng: parseFloat(p.longitude) });
-                                }
-                            }}
-                            onAiFilter={(ids) => {
-                                // AI 검색 결과 id → 지도에 그 핀만. null 이면 전체 복원.
-                                setMapFilterIds(ids);
-                                if (ids && typeof document !== "undefined") {
-                                    document
-                                        .querySelector('[aria-label="서울 팝업 지도"]')
-                                        ?.scrollIntoView({ behavior: "smooth", block: "start" });
-                                }
-                            }}
+            {/* 서울 팝업 지도 — 홈의 주인공 (디자인 진단서 P0). 지도 전체폭·크게, 보조 정보는 아래 3열. */}
+            <section
+              aria-label="서울 팝업 지도"
+              className="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-10"
+            >
+              {/* Search Zone */}
+              <div className="col-span-1 lg:col-span-12 relative z-50 order-1 lg:order-none">
+                <SearchZone
+                  popups={allPopups}
+                  onSelectPopup={(hit) => {
+                    // AI 필터가 걸려 있으면 해제 — 그래야 고른 핀이 지도에 보인다.
+                    setMapFilterIds(null);
+                    // 1순위: 지도가 자기 마커에서 그 팝업을 찾아 이동+정보창 오픈(allPopups 의존 X).
+                    setSearchFocus((prev) => ({
+                      id: String(hit.objectID),
+                      nonce: (prev?.nonce ?? 0) + 1,
+                    }));
+                    // 2순위(보조): allPopups 에 좌표가 있으면 중심도 같이 이동(마커가 아직 안 실렸을 때 대비).
+                    const p = allPopups.find((x) => String(x.id) === String(hit.objectID));
+                    if (p?.latitude && p?.longitude) {
+                      setMapCenter({ lat: parseFloat(p.latitude), lng: parseFloat(p.longitude) });
+                    }
+                  }}
+                  onAiFilter={(ids) => {
+                    // AI 검색 결과 id → 지도에 그 핀만. null 이면 전체 복원.
+                    setMapFilterIds(ids);
+                    if (ids && typeof document !== 'undefined') {
+                      document
+                        .querySelector('[aria-label="서울 팝업 지도"]')
+                        ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                  }}
+                />
+              </div>
+
+              {/* Map Zone — 배경 분리를 위해 solid 배경 + shadow 로 카드 블록 강화. */}
+              <div className="col-span-1 lg:col-span-12 rounded-[2rem] relative overflow-hidden border border-gray-200 dark:border-white/10 group bg-white dark:bg-[#111] shadow-lg shadow-black/5 dark:shadow-black/30 h-[58vh] min-h-[420px] order-2 lg:order-none">
+                <InteractiveMap
+                  center={mapCenter}
+                  focusReq={searchFocus}
+                  onMarkerClick={handleMarkerClickToDetail}
+                  filterIds={mapFilterIds}
+                />
+                <div className="absolute bottom-4 md:bottom-6 left-4 md:left-6 flex gap-2 z-20">
+                  <span className="backdrop-blur px-3 py-1.5 md:px-4 md:py-2 rounded-full border text-[10px] md:text-xs font-bold flex items-center gap-1.5 md:gap-2 bg-white/80 border-gray-200 text-gray-900 dark:bg-black/60 dark:border-white/10 dark:text-white">
+                    <span className="w-1.5 h-1.5 md:w-2 md:h-2 bg-green-500 rounded-full animate-pulse" />{' '}
+                    실시간
+                  </span>
+                </div>
+              </div>
+            </section>
+
+            {/* 지도 아래 유틸리티 2열 — 실시간 혼잡도(공간) + 팝업 캘린더(시간). 각각 누르면 모달. */}
+            <div className="mb-10 grid grid-cols-1 gap-4 md:grid-cols-2">
+              {/* 실시간 혼잡도 */}
+              <button
+                type="button"
+                onClick={() => setIsReportOpen(true)}
+                className="group flex items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-white px-5 py-3.5 shadow-sm transition hover:border-primary hover:shadow-md dark:border-white/10 dark:bg-[#111]"
+              >
+                <div className="flex min-w-0 items-center gap-2.5">
+                  <span
+                    className={`h-2.5 w-2.5 shrink-0 animate-pulse rounded-full bg-current ${congestionData ? getCongestionColor(congestionData.level) : 'text-green-500'}`}
+                    aria-hidden
+                  />
+                  <span className="shrink-0 text-sm font-bold text-gray-900 dark:text-white">
+                    실시간 혼잡도
+                  </span>
+                  {congestionData ? (
+                    <span className="truncate text-sm text-gray-500 dark:text-white/60">
+                      · 성수{' '}
+                      <span className={`font-bold ${getCongestionColor(congestionData.level)}`}>
+                        {congestionData.level}
+                      </span>
+                    </span>
+                  ) : (
+                    <span className="hidden truncate text-sm text-gray-500 dark:text-white/60 sm:inline">
+                      · 지역별 분석
+                    </span>
+                  )}
+                </div>
+                <span className="shrink-0 text-sm font-bold text-lime-600 dark:text-lime-400 group-hover:underline">
+                  지역별 보기 →
+                </span>
+              </button>
+
+              {/* 팝업 캘린더 */}
+              <button
+                type="button"
+                onClick={() => setIsCalendarOpen(true)}
+                className="group flex items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-white px-5 py-3.5 shadow-sm transition hover:border-primary hover:shadow-md dark:border-white/10 dark:bg-[#111]"
+              >
+                <div className="flex min-w-0 items-center gap-2.5">
+                  <Calendar size={16} className="shrink-0 text-primary" aria-hidden />
+                  <span className="shrink-0 text-sm font-bold text-gray-900 dark:text-white">
+                    팝업 캘린더
+                  </span>
+                  <span className="hidden truncate text-sm text-gray-500 dark:text-white/60 sm:inline">
+                    · 언제 뭐가 열리나
+                  </span>
+                </div>
+                <span className="shrink-0 text-sm font-bold text-lime-600 dark:text-lime-400 group-hover:underline">
+                  달력 보기 →
+                </span>
+              </button>
+            </div>
+
+            {/* 홈 하단 발견 존 — 1a안 (랭킹 히어로 + 나의 기록 + 같이 갈 사람). 혼잡도는 위 바로, 캘린더·음악은 이 존 제외. */}
+            <HomeBento1a
+              popups={hotPopups}
+              total={allPopups.length}
+              onOpenRanking={handleOpenModal}
+              onNavigate={handleTabChange}
+            />
+
+            {/* 지금 뜨는 팝업 — 사진 카드 레일 (디자인 진단서 P0: 팝업 사진 카드로 코어 뷰잉 강화). */}
+            <motion.section
+              aria-label="지금 뜨는 팝업"
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, margin: '-80px' }}
+              variants={sectionVariants}
+              className="mb-16"
+            >
+              <header className="mb-4 flex items-end justify-between gap-3">
+                <div>
+                  <h2 className="text-xl md:text-2xl font-bold text-foreground">지금 뜨는 팝업</h2>
+                  <p className="mt-1 text-xs md:text-sm text-muted-foreground">
+                    정렬·필터로 원하는 팝업을 골라 사진으로 훑어보세요.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleOpenModal}
+                  className="shrink-0 text-xs font-semibold text-primary hover:underline"
+                >
+                  전체 보기
+                </button>
+              </header>
+
+              {/* 정렬 세그먼트 + 카테고리 필터 (전체 목록 기준) */}
+              <div className="mb-4 flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
+                <div className="inline-flex shrink-0 rounded-full border border-gray-200 bg-white p-0.5 dark:border-white/10 dark:bg-white/5">
+                  {(
+                    [
+                      ['popular', '인기순'],
+                      ['deadline', '마감임박'],
+                      ['latest', '최신순'],
+                    ] as const
+                  ).map(([key, label]) => (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => setRailSort(key)}
+                      className={`rounded-full px-3 py-1.5 text-xs font-bold transition ${railSort === key ? 'bg-lime-300 text-ink-900' : 'text-muted-foreground hover:text-foreground'}`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                {railCategories.length > 0 && (
+                  <div className="custom-scrollbar -mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1">
+                    <button
+                      type="button"
+                      onClick={() => setRailCat('all')}
+                      className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold transition ${railCat === 'all' ? 'bg-ink-900 text-white dark:bg-white dark:text-ink-900' : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-white/10 dark:text-white/60'}`}
+                    >
+                      전체
+                    </button>
+                    {railCategories.map((c) => (
+                      <button
+                        key={c.code}
+                        type="button"
+                        onClick={() => setRailCat(c.code)}
+                        className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold transition ${railCat === c.code ? 'bg-ink-900 text-white dark:bg-white dark:text-ink-900' : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-white/10 dark:text-white/60'}`}
+                      >
+                        {c.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {allPopups.length === 0 ? (
+                <div className="flex gap-4 overflow-hidden">
+                  {[...Array(5)].map((_, i) => (
+                    <div
+                      key={i}
+                      className="h-[320px] w-[220px] shrink-0 animate-pulse rounded-2xl bg-gray-100 dark:bg-white/5"
+                    />
+                  ))}
+                </div>
+              ) : railPopups.length === 0 ? (
+                <p className="rounded-2xl border border-dashed border-gray-200 py-10 text-center text-sm text-muted-foreground dark:border-white/10">
+                  이 조건에 맞는 팝업이 없어요.
+                </p>
+              ) : (
+                <div className="relative">
+                  {rail.hasOverflow && (
+                    <>
+                      <button
+                        type="button"
+                        aria-label="이전"
+                        onClick={() => rail.scrollByPage(-1)}
+                        disabled={rail.atStart}
+                        className={`absolute left-0 top-1/2 z-10 hidden h-9 w-9 -translate-y-1/2 place-items-center rounded-full border border-gray-200 bg-white/90 shadow-md backdrop-blur transition dark:border-white/10 dark:bg-black/60 md:grid ${rail.atStart ? 'pointer-events-none opacity-0' : 'hover:bg-white dark:hover:bg-black'}`}
+                      >
+                        <ChevronLeft size={18} />
+                      </button>
+                      <button
+                        type="button"
+                        aria-label="다음"
+                        onClick={() => rail.scrollByPage(1)}
+                        disabled={rail.atEnd}
+                        className={`absolute right-0 top-1/2 z-10 hidden h-9 w-9 -translate-y-1/2 place-items-center rounded-full border border-gray-200 bg-white/90 shadow-md backdrop-blur transition dark:border-white/10 dark:bg-black/60 md:grid ${rail.atEnd ? 'pointer-events-none opacity-0' : 'hover:bg-white dark:hover:bg-black'}`}
+                      >
+                        <ChevronRight size={18} />
+                      </button>
+                    </>
+                  )}
+                  <div
+                    ref={rail.ref}
+                    {...rail.dragBind}
+                    className="custom-scrollbar -mx-1 flex cursor-grab snap-x select-none gap-4 overflow-x-auto px-1 pb-3 active:cursor-grabbing"
+                  >
+                    {railPopups.map((p) => (
+                      <div key={p.id} className="snap-start">
+                        <PopupCard
+                          popup={p}
+                          onClick={() => {
+                            handleTabChange('MAP');
+                            router.push(`/popup/${p.id}`);
+                          }}
                         />
-                    </div>
-                    
-                    {/* Map Zone — 배경 분리를 위해 solid 배경 + shadow 로 카드 블록 강화. */}
-                    <div className="col-span-1 lg:col-span-12 rounded-[2rem] relative overflow-hidden border border-gray-200 dark:border-white/10 group bg-white dark:bg-[#111] shadow-lg shadow-black/5 dark:shadow-black/30 h-[58vh] min-h-[420px] order-2 lg:order-none">
-                        <InteractiveMap center={mapCenter} focusReq={searchFocus} onMarkerClick={handleMarkerClickToDetail} filterIds={mapFilterIds} />
-                        <div className="absolute bottom-4 md:bottom-6 left-4 md:left-6 flex gap-2 z-20">
-                            <span className="backdrop-blur px-3 py-1.5 md:px-4 md:py-2 rounded-full border text-[10px] md:text-xs font-bold flex items-center gap-1.5 md:gap-2 bg-white/80 border-gray-200 text-gray-900 dark:bg-black/60 dark:border-white/10 dark:text-white">
-                            <span className="w-1.5 h-1.5 md:w-2 md:h-2 bg-green-500 rounded-full animate-pulse"/> 실시간
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </motion.section>
+
+            {/* 오늘의 추천 팝업 (구 pop-look) — 랜덤 스톡 영상이 아니라 실제 인기(조회수) 상위를 추천한다. */}
+            {featuredPopup && (
+              <motion.section
+                aria-label="오늘의 추천 팝업"
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true }}
+                variants={sectionVariants}
+                className="mb-16"
+              >
+                <header className="flex flex-col md:flex-row items-center md:items-end justify-between mb-6 md:mb-8 text-center md:text-left">
+                  <SectionLogo
+                    name="pop-look"
+                    label="POP-LOOK"
+                    className="h-10 md:h-16 relative z-10 text-foreground"
+                  />
+                  <p className="text-gray-500 dark:text-white/60 max-w-md mt-2 md:mt-0 relative z-10 text-xs md:text-base">
+                    지금 서울에서 가장 많이 찾는 팝업,
+                    <br />
+                    진짜로 붐비는 곳만 골랐어요.
+                  </p>
+                </header>
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 lg:gap-6 h-auto lg:h-[440px]">
+                  {/* 1위 히어로 */}
+                  <article
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => {
+                      handleTabChange('MAP');
+                      router.push(`/popup/${featuredPopup.id}`);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        handleTabChange('MAP');
+                        router.push(`/popup/${featuredPopup.id}`);
+                      }
+                    }}
+                    className="lg:col-span-1 rounded-[2rem] lg:rounded-[2.5rem] overflow-hidden relative shadow-2xl border border-gray-200 dark:border-white/10 group cursor-pointer h-[320px] lg:h-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-400"
+                  >
+                    {popupCoverUrl(featuredPopup) ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={popupCoverUrl(featuredPopup) as string}
+                        alt={featuredPopup.name}
+                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-lime-100 via-cream-200 to-amber-100 dark:from-lime-950 dark:via-ink-900 dark:to-amber-950">
+                        <Store size={44} className="text-lime-700/40 dark:text-lime-200/40" />
+                      </div>
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent pointer-events-none" />
+                    <span className="absolute top-4 left-4 inline-flex items-center gap-1 rounded-full bg-hot-400 px-2.5 py-1 text-[11px] font-bold text-white shadow-md">
+                      <Flame size={12} /> 지금 1위
+                    </span>
+                    <PhotoDisclosure popup={featuredPopup} className="absolute top-4 right-4" />
+                    <div className="absolute bottom-5 left-5 right-5 text-white">
+                      <div className="mb-2 flex items-center gap-2">
+                        <span className="rounded-pill bg-white/20 px-2.5 py-0.5 text-[11px] font-bold backdrop-blur">
+                          {categoryLabel(classifyCategory(featuredPopup.category))}
+                        </span>
+                        {(() => {
+                          const d = getDday(featuredPopup.endDate ?? null);
+                          return d !== null ? (
+                            <span className="rounded-pill bg-lime-300 px-2.5 py-0.5 text-[11px] font-bold text-ink-900">
+                              {d === 0 ? '오늘 마감' : `D-${d}`}
                             </span>
-                        </div>
+                          ) : null;
+                        })()}
+                      </div>
+                      <h3 className="text-2xl lg:text-3xl font-black leading-tight">
+                        {featuredPopup.name}
+                      </h3>
+                      <p className="mt-1.5 flex items-center gap-1 text-sm text-white/85">
+                        <MapPin size={14} className="shrink-0" />{' '}
+                        {(featuredPopup.location || '').split(' ').slice(0, 2).join(' ') || '서울'}
+                      </p>
                     </div>
+                  </article>
+                  {/* 인기 급상승 TOP (2~4위) */}
+                  <div className="lg:col-span-2 rounded-[2rem] lg:rounded-[2.5rem] p-5 lg:p-8 bg-white dark:bg-[#111] border border-gray-200 dark:border-white/5 flex flex-col">
+                    <p className="mb-3 lg:mb-4 text-sm lg:text-base font-bold text-foreground">
+                      인기 급상승 <span className="text-lime-500">TOP</span>
+                    </p>
+                    {featuredRunnerUps.length > 0 ? (
+                      <div className="flex flex-col divide-y divide-gray-100 dark:divide-white/5">
+                        {featuredRunnerUps.map((p, i) => (
+                          <button
+                            key={p.id}
+                            type="button"
+                            onClick={() => {
+                              handleTabChange('MAP');
+                              router.push(`/popup/${p.id}`);
+                            }}
+                            className="flex items-center gap-3 py-3 -mx-2 rounded-xl px-2 text-left transition hover:bg-black/[0.03] dark:hover:bg-white/[0.04]"
+                          >
+                            <span className="w-5 shrink-0 text-center text-lg font-black text-ink-400 dark:text-cream-200/40">
+                              {i + 2}
+                            </span>
+                            <div className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-xl bg-gradient-to-br from-lime-100 to-amber-100 dark:from-lime-950 dark:to-amber-950">
+                              {popupCoverUrl(p) ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img
+                                  src={popupCoverUrl(p) as string}
+                                  alt=""
+                                  className="h-full w-full object-cover"
+                                />
+                              ) : (
+                                <Store
+                                  size={18}
+                                  className="text-lime-700/40 dark:text-lime-200/40"
+                                />
+                              )}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <strong className="block truncate text-sm lg:text-base font-bold text-foreground">
+                                {p.name}
+                              </strong>
+                              <span className="block truncate text-xs text-muted-foreground">
+                                {(p.location || '').split(' ').slice(0, 2).join(' ') || '서울'} ·{' '}
+                                {categoryLabel(classifyCategory(p.category))}
+                              </span>
+                            </div>
+                            <ArrowRight size={16} className="shrink-0 text-muted-foreground" />
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="flex-1 grid place-items-center text-sm text-muted-foreground">
+                        추천할 팝업을 모으는 중이에요.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </motion.section>
+            )}
 
-                </section>
+            {/* Live Chat Ticker Section */}
+            <motion.section
+              aria-label="Live Community Updates"
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true }}
+              variants={sectionVariants}
+              className="mb-16 relative"
+            >
+              <LiveChatTicker />
+              <div className="text-center mt-6 lg:mt-8">
+                <p className="text-[10px] lg:text-sm text-gray-500 dark:text-white/40">
+                  * 서울 현장 유저들이 실시간으로 공유하는 정보입니다.
+                </p>
+              </div>
+            </motion.section>
 
-                {/* 지도 아래 유틸리티 2열 — 실시간 혼잡도(공간) + 팝업 캘린더(시간). 각각 누르면 모달. */}
-                <div className="mb-10 grid grid-cols-1 gap-4 md:grid-cols-2">
-                    {/* 실시간 혼잡도 */}
-                    <button
-                        type="button"
-                        onClick={() => setIsReportOpen(true)}
-                        className="group flex items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-white px-5 py-3.5 shadow-sm transition hover:border-primary hover:shadow-md dark:border-white/10 dark:bg-[#111]"
-                    >
-                        <div className="flex min-w-0 items-center gap-2.5">
-                            <span className={`h-2.5 w-2.5 shrink-0 animate-pulse rounded-full bg-current ${congestionData ? getCongestionColor(congestionData.level) : "text-green-500"}`} aria-hidden />
-                            <span className="shrink-0 text-sm font-bold text-gray-900 dark:text-white">실시간 혼잡도</span>
-                            {congestionData ? (
-                                <span className="truncate text-sm text-gray-500 dark:text-white/60">
-                                    · 성수 <span className={`font-bold ${getCongestionColor(congestionData.level)}`}>{congestionData.level}</span>
-                                </span>
-                            ) : (
-                                <span className="hidden truncate text-sm text-gray-500 dark:text-white/60 sm:inline">· 지역별 분석</span>
-                            )}
-                        </div>
-                        <span className="shrink-0 text-sm font-bold text-lime-600 dark:text-lime-400 group-hover:underline">지역별 보기 →</span>
-                    </button>
+            {/* v2.34 — 기능 소개 개별 섹션 (코스·음악·여권·동행). 각각 다른 무드+비주얼+좌우 교차. */}
+            <FeatureSections onNavigate={handleTabChange} />
 
-                    {/* 팝업 캘린더 */}
-                    <button
-                        type="button"
-                        onClick={() => setIsCalendarOpen(true)}
-                        className="group flex items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-white px-5 py-3.5 shadow-sm transition hover:border-primary hover:shadow-md dark:border-white/10 dark:bg-[#111]"
-                    >
-                        <div className="flex min-w-0 items-center gap-2.5">
-                            <Calendar size={16} className="shrink-0 text-primary" aria-hidden />
-                            <span className="shrink-0 text-sm font-bold text-gray-900 dark:text-white">팝업 캘린더</span>
-                            <span className="hidden truncate text-sm text-gray-500 dark:text-white/60 sm:inline">· 언제 뭐가 열리나</span>
-                        </div>
-                        <span className="shrink-0 text-sm font-bold text-lime-600 dark:text-lime-400 group-hover:underline">달력 보기 →</span>
-                    </button>
+            {/* (구) 협업 프로모 — FeatureSections 로 대체됨(주석 유지 시 아래 미사용 블록 제거 필요) */}
+            <motion.section
+              aria-label="Feature Promotion"
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true }}
+              variants={sectionVariants}
+              className="hidden py-12 px-6 lg:py-20 lg:px-12 bg-ink-900 text-cream-200 relative overflow-hidden rounded-xl lg:rounded-2xl shadow-pop"
+            >
+              <div className="flex flex-col lg:flex-row items-center justify-between gap-8 lg:gap-12 relative z-10">
+                <div className="flex-1 text-center lg:text-left">
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-pill bg-lime-300/15 border border-lime-300/40 text-lime-300 text-[10px] lg:text-xs font-semibold tracking-wide mb-4 lg:mb-6">
+                    <Users size={12} className="lg:w-4 lg:h-4" /> 실시간 협업 기능
+                  </div>
+                  <h2 className="text-2xl md:text-4xl lg:text-5xl font-black mb-4 lg:mb-6 leading-tight">
+                    친구와 함께 그리는
+                    <br />
+                    <span className="text-lime-300">서울 작전지도</span>
+                  </h2>
+                  <p className="text-gray-400 text-xs lg:text-lg mb-6 lg:mb-8 leading-relaxed max-w-lg mx-auto lg:mx-0">
+                    &ldquo;거기 어때?&rdquo; 링크 공유는 그만.
+                    <br />
+                    같은 화면을 보며 실시간으로 마커를 찍고 동선을 계획하세요.
+                    <br className="hidden lg:block" />
+                  </p>
+                  <button
+                    onClick={handleCreateRoom}
+                    className="group relative inline-flex items-center justify-center px-6 py-3 lg:px-8 lg:py-4 font-semibold text-ink-900 transition-colors bg-lime-300 hover:bg-lime-400 rounded-pill focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 text-sm lg:text-base w-full lg:w-auto"
+                  >
+                    <span className="mr-2">작전 회의실 만들기</span>
+                    <ArrowRight className="w-4 h-4 lg:w-5 lg:h-5 transition-transform group-hover:translate-x-1" />
+                    <div className="absolute inset-0 rounded-full ring-2 ring-white/20 group-hover:ring-white/40 transition-all"></div>
+                  </button>
                 </div>
 
-                {/* 홈 하단 발견 존 — 1a안 (랭킹 히어로 + 나의 기록 + 같이 갈 사람). 혼잡도는 위 바로, 캘린더·음악은 이 존 제외. */}
-                <HomeBento1a
-                    popups={hotPopups}
-                    total={allPopups.length}
-                    onOpenRanking={handleOpenModal}
-                    onNavigate={handleTabChange}
-                />
+                <div className="flex-1 w-full max-w-sm lg:max-w-md hidden md:block">
+                  <div className="relative bg-ink-800 border border-ink-700 rounded-xl p-5 lg:p-6 shadow-pop">
+                    {/* 협업 도구 미리보기: 점선 경로 + 실제 지명 핀 */}
+                    <div
+                      className="relative w-full h-48 lg:h-56 rounded-lg overflow-hidden bg-ink-900 border border-ink-700"
+                      style={{
+                        backgroundImage:
+                          'radial-gradient(circle, rgba(245,243,238,0.06) 1px, transparent 1px)',
+                        backgroundSize: '16px 16px',
+                      }}
+                      aria-hidden
+                    >
+                      {/* 점선 SVG 경로: 성수 → 한남 → 압구정 */}
+                      <svg
+                        className="absolute inset-0 w-full h-full"
+                        viewBox="0 0 320 224"
+                        preserveAspectRatio="none"
+                      >
+                        <path
+                          d="M 60 50 Q 120 90 170 110 T 270 175"
+                          fill="none"
+                          stroke="var(--color-lime-300)"
+                          strokeWidth="2"
+                          strokeDasharray="5 5"
+                          strokeLinecap="round"
+                          opacity="0.7"
+                        />
+                      </svg>
 
-                {/* 지금 뜨는 팝업 — 사진 카드 레일 (디자인 진단서 P0: 팝업 사진 카드로 코어 뷰잉 강화). */}
-                <motion.section
-                    aria-label="지금 뜨는 팝업"
-                    initial="hidden"
-                    whileInView="visible"
-                    viewport={{ once: true, margin: "-80px" }}
-                    variants={sectionVariants}
-                    className="mb-16"
-                >
-                    <header className="mb-4 flex items-end justify-between gap-3">
-                        <div>
-                            <h2 className="text-xl md:text-2xl font-bold text-foreground">지금 뜨는 팝업</h2>
-                            <p className="mt-1 text-xs md:text-sm text-muted-foreground">정렬·필터로 원하는 팝업을 골라 사진으로 훑어보세요.</p>
-                        </div>
-                        <button type="button" onClick={handleOpenModal} className="shrink-0 text-xs font-semibold text-primary hover:underline">전체 보기</button>
-                    </header>
+                      {/* 핀 1 — 성수 */}
+                      <div className="absolute top-[18%] left-[15%] flex items-center gap-1.5">
+                        <span className="w-3 h-3 rounded-full bg-lime-300 ring-2 ring-ink-900" />
+                        <span className="text-[10px] font-semibold text-cream-200 bg-ink-900/80 px-1.5 py-0.5 rounded">
+                          성수
+                        </span>
+                      </div>
 
-                    {/* 정렬 세그먼트 + 카테고리 필터 (전체 목록 기준) */}
-                    <div className="mb-4 flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
-                        <div className="inline-flex shrink-0 rounded-full border border-gray-200 bg-white p-0.5 dark:border-white/10 dark:bg-white/5">
-                            {([["popular", "인기순"], ["deadline", "마감임박"], ["latest", "최신순"]] as const).map(([key, label]) => (
-                                <button key={key} type="button" onClick={() => setRailSort(key)}
-                                    className={`rounded-full px-3 py-1.5 text-xs font-bold transition ${railSort === key ? "bg-lime-300 text-ink-900" : "text-muted-foreground hover:text-foreground"}`}>
-                                    {label}
-                                </button>
-                            ))}
-                        </div>
-                        {railCategories.length > 0 && (
-                            <div className="custom-scrollbar -mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1">
-                                <button type="button" onClick={() => setRailCat("all")}
-                                    className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold transition ${railCat === "all" ? "bg-ink-900 text-white dark:bg-white dark:text-ink-900" : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-white/10 dark:text-white/60"}`}>
-                                    전체
-                                </button>
-                                {railCategories.map((c) => (
-                                    <button key={c.code} type="button" onClick={() => setRailCat(c.code)}
-                                        className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold transition ${railCat === c.code ? "bg-ink-900 text-white dark:bg-white dark:text-ink-900" : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-white/10 dark:text-white/60"}`}>
-                                        {c.label}
-                                    </button>
-                                ))}
-                            </div>
-                        )}
-                    </div>
+                      {/* 핀 2 — 한남 (현재 편집 중인 위치) */}
+                      <div className="absolute top-[44%] left-[48%] flex items-center gap-1.5">
+                        <span className="relative flex items-center justify-center">
+                          <span className="absolute w-5 h-5 rounded-full bg-hot-400/40 animate-ping" />
+                          <span className="relative w-3 h-3 rounded-full bg-hot-400 ring-2 ring-ink-900" />
+                        </span>
+                        <span className="text-[10px] font-semibold text-cream-200 bg-ink-900/80 px-1.5 py-0.5 rounded">
+                          한남
+                        </span>
+                      </div>
 
-                    {allPopups.length === 0 ? (
-                        <div className="flex gap-4 overflow-hidden">
-                            {[...Array(5)].map((_, i) => (
-                                <div key={i} className="h-[320px] w-[220px] shrink-0 animate-pulse rounded-2xl bg-gray-100 dark:bg-white/5" />
-                            ))}
-                        </div>
-                    ) : railPopups.length === 0 ? (
-                        <p className="rounded-2xl border border-dashed border-gray-200 py-10 text-center text-sm text-muted-foreground dark:border-white/10">이 조건에 맞는 팝업이 없어요.</p>
-                    ) : (
-                        <div className="relative">
-                            {rail.hasOverflow && (
-                                <>
-                                    <button type="button" aria-label="이전" onClick={() => rail.scrollByPage(-1)} disabled={rail.atStart}
-                                        className={`absolute left-0 top-1/2 z-10 hidden h-9 w-9 -translate-y-1/2 place-items-center rounded-full border border-gray-200 bg-white/90 shadow-md backdrop-blur transition dark:border-white/10 dark:bg-black/60 md:grid ${rail.atStart ? "pointer-events-none opacity-0" : "hover:bg-white dark:hover:bg-black"}`}>
-                                        <ChevronLeft size={18} />
-                                    </button>
-                                    <button type="button" aria-label="다음" onClick={() => rail.scrollByPage(1)} disabled={rail.atEnd}
-                                        className={`absolute right-0 top-1/2 z-10 hidden h-9 w-9 -translate-y-1/2 place-items-center rounded-full border border-gray-200 bg-white/90 shadow-md backdrop-blur transition dark:border-white/10 dark:bg-black/60 md:grid ${rail.atEnd ? "pointer-events-none opacity-0" : "hover:bg-white dark:hover:bg-black"}`}>
-                                        <ChevronRight size={18} />
-                                    </button>
-                                </>
-                            )}
-                            <div
-                                ref={rail.ref}
-                                {...rail.dragBind}
-                                className="custom-scrollbar -mx-1 flex cursor-grab snap-x select-none gap-4 overflow-x-auto px-1 pb-3 active:cursor-grabbing"
-                            >
-                                {railPopups.map((p) => (
-                                    <div key={p.id} className="snap-start">
-                                        <PopupCard
-                                            popup={p}
-                                            onClick={() => { handleTabChange("MAP"); router.push(`/popup/${p.id}`); }}
-                                        />
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-                </motion.section>
+                      {/* 핀 3 — 압구정 */}
+                      <div className="absolute bottom-[12%] right-[8%] flex items-center gap-1.5">
+                        <span className="text-[10px] font-semibold text-cream-200 bg-ink-900/80 px-1.5 py-0.5 rounded">
+                          압구정
+                        </span>
+                        <span className="w-3 h-3 rounded-full bg-cream-200 ring-2 ring-ink-900" />
+                      </div>
 
-                {/* 오늘의 추천 팝업 (구 pop-look) — 랜덤 스톡 영상이 아니라 실제 인기(조회수) 상위를 추천한다. */}
-                {featuredPopup && (
-                <motion.section aria-label="오늘의 추천 팝업" initial="hidden" whileInView="visible" viewport={{ once: true }} variants={sectionVariants} className="mb-16">
-                    <header className="flex flex-col md:flex-row items-center md:items-end justify-between mb-6 md:mb-8 text-center md:text-left">
-                        <SectionLogo name="pop-look" label="POP-LOOK" className="h-10 md:h-16 relative z-10 text-foreground" />
-                        <p className="text-gray-500 dark:text-white/60 max-w-md mt-2 md:mt-0 relative z-10 text-xs md:text-base">지금 서울에서 가장 많이 찾는 팝업,<br/>진짜로 붐비는 곳만 골랐어요.</p>
-                    </header>
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 lg:gap-6 h-auto lg:h-[440px]">
-                        {/* 1위 히어로 */}
-                        <article
-                            role="button" tabIndex={0}
-                            onClick={() => { handleTabChange("MAP"); router.push(`/popup/${featuredPopup.id}`); }}
-                            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleTabChange("MAP"); router.push(`/popup/${featuredPopup.id}`); } }}
-                            className="lg:col-span-1 rounded-[2rem] lg:rounded-[2.5rem] overflow-hidden relative shadow-2xl border border-gray-200 dark:border-white/10 group cursor-pointer h-[320px] lg:h-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-400"
+                      {/* 친구의 동시 편집 커서 */}
+                      <div className="absolute top-[35%] left-[55%] pointer-events-none">
+                        <svg
+                          width="14"
+                          height="18"
+                          viewBox="0 0 14 18"
+                          fill="none"
+                          className="drop-shadow-md"
                         >
-                            {popupCoverUrl(featuredPopup) ? (
-                                // eslint-disable-next-line @next/next/no-img-element
-                                <img src={popupCoverUrl(featuredPopup) as string} alt={featuredPopup.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
-                            ) : (
-                                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-lime-100 via-cream-200 to-amber-100 dark:from-lime-950 dark:via-ink-900 dark:to-amber-950">
-                                    <Store size={44} className="text-lime-700/40 dark:text-lime-200/40" />
-                                </div>
-                            )}
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent pointer-events-none" />
-                            <span className="absolute top-4 left-4 inline-flex items-center gap-1 rounded-full bg-hot-400 px-2.5 py-1 text-[11px] font-bold text-white shadow-md"><Flame size={12} /> 지금 1위</span>
-                            <PhotoDisclosure popup={featuredPopup} className="absolute top-4 right-4" />
-                            <div className="absolute bottom-5 left-5 right-5 text-white">
-                                <div className="mb-2 flex items-center gap-2">
-                                    <span className="rounded-pill bg-white/20 px-2.5 py-0.5 text-[11px] font-bold backdrop-blur">{categoryLabel(classifyCategory(featuredPopup.category))}</span>
-                                    {(() => { const d = getDday(featuredPopup.endDate ?? null); return d !== null ? (
-                                        <span className="rounded-pill bg-lime-300 px-2.5 py-0.5 text-[11px] font-bold text-ink-900">{d === 0 ? "오늘 마감" : `D-${d}`}</span>
-                                    ) : null; })()}
-                                </div>
-                                <h3 className="text-2xl lg:text-3xl font-black leading-tight">{featuredPopup.name}</h3>
-                                <p className="mt-1.5 flex items-center gap-1 text-sm text-white/85"><MapPin size={14} className="shrink-0" /> {(featuredPopup.location || "").split(" ").slice(0, 2).join(" ") || "서울"}</p>
-                            </div>
-                        </article>
-                        {/* 인기 급상승 TOP (2~4위) */}
-                        <div className="lg:col-span-2 rounded-[2rem] lg:rounded-[2.5rem] p-5 lg:p-8 bg-white dark:bg-[#111] border border-gray-200 dark:border-white/5 flex flex-col">
-                            <p className="mb-3 lg:mb-4 text-sm lg:text-base font-bold text-foreground">인기 급상승 <span className="text-lime-500">TOP</span></p>
-                            {featuredRunnerUps.length > 0 ? (
-                                <div className="flex flex-col divide-y divide-gray-100 dark:divide-white/5">
-                                    {featuredRunnerUps.map((p, i) => (
-                                        <button key={p.id} type="button" onClick={() => { handleTabChange("MAP"); router.push(`/popup/${p.id}`); }}
-                                            className="flex items-center gap-3 py-3 -mx-2 rounded-xl px-2 text-left transition hover:bg-black/[0.03] dark:hover:bg-white/[0.04]">
-                                            <span className="w-5 shrink-0 text-center text-lg font-black text-ink-400 dark:text-cream-200/40">{i + 2}</span>
-                                            <div className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-xl bg-gradient-to-br from-lime-100 to-amber-100 dark:from-lime-950 dark:to-amber-950">
-                                                {popupCoverUrl(p) ? (
-                                                    // eslint-disable-next-line @next/next/no-img-element
-                                                    <img src={popupCoverUrl(p) as string} alt="" className="h-full w-full object-cover" />
-                                                ) : (
-                                                    <Store size={18} className="text-lime-700/40 dark:text-lime-200/40" />
-                                                )}
-                                            </div>
-                                            <div className="min-w-0 flex-1">
-                                                <strong className="block truncate text-sm lg:text-base font-bold text-foreground">{p.name}</strong>
-                                                <span className="block truncate text-xs text-muted-foreground">{(p.location || "").split(" ").slice(0, 2).join(" ") || "서울"} · {categoryLabel(classifyCategory(p.category))}</span>
-                                            </div>
-                                            <ArrowRight size={16} className="shrink-0 text-muted-foreground" />
-                                        </button>
-                                    ))}
-                                </div>
-                            ) : (
-                                <p className="flex-1 grid place-items-center text-sm text-muted-foreground">추천할 팝업을 모으는 중이에요.</p>
-                            )}
+                          <path
+                            d="M0 0 L 0 14 L 4 11 L 7 17 L 9 16 L 6 10 L 11 10 Z"
+                            fill="#FFC107"
+                            stroke="#0a0a0a"
+                            strokeWidth="0.8"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
+                        <div className="ml-3 mt-0 px-1.5 py-0.5 bg-amber-400 text-ink-900 text-[9px] font-bold rounded whitespace-nowrap">
+                          민지
                         </div>
+                      </div>
                     </div>
-                </motion.section>
-                )}
 
-                {/* Live Chat Ticker Section */}
-                <motion.section aria-label="Live Community Updates" initial="hidden" whileInView="visible" viewport={{ once: true }} variants={sectionVariants} className="mb-16 relative">
-                                        <LiveChatTicker />
-                    <div className="text-center mt-6 lg:mt-8"><p className="text-[10px] lg:text-sm text-gray-500 dark:text-white/40">* 서울 현장 유저들이 실시간으로 공유하는 정보입니다.</p></div>
-                </motion.section>
-
-                {/* v2.34 — 기능 소개 개별 섹션 (코스·음악·여권·동행). 각각 다른 무드+비주얼+좌우 교차. */}
-                <FeatureSections onNavigate={handleTabChange} />
-
-                {/* (구) 협업 프로모 — FeatureSections 로 대체됨(주석 유지 시 아래 미사용 블록 제거 필요) */}
-                <motion.section aria-label="Feature Promotion" initial="hidden" whileInView="visible" viewport={{ once: true }} variants={sectionVariants} className="hidden py-12 px-6 lg:py-20 lg:px-12 bg-ink-900 text-cream-200 relative overflow-hidden rounded-xl lg:rounded-2xl shadow-pop">
-                                        
-                    <div className="flex flex-col lg:flex-row items-center justify-between gap-8 lg:gap-12 relative z-10">
-                        <div className="flex-1 text-center lg:text-left">
-                            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-pill bg-lime-300/15 border border-lime-300/40 text-lime-300 text-[10px] lg:text-xs font-semibold tracking-wide mb-4 lg:mb-6">
-                                <Users size={12} className="lg:w-4 lg:h-4"/> 실시간 협업 기능
-                            </div>
-                            <h2 className="text-2xl md:text-4xl lg:text-5xl font-black mb-4 lg:mb-6 leading-tight">
-                                친구와 함께 그리는<br />
-                                <span className="text-lime-300">서울 작전지도</span>
-                            </h2>
-                            <p className="text-gray-400 text-xs lg:text-lg mb-6 lg:mb-8 leading-relaxed max-w-lg mx-auto lg:mx-0">
-                                "거기 어때?" 링크 공유는 그만.<br />
-                                같은 화면을 보며 실시간으로 마커를 찍고 동선을 계획하세요.<br className="hidden lg:block"/>
-                            </p>
-                            <button 
-                                onClick={handleCreateRoom}
-                                className="group relative inline-flex items-center justify-center px-6 py-3 lg:px-8 lg:py-4 font-semibold text-ink-900 transition-colors bg-lime-300 hover:bg-lime-400 rounded-pill focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 text-sm lg:text-base w-full lg:w-auto"
-                            >
-                                <span className="mr-2">작전 회의실 만들기</span>
-                                <ArrowRight className="w-4 h-4 lg:w-5 lg:h-5 transition-transform group-hover:translate-x-1" />
-                                <div className="absolute inset-0 rounded-full ring-2 ring-white/20 group-hover:ring-white/40 transition-all"></div>
-                            </button>
-                        </div>
-
-                        <div className="flex-1 w-full max-w-sm lg:max-w-md hidden md:block">
-                            <div className="relative bg-ink-800 border border-ink-700 rounded-xl p-5 lg:p-6 shadow-pop">
-
-                                {/* 협업 도구 미리보기: 점선 경로 + 실제 지명 핀 */}
-                                <div className="relative w-full h-48 lg:h-56 rounded-lg overflow-hidden bg-ink-900 border border-ink-700"
-                                     style={{
-                                         backgroundImage: "radial-gradient(circle, rgba(245,243,238,0.06) 1px, transparent 1px)",
-                                         backgroundSize: "16px 16px",
-                                     }}
-                                     aria-hidden
-                                >
-                                    {/* 점선 SVG 경로: 성수 → 한남 → 압구정 */}
-                                    <svg className="absolute inset-0 w-full h-full" viewBox="0 0 320 224" preserveAspectRatio="none">
-                                        <path
-                                            d="M 60 50 Q 120 90 170 110 T 270 175"
-                                            fill="none"
-                                            stroke="var(--color-lime-300)"
-                                            strokeWidth="2"
-                                            strokeDasharray="5 5"
-                                            strokeLinecap="round"
-                                            opacity="0.7"
-                                        />
-                                    </svg>
-
-                                    {/* 핀 1 — 성수 */}
-                                    <div className="absolute top-[18%] left-[15%] flex items-center gap-1.5">
-                                        <span className="w-3 h-3 rounded-full bg-lime-300 ring-2 ring-ink-900" />
-                                        <span className="text-[10px] font-semibold text-cream-200 bg-ink-900/80 px-1.5 py-0.5 rounded">성수</span>
-                                    </div>
-
-                                    {/* 핀 2 — 한남 (현재 편집 중인 위치) */}
-                                    <div className="absolute top-[44%] left-[48%] flex items-center gap-1.5">
-                                        <span className="relative flex items-center justify-center">
-                                            <span className="absolute w-5 h-5 rounded-full bg-hot-400/40 animate-ping" />
-                                            <span className="relative w-3 h-3 rounded-full bg-hot-400 ring-2 ring-ink-900" />
-                                        </span>
-                                        <span className="text-[10px] font-semibold text-cream-200 bg-ink-900/80 px-1.5 py-0.5 rounded">한남</span>
-                                    </div>
-
-                                    {/* 핀 3 — 압구정 */}
-                                    <div className="absolute bottom-[12%] right-[8%] flex items-center gap-1.5">
-                                        <span className="text-[10px] font-semibold text-cream-200 bg-ink-900/80 px-1.5 py-0.5 rounded">압구정</span>
-                                        <span className="w-3 h-3 rounded-full bg-cream-200 ring-2 ring-ink-900" />
-                                    </div>
-
-                                    {/* 친구의 동시 편집 커서 */}
-                                    <div className="absolute top-[35%] left-[55%] pointer-events-none">
-                                        <svg width="14" height="18" viewBox="0 0 14 18" fill="none" className="drop-shadow-md">
-                                            <path d="M0 0 L 0 14 L 4 11 L 7 17 L 9 16 L 6 10 L 11 10 Z" fill="#FFC107" stroke="#0a0a0a" strokeWidth="0.8" strokeLinejoin="round" />
-                                        </svg>
-                                        <div className="ml-3 mt-0 px-1.5 py-0.5 bg-amber-400 text-ink-900 text-[9px] font-bold rounded whitespace-nowrap">민지</div>
-                                    </div>
-                                </div>
-
-                                {/* 하단: 다음 후보지 메타 */}
-                                <div className="mt-4 flex items-center justify-between gap-3 px-1">
-                                    <div className="flex items-center gap-2">
-                                        <span className="w-2 h-2 rounded-full bg-lime-300 animate-pulse" />
-                                        <span className="text-[11px] text-cream-200/70">2명 함께 편집 중</span>
-                                    </div>
-                                    <span className="text-[10px] font-mono uppercase tracking-wider text-cream-200/40">3 stops · 1.2km</span>
-                                </div>
-                            </div>
-                        </div>
+                    {/* 하단: 다음 후보지 메타 */}
+                    <div className="mt-4 flex items-center justify-between gap-3 px-1">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-lime-300 animate-pulse" />
+                        <span className="text-[11px] text-cream-200/70">2명 함께 편집 중</span>
+                      </div>
+                      <span className="text-[10px] font-mono uppercase tracking-wider text-cream-200/40">
+                        3 stops · 1.2km
+                      </span>
                     </div>
-                </motion.section>
-
-            </motion.div>
+                  </div>
+                </div>
+              </div>
+            </motion.section>
+          </motion.div>
         )}
 
         {/* TAB: PASSPORT */}
-        {currentTab === "PASSPORT" && (
-            <motion.section aria-label="Digital Passport" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}
-                        className="min-h-[60vh] rounded-xl border border-[var(--color-border)] bg-surface text-surface-foreground mb-16 shadow-md">
-              {/* 여권은 게스트/비로그인도 열람 가능(빈 여권으로). 스탬프 적립은 방문 인증 시 로그인 유도. */}
-              <PassportView />
-            </motion.section>
+        {currentTab === 'PASSPORT' && (
+          <motion.section
+            aria-label="Digital Passport"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0 }}
+            className="min-h-[60vh] rounded-xl border border-[var(--color-border)] bg-surface text-surface-foreground mb-16 shadow-md"
+          >
+            {/* 여권은 게스트/비로그인도 열람 가능(빈 여권으로). 스탬프 적립은 방문 인증 시 로그인 유도. */}
+            <PassportView />
+          </motion.section>
         )}
 
         {/* TAB: MUSIC */}
-        {currentTab === "MUSIC" && (
-            <motion.section
-                aria-label="Music to Popup"
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="mb-16 rounded-xl border border-[var(--color-border)] bg-surface p-4 lg:p-6"
-            >
-                <MusicTab
-                    popups={allPopups}
-                    onOpenPopup={(id) => { handleTabChange("MAP"); router.push(`/popup/${id}`); }}
-                />
-            </motion.section>
+        {currentTab === 'MUSIC' && (
+          <motion.section
+            aria-label="Music to Popup"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-16 rounded-xl border border-[var(--color-border)] bg-surface p-4 lg:p-6"
+          >
+            <MusicTab
+              popups={allPopups}
+              onOpenPopup={(id) => {
+                handleTabChange('MAP');
+                router.push(`/popup/${id}`);
+              }}
+            />
+          </motion.section>
         )}
 
         {/* TAB: COURSE */}
-        {currentTab === "COURSE" && (
-             <motion.section aria-label="AI Course Generator" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} 
-                          className="min-h-[60vh] flex flex-col items-center rounded-xl border border-[var(--color-border)] bg-surface text-surface-foreground mb-16 p-4 lg:p-6 relative overflow-hidden">
-                <header className="text-center mb-8 lg:mb-10 z-10 mt-6 lg:mt-8">
-                    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-pill border border-lime-300/40 bg-lime-300/10 text-lime-500 text-[10px] lg:text-xs font-semibold tracking-wide mb-4"><Sparkles size={10} className="lg:w-3 lg:h-3"/> AI CURATION · BETA</div>
-                    <h2 className="font-display-en text-2xl md:text-4xl lg:text-5xl font-extrabold tracking-tighter mb-2 text-foreground">POP<span className="text-lime-300">-</span>COURSE</h2>
-                    <p className="text-muted-foreground text-sm">원하는 분위기를 선택하면 AI가 최적의 동선을 추천합니다.</p>
-                </header>
+        {currentTab === 'COURSE' && (
+          <motion.section
+            aria-label="AI Course Generator"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="min-h-[60vh] flex flex-col items-center rounded-xl border border-[var(--color-border)] bg-surface text-surface-foreground mb-16 p-4 lg:p-6 relative overflow-hidden"
+          >
+            <header className="text-center mb-8 lg:mb-10 z-10 mt-6 lg:mt-8">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-pill border border-lime-300/40 bg-lime-300/10 text-lime-500 text-[10px] lg:text-xs font-semibold tracking-wide mb-4">
+                <Sparkles size={10} className="lg:w-3 lg:h-3" /> AI CURATION · BETA
+              </div>
+              <h2 className="font-display-en text-2xl md:text-4xl lg:text-5xl font-extrabold tracking-tighter mb-2 text-foreground">
+                POP<span className="text-lime-300">-</span>COURSE
+              </h2>
+              <p className="text-muted-foreground text-sm">
+                원하는 분위기를 선택하면 AI가 최적의 동선을 추천합니다.
+              </p>
+            </header>
 
-                <div className="w-full max-w-3xl z-10 mb-8 lg:mb-12 flex flex-col gap-3 lg:gap-4">
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4 px-2 lg:px-0">
-                        {[
-                            { val: '핫플', no: '01', label: '핫플레이스', desc: '지금 가장 뜨거운', icon: Flame },
-                            { val: '데이트', no: '02', label: '데이트', desc: '둘이 가기 좋은', icon: Heart },
-                            { val: '사진', no: '03', label: '사진 명소', desc: '찍기 좋은 스팟', icon: Camera },
-                            { val: '힐링', no: '04', label: '휴식·힐링', desc: '잠시 멈출 곳', icon: Coffee },
-                        ].map((item) => {
-                            const Icon = item.icon;
-                            const active = selectedVibe === item.val;
-                            return (
-                                <button
-                                    key={item.val}
-                                    type="button"
-                                    onClick={() => handleAiRecommend(item.val)}
-                                    disabled={isAiLoading}
-                                    aria-pressed={active}
-                                    className={`group relative overflow-hidden rounded-xl border text-left transition-colors p-4 lg:p-5 min-h-[136px] lg:min-h-[160px] flex flex-col justify-between
+            <div className="w-full max-w-3xl z-10 mb-8 lg:mb-12 flex flex-col gap-3 lg:gap-4">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4 px-2 lg:px-0">
+                {[
+                  {
+                    val: '핫플',
+                    no: '01',
+                    label: '핫플레이스',
+                    desc: '지금 가장 뜨거운',
+                    icon: Flame,
+                  },
+                  { val: '데이트', no: '02', label: '데이트', desc: '둘이 가기 좋은', icon: Heart },
+                  {
+                    val: '사진',
+                    no: '03',
+                    label: '사진 명소',
+                    desc: '찍기 좋은 스팟',
+                    icon: Camera,
+                  },
+                  { val: '힐링', no: '04', label: '휴식·힐링', desc: '잠시 멈출 곳', icon: Coffee },
+                ].map((item) => {
+                  const Icon = item.icon;
+                  const active = selectedVibe === item.val;
+                  return (
+                    <button
+                      key={item.val}
+                      type="button"
+                      onClick={() => handleAiRecommend(item.val)}
+                      disabled={isAiLoading}
+                      aria-pressed={active}
+                      className={`group relative overflow-hidden rounded-xl border text-left transition-colors p-4 lg:p-5 min-h-[136px] lg:min-h-[160px] flex flex-col justify-between
                                         focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
                                         disabled:opacity-60 ${
-                                            active
-                                                ? "bg-lime-300 border-lime-400 text-ink-900 shadow-md"
-                                                : "bg-cream-100 dark:bg-ink-600 text-foreground border-[var(--color-border)] hover:border-lime-300/60"
+                                          active
+                                            ? 'bg-lime-300 border-lime-400 text-ink-900 shadow-md'
+                                            : 'bg-cream-100 dark:bg-ink-600 text-foreground border-[var(--color-border)] hover:border-lime-300/60'
                                         }`}
-                                >
-                                    <div className="flex items-start justify-between">
-                                        <span className={`font-mono text-[11px] tracking-[0.2em] ${active ? "text-ink-900/60" : "text-muted-foreground"}`}>
-                                            No. {item.no}
-                                        </span>
-                                        <Icon
-                                            className={`size-5 transition-colors ${active ? "text-ink-900" : "text-foreground/40 group-hover:text-lime-500"}`}
-                                            aria-hidden
-                                            strokeWidth={1.6}
-                                        />
-                                    </div>
+                    >
+                      <div className="flex items-start justify-between">
+                        <span
+                          className={`font-mono text-[11px] tracking-[0.2em] ${active ? 'text-ink-900/60' : 'text-muted-foreground'}`}
+                        >
+                          No. {item.no}
+                        </span>
+                        <Icon
+                          className={`size-5 transition-colors ${active ? 'text-ink-900' : 'text-foreground/40 group-hover:text-lime-500'}`}
+                          aria-hidden
+                          strokeWidth={1.6}
+                        />
+                      </div>
 
-                                    <div>
-                                        <div className={`text-base lg:text-lg font-bold leading-tight ${active ? "text-ink-900" : "text-foreground"}`}>
-                                            {item.label}
-                                        </div>
-                                        <div className={`text-xs mt-0.5 ${active ? "text-ink-900/70" : "text-muted-foreground"}`}>
-                                            {item.desc}
-                                        </div>
-                                    </div>
+                      <div>
+                        <div
+                          className={`text-base lg:text-lg font-bold leading-tight ${active ? 'text-ink-900' : 'text-foreground'}`}
+                        >
+                          {item.label}
+                        </div>
+                        <div
+                          className={`text-xs mt-0.5 ${active ? 'text-ink-900/70' : 'text-muted-foreground'}`}
+                        >
+                          {item.desc}
+                        </div>
+                      </div>
 
-                                    {isAiLoading && active && (
-                                        <div className="absolute inset-0 bg-ink-900/30 backdrop-blur-[1px] rounded-xl flex items-center justify-center">
-                                            <Loader2 className="animate-spin text-ink-900 size-5" aria-hidden />
-                                        </div>
-                                    )}
-                                </button>
-                            );
-                        })}
+                      {isAiLoading && active && (
+                        <div className="absolute inset-0 bg-ink-900/30 backdrop-blur-[1px] rounded-xl flex items-center justify-center">
+                          <Loader2 className="animate-spin text-ink-900 size-5" aria-hidden />
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="flex flex-col items-center mt-2 px-2 lg:px-0">
+                {!showCustomInput ? (
+                  <button
+                    onClick={() => setShowCustomInput(true)}
+                    className="text-sm flex items-center gap-2 transition-colors border-b border-transparent pb-1 text-muted-foreground hover:text-lime-500 hover:border-lime-500"
+                  >
+                    <Sparkles size={12} className="lg:w-3.5 lg:h-3.5" /> 찾는 분위기가 없나요? 직접
+                    입력하기
+                  </button>
+                ) : (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="flex w-full max-w-md gap-2"
+                  >
+                    <input
+                      type="text"
+                      value={customVibeInput}
+                      onChange={(e) => setCustomVibeInput(e.target.value)}
+                      placeholder="예: 비 오는 날 가기 좋은 곳"
+                      className="flex-1 h-11 rounded-md px-4 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring bg-surface border border-[var(--color-border-strong)] text-foreground placeholder:text-muted-foreground text-sm"
+                      onKeyDown={(e) => e.key === 'Enter' && handleAiRecommend(customVibeInput)}
+                    />
+                    <button
+                      onClick={() => handleAiRecommend(customVibeInput)}
+                      className="bg-lime-300 hover:bg-lime-400 text-ink-900 px-4 lg:px-6 rounded-pill font-semibold transition-colors text-xs lg:text-sm whitespace-nowrap"
+                    >
+                      추천
+                    </button>
+                    <button
+                      onClick={() => setShowCustomInput(false)}
+                      className="size-11 inline-flex items-center justify-center rounded-md transition-colors bg-cream-300 dark:bg-ink-700 hover:bg-cream-400 dark:hover:bg-ink-600 text-muted-foreground flex-shrink-0"
+                    >
+                      <X size={16} className="lg:w-[18px] lg:h-[18px]" />
+                    </button>
+                  </motion.div>
+                )}
+              </div>
+            </div>
+
+            <div className="w-full max-w-3xl z-10 min-h-[300px] px-2 lg:px-0">
+              <header className="flex items-center justify-between mb-4 lg:mb-6">
+                <h3 className="font-bold text-base lg:text-lg flex items-center gap-2 text-foreground">
+                  {isAiLoading ? (
+                    <Loader2 className="animate-spin text-lime-500 w-4 h-4 lg:w-5 lg:h-5" />
+                  ) : (
+                    <Route size={16} className="text-lime-500 lg:w-5 lg:h-5" />
+                  )}
+                  {isAiLoading
+                    ? 'AI가 코스를 짜고 있어요...'
+                    : aiCourse.length > 0
+                      ? 'AI RECOMMENDED COURSE'
+                      : '원하는 분위기를 선택해보세요.'}
+                </h3>
+                {aiCourse.length > 0 && !isAiLoading && (
+                  <button
+                    onClick={handleResetCourse}
+                    className="text-xs flex items-center gap-1 transition-colors text-muted-foreground hover:text-danger"
+                  >
+                    <RefreshCw size={10} className="lg:w-3 lg:h-3" /> 초기화
+                  </button>
+                )}
+              </header>
+
+              {!isAiLoading && aiCourse.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="rounded-xl p-5 lg:p-8 border border-[var(--color-border)] relative overflow-hidden bg-surface shadow-md"
+                >
+                  <div className="relative z-10">
+                    <div className="flex justify-between items-start mb-6 lg:mb-8">
+                      <div>
+                        <span className="text-[9px] lg:text-xs font-bold tracking-wider text-ink-900 bg-lime-300 px-2.5 py-1 rounded-pill mb-2 lg:mb-3 inline-block">
+                          FOR YOU
+                        </span>
+                        <h4 className="text-xl lg:text-2xl font-bold text-foreground">
+                          서울 <span className="text-hot-500">{selectedVibe}</span> 맞춤 코스
+                        </h4>
+                        <p className="text-muted-foreground text-sm mt-1">
+                          AI가 제안하는 최적의 동선입니다.
+                        </p>
+                      </div>
                     </div>
-                    <div className="flex flex-col items-center mt-2 px-2 lg:px-0">
-                        {!showCustomInput ? (
-                            <button onClick={() => setShowCustomInput(true)} className="text-sm flex items-center gap-2 transition-colors border-b border-transparent pb-1 text-muted-foreground hover:text-lime-500 hover:border-lime-500">
-                                <Sparkles size={12} className="lg:w-3.5 lg:h-3.5"/> 찾는 분위기가 없나요? 직접 입력하기
-                            </button>
-                        ) : (
-                            <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex w-full max-w-md gap-2">
-                                <input type="text" value={customVibeInput} onChange={(e) => setCustomVibeInput(e.target.value)} placeholder="예: 비 오는 날 가기 좋은 곳" className="flex-1 h-11 rounded-md px-4 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring bg-surface border border-[var(--color-border-strong)] text-foreground placeholder:text-muted-foreground text-sm" onKeyDown={(e) => e.key === 'Enter' && handleAiRecommend(customVibeInput)}/>
-                                <button onClick={() => handleAiRecommend(customVibeInput)} className="bg-lime-300 hover:bg-lime-400 text-ink-900 px-4 lg:px-6 rounded-pill font-semibold transition-colors text-xs lg:text-sm whitespace-nowrap">추천</button>
-                                <button onClick={() => setShowCustomInput(false)} className="size-11 inline-flex items-center justify-center rounded-md transition-colors bg-cream-300 dark:bg-ink-700 hover:bg-cream-400 dark:hover:bg-ink-600 text-muted-foreground flex-shrink-0"><X size={16} className="lg:w-[18px] lg:h-[18px]"/></button>
-                            </motion.div>
-                        )}
+
+                    {/* 동선 지도 — 카카오맵 링크 대신 앱 안에서 경로(showPath)를 그려 보여준다. */}
+                    <div className="mb-6 h-[280px] overflow-hidden rounded-2xl border border-[var(--color-border)] lg:h-[340px]">
+                      <InteractiveMap
+                        places={aiCourse}
+                        showPath
+                        center={
+                          aiCourse[0] ? { lat: aiCourse[0].lat, lng: aiCourse[0].lng } : undefined
+                        }
+                      />
                     </div>
-                </div>
 
-                <div className="w-full max-w-3xl z-10 min-h-[300px] px-2 lg:px-0">
-                    <header className="flex items-center justify-between mb-4 lg:mb-6">
-                        <h3 className="font-bold text-base lg:text-lg flex items-center gap-2 text-foreground">
-                            {isAiLoading ? <Loader2 className="animate-spin text-lime-500 w-4 h-4 lg:w-5 lg:h-5"/> : <Route size={16} className="text-lime-500 lg:w-5 lg:h-5"/>}
-                            {isAiLoading ? "AI가 코스를 짜고 있어요..." : (aiCourse.length > 0 ? "AI RECOMMENDED COURSE" : "원하는 분위기를 선택해보세요.")}
-                        </h3>
-                        {aiCourse.length > 0 && !isAiLoading && (
-                             <button onClick={handleResetCourse} className="text-xs flex items-center gap-1 transition-colors text-muted-foreground hover:text-danger"><RefreshCw size={10} className="lg:w-3 lg:h-3"/> 초기화</button>
-                        )}
-                    </header>
-
-                    {!isAiLoading && aiCourse.length > 0 && (
-                        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} 
-                                    className="rounded-xl p-5 lg:p-8 border border-[var(--color-border)] relative overflow-hidden bg-surface shadow-md">
-                                                        <div className="relative z-10">
-                                <div className="flex justify-between items-start mb-6 lg:mb-8">
-                                    <div>
-                                        <span className="text-[9px] lg:text-xs font-bold tracking-wider text-ink-900 bg-lime-300 px-2.5 py-1 rounded-pill mb-2 lg:mb-3 inline-block">FOR YOU</span>
-                                        <h4 className="text-xl lg:text-2xl font-bold text-foreground">서울 <span className="text-hot-500">{selectedVibe}</span> 맞춤 코스</h4>
-                                        <p className="text-muted-foreground text-sm mt-1">AI가 제안하는 최적의 동선입니다.</p>
-                                    </div>
-                                </div>
-
-                                {/* 동선 지도 — 카카오맵 링크 대신 앱 안에서 경로(showPath)를 그려 보여준다. */}
-                                <div className="mb-6 h-[280px] overflow-hidden rounded-2xl border border-[var(--color-border)] lg:h-[340px]">
-                                    <InteractiveMap
-                                        places={aiCourse}
-                                        showPath
-                                        center={aiCourse[0] ? { lat: aiCourse[0].lat, lng: aiCourse[0].lng } : undefined}
-                                    />
-                                </div>
-
-                                <div className="space-y-4 lg:space-y-6">
-                                    {aiCourse.map((item, idx) => (
-                                        <article key={idx} className="flex gap-3 lg:gap-4 group/item">
-                                            <div className="flex flex-col items-center">
-                                                <div className="w-7 h-7 lg:w-8 lg:h-8 rounded-pill bg-ink-900 dark:bg-cream-200 flex items-center justify-center text-xs lg:text-sm font-bold text-cream-200 dark:text-ink-900 z-10">{idx + 1}</div>
-                                                {idx < aiCourse.length - 1 && (<div className="w-px flex-1 my-1 lg:my-2 bg-[var(--color-border-strong)]" />)}
-                                            </div>
-                                            <div className="flex-1 pb-4 lg:pb-6 cursor-pointer" onClick={() => router.push(`/popup/${item.id}`)}>
-                                                <div className="p-4 rounded-md border border-[var(--color-border)] transition-colors bg-cream-300 dark:bg-ink-800 hover:border-lime-300/60">
-                                                    <div className="flex justify-between items-center mb-1"><h5 className="font-bold text-sm lg:text-base text-foreground">{item.name}</h5><ArrowRight size={14} className="lg:w-4 lg:h-4 text-muted-foreground" /></div>
-                                                    <p className="text-sm mb-2 text-muted-foreground line-clamp-2 italic">"{item.reason}"</p>
-                                                    <div className="flex gap-2"><span className="text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded-pill bg-surface border border-[var(--color-border)] text-muted-foreground">POP-UP</span></div>
-                                                </div>
-                                            </div>
-                                        </article>
-                                    ))}
-                                </div>
-                                
-                                <div className="mt-4 lg:mt-6">
-                                    <button
-                                        onClick={handleSaveAiCourse}
-                                        className="flex w-full items-center justify-center gap-2 rounded-pill bg-lime-300 py-3.5 text-sm font-semibold text-ink-900 transition-colors hover:bg-lime-400 lg:text-base"
-                                    >
-                                        <Ticket size={16} /> 마이페이지에 저장
-                                    </button>
-                                </div>
+                    <div className="space-y-4 lg:space-y-6">
+                      {aiCourse.map((item, idx) => (
+                        <article key={idx} className="flex gap-3 lg:gap-4 group/item">
+                          <div className="flex flex-col items-center">
+                            <div className="w-7 h-7 lg:w-8 lg:h-8 rounded-pill bg-ink-900 dark:bg-cream-200 flex items-center justify-center text-xs lg:text-sm font-bold text-cream-200 dark:text-ink-900 z-10">
+                              {idx + 1}
                             </div>
-                        </motion.div>
-                    )}
-                </div>
-            </motion.section>
+                            {idx < aiCourse.length - 1 && (
+                              <div className="w-px flex-1 my-1 lg:my-2 bg-[var(--color-border-strong)]" />
+                            )}
+                          </div>
+                          <button
+                            type="button"
+                            className="flex-1 pb-4 text-left lg:pb-6"
+                            onClick={() => router.push(`/popup/${item.id}`)}
+                          >
+                            <div className="p-4 rounded-md border border-[var(--color-border)] transition-colors bg-cream-300 dark:bg-ink-800 hover:border-lime-300/60">
+                              <div className="flex justify-between items-center mb-1">
+                                <h5 className="font-bold text-sm lg:text-base text-foreground">
+                                  {item.name}
+                                </h5>
+                                <ArrowRight
+                                  size={14}
+                                  className="lg:w-4 lg:h-4 text-muted-foreground"
+                                />
+                              </div>
+                              <p className="text-sm mb-2 text-muted-foreground line-clamp-2 italic">
+                                &ldquo;{item.reason}&rdquo;
+                              </p>
+                              <div className="flex gap-2">
+                                <span className="text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded-pill bg-surface border border-[var(--color-border)] text-muted-foreground">
+                                  POP-UP
+                                </span>
+                              </div>
+                            </div>
+                          </button>
+                        </article>
+                      ))}
+                    </div>
+
+                    <div className="mt-4 lg:mt-6">
+                      <button
+                        onClick={handleSaveAiCourse}
+                        className="flex w-full items-center justify-center gap-2 rounded-pill bg-lime-300 py-3.5 text-sm font-semibold text-ink-900 transition-colors hover:bg-lime-400 lg:text-base"
+                      >
+                        <Ticket size={16} /> 마이페이지에 저장
+                      </button>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </div>
+          </motion.section>
         )}
 
         {/* TAB: MY */}
-        {currentTab === "MY" && (
-            <motion.section aria-label="내 기록" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
-                        className="mx-auto mb-16 max-w-3xl">
-
-                {/* '기록' 대시보드 — 개선안: 코스 지도 제거, 전체폭 세로 대시보드(프로필·통계·등급·찜·최근 방문). */}
-                <div className="flex flex-col overflow-hidden rounded-2xl border border-[var(--color-border)] bg-surface text-surface-foreground shadow-md">
-
-                    {/* v2.15.3 — 내 계정: 회원이름 / 이메일 / 프로필 사진 노출. 네이버/카카오/구글
+        {currentTab === 'MY' && (
+          <motion.section
+            aria-label="내 기록"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mx-auto mb-16 max-w-3xl"
+          >
+            {/* '기록' 대시보드 — 개선안: 코스 지도 제거, 전체폭 세로 대시보드(프로필·통계·등급·찜·최근 방문). */}
+            <div className="flex flex-col overflow-hidden rounded-2xl border border-[var(--color-border)] bg-surface text-surface-foreground shadow-md">
+              {/* v2.15.3 — 내 계정: 회원이름 / 이메일 / 프로필 사진 노출. 네이버/카카오/구글
                         OAuth 검수 활용처 증명에 사용되며, 사용자도 "내 정보" 를 한 눈에 확인.
                         v2.17 — 회원 탈퇴 버튼 추가 (PIPA 의무). */}
-                    <div className="p-4 lg:p-6 border-b border-[var(--color-border)]">
-                        <h3 className="text-base lg:text-lg font-bold mb-4 flex items-center gap-2 text-foreground">
-                            <UserIcon size={16} className="lg:w-[18px] lg:h-[18px] text-lime-500"/> 내 계정
-                        </h3>
-                        <div className="flex items-center gap-4 p-3 lg:p-4 rounded-md border border-[var(--color-border)] bg-cream-300 dark:bg-ink-800">
-                            {user?.picture ? (
-                                <Image
-                                    src={user.picture}
-                                    alt="프로필 사진"
-                                    width={56}
-                                    height={56}
-                                    className="rounded-full object-cover w-14 h-14 border border-[var(--color-border)]"
-                                    unoptimized
-                                />
-                            ) : (
-                                <div className="w-14 h-14 rounded-full bg-lime-300/20 flex items-center justify-center border border-[var(--color-border)]">
-                                    <UserIcon size={24} className="text-lime-500" />
-                                </div>
-                            )}
-                            <div className="min-w-0 flex-1">
-                                <p className="text-sm lg:text-base font-bold text-foreground truncate">
-                                    {user?.nickname || "회원"}
-                                </p>
-                                <p className="text-xs lg:text-sm text-muted-foreground truncate mt-0.5">
-                                    {user?.email || "이메일 정보 없음"}
-                                </p>
-                            </div>
-                        </div>
-                        <div className="mt-3 flex items-center justify-between">
-                            <button
-                                type="button"
-                                onClick={() => handleTabChange("FEEDBACK")}
-                                className="text-xs font-semibold text-lime-600 dark:text-lime-400 underline-offset-2 hover:underline transition-colors"
-                            >
-                                의견·문의 보내기
-                            </button>
-                            <button
-                                type="button"
-                                onClick={handleDeleteAccount}
-                                className="text-xs text-muted-foreground hover:text-danger underline-offset-2 hover:underline transition-colors"
-                            >
-                                회원 탈퇴
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* Activity Dashboard */}
-                    <div className="p-4 lg:p-6 border-b border-[var(--color-border)]">
-                        <h3 className="text-base lg:text-lg font-bold mb-4 flex items-center gap-2 text-foreground">
-                            <UserIcon size={16} className="lg:w-[18px] lg:h-[18px] text-lime-500"/> 활동 기록
-                        </h3>
-                        <div className="grid grid-cols-3 gap-2 lg:gap-3">
-                            <div className="bg-cream-300 dark:bg-ink-800 p-4 rounded-md text-center border border-[var(--color-border)]">
-                                <Heart size={16} className="lg:w-5 lg:h-5 mx-auto mb-1 text-red-500"/>
-                                <div className="text-2xl font-extrabold text-foreground">{myPageInfo?.likeCount || 0}</div>
-                                <div className="text-xs text-muted-foreground mt-0.5">찜한 팝업</div>
-                            </div>
-                            <div className="bg-cream-300 dark:bg-ink-800 p-4 rounded-md text-center border border-[var(--color-border)]">
-                                <Ticket size={16} className="lg:w-5 lg:h-5 mx-auto mb-1 text-lime-500"/>
-                                <div className="text-2xl font-extrabold text-foreground">{myPageInfo?.stampCount || 0}<span className="text-sm text-muted-foreground font-normal">/12</span></div>
-                                <div className="text-xs text-muted-foreground mt-0.5">획득 스탬프</div>
-                            </div>
-                            <div className="bg-cream-300 dark:bg-ink-800 p-4 rounded-md text-center border border-[var(--color-border)]">
-                                <MessageCircle size={16} className="lg:w-5 lg:h-5 mx-auto mb-1 text-green-500"/>
-                                <div className="text-2xl font-extrabold text-foreground">{myPageInfo?.reviewCount || 0}</div>
-                                <div className="text-xs text-muted-foreground mt-0.5">리뷰/톡</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* 등급 진열 카드 — 스탬프 누적량에 따른 등급 + 다음 단계 진행도 */}
-                    <div className="p-4 lg:p-6 border-b border-[var(--color-border)]">
-                        <h3 className="text-base lg:text-lg font-bold mb-4 flex items-center gap-2 text-foreground">
-                            <Star size={16} className="lg:w-[18px] lg:h-[18px] text-amber-500" /> 내 등급
-                        </h3>
-                        <RankCard
-                            stampCount={myPageInfo?.stampCount || 0}
-                            nickname={user?.nickname}
-                            onSeeAll={() => handleTabChange("PASSPORT")}
-                        />
-                    </div>
-
-                    {/* v2.18 — 최근 본 팝업 (localStorage 기반, 최대 10개). 게스트/회원 무관. */}
-                    <RecentVisitsCard />
-
-                    {/* 옛 inventory 컨테이너 — 보존 (혹시 후속 카드 추가 시 재사용) */}
-                    <div className="hidden">
-                    </div>
-
-                    {/* Wishlist */}
-                    <div className="p-4 lg:p-6 border-b border-[var(--color-border)]">
-                        <h3 className="text-base lg:text-lg font-bold mb-4 flex items-center gap-2 text-foreground">
-                            <Heart size={16} className="lg:w-[18px] lg:h-[18px] text-hot-400"/> 찜한 팝업
-                        </h3>
-                        {myWishlist.length === 0 ? (
-                            <div className="text-center py-8 text-muted-foreground text-sm border border-dashed border-[var(--color-border-strong)] rounded-md">
-                                아직 찜한 팝업스토어가 없습니다.<br/>
-                                마음에 드는 팝업에 하트를 눌러보세요!
-                            </div>
-                        ) : (
-                            <div className="grid grid-cols-2 gap-2 lg:gap-3">
-                                {myWishlist.map((item, i) => (
-                                    <div key={i} className="relative rounded-md overflow-hidden aspect-video group cursor-pointer border border-[var(--color-border)] bg-cream-300 dark:bg-ink-800">
-                                            <PopupCoverVisual
-                                                popup={{ id: item.popupId, imageUrl: item.popupImage }}
-                                                name={item.popupName}
-                                                location={item.location}
-                                                compact
-                                            />
-                                            
-                                            <div className="absolute inset-0 bg-gradient-to-t from-ink-900/85 via-ink-900/30 to-transparent flex flex-col justify-end p-3">
-                                                <span className="text-cream-200 text-xs font-semibold truncate">{item.popupName}</span>
-                                                <span className="text-cream-200/70 text-[10px] truncate mt-0.5">{item.location}</span>
-                                            </div>
-
-                                            <button 
-                                                onClick={(e) => handleRemoveWishlist(e, item.popupId)}
-                                                className="absolute top-2 right-2 bg-ink-900/60 backdrop-blur rounded-pill p-1.5 text-hot-400 hover:bg-hot-400 hover:text-white transition-colors opacity-100 md:opacity-0 md:group-hover:opacity-100" 
-                                                title="찜 해제"
-                                            >
-                                                <Heart size={10} className="lg:w-3 lg:h-3 fill-current"/>
-                                            </button>
-
-                                            <Link href={`/popup/${item.popupId}`} className="absolute inset-0 z-0" />
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Saved Courses History */}
-                    <div className="p-4 lg:p-6 border-b border-[var(--color-border)]">
-                        <h3 className="text-base lg:text-lg font-bold mb-4 flex items-center gap-2 text-foreground">
-                            <FolderOpen size={16} className="lg:w-[18px] lg:h-[18px] text-lime-500"/> 저장한 코스
-                        </h3>
-                        
-                        {savedCourses.length === 0 ? (
-                            <div className="text-center text-muted-foreground py-4 text-sm">
-                                아직 저장된 코스가 없습니다.
-                            </div>
-                        ) : (
-                            <div className="space-y-2">
-                                {savedCourses.map((course: SavedCourse, idx: number) => (
-                                    <article key={idx} className="flex items-center justify-between p-3 rounded-md border bg-cream-300 dark:bg-ink-800 border-[var(--color-border)] hover:border-lime-300/60 hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer"
-                                     onClick={() => handleLoadCourse(course.courseData)}>
-                                    <div className="flex items-center gap-2 lg:gap-3">
-                                            <div className="w-8 h-8 rounded-pill bg-lime-300/15 flex items-center justify-center text-lime-700 dark:text-lime-300 font-bold text-xs">
-                                                {idx + 1}
-                                            </div>
-                                            <div>
-                                                <div className="text-sm font-semibold text-foreground">{course.courseName}</div>
-                                                <div className="text-xs text-muted-foreground mt-0.5">클릭하여 불러오기</div>
-                                            </div>
-                                    </div>
-                                    
-                                    <button 
-                                        onClick={(e) => handleDeleteCourse(e, course.id)}
-                                        className="p-2 text-muted-foreground hover:text-danger transition-colors rounded-pill hover:bg-hot-400/10"
-                                        title="삭제하기"
-                                    >
-                                        <Trash2 size={14} className="lg:w-4 lg:h-4"/>
-                                    </button>
-                                    </article>
-                                ))}
-                                {/* v2.12: 무료 회원 1개 제한 폐지 — 모든 사용자가 무제한 저장 */}
-                            </div>
-                        )}
-                    </div>
-
-                    {/* 내가 보낸 의견 — 최근 3건만 노출. 전체는 FEEDBACK 탭으로 이동. */}
-                    <div className="p-4 lg:p-6 border-b border-[var(--color-border)]">
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-base lg:text-lg font-bold flex items-center gap-2 text-foreground">
-                                <MessageCircle size={16} className="lg:w-[18px] lg:h-[18px] text-lime-500"/> 내가 보낸 의견
-                            </h3>
-                            <button
-                                type="button"
-                                onClick={() => handleTabChange("FEEDBACK")}
-                                className="text-xs text-muted-foreground hover:text-foreground"
-                            >
-                                전체 보기
-                            </button>
-                        </div>
-                        <MyFeedbackList
-                            userId={user?.userId ?? null}
-                            limit={3}
-                            emptyText="아직 보낸 의견이 없습니다. 자유롭게 의견을 남겨 주세요."
-                        />
-                    </div>
-
-                    {/* Current Editing Course (DND) */}
-                    <div className="p-4 lg:p-6">
-                        <h3 className="text-base lg:text-lg font-bold mb-4 flex items-center gap-2 text-foreground">
-                            <Route size={16} className="lg:w-[18px] lg:h-[18px] text-lime-500"/> Current Plan
-                        </h3>
-                        
-                        {myCourseItems.length === 0 && (
-                            <div className="text-center text-muted-foreground py-6 border border-dashed border-[var(--color-border-strong)] rounded-md mb-4 text-sm">
-                                현재 편집 중인 코스가 없습니다.<br/>위 목록에서 불러오거나 새로 추가하세요!
-                            </div>
-                        )}
-
-                        <DndContext 
-                            sensors={sensors} 
-                            collisionDetection={closestCenter} 
-                            onDragEnd={handleDragEnd}
-                        >
-                            <SortableContext 
-                                items={myCourseItems} 
-                                strategy={verticalListSortingStrategy}
-                            >
-                                <div className="space-y-2">
-                                    {myCourseItems.map((place, index) => (
-                                        <div key={place.id} className="relative group">
-                                            <SortableItem id={place.id} place={place} index={index} />
-                                            <button
-                                                aria-label="장소 제거"
-                                                onClick={() => {
-                                                    const newItems = myCourseItems.filter(i => i.id !== place.id);
-                                                    setMyCourseItems(newItems);
-                                                }}
-                                                className="absolute -top-2 -right-2 bg-hot-400 text-white p-1 rounded-pill opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity shadow-md"
-                                                title="삭제"
-                                            >
-                                                <X size={10} className="lg:w-3 lg:h-3"/>
-                                            </button>
-                                        </div>
-                                    ))}
-                                </div>
-                            </SortableContext>
-                        </DndContext>
-
-                        <button 
-                            onClick={() => setIsAddPlaceOpen(true)}
-                            className="w-full py-3 mt-4 border border-dashed border-[var(--color-border-strong)] rounded-md text-muted-foreground hover:border-lime-500 hover:text-lime-500 transition-colors flex items-center justify-center gap-2 font-medium text-sm"
-                        >
-                            <PlusCircle size={14} className="lg:w-4 lg:h-4"/> 장소 추가하기
-                        </button>
-
-                        <button onClick={handleSaveCourse} className="w-full py-3 lg:py-4 mt-4 bg-ink-900 hover:bg-ink-700 text-cream-200 font-semibold rounded-pill shadow-md transition-colors active:scale-[0.98] flex items-center justify-center gap-2 dark:bg-cream-200 dark:text-ink-900 dark:hover:bg-cream-300 text-sm lg:text-base">
-                            <Save size={14} className="lg:w-[18px] lg:h-[18px]"/> <span>현재 코스 저장하기</span>
-                        </button>
-                    </div>
-
-                    <AddPlaceModal
-                        open={isAddPlaceOpen}
-                        onClose={() => setIsAddPlaceOpen(false)}
-                        popups={allPopups}
-                        onSelect={handleAddPlace}
+              <div className="p-4 lg:p-6 border-b border-[var(--color-border)]">
+                <h3 className="text-base lg:text-lg font-bold mb-4 flex items-center gap-2 text-foreground">
+                  <UserIcon size={16} className="lg:w-[18px] lg:h-[18px] text-lime-500" /> 내 계정
+                </h3>
+                <div className="flex items-center gap-4 p-3 lg:p-4 rounded-md border border-[var(--color-border)] bg-cream-300 dark:bg-ink-800">
+                  {user?.picture ? (
+                    <Image
+                      src={user.picture}
+                      alt="프로필 사진"
+                      width={56}
+                      height={56}
+                      className="rounded-full object-cover w-14 h-14 border border-[var(--color-border)]"
+                      unoptimized
                     />
+                  ) : (
+                    <div className="w-14 h-14 rounded-full bg-lime-300/20 flex items-center justify-center border border-[var(--color-border)]">
+                      <UserIcon size={24} className="text-lime-500" />
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm lg:text-base font-bold text-foreground truncate">
+                      {user?.nickname || '회원'}
+                    </p>
+                    <p className="text-xs lg:text-sm text-muted-foreground truncate mt-0.5">
+                      {user?.email || '이메일 정보 없음'}
+                    </p>
+                  </div>
                 </div>
-            </motion.section>
+                <div className="mt-3 flex items-center justify-between">
+                  <button
+                    type="button"
+                    onClick={() => handleTabChange('FEEDBACK')}
+                    className="text-xs font-semibold text-lime-600 dark:text-lime-400 underline-offset-2 hover:underline transition-colors"
+                  >
+                    의견·문의 보내기
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDeleteAccount}
+                    className="text-xs text-muted-foreground hover:text-danger underline-offset-2 hover:underline transition-colors"
+                  >
+                    회원 탈퇴
+                  </button>
+                </div>
+              </div>
+
+              {/* Activity Dashboard */}
+              <div className="p-4 lg:p-6 border-b border-[var(--color-border)]">
+                <h3 className="text-base lg:text-lg font-bold mb-4 flex items-center gap-2 text-foreground">
+                  <UserIcon size={16} className="lg:w-[18px] lg:h-[18px] text-lime-500" /> 활동 기록
+                </h3>
+                <div className="grid grid-cols-3 gap-2 lg:gap-3">
+                  <div className="bg-cream-300 dark:bg-ink-800 p-4 rounded-md text-center border border-[var(--color-border)]">
+                    <Heart size={16} className="lg:w-5 lg:h-5 mx-auto mb-1 text-red-500" />
+                    <div className="text-2xl font-extrabold text-foreground">
+                      {myPageInfo?.likeCount || 0}
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-0.5">찜한 팝업</div>
+                  </div>
+                  <div className="bg-cream-300 dark:bg-ink-800 p-4 rounded-md text-center border border-[var(--color-border)]">
+                    <Ticket size={16} className="lg:w-5 lg:h-5 mx-auto mb-1 text-lime-500" />
+                    <div className="text-2xl font-extrabold text-foreground">
+                      {myPageInfo?.stampCount || 0}
+                      <span className="text-sm text-muted-foreground font-normal">/12</span>
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-0.5">획득 스탬프</div>
+                  </div>
+                  <div className="bg-cream-300 dark:bg-ink-800 p-4 rounded-md text-center border border-[var(--color-border)]">
+                    <MessageCircle
+                      size={16}
+                      className="lg:w-5 lg:h-5 mx-auto mb-1 text-green-500"
+                    />
+                    <div className="text-2xl font-extrabold text-foreground">
+                      {myPageInfo?.reviewCount || 0}
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-0.5">리뷰/톡</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 등급 진열 카드 — 스탬프 누적량에 따른 등급 + 다음 단계 진행도 */}
+              <div className="p-4 lg:p-6 border-b border-[var(--color-border)]">
+                <h3 className="text-base lg:text-lg font-bold mb-4 flex items-center gap-2 text-foreground">
+                  <Star size={16} className="lg:w-[18px] lg:h-[18px] text-amber-500" /> 내 등급
+                </h3>
+                <RankCard
+                  stampCount={myPageInfo?.stampCount || 0}
+                  nickname={user?.nickname}
+                  onSeeAll={() => handleTabChange('PASSPORT')}
+                />
+              </div>
+
+              {/* v2.18 — 최근 본 팝업 (localStorage 기반, 최대 10개). 게스트/회원 무관. */}
+              <RecentVisitsCard />
+
+              {/* 옛 inventory 컨테이너 — 보존 (혹시 후속 카드 추가 시 재사용) */}
+              <div className="hidden"></div>
+
+              {/* Wishlist */}
+              <div className="p-4 lg:p-6 border-b border-[var(--color-border)]">
+                <h3 className="text-base lg:text-lg font-bold mb-4 flex items-center gap-2 text-foreground">
+                  <Heart size={16} className="lg:w-[18px] lg:h-[18px] text-hot-400" /> 찜한 팝업
+                </h3>
+                {myWishlist.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground text-sm border border-dashed border-[var(--color-border-strong)] rounded-md">
+                    아직 찜한 팝업스토어가 없습니다.
+                    <br />
+                    마음에 드는 팝업에 하트를 눌러보세요!
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-2 lg:gap-3">
+                    {myWishlist.map((item, i) => (
+                      <div
+                        key={i}
+                        className="relative rounded-md overflow-hidden aspect-video group cursor-pointer border border-[var(--color-border)] bg-cream-300 dark:bg-ink-800"
+                      >
+                        <PopupCoverVisual
+                          popup={{ id: item.popupId, imageUrl: item.popupImage }}
+                          name={item.popupName}
+                          location={item.location}
+                          compact
+                        />
+
+                        <div className="absolute inset-0 bg-gradient-to-t from-ink-900/85 via-ink-900/30 to-transparent flex flex-col justify-end p-3">
+                          <span className="text-cream-200 text-xs font-semibold truncate">
+                            {item.popupName}
+                          </span>
+                          <span className="text-cream-200/70 text-[10px] truncate mt-0.5">
+                            {item.location}
+                          </span>
+                        </div>
+
+                        <button
+                          onClick={(e) => handleRemoveWishlist(e, item.popupId)}
+                          className="absolute top-2 right-2 bg-ink-900/60 backdrop-blur rounded-pill p-1.5 text-hot-400 hover:bg-hot-400 hover:text-white transition-colors opacity-100 md:opacity-0 md:group-hover:opacity-100"
+                          title="찜 해제"
+                        >
+                          <Heart size={10} className="lg:w-3 lg:h-3 fill-current" />
+                        </button>
+
+                        <Link href={`/popup/${item.popupId}`} className="absolute inset-0 z-0" />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Saved Courses History */}
+              <div className="p-4 lg:p-6 border-b border-[var(--color-border)]">
+                <h3 className="text-base lg:text-lg font-bold mb-4 flex items-center gap-2 text-foreground">
+                  <FolderOpen size={16} className="lg:w-[18px] lg:h-[18px] text-lime-500" /> 저장한
+                  코스
+                </h3>
+
+                {savedCourses.length === 0 ? (
+                  <div className="text-center text-muted-foreground py-4 text-sm">
+                    아직 저장된 코스가 없습니다.
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {savedCourses.map((course: SavedCourse, idx: number) => (
+                      <article
+                        key={idx}
+                        className="flex items-center justify-between p-3 rounded-md border bg-cream-300 dark:bg-ink-800 border-[var(--color-border)] hover:border-lime-300/60 hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer"
+                        onClick={() => handleLoadCourse(course.courseData)}
+                      >
+                        <div className="flex items-center gap-2 lg:gap-3">
+                          <div className="w-8 h-8 rounded-pill bg-lime-300/15 flex items-center justify-center text-lime-700 dark:text-lime-300 font-bold text-xs">
+                            {idx + 1}
+                          </div>
+                          <div>
+                            <div className="text-sm font-semibold text-foreground">
+                              {course.courseName}
+                            </div>
+                            <div className="text-xs text-muted-foreground mt-0.5">
+                              클릭하여 불러오기
+                            </div>
+                          </div>
+                        </div>
+
+                        <button
+                          onClick={(e) => handleDeleteCourse(e, course.id)}
+                          className="p-2 text-muted-foreground hover:text-danger transition-colors rounded-pill hover:bg-hot-400/10"
+                          title="삭제하기"
+                        >
+                          <Trash2 size={14} className="lg:w-4 lg:h-4" />
+                        </button>
+                      </article>
+                    ))}
+                    {/* v2.12: 무료 회원 1개 제한 폐지 — 모든 사용자가 무제한 저장 */}
+                  </div>
+                )}
+              </div>
+
+              {/* 내가 보낸 의견 — 최근 3건만 노출. 전체는 FEEDBACK 탭으로 이동. */}
+              <div className="p-4 lg:p-6 border-b border-[var(--color-border)]">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-base lg:text-lg font-bold flex items-center gap-2 text-foreground">
+                    <MessageCircle size={16} className="lg:w-[18px] lg:h-[18px] text-lime-500" />{' '}
+                    내가 보낸 의견
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() => handleTabChange('FEEDBACK')}
+                    className="text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    전체 보기
+                  </button>
+                </div>
+                <MyFeedbackList
+                  userId={user?.userId ?? null}
+                  limit={3}
+                  emptyText="아직 보낸 의견이 없습니다. 자유롭게 의견을 남겨 주세요."
+                />
+              </div>
+
+              {/* Current Editing Course (DND) */}
+              <div className="p-4 lg:p-6">
+                <h3 className="text-base lg:text-lg font-bold mb-4 flex items-center gap-2 text-foreground">
+                  <Route size={16} className="lg:w-[18px] lg:h-[18px] text-lime-500" /> Current Plan
+                </h3>
+
+                {myCourseItems.length === 0 && (
+                  <div className="text-center text-muted-foreground py-6 border border-dashed border-[var(--color-border-strong)] rounded-md mb-4 text-sm">
+                    현재 편집 중인 코스가 없습니다.
+                    <br />위 목록에서 불러오거나 새로 추가하세요!
+                  </div>
+                )}
+
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={handleDragEnd}
+                >
+                  <SortableContext items={myCourseItems} strategy={verticalListSortingStrategy}>
+                    <div className="space-y-2">
+                      {myCourseItems.map((place, index) => (
+                        <div key={place.id} className="relative group">
+                          <SortableItem id={place.id} place={place} index={index} />
+                          <button
+                            aria-label="장소 제거"
+                            onClick={() => {
+                              const newItems = myCourseItems.filter((i) => i.id !== place.id);
+                              setMyCourseItems(newItems);
+                            }}
+                            className="absolute -top-2 -right-2 bg-hot-400 text-white p-1 rounded-pill opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity shadow-md"
+                            title="삭제"
+                          >
+                            <X size={10} className="lg:w-3 lg:h-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </SortableContext>
+                </DndContext>
+
+                <button
+                  onClick={() => setIsAddPlaceOpen(true)}
+                  className="w-full py-3 mt-4 border border-dashed border-[var(--color-border-strong)] rounded-md text-muted-foreground hover:border-lime-500 hover:text-lime-500 transition-colors flex items-center justify-center gap-2 font-medium text-sm"
+                >
+                  <PlusCircle size={14} className="lg:w-4 lg:h-4" /> 장소 추가하기
+                </button>
+
+                <button
+                  onClick={handleSaveCourse}
+                  className="w-full py-3 lg:py-4 mt-4 bg-ink-900 hover:bg-ink-700 text-cream-200 font-semibold rounded-pill shadow-md transition-colors active:scale-[0.98] flex items-center justify-center gap-2 dark:bg-cream-200 dark:text-ink-900 dark:hover:bg-cream-300 text-sm lg:text-base"
+                >
+                  <Save size={14} className="lg:w-[18px] lg:h-[18px]" />{' '}
+                  <span>현재 코스 저장하기</span>
+                </button>
+              </div>
+
+              <AddPlaceModal
+                open={isAddPlaceOpen}
+                onClose={() => setIsAddPlaceOpen(false)}
+                popups={allPopups}
+                onSelect={handleAddPlace}
+              />
+            </div>
+          </motion.section>
         )}
 
         {/* TAB: MATE */}
-        {currentTab === "MATE" && (
-            <motion.section aria-label="Mate Board" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-                        className="min-h-[60vh] rounded-xl border border-[var(--color-border)] bg-surface text-surface-foreground mb-16 relative overflow-hidden shadow-md">
-                <MateBoard user={user} />
-            </motion.section>
+        {currentTab === 'MATE' && (
+          <motion.section
+            aria-label="Mate Board"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="min-h-[60vh] rounded-xl border border-[var(--color-border)] bg-surface text-surface-foreground mb-16 relative overflow-hidden shadow-md"
+          >
+            <MateBoard user={user} />
+          </motion.section>
         )}
 
         {/* TAB: FEEDBACK (v2.12) — 게스트도 진입 가능. /feedback 페이지와 동일 컴포넌트 재사용. */}
-        {currentTab === "FEEDBACK" && (
-            <motion.section
-                aria-label="Feedback"
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="min-h-[60vh] rounded-xl border border-[var(--color-border)] bg-surface text-surface-foreground mb-16 p-4 lg:p-6 shadow-md"
-            >
-                <div className="mb-4">
-                    <h2 className="text-xl font-bold text-foreground">의견 보내기</h2>
-                    <p className="text-sm text-muted-foreground mt-1">
-                        서비스를 쓰면서 느낀 점, 버그, 제안을 운영팀에 전달할 수 있습니다.
-                    </p>
+        {currentTab === 'FEEDBACK' && (
+          <motion.section
+            aria-label="Feedback"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="min-h-[60vh] rounded-xl border border-[var(--color-border)] bg-surface text-surface-foreground mb-16 p-4 lg:p-6 shadow-md"
+          >
+            <div className="mb-4">
+              <h2 className="text-xl font-bold text-foreground">의견 보내기</h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                서비스를 쓰면서 느낀 점, 버그, 제안을 운영팀에 전달할 수 있습니다.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
+              <div className="lg:col-span-3">
+                <div className="rounded-lg border border-[var(--color-border-strong)] bg-cream-300 dark:bg-ink-800 p-5">
+                  <h3 className="mb-4 text-base font-semibold text-foreground">새 의견</h3>
+                  <FeedbackForm userId={user?.userId ?? null} />
                 </div>
-                <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
-                    <div className="lg:col-span-3">
-                        <div className="rounded-lg border border-[var(--color-border-strong)] bg-cream-300 dark:bg-ink-800 p-5">
-                            <h3 className="mb-4 text-base font-semibold text-foreground">새 의견</h3>
-                            <FeedbackForm userId={user?.userId ?? null} />
-                        </div>
-                    </div>
-                    <aside className="lg:col-span-2">
-                        <div className="rounded-lg border border-[var(--color-border-strong)] bg-cream-300 dark:bg-ink-800 p-5">
-                            <h3 className="mb-4 text-base font-semibold text-foreground">
-                                내가 보낸 의견
-                            </h3>
-                            <MyFeedbackList userId={user?.userId ?? null} />
-                        </div>
-                    </aside>
+              </div>
+              <aside className="lg:col-span-2">
+                <div className="rounded-lg border border-[var(--color-border-strong)] bg-cream-300 dark:bg-ink-800 p-5">
+                  <h3 className="mb-4 text-base font-semibold text-foreground">내가 보낸 의견</h3>
+                  <MyFeedbackList userId={user?.userId ?? null} />
                 </div>
-            </motion.section>
+              </aside>
+            </div>
+          </motion.section>
         )}
-
       </div>
 
       <Footer />
@@ -1710,26 +2108,15 @@ export default function Home() {
       <BottomDock currentTab={currentTab as DockTab} onTabChange={(t) => handleTabChange(t)} />
 
       {/* Modals — 새 Dialog 컴포넌트(Radix) 사용. 포커스 트랩·ESC·스크롤 잠금 자동. */}
-      <AllTrendingModal
-        open={isModalOpen}
-        onOpenChange={setIsModalOpen}
-        popups={allPopups}
-      />
-      <ReportPopupModal
-        open={isReportPopupOpen}
-        onOpenChange={setIsReportPopupOpen}
-        user={user}
-      />
+      <AllTrendingModal open={isModalOpen} onOpenChange={setIsModalOpen} popups={allPopups} />
+      <ReportPopupModal open={isReportPopupOpen} onOpenChange={setIsReportPopupOpen} user={user} />
       <GlobalSearchModal
         open={isGlobalSearchOpen}
         onOpenChange={setIsGlobalSearchOpen}
         popups={allPopups}
       />
       <OnboardingModal />
-      <NotificationCenter
-        open={isNotificationsOpen}
-        onOpenChange={setIsNotificationsOpen}
-      />
+      <NotificationCenter open={isNotificationsOpen} onOpenChange={setIsNotificationsOpen} />
       <TermsReconsentModal enabled={!!user} onDecline={handleLogout} />
       {user && (
         <ProfileEditModal
@@ -1743,7 +2130,7 @@ export default function Home() {
               picture: next.picture ?? undefined,
             };
             setUser(updated);
-            localStorage.setItem("user", JSON.stringify(updated));
+            localStorage.setItem('user', JSON.stringify(updated));
           }}
         />
       )}
@@ -1756,13 +2143,9 @@ export default function Home() {
       {/* AI Report — 기존 컴포넌트는 자체 모달 구조 유지 */}
       <AnimatePresence>
         {isReportOpen && congestionData && (
-          <AIReportModal
-            data={congestionData}
-            onClose={() => setIsReportOpen(false)}
-          />
+          <AIReportModal data={congestionData} onClose={() => setIsReportOpen(false)} />
         )}
       </AnimatePresence>
-
     </main>
   );
 }
@@ -1779,7 +2162,7 @@ function RecentVisitsCard() {
   >([]);
 
   useEffect(() => {
-    import("@/lib/recentVisits")
+    import('@/lib/recentVisits')
       .then(({ readVisits }) => setVisits(readVisits()))
       .catch(() => setVisits([]));
   }, []);
@@ -1843,7 +2226,7 @@ function PopupCoverVisual({
         <img
           src={coverUrl}
           alt={name}
-          title={isStyledPhoto ? "연출 이미지 · 실제 팝업 현장 아님" : undefined}
+          title={isStyledPhoto ? '연출 이미지 · 실제 팝업 현장 아님' : undefined}
           loading="lazy"
           className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
         />
@@ -1862,10 +2245,12 @@ function PopupCoverVisual({
   return (
     <div className="flex h-full w-full flex-col items-center justify-center bg-gradient-to-br from-lime-100 via-cream-200 to-amber-100 p-2 text-center dark:from-lime-950 dark:via-ink-900 dark:to-amber-950">
       <Store size={compact ? 18 : 24} className="mb-1.5 text-lime-700/55 dark:text-lime-200/55" />
-      {!compact && <strong className="line-clamp-2 text-xs text-ink-900 dark:text-cream-100">{name}</strong>}
+      {!compact && (
+        <strong className="line-clamp-2 text-xs text-ink-900 dark:text-cream-100">{name}</strong>
+      )}
       {!compact && location && (
         <span className="mt-1 line-clamp-1 text-[10px] text-ink-500 dark:text-cream-200/55">
-          {location.split(" ").slice(0, 2).join(" ")}
+          {location.split(' ').slice(0, 2).join(' ')}
         </span>
       )}
     </div>

@@ -1,7 +1,7 @@
-import type { MetadataRoute } from "next";
+import type { MetadataRoute } from 'next';
 
-import { REGIONS } from "@/lib/regions";
-import { PERIODS, CATEGORIES, BRANDS } from "@/lib/popupSlices";
+import { REGIONS } from '@/lib/regions';
+import { PERIODS, CATEGORIES, BRANDS } from '@/lib/popupSlices';
 
 /**
  * Sitemap.xml 자동 생성 (Next.js {@code MetadataRoute.Sitemap}).
@@ -23,7 +23,7 @@ import { PERIODS, CATEGORIES, BRANDS } from "@/lib/popupSlices";
  *   <li>사용자 게시판 (동행 / 의견) 도 PII 보호를 위해 미포함.
  * </ul>
  */
-const SITE_URL = "https://popspot.co.kr";
+const SITE_URL = 'https://popspot.co.kr';
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const now = new Date();
@@ -32,25 +32,25 @@ export default function sitemap(): MetadataRoute.Sitemap {
     {
       url: `${SITE_URL}/`,
       lastModified: now,
-      changeFrequency: "daily",
+      changeFrequency: 'daily',
       priority: 1.0,
     },
     {
       url: `${SITE_URL}/about`,
       lastModified: now,
-      changeFrequency: "monthly",
+      changeFrequency: 'monthly',
       priority: 0.8,
     },
     {
       url: `${SITE_URL}/terms`,
       lastModified: now,
-      changeFrequency: "yearly",
+      changeFrequency: 'yearly',
       priority: 0.3,
     },
     {
       url: `${SITE_URL}/privacy`,
       lastModified: now,
-      changeFrequency: "yearly",
+      changeFrequency: 'yearly',
       priority: 0.3,
     },
   ];
@@ -60,26 +60,26 @@ export default function sitemap(): MetadataRoute.Sitemap {
     ...REGIONS.map((r) => ({
       url: `${SITE_URL}/popups/${r.slug}`,
       lastModified: now,
-      changeFrequency: "daily" as const,
+      changeFrequency: 'daily' as const,
       priority: 0.7,
     })),
     ...PERIODS.map((p) => ({
       url: `${SITE_URL}/popups/${p.slug}`,
       lastModified: now,
-      changeFrequency: "daily" as const,
+      changeFrequency: 'daily' as const,
       priority: 0.6,
     })),
     ...CATEGORIES.map((c) => ({
       url: `${SITE_URL}/popups/${c.slug}`,
       lastModified: now,
-      changeFrequency: "weekly" as const,
+      changeFrequency: 'weekly' as const,
       priority: 0.5,
     })),
     // 브랜드·IP·장소 랜딩 ("스텔라이브 팝업" 등). 매칭 0곳이면 페이지 단에서 noindex.
     ...BRANDS.map((b) => ({
       url: `${SITE_URL}/popups/${b.slug}`,
       lastModified: now,
-      changeFrequency: "daily" as const,
+      changeFrequency: 'daily' as const,
       priority: 0.6,
     })),
     // v2.29 — 지역×카테고리 조합 롱테일 랜딩 ("성수 패션" 등, 큐레이션 집계라 §10-2 준수).
@@ -87,7 +87,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
       CATEGORIES.map((c) => ({
         url: `${SITE_URL}/popups/${r.slug}-${c.slug}`,
         lastModified: now,
-        changeFrequency: "weekly" as const,
+        changeFrequency: 'weekly' as const,
         priority: 0.5,
       })),
     ),

@@ -129,18 +129,22 @@ sudo nano /home/reo4321/popspot.env
 
 ---
 
-## 6. 첫 부팅 (스키마 자동 생성)
+## 6. 첫 부팅 (Flyway + validate)
 
-신규 DB 라면 첫 부팅에만 `dev` 프로필 (`ddl-auto=update`) 로:
+운영에서는 첫 부팅을 포함해 `dev` 또는 `ddl-auto=update`를 사용하지 않는다. 기존 DB는 백업 후
+Flyway가 마이그레이션을 적용하게 하고, 신규 빈 DB는 검증된 schema-only 백업을 먼저 복원한다.
+
+기존 운영 DB는 V22까지 수동 SQL이 적용된 상태이다. `flyway_schema_history`가 없는 첫 prod 기동은
+`application-prod.properties`의 `baseline-version=22`로 기존 상태를 기준점으로 기록한 뒤 V23만 실행한다.
+기준 버전을 V1로 두면 과거의 비멱등 마이그레이션이 다시 실행될 수 있으므로 변경하지 않는다.
 
 ```bash
-# popspot.env 에서 두 줄만 임시로:
-#   SPRING_PROFILES_ACTIVE=dev
-#   JPA_DDL_AUTO=update
+# popspot.env
+SPRING_PROFILES_ACTIVE=prod
+JPA_DDL_AUTO=validate
 
 sudo systemctl start popspot
 sudo journalctl -u popspot -f
-# "Hibernate: create table ..." 로그 흐르는지 확인 (Ctrl+C 로 빠져나오기)
 ```
 
 스키마 확인:

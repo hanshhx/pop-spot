@@ -120,6 +120,10 @@ public class AuthService {
             throw new IllegalArgumentException("이메일 또는 비밀번호가 일치하지 않습니다.");
         }
 
+        if (!user.isAccountActive()) {
+            throw new IllegalArgumentException("비활성화된 계정입니다.");
+        }
+
         // 성공 시 카운터 초기화.
         loginAttempts.invalidate(email);
 
@@ -190,7 +194,7 @@ public class AuthService {
                         .findByNicknameAndPhoneNumber(nickname, phoneNumber)
                         .orElseThrow(() -> new ResourceNotFoundException("일치하는 회원 정보가 없습니다."));
         Map<String, String> result = new HashMap<>();
-        result.put("email", user.getEmail());
+        result.put("email", maskEmail(user.getEmail()));
         result.put("provider", user.getProvider() == null ? PROVIDER_LOCAL : user.getProvider());
         return result;
     }
@@ -218,6 +222,7 @@ public class AuthService {
     public void updatePassword(String email, String newPassword) {
         User user = findByEmailOrThrow(email);
         user.changePassword(passwordEncoder.encode(newPassword));
+        user.setTokenVersion(user.getTokenVersion() + 1);
     }
 
     /* ============================== 내부 헬퍼 ============================== */
@@ -240,9 +245,18 @@ public class AuthService {
         return Jwts.builder()
                 .setSubject(user.getUserId())
                 .claim("role", user.getRole())
+                .claim("ver", user.getTokenVersion())
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + accessTokenValidityMs))
                 .signWith(signingKey, SignatureAlgorithm.HS256)
                 .compact();
+    }
+
+    private String maskEmail(String email) {
+        int at = email == null ? -1 : email.indexOf('@');
+        if (at <= 0) return "***";
+        String local = email.substring(0, at);
+        String visible = local.substring(0, Math.min(2, local.length()));
+        return visible + "***" + email.substring(at);
     }
 }

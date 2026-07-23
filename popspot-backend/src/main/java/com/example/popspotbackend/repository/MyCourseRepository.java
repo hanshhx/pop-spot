@@ -10,4 +10,6 @@ public interface MyCourseRepository extends JpaRepository<MyCourse, Long> {
     // Spring Data JPA가 메서드 이름을 보고 자동으로 쿼리를 만들어줍니다.
     // (select * from my_course where user_id = :userId)
     List<MyCourse> findAllByUserId(String userId);
+
+    void deleteByUserId(String userId);
 }

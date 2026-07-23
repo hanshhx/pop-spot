@@ -1,18 +1,18 @@
-"use client";
+'use client';
 
-import { useEffect, useState } from "react";
-import Link from "next/link";
-import { Bell, BellOff, CheckCheck, MessageCircle, Heart, Info, Users } from "lucide-react";
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { Bell, BellOff, CheckCheck, MessageCircle, Heart, Info, Users } from 'lucide-react';
 
-import { Button } from "@/components/ui/button";
+import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { EmptyState } from "@/components/ui/feedback";
+} from '@/components/ui/dialog';
+import { EmptyState } from '@/components/ui/feedback';
 import {
   type AppNotification,
   type NotificationType,
@@ -20,7 +20,7 @@ import {
   markAllAsRead,
   markAsRead,
   readNotifications,
-} from "@/lib/notifications";
+} from '@/lib/notifications';
 
 interface NotificationCenterProps {
   open: boolean;
@@ -50,9 +50,8 @@ export function NotificationCenter({ open, onOpenChange }: NotificationCenterPro
   // 다른 탭 / 컴포넌트에서 알림 변경 시 동기화.
   useEffect(() => {
     const onChange = () => setItems(readNotifications());
-    window.addEventListener("popspot:notifications-changed", onChange);
-    return () =>
-      window.removeEventListener("popspot:notifications-changed", onChange);
+    window.addEventListener('popspot:notifications-changed', onChange);
+    return () => window.removeEventListener('popspot:notifications-changed', onChange);
   }, []);
 
   return (
@@ -134,29 +133,22 @@ function NotificationRow({
   const body = (
     <div
       className={
-        "flex items-start gap-3 p-3 rounded-md border transition-colors " +
+        'flex items-start gap-3 p-3 rounded-md border transition-colors ' +
         (notification.read
-          ? "border-[var(--color-border)] bg-surface"
-          : "border-lime-300/40 bg-lime-300/5")
+          ? 'border-[var(--color-border)] bg-surface'
+          : 'border-lime-300/40 bg-lime-300/5')
       }
     >
       <div className="mt-0.5 shrink-0">{TYPE_ICON[notification.type]}</div>
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-semibold text-foreground truncate">
-          {notification.title}
-        </p>
-        <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
-          {notification.message}
-        </p>
+        <p className="text-sm font-semibold text-foreground truncate">{notification.title}</p>
+        <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{notification.message}</p>
         <p className="text-[10px] text-muted-foreground mt-1">
           {formatDate(notification.createdAt)}
         </p>
       </div>
       {!notification.read && (
-        <span
-          className="mt-1.5 size-2 rounded-full bg-lime-500 shrink-0"
-          aria-label="안 읽음"
-        />
+        <span className="mt-1.5 size-2 rounded-full bg-lime-500 shrink-0" aria-label="안 읽음" />
       )}
     </div>
   );
@@ -175,7 +167,7 @@ function NotificationRow({
 function formatDate(iso: string): string {
   try {
     const d = new Date(iso);
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
   } catch {
     return iso;
   }

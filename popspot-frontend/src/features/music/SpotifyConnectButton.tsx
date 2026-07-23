@@ -1,11 +1,11 @@
-"use client";
+'use client';
 
-import { useEffect } from "react";
-import { useSearchParams } from "next/navigation";
-import { Check, Disc3, Loader2, Music2, X } from "lucide-react";
+import { useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { Check, Disc3, Loader2, Music2, X } from 'lucide-react';
 
-import { notify } from "@/lib/notify";
-import { useSpotifyAuth } from "./useSpotifyAuth";
+import { notify } from '@/lib/notify';
+import { useSpotifyAuth } from './useSpotifyAuth';
 
 /**
  * v2.21-S11 — 음악 탭 헤더에 박을 Spotify 연결 칩.
@@ -30,38 +30,38 @@ export function SpotifyConnectButton() {
 
   // 콜백 후 토스트 + 상태 갱신 + URL 정리
   useEffect(() => {
-    const status = searchParams?.get("spotify");
+    const status = searchParams?.get('spotify');
     if (!status) return;
 
-    if (status === "connected") {
+    if (status === 'connected') {
       notify({
-        icon: "success",
-        title: "Spotify 연결 완료",
-        text: "프리미엄이면 풀트랙, 무료면 30초 미리듣기로 재생됩니다.",
+        icon: 'success',
+        title: 'Spotify 연결 완료',
+        text: '프리미엄이면 풀트랙, 무료면 30초 미리듣기로 재생됩니다.',
         timer: 3000,
       });
       void refresh();
-    } else if (status === "denied") {
+    } else if (status === 'denied') {
       notify({
-        icon: "info",
-        title: "Spotify 연결을 취소했어요",
-        text: "언제든 다시 연결할 수 있습니다.",
+        icon: 'info',
+        title: 'Spotify 연결을 취소했어요',
+        text: '언제든 다시 연결할 수 있습니다.',
         timer: 2500,
       });
-    } else if (status === "error") {
+    } else if (status === 'error') {
       notify({
-        icon: "error",
-        title: "Spotify 연결 실패",
-        text: "잠시 후 다시 시도해주세요.",
+        icon: 'error',
+        title: 'Spotify 연결 실패',
+        text: '잠시 후 다시 시도해주세요.',
         timer: 3000,
       });
     }
 
     // URL 에서 ?spotify= 쿼리 제거 (history 더럽히지 않음)
-    if (typeof window !== "undefined") {
+    if (typeof window !== 'undefined') {
       const url = new URL(window.location.href);
-      url.searchParams.delete("spotify");
-      window.history.replaceState({}, "", url.toString());
+      url.searchParams.delete('spotify');
+      window.history.replaceState({}, '', url.toString());
     }
   }, [searchParams, refresh]);
 
@@ -70,33 +70,31 @@ export function SpotifyConnectButton() {
       await startLogin();
     } catch (e) {
       notify({
-        icon: "error",
-        title: "연결 시작 실패",
-        text: e instanceof Error ? e.message : "잠시 후 다시 시도해주세요.",
+        icon: 'error',
+        title: '연결 시작 실패',
+        text: e instanceof Error ? e.message : '잠시 후 다시 시도해주세요.',
       });
     }
   }
 
   async function handleDisconnect() {
     if (
-      !window.confirm(
-        "Spotify 연결을 해제할까요? 저장된 토큰이 즉시 삭제됩니다. (다시 연결 가능)",
-      )
+      !window.confirm('Spotify 연결을 해제할까요? 저장된 토큰이 즉시 삭제됩니다. (다시 연결 가능)')
     ) {
       return;
     }
     try {
       await disconnect();
       notify({
-        icon: "success",
-        title: "Spotify 연결 해제",
+        icon: 'success',
+        title: 'Spotify 연결 해제',
         timer: 2000,
       });
     } catch {
       notify({
-        icon: "error",
-        title: "해제 실패",
-        text: "잠시 후 다시 시도해주세요.",
+        icon: 'error',
+        title: '해제 실패',
+        text: '잠시 후 다시 시도해주세요.',
       });
     }
   }
@@ -133,18 +131,16 @@ export function SpotifyConnectButton() {
       <span
         className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-pill text-xs font-bold ${
           isPremium
-            ? "bg-lime-300 text-ink-900 border border-lime-400"
-            : "bg-gray-100 text-gray-700 border border-gray-300 dark:bg-white/10 dark:text-white dark:border-white/15"
+            ? 'bg-lime-300 text-ink-900 border border-lime-400'
+            : 'bg-gray-100 text-gray-700 border border-gray-300 dark:bg-white/10 dark:text-white dark:border-white/15'
         }`}
         title={
-          isPremium
-            ? "Premium 계정 — 풀트랙 320kbps 재생 가능"
-            : "Free 계정 — 30초 미리듣기로 재생"
+          isPremium ? 'Premium 계정 — 풀트랙 320kbps 재생 가능' : 'Free 계정 — 30초 미리듣기로 재생'
         }
       >
         <Music2 size={12} className="shrink-0" />
         <Check size={12} className="shrink-0" />
-        <span>{isPremium ? "Spotify Premium" : "Spotify Free"}</span>
+        <span>{isPremium ? 'Spotify Premium' : 'Spotify Free'}</span>
       </span>
       <button
         type="button"

@@ -8,6 +8,7 @@ import com.example.popspotbackend.service.ChatService;
 import com.example.popspotbackend.service.PopupDedupService;
 import com.example.popspotbackend.service.PopupPhotoService;
 import com.example.popspotbackend.service.PopupStoreService;
+import com.example.popspotbackend.service.backup.DatabaseBackupScheduler;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
@@ -40,6 +41,7 @@ public class AdminController {
     private final PopupPhotoService popupPhotoService;
     private final PopupDedupService popupDedupService;
     private final ChatService chatService;
+    private final DatabaseBackupScheduler databaseBackupScheduler;
 
     /* ============================== 팝업 승인 큐 ============================== */
 
@@ -65,6 +67,11 @@ public class AdminController {
     @GetMapping("/stats")
     public ResponseEntity<Map<String, Object>> getStats() {
         return ResponseEntity.ok(adminService.getAdminStats());
+    }
+
+    @GetMapping("/backup/status")
+    public ResponseEntity<Map<String, Object>> getBackupStatus() {
+        return ResponseEntity.ok(databaseBackupScheduler.status());
     }
 
     @GetMapping("/popups/all")

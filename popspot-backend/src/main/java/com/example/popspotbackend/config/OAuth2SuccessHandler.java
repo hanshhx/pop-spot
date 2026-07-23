@@ -13,9 +13,12 @@ import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.util.Date;
 import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
@@ -35,10 +38,12 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
 
     private static final int JWT_SECRET_MIN_BYTES = 32;
     private static final String CLAIM_ROLE = "role";
-    private static final String QUERY_PARAM_TOKEN = "token";
+    private static final String QUERY_PARAM_CODE = "code";
+    public static final String OAUTH_EXCHANGE_KEY_PREFIX = "OAUTH_EXCHANGE:";
     private static final String REDIRECT_NO_EMAIL_QUERY = "?error=no_email";
 
     private final UserRepository userRepository;
+    private final StringRedisTemplate redisTemplate;
 
     @Value("${app.oauth2.redirect-uri}")
     private String redirectUri;
@@ -76,16 +81,23 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         }
 
         User user = findUserOrThrow(email);
+        if (!user.isAccountActive()) {
+            getRedirectStrategy().sendRedirect(request, response, redirectUri + "?error=inactive");
+            return;
+        }
         String accessToken = issueJwt(user);
+        String exchangeCode = UUID.randomUUID().toString();
+        redisTemplate
+                .opsForValue()
+                .set(OAUTH_EXCHANGE_KEY_PREFIX + exchangeCode, accessToken, 60, TimeUnit.SECONDS);
         String targetUrl =
                 UriComponentsBuilder.fromUriString(redirectUri)
-                        .queryParam(QUERY_PARAM_TOKEN, accessToken)
+                        .queryParam(QUERY_PARAM_CODE, exchangeCode)
                         .build()
                         .toUriString();
 
         if (log.isDebugEnabled()) {
-            log.debug(
-                    "OAuth2 redirect to {} (token length={}B)", redirectUri, accessToken.length());
+            log.debug("OAuth2 redirect to {} (one-time exchange code issued)", redirectUri);
         }
         getRedirectStrategy().sendRedirect(request, response, targetUrl);
     }
@@ -121,6 +133,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         return Jwts.builder()
                 .setSubject(user.getUserId())
                 .claim(CLAIM_ROLE, user.getRole())
+                .claim("ver", user.getTokenVersion())
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + accessTokenValidityMs))
                 .signWith(signingKey, SignatureAlgorithm.HS256)

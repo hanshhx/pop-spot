@@ -18,7 +18,7 @@ import lombok.Setter;
 @NoArgsConstructor
 public class SignupRequestDto {
 
-    private static final String PASSWORD_REGEX =
+    public static final String PASSWORD_REGEX =
             "^(?=.*[A-Za-z])(?=.*\\d)(?=.*[@$!%*#?&])[A-Za-z\\d@$!%*#?&]{8,20}$";
     private static final String PHONE_REGEX = "^010\\d{8}$";
 

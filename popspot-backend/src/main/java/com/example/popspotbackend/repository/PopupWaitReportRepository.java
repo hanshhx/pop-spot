@@ -13,4 +13,6 @@ public interface PopupWaitReportRepository extends JpaRepository<PopupWaitReport
     /** 쿨다운용 — 같은 사람이 이 팝업에 최근 제보한 적 있나. */
     long countByPopupIdAndReporterKeyAndCreatedAtAfter(
             Long popupId, String reporterKey, LocalDateTime since);
+
+    void deleteByReporterKey(String reporterKey);
 }

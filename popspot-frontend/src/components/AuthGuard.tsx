@@ -1,38 +1,37 @@
-"use client";
+'use client';
 
-import { Suspense, useEffect } from "react";
-import { useRouter, usePathname } from "next/navigation";
-import { Loader2 } from "lucide-react";
+import { Suspense, useEffect } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
+import { Loader2 } from 'lucide-react';
 
-import { apiFetch } from "@/lib/api";
+import { apiFetch, AUTH_EXPIRED_EVENT } from '@/lib/api';
+import { clearAuthToken, getAuthToken } from '@/lib/authStorage';
 
 // 인증 불필요 공개 경로 — 정확 일치. (sitemap 포함 페이지 + 인증 흐름 페이지)
 const PUBLIC_PATHS = [
-  "/",
-  "/login",
-  "/signup",
-  "/find-account",
-  "/oauth/callback",
-  "/feedback",
-  "/about",
-  "/terms",
-  "/privacy",
+  '/',
+  '/login',
+  '/signup',
+  '/find-account',
+  '/oauth/callback',
+  '/feedback',
+  '/about',
+  '/terms',
+  '/privacy',
 ];
 
 // slug 가 붙는 동적 공개 경로 — prefix 매칭.
 // /popups/[slug] = SEO long-tail 랜딩(색인 O), /popup/[id] = 팝업 상세 — 비로그인 열람은
 // 되지만 색인은 막혀 있다(회원 채팅이 같은 URL 에 있어 약관 §14. app/popup/[id]/layout.tsx).
-const PUBLIC_PREFIXES = ["/popups/", "/popup/"];
+const PUBLIC_PREFIXES = ['/popups/', '/popup/'];
 
-const TOKEN_KEY = "token";
-const USER_KEY = "user";
+const USER_KEY = 'user';
 
 /** 공개 경로 판정 — 정확 일치 또는 공개 prefix. pathname 불명 시 공개로 간주(막지 않음). */
 function isPublicPath(pathname: string | null): boolean {
   if (!pathname) return true;
   return (
-    PUBLIC_PATHS.includes(pathname) ||
-    PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix))
+    PUBLIC_PATHS.includes(pathname) || PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix))
   );
 }
 
@@ -69,31 +68,22 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     // 공개 경로는 아무 검사도 하지 않는다.
     if (isPublicPath(pathname)) return;
 
-    // [redesign/test] 로컬(localhost) 미리보기에서는 보호 경로도 막지 않는다 — 백엔드/토큰 없이
-    // 관리자 등 보호 페이지를 확인하기 위함. 프로덕션(실도메인)에서는 이 우회가 동작하지 않는다.
-    if (
-      typeof window !== "undefined" &&
-      ["localhost", "127.0.0.1"].includes(window.location.hostname)
-    ) {
-      return;
-    }
-
     let cancelled = false;
 
     const clearAuthAndRedirect = () => {
-      localStorage.removeItem(TOKEN_KEY);
+      clearAuthToken();
       localStorage.removeItem(USER_KEY);
-      router.replace("/login");
+      router.replace('/login');
     };
 
     const verify = async () => {
-      const token = localStorage.getItem(TOKEN_KEY);
+      const token = getAuthToken();
       if (!token) {
-        router.replace("/login");
+        router.replace('/login');
         return;
       }
       try {
-        const res = await apiFetch("/api/v1/auth/me");
+        const res = await apiFetch('/api/v1/auth/me');
         if (cancelled) return;
         if (res.status === 401) {
           clearAuthAndRedirect();
@@ -107,9 +97,14 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
       }
     };
 
-    verify();
+    const handleExpired = () => {
+      if (!isPublicPath(pathname)) clearAuthAndRedirect();
+    };
+    window.addEventListener(AUTH_EXPIRED_EVENT, handleExpired);
+    void verify();
     return () => {
       cancelled = true;
+      window.removeEventListener(AUTH_EXPIRED_EVENT, handleExpired);
     };
   }, [pathname, router]);
 

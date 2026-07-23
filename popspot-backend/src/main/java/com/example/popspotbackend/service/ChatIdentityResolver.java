@@ -45,4 +45,33 @@ public class ChatIdentityResolver {
         attrs.put(ATTR_RESOLVED, resolved);
         return resolved;
     }
+
+    /** 인증이 필수인 동행 채팅용 사용자 ID. */
+    public String requireUserId(SimpMessageHeaderAccessor headerAccessor) {
+        Map<String, Object> attrs = headerAccessor.getSessionAttributes();
+        Object userId = attrs == null ? null : attrs.get(ATTR_USER_ID);
+        if (userId == null || userId.toString().isBlank()) {
+            throw new SecurityException("로그인이 필요한 채팅입니다.");
+        }
+        return userId.toString();
+    }
+
+    /** 공개 협업 공간에서 클라이언트가 보낸 sender 대신 세션별 표시 이름을 만든다. */
+    public String resolveSessionActor(SimpMessageHeaderAccessor headerAccessor) {
+        Map<String, Object> attrs = headerAccessor.getSessionAttributes();
+        Object userId = attrs == null ? null : attrs.get(ATTR_USER_ID);
+        if (userId != null) {
+            return userRepository
+                    .findById(userId.toString())
+                    .map(User::getNickname)
+                    .filter(n -> !n.isBlank())
+                    .orElse("회원");
+        }
+        String sessionId = headerAccessor.getSessionId();
+        String suffix =
+                sessionId == null
+                        ? "unknown"
+                        : sessionId.substring(0, Math.min(8, sessionId.length()));
+        return "게스트-" + suffix;
+    }
 }

@@ -1,6 +1,6 @@
-"use client";
+'use client';
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from 'react';
 
 /**
  * v2.21-S12 — Spotify / Apple 30초 Preview 재생 (HTML5 audio).
@@ -53,10 +53,10 @@ export function usePreviewPlayer({
 
   // 1) audio 엘리먼트 1회 생성 + 이벤트 바인딩. (트랙마다 새로 만들면 unlock 이 유지 안 됨)
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (typeof window === 'undefined') return;
 
     const audio = new Audio();
-    audio.preload = "auto";
+    audio.preload = 'auto';
     audio.volume = 1.0;
     audioRef.current = audio;
 
@@ -73,18 +73,18 @@ export function usePreviewPlayer({
       onEndedRef.current?.();
     };
 
-    audio.addEventListener("timeupdate", onTime);
-    audio.addEventListener("play", onPlay);
-    audio.addEventListener("pause", onPause);
-    audio.addEventListener("ended", onEnd);
+    audio.addEventListener('timeupdate', onTime);
+    audio.addEventListener('play', onPlay);
+    audio.addEventListener('pause', onPause);
+    audio.addEventListener('ended', onEnd);
 
     return () => {
       audio.pause();
-      audio.removeEventListener("timeupdate", onTime);
-      audio.removeEventListener("play", onPlay);
-      audio.removeEventListener("pause", onPause);
-      audio.removeEventListener("ended", onEnd);
-      audio.src = "";
+      audio.removeEventListener('timeupdate', onTime);
+      audio.removeEventListener('play', onPlay);
+      audio.removeEventListener('pause', onPause);
+      audio.removeEventListener('ended', onEnd);
+      audio.src = '';
       audioRef.current = null;
       lastUrlRef.current = null;
     };
@@ -111,7 +111,7 @@ export function usePreviewPlayer({
     }
 
     const attempt = audio.play();
-    if (attempt && typeof attempt.catch === "function") {
+    if (attempt && typeof attempt.catch === 'function') {
       attempt.catch(() => {
         // 자동재생 차단 — 다음 사용자 제스처(클릭/터치)에 1회 재시도.
         setIsPlaying(false);
@@ -122,7 +122,7 @@ export function usePreviewPlayer({
           if (!wantPlayRef.current) return;
           audioRef.current?.play().catch(() => {});
         };
-        document.addEventListener("pointerdown", retry, { once: true });
+        document.addEventListener('pointerdown', retry, { once: true });
       });
     }
 

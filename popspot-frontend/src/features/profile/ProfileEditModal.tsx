@@ -1,21 +1,21 @@
-"use client";
+'use client';
 
-import { useEffect, useRef, useState } from "react";
-import Image from "next/image";
-import { Camera, Check, Loader2, User as UserIcon } from "lucide-react";
+import { useEffect, useRef, useState } from 'react';
+import Image from 'next/image';
+import { Camera, Check, Loader2, User as UserIcon } from 'lucide-react';
 
-import { apiFetch } from "@/lib/api";
-import { notifyError, notifySuccess } from "@/lib/notify";
-import { Button } from "@/components/ui/button";
-import { Input, Field } from "@/components/ui/input";
+import { apiFetch } from '@/lib/api';
+import { notifyError, notifySuccess } from '@/lib/notify';
+import { Button } from '@/components/ui/button';
+import { Input, Field } from '@/components/ui/input';
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import type { User } from "@/types/popup";
+} from '@/components/ui/dialog';
+import type { User } from '@/types/popup';
 
 interface ProfileEditModalProps {
   open: boolean;
@@ -31,10 +31,10 @@ const NICKNAME_MAX = 20;
 const MAX_AVATAR_MB = 5;
 
 type NicknameStatus =
-  | { state: "idle" }
-  | { state: "checking" }
-  | { state: "ok"; selfSame?: boolean }
-  | { state: "taken"; reason: string };
+  | { state: 'idle' }
+  | { state: 'checking' }
+  | { state: 'ok'; selfSame?: boolean }
+  | { state: 'taken'; reason: string };
 
 /**
  * 프로필 편집 모달 — 사진 + 닉네임 변경.
@@ -42,19 +42,12 @@ type NicknameStatus =
  * <p>닉네임 실시간 중복 검사 (350ms debounce). 사진은 5MB 이하 jpg/png/webp.
  * 저장 시 PATCH /api/v1/users/me + POST /api/v1/users/me/avatar 두 단계.
  */
-export function ProfileEditModal({
-  open,
-  onOpenChange,
-  user,
-  onSaved,
-}: ProfileEditModalProps) {
+export function ProfileEditModal({ open, onOpenChange, user, onSaved }: ProfileEditModalProps) {
   const [nickname, setNickname] = useState(user.nickname);
-  const [picturePreview, setPicturePreview] = useState<string | null>(
-    user.picture ?? null,
-  );
+  const [picturePreview, setPicturePreview] = useState<string | null>(user.picture ?? null);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [nicknameStatus, setNicknameStatus] = useState<NicknameStatus>({
-    state: "ok",
+    state: 'ok',
     selfSame: true,
   });
   const [saving, setSaving] = useState(false);
@@ -67,7 +60,7 @@ export function ProfileEditModal({
       setNickname(user.nickname);
       setPicturePreview(user.picture ?? null);
       setPendingFile(null);
-      setNicknameStatus({ state: "ok", selfSame: true });
+      setNicknameStatus({ state: 'ok', selfSame: true });
     }
   }, [open, user.nickname, user.picture]);
 
@@ -78,25 +71,25 @@ export function ProfileEditModal({
 
     const trimmed = nickname.trim();
     if (trimmed === user.nickname) {
-      setNicknameStatus({ state: "ok", selfSame: true });
+      setNicknameStatus({ state: 'ok', selfSame: true });
       return;
     }
     if (trimmed.length < NICKNAME_MIN || trimmed.length > NICKNAME_MAX) {
       setNicknameStatus({
-        state: "taken",
+        state: 'taken',
         reason: `${NICKNAME_MIN}~${NICKNAME_MAX}자 사이여야 합니다.`,
       });
       return;
     }
 
-    setNicknameStatus({ state: "checking" });
+    setNicknameStatus({ state: 'checking' });
     debounceRef.current = setTimeout(async () => {
       try {
         const res = await apiFetch(
           `/api/v1/users/check-nickname?value=${encodeURIComponent(trimmed)}`,
         );
         if (!res.ok) {
-          setNicknameStatus({ state: "ok" });
+          setNicknameStatus({ state: 'ok' });
           return;
         }
         const data = (await res.json()) as {
@@ -104,16 +97,16 @@ export function ProfileEditModal({
           reason?: string;
         };
         if (data.available) {
-          setNicknameStatus({ state: "ok" });
+          setNicknameStatus({ state: 'ok' });
         } else {
           setNicknameStatus({
-            state: "taken",
-            reason: data.reason ?? "이미 사용 중입니다.",
+            state: 'taken',
+            reason: data.reason ?? '이미 사용 중입니다.',
           });
         }
       } catch {
         // 네트워크 실패 시 통과 — 서버가 최종 검증.
-        setNicknameStatus({ state: "ok" });
+        setNicknameStatus({ state: 'ok' });
       }
     }, DEBOUNCE_MS);
 
@@ -132,7 +125,7 @@ export function ProfileEditModal({
       return;
     }
     if (!/^image\/(jpeg|png|webp)$/i.test(file.type)) {
-      notifyError("jpg / png / webp 형식만 업로드할 수 있습니다.");
+      notifyError('jpg / png / webp 형식만 업로드할 수 있습니다.');
       return;
     }
     setPendingFile(file);
@@ -141,11 +134,11 @@ export function ProfileEditModal({
 
   const handleSave = async () => {
     if (saving) return;
-    if (nicknameStatus.state === "checking") {
-      notifyError("닉네임 확인이 끝날 때까지 잠시 기다려 주세요.");
+    if (nicknameStatus.state === 'checking') {
+      notifyError('닉네임 확인이 끝날 때까지 잠시 기다려 주세요.');
       return;
     }
-    if (nicknameStatus.state === "taken") {
+    if (nicknameStatus.state === 'taken') {
       notifyError(nicknameStatus.reason);
       return;
     }
@@ -157,22 +150,22 @@ export function ProfileEditModal({
       // 1. 사진 새로 선택된 경우 먼저 업로드.
       if (pendingFile) {
         const formData = new FormData();
-        formData.append("file", pendingFile);
-        const upRes = await apiFetch("/api/v1/users/me/avatar", {
-          method: "POST",
+        formData.append('file', pendingFile);
+        const upRes = await apiFetch('/api/v1/users/me/avatar', {
+          method: 'POST',
           body: formData,
         });
         if (!upRes.ok) {
           const message = await readMessage(upRes);
-          throw new Error(message || "사진 업로드에 실패했습니다.");
+          throw new Error(message || '사진 업로드에 실패했습니다.');
         }
         const upData = (await upRes.json()) as { url: string };
         nextPicture = upData.url;
       }
 
       // 2. 닉네임 / picture 메타 갱신.
-      const patchRes = await apiFetch("/api/v1/users/me", {
-        method: "PATCH",
+      const patchRes = await apiFetch('/api/v1/users/me', {
+        method: 'PATCH',
         body: JSON.stringify({
           nickname: nickname.trim(),
           picture: nextPicture,
@@ -180,22 +173,21 @@ export function ProfileEditModal({
       });
       if (!patchRes.ok) {
         const message = await readMessage(patchRes);
-        throw new Error(message || "프로필 저장에 실패했습니다.");
+        throw new Error(message || '프로필 저장에 실패했습니다.');
       }
       const patchData = (await patchRes.json()) as {
         nickname: string;
         picture: string | null;
       };
 
-      notifySuccess("프로필이 업데이트되었습니다.");
+      notifySuccess('프로필이 업데이트되었습니다.');
       onSaved?.({
         nickname: patchData.nickname,
         picture: patchData.picture ?? null,
       });
       onOpenChange(false);
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "프로필 저장에 실패했습니다.";
+      const message = err instanceof Error ? err.message : '프로필 저장에 실패했습니다.';
       notifyError(message);
     } finally {
       setSaving(false);
@@ -207,9 +199,7 @@ export function ProfileEditModal({
       <DialogContent size="md">
         <DialogHeader>
           <DialogTitle>프로필 수정</DialogTitle>
-          <DialogDescription>
-            프로필 사진과 닉네임을 변경할 수 있습니다.
-          </DialogDescription>
+          <DialogDescription>프로필 사진과 닉네임을 변경할 수 있습니다.</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-5 mt-2">
@@ -238,12 +228,8 @@ export function ProfileEditModal({
               </div>
             </button>
             <div className="flex-1">
-              <p className="text-sm font-semibold text-foreground">
-                프로필 사진
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                최대 {MAX_AVATAR_MB}MB
-              </p>
+              <p className="text-sm font-semibold text-foreground">프로필 사진</p>
+              <p className="text-xs text-muted-foreground mt-1">최대 {MAX_AVATAR_MB}MB</p>
               <Button
                 type="button"
                 variant="outline"
@@ -264,28 +250,19 @@ export function ProfileEditModal({
           </div>
 
           {/* 닉네임 영역 */}
-          <Field
-            label="닉네임"
-            required
-            helper={renderNicknameHelper(nicknameStatus)}
-          >
+          <Field label="닉네임" required helper={renderNicknameHelper(nicknameStatus)}>
             <Input
               value={nickname}
               onChange={(e) => setNickname(e.target.value)}
               maxLength={NICKNAME_MAX}
               placeholder="2~20자"
-              invalid={nicknameStatus.state === "taken"}
+              invalid={nicknameStatus.state === 'taken'}
             />
           </Field>
         </div>
 
         <div className="flex gap-2 justify-end mt-4">
-          <Button
-            type="button"
-            variant="outline"
-            size="md"
-            onClick={() => onOpenChange(false)}
-          >
+          <Button type="button" variant="outline" size="md" onClick={() => onOpenChange(false)}>
             취소
           </Button>
           <Button
@@ -294,10 +271,7 @@ export function ProfileEditModal({
             size="md"
             loading={saving}
             onClick={handleSave}
-            disabled={
-              nicknameStatus.state === "taken" ||
-              nicknameStatus.state === "checking"
-            }
+            disabled={nicknameStatus.state === 'taken' || nicknameStatus.state === 'checking'}
           >
             저장
           </Button>
@@ -308,17 +282,17 @@ export function ProfileEditModal({
 }
 
 function renderNicknameHelper(status: NicknameStatus) {
-  if (status.state === "checking") {
+  if (status.state === 'checking') {
     return (
       <span className="inline-flex items-center gap-1 text-muted-foreground">
         <Loader2 className="size-3 animate-spin" /> 사용 가능 여부 확인 중
       </span>
     );
   }
-  if (status.state === "taken") {
+  if (status.state === 'taken') {
     return <span className="text-danger">{status.reason}</span>;
   }
-  if (status.state === "ok" && status.selfSame) {
+  if (status.state === 'ok' && status.selfSame) {
     return <span className="text-muted-foreground">현재 닉네임입니다.</span>;
   }
   return (
@@ -331,8 +305,8 @@ function renderNicknameHelper(status: NicknameStatus) {
 async function readMessage(res: Response): Promise<string> {
   try {
     const data = await res.json();
-    if (data && typeof data.message === "string") return data.message;
-    if (typeof data === "string") return data;
+    if (data && typeof data.message === 'string') return data.message;
+    if (typeof data === 'string') return data;
   } catch {
     /* fallback */
   }

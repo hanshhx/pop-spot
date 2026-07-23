@@ -79,9 +79,7 @@ export const env = {
   /** Kakao Map JS SDK key — 부재시 빈 문자열 (지도 미초기화). */
   kakaoMapKey: KAKAO_MAP_KEY ?? '',
   /** Algolia: 검증 통과시에만 값 반환, 아니면 null (호출부에서 fallback UI). */
-  algolia: isAlgoliaValid
-    ? { appId: ALGOLIA_APP_ID!, searchKey: ALGOLIA_SEARCH_KEY! }
-    : null,
+  algolia: isAlgoliaValid ? { appId: ALGOLIA_APP_ID!, searchKey: ALGOLIA_SEARCH_KEY! } : null,
 } as const;
 
 export type Env = typeof env;

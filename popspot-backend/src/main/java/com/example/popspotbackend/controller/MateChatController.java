@@ -1,8 +1,10 @@
 package com.example.popspotbackend.controller;
 
-import com.example.popspotbackend.entity.MateChatMessage;
+import com.example.popspotbackend.dto.MateChatMessageRequestDto;
+import com.example.popspotbackend.dto.MateChatMessageResponseDto;
 import com.example.popspotbackend.service.ChatIdentityResolver;
 import com.example.popspotbackend.service.MateService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
@@ -31,12 +33,14 @@ public class MateChatController {
     @MessageMapping("/mate/chat/{postId}")
     public void sendMessage(
             @DestinationVariable Long postId,
-            MateChatMessage message,
+            @Valid MateChatMessageRequestDto message,
             SimpMessageHeaderAccessor headerAccessor) {
         // 보안: sender 를 클라이언트 값이 아닌 인증 세션 기준으로 서버가 확정(사칭 차단).
-        message.setSender(identityResolver.resolveSender(headerAccessor));
-        log.debug("[MateChat] postId={} sender={} 수신", postId, message.getSender());
-        MateChatMessage saved = mateService.persistChatMessage(postId, message);
+        String userId = identityResolver.requireUserId(headerAccessor);
+        String sender = identityResolver.resolveSender(headerAccessor);
+        log.debug("[MateChat] postId={} sender={} 수신", postId, sender);
+        MateChatMessageResponseDto saved =
+                mateService.persistChatMessage(postId, message, sender, userId);
         messagingTemplate.convertAndSend(SUB_TOPIC_PREFIX + postId, saved);
     }
 }

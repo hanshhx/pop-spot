@@ -24,6 +24,8 @@ public interface WishlistRepository extends JpaRepository<Wishlist, Long> {
     // 🔥 [22번 임의 수정] 찜 개수 역시 전체 데이터를 가져오지 않고 DB에서 숫자만 카운트합니다.
     int countByUser_UserId(String userId);
 
+    void deleteByUser_UserId(String userId);
+
     /**
      * v2.18.1 — 위시 만료 D-3 알림 cron 용.
      *

@@ -5,6 +5,6 @@
  *
  * <pre>{@code import { EmptyState, LoadingSpinner, ErrorState } from "@/components/ui/feedback";}</pre>
  */
-export * from "./EmptyState";
-export * from "./LoadingSpinner";
-export * from "./ErrorState";
+export * from './EmptyState';
+export * from './LoadingSpinner';
+export * from './ErrorState';

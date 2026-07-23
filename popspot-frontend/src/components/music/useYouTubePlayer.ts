@@ -1,7 +1,7 @@
-"use client";
+'use client';
 
-import { useEffect, useRef, useState } from "react";
-import type { YouTubeIframeSdk, YouTubePlayer, YouTubePlayerEvent } from "@/types/sdk";
+import { useEffect, useRef, useState } from 'react';
+import type { YouTubeIframeSdk, YouTubePlayer, YouTubePlayerEvent } from '@/types/sdk';
 
 declare global {
   interface Window {
@@ -14,7 +14,7 @@ let apiLoaded = false;
 const apiCallbacks: Array<() => void> = [];
 
 function loadYouTubeApi(cb: () => void) {
-  if (typeof window === "undefined") return;
+  if (typeof window === 'undefined') return;
   if (window.YT && window.YT.Player) {
     cb();
     return;
@@ -23,8 +23,8 @@ function loadYouTubeApi(cb: () => void) {
   if (apiLoaded) return;
   apiLoaded = true;
 
-  const tag = document.createElement("script");
-  tag.src = "https://www.youtube.com/iframe_api";
+  const tag = document.createElement('script');
+  tag.src = 'https://www.youtube.com/iframe_api';
   document.head.appendChild(tag);
 
   window.onYouTubeIframeAPIReady = () => {
@@ -48,14 +48,14 @@ export type YouTubePlayerErrorCode = 2 | 5 | 100 | 101 | 150;
 export function describeYouTubeError(code: YouTubePlayerErrorCode | number): string {
   switch (code) {
     case 2:
-      return "잘못된 영상 ID";
+      return '잘못된 영상 ID';
     case 5:
-      return "재생기 내부 오류";
+      return '재생기 내부 오류';
     case 100:
-      return "영상이 비공개 또는 삭제됨";
+      return '영상이 비공개 또는 삭제됨';
     case 101:
     case 150:
-      return "업로더가 외부 재생을 차단한 영상";
+      return '업로더가 외부 재생을 차단한 영상';
     default:
       return `알 수 없는 오류 (코드 ${code})`;
   }
@@ -109,7 +109,7 @@ export function useYouTubePlayer({ videoId, onEnded, onError }: UsePlayerOptions
 
     // wrapper 안에 별도 target 노드를 만들어서 YouTube 에 넘긴다.
     // YouTube 가 이 target 을 iframe 으로 교체해도 wrapper 자체는 React 트리에 그대로.
-    const target = document.createElement("div");
+    const target = document.createElement('div');
     wrapper.appendChild(target);
 
     loadYouTubeApi(() => {
@@ -118,18 +118,18 @@ export function useYouTubePlayer({ videoId, onEnded, onError }: UsePlayerOptions
       playerRef.current = new window.YT.Player(target, {
         videoId,
         // 부모 컨테이너 크기에 맞추도록 100%. 0 으로 두면 약관상 오디오 분리 사용으로 해석될 위험.
-        height: "100%",
-        width: "100%",
+        height: '100%',
+        width: '100%',
         playerVars: {
           autoplay: 1,
-          controls: 0,        // YouTube 자체 컨트롤바 숨김 (우리 컨트롤로 대체)
-          modestbranding: 1,  // 큰 YouTube 로고 최소화 (작은 워터마크는 약관상 유지)
-          rel: 0,             // 관련 영상 추천 최소화
-          disablekb: 1,       // 키보드 단축키 비활성
-          fs: 0,              // 전체화면 버튼 숨김
-          iv_load_policy: 3,  // 영상 주석 비활성
-          playsinline: 1,     // 모바일에서 인라인 재생
-          cc_load_policy: 0,  // 자막 자동 표시 X
+          controls: 0, // YouTube 자체 컨트롤바 숨김 (우리 컨트롤로 대체)
+          modestbranding: 1, // 큰 YouTube 로고 최소화 (작은 워터마크는 약관상 유지)
+          rel: 0, // 관련 영상 추천 최소화
+          disablekb: 1, // 키보드 단축키 비활성
+          fs: 0, // 전체화면 버튼 숨김
+          iv_load_policy: 3, // 영상 주석 비활성
+          playsinline: 1, // 모바일에서 인라인 재생
+          cc_load_policy: 0, // 자막 자동 표시 X
         },
         events: {
           onReady: (e: YouTubePlayerEvent) => {
@@ -164,7 +164,9 @@ export function useYouTubePlayer({ videoId, onEnded, onError }: UsePlayerOptions
 
       // YouTube Player destroy — iframe 을 자체적으로 제거함
       if (playerRef.current?.destroy) {
-        try { playerRef.current.destroy(); } catch {}
+        try {
+          playerRef.current.destroy();
+        } catch {}
       }
       playerRef.current = null;
 

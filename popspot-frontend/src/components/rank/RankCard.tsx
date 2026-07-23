@@ -1,7 +1,7 @@
-"use client";
+'use client';
 
-import { Award, ChevronRight, Stamp } from "lucide-react";
-import { getUserRank } from "@/lib/rank";
+import { Award, ChevronRight, Stamp } from 'lucide-react';
+import { getUserRank } from '@/lib/rank';
 
 interface Props {
   stampCount: number;
@@ -18,24 +18,28 @@ export default function RankCard({ stampCount, nickname, onSeeAll }: Props) {
 
   // 다음 등급까지 진행도 (현재 단계 안에서의 비율)
   let progress = 0;
-  if (rank.key === "MASTER") progress = 100;
-  else if (rank.key === "HUNTER") progress = ((stampCount - 6) / 6) * 100;
-  else if (rank.key === "BEGINNER") progress = ((stampCount - 3) / 3) * 100;
+  if (rank.key === 'MASTER') progress = 100;
+  else if (rank.key === 'HUNTER') progress = ((stampCount - 6) / 6) * 100;
+  else if (rank.key === 'BEGINNER') progress = ((stampCount - 3) / 3) * 100;
   else progress = (stampCount / 3) * 100;
 
   return (
-    <div className={`relative overflow-hidden rounded-2xl border border-[var(--color-border)] bg-gradient-to-br ${rank.bg} p-5 lg:p-6`}>
+    <div
+      className={`relative overflow-hidden rounded-2xl border border-[var(--color-border)] bg-gradient-to-br ${rank.bg} p-5 lg:p-6`}
+    >
       {/* 우측 상단 장식 */}
       <Award className="absolute -right-3 -top-3 h-24 w-24 opacity-10" strokeWidth={1.2} />
 
       <div className="relative flex items-center gap-3 lg:gap-4">
-        <div className={`grid h-12 w-12 lg:h-14 lg:w-14 place-items-center rounded-2xl bg-surface shadow-md ring-4 ${rank.ring}`}>
+        <div
+          className={`grid h-12 w-12 lg:h-14 lg:w-14 place-items-center rounded-2xl bg-surface shadow-md ring-4 ${rank.ring}`}
+        >
           <Stamp className={`h-5 w-5 lg:h-6 lg:w-6 ${rank.text}`} strokeWidth={2} />
         </div>
 
         <div className="flex-1 min-w-0">
           <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-            {nickname ? `${nickname} 님의 등급` : "내 등급"}
+            {nickname ? `${nickname} 님의 등급` : '내 등급'}
           </p>
           <h4 className={`mt-0.5 text-lg lg:text-xl font-black tracking-tight ${rank.text}`}>
             {rank.label}
@@ -60,7 +64,7 @@ export default function RankCard({ stampCount, nickname, onSeeAll }: Props) {
           <span>
             도장 <strong className="text-foreground">{stampCount}</strong>개
           </span>
-          {rank.key === "MASTER" ? (
+          {rank.key === 'MASTER' ? (
             <span className="text-amber-500 dark:text-amber-300">최고 등급 달성</span>
           ) : (
             <span>
@@ -92,8 +96,8 @@ function BadgePill({ label, achieved }: { label: string; achieved: boolean }) {
     <span
       className={`rounded-full px-2.5 py-1 text-[10px] font-bold transition ${
         achieved
-          ? "bg-foreground text-background"
-          : "bg-foreground/5 text-muted-foreground border border-[var(--color-border)]"
+          ? 'bg-foreground text-background'
+          : 'bg-foreground/5 text-muted-foreground border border-[var(--color-border)]'
       }`}
     >
       {label}

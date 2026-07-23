@@ -1,8 +1,8 @@
-"use client";
+'use client';
 
-import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   MapPin,
   CalendarDays,
@@ -13,11 +13,11 @@ import {
   ExternalLink,
   ChevronDown,
   ChevronUp,
-} from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
-import { apiFetch } from "@/lib/api";
-import { REGIONS, classifyRegion, type RegionCode } from "@/lib/regions";
+import { apiFetch } from '@/lib/api';
+import { REGIONS, classifyRegion, type RegionCode } from '@/lib/regions';
 import {
   getPeriods,
   CATEGORIES,
@@ -25,7 +25,7 @@ import {
   classifyCategory,
   type PeriodCode,
   type CategoryCode,
-} from "@/lib/popupSlices";
+} from '@/lib/popupSlices';
 
 /**
  * v2.21 — 메인 페이지 BROWSE 섹션 + 슬라이스 모달.
@@ -57,7 +57,7 @@ type Marker = {
   endDate: string | null;
 };
 
-type SliceKind = "region" | "period" | "category";
+type SliceKind = 'region' | 'period' | 'category';
 
 type ActiveSlice = {
   kind: SliceKind;
@@ -77,27 +77,27 @@ type SliceItem = {
   slug: string;
 };
 
-const EXPAND_STORAGE_KEY = "popspot:browse:expanded";
+const EXPAND_STORAGE_KEY = 'popspot:browse:expanded';
 
 export default function BrowseSection() {
   const [markers, setMarkers] = useState<Marker[] | null>(null);
   const [error, setError] = useState(false);
   const [activeSlice, setActiveSlice] = useState<ActiveSlice | null>(null);
   const [isExpanded, setIsExpanded] = useState(true);
-  const periods = useMemo(() => getPeriods(), [markers]);
+  const periods = useMemo(() => getPeriods(), []);
 
   // 토글 상태 localStorage 영속화 — 새로고침 후에도 사용자 선택 유지.
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (typeof window === 'undefined') return;
     const saved = window.localStorage.getItem(EXPAND_STORAGE_KEY);
-    if (saved === "0") setIsExpanded(false);
+    if (saved === '0') setIsExpanded(false);
   }, []);
 
   function toggleExpand() {
     setIsExpanded((prev) => {
       const next = !prev;
-      if (typeof window !== "undefined") {
-        window.localStorage.setItem(EXPAND_STORAGE_KEY, next ? "1" : "0");
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem(EXPAND_STORAGE_KEY, next ? '1' : '0');
       }
       return next;
     });
@@ -105,7 +105,7 @@ export default function BrowseSection() {
 
   useEffect(() => {
     let cancelled = false;
-    apiFetch("/api/map/markers")
+    apiFetch('/api/map/markers')
       .then((res) => (res.ok ? res.json() : []))
       .then((data: Marker[]) => {
         if (!cancelled) setMarkers(data);
@@ -129,7 +129,7 @@ export default function BrowseSection() {
       key: r.code,
       label: r.label,
       count: counts.get(r.code) ?? 0,
-      kind: "region" as const,
+      kind: 'region' as const,
       code: r.code,
       slug: r.slug,
     })).filter((s) => s.count > 0);
@@ -138,20 +138,22 @@ export default function BrowseSection() {
   const periodSlices = useMemo<SliceItem[]>(() => {
     if (!markers) return [];
     const now = new Date();
-    return periods.map((p) => {
-      const count = markers.reduce(
-        (acc, m) => acc + (matchesPeriod(m.startDate, m.endDate, p.code, now) ? 1 : 0),
-        0,
-      );
-      return {
-        key: p.code,
-        label: p.label,
-        count,
-        kind: "period" as const,
-        code: p.code,
-        slug: p.slug,
-      };
-    }).filter((s) => s.count > 0);
+    return periods
+      .map((p) => {
+        const count = markers.reduce(
+          (acc, m) => acc + (matchesPeriod(m.startDate, m.endDate, p.code, now) ? 1 : 0),
+          0,
+        );
+        return {
+          key: p.code,
+          label: p.label,
+          count,
+          kind: 'period' as const,
+          code: p.code,
+          slug: p.slug,
+        };
+      })
+      .filter((s) => s.count > 0);
   }, [markers, periods]);
 
   const categorySlices = useMemo<SliceItem[]>(() => {
@@ -165,7 +167,7 @@ export default function BrowseSection() {
       key: c.code,
       label: c.label,
       count: counts.get(c.code) ?? 0,
-      kind: "category" as const,
+      kind: 'category' as const,
       code: c.code,
       slug: c.slug,
     })).filter((s) => s.count > 0);
@@ -225,9 +227,9 @@ export default function BrowseSection() {
             <motion.div
               id="browse-section-body"
               initial={{ height: 0, opacity: 0 }}
-              animate={{ height: "auto", opacity: 1 }}
+              animate={{ height: 'auto', opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.22, ease: "easeInOut" }}
+              transition={{ duration: 0.22, ease: 'easeInOut' }}
               className="overflow-hidden border-t border-gray-200 dark:border-white/5"
             >
               <div className="divide-y divide-gray-200 dark:divide-white/5">
@@ -259,9 +261,7 @@ export default function BrowseSection() {
       </section>
 
       <AnimatePresence>
-        {activeSlice && (
-          <SliceModal slice={activeSlice} onClose={() => setActiveSlice(null)} />
-        )}
+        {activeSlice && <SliceModal slice={activeSlice} onClose={() => setActiveSlice(null)} />}
       </AnimatePresence>
     </>
   );
@@ -334,20 +334,20 @@ function SliceRow({
 function SliceModal({ slice, onClose }: { slice: ActiveSlice; onClose: () => void }) {
   const router = useRouter();
   const paramKey =
-    slice.kind === "region" ? "region" : slice.kind === "period" ? "period" : "category";
+    slice.kind === 'region' ? 'region' : slice.kind === 'period' ? 'period' : 'category';
   const mapHref = `/?tab=MAP&${paramKey}=${slice.slug}`;
   const landingHref = `/popups/${slice.slug}`;
 
   // ESC 키로 닫기 + body scroll lock
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === 'Escape') onClose();
     };
-    document.addEventListener("keydown", onKey);
+    document.addEventListener('keydown', onKey);
     const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    document.body.style.overflow = 'hidden';
     return () => {
-      document.removeEventListener("keydown", onKey);
+      document.removeEventListener('keydown', onKey);
       document.body.style.overflow = prev;
     };
   }, [onClose]);
@@ -373,7 +373,7 @@ function SliceModal({ slice, onClose }: { slice: ActiveSlice; onClose: () => voi
         initial={{ y: 60, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         exit={{ y: 40, opacity: 0 }}
-        transition={{ type: "spring", stiffness: 320, damping: 28 }}
+        transition={{ type: 'spring', stiffness: 320, damping: 28 }}
         className="w-full md:max-w-lg max-h-[85vh] md:max-h-[80vh] flex flex-col bg-white dark:bg-[#111] border border-gray-200 dark:border-white/10 rounded-t-3xl md:rounded-3xl shadow-2xl overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
@@ -381,14 +381,10 @@ function SliceModal({ slice, onClose }: { slice: ActiveSlice; onClose: () => voi
         <header className="flex items-start justify-between gap-3 px-5 md:px-6 py-4 border-b border-gray-200 dark:border-white/5">
           <div>
             <p className="text-[10px] font-bold uppercase tracking-[0.4em] text-muted-foreground mb-1">
-              {slice.kind === "region"
-                ? "REGION"
-                : slice.kind === "period"
-                  ? "WHEN"
-                  : "CATEGORY"}
+              {slice.kind === 'region' ? 'REGION' : slice.kind === 'period' ? 'WHEN' : 'CATEGORY'}
             </p>
             <h2 className="text-lg md:text-xl font-black text-gray-900 dark:text-white">
-              {slice.label} 팝업{" "}
+              {slice.label} 팝업{' '}
               <span className="text-lime-600 dark:text-lime-300">{slice.matches.length}곳</span>
             </h2>
           </div>
@@ -425,11 +421,11 @@ function SliceModal({ slice, onClose }: { slice: ActiveSlice; onClose: () => voi
                         {m.name}
                       </p>
                       <p className="text-xs text-muted-foreground truncate">
-                        {m.location ?? "위치 정보 없음"}
+                        {m.location ?? '위치 정보 없음'}
                       </p>
                       {(m.startDate || m.endDate) && (
                         <p className="text-[11px] text-muted-foreground mt-0.5">
-                          {m.startDate ?? "?"} ~ {m.endDate ?? "?"}
+                          {m.startDate ?? '?'} ~ {m.endDate ?? '?'}
                         </p>
                       )}
                     </div>
@@ -444,7 +440,7 @@ function SliceModal({ slice, onClose }: { slice: ActiveSlice; onClose: () => voi
           )}
           {slice.matches.length > 50 && (
             <p className="text-xs text-muted-foreground px-4 py-3">
-              외 {slice.matches.length - 50}곳 더 — 아래 "지도에서 모두 보기" 클릭
+              외 {slice.matches.length - 50}곳 더 — 아래 &ldquo;지도에서 모두 보기&rdquo; 클릭
             </p>
           )}
         </div>
@@ -474,10 +470,10 @@ function SliceModal({ slice, onClose }: { slice: ActiveSlice; onClose: () => voi
 /* ============================== 유틸 ============================== */
 
 function filterMarkers(markers: Marker[], item: SliceItem): Marker[] {
-  if (item.kind === "region") {
+  if (item.kind === 'region') {
     return markers.filter((m) => classifyRegion(m.location) === item.code);
   }
-  if (item.kind === "period") {
+  if (item.kind === 'period') {
     const now = new Date();
     return markers.filter((m) =>
       matchesPeriod(m.startDate, m.endDate, item.code as PeriodCode, now),

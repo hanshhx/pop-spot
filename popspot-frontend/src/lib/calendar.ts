@@ -126,8 +126,7 @@ export function addToCalendar(input: CalendarInput): boolean {
   const ev = toCalendarEvent(input);
   if (!ev) return false;
 
-  const isIOS =
-    typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent);
+  const isIOS = typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent);
 
   if (isIOS) {
     downloadIcs(buildIcs(ev), ev.title);

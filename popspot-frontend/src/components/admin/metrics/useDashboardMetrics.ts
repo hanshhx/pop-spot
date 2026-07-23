@@ -1,8 +1,8 @@
-"use client";
+'use client';
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from 'react';
 
-import { apiFetch } from "@/lib/api";
+import { apiFetch } from '@/lib/api';
 
 /**
  * 어드민 대시보드 메트릭 폴링 훅.
@@ -28,7 +28,7 @@ export interface DashboardSnapshot {
 interface UseDashboardMetricsResult<P> {
   snapshot: DashboardSnapshot | null;
   series: P[];
-  status: "online" | "offline";
+  status: 'online' | 'offline';
 }
 
 export function useDashboardMetrics<P>(
@@ -39,7 +39,7 @@ export function useDashboardMetrics<P>(
 ): UseDashboardMetricsResult<P> {
   const [snapshot, setSnapshot] = useState<DashboardSnapshot | null>(null);
   const [series, setSeries] = useState<P[]>([]);
-  const [status, setStatus] = useState<"online" | "offline">("online");
+  const [status, setStatus] = useState<'online' | 'offline'>('online');
   const toLinePointRef = useRef(toLinePoint);
   toLinePointRef.current = toLinePoint;
 
@@ -49,19 +49,19 @@ export function useDashboardMetrics<P>(
 
     const tick = async () => {
       try {
-        const res = await apiFetch("/api/admin/metrics/dashboard");
+        const res = await apiFetch('/api/admin/metrics/dashboard');
         if (!res.ok) {
-          if (!cancelled) setStatus("offline");
+          if (!cancelled) setStatus('offline');
           return;
         }
         const data: DashboardSnapshot = await res.json();
         if (cancelled) return;
         setSnapshot(data);
-        setStatus("online");
+        setStatus('online');
         const point = toLinePointRef.current(data, new Date());
         setSeries((prev) => [...prev, point].slice(-bufferSize));
       } catch {
-        if (!cancelled) setStatus("offline");
+        if (!cancelled) setStatus('offline');
       }
     };
 

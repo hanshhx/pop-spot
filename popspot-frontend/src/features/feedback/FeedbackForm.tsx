@@ -1,17 +1,17 @@
-"use client";
+'use client';
 
-import { useState } from "react";
+import { useState } from 'react';
 
-import { Button } from "@/components/ui/button";
-import { Input, Field } from "@/components/ui/input";
-import { notifySuccess, notifyError } from "@/lib/notify";
+import { Button } from '@/components/ui/button';
+import { Input, Field } from '@/components/ui/input';
+import { notifySuccess, notifyError } from '@/lib/notify';
 import {
   CATEGORY_LABEL,
   type FeedbackCategory,
   type FeedbackCreatePayload,
-} from "@/types/feedback";
+} from '@/types/feedback';
 
-import { createFeedback } from "./api";
+import { createFeedback } from './api';
 
 interface FeedbackFormProps {
   /** 로그인 사용자 ID. 없으면 게스트 폼으로 표시. */
@@ -20,7 +20,7 @@ interface FeedbackFormProps {
   onSubmitted?: () => void;
 }
 
-const CATEGORY_ORDER: FeedbackCategory[] = ["BUG", "FEATURE", "GOOD", "OTHER"];
+const CATEGORY_ORDER: FeedbackCategory[] = ['BUG', 'FEATURE', 'GOOD', 'OTHER'];
 
 const TITLE_MAX = 200;
 const CONTENT_MAX = 4000;
@@ -32,10 +32,10 @@ const CONTENT_MAX = 4000;
  * 화이트리스트 카테고리 4종을 라디오로 받는다.
  */
 export function FeedbackForm({ userId, onSubmitted }: FeedbackFormProps) {
-  const [category, setCategory] = useState<FeedbackCategory>("BUG");
-  const [title, setTitle] = useState("");
-  const [content, setContent] = useState("");
-  const [guestEmail, setGuestEmail] = useState("");
+  const [category, setCategory] = useState<FeedbackCategory>('BUG');
+  const [title, setTitle] = useState('');
+  const [content, setContent] = useState('');
+  const [guestEmail, setGuestEmail] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const isGuest = !userId;
@@ -54,11 +54,11 @@ export function FeedbackForm({ userId, onSubmitted }: FeedbackFormProps) {
     }
 
     if (!payload.title) {
-      notifyError("제목을 입력해 주세요.");
+      notifyError('제목을 입력해 주세요.');
       return;
     }
     if (!payload.content) {
-      notifyError("내용을 입력해 주세요.");
+      notifyError('내용을 입력해 주세요.');
       return;
     }
 
@@ -66,16 +66,15 @@ export function FeedbackForm({ userId, onSubmitted }: FeedbackFormProps) {
     try {
       await createFeedback(payload);
       await notifySuccess({
-        title: "의견 보내기 완료",
-        text: "확인 후 처리 결과를 알려 드리겠습니다.",
+        title: '의견 보내기 완료',
+        text: '확인 후 처리 결과를 알려 드리겠습니다.',
       });
-      setTitle("");
-      setContent("");
-      setGuestEmail("");
+      setTitle('');
+      setContent('');
+      setGuestEmail('');
       onSubmitted?.();
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "의견을 보내지 못했습니다.";
+      const message = err instanceof Error ? err.message : '의견을 보내지 못했습니다.';
       notifyError(message);
     } finally {
       setSubmitting(false);
@@ -92,11 +91,11 @@ export function FeedbackForm({ userId, onSubmitted }: FeedbackFormProps) {
               <label
                 key={value}
                 className={
-                  "flex cursor-pointer items-center justify-center rounded-md border " +
-                  "px-3 py-2 text-sm transition-colors " +
+                  'flex cursor-pointer items-center justify-center rounded-md border ' +
+                  'px-3 py-2 text-sm transition-colors ' +
                   (active
-                    ? "border-foreground bg-foreground text-background"
-                    : "border-[var(--color-border-strong)] bg-surface text-surface-foreground hover:bg-muted")
+                    ? 'border-foreground bg-foreground text-background'
+                    : 'border-[var(--color-border-strong)] bg-surface text-surface-foreground hover:bg-muted')
                 }
               >
                 <input
@@ -125,11 +124,7 @@ export function FeedbackForm({ userId, onSubmitted }: FeedbackFormProps) {
         />
       </Field>
 
-      <Field
-        label="내용"
-        required
-        helper={`${content.length} / ${CONTENT_MAX}`}
-      >
+      <Field label="내용" required helper={`${content.length} / ${CONTENT_MAX}`}>
         <textarea
           name="content"
           required
@@ -143,10 +138,7 @@ export function FeedbackForm({ userId, onSubmitted }: FeedbackFormProps) {
       </Field>
 
       {isGuest && (
-        <Field
-          label="답신용 이메일 (선택)"
-          helper="입력하시면 처리 결과를 메일로 알려 드립니다."
-        >
+        <Field label="답신용 이메일 (선택)" helper="입력하시면 처리 결과를 메일로 알려 드립니다.">
           <Input
             name="guestEmail"
             type="email"

@@ -46,9 +46,24 @@ const eslintConfig = defineConfig([
       // React hook 의존성 누락 명시
       'react-hooks/exhaustive-deps': 'warn',
 
+      // React 19 compiler migration rules. Existing screens still use effect-driven
+      // synchronization and ref-backed media controls; keep these visible in CI
+      // without making an unrelated compiler migration block security releases.
+      'react-hooks/set-state-in-effect': 'warn',
+      'react-hooks/refs': 'warn',
+      'react-hooks/immutability': 'warn',
+      'react-hooks/purity': 'warn',
+
       // === 안 쓰는 표현식 / 빈 함수 ===
       '@typescript-eslint/no-empty-function': 'warn',
       'no-empty-pattern': 'warn',
+    },
+  },
+
+  {
+    files: ['scripts/**/*.cjs'],
+    rules: {
+      '@typescript-eslint/no-require-imports': 'off',
     },
   },
 

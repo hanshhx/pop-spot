@@ -11,11 +11,7 @@
 export type SourceType = 'MANUAL' | 'CRAWLED' | 'USER_REPORT';
 
 export type ReviewStatus =
-  | 'AUTO_PUBLISHED'
-  | 'PENDING_REVIEW'
-  | 'APPROVED'
-  | 'REJECTED'
-  | 'TAKEDOWN';
+  'AUTO_PUBLISHED' | 'PENDING_REVIEW' | 'APPROVED' | 'REJECTED' | 'TAKEDOWN';
 
 /* ============================== User ============================== */
 

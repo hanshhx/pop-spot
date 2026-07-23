@@ -9,7 +9,7 @@
  */
 
 /** 자동 수집 주기 — 백엔드 popspot.crawler.cron / cron-afternoon 과 반드시 일치시킬 것. */
-export const CRAWL_REFRESH_COPY = "매일 04·16시";
+export const CRAWL_REFRESH_COPY = '매일 04·16시';
 
 /** 문장 안에 넣을 때 쓰는 형태. 예: "…{CRAWL_REFRESH_SENTENCE}되는 서울 팝업스토어 추천" */
 export const CRAWL_REFRESH_SENTENCE = `${CRAWL_REFRESH_COPY} 자동 업데이트`;

@@ -48,6 +48,24 @@ public class PopupAdminReviewController {
         return ResponseEntity.ok(popupStoreService.findPendingReview(size));
     }
 
+    @GetMapping("/takedown/pending")
+    public ResponseEntity<List<PopupStore>> pendingTakedown(
+            @RequestParam(defaultValue = "" + DEFAULT_PAGE_SIZE) int size) {
+        return ResponseEntity.ok(popupStoreService.findPendingTakedown(size));
+    }
+
+    @PostMapping("/takedown/{id}/hide")
+    public ResponseEntity<Map<String, Object>> hideAfterTakedownReview(@PathVariable Long id) {
+        popupStoreService.resolveTakedown(id, true);
+        return ResponseEntity.ok(Map.of("status", "TAKEDOWN", "id", id));
+    }
+
+    @PostMapping("/takedown/{id}/reject")
+    public ResponseEntity<Map<String, Object>> rejectTakedown(@PathVariable Long id) {
+        popupStoreService.resolveTakedown(id, false);
+        return ResponseEntity.ok(Map.of("status", "REJECTED_REQUEST", "id", id));
+    }
+
     @PostMapping("/{id}/approve")
     public ResponseEntity<Map<String, Object>> approve(@PathVariable Long id) {
         PopupStore popup = popupStoreService.updateReviewStatus(id, REVIEW_APPROVED);
@@ -63,8 +81,7 @@ public class PopupAdminReviewController {
     }
 
     /**
-     * Takedown 영구 삭제. 약관상 24시간 내 노출 차단은 {@code reviewStatus = TAKEDOWN} 으로 우선 처리하고, 본 호출은 검토 후 영구
-     * 삭제 단계에서만 호출한다 (악성 takedown 방어).
+     * Takedown 영구 삭제. 신고 접수 후 권리 관계를 검토해 삭제가 필요하다고 확인된 경우에만 호출한다.
      */
     @DeleteMapping("/{id}/permanent")
     public ResponseEntity<Map<String, Object>> permanentDelete(@PathVariable Long id) {

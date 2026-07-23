@@ -1,14 +1,14 @@
-"use client";
+'use client';
 
-import Link from "next/link";
-import { useEffect, useState } from "react";
-import { ArrowLeft } from "lucide-react";
+import Link from 'next/link';
+import { useEffect, useState } from 'react';
+import { ArrowLeft } from 'lucide-react';
 
-import { FeedbackForm } from "@/features/feedback/FeedbackForm";
-import { MyFeedbackList } from "@/features/feedback/MyFeedbackList";
-import type { User } from "@/types/popup";
+import { FeedbackForm } from '@/features/feedback/FeedbackForm';
+import { MyFeedbackList } from '@/features/feedback/MyFeedbackList';
+import type { User } from '@/types/popup';
 
-const USER_KEY = "user";
+const USER_KEY = 'user';
 
 /**
  * /feedback — 의견 보내기 전용 페이지.
@@ -21,7 +21,7 @@ export default function FeedbackPage() {
   const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (typeof window === 'undefined') return;
     try {
       const raw = window.localStorage.getItem(USER_KEY);
       if (!raw) return;
@@ -54,18 +54,13 @@ export default function FeedbackPage() {
         <section className="lg:col-span-3">
           <div className="rounded-lg border border-[var(--color-border-strong)] bg-surface p-5">
             <h2 className="mb-4 text-base font-semibold text-foreground">새 의견</h2>
-            <FeedbackForm
-              userId={userId}
-              onSubmitted={() => setRefreshKey((v) => v + 1)}
-            />
+            <FeedbackForm userId={userId} onSubmitted={() => setRefreshKey((v) => v + 1)} />
           </div>
         </section>
 
         <aside className="lg:col-span-2">
           <div className="rounded-lg border border-[var(--color-border-strong)] bg-surface p-5">
-            <h2 className="mb-4 text-base font-semibold text-foreground">
-              내가 보낸 의견
-            </h2>
+            <h2 className="mb-4 text-base font-semibold text-foreground">내가 보낸 의견</h2>
             <MyFeedbackList userId={userId} refreshKey={refreshKey} />
           </div>
         </aside>

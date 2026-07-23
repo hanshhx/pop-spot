@@ -1,9 +1,9 @@
-"use client";
+'use client';
 
-import { AlertTriangle, RefreshCw } from "lucide-react";
+import { AlertTriangle, RefreshCw } from 'lucide-react';
 
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 interface ErrorStateProps {
   /** 한 줄 타이틀. 미지정 시 "문제가 발생했습니다". */
@@ -27,8 +27,8 @@ interface ErrorStateProps {
  *   <ErrorState message="목록을 불러오지 못했습니다." onRetry={refetch} />
  */
 export function ErrorState({
-  title = "문제가 발생했습니다",
-  message = "잠시 후 다시 시도해 주세요.",
+  title = '문제가 발생했습니다',
+  message = '잠시 후 다시 시도해 주세요.',
   onRetry,
   bordered = true,
   className,
@@ -36,19 +36,16 @@ export function ErrorState({
   return (
     <div
       className={cn(
-        "flex flex-col items-center justify-center text-center",
-        "py-8 px-6 gap-3",
-        bordered &&
-          "rounded-md border border-danger/30 bg-danger/5",
+        'flex flex-col items-center justify-center text-center',
+        'py-8 px-6 gap-3',
+        bordered && 'rounded-md border border-danger/30 bg-danger/5',
         className,
       )}
       role="alert"
     >
       <AlertTriangle className="size-7 text-danger" aria-hidden />
       <p className="text-sm font-semibold text-foreground">{title}</p>
-      <p className="text-xs text-muted-foreground max-w-xs whitespace-pre-line">
-        {message}
-      </p>
+      <p className="text-xs text-muted-foreground max-w-xs whitespace-pre-line">{message}</p>
       {onRetry && (
         <Button
           type="button"

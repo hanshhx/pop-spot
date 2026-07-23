@@ -27,4 +27,6 @@ public interface ChatRepository extends JpaRepository<ChatMessage, Long> {
     int deleteAllByIdsBulk(@Param("ids") List<Long> ids);
 
     int countBySender(String sender);
+
+    void deleteBySender(String sender);
 }

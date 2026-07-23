@@ -101,7 +101,7 @@ public class MatePost {
         if (this.status == null) this.status = STATUS_RECRUITING;
         if (this.currentPeople == 0) this.currentPeople = 1;
         if (this.joinedUsers == null) this.joinedUsers = "";
-        if (this.author != null && !this.joinedUsers.contains(this.author.getUserId())) {
+        if (this.author != null && !containsUser(this.joinedUsers, this.author.getUserId())) {
             this.joinedUsers += this.author.getUserId() + USER_DELIMITER;
         }
     }
@@ -114,7 +114,7 @@ public class MatePost {
 
     public void addJoinedUser(String userId) {
         if (this.joinedUsers == null) this.joinedUsers = "";
-        if (!this.joinedUsers.contains(userId)) {
+        if (!containsUser(this.joinedUsers, userId)) {
             this.joinedUsers += userId + USER_DELIMITER;
         }
     }
@@ -122,7 +122,37 @@ public class MatePost {
     /** 방장은 항상 통과. 그 외에는 명단 문자열에 userId 가 포함됐는지로 판정. */
     public boolean hasJoined(String userId) {
         if (this.author != null && this.author.getUserId().equals(userId)) return true;
-        return this.joinedUsers != null && this.joinedUsers.contains(userId);
+        return containsUser(this.joinedUsers, userId);
+    }
+
+    /** 탈퇴 사용자 ID를 참가자·신고자 문자열에서 토큰 단위로 제거한다. */
+    public void removeUserReferences(String userId) {
+        boolean wasParticipant = containsUser(this.joinedUsers, userId);
+        this.joinedUsers = removeUser(this.joinedUsers, userId);
+        this.reportedBy = removeUser(this.reportedBy, userId);
+        if (wasParticipant && this.currentPeople > 1) {
+            this.currentPeople--;
+        }
+    }
+
+    private static boolean containsUser(String values, String userId) {
+        if (userId == null || values == null || values.isBlank()) return false;
+        for (String token : values.split(USER_DELIMITER)) {
+            if (token.equals(userId)) return true;
+        }
+        return false;
+    }
+
+    private static String removeUser(String values, String userId) {
+        if (values == null || values.isBlank() || userId == null)
+            return values == null ? "" : values;
+        StringBuilder result = new StringBuilder();
+        for (String token : values.split(USER_DELIMITER)) {
+            if (!token.isBlank() && !token.equals(userId)) {
+                result.append(token).append(USER_DELIMITER);
+            }
+        }
+        return result.toString();
     }
 
     /**

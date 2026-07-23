@@ -1,10 +1,10 @@
-import { Suspense } from "react";
-import type { Metadata } from "next";
+import { Suspense } from 'react';
+import type { Metadata } from 'next';
 
-import HomeClient from "./HomeClient";
-import { REGIONS } from "@/lib/regions";
-import { CATEGORIES, BRANDS } from "@/lib/popupSlices";
-import { CRAWL_REFRESH_SENTENCE } from "@/lib/siteCopy";
+import HomeClient from './HomeClient';
+import { REGIONS } from '@/lib/regions';
+import { CATEGORIES, BRANDS } from '@/lib/popupSlices';
+import { CRAWL_REFRESH_SENTENCE } from '@/lib/siteCopy';
 
 /**
  * v2.32 — 메인 페이지 SEO 강화.
@@ -17,72 +17,83 @@ import { CRAWL_REFRESH_SENTENCE } from "@/lib/siteCopy";
 
 export const metadata: Metadata = {
   // 헤드 키워드 전면 배치: "팝업스토어 일정"(급상승) · "서울 팝업스토어" · "지도" · "오늘·이번주 팝업".
-  title: "서울 팝업스토어 일정·지도 | 오늘·이번주 여는 팝업 한눈에 · 팝스팟",
+  title: '서울 팝업스토어 일정·지도 | 오늘·이번주 여는 팝업 한눈에 · 팝스팟',
   // 네이버 권장(80자 이내)에 맞춰 압축 — 핵심 키워드는 유지.
   description:
-    "서울 팝업스토어 일정·위치를 지도 한 장에. 오늘·이번 주·주말 여는 성수·홍대·강남 팝업과 마감 임박까지 무료로 한눈에.",
-  alternates: { canonical: "https://popspot.co.kr" },
+    '서울 팝업스토어 일정·위치를 지도 한 장에. 오늘·이번 주·주말 여는 성수·홍대·강남 팝업과 마감 임박까지 무료로 한눈에.',
+  alternates: { canonical: 'https://popspot.co.kr' },
 };
 
 export default function Page() {
   return (
-    <>
-      {/* 서버 렌더 SEO 본문 — 크롤러용(sr-only). 실제 인터랙션은 아래 HomeClient. */}
-      <section className="sr-only">
-        <h1>서울 팝업스토어 일정·지도 — 오늘·이번주 여는 팝업 한눈에 | 팝스팟(POP-SPOT)</h1>
-        <p>
-          성수 · 한남 · 압구정 · 홍대 · 강남 · 잠실 · 여의도 · 명동 · 더현대 서울 · 용산 아이파크몰 등 서울
-          곳곳의 팝업스토어 일정과 위치를 지도 한 장에 모았습니다. 오늘 · 이번 주 · 이번 주말 · 이번 달 여는
-          팝업, 신상 · 마감 임박 팝업, 패션 · 뷰티 · 캐릭터 · 브랜드 · IP 팝업까지 한눈에 확인하세요.
-          마음에 드는 팝업은 위시리스트에 담아 마감일을 놓치지 마세요.{" "}
-          {CRAWL_REFRESH_SENTENCE}되는 서울 팝업스토어 추천 · 일정 · 지도 · 캘린더 서비스입니다.
-        </p>
-        <p>
-          팝스팟은 서울에서 지금 열리는 팝업스토어를 매일 자동으로 모아 지도와 캘린더로 보여주는 팝업 일정
-          서비스입니다. 팝업스토어 추천, 이번 주 팝업, 주말 팝업, 신상 팝업을 한 곳에서 확인하고 마음에 드는
-          팝업은 위시리스트에 담아 마감일을 확인하세요.
-        </p>
-        <nav aria-label="지역별 서울 팝업스토어">
-          <h2>지역별 팝업스토어</h2>
-          <ul>
-            {REGIONS.map((r) => (
-              <li key={r.slug}>
-                <a href={`/popups/${r.slug}`}>{r.label} 팝업스토어</a>
-              </li>
-            ))}
-          </ul>
-        </nav>
-        <nav aria-label="카테고리별 팝업스토어">
-          <h2>카테고리별 팝업스토어</h2>
-          <ul>
-            {CATEGORIES.map((c) => (
-              <li key={c.slug}>
-                <a href={`/popups/${c.slug}`}>{c.label} 팝업스토어</a>
-              </li>
-            ))}
-          </ul>
-        </nav>
-        <nav aria-label="브랜드·IP별 팝업스토어">
-          <h2>브랜드·IP·인기 장소 팝업스토어</h2>
-          <ul>
-            {BRANDS.map((b) => (
-              <li key={b.slug}>
-                <a href={`/popups/${b.slug}`}>{b.label} 팝업스토어</a>
-              </li>
-            ))}
-          </ul>
-        </nav>
+    <div className="flex min-h-screen flex-col bg-background text-foreground">
+      <section className="order-2 border-t border-[var(--color-border)] px-5 py-10">
+        <div className="mx-auto max-w-6xl">
+          <h1 className="text-2xl font-black tracking-tight">서울 팝업스토어 일정과 지도</h1>
+          <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">
+            서울에서 열리는 팝업의 장소와 기간을 지도·목록·캘린더로 확인할 수 있음. 정보는{' '}
+            {CRAWL_REFRESH_SENTENCE}되며, 실제 방문 전에는 연결된 원문에서 변경 여부를 한 번 더
+            확인하는 것을 권장함.
+          </p>
+          <nav className="mt-8" aria-label="지역별 서울 팝업스토어">
+            <h2>지역별 팝업스토어</h2>
+            <ul className="mt-3 flex flex-wrap gap-2">
+              {REGIONS.map((r) => (
+                <li key={r.slug}>
+                  <a
+                    className="inline-flex min-h-10 items-center rounded-full border border-[var(--color-border)] px-3 text-sm hover:border-lime-300"
+                    href={`/popups/${r.slug}`}
+                  >
+                    {r.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </nav>
+          <nav className="mt-8" aria-label="카테고리별 팝업스토어">
+            <h2>카테고리별 팝업스토어</h2>
+            <ul className="mt-3 flex flex-wrap gap-2">
+              {CATEGORIES.map((c) => (
+                <li key={c.slug}>
+                  <a
+                    className="inline-flex min-h-10 items-center rounded-full border border-[var(--color-border)] px-3 text-sm hover:border-lime-300"
+                    href={`/popups/${c.slug}`}
+                  >
+                    {c.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </nav>
+          <nav className="mt-8" aria-label="브랜드·IP별 팝업스토어">
+            <h2>브랜드·IP·인기 장소 팝업스토어</h2>
+            <ul className="mt-3 flex flex-wrap gap-2">
+              {BRANDS.map((b) => (
+                <li key={b.slug}>
+                  <a
+                    className="inline-flex min-h-10 items-center rounded-full border border-[var(--color-border)] px-3 text-sm hover:border-lime-300"
+                    href={`/popups/${b.slug}`}
+                  >
+                    {b.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        </div>
       </section>
 
-      <Suspense
-        fallback={
-          <div className="flex min-h-screen items-center justify-center">
-            <div className="h-10 w-10 animate-spin rounded-full border-4 border-lime-300 border-t-transparent" />
-          </div>
-        }
-      >
-        <HomeClient />
-      </Suspense>
-    </>
+      <div className="order-1">
+        <Suspense
+          fallback={
+            <div className="flex min-h-screen items-center justify-center">
+              <div className="h-10 w-10 animate-spin rounded-full border-4 border-lime-300 border-t-transparent" />
+            </div>
+          }
+        >
+          <HomeClient />
+        </Suspense>
+      </div>
+    </div>
   );
 }

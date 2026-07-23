@@ -8,7 +8,7 @@
  */
 
 export const OVERRIDE = process.env.BASEMAP_PMTILES_URL; // 설정 시 서울 정적 파일(롤오버 없음)
-export const BUILD_BASE = "https://build.protomaps.com";
+export const BUILD_BASE = 'https://build.protomaps.com';
 
 let resolvedDate: string | null = null;
 let resolvedAt = 0;
@@ -17,8 +17,8 @@ const RESOLVE_TTL_MS = 6 * 60 * 60 * 1000; // 6h 마다 최신 빌드 재확인
 function ymd(d: Date): string {
   return (
     d.getUTCFullYear().toString() +
-    String(d.getUTCMonth() + 1).padStart(2, "0") +
-    String(d.getUTCDate()).padStart(2, "0")
+    String(d.getUTCMonth() + 1).padStart(2, '0') +
+    String(d.getUTCDate()).padStart(2, '0')
   );
 }
 
@@ -44,11 +44,11 @@ export async function resolveBuildDate(): Promise<string> {
   const now = Date.now();
   if (OVERRIDE) {
     if (resolvedDate && now - resolvedAt < RESOLVE_TTL_MS) return resolvedDate;
-    let tag = "static";
+    let tag = 'static';
     try {
-      const res = await fetch(OVERRIDE, { headers: { Range: "bytes=0-0" } });
-      const sig = res.headers.get("etag") ?? res.headers.get("last-modified");
-      if (sig) tag = "s" + shortHash(sig);
+      const res = await fetch(OVERRIDE, { headers: { Range: 'bytes=0-0' } });
+      const sig = res.headers.get('etag') ?? res.headers.get('last-modified');
+      if (sig) tag = 's' + shortHash(sig);
     } catch {
       /* 서명을 못 얻으면 상수로 폴백 — 최소한 동작은 유지 */
     }
@@ -61,7 +61,7 @@ export async function resolveBuildDate(): Promise<string> {
   for (let i = 0; i < 14; i++) {
     const date = ymd(new Date(now - i * 86400000));
     try {
-      const res = await fetch(`${BUILD_BASE}/${date}.pmtiles`, { headers: { Range: "bytes=0-0" } });
+      const res = await fetch(`${BUILD_BASE}/${date}.pmtiles`, { headers: { Range: 'bytes=0-0' } });
       if (res.status === 206 || res.ok) {
         resolvedDate = date;
         resolvedAt = now;
@@ -71,7 +71,7 @@ export async function resolveBuildDate(): Promise<string> {
       /* 다음 날짜 시도 */
     }
   }
-  throw new Error("사용 가능한 Protomaps 빌드를 찾지 못했습니다");
+  throw new Error('사용 가능한 Protomaps 빌드를 찾지 못했습니다');
 }
 
 /** 버전(날짜 or "static") → 실제 upstream pmtiles URL. v 는 숫자 8자리만 허용(SSRF 차단). */
@@ -88,7 +88,10 @@ const CACHE_MAX = 1200;
 export function cacheGet(key: string) {
   return cache.get(key);
 }
-export function cacheSet(key: string, val: { status: number; contentRange: string | null; body: ArrayBuffer }) {
+export function cacheSet(
+  key: string,
+  val: { status: number; contentRange: string | null; body: ArrayBuffer },
+) {
   if (cache.size >= CACHE_MAX) {
     const oldest = cache.keys().next().value;
     if (oldest !== undefined) cache.delete(oldest);
