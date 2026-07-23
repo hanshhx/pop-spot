@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import {
   ArrowLeft,
@@ -10,7 +10,6 @@ import {
   CheckCircle,
   Ticket,
   ExternalLink,
-  AlertCircle,
   ShieldAlert,
   Sparkles,
   Navigation,
@@ -24,7 +23,6 @@ import NowWait from '@/components/popup/NowWait';
 import MusicForPopup from '../../../src/components/music/MusicForPopup';
 import { apiFetch } from '../../../src/lib/api';
 import { notify, notifyError } from '@/lib/notify';
-import { escapeHtml } from '@/lib/escapeHtml';
 import { popupCoverUrl } from '@/lib/popupCover';
 import { PhotoDisclosure } from '@/components/popup/PhotoDisclosure';
 import { addToCalendar, toCalendarEvent } from '@/lib/calendar';
@@ -34,63 +32,6 @@ declare global {
   interface Window {
     kakao: import('@/types/sdk').KakaoMapsSdk;
   }
-}
-
-interface KakaoRoadviewProps {
-  lat: number;
-  lng: number;
-  name: string;
-}
-
-/** 카카오 로드뷰(거리뷰)를 렌더링하는 전용 컴포넌트. */
-export function KakaoRoadview({ lat, lng, name }: KakaoRoadviewProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [isError, setIsError] = useState(false);
-
-  useEffect(() => {
-    if (typeof window === 'undefined' || !window.kakao || !window.kakao.maps) return;
-    const container = containerRef.current;
-    if (!container) return;
-
-    window.kakao.maps.load(() => {
-      const position = new window.kakao.maps.LatLng(lat, lng);
-      const rv = new window.kakao.maps.Roadview(container);
-      const rvClient = new window.kakao.maps.RoadviewClient();
-
-      rvClient.getNearestPanoId(position, 50, (panoId: number | null) => {
-        if (panoId) {
-          rv.setPanoId(panoId, position);
-          const content = `
-            <div style="padding: 6px 10px; background: #ffeb33; border-radius: 12px; border: 2px solid #000; box-shadow: 0 4px 12px rgba(0,0,0,0.3); display: flex; align-items: center; gap: 6px; transform: translateY(-40px); font-size: 12px; white-space: nowrap;">
-              <div style="width: 8px; height: 8px; background: red; border-radius: 50%; animation: pulse 1.5s infinite;"></div>
-              <span style="color: #000; font-weight: 900;">${escapeHtml(name)}</span>
-            </div>
-            <style>
-              @keyframes pulse { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.4); opacity: 0.7; } 100% { transform: scale(1); opacity: 1; } }
-            </style>
-          `;
-          new window.kakao.maps.CustomOverlay({ position: position, content: content, map: rv });
-        } else {
-          setIsError(true);
-        }
-      });
-    });
-  }, [lat, lng, name]);
-
-  if (isError) {
-    return (
-      <div className="w-full h-full bg-gray-900 flex flex-col items-center justify-center text-gray-400 p-4 text-center">
-        <AlertCircle size={32} className="mb-2 text-red-500 opacity-80" />
-        <p className="text-sm font-bold">로드뷰를 표시할 수 없습니다.</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="w-full h-full relative">
-      <div ref={containerRef} className="w-full h-full" />
-    </div>
-  );
 }
 
 interface PopupDetail {
