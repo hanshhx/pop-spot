@@ -52,6 +52,12 @@ public class PopupCrawlOrchestrator {
     private static final long GROQ_RPM_THROTTLE_MS = 2200L; // Groq 30 RPM = 2초 간격
     private static final long KAKAO_GEOCODING_INTERVAL_MS = 300L;
 
+    /**
+     * 한 좌표에 이보다 많이 쌓이면 '진짜 위치가 아닌 지역 중심점(가짜 위치)' 으로 보고 그 좌표로의 추가
+     * 저장을 막는다. 프론트 지도(InteractiveMap.FALLBACK_CLUSTER_MIN)의 표시 제외 기준과 값을 맞춘다.
+     */
+    private static final int MAX_POPUPS_PER_COORD = 40;
+
     private static final String SOURCE_TYPE_CRAWLED = "CRAWLED";
     private static final String REVIEW_STATUS_AUTO_PUBLISHED = "AUTO_PUBLISHED";
     private static final String DEFAULT_CATEGORY = "ETC";
@@ -983,7 +989,8 @@ public class PopupCrawlOrchestrator {
     private void saveNewPopup(
             NormalizedPopup result, PopupCrawlSource primarySource, String externalId) {
         Optional<Coordinates> coordinates =
-                geocodingService.geocode(result.getName(), result.getLocation());
+                withoutRegionCentroid(
+                        geocodingService.geocode(result.getName(), result.getLocation()));
 
         PopupStore newPopup =
                 PopupStore.builder()
@@ -1034,13 +1041,37 @@ public class PopupCrawlOrchestrator {
 
     private boolean fillCoordinates(PopupStore popup) {
         Optional<Coordinates> coords =
-                geocodingService.geocode(popup.getName(), popup.getLocation());
+                withoutRegionCentroid(
+                        geocodingService.geocode(popup.getName(), popup.getLocation()));
         if (coords.isEmpty()) return false;
 
         popup.setLatitude(coords.get().latitude());
         popup.setLongitude(coords.get().longitude());
         popupStoreRepository.save(popup);
         return true;
+    }
+
+    /**
+     * 수집 시 '지역 중심점(가짜 위치)' 좌표 저장을 막는 제약.
+     *
+     * <p>주소가 모호한 팝업("서울"·"성수동"만 있는 것)을 카카오가 그 동네 중심점 하나로 찍어, 같은
+     * 좌표에 팝업이 수백 개 몰려 지도에 링처럼 보이던 문제가 있었다. 지오코딩 결과가 이미
+     * {@link #MAX_POPUPS_PER_COORD} 개 이상 쌓인 좌표라면 '진짜 위치가 아닌 지역 중심점' 으로 보고
+     * 좌표를 저장하지 않는다(빈 값 반환 → latitude/longitude 는 null 로 남아 지도에서 자연히 제외).
+     */
+    private Optional<Coordinates> withoutRegionCentroid(Optional<Coordinates> coords) {
+        if (coords.isEmpty()) return coords;
+        Coordinates c = coords.get();
+        long existing = popupStoreRepository.countByLatitudeAndLongitude(c.latitude(), c.longitude());
+        if (existing >= MAX_POPUPS_PER_COORD) {
+            log.debug(
+                    "[Geocode] 좌표 {},{} 에 이미 {}개 — 지역 중심점으로 보고 좌표 미저장",
+                    c.latitude(),
+                    c.longitude(),
+                    existing);
+            return Optional.empty();
+        }
+        return coords;
     }
 
     /* =========================== 단순 헬퍼 =========================== */
