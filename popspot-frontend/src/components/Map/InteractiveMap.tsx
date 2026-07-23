@@ -121,10 +121,19 @@ const LEGEND: { label: string; cls: string }[] = [
 ];
 
 /**
+ * 한 좌표에 이보다 많이 뭉치면 '진짜 위치가 아니라 지역 중심점(카카오가 모호한 주소를 그 동네
+ * 한가운데로 찍은 값)' 으로 간주해 지도에서 제외한다. 수백 개가 한 점에 몰려 링처럼 보이던 문제
+ * 방지. (제외돼도 홈 목록·랭킹·카드에는 그대로 노출된다 — 지도에만 안 찍을 뿐.)
+ */
+const FALLBACK_CLUSTER_MIN = 40;
+
+/**
  * 같은 좌표(같은 빌딩 등)에 박힌 마커들을 작은 원형으로 분산시킨다.
  * 자동수집 geocoding 결과 동일 좌표가 자주 발생해서 시각적으로 1개만 보이는 문제를 해결.
  *
  * 분산 반경: 위경도 0.00005 도 ≈ 약 5m (실제 위치 인식 영향 없는 수준)
+ *
+ * <p>단, {@link FALLBACK_CLUSTER_MIN} 초과로 뭉친 좌표는 지역 중심점(가짜 위치)으로 보고 통째로 뺀다.
  */
 function spreadOverlappingMarkers(markers: MapMarkerData[]): MapMarkerData[] {
   const groups: Record<string, MapMarkerData[]> = {};
@@ -137,6 +146,8 @@ function spreadOverlappingMarkers(markers: MapMarkerData[]): MapMarkerData[] {
 
   const result: MapMarkerData[] = [];
   for (const list of Object.values(groups)) {
+    // 지역 중심점(가짜 위치)으로 비정상적으로 몰린 그룹은 지도에서 제외.
+    if (list.length > FALLBACK_CLUSTER_MIN) continue;
     if (list.length === 1) {
       result.push(list[0]);
       continue;

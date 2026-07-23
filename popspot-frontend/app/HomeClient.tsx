@@ -116,6 +116,12 @@ function dropExpired(list: PopupStore[]): PopupStore[] {
   return list.filter((p) => !isExpired(p?.endDate, today));
 }
 
+/**
+ * 한 좌표에 이보다 많이 뭉치면 '진짜 위치가 아니라 지역 중심점(가짜 위치)' 으로 보고 지도 표시·개수·
+ * 검색 이동에서 제외한다. InteractiveMap 의 같은 이름 상수와 값을 맞춘다(수백 개가 링처럼 뭉치던 문제).
+ */
+const FALLBACK_CLUSTER_MIN = 40;
+
 /** 현재 세션에서 해당 탭에 진입할 수 있는가. */
 function canAccessTab(tab: string, hasUser: boolean, isGuestActive: boolean): boolean {
   if (hasUser) return true;
@@ -220,18 +226,39 @@ export default function Home() {
   }, [allPopups]);
 
   /**
-   * 홈 인사말의 팝업 개수 — 지도(하단 'Total N Locations')와 숫자를 맞추기 위해 '좌표가 있어
-   * 지도에 실제로 찍히는 활성 팝업'만 센다. allPopups(920)에는 좌표 없는 팝업(약 115개)이 섞여 있어
-   * 그대로 세면 지도 개수(805)와 어긋난다 — 사용자가 "홈 920 vs 지도 805" 로 불일치를 느끼던 지점.
+   * '진짜 위치가 아니라 지역 중심점(카카오가 모호한 주소를 그 동네 한가운데로 찍은 값)' 에 비정상적으로
+   * 몰린 좌표 집합. 지도(InteractiveMap)의 FALLBACK_CLUSTER_MIN 과 같은 기준으로 판정해, 개수·검색
+   * 이동에서 함께 제외한다(한 점에 수백 개가 링처럼 뭉치던 문제).
+   */
+  const fallbackCoordKeys = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const p of allPopups) {
+      if (p.latitude && p.longitude) {
+        const k = `${p.latitude},${p.longitude}`;
+        counts.set(k, (counts.get(k) ?? 0) + 1);
+      }
+    }
+    const keys = new Set<string>();
+    for (const [k, n] of counts) if (n > FALLBACK_CLUSTER_MIN) keys.add(k);
+    return keys;
+  }, [allPopups]);
+
+  /** 지도에 실제로 찍히는(진짜 위치 있는) 팝업인가 — 개수/검색 이동 공용 판정. */
+  const hasRealMapLocation = (p: { latitude?: string | null; longitude?: string | null }) => {
+    const lat = parseFloat(p.latitude ?? "");
+    const lng = parseFloat(p.longitude ?? "");
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return false;
+    return !fallbackCoordKeys.has(`${p.latitude},${p.longitude}`);
+  };
+
+  /**
+   * 홈 인사말의 팝업 개수 — 지도(하단 'Total N Locations')와 숫자를 맞추기 위해 '지도에 실제로 찍히는
+   * (진짜 위치 있는) 활성 팝업'만 센다. 좌표 없는 것 + 지역 중심점에 몰린 가짜 위치는 제외.
    */
   const mappablePopupCount = useMemo(
-    () =>
-      allPopups.filter(
-        (p) =>
-          Number.isFinite(parseFloat(p.latitude ?? "")) &&
-          Number.isFinite(parseFloat(p.longitude ?? "")),
-      ).length,
-    [allPopups],
+    () => allPopups.filter(hasRealMapLocation).length,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [allPopups, fallbackCoordKeys],
   );
 
   // pop-look → "오늘의 추천 팝업": 실제 인기순 상위(랜덤 아님). hotPopups 가 이미 viewCount desc 정렬.
@@ -913,12 +940,14 @@ export default function Home() {
                                 setMapFilterIds(null);
                                 // 그 팝업 정보 카드를 연다(지도 이동은 아래 좌표로 확실히 처리).
                                 setSearchFocus((prev) => ({ id: String(hit.objectID), nonce: (prev?.nonce ?? 0) + 1 }));
-                                // 그 팝업 좌표로 지도를 확대 이동 — allPopups 에 좌표가 있으면 지도 마커 로딩과 무관하게 확실히 간다.
+                                // 그 팝업 좌표로 지도를 확대 이동. 단 진짜 위치가 있는 팝업만 — 지역 중심점(가짜 위치)에
+                                // 몰린 팝업은 지도에 안 찍히므로 그쪽으로 확대하면 빈 곳/링만 보인다.
                                 const p = allPopups.find((x) => String(x.id) === String(hit.objectID));
-                                const lng = p ? parseFloat(p.longitude ?? "") : NaN;
-                                const lat = p ? parseFloat(p.latitude ?? "") : NaN;
-                                if (Number.isFinite(lng) && Number.isFinite(lat)) {
-                                    setMapFit((prev) => ({ pts: [[lng, lat]], nonce: (prev?.nonce ?? 0) + 1 }));
+                                if (p && hasRealMapLocation(p)) {
+                                    setMapFit((prev) => ({
+                                        pts: [[parseFloat(p.longitude ?? ""), parseFloat(p.latitude ?? "")]],
+                                        nonce: (prev?.nonce ?? 0) + 1,
+                                    }));
                                 }
                             }}
                             onAiFilter={(ids) => {
@@ -928,9 +957,8 @@ export default function Home() {
                                     // 결과 팝업들의 좌표를 모아 지도를 맞춘다 — 한 곳이면 확대, 여러 곳이면 다 보이게 축소.
                                     const idSet = new Set(ids.map(String));
                                     const pts = allPopups
-                                        .filter((x) => idSet.has(String(x.id)))
-                                        .map((x) => [parseFloat(x.longitude ?? ""), parseFloat(x.latitude ?? "")] as [number, number])
-                                        .filter(([lng, lat]) => Number.isFinite(lng) && Number.isFinite(lat));
+                                        .filter((x) => idSet.has(String(x.id)) && hasRealMapLocation(x))
+                                        .map((x) => [parseFloat(x.longitude ?? ""), parseFloat(x.latitude ?? "")] as [number, number]);
                                     if (pts.length > 0) {
                                         setMapFit((prev) => ({ pts, nonce: (prev?.nonce ?? 0) + 1 }));
                                     }
