@@ -187,6 +187,9 @@ export default function Home() {
   const [searchFocus, setSearchFocus] = useState<{ id: string; nonce: number } | null>(null);
   // AI 검색 결과 id 목록 — 지도에 이 핀들만 표시(null=전체). 서치존의 'AI로 찾기'가 세팅.
   const [mapFilterIds, setMapFilterIds] = useState<string[] | null>(null);
+  // 검색 결과 좌표 → 지도를 그 위치로 맞춤(한 곳=확대, 여러 곳=다 보이게 축소). InteractiveMap 의 fitReq 로 전달.
+  // allPopups 는 모든 팝업 좌표를 가지므로, 지도 마커 로딩 여부와 무관하게 확실히 이동한다.
+  const [mapFit, setMapFit] = useState<{ pts: [number, number][]; nonce: number } | null>(null);
 
   /**
    * "지금 뜨는 팝업" 레일에 실제로 렌더할 목록 — 전체(allPopups)에 카테고리 필터 + 정렬 적용.
@@ -215,6 +218,21 @@ export default function Home() {
     const present = new Set(allPopups.map((p) => classifyCategory(p.category)));
     return CATEGORIES.filter((c) => present.has(c.code));
   }, [allPopups]);
+
+  /**
+   * 홈 인사말의 팝업 개수 — 지도(하단 'Total N Locations')와 숫자를 맞추기 위해 '좌표가 있어
+   * 지도에 실제로 찍히는 활성 팝업'만 센다. allPopups(920)에는 좌표 없는 팝업(약 115개)이 섞여 있어
+   * 그대로 세면 지도 개수(805)와 어긋난다 — 사용자가 "홈 920 vs 지도 805" 로 불일치를 느끼던 지점.
+   */
+  const mappablePopupCount = useMemo(
+    () =>
+      allPopups.filter(
+        (p) =>
+          Number.isFinite(parseFloat(p.latitude ?? "")) &&
+          Number.isFinite(parseFloat(p.longitude ?? "")),
+      ).length,
+    [allPopups],
+  );
 
   // pop-look → "오늘의 추천 팝업": 실제 인기순 상위(랜덤 아님). hotPopups 가 이미 viewCount desc 정렬.
   const featuredPopup = hotPopups[0];
@@ -822,7 +840,7 @@ export default function Home() {
                         <div className="w-full border rounded-xl p-5 md:p-8 relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-4 bg-ink-900 text-cream-200 border-ink-900 dark:bg-cream-200 dark:text-ink-900 dark:border-cream-200">
                              <div className="relative z-10 text-center md:text-left">
                                 <h2 className="text-xl md:text-3xl font-bold mb-1 md:mb-2">반가워요, <span className="text-lime-300 dark:text-lime-700">{user.nickname}</span>님!</h2>
-                                <p className="text-xs md:text-base opacity-70">오늘 서울에 <span className="font-bold text-lime-400 dark:text-lime-700">{allPopups.length}개</span>의 팝업이 열려있어요.</p>
+                                <p className="text-xs md:text-base opacity-70">오늘 서울에 <span className="font-bold text-lime-400 dark:text-lime-700">{mappablePopupCount}개</span>의 팝업이 열려있어요.</p>
                              </div>
                              <button onClick={() => handleTabChange("PASSPORT")} className="relative z-10 w-full md:w-auto inline-flex px-5 py-3 bg-lime-300 hover:bg-lime-400 text-ink-900 font-semibold rounded-pill items-center justify-center gap-2 transition-colors text-sm md:text-base">
                                 <Ticket size={18}/> 내 여권 확인
@@ -839,7 +857,7 @@ export default function Home() {
                                     </span>
                                     <h2 className="text-2xl md:text-4xl font-black leading-tight text-gray-900 dark:text-white">
                                         지금 서울에{" "}
-                                        <span className="text-lime-600 dark:text-lime-300">{allPopups.length || "…"}개</span>의<br className="hidden md:block"/>{" "}
+                                        <span className="text-lime-600 dark:text-lime-300">{mappablePopupCount || "…"}개</span>의<br className="hidden md:block"/>{" "}
                                         팝업이 열렸어요
                                     </h2>
                                     <p className="mt-2 text-sm md:text-base text-gray-600 dark:text-white/70">
@@ -893,21 +911,34 @@ export default function Home() {
                             onSelectPopup={(hit) => {
                                 // AI 필터가 걸려 있으면 해제 — 그래야 고른 핀이 지도에 보인다.
                                 setMapFilterIds(null);
-                                // 1순위: 지도가 자기 마커에서 그 팝업을 찾아 이동+정보창 오픈(allPopups 의존 X).
+                                // 그 팝업 정보 카드를 연다(지도 이동은 아래 좌표로 확실히 처리).
                                 setSearchFocus((prev) => ({ id: String(hit.objectID), nonce: (prev?.nonce ?? 0) + 1 }));
-                                // 2순위(보조): allPopups 에 좌표가 있으면 중심도 같이 이동(마커가 아직 안 실렸을 때 대비).
+                                // 그 팝업 좌표로 지도를 확대 이동 — allPopups 에 좌표가 있으면 지도 마커 로딩과 무관하게 확실히 간다.
                                 const p = allPopups.find((x) => String(x.id) === String(hit.objectID));
-                                if (p?.latitude && p?.longitude) {
-                                    setMapCenter({ lat: parseFloat(p.latitude), lng: parseFloat(p.longitude) });
+                                const lng = p ? parseFloat(p.longitude ?? "") : NaN;
+                                const lat = p ? parseFloat(p.latitude ?? "") : NaN;
+                                if (Number.isFinite(lng) && Number.isFinite(lat)) {
+                                    setMapFit((prev) => ({ pts: [[lng, lat]], nonce: (prev?.nonce ?? 0) + 1 }));
                                 }
                             }}
                             onAiFilter={(ids) => {
                                 // AI 검색 결과 id → 지도에 그 핀만. null 이면 전체 복원.
                                 setMapFilterIds(ids);
-                                if (ids && typeof document !== "undefined") {
-                                    document
-                                        .querySelector('[aria-label="서울 팝업 지도"]')
-                                        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+                                if (ids) {
+                                    // 결과 팝업들의 좌표를 모아 지도를 맞춘다 — 한 곳이면 확대, 여러 곳이면 다 보이게 축소.
+                                    const idSet = new Set(ids.map(String));
+                                    const pts = allPopups
+                                        .filter((x) => idSet.has(String(x.id)))
+                                        .map((x) => [parseFloat(x.longitude ?? ""), parseFloat(x.latitude ?? "")] as [number, number])
+                                        .filter(([lng, lat]) => Number.isFinite(lng) && Number.isFinite(lat));
+                                    if (pts.length > 0) {
+                                        setMapFit((prev) => ({ pts, nonce: (prev?.nonce ?? 0) + 1 }));
+                                    }
+                                    if (typeof document !== "undefined") {
+                                        document
+                                            .querySelector('[aria-label="서울 팝업 지도"]')
+                                            ?.scrollIntoView({ behavior: "smooth", block: "start" });
+                                    }
                                 }
                             }}
                         />
@@ -915,7 +946,7 @@ export default function Home() {
                     
                     {/* Map Zone — 배경 분리를 위해 solid 배경 + shadow 로 카드 블록 강화. */}
                     <div className="col-span-1 lg:col-span-12 rounded-[2rem] relative overflow-hidden border border-gray-200 dark:border-white/10 group bg-white dark:bg-[#111] shadow-lg shadow-black/5 dark:shadow-black/30 h-[58vh] min-h-[420px] order-2 lg:order-none">
-                        <InteractiveMap center={mapCenter} focusReq={searchFocus} onMarkerClick={handleMarkerClickToDetail} filterIds={mapFilterIds} />
+                        <InteractiveMap center={mapCenter} focusReq={searchFocus} onMarkerClick={handleMarkerClickToDetail} filterIds={mapFilterIds} fitReq={mapFit} />
                         <div className="absolute bottom-4 md:bottom-6 left-4 md:left-6 flex gap-2 z-20">
                             <span className="backdrop-blur px-3 py-1.5 md:px-4 md:py-2 rounded-full border text-[10px] md:text-xs font-bold flex items-center gap-1.5 md:gap-2 bg-white/80 border-gray-200 text-gray-900 dark:bg-black/60 dark:border-white/10 dark:text-white">
                             <span className="w-1.5 h-1.5 md:w-2 md:h-2 bg-green-500 rounded-full animate-pulse"/> 실시간

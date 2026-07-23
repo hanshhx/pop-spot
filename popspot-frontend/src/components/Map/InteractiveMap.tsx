@@ -35,6 +35,12 @@ interface InteractiveMapProps {
   onMarkerClick?: (popupId: number | string) => void; // 👈 이 부분이 추가되었습니다!
   /** AI 검색 결과 id 집합 — 지정되면 해당 팝업 핀만 표시(빈 배열=0곳). null/undefined 면 전체(기본). */
   filterIds?: (number | string)[] | null;
+  /**
+   * 검색 결과 좌표를 홈에서 직접 받아 지도를 맞춘다. 한 곳이면 그 위치로 확대, 여러 곳이면 모두
+   * 보이게 축소한다(fitToPoints). 지도 자신의 마커 로딩/ID 매칭에 의존하지 않아 "검색해도 지도가
+   * 안 따라오는" 문제를 원천 차단한다. nonce 로 같은 검색 반복도 매번 반응.
+   */
+  fitReq?: { pts: [number, number][]; nonce: number } | null;
 }
 
 interface MapMarkerData {
@@ -150,7 +156,7 @@ function spreadOverlappingMarkers(markers: MapMarkerData[]): MapMarkerData[] {
   return result;
 }
 
-export default function InteractiveMap({ places, showPath = false, center, focusReq, mode = "DEFAULT", routePaths = [], onMarkerClick, filterIds }: InteractiveMapProps) {
+export default function InteractiveMap({ places, showPath = false, center, focusReq, mode = "DEFAULT", routePaths = [], onMarkerClick, filterIds, fitReq }: InteractiveMapProps) {
   const [allMarkers, setAllMarkers] = useState<MapMarkerData[]>([]);
   const [selectedMarker, setSelectedMarker] = useState<MapMarkerData | null>(null);
   const [activeCategory, setActiveCategory] = useState("ALL");
@@ -302,31 +308,26 @@ export default function InteractiveMap({ places, showPath = false, center, focus
     const lng = parseFloat(target.longitude);
     if (Number.isNaN(lat) || Number.isNaN(lng)) return;
     handledFocusRef.current = focusReq.nonce;
-    map.easeTo({ center: [lng, lat], zoom: zoomFromLevel(4) });
+    // 지도 이동/줌은 fitReq 가 좌표로 처리한다 — 여기선 그 팝업의 정보 카드만 연다.
     setSelectedMarker(target);
   }, [focusReq, map, allMarkers]);
 
-  // 검색(AI 필터) 결과가 지도에 반영되면 그 핀들이 모두 화면에 들어오도록 지도를 맞춘다.
-  // 기존엔 핀만 걸러지고 시점은 그대로라 "검색해도 지도가 안 따라오는" 문제가 있었다.
-  // filterIds 가 null(전체)로 돌아오면 사용자의 현재 시점을 건드리지 않는다.
-  const handledFilterRef = useRef<string>("");
+  // 검색(홈 SearchZone) 결과 좌표를 홈에서 직접 받아 지도를 맞춘다.
+  // 한 곳이면 그 위치로 확대, 여러 곳이면 모두 보이게 축소(fitToPoints 가 판단).
+  // 기존엔 지도 자신의 필터된 마커로 맞춰 "마커가 아직 안 실렸거나 ID가 안 맞으면 안 따라오는"
+  // 문제가 있었다 → 홈의 좌표를 직접 받아 마커 상태와 무관하게 확실히 이동한다.
+  // fitReq 가 없으면(전체 복원 등) 사용자의 현재 시점을 건드리지 않는다.
+  const handledFitRef = useRef<number>(-1);
   useEffect(() => {
-    if (!map) return;
-    if (!filterIds) {
-      handledFilterRef.current = "";
-      return;
-    }
-    const key = [...filterIds].map(String).sort().join(",");
-    if (handledFilterRef.current === key) return;
-
-    const pts = markers
-      .map((m) => [parseFloat(m.longitude), parseFloat(m.latitude)] as [number, number])
-      .filter(([lng, lat]) => Number.isFinite(lng) && Number.isFinite(lat));
-    if (pts.length === 0) return; // 아직 마커 로드 전이면 다음 렌더에 재시도
-
-    handledFilterRef.current = key;
+    if (!map || !fitReq) return;
+    if (handledFitRef.current === fitReq.nonce) return;
+    const pts = (fitReq.pts || []).filter(
+      ([lng, lat]) => Number.isFinite(lng) && Number.isFinite(lat),
+    );
+    if (pts.length === 0) return;
+    handledFitRef.current = fitReq.nonce;
     fitToPoints(map, pts);
-  }, [filterIds, markers, map]);
+  }, [fitReq, map]);
 
   // 코스(PLAN) 모드 — 전달된 장소들이 한 화면에 들어오도록 맞춘다.
   // 기존엔 고정 center(성수)로만 열려서, 강남·잠실로 코스를 짜면 사용자가 자기 경로를 못 봤다.
