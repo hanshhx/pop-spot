@@ -1022,15 +1022,15 @@ export default function Home() {
                     ) : railPopups.length === 0 ? (
                         <p className="rounded-2xl border border-dashed border-gray-200 py-10 text-center text-sm text-muted-foreground dark:border-white/10">이 조건에 맞는 팝업이 없어요.</p>
                     ) : (
-                        <div className="relative">
+                        <div className="relative md:px-16">
                             {rail.hasOverflow && (
                                 <>
                                     <button type="button" aria-label="이전" onClick={() => rail.scrollByPage(-1)} disabled={rail.atStart}
-                                        className={`absolute -left-5 top-1/2 z-10 hidden h-12 w-12 -translate-y-1/2 place-items-center rounded-full text-ink-900/90 transition hover:bg-black/5 dark:text-white/90 dark:hover:bg-white/10 md:grid lg:-left-8 ${rail.atStart ? "pointer-events-none opacity-0" : ""}`}>
+                                        className={`absolute left-1 top-1/2 z-10 hidden h-12 w-12 -translate-y-1/2 place-items-center rounded-full text-ink-900/90 transition hover:bg-black/5 dark:text-white/90 dark:hover:bg-white/10 md:grid ${rail.atStart ? "pointer-events-none opacity-0" : ""}`}>
                                         <ChevronLeft size={30} strokeWidth={2.5} className="drop-shadow-md" />
                                     </button>
                                     <button type="button" aria-label="다음" onClick={() => rail.scrollByPage(1)} disabled={rail.atEnd}
-                                        className={`absolute -right-5 top-1/2 z-10 hidden h-12 w-12 -translate-y-1/2 place-items-center rounded-full text-ink-900/90 transition hover:bg-black/5 dark:text-white/90 dark:hover:bg-white/10 md:grid lg:-right-8 ${rail.atEnd ? "pointer-events-none opacity-0" : ""}`}>
+                                        className={`absolute right-1 top-1/2 z-10 hidden h-12 w-12 -translate-y-1/2 place-items-center rounded-full text-ink-900/90 transition hover:bg-black/5 dark:text-white/90 dark:hover:bg-white/10 md:grid ${rail.atEnd ? "pointer-events-none opacity-0" : ""}`}>
                                         <ChevronRight size={30} strokeWidth={2.5} className="drop-shadow-md" />
                                     </button>
                                 </>
