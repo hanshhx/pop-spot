@@ -388,8 +388,44 @@ export default function AdminPage() {
     // 이미지 없는 공개 팝업에 Pexels 커버를 배정(수동 백필). 백엔드 pexels.api-key 설정 필요.
     const [isBackfilling, setIsBackfilling] = useState(false);
     const [isDeduping, setIsDeduping] = useState(false);
+    // 수동 수집(지금 수집하기) 진행 중 — PC 켤 때마다 도는 자동 수집 대신, 원할 때만 누르는 용도.
+    const [isCrawling, setIsCrawling] = useState(false);
     const [comments, setComments] = useState<{ id: number; sender: string; message: string; sendTime?: string; popupName?: string }[]>([]);
     const [selectedComments, setSelectedComments] = useState<Set<number>>(new Set());
+    /**
+     * 지금 수집하기 — 관리자가 누를 때만 1회 수집한다.
+     *
+     * <p>기존엔 PC(로컬 Ollama)가 켜져 있으면 백엔드가 10분마다 자동으로 수집을 돌려 PC 부담이 컸다.
+     * 이 버튼으로 원할 때만 돌리고, 하루 2번(4시·16시) 고정 수집은 그대로 유지한다.
+     *
+     * <p>수집은 몇 분 걸릴 수 있어 HTTP 응답이 먼저 끊길 수 있다. 그래도 서버에서는 계속 진행되므로
+     * 통신 끊김을 '실패' 로 단정하지 않고 진행 중으로 안내한다.
+     */
+    const handleRunCrawl = async () => {
+        const ok = await confirmAction({
+            text: "지금 팝업을 수집할까요?\n서버에서 몇 분 걸릴 수 있고, 이 창을 닫아도 계속 진행됩니다.",
+        });
+        if (!ok) return;
+        setIsCrawling(true);
+        try {
+            const res = await apiFetch("/api/admin/popups/crawl/run", { method: "POST" });
+            if (res.ok) {
+                const data = await res.json().catch(() => ({}));
+                const s = (data?.stats ?? {}) as Record<string, number>;
+                notifySuccess(
+                    `수집 완료 — 신규 ${s.autoPublished ?? 0}건 · 검수대기 ${s.pendingReview ?? 0}건`,
+                );
+                loadAllPopups();
+            } else {
+                notifyError("수집 요청이 거부됐습니다 (크롤러 활성화·관리자 권한 확인)");
+            }
+        } catch {
+            notifySuccess("수집이 서버에서 계속 진행 중입니다. 잠시 후 새로고침해 확인해 주세요.");
+        } finally {
+            setIsCrawling(false);
+        }
+    };
+
     const handleBackfillPhotos = async () => {
         if (!(await confirmAction({ text: "이미지 없는 팝업에 Pexels 커버 사진을 배정할까요?" }))) return;
         setIsBackfilling(true);
@@ -743,6 +779,14 @@ export default function AdminPage() {
                             <div className="mb-4 flex items-center justify-between gap-3">
                                 <p className="text-sm text-muted-foreground">이미지 없는 팝업은 커버 배정으로 각기 다른 사진을 채웁니다.</p>
                                 <div className="flex shrink-0 items-center gap-2">
+                                    <button
+                                        onClick={handleRunCrawl}
+                                        disabled={isCrawling}
+                                        title="지금 1회 수집합니다. PC(로컬 AI)가 켜져 있으면 로컬로, 꺼져 있으면 클라우드로 돕니다."
+                                        className="rounded-pill border border-lime-400/60 bg-lime-300/15 px-4 py-2 text-sm font-bold text-lime-700 transition-colors hover:bg-lime-300/25 disabled:opacity-60 dark:text-lime-300"
+                                    >
+                                        {isCrawling ? "수집 중…" : "지금 수집하기"}
+                                    </button>
                                     <button
                                         onClick={handleDedupe}
                                         disabled={isDeduping}
