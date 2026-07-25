@@ -50,8 +50,12 @@ export default function LoginPage() {
 
       if (res.ok) {
         const data = await res.json();
-        localStorage.setItem('user', JSON.stringify(data));
-        if (data.token) setAuthToken(data.token);
+        // 토큰은 localStorage 에 남기지 않는다 — setAuthToken 이 sessionStorage 로만 보관한다.
+        // 응답을 통째로 저장하면 data.token 이 localStorage['user'] 안에 그대로 남아
+        // v2.40 의 sessionStorage 이관이 이메일 로그인 경로에서만 무효가 된다(소셜 콜백은 이미 골라 저장).
+        const { token, ...profile } = data;
+        localStorage.setItem('user', JSON.stringify(profile));
+        if (token) setAuthToken(token);
         if (saveId) localStorage.setItem('savedEmail', formData.email);
         else localStorage.removeItem('savedEmail');
 
