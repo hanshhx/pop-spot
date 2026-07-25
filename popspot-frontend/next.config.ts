@@ -71,7 +71,10 @@ const nextConfig: NextConfig = {
       // v2.21-S14 — script-src 에 Spotify Web Playback SDK (sdk.scdn.co) 추가.
       `script-src 'self' 'unsafe-inline'${process.env.NODE_ENV === 'production' ? '' : " 'unsafe-eval'"} https://dapi.kakao.com https://t1.daumcdn.net https://www.googletagmanager.com https://*.algolia.net https://*.algolianet.com https://www.youtube.com https://s.ytimg.com https://sdk.scdn.co`,
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net",
-      `img-src 'self' data: blob: ${backendOrigin} https://images.unsplash.com https://images.pexels.com https://*.kakaocdn.net https://*.pstatic.net https://lh3.googleusercontent.com`,
+      // *.scdn.co / *.mzstatic.com — 음악 앨범아트. next/image 화이트리스트 대신 raw <img> 로
+      // 렌더하므로(GlobalMusicPlayer·MusicForPopup·MusicTab) img-src 에 반드시 있어야 한다.
+      // 빠뜨리면 음악 화면 커버가 전부 깨진다(실측: /api/music/popular 이미지 전건이 i.scdn.co).
+      `img-src 'self' data: blob: ${backendOrigin} https://images.unsplash.com https://images.pexels.com https://*.kakaocdn.net https://*.pstatic.net https://lh3.googleusercontent.com https://*.scdn.co https://*.mzstatic.com`,
       // v2.21-S14/S15 — media-src 에 Spotify(p.scdn.co) + iTunes preview CDN.
       // iTunes preview 는 audio-ssl.itunes.apple.com / *.mzstatic.com 에서 m4a 제공.
       "media-src 'self' blob: https: https://p.scdn.co https://*.scdn.co https://audio-ssl.itunes.apple.com https://*.mzstatic.com",
@@ -80,7 +83,7 @@ const nextConfig: NextConfig = {
       // api.spotify.com (Web API play call), *.spotify.com (SDK websocket), *.scdn.co (CDN).
       // v2.32 — MapLibre 지도용: protomaps.github.io(라틴/숫자 글리프 fetch). 타일은 same-origin
       // /basemap 프록시로 받으므로 build.protomaps.com 은 서버측 fetch(브라우저 CSP 무관).
-      `connect-src 'self' ${backendOrigin} ${backendWsOrigin} https://*.algolia.net https://*.algolianet.com https://dapi.kakao.com https://accounts.kakao.com https://accounts.google.com https://nid.naver.com https://*.ts.net wss://*.ts.net https://www.youtube.com https://s.ytimg.com https://api.spotify.com https://*.spotify.com https://*.scdn.co https://protomaps.github.io wss://*.spotify.com${process.env.NODE_ENV === 'production' ? '' : ' ws://localhost:* http://localhost:*'}`,
+      `connect-src 'self' ${backendOrigin} ${backendWsOrigin} https://*.algolia.net https://*.algolianet.com https://dapi.kakao.com https://accounts.kakao.com https://accounts.google.com https://nid.naver.com https://*.ts.net wss://*.ts.net https://www.youtube.com https://s.ytimg.com https://api.spotify.com https://*.spotify.com https://*.scdn.co https://protomaps.github.io https://router.project-osrm.org wss://*.spotify.com${process.env.NODE_ENV === 'production' ? '' : ' ws://localhost:* http://localhost:*'}`,
       // v2.32 — MapLibre GL JS 는 타일 파싱을 blob URL 웹워커에서 한다. worker-src 미지정 시
       // default-src 'self' 로 폴백돼 blob: 워커가 차단된다 → 지도 렌더 실패.
       "worker-src 'self' blob:",
