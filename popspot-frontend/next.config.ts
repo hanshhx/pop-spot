@@ -74,7 +74,7 @@ const nextConfig: NextConfig = {
       // *.scdn.co / *.mzstatic.com — 음악 앨범아트. next/image 화이트리스트 대신 raw <img> 로
       // 렌더하므로(GlobalMusicPlayer·MusicForPopup·MusicTab) img-src 에 반드시 있어야 한다.
       // 빠뜨리면 음악 화면 커버가 전부 깨진다(실측: /api/music/popular 이미지 전건이 i.scdn.co).
-      `img-src 'self' data: blob: ${backendOrigin} https://images.unsplash.com https://images.pexels.com https://*.kakaocdn.net https://*.pstatic.net https://lh3.googleusercontent.com https://*.scdn.co https://*.mzstatic.com`,
+      `img-src 'self' data: blob: ${backendOrigin} https://images.unsplash.com https://images.pexels.com https://*.kakaocdn.net https://*.pstatic.net https://lh3.googleusercontent.com https://*.scdn.co https://*.mzstatic.com https://i.ytimg.com`,
       // v2.21-S14/S15 — media-src 에 Spotify(p.scdn.co) + iTunes preview CDN.
       // iTunes preview 는 audio-ssl.itunes.apple.com / *.mzstatic.com 에서 m4a 제공.
       "media-src 'self' blob: https: https://p.scdn.co https://*.scdn.co https://audio-ssl.itunes.apple.com https://*.mzstatic.com",
