@@ -141,6 +141,12 @@ function dropExpired(list: PopupStore[]): PopupStore[] {
   return list.filter((p) => !isExpired(p?.endDate, today));
 }
 
+/**
+ * 한 좌표에 이보다 많이 뭉치면 '진짜 위치가 아니라 지역 중심점(가짜 위치)' 으로 보고 지도 표시·개수·
+ * 검색 이동에서 제외한다. InteractiveMap 의 같은 이름 상수와 값을 맞춘다(수백 개가 링처럼 뭉치던 문제).
+ */
+const FALLBACK_CLUSTER_MIN = 40;
+
 /** 현재 세션에서 해당 탭에 진입할 수 있는가. */
 function canAccessTab(tab: string, hasUser: boolean, isGuestActive: boolean): boolean {
   if (hasUser) return true;
@@ -211,6 +217,9 @@ export default function Home() {
   const [searchFocus, setSearchFocus] = useState<{ id: string; nonce: number } | null>(null);
   // AI 검색 결과 id 목록 — 지도에 이 핀들만 표시(null=전체). 서치존의 'AI로 찾기'가 세팅.
   const [mapFilterIds, setMapFilterIds] = useState<string[] | null>(null);
+  // 검색 결과 좌표 → 지도를 그 위치로 맞춤(한 곳=확대, 여러 곳=다 보이게 축소). InteractiveMap 의 fitReq 로 전달.
+  // allPopups 는 모든 팝업 좌표를 가지므로, 지도 마커 로딩 여부와 무관하게 확실히 이동한다.
+  const [mapFit, setMapFit] = useState<{ pts: [number, number][]; nonce: number } | null>(null);
 
   /**
    * "지금 뜨는 팝업" 레일에 실제로 렌더할 목록 — 전체(allPopups)에 카테고리 필터 + 정렬 적용.
@@ -248,6 +257,42 @@ export default function Home() {
     const present = new Set(allPopups.map((p) => classifyCategory(p.category)));
     return CATEGORIES.filter((c) => present.has(c.code));
   }, [allPopups]);
+
+  /**
+   * '진짜 위치가 아니라 지역 중심점(카카오가 모호한 주소를 그 동네 한가운데로 찍은 값)' 에 비정상적으로
+   * 몰린 좌표 집합. 지도(InteractiveMap)의 FALLBACK_CLUSTER_MIN 과 같은 기준으로 판정해, 개수·검색
+   * 이동에서 함께 제외한다(한 점에 수백 개가 링처럼 뭉치던 문제).
+   */
+  const fallbackCoordKeys = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const p of allPopups) {
+      if (p.latitude && p.longitude) {
+        const k = `${p.latitude},${p.longitude}`;
+        counts.set(k, (counts.get(k) ?? 0) + 1);
+      }
+    }
+    const keys = new Set<string>();
+    for (const [k, n] of counts) if (n > FALLBACK_CLUSTER_MIN) keys.add(k);
+    return keys;
+  }, [allPopups]);
+
+  /** 지도에 실제로 찍히는(진짜 위치 있는) 팝업인가 — 개수/검색 이동 공용 판정. */
+  const hasRealMapLocation = (p: { latitude?: string | null; longitude?: string | null }) => {
+    const lat = parseFloat(p.latitude ?? '');
+    const lng = parseFloat(p.longitude ?? '');
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return false;
+    return !fallbackCoordKeys.has(`${p.latitude},${p.longitude}`);
+  };
+
+  /**
+   * 홈 인사말의 팝업 개수 — 지도(하단 'Total N Locations')와 숫자를 맞추기 위해 '지도에 실제로 찍히는
+   * (진짜 위치 있는) 활성 팝업'만 센다. 좌표 없는 것 + 지역 중심점에 몰린 가짜 위치는 제외.
+   */
+  const mappablePopupCount = useMemo(
+    () => allPopups.filter(hasRealMapLocation).length,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [allPopups, fallbackCoordKeys],
+  );
 
   // pop-look → "오늘의 추천 팝업": 실제 인기순 상위(랜덤 아님). hotPopups 가 이미 viewCount desc 정렬.
   const featuredPopup = hotPopups[0];
@@ -876,7 +921,7 @@ export default function Home() {
                     <p className="text-xs md:text-base opacity-70">
                       오늘 서울에{' '}
                       <span className="font-bold text-lime-400 dark:text-lime-700">
-                        {allPopups.length}개
+                        {mappablePopupCount}개
                       </span>
                       의 팝업이 열려있어요.
                     </p>
@@ -903,7 +948,7 @@ export default function Home() {
                       <h2 className="text-2xl md:text-4xl font-black leading-tight text-gray-900 dark:text-white">
                         지금 서울에{' '}
                         <span className="text-lime-600 dark:text-lime-300">
-                          {allPopups.length || '…'}개
+                          {mappablePopupCount || '…'}개
                         </span>
                         의<br className="hidden md:block" /> 팝업이 열렸어요
                       </h2>
@@ -970,24 +1015,44 @@ export default function Home() {
                   onSelectPopup={(hit) => {
                     // AI 필터가 걸려 있으면 해제 — 그래야 고른 핀이 지도에 보인다.
                     setMapFilterIds(null);
-                    // 1순위: 지도가 자기 마커에서 그 팝업을 찾아 이동+정보창 오픈(allPopups 의존 X).
+                    // 그 팝업 정보 카드를 연다(지도 이동은 아래 좌표로 확실히 처리).
                     setSearchFocus((prev) => ({
                       id: String(hit.objectID),
                       nonce: (prev?.nonce ?? 0) + 1,
                     }));
-                    // 2순위(보조): allPopups 에 좌표가 있으면 중심도 같이 이동(마커가 아직 안 실렸을 때 대비).
+                    // 그 팝업 좌표로 지도를 확대 이동. 단 진짜 위치가 있는 팝업만 — 지역 중심점(가짜 위치)에
+                    // 몰린 팝업은 지도에 안 찍히므로 그쪽으로 확대하면 빈 곳/링만 보인다.
                     const p = allPopups.find((x) => String(x.id) === String(hit.objectID));
-                    if (p?.latitude && p?.longitude) {
-                      setMapCenter({ lat: parseFloat(p.latitude), lng: parseFloat(p.longitude) });
+                    if (p && hasRealMapLocation(p)) {
+                      setMapFit((prev) => ({
+                        pts: [[parseFloat(p.longitude ?? ''), parseFloat(p.latitude ?? '')]],
+                        nonce: (prev?.nonce ?? 0) + 1,
+                      }));
                     }
                   }}
                   onAiFilter={(ids) => {
                     // AI 검색 결과 id → 지도에 그 핀만. null 이면 전체 복원.
                     setMapFilterIds(ids);
-                    if (ids && typeof document !== 'undefined') {
-                      document
-                        .querySelector('[aria-label="서울 팝업 지도"]')
-                        ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    if (ids) {
+                      // 결과 팝업들의 좌표를 모아 지도를 맞춘다 — 한 곳이면 확대, 여러 곳이면 다 보이게 축소.
+                      const idSet = new Set(ids.map(String));
+                      const pts = allPopups
+                        .filter((x) => idSet.has(String(x.id)) && hasRealMapLocation(x))
+                        .map(
+                          (x) =>
+                            [parseFloat(x.longitude ?? ''), parseFloat(x.latitude ?? '')] as [
+                              number,
+                              number,
+                            ],
+                        );
+                      if (pts.length > 0) {
+                        setMapFit((prev) => ({ pts, nonce: (prev?.nonce ?? 0) + 1 }));
+                      }
+                      if (typeof document !== 'undefined') {
+                        document
+                          .querySelector('[aria-label="서울 팝업 지도"]')
+                          ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                      }
                     }
                   }}
                 />
@@ -1000,6 +1065,7 @@ export default function Home() {
                   focusReq={searchFocus}
                   onMarkerClick={handleMarkerClickToDetail}
                   filterIds={mapFilterIds}
+                  fitReq={mapFit}
                 />
                 <div className="absolute bottom-4 md:bottom-6 left-4 md:left-6 flex gap-2 z-20">
                   <span className="backdrop-blur px-3 py-1.5 md:px-4 md:py-2 rounded-full border text-[10px] md:text-xs font-bold flex items-center gap-1.5 md:gap-2 bg-white/80 border-gray-200 text-gray-900 dark:bg-black/60 dark:border-white/10 dark:text-white">
@@ -1155,7 +1221,7 @@ export default function Home() {
                   이 조건에 맞는 팝업이 없어요.
                 </p>
               ) : (
-                <div className="relative">
+                <div className="relative md:px-16">
                   {rail.hasOverflow && (
                     <>
                       <button
@@ -1163,18 +1229,18 @@ export default function Home() {
                         aria-label="이전"
                         onClick={() => rail.scrollByPage(-1)}
                         disabled={rail.atStart}
-                        className={`absolute left-0 top-1/2 z-10 hidden h-9 w-9 -translate-y-1/2 place-items-center rounded-full border border-gray-200 bg-white/90 shadow-md backdrop-blur transition dark:border-white/10 dark:bg-black/60 md:grid ${rail.atStart ? 'pointer-events-none opacity-0' : 'hover:bg-white dark:hover:bg-black'}`}
+                        className={`absolute left-1 top-1/2 z-10 hidden h-12 w-12 -translate-y-1/2 place-items-center rounded-full text-ink-900/90 transition hover:bg-black/5 dark:text-white/90 dark:hover:bg-white/10 md:grid ${rail.atStart ? 'pointer-events-none opacity-0' : ''}`}
                       >
-                        <ChevronLeft size={18} />
+                        <ChevronLeft size={30} strokeWidth={2.5} className="drop-shadow-md" />
                       </button>
                       <button
                         type="button"
                         aria-label="다음"
                         onClick={() => rail.scrollByPage(1)}
                         disabled={rail.atEnd}
-                        className={`absolute right-0 top-1/2 z-10 hidden h-9 w-9 -translate-y-1/2 place-items-center rounded-full border border-gray-200 bg-white/90 shadow-md backdrop-blur transition dark:border-white/10 dark:bg-black/60 md:grid ${rail.atEnd ? 'pointer-events-none opacity-0' : 'hover:bg-white dark:hover:bg-black'}`}
+                        className={`absolute right-1 top-1/2 z-10 hidden h-12 w-12 -translate-y-1/2 place-items-center rounded-full text-ink-900/90 transition hover:bg-black/5 dark:text-white/90 dark:hover:bg-white/10 md:grid ${rail.atEnd ? 'pointer-events-none opacity-0' : ''}`}
                       >
-                        <ChevronRight size={18} />
+                        <ChevronRight size={30} strokeWidth={2.5} className="drop-shadow-md" />
                       </button>
                     </>
                   )}
