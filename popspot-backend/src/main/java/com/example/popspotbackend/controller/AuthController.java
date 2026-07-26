@@ -10,11 +10,14 @@ import com.example.popspotbackend.service.AuthService;
 import com.example.popspotbackend.service.EmailService;
 import jakarta.validation.Valid;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
+import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -49,6 +52,24 @@ public class AuthController {
 
     private static final String SOCIAL_USER_ERROR_PREFIX = "SOCIAL_USER";
 
+    /**
+     * GET 후 DEL 을 한 번에(원자적으로) 수행하는 스크립트.
+     *
+     * <p>Spring Data 의 {@code getAndDelete()} 는 Redis 명령 {@code GETDEL} 로 내려가는데 이는 Redis 6.2
+     * 이상에서만 존재한다. 운영 서버(Ubuntu 22.04 기본 Redis 6.0.x)에는 그 명령이 없어 Lettuce 가 "Error in
+     * execution" 을 던졌고, 이 예외가 {@code GlobalExceptionHandler} 의 RuntimeException 핸들러를 타면서
+     * 소셜 로그인 교환(/oauth/exchange)과 회원가입·비밀번호 재설정의 이메일 인증 소비가 전부 400 으로 실패했다.
+     *
+     * <p>Lua 스크립트는 Redis 2.6+ 에서 동작하고 서버에서 단일 원자 단위로 실행되므로, 1회용 코드가 두 번
+     * 소비되지 않는다는 보장은 {@code GETDEL} 과 동일하게 유지된다.
+     */
+    private static final RedisScript<String> GET_DEL_SCRIPT =
+            new DefaultRedisScript<>(
+                    "local v = redis.call('GET', KEYS[1]) "
+                            + "if v then redis.call('DEL', KEYS[1]) end "
+                            + "return v",
+                    String.class);
+
     private final AuthService authService;
     private final EmailService emailService;
     private final StringRedisTemplate redisTemplate;
@@ -73,10 +94,7 @@ public class AuthController {
         if (isBlank(code) || code.length() > 100) {
             return ResponseEntity.badRequest().body("유효하지 않은 로그인 교환 코드입니다.");
         }
-        String token =
-                redisTemplate
-                        .opsForValue()
-                        .getAndDelete(OAuth2SuccessHandler.OAUTH_EXCHANGE_KEY_PREFIX + code);
+        String token = consumeKey(OAuth2SuccessHandler.OAUTH_EXCHANGE_KEY_PREFIX + code);
         if (token == null) {
             return ResponseEntity.status(401).body("로그인 교환 코드가 만료되었거나 이미 사용되었습니다.");
         }
@@ -196,8 +214,12 @@ public class AuthController {
     }
 
     private boolean consumeEmailVerification(String email, String purpose) {
-        return VERIFIED_TRUE.equals(
-                redisTemplate.opsForValue().getAndDelete(authVerifiedKey(email, purpose)));
+        return VERIFIED_TRUE.equals(consumeKey(authVerifiedKey(email, purpose)));
+    }
+
+    /** 키를 읽고 즉시 삭제한다(1회용 소비). 없으면 null. {@link #GET_DEL_SCRIPT} 참고. */
+    private String consumeKey(String key) {
+        return redisTemplate.execute(GET_DEL_SCRIPT, List.of(key));
     }
 
     private ResponseEntity<String> handleFailedAttempt(String email, String purpose) {
