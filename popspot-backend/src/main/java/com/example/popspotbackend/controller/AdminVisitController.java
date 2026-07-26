@@ -1,7 +1,11 @@
 package com.example.popspotbackend.controller;
 
+import com.example.popspotbackend.dto.VisitReferrerDto;
 import com.example.popspotbackend.dto.VisitStatsDto;
+import com.example.popspotbackend.repository.VisitLogRepository;
 import com.example.popspotbackend.service.VisitService;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +25,9 @@ public class AdminVisitController {
 
     private final VisitService visitService;
 
+    /** 유입 집계는 읽기 전용 단일 쿼리라 VisitService 를 거치지 않고 바로 조회한다. */
+    private final VisitLogRepository visitLogRepository;
+
     @GetMapping("/stats")
     public ResponseEntity<VisitStatsDto> getStats() {
         return ResponseEntity.ok(visitService.getStats());
@@ -37,5 +44,18 @@ public class AdminVisitController {
     public ResponseEntity<List<Map<String, Object>>> getRecentVisitors(
             @RequestParam(defaultValue = "7") int days) {
         return ResponseEntity.ok(visitService.getRecentVisitors(days));
+    }
+
+    /**
+     * 유입 경로 집계 — 어디서 들어왔는지(네이버·구글·직접 방문 등)를 방문수 내림차순으로. days 기본 7, 최대 30(다른 엔드포인트와 동일). 사이트 내
+     * 이동(internal)은 유입이 아니라 빠진다.
+     */
+    @GetMapping("/referrers")
+    public ResponseEntity<List<VisitReferrerDto>> getReferrers(
+            @RequestParam(defaultValue = "7") int days) {
+        int safeDays = days <= 0 ? 7 : Math.min(days, 30);
+        LocalDateTime since = LocalDate.now().minusDays(safeDays - 1L).atStartOfDay();
+        return ResponseEntity.ok(
+                VisitReferrerDto.from(visitLogRepository.referrerHostsSince(since)));
     }
 }
