@@ -37,9 +37,8 @@ public interface PopupStoreRepository extends JpaRepository<PopupStore, Long> {
     List<PopupStore> findByStatus(String status);
 
     /**
-     * 같은 좌표(위경도 문자열 정확 일치)에 이미 저장된 팝업 수. 주소가 모호한 팝업을 카카오가 지역
-     * 중심점 하나로 찍어 수백 개가 겹치는(지도에 링처럼 보이는) 문제를, 수집 시점에 그 좌표로의
-     * 추가 저장을 막아 방지하기 위해 사용한다.
+     * 같은 좌표(위경도 문자열 정확 일치)에 이미 저장된 팝업 수. 주소가 모호한 팝업을 카카오가 지역 중심점 하나로 찍어 수백 개가 겹치는(지도에 링처럼 보이는) 문제를,
+     * 수집 시점에 그 좌표로의 추가 저장을 막아 방지하기 위해 사용한다.
      */
     long countByLatitudeAndLongitude(String latitude, String longitude);
 
@@ -238,13 +237,11 @@ public interface PopupStoreRepository extends JpaRepository<PopupStore, Long> {
     List<PopupStore> findPendingTakedown(Pageable pageable);
 
     /**
-     * Takedown SLA 알림용. 권리자 신고가 접수됐지만 admin 이 24시간 안에 결정(임시 차단·영구 삭제·수정·신고 거부)하지 못한
-     * 검증 대기 row를 센다.
+     * Takedown SLA 알림용. 권리자 신고가 접수됐지만 admin 이 24시간 안에 결정(임시 차단·영구 삭제·수정·신고 거부)하지 못한 검증 대기 row를 센다.
      *
      * <p>기준 시각을 {@code lastSeenAt} → {@code takedownRequestedAt} 으로 바로잡았다. {@code lastSeenAt} 은
      * 크롤러가 원본 글을 마지막으로 본 시각이라, 소스 블로그에 글이 살아 있으면 계속 갱신된다. 그러면 차단된 지 며칠이 지나도 cutoff 를 넘지 않아 <b>알림이
-     * 영원히 울리지 않았다</b> — "24시간 내 검토" 약속(약관 §11)이 조용히 깨진다. SLA 는 "언제
-     * 신고됐나" 로 재야 한다.
+     * 영원히 울리지 않았다</b> — "24시간 내 검토" 약속(약관 §11)이 조용히 깨진다. SLA 는 "언제 신고됐나" 로 재야 한다.
      */
     @Query(
             "SELECT COUNT(p) FROM PopupStore p WHERE p.takedownRequestedAt < :cutoff "

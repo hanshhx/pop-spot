@@ -26,8 +26,8 @@ import org.springframework.stereotype.Component;
 /**
  * v2.17 — PostgreSQL 자동 백업 cron.
  *
- * <p>매일 03:00 KST 에 {@code pg_dump} 를 ProcessBuilder 로 직접 호출해 {@code backups/} 폴더에 압축된 custom-format
- * 파일(.dump)로 저장한다. 셸 파이프를 쓰지 않아 pg_dump 실패를 gzip 성공으로 오인하지 않는다. 7일 보관 후 자동 삭제.
+ * <p>매일 03:00 KST 에 {@code pg_dump} 를 ProcessBuilder 로 직접 호출해 {@code backups/} 폴더에 압축된
+ * custom-format 파일(.dump)로 저장한다. 셸 파이프를 쓰지 않아 pg_dump 실패를 gzip 성공으로 오인하지 않는다. 7일 보관 후 자동 삭제.
  *
  * <p>설정 키:
  *
@@ -139,10 +139,7 @@ public class DatabaseBackupScheduler {
     }
 
     private File latestBackupFile() {
-        File[] files =
-                new File(backupDir)
-                        .listFiles(
-                                (dir, name) -> isBackupFileName(name));
+        File[] files = new File(backupDir).listFiles((dir, name) -> isBackupFileName(name));
         if (files == null || files.length == 0) return null;
         return Arrays.stream(files).max(Comparator.comparingLong(File::lastModified)).orElse(null);
     }
@@ -286,8 +283,7 @@ public class DatabaseBackupScheduler {
 
     private static boolean isBackupFileName(String name) {
         return name.startsWith(BACKUP_FILE_PREFIX)
-                && (name.endsWith(BACKUP_FILE_SUFFIX)
-                        || name.endsWith(LEGACY_BACKUP_FILE_SUFFIX));
+                && (name.endsWith(BACKUP_FILE_SUFFIX) || name.endsWith(LEGACY_BACKUP_FILE_SUFFIX));
     }
 
     private void restrictFilePermissions(Path file) {

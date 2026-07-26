@@ -80,9 +80,7 @@ public class PopupAdminReviewController {
         return ResponseEntity.ok(Map.of("status", REVIEW_REJECTED, "id", id));
     }
 
-    /**
-     * Takedown 영구 삭제. 신고 접수 후 권리 관계를 검토해 삭제가 필요하다고 확인된 경우에만 호출한다.
-     */
+    /** Takedown 영구 삭제. 신고 접수 후 권리 관계를 검토해 삭제가 필요하다고 확인된 경우에만 호출한다. */
     @DeleteMapping("/{id}/permanent")
     public ResponseEntity<Map<String, Object>> permanentDelete(@PathVariable Long id) {
         popupStoreService.deleteById(id);

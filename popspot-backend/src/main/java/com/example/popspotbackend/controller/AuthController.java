@@ -55,13 +55,13 @@ public class AuthController {
     /**
      * GET 후 DEL 을 한 번에(원자적으로) 수행하는 스크립트.
      *
-     * <p>Spring Data 의 {@code getAndDelete()} 는 Redis 명령 {@code GETDEL} 로 내려가는데 이는 Redis 6.2
-     * 이상에서만 존재한다. 운영 서버(Ubuntu 22.04 기본 Redis 6.0.x)에는 그 명령이 없어 Lettuce 가 "Error in
-     * execution" 을 던졌고, 이 예외가 {@code GlobalExceptionHandler} 의 RuntimeException 핸들러를 타면서
-     * 소셜 로그인 교환(/oauth/exchange)과 회원가입·비밀번호 재설정의 이메일 인증 소비가 전부 400 으로 실패했다.
+     * <p>Spring Data 의 {@code getAndDelete()} 는 Redis 명령 {@code GETDEL} 로 내려가는데 이는 Redis 6.2 이상에서만
+     * 존재한다. 운영 서버(Ubuntu 22.04 기본 Redis 6.0.x)에는 그 명령이 없어 Lettuce 가 "Error in execution" 을 던졌고, 이
+     * 예외가 {@code GlobalExceptionHandler} 의 RuntimeException 핸들러를 타면서 소셜 로그인 교환(/oauth/exchange)과
+     * 회원가입·비밀번호 재설정의 이메일 인증 소비가 전부 400 으로 실패했다.
      *
-     * <p>Lua 스크립트는 Redis 2.6+ 에서 동작하고 서버에서 단일 원자 단위로 실행되므로, 1회용 코드가 두 번
-     * 소비되지 않는다는 보장은 {@code GETDEL} 과 동일하게 유지된다.
+     * <p>Lua 스크립트는 Redis 2.6+ 에서 동작하고 서버에서 단일 원자 단위로 실행되므로, 1회용 코드가 두 번 소비되지 않는다는 보장은 {@code
+     * GETDEL} 과 동일하게 유지된다.
      */
     private static final RedisScript<String> GET_DEL_SCRIPT =
             new DefaultRedisScript<>(
