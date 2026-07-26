@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import Script from 'next/script';
 import { Analytics } from '@vercel/analytics/next';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import VisitTracker from '@/components/VisitTracker';
@@ -10,7 +9,6 @@ import AuthGuard from '@/components/AuthGuard';
 import GlobalChatManager from '@/components/GlobalChatManager';
 import { MusicPlayerProvider } from '@/components/music/MusicPlayerProvider';
 import { GlobalMusicPlayer } from '@/components/music/GlobalMusicPlayer';
-import { env } from '@/lib/env';
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://popspot.co.kr'),
@@ -165,12 +163,10 @@ export default function RootLayout({
         <Analytics />
         <SpeedInsights />
 
-        {env.kakaoMapKey && (
-          <Script
-            src={`//dapi.kakao.com/v2/maps/sdk.js?appkey=${env.kakaoMapKey}&autoload=false`}
-            strategy="beforeInteractive"
-          />
-        )}
+        {/* v2.41 — Kakao Map SDK 로더 제거.
+            지도는 v2.36 에 MapLibre 로 교체됐는데 SDK 스크립트만 남아 strategy="beforeInteractive"
+            로 전 페이지에서 렌더 블로킹 로드되고 있었다. 유일한 소비자 사슬(KakaoRoadview →
+            DigitalTicket)이 어디서도 import 되지 않는 죽은 코드라 로더와 함께 삭제한다. */}
       </body>
     </html>
   );

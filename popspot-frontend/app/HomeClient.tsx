@@ -57,7 +57,7 @@ import AIReportModal from '../src/components/AIReportModal';
 import LiveChatTicker from '../src/components/LiveChatTicker';
 import { SortableItem } from '../src/components/SortableItem';
 import MateBoard from '../src/components/MateBoard';
-import { apiFetch } from '../src/lib/api';
+import { apiFetch, AUTH_EXPIRED_EVENT } from '../src/lib/api';
 import { clearAuthToken } from '../src/lib/authStorage';
 import {
   isExpired,
@@ -169,7 +169,7 @@ export default function Home() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // 모드별 풀 배경 영상: 라이트=밝은 스카이라인(212404), 다크=생기있는 서울 야경(login-bg).
+  // 모드별 풀 배경 영상: 라이트=밝은 스카이라인(light-bg), 다크=생기있는 서울 야경(login-bg).
   // resolvedTheme 은 마운트 후에야 확정되므로 gate 로 SSR 불일치/깜빡임 방지(마운트 전엔 브랜드 단색만).
   const { resolvedTheme } = useTheme();
   const [themeReady, setThemeReady] = useState(false);
@@ -805,6 +805,24 @@ export default function Home() {
   }, []);
 
   /*
+   * 토큰 만료 시 헤더의 이름·프로필을 즉시 내린다.
+   *
+   * apiFetch 가 401 을 받으면 토큰과 user 캐시를 지우고 AUTH_EXPIRED_EVENT 를 쏘지만, 홈은
+   * 위 mount effect 에서 localStorage 를 한 번 읽어 user 를 React state 로 들고 있어서
+   * 새로고침 전까지 "로그인된 것처럼 보이는데 내 데이터는 0건" 인 상태가 그대로 남았다.
+   * 사용자에게는 '데이터가 사라진' 것으로 보이던 증상의 마지막 조각이라 여기서 state 도 비운다.
+   */
+  useEffect(() => {
+    const handleExpired = () => {
+      setUser(null);
+      setMyCourseItems([]);
+      setMyWishlist([]);
+    };
+    window.addEventListener(AUTH_EXPIRED_EVENT, handleExpired);
+    return () => window.removeEventListener(AUTH_EXPIRED_EVENT, handleExpired);
+  }, []);
+
+  /*
    * ?tab= 쿼리 또는 sessionStorage 의 lastTab 으로 초기 탭 복원. searchParams 변경 시마다
    * 다시 실행되지만 게스트/유저 상태에는 영향 없음 — setCurrentTab 한 번만 호출.
    */
@@ -857,7 +875,7 @@ export default function Home() {
 
   return (
     <main className="min-h-screen font-sans relative pb-32 lg:pb-16 overflow-x-hidden transition-colors duration-500 text-gray-900 dark:text-white">
-      {/* 모드별 풀 배경 영상 — 라이트=밝은 스카이라인(212404), 다크=생기있는 서울 야경(login-bg).
+      {/* 모드별 풀 배경 영상 — 라이트=밝은 스카이라인(light-bg), 다크=생기있는 서울 야경(login-bg).
           영상이 '실제로 보이도록' 스크림은 얕게(home-video-scrim). 콘텐츠는 불투명 카드 위라 가독성은 카드가 담당.
           마운트 전엔 브랜드 단색(cream/ink)만 → 깜빡임 없이 영상 페이드 인. 활성 모드 영상 한 개만 로드. */}
       <div className="fixed inset-0 -z-10 bg-cream-100 dark:bg-ink-900 overflow-hidden" aria-hidden>

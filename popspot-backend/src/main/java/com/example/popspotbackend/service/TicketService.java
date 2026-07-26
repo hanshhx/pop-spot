@@ -15,6 +15,10 @@ import org.springframework.stereotype.Service;
  *
  * <p>스레드 풀은 {@value #BOT_THREAD_POOL_SIZE}개로 제한 (저사양 VM 에서 OOM 방지). 봇은 {@value #BOT_COUNT} 마리가 동시에
  * 클릭하며 매 시도 사이 50~150ms 의 짧은 휴식을 둔다.
+ *
+ * <p>재고 키 {@code ticket:stock:{itemId}} 는 {@value #STOCK_TTL_HOURS}시간 뒤 만료된다. itemId 마다 키가 새로
+ * 생기는데 만료가 없으면 이메일 인증코드·수집 예산과 공유하는 Redis 에 쓰레기 키가 무한히 쌓이기 때문. 게임 중에는 리셋/예약 때마다 TTL 을 갱신하므로
+ * 플레이 도중 사라지지 않는다.
  */
 @Slf4j
 @Service
@@ -24,6 +28,7 @@ public class TicketService {
     private static final int BOT_THREAD_POOL_SIZE = 10;
     private static final int BOT_COUNT = 5;
     private static final int INITIAL_STOCK = 30;
+    private static final long STOCK_TTL_HOURS = 3;
 
     private static final long BOT_BASE_DELAY_MS = 50;
     private static final long BOT_RANDOM_DELAY_MS = 100;
@@ -45,7 +50,13 @@ public class TicketService {
 
     public void resetGame(String itemId) {
         validateItemId(itemId);
-        redisTemplate.opsForValue().set(stockKey(itemId), String.valueOf(INITIAL_STOCK));
+        redisTemplate
+                .opsForValue()
+                .set(
+                        stockKey(itemId),
+                        String.valueOf(INITIAL_STOCK),
+                        STOCK_TTL_HOURS,
+                        TimeUnit.HOURS);
         log.info("[Ticket] {} 리셋 완료. 재고 {}개", itemId, INITIAL_STOCK);
     }
 
@@ -67,7 +78,10 @@ public class TicketService {
 
     public String attemptReservation(String userId, String itemId) {
         validateItemId(itemId);
-        Long stock = redisTemplate.opsForValue().decrement(stockKey(itemId));
+        String key = stockKey(itemId);
+        Long stock = redisTemplate.opsForValue().decrement(key);
+        // DECR 은 키가 없으면 TTL 없는 새 키(-1)를 만든다. 리셋 없이 예약만 반복해도 재고 키가 영구 잔존하던 구멍을 막는다.
+        redisTemplate.expire(key, STOCK_TTL_HOURS, TimeUnit.HOURS);
         if (stock != null && stock >= 0) {
             log.info("[Ticket] USER {} 성공 (남은 재고: {})", userId, stock);
             return RESULT_SUCCESS;

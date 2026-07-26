@@ -46,8 +46,14 @@ public class User {
     @JsonIgnore
     private String password;
 
-    /** 닉네임. 소셜 로그인 시 provider 의 이름이 그대로 들어온다. */
-    @Column(nullable = false)
+    /**
+     * 닉네임. 소셜 로그인 시 provider 의 이름이 그대로 들어온다.
+     *
+     * <p>보안(v2.41): 채팅 발신자로 서버가 확정해 표시하는 값이므로 유일해야 한다. 중복이 가능하면 남의 닉네임으로 가입해 사칭할 수 있고, 탈퇴 시 닉네임
+     * 기준으로 채팅을 지우는 로직이 동명이인의 대화까지 삭제한다. 실제 제약은 V24 마이그레이션의 unique index 이다(Hibernate validate 는
+     * unique 를 검사하지 않으므로 이 선언은 의도 표시 + 신규 DB 생성용).
+     */
+    @Column(nullable = false, unique = true)
     private String nickname;
 
     /** 소셜 프로필 이미지 URL. */

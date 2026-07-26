@@ -6,6 +6,7 @@ import { Loader2 } from 'lucide-react';
 
 import { apiFetch, AUTH_EXPIRED_EVENT } from '@/lib/api';
 import { clearAuthToken, getAuthToken } from '@/lib/authStorage';
+import { notifyWarning } from '@/lib/notify';
 
 // 인증 불필요 공개 경로 — 정확 일치. (sitemap 포함 페이지 + 인증 흐름 페이지)
 const PUBLIC_PATHS = [
@@ -27,7 +28,16 @@ const PUBLIC_PREFIXES = ['/popups/', '/popup/'];
 
 const USER_KEY = 'user';
 
-/** 공개 경로 판정 — 정확 일치 또는 공개 prefix. pathname 불명 시 공개로 간주(막지 않음). */
+const EXPIRED_NOTICE_TITLE = '로그인이 만료되었습니다';
+const EXPIRED_NOTICE_TEXT =
+  '보안을 위해 일정 시간이 지나면 자동으로 로그아웃됩니다. 다시 로그인하시면 찜·저장한 코스·여권이 그대로 있습니다.';
+
+/**
+ * 공개 경로 판정 — 정확 일치 또는 공개 prefix. pathname 불명 시 공개로 간주(막지 않음).
+ *
+ * <p>이 판정은 <b>강제 이동 여부만</b> 결정한다. 토큰 검증과 만료 이벤트 수신은 경로와 무관하게 항상
+ * 수행한다 — 이유는 아래 컴포넌트 주석 참고.
+ */
 function isPublicPath(pathname: string | null): boolean {
   if (!pathname) return true;
   return (
@@ -59,36 +69,47 @@ function GuardFallback() {
  *
  * <p>보호 경로(공개 목록 밖)는 마운트 후 토큰을 검증해 미인증이면 /login 으로 보낸다. 보호 페이지는
  * noindex + 데이터가 토큰 게이트된 API 라 잠깐 빈 셸이 렌더돼도 유출 없음.
+ *
+ * <p><b>공개 경로에서도 검증은 한다 — 생략하는 것은 강제 이동뿐이다.</b> 여권 · 찜 · 코스 · 마이 ·
+ * 동행은 별도 주소가 아니라 전부 {@code '/'} 안의 탭이다. 예전처럼 공개 경로에서 즉시 빠져나가면
+ * 로그인 사용자의 세션 내내 토큰 검증이 단 한 번도 일어나지 않았고, 토큰이 만료돼도 헤더에는 이름과
+ * 프로필이 그대로 남은 채 찜 0건 · 코스 0건 · 여권 0/12 만 조용히 표시됐다. 사용자에게는 "내 데이터가
+ * 사라졌다"로 보인다. 이제는 만료를 감지해 안내를 띄우고, 공개 경로에서는 보던 페이지를 뺏지 않는다.
  */
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
 
   useEffect(() => {
-    // 공개 경로는 아무 검사도 하지 않는다.
-    if (isPublicPath(pathname)) return;
+    // 공개 경로에서 생략하는 것은 '강제 이동'뿐이다. 검증과 이벤트 수신은 아래에서 그대로 수행한다.
+    const publicPath = isPublicPath(pathname);
 
     let cancelled = false;
 
-    const clearAuthAndRedirect = () => {
+    /**
+     * 만료 처리. 정리는 apiFetch 가 이미 했지만 멱등하게 한 번 더 — 다른 경로(수동 삭제 등)로 이벤트가
+     * 와도 캐시가 남지 않게. 안내는 기존 notify 유틸 재사용(중복 방지는 apiFetch 가 이벤트 발행 단계에서
+     * 이미 하므로 세션당 한 번만 뜬다).
+     */
+    const handleExpired = () => {
       clearAuthToken();
       localStorage.removeItem(USER_KEY);
-      router.replace('/login');
+      void notifyWarning({ title: EXPIRED_NOTICE_TITLE, text: EXPIRED_NOTICE_TEXT });
+      if (!publicPath) router.replace('/login');
     };
 
     const verify = async () => {
       const token = getAuthToken();
       if (!token) {
-        router.replace('/login');
+        // 비로그인 상태. 공개 경로는 그대로 두고, 보호 경로만 로그인으로 보낸다.
+        if (!publicPath) router.replace('/login');
         return;
       }
       try {
         const res = await apiFetch('/api/v1/auth/me');
         if (cancelled) return;
-        if (res.status === 401) {
-          clearAuthAndRedirect();
-          return;
-        }
+        // 401 은 apiFetch 가 AUTH_EXPIRED_EVENT 로 알려주고 handleExpired 가 처리한다 — 여기서 또
+        // 정리·이동하면 안내가 두 번 뜬다.
         if (!res.ok) return; // 5xx / 네트워크 일시 장애 — stale 캐시 유지(UX 보호).
         const serverUser = await res.json();
         localStorage.setItem(USER_KEY, JSON.stringify(serverUser));
@@ -97,9 +118,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
       }
     };
 
-    const handleExpired = () => {
-      if (!isPublicPath(pathname)) clearAuthAndRedirect();
-    };
+    // 리스너를 먼저 건다 — verify() 안의 401 이 이벤트를 쏠 때 이미 붙어 있어야 놓치지 않는다.
     window.addEventListener(AUTH_EXPIRED_EVENT, handleExpired);
     void verify();
     return () => {
