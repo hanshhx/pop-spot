@@ -45,7 +45,11 @@ public class WebConfig implements WebMvcConfigurer {
         // /api/search/ai : AI 검색. 같은 프리픽스의 /api/search/sync 는 LLM 을 안 쓰므로 /** 로 넓히지 않는다.
         "/api/tmap/**",
         "/api/courses/**",
-        "/api/search/ai"
+        "/api/search/ai",
+        // v2.41 — 의견 보내기. 비로그인 게스트가 그대로 POST 할 수 있는데(FeedbackController 가 인증
+        // 없으면 userId null 로 두고 허용), 지금까지는 진입점이 푸터 링크와 MY 탭뿐이라 노출이 적었다.
+        // 이번에 SEO 랜딩 167개와 메인에 버튼을 깔면서 스팸 표면이 커져 같이 한도를 건다.
+        "/api/feedback"
     };
 
     /**
