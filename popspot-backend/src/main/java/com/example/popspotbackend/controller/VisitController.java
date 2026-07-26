@@ -13,7 +13,8 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * 익명 방문 비콘 수신.
  *
- * <p>로그인 불필요(게스트도 기록). 로그인 여부(guest)·경로만 받고 IP·개인정보는 저장하지 않는다. 항상 204 로 응답해 클라이언트 부담을 없앤다.
+ * <p>로그인 불필요(게스트도 기록). 로그인 여부(guest)·경로·유입 출처만 받고 IP·개인정보는 저장하지 않는다. 유입 출처는 서비스단에서 도메인만 뽑아
+ * 저장한다(전체 URL 미저장). 항상 204 로 응답해 클라이언트 부담을 없앤다.
  *
  * <p>봇 제외: 검색엔진 크롤러(Googlebot/Yeti 등)·헤드리스·HTTP 클라이언트는 JS 를 실행하며 비콘을 쏴 방문자 수를 뻥튀기하므로 User-Agent 로
  * 걸러 기록하지 않는다. 실제 브라우저는 모두 UA 에 "mozilla" 를 담으므로 그게 없으면(스크립트/HTTP 라이브러리) 봇으로 간주한다. User-Agent 는 남은
@@ -135,11 +136,16 @@ public class VisitController {
             Object path = body.get("path");
             // guest 가 명시적으로 false 일 때만 회원, 그 외(누락/true)는 게스트로 간주.
             boolean guest = !Boolean.FALSE.equals(body.get("guest"));
+            // 유입 출처는 본문의 referrer(프론트가 담은 document.referrer)만 쓴다. Referer 헤더는 폴백으로
+            // 쓰지 않는다 — 비콘이 same-origin fetch 라 헤더에는 우리 도메인이 찍혀 전부 internal 로 뭉개지고,
+            // 진짜 유입원(검색·SNS)을 덮어써 지금처럼 출처 불명이 된다. 본문이 없으면 direct 로 둔다.
+            Object referrer = body.get("referrer");
             visitService.record(
                     visitorId == null ? null : visitorId.toString(),
                     path == null ? null : path.toString(),
                     guest,
-                    userAgent);
+                    userAgent,
+                    referrer == null ? null : referrer.toString());
         }
         return ResponseEntity.noContent().build();
     }

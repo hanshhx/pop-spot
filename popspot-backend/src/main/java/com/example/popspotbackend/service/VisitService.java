@@ -3,11 +3,14 @@ package com.example.popspotbackend.service;
 import com.example.popspotbackend.dto.VisitStatsDto;
 import com.example.popspotbackend.entity.VisitLog;
 import com.example.popspotbackend.repository.VisitLogRepository;
+import java.net.URI;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -21,14 +24,19 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 public class VisitService {
 
+    /** 우리 도메인 — 여기서 온 이동은 유입이 아니라 사이트 내 이동이다. */
+    private static final Set<String> INTERNAL_HOSTS =
+            Set.of("popspot.co.kr", "localhost", "127.0.0.1");
+
     private final VisitLogRepository visitLogRepository;
 
     @Value("${popspot.visit-log.retention-days:90}")
     private int retentionDays;
 
-    /** 익명 방문 1건 기록. visitorId 가 비면 무시, 길이 초과 값은 컬럼 한도로 절단. UA 는 봇 식별용으로 저장. */
+    /** 익명 방문 1건 기록. visitorId 가 비면 무시, 길이 초과 값은 컬럼 한도로 절단. UA 는 봇 식별용, referrer 는 출처 도메인만 저장. */
     @Transactional
-    public void record(String visitorId, String path, boolean guest, String userAgent) {
+    public void record(
+            String visitorId, String path, boolean guest, String userAgent, String referrer) {
         if (visitorId == null || visitorId.isBlank()) return;
         String safeVisitor = clamp(visitorId, 64);
         String safePath = path == null ? null : clamp(path, 255);
@@ -39,7 +47,33 @@ public class VisitService {
                         .path(safePath)
                         .guest(guest)
                         .userAgent(safeUa)
+                        .referrerHost(normalizeReferrerHost(referrer))
                         .build());
+    }
+
+    /**
+     * 유입 출처를 "도메인 또는 분류값" 으로 정규화한다.
+     *
+     * <p>전체 URL 은 절대 저장하지 않는다 — 리퍼러 쿼리스트링에는 검색어·토큰 같은 개인정보가 실릴 수 있고, 이 서비스는 IP 도 안 남기는 방침이라 도메인만
+     * 남기는 것이 일관된다. 빈 값·파싱 실패는 direct(주소 직접 입력·북마크·앱에서 열기), 우리 도메인은 internal(사이트 내 이동)로 묶는다.
+     */
+    private static String normalizeReferrerHost(String referrer) {
+        if (referrer == null || referrer.isBlank()) return "direct";
+        String host;
+        try {
+            host = URI.create(referrer.trim()).getHost();
+        } catch (IllegalArgumentException e) {
+            return "direct"; // 깨진 URL — 어차피 출처를 알 수 없다
+        }
+        if (host == null || host.isBlank()) return "direct"; // 상대경로·about: 등 호스트 없는 값
+        String lower = host.toLowerCase(Locale.ROOT);
+        // www 등 서브도메인과 vercel 프리뷰 배포도 우리 사이트다.
+        if (INTERNAL_HOSTS.contains(lower)
+                || lower.endsWith(".popspot.co.kr")
+                || lower.endsWith(".vercel.app")) {
+            return "internal";
+        }
+        return clamp(lower, 255);
     }
 
     @Transactional(readOnly = true)
