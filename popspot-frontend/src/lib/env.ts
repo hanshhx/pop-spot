@@ -27,7 +27,6 @@ const trim = (v: string | undefined): string | undefined => {
 
 const API_URL = trim(process.env.NEXT_PUBLIC_API_URL);
 const SOCKET_URL = trim(process.env.NEXT_PUBLIC_SOCKET_URL);
-const KAKAO_MAP_KEY = trim(process.env.NEXT_PUBLIC_KAKAO_MAP_KEY);
 const ALGOLIA_APP_ID = trim(process.env.NEXT_PUBLIC_ALGOLIA_APP_ID);
 const ALGOLIA_SEARCH_KEY = trim(process.env.NEXT_PUBLIC_ALGOLIA_SEARCH_KEY);
 
@@ -76,8 +75,8 @@ export const env = {
   apiUrl: RESOLVED_API_URL,
   /** WebSocket base URL — SOCKET_URL → (해석된)API_URL 순. */
   socketUrl: SOCKET_URL ?? RESOLVED_API_URL,
-  /** Kakao Map JS SDK key — 부재시 빈 문자열 (지도 미초기화). */
-  kakaoMapKey: KAKAO_MAP_KEY ?? '',
+  // v2.41 — kakaoMapKey 제거. 지도는 v2.36 에 MapLibre 로 교체됐고 유일한 소비자였던
+  // app/layout.tsx 의 Kakao Map SDK 로더를 지우면서 참조가 0건이 됐다.
   /** Algolia: 검증 통과시에만 값 반환, 아니면 null (호출부에서 fallback UI). */
   algolia: isAlgoliaValid ? { appId: ALGOLIA_APP_ID!, searchKey: ALGOLIA_SEARCH_KEY! } : null,
 } as const;

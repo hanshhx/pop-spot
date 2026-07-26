@@ -38,7 +38,14 @@ public class WebConfig implements WebMvcConfigurer {
         "/api/music/**",
         "/api/popups/report",
         "/api/popups/*/wait",
-        "/api/client-errors"
+        "/api/client-errors",
+        // v2.41 — 인증이 없으면서 호출 자체가 비용이거나 데이터를 바꾸는 경로. 실제 한도는 RateLimitInterceptor 참고.
+        // /api/tmap/** : 서버의 유료 T맵 AppKey 를 대신 써주는 프록시(TmapController 전용 프리픽스).
+        // /api/courses/** : AI 코스추천. CourseController 전용이고 엔드포인트는 /recommend 하나뿐.
+        // /api/search/ai : AI 검색. 같은 프리픽스의 /api/search/sync 는 LLM 을 안 쓰므로 /** 로 넓히지 않는다.
+        "/api/tmap/**",
+        "/api/courses/**",
+        "/api/search/ai"
     };
 
     /**

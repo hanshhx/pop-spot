@@ -1,6 +1,9 @@
 package com.example.popspotbackend.config;
 
 import com.example.popspotbackend.service.CustomOAuth2UserService;
+import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashSet;
@@ -11,6 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -18,8 +22,12 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
+import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.CorsUtils;
@@ -31,6 +39,8 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
  * <p>요약: CORS 는 와일드카드 단독을 금지하고 {@code APP_ALLOWED_ORIGINS} 화이트리스트만 허용한다. 세션은 STATELESS (JWT 만 신뢰),
  * 메서드 단 {@code @PreAuthorize} 활성화, BCrypt strength 12, {@code /actuator/**} 는 ADMIN 전용이고 {@code
  * /actuator/health} 만 외부 공개한다.
+ *
+ * <p>{@code /api/**} 의 인증 실패는 리다이렉트가 아니라 401 JSON 으로 끝낸다 — {@link #apiUnauthorizedEntryPoint()} 참고.
  */
 @Slf4j
 @Configuration
@@ -42,6 +52,19 @@ public class SecurityConfig {
     private static final int BCRYPT_STRENGTH = 12;
     private static final String LOCAL_DEV_ORIGIN = "http://localhost:3000";
     private static final long CORS_MAX_AGE_SECONDS = 3600L;
+
+    /** 리다이렉트 대신 401/403 JSON 을 돌려줄 경로. 브라우저 로그인 흐름(/oauth2, /login)은 여기에 걸리지 않는다. */
+    private static final String API_PATH_PATTERN = "/api/**";
+
+    private static final String CONTENT_TYPE_JSON = "application/json;charset=UTF-8";
+
+    // 본문 규격은 GlobalExceptionHandler 의 {status, error, message, timestamp} 와 동일하게 맞춘다.
+    // 프론트가 오류 응답을 한 가지 모양으로만 파싱하면 되도록.
+    private static final String ERROR_BODY_TEMPLATE =
+            "{\"status\":%d,\"error\":\"%s\",\"message\":\"%s\",\"timestamp\":\"%s\"}";
+
+    private static final String MESSAGE_UNAUTHORIZED = "인증이 필요합니다.";
+    private static final String MESSAGE_FORBIDDEN = "접근 권한이 없습니다.";
 
     private static final List<String> ALLOWED_METHODS =
             List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH", "HEAD");
@@ -92,6 +115,8 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        RequestMatcher apiMatcher =
+                PathPatternRequestMatcher.withDefaults().matcher(API_PATH_PATTERN);
         http.csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -111,6 +136,15 @@ public class SecurityConfig {
                                         .permitAll()
                                         .anyRequest()
                                         .authenticated())
+                // 경로 한정으로만 등록한다. 전역 authenticationEntryPoint() 로 덮어쓰면 oauth2Login 이
+                // 심어둔 리다이렉트 진입점까지 사라져 소셜 로그인이 죽는다. 여기 매처에 안 걸리는
+                // 요청(/oauth2/**, /login/**, /actuator/**)은 기존 동작을 그대로 유지한다.
+                .exceptionHandling(
+                        ex ->
+                                ex.defaultAuthenticationEntryPointFor(
+                                                apiUnauthorizedEntryPoint(), apiMatcher)
+                                        .defaultAccessDeniedHandlerFor(
+                                                apiForbiddenHandler(), apiMatcher))
                 .oauth2Login(
                         oauth2 ->
                                 oauth2.userInfoEndpoint(
@@ -138,6 +172,49 @@ public class SecurityConfig {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
         return source;
+    }
+
+    /**
+     * {@code /api/**} 인증 실패 시 401 JSON. (인증 정보가 아예 없거나 만료된 경우)
+     *
+     * <p>왜: {@code oauth2Login()} 이 기본으로 심는 진입점은 미인증 요청을 브라우저 로그인 페이지로 <b>302 리다이렉트</b>한다. 그래서
+     * {@code GET /api/admin/stats} 가 302 → 스프링 기본 "Please sign in" HTML 200 으로 끝났다. 브라우저 fetch
+     * 입장에서는 다른 오리진으로 튕긴 요청이라 CORS 로 막히고, 프론트는 "인증 만료"인지 "서버 장애"인지 구분할 수 없는 정체불명 네트워크 오류만 받는다.
+     * 사용자에게는 데이터가 통째로 사라진 것처럼 보였다. API 는 리다이렉트하지 말고 상태코드로 말해야 한다.
+     */
+    private AuthenticationEntryPoint apiUnauthorizedEntryPoint() {
+        return (request, response, authException) ->
+                writeErrorBody(
+                        response, HttpStatus.UNAUTHORIZED, "Unauthorized", MESSAGE_UNAUTHORIZED);
+    }
+
+    /** {@code /api/**} 인증은 됐으나 권한이 모자랄 때 403 JSON. 401 과 구분돼야 프론트가 재로그인 유도 여부를 판단할 수 있다. */
+    private AccessDeniedHandler apiForbiddenHandler() {
+        return (request, response, accessDeniedException) ->
+                writeErrorBody(response, HttpStatus.FORBIDDEN, "Forbidden", MESSAGE_FORBIDDEN);
+    }
+
+    /**
+     * 오류 본문 직접 기록.
+     *
+     * <p>본문에 들어가는 값은 전부 상수 + ISO-8601 타임스탬프뿐이라 JSON 이스케이프가 필요 없다. 요청에서 온 문자열은 한 글자도 넣지 않는다(본문 주입 방지
+     * 겸 내부 정보 노출 방지).
+     */
+    private static void writeErrorBody(
+            HttpServletResponse response, HttpStatus status, String error, String message)
+            throws IOException {
+        // SSE 등 이미 응답이 나가기 시작한 경우 덮어쓰면 "response already committed" 로 터진다.
+        if (response.isCommitted()) return;
+        response.setStatus(status.value());
+        response.setContentType(CONTENT_TYPE_JSON);
+        response.getWriter()
+                .write(
+                        String.format(
+                                ERROR_BODY_TEMPLATE,
+                                status.value(),
+                                error,
+                                message,
+                                OffsetDateTime.now()));
     }
 
     private String buildOAuthFailureUrl() {

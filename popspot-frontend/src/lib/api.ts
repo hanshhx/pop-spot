@@ -14,7 +14,52 @@ const HEADER_CONTENT_TYPE = 'Content-Type';
 const CONTENT_TYPE_JSON = 'application/json';
 export const AUTH_EXPIRED_EVENT = 'popspot:auth-expired';
 
+/**
+ * 관리자 전용 영역 — 권한 없는 일반 사용자가 눌러도 403 이 나오는 게 정상이다.
+ * (SecurityConfig: {@code /api/admin/**}, {@code /actuator/**} = {@code hasRole("ADMIN")})
+ *
+ * <p>여기서 로그아웃시키면 "권한 없음"이 "세션 만료"로 둔갑해 멀쩡한 로그인이 풀린다.
+ */
+const ADMIN_ONLY_PREFIXES = ['/api/admin/', '/actuator/'] as const;
+
+/**
+ * 403 본문이 "권한"이 아니라 "인증 자체가 끝났다"고 말하는 경우에만 매칭.
+ *
+ * <p>백엔드 403 본문은 {@code {"error":"Forbidden","message":"접근 권한이 없습니다."}} 로 고정이라
+ * 이 패턴에 걸리지 않는다(= 권한 문제는 절대 로그아웃되지 않는다).
+ */
+const SESSION_GONE_BODY_PATTERN = /만료|인증이 필요|expired|unauthorized|invalid[\s_-]?token/i;
+
+/**
+ * 만료 처리(토큰 정리 + 이벤트)를 이미 한 번 돌렸는지.
+ *
+ * <p>탭 하나에서 찜·코스·여권 API 가 동시에 401 을 맞으면 재로그인 안내가 여러 번 뜬다. 요청 시작
+ * 시점에 토큰이 살아 있으면 풀어주므로, 재로그인 후의 다음 만료는 다시 안내된다.
+ */
+let authExpiryHandled = false;
+
 type FetchOptions = RequestInit & { headers?: HeadersInit };
+
+/**
+ * 이 응답이 "세션이 끝난 것"인지 "권한이 모자란 것"인지 판정.
+ *
+ * <p>401 = 무조건 세션 끝. 백엔드는 토큰이 없거나 만료·위조된 경우에만 401 을 준다
+ * ({@code JwtAuthenticationFilter}, {@code SecurityConfig#apiUnauthorizedEntryPoint}).
+ *
+ * <p>403 은 기본적으로 "권한 부족"이라 로그아웃시키지 않는다 — 일반 사용자가 관리자 기능을 호출하는
+ * 정상 시나리오가 여기다. 다만 중간 경로(Vercel rewrite · Tailscale Funnel)가 우리 JSON 없이 403 으로
+ * 끊는 경우가 있어, <b>본문이 만료를 명시할 때만</b> 예외적으로 세션 만료로 본다. 애매하면 로그아웃시키지
+ * 않는 쪽 — 멀쩡한 세션을 끊는 비용이 만료된 세션을 잠깐 더 두는 비용보다 크다.
+ *
+ * @param endpoint 호출부가 넘긴 원본 경로. apiFetch 의 모든 endpoint 가 {@code /api/} 로 시작한다
+ *     (buildUrl 주석 참고)
+ */
+const isSessionGone = (status: number, endpoint: string, body: string): boolean => {
+  if (status === 401) return true;
+  if (status !== 403) return false;
+  if (ADMIN_ONLY_PREFIXES.some((prefix) => endpoint.startsWith(prefix))) return false;
+  return SESSION_GONE_BODY_PATTERN.test(body);
+};
 
 /**
  * 인증 토큰 + 도메인 자동 부착 fetch 래퍼.
@@ -31,6 +76,11 @@ export const apiFetch = async (endpoint: string, options: FetchOptions = {}): Pr
   const url = buildUrl(endpoint, options);
   const headers = buildHeaders(options, url);
 
+  // 요청을 보낸 시점의 토큰. 응답이 돌아왔을 때 이 값과 현재 토큰이 같을 때만 정리한다 — 응답을
+  // 기다리는 사이 사용자가 재로그인했다면 방금 받은 새 토큰을 지워버리면 안 된다.
+  const tokenAtRequest = readToken();
+  if (tokenAtRequest) authExpiryHandled = false;
+
   try {
     const response = await fetch(url, {
       ...options,
@@ -41,13 +91,19 @@ export const apiFetch = async (endpoint: string, options: FetchOptions = {}): Pr
     if (!response.ok) {
       console.error(`API Error (${response.status}): ${url}`);
       // 서버가 담아준 원인(message)을 콘솔에 그대로 노출 — "400만 보이고 이유를 모르는" 디버깅 공백 제거.
+      // 401/403 판정도 같은 본문을 쓴다. clone 한 번만 읽으므로 호출부의 response.json() 은 그대로 산다.
+      let body = '';
       try {
-        const text = await response.clone().text();
-        if (text) console.error(`API Error body: ${text.slice(0, 500)}`);
+        body = await response.clone().text();
+        if (body) console.error(`API Error body: ${body.slice(0, 500)}`);
       } catch {
-        /* body 읽기 실패는 무시 */
+        /* body 읽기 실패는 무시 — 판정은 상태코드/경로만으로 진행 */
       }
-      if (response.status === 401 && readToken()) {
+      if (
+        tokenAtRequest &&
+        readToken() === tokenAtRequest &&
+        isSessionGone(response.status, endpoint, body)
+      ) {
         clearStaleAuthentication();
       }
     }
@@ -126,8 +182,16 @@ const readToken = (): string | null => {
   return getAuthToken();
 };
 
+/**
+ * 만료된 인증 정보를 지우고 재로그인 안내 이벤트를 발행.
+ *
+ * <p>UI 는 건드리지 않는다 — 안내 문구는 이벤트를 받는 AuthGuard 가 기존 notify 유틸로 띄운다.
+ * api.ts 는 서버 실행 경로에서도 import 되므로 sweetalert2 를 여기로 끌어오지 않는다.
+ */
 const clearStaleAuthentication = (): void => {
   if (typeof window === 'undefined') return;
+  if (authExpiryHandled) return; // 동시 요청이 함께 401 을 맞아도 안내는 한 번만.
+  authExpiryHandled = true;
   clearAuthToken();
   window.localStorage.removeItem('user');
   window.dispatchEvent(new Event(AUTH_EXPIRED_EVENT));
