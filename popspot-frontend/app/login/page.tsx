@@ -106,7 +106,7 @@ export default function LoginPage() {
         className="absolute inset-0 w-full h-full object-cover z-0 opacity-60 motion-reduce:hidden"
       >
         <source
-          src="/login-bg.mp4"
+          src="/login-bg-v2.mp4"
           type="video/mp4"
           media="(min-width: 768px) and (prefers-reduced-motion: no-preference)"
         />

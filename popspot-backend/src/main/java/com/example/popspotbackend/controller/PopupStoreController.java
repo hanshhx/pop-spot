@@ -31,8 +31,8 @@ import org.springframework.web.bind.annotation.RestController;
  * <p>CORS 는 {@code SecurityConfig} 의 전역 설정에 위임하므로 컨트롤러 단 {@code @CrossOrigin} 은 두지 않는다. 팝업 takedown
  * 은 신고 이력을 남긴 뒤 admin 검증을 거쳐 차단한다. 이메일만으로 공개 페이지를 즉시 내릴 수 없게 한다.
  *
- * <p><b>응답은 엔티티가 아니라 공개용 DTO 로 나간다.</b> {@link PopupPublicListDto} / {@link PopupPublicDetailDto}
- * 가 필드 화이트리스트다 — 수집 원본 URL·검수 메타·제보자 식별자는 무인증으로 나가지 않는다. 각 DTO 의 클래스 주석에 어느 필드를 왜 뺐는지 적어 두었다.
+ * <p><b>응답은 엔티티가 아니라 공개용 DTO 로 나간다.</b> {@link PopupPublicListDto} / {@link PopupPublicDetailDto} 가
+ * 필드 화이트리스트다 — 수집 원본 URL·검수 메타·제보자 식별자는 무인증으로 나가지 않는다. 각 DTO 의 클래스 주석에 어느 필드를 왜 뺐는지 적어 두었다.
  */
 @Slf4j
 @RestController
@@ -45,8 +45,7 @@ public class PopupStoreController {
     private static final String IMAGE_NOTE_PREFIX = "\n\n[제보 이미지] ";
 
     /**
-     * 무인증 공개 목록 전용 캐시 정책 — {@code Cache-Control: max-age=300, public,
-     * stale-while-revalidate=3600}.
+     * 무인증 공개 목록 전용 캐시 정책 — {@code Cache-Control: max-age=300, public, stale-while-revalidate=3600}.
      *
      * <p>목록은 로그인 여부와 무관하게 모두에게 같은 응답이라 공유 캐시(Vercel CDN·브라우저)에 얹어도 안전하다. 지금까지는 Spring Security 기본
      * 헤더({@code no-cache, no-store})가 붙어 홈 진입 한 번마다 집 VM 까지 왕복했고, 그 상시 부하 때문에 자동수집까지 꺼야 했다. 팝업 데이터는

@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { ArrowLeft, MapPin, Calendar, Tag, Clock, Flame } from 'lucide-react';
+import { ArrowLeft, MapPin, Calendar, Tag, Clock, Flame, MessageSquare } from 'lucide-react';
 
 import { REGIONS, classifyRegion, regionBySlug } from '@/lib/regions';
 import { CRAWL_REFRESH_COPY } from '@/lib/siteCopy';
@@ -544,6 +544,8 @@ export default async function PopupsBySlugPage({ params }: { params: Promise<{ s
           </section>
         )}
 
+        <FeedbackNote label={slice.label} />
+
         <CrossSell current={slice} filtered={filtered} />
 
         <FaqSection slice={slice} count={count} />
@@ -611,6 +613,43 @@ function SliceIcon({ kind }: { kind: Slice['kind'] }) {
   if (kind === 'region') return <MapPin size={16} className={cls} />;
   if (kind === 'period') return <Calendar size={16} className={cls} />;
   return <Tag size={16} className={cls} />;
+}
+
+/**
+ * 정정 창구 — 검색으로 들어온 사람이 "찾던 게 없다 / 정보가 틀렸다" 를 바로 알릴 수 있게.
+ *
+ * <p>이 페이지의 목록은 크롤러 자동 수집물이라 누락·오기가 생긴다. 그걸 가장 먼저 알아채는 사람이
+ * 바로 그 키워드로 검색해 들어온 방문자인데, 지금까지 이 화면엔 알릴 방법이 없었다(푸터 링크뿐).
+ *
+ * <p>새 폼을 만들지 않고 기존 {@code /feedback} 페이지로 보낸다 — 게스트도 그대로 작성 가능.
+ * 목록 아래·회유 링크 위에 둬서 지도 CTA(전환 본선)와 경쟁하지 않게 하고, 스타일도 CrossSell 칩과
+ * 같은 아웃라인 계열로 낮춘다. {@code prefetch=false} 인 이유는 대부분의 방문자가 누르지 않는
+ * 링크를 랜딩 160여 개에서 미리 받아올 이유가 없어서다(/feedback 은 noindex 라 SEO 영향도 없다).
+ */
+function FeedbackNote({ label }: { label: string }) {
+  return (
+    <section className="mt-10 rounded-2xl border border-gray-200 bg-gray-50 px-5 py-4 md:px-6 dark:border-white/10 dark:bg-white/5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <h3 className="flex items-center gap-2 text-sm font-bold md:text-base">
+            <MessageSquare size={15} className="shrink-0 text-lime-500" />
+            {label} 팝업 정보가 빠졌거나 틀렸나요?
+          </h3>
+          <p className="mt-1 text-xs text-muted-foreground md:text-sm">
+            자동 수집이라 누락·오기가 있을 수 있습니다. 알려 주시면 확인해 반영합니다 — 로그인 없이
+            보낼 수 있어요.
+          </p>
+        </div>
+        <Link
+          href="/feedback"
+          prefetch={false}
+          className="inline-flex shrink-0 items-center justify-center rounded-pill border border-gray-200 bg-white px-4 py-2 text-xs font-bold text-gray-900 transition hover:border-lime-300 hover:bg-lime-50 md:text-sm dark:border-white/10 dark:bg-white/5 dark:text-white dark:hover:border-lime-300/40 dark:hover:bg-lime-300/10"
+        >
+          의견 보내기
+        </Link>
+      </div>
+    </section>
+  );
 }
 
 /**
