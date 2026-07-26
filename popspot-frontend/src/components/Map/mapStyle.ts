@@ -352,13 +352,27 @@ export function buildBaseStyle(
 export const zoomFromLevel = (level: number): number => 18 - level; // level 4 → 14, level 3 → 15
 
 /**
- * pmtiles 소스 URL. same-origin 프록시(/basemap)를 통해 받는다.
- * version(빌드 날짜)을 붙이면 서버가 그 빌드로 고정 → 브라우저가 타일을 immutable 캐시(속도 ↑).
+ * pmtiles 소스 URL. 저장소에 동봉한 서울 추출본을 **CDN 에서 직접** 받는다.
+ *
+ * <p>예전엔 {@code /basemap} 서버 함수를 거쳤다. 그 함수는 남의 서버(build.protomaps.com)의 전 세계
+ * 파일을 대신 읽어 주려고 만든 것이라, 우리 파일을 우리 CDN 에서 주는 지금은 거칠 이유가 없다.
+ *
+ * <p>실측(운영):
+ *
+ * <ul>
+ *   <li>파일 직접(CDN): 0.036~0.050s
+ *   <li>{@code /basemap} 함수 경유: 0.238~1.007s ← 함수 오버헤드로 200~950ms 추가
+ * </ul>
+ *
+ * 타일은 화면 하나에 수십 개가 나가므로 이 차이가 그대로 체감 속도가 된다. 그래서 타일만 직행시킨다.
+ *
+ * <p>{@code ?v=} 는 파일 서명(ETag 해시)이라 파일을 갈아끼우면 값이 바뀐다 → 브라우저 캐시가 자동
+ * 무효화된다. Vercel 정적 서빙은 쿼리를 무시하고 같은 파일을 주므로(실측: 쿼리 유무 모두 206) 안전하다.
  */
 export function basemapTileUrl(version?: string): string {
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
   const q = version ? `?v=${encodeURIComponent(version)}` : '';
-  return `pmtiles://${origin}/basemap${q}`;
+  return `pmtiles://${origin}/seoul.pmtiles${q}`;
 }
 
 /** 현재 서빙 중인 베이스맵 빌드 버전을 가져온다(타일 캐시 키). 실패 시 undefined(폴백). */
