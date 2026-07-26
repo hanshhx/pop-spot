@@ -34,7 +34,7 @@ export function getPeriods(now: Date = new Date()): PeriodDef[] {
   const md = (d: Date) => `${d.getMonth() + 1}/${d.getDate()}`;
   const dow = (d: Date) => ['일', '월', '화', '수', '목', '금', '토'][d.getDay()];
 
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const today = kstCalendarDate(now);
   const tomorrow = new Date(today);
   tomorrow.setDate(tomorrow.getDate() + 1);
 
@@ -168,10 +168,29 @@ export function parseDate(s: string | null | undefined): Date | null {
   return date;
 }
 
-/** KST(UTC+9) 기준 오늘 00:00. 서버 TZ(Vercel=UTC)·브라우저 TZ 와 무관하게 KST 달력 날짜를 쓴다. */
-export function kstTodayStart(): Date {
-  const k = new Date(Date.now() + 9 * 3600 * 1000);
+/**
+ * 임의 시각을 KST 달력 날짜(00:00)로. 서버 TZ(Vercel=UTC)·브라우저 TZ 와 무관하다.
+ *
+ * <p>v2.43 — {@link getPeriods} 와 {@link matchesPeriod} 가 이 함수 대신 서버 TZ 기준
+ * {@code new Date(y, m, d)} 를 쓰고 있었다. 서버가 한국에 있으면 결과가 같아 드러나지 않지만,
+ * Vercel(UTC)에서는 <b>매일 KST 00:00~09:00 의 9시간 동안 "오늘" 이 어제가 된다</b>
+ * (UTC 7/26 16:30 = KST 7/27 01:30 인데 서버는 7/26 으로 본다). 실제로 배포 직후
+ * /popups/jamsil-today 제목이 "오늘 (7/26 일)" 로 나왔다 — KST 로는 7/27 월요일이었다.
+ *
+ * <p>같은 파일의 {@link isExpired} 는 이미 KST 기준이었다. 한 파일 안에 기준이 두 개 섞여
+ * "만료 판정은 오늘, 시점 분류는 어제" 인 상태였다.
+ *
+ * <p>반환값은 "KST 달력 날짜를 현지 자정으로 표현한" Date 다 — {@link parseDate} 가 날짜
+ * 문자열을 같은 방식({@code new Date(y, m-1, d)})으로 만들므로 그대로 비교할 수 있다.
+ */
+export function kstCalendarDate(now: Date = new Date()): Date {
+  const k = new Date(now.getTime() + 9 * 3600 * 1000);
   return new Date(k.getUTCFullYear(), k.getUTCMonth(), k.getUTCDate());
+}
+
+/** KST(UTC+9) 기준 오늘 00:00. */
+export function kstTodayStart(): Date {
+  return kstCalendarDate();
 }
 
 /**
@@ -206,7 +225,9 @@ export function matchesPeriod(
   const end = parseDate(endDate);
   if (!start || !end) return false;
 
-  const today = startOfDay(now);
+  // KST 달력 날짜 기준. startOfDay(now) 를 쓰면 서버 TZ 를 따라가 UTC 서버에서 하루가 밀린다
+  // (자세한 경위는 kstCalendarDate 주석).
+  const today = kstCalendarDate(now);
   const day = today.getDay(); // 0 일 ~ 6 토
 
   switch (period) {
