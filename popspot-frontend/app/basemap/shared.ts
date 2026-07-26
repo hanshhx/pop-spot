@@ -7,8 +7,37 @@
  * → 브라우저가 타일을 재요청하지 않아 지도가 빨라지고, 빌드 롤오버로 바이트가 섞이는 일도 없다.
  */
 
-export const OVERRIDE = process.env.BASEMAP_PMTILES_URL; // 설정 시 서울 정적 파일(롤오버 없음)
 export const BUILD_BASE = 'https://build.protomaps.com';
+
+/** 저장소에 동봉한 서울 추출본. public/ 에 있으므로 같은 도메인에서 그대로 서빙된다. */
+const BUNDLED_SEOUL = '/seoul.pmtiles';
+
+/**
+ * 기본 소스 = 동봉한 서울 파일. 환경변수로 덮어쓸 수 있다.
+ *
+ * <p>왜 코드에 기본값을 두는가: 예전엔 {@code BASEMAP_PMTILES_URL} 이 없으면 전 세계 planet 빌드
+ * (수십 GB)를 원격에서 조금씩 잘라 읽었다. 실측 결과 조각 하나에 0.25~0.83초가 걸렸고, 지도 한 화면을
+ * 그리려면 머리말·목차·타일로 여러 번 왕복해야 해서 첫 렌더가 2~4초였다. 게다가 planet 빌드는 매일
+ * 파일이 바뀌어(v=20260726) 브라우저 캐시도 하루마다 무효화됐다.
+ *
+ * <p>환경변수를 "설정하면 빨라지는" 방식으로 두면, 설정을 깜빡했을 때 아무도 모르게 계속 느린 상태로
+ * 남는다(실제로 그랬다). 그래서 기본값을 빠른 쪽으로 뒤집고, 환경변수는 예외 상황용으로만 남긴다.
+ *
+ * <p>서버(Route Handler)에서 fetch 하므로 절대 URL 이 필요하다 — Vercel 이 주입하는 도메인을 쓴다.
+ * 로컬 개발은 dev 서버 자신을 가리킨다. 둘 다 못 얻으면 undefined 를 반환해 planet 빌드로 폴백한다.
+ */
+function bundledSeoulUrl(): string | undefined {
+  const prod = process.env.VERCEL_PROJECT_PRODUCTION_URL;
+  if (prod) return `https://${prod}${BUNDLED_SEOUL}`;
+  const deploy = process.env.VERCEL_URL;
+  if (deploy) return `https://${deploy}${BUNDLED_SEOUL}`;
+  if (process.env.NODE_ENV !== 'production') {
+    return `http://localhost:${process.env.PORT ?? 3000}${BUNDLED_SEOUL}`;
+  }
+  return undefined;
+}
+
+export const OVERRIDE = process.env.BASEMAP_PMTILES_URL ?? bundledSeoulUrl();
 
 let resolvedDate: string | null = null;
 let resolvedAt = 0;
