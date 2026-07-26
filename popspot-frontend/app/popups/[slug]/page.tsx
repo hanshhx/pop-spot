@@ -70,6 +70,13 @@ type Slice =
       label: string;
       regionSlug: string;
       categorySlug: string;
+    }
+  | {
+      kind: 'region-period';
+      slug: string;
+      label: string;
+      regionSlug: string;
+      periodSlug: string;
     };
 
 // v2.21-S3 — ISR + 알 수 없는 슬러그는 404.
@@ -85,6 +92,7 @@ export function generateStaticParams() {
     ...CATEGORIES.map((c) => ({ slug: c.slug })),
     ...BRANDS.map((b) => ({ slug: b.slug })),
     ...REGIONS.flatMap((r) => CATEGORIES.map((c) => ({ slug: `${r.slug}-${c.slug}` }))),
+    ...REGIONS.flatMap((r) => PERIODS.map((p) => ({ slug: `${r.slug}-${p.slug}` }))),
   ];
 }
 
@@ -99,7 +107,8 @@ function resolveSlice(slug: string): Slice | null {
   if (b) return { kind: 'brand', slug: b.slug, label: b.label, keywords: b.keywords };
   for (const reg of REGIONS) {
     if (!slug.startsWith(`${reg.slug}-`)) continue;
-    const cat = categoryBySlug(slug.slice(reg.slug.length + 1));
+    const rest = slug.slice(reg.slug.length + 1);
+    const cat = categoryBySlug(rest);
     if (cat) {
       return {
         kind: 'region-category',
@@ -107,6 +116,17 @@ function resolveSlice(slug: string): Slice | null {
         label: `${reg.label} ${cat.label}`,
         regionSlug: reg.slug,
         categorySlug: cat.slug,
+      };
+    }
+    // 지역×시점 ("성수 이번 주"). 카테고리 slug 와 시점 slug 는 겹치지 않으므로 순서는 무관하다.
+    const per = periodBySlug(rest);
+    if (per) {
+      return {
+        kind: 'region-period',
+        slug,
+        label: `${per.label} ${reg.label}`,
+        regionSlug: reg.slug,
+        periodSlug: per.slug,
       };
     }
   }
@@ -127,6 +147,8 @@ function deepLinkQuery(slice: Slice): string {
       return '';
     case 'region-category':
       return `region=${slice.regionSlug}&category=${slice.categorySlug}`;
+    case 'region-period':
+      return `region=${slice.regionSlug}&period=${slice.periodSlug}`;
   }
 }
 
@@ -215,6 +237,12 @@ function filterBySlice(markers: Marker[], slice: Slice): Marker[] {
           classifyRegion(m.location) === slice.regionSlug &&
           classifyCategory(m.category) === slice.categorySlug,
       );
+    case 'region-period':
+      return markers.filter(
+        (m) =>
+          classifyRegion(m.location) === slice.regionSlug &&
+          matchesPeriod(m.startDate, m.endDate, slice.periodSlug as never),
+      );
   }
 }
 
@@ -279,6 +307,8 @@ export async function generateMetadata({
     category: `${slice.label} 팝업스토어`,
     brand: `${slice.label} 팝업스토어 일정·위치`,
     'region-category': `${slice.label} 팝업스토어 추천`,
+    // label 이 "이번 주 (7/27~8/2) 성수" 순서라 제목이 실제 검색어("이번주 성수 팝업")와 같은 어순이 된다.
+    'region-period': `${slice.label} 팝업스토어`,
   };
   const descriptions: Record<Slice['kind'], string> = {
     region: `${slice.label}에서 진행 중인 팝업스토어 일정과 위치를 한눈에. 위시 등록과 마감임박순 정렬까지 무료.`,
@@ -286,6 +316,7 @@ export async function generateMetadata({
     category: `${slice.label} 관련 팝업스토어 모음. 신상 / 인기 / 마감 임박 한눈에 보기.`,
     brand: `${slice.label} 팝업스토어 일정과 위치를 지도로 한눈에. 서울에서 진행 중인 ${slice.label} 팝업을 확인하고 위시 등록과 마감일 확인까지 무료.`,
     'region-category': `${slice.label} 팝업스토어를 한눈에. 위치·일정·카테고리별 큐레이션, 위시 등록과 마감일 확인까지 무료.`,
+    'region-period': `${slice.label}에서 문 여는 팝업스토어 목록. 영업 시간·위치·종료일까지 지도 한 화면에서 무료로.`,
   };
 
   const title = titles[slice.kind];
@@ -294,7 +325,14 @@ export async function generateMetadata({
 
   // 결과 0곳이면 thin content 방지 위해 noindex (페이지 접근·내부링크는 유지).
   let robots: Metadata['robots'] | undefined;
-  if (slice.kind === 'region-category' || slice.kind === 'brand') {
+  // region-period 도 같은 취급 — 조합 65개 중 상당수가 0곳이다(예: 성북 이번 주말).
+  // 이 판정은 if 문이라 새 슬라이스를 추가해도 타입 검사에 걸리지 않는다. 종류를 늘릴 때
+  // 위의 Record 들과 달리 여기는 컴파일러가 알려주지 않으므로 직접 확인해야 한다.
+  if (
+    slice.kind === 'region-category' ||
+    slice.kind === 'brand' ||
+    slice.kind === 'region-period'
+  ) {
     // 본문과 동일한 liveMarkers 기준. 만료 팝업만 남은 슬라이스는 본문이 "0곳" 이므로
     // 메타데이터도 같은 판정을 해야 빈 페이지가 색인되지 않는다.
     const count = filterBySlice(await liveMarkers(), slice).length;
@@ -356,6 +394,7 @@ export default async function PopupsBySlugPage({ params }: { params: Promise<{ s
     category: `${slice.label} 팝업스토어 ${count}곳`,
     brand: `${slice.label} 팝업스토어 ${count}곳`,
     'region-category': `${slice.label} 팝업스토어 ${count}곳`,
+    'region-period': `${slice.label} 팝업 ${count}곳`,
   };
   const introByKind: Record<Slice['kind'], string> = {
     region: `${slice.label}에서 진행 중인 팝업스토어를 POP-SPOT 이 자동 큐레이션 합니다. 영업 기간이 끝난 팝업은 자동으로 빠지고, 신규 팝업은 ${REFRESH_COPY}에 갱신.`,
@@ -363,6 +402,7 @@ export default async function PopupsBySlugPage({ params }: { params: Promise<{ s
     category: `${slice.label} 관련 신상 / 인기 팝업스토어. 마감 임박순으로 정렬해 한눈에.`,
     brand: `${slice.label} 관련 팝업스토어를 POP-SPOT 이 자동 큐레이션. 서울에서 진행 중인 ${slice.label} 팝업의 위치·일정을 한눈에. 마감 임박순으로 정렬해 제공.`,
     'region-category': `${slice.label} 팝업스토어를 POP-SPOT 이 자동 큐레이션. 해당 지역·카테고리에 맞는 팝업만 모아 위치와 일정을 한눈에.`,
+    'region-period': `${slice.label}에서 여는 팝업스토어를 POP-SPOT 이 자동 큐레이션. 해당 기간에 실제로 문을 여는 팝업만 모아 위치·마감일을 한눈에. 신규 팝업은 ${REFRESH_COPY}에 갱신.`,
   };
 
   // subcopy — 마감 임박이 있으면 손실회피 훅, 없으면 편익.
@@ -378,6 +418,7 @@ export default async function PopupsBySlugPage({ params }: { params: Promise<{ s
     category: 'CATEGORY',
     brand: 'BRAND',
     'region-category': 'REGION × CATEGORY',
+    'region-period': 'REGION × WHEN',
   };
   const kicker = kickerByKind[slice.kind];
 
@@ -611,7 +652,8 @@ function StatCard({
 function SliceIcon({ kind }: { kind: Slice['kind'] }) {
   const cls = 'text-lime-500';
   if (kind === 'region') return <MapPin size={16} className={cls} />;
-  if (kind === 'period') return <Calendar size={16} className={cls} />;
+  // region-period 는 시점이 구별 축이라 달력 쪽이 맞다.
+  if (kind === 'period' || kind === 'region-period') return <Calendar size={16} className={cls} />;
   return <Tag size={16} className={cls} />;
 }
 
@@ -676,8 +718,28 @@ function CrossSell({ current, filtered }: { current: Slice; filtered: Marker[] }
           .filter((r): r is NonNullable<typeof r> => !!r)
       : [];
 
+  // v2.43 — 지금 보고 있는 지역의 시점 조합("성수 이번 주")을 함께 건다.
+  //
+  // sitemap 에만 있고 어디서도 링크되지 않는 페이지는 크롤러가 늦게·드물게 본다. 지역×시점은 이번에
+  // 새로 생긴 65개라 진입 링크가 하나도 없었다. 전 조합을 다 걸면 목록이 65개 늘어 읽기 어려우므로,
+  // 문맥이 맞는 것(=지금 지역)만 건다.
+  const currentRegionSlug =
+    current.kind === 'region'
+      ? current.slug
+      : current.kind === 'region-period' || current.kind === 'region-category'
+        ? current.regionSlug
+        : null;
+  const regionPeriodLinks = currentRegionSlug
+    ? PERIODS.map((p) => ({
+        slug: `${currentRegionSlug}-${p.slug}`,
+        label: `${p.label} ${regionBySlug(currentRegionSlug)?.label ?? ''}`.trim(),
+        kind: 'region-period' as const,
+      }))
+    : [];
+
   // 전체 링크(SEO) — 브랜드/IP 먼저
   const links: { slug: string; label: string; kind: Slice['kind'] }[] = [
+    ...regionPeriodLinks,
     ...BRANDS.map((b) => ({ slug: b.slug, label: b.label, kind: 'brand' as const })),
     ...REGIONS.map((r) => ({ slug: r.slug, label: r.label, kind: 'region' as const })),
     ...PERIODS.map((p) => ({ slug: p.slug, label: p.label, kind: 'period' as const })),
@@ -747,7 +809,9 @@ function FaqSection({ slice, count }: { slice: Slice; count: number }) {
             ? '팝업의 운영 시작일·종료일을 기준으로 해당 기간 안에 한 번이라도 열리면 포함됩니다.'
             : slice.kind === 'brand'
               ? '팝업 이름에 해당 브랜드/IP 이름이 포함되면 자동으로 모읍니다. 진행 중인 팝업만 표시됩니다.'
-              : '팝업 카테고리 필드의 한글/영문 키워드를 매칭해 분류합니다.',
+              : slice.kind === 'region-period'
+                ? '팝업 주소로 지역을 가르고, 그중 해당 기간에 실제로 문을 여는 팝업만 남깁니다. 두 조건을 모두 만족해야 포함됩니다.'
+                : '팝업 카테고리 필드의 한글/영문 키워드를 매칭해 분류합니다.',
     },
     {
       q: '위시 등록은 어디서 하나요?',

@@ -208,7 +208,26 @@ export async function GET() {
     if (it) items.push(it);
   }
 
-  // ④ 브랜드·IP — 새 IP 팝업이 열리는 것이 이 사이트에서 실제로 "새 소식" 에 가장 가깝다.
+  // ④ 지역×시점 — 네이버 검색어 1위가 이 형태("이번주 성수 팝업")다. 매일 내용이 바뀌므로 피드에
+  //    싣는 값도 크다. 0곳 조합은 sliceItem 이 걸러낸다.
+  for (const r of REGIONS) {
+    const inRegion = byRegion.get(r.code) ?? [];
+    if (inRegion.length === 0) continue;
+    for (const p of PERIODS) {
+      const matched = inRegion.filter((m) => matchesPeriod(m.startDate, m.endDate, p.code, now));
+      const it = sliceItem(
+        `${r.slug}-${p.slug}`,
+        `${p.label} ${r.label} 팝업스토어`,
+        matched,
+        today,
+        now,
+        `${p.label} ${r.label}에서 문 여는 팝업스토어를 모았다.`,
+      );
+      if (it) items.push(it);
+    }
+  }
+
+  // ⑤ 브랜드·IP — 새 IP 팝업이 열리는 것이 이 사이트에서 실제로 "새 소식" 에 가장 가깝다.
   //    매칭은 sitemap.ts / page.tsx 와 같은 방식(이름+위치 소문자 substring).
   for (const b of BRANDS) {
     const kws = b.keywords.map((k) => k.toLowerCase());
@@ -229,6 +248,18 @@ export async function GET() {
 
   // 최신순. RSS 리더와 검색엔진 모두 앞쪽을 중요하게 본다.
   items.sort((a, b) => b.date.getTime() - a.date.getTime());
+
+  // 최신 N 개로 자른다.
+  //
+  // 슬라이스를 전부 실으면 128건 / 60KB 가 나오는데, 네이버 RSS 제출 화면이 "본문 크기에 따라 제출에
+  // 제한될 수 있으니 중요한 콘텐츠만 포함시켜 주세요" 라고 안내한다. 정확한 상한은 공개돼 있지 않아
+  // 넘겼을 때 무슨 일이 생기는지 알 수 없고, 거부되면 피드 전체를 잃는다.
+  //
+  // 자르는 쪽이 안전한 이유는 sitemap 과 역할이 다르기 때문이다 — 색인 대상 전체 목록은 sitemap 이
+  // 이미 167건 전부 싣고 있고(§sitemap.ts), RSS 가 맡은 일은 "최근에 뭐가 바뀌었나" 신호다. 최신순으로
+  // 정렬한 뒤 자르므로 그 역할은 그대로 유지된다.
+  const MAX_SLICE_ITEMS = 60;
+  items.length = Math.min(items.length, MAX_SLICE_ITEMS);
 
   // 운영자가 쓴 정적 페이지는 뒤에 붙인다 — 자주 바뀌지 않으므로 신선도 경쟁에서 앞자리를 차지할 이유가 없다.
   items.push(
