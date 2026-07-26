@@ -27,10 +27,10 @@ import org.springframework.web.server.ResponseStatusException;
 /**
  * 일정 협업 룸 (실시간 마커 + 1인 1표 토글 투표).
  *
- * <p>Redis 키 구조: {@code plan:room:{roomId}:exist} (String 방 존재 표식), {@code :markers} (List),
- * {@code :users} (Set), {@code :votes} (Hash 카운트), {@code :voters:{placeId}:{voteType}} (Set
- * 중복방지), {@code plan:session:{sessionId}} (WebSocket session → roomId/sender). 모든 키에 TTL 3시간을 걸고
- * 쓰기가 일어날 때마다 갱신한다 — 만료되지 않는 키가 하나라도 있으면 이메일 인증코드·수집 예산·티켓 재고와 같은 Redis 를 쓰는 탓에 동반 장애로 번진다.
+ * <p>Redis 키 구조: {@code plan:room:{roomId}:exist} (String 방 존재 표식), {@code :markers} (List), {@code
+ * :users} (Set), {@code :votes} (Hash 카운트), {@code :voters:{placeId}:{voteType}} (Set 중복방지), {@code
+ * plan:session:{sessionId}} (WebSocket session → roomId/sender). 모든 키에 TTL 3시간을 걸고 쓰기가 일어날 때마다 갱신한다
+ * — 만료되지 않는 키가 하나라도 있으면 이메일 인증코드·수집 예산·티켓 재고와 같은 Redis 를 쓰는 탓에 동반 장애로 번진다.
  */
 @Slf4j
 @RestController

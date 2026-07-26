@@ -73,8 +73,8 @@ public class RateLimitInterceptor implements HandlerInterceptor {
     /**
      * 음악 재생실패 신고 핸들러 메서드명 — {@link MusicController#markPlaybackFailed}.
      *
-     * <p>takedown 과 똑같은 이유로 URI 문자열이 아니라 핸들러로 판정한다. {@code @PathVariable Long trackId} 는
-     * {@code Long.decode} 를 거치므로 {@code /api/music/0x7B/playback-failed} 가 URI 패턴을 피하면서 컨트롤러에서는
+     * <p>takedown 과 똑같은 이유로 URI 문자열이 아니라 핸들러로 판정한다. {@code @PathVariable Long trackId} 는 {@code
+     * Long.decode} 를 거치므로 {@code /api/music/0x7B/playback-failed} 가 URI 패턴을 피하면서 컨트롤러에서는
      * trackId=123 으로 정상 실행된다. {@code %70layback-failed} 같은 인코딩 우회도 같다.
      */
     private static final String PLAYBACK_FAILED_METHOD_NAME = "markPlaybackFailed";
@@ -98,8 +98,8 @@ public class RateLimitInterceptor implements HandlerInterceptor {
     /**
      * 방문 비콘 30/분.
      *
-     * <p>프론트({@code VisitTracker})는 세션·경로당 1회만 보내므로 정상 사용자에겐 과하게 넉넉한 값이다. 통신사 CGNAT 처럼 여러 명이 한 IP
-     * 를 공유해 30회를 넘겨도 손해는 통계 한두 건 누락뿐이다 — 비콘은 응답을 보지 않는 fire-and-forget 이라 429 를 받아도 화면에 아무 영향이 없다.
+     * <p>프론트({@code VisitTracker})는 세션·경로당 1회만 보내므로 정상 사용자에겐 과하게 넉넉한 값이다. 통신사 CGNAT 처럼 여러 명이 한 IP 를
+     * 공유해 30회를 넘겨도 손해는 통계 한두 건 누락뿐이다 — 비콘은 응답을 보지 않는 fire-and-forget 이라 429 를 받아도 화면에 아무 영향이 없다.
      * 그래서 일반 60/분보다 낮춰도 안전하다.
      */
     private static final int LIMIT_VISITS_PER_MIN = 30;
@@ -115,17 +115,16 @@ public class RateLimitInterceptor implements HandlerInterceptor {
     /**
      * 사용자 AI 호출(검색·코스추천) 각 5/분.
      *
-     * <p>다른 경로보다 유독 낮게 잡는 이유: 이 둘은 호출 한 번이 곧 LLM 토큰이고, 사용자 AI 와 크롤러가 같은 계정 쿼터를 쓴다. 즉 여기서 쿼터가
-     * 소진되면 AI 검색이 죽는 데 그치지 않고 <b>팝업 수집까지 같이 멈춘다</b>. 둘 다 버튼을 눌러야 나가고 응답에 수 초가 걸리므로 5/분이 정상 사용을
-     * 방해하지 않는다.
+     * <p>다른 경로보다 유독 낮게 잡는 이유: 이 둘은 호출 한 번이 곧 LLM 토큰이고, 사용자 AI 와 크롤러가 같은 계정 쿼터를 쓴다. 즉 여기서 쿼터가 소진되면
+     * AI 검색이 죽는 데 그치지 않고 <b>팝업 수집까지 같이 멈춘다</b>. 둘 다 버튼을 눌러야 나가고 응답에 수 초가 걸리므로 5/분이 정상 사용을 방해하지 않는다.
      */
     private static final int LIMIT_AI_PER_MIN = 5;
 
     /**
      * 음악 재생실패 신고 10/분.
      *
-     * <p>이 신고는 임계값 이상 누적되면 트랙을 추천 후보에서 <b>자동 제외</b>시킨다. 즉 조회가 아니라 데이터 변경이다. 실제 재생 실패는 곡을 넘길 때
-     * 드물게 한두 번 발생하므로 10/분이면 정상 재생에 걸리지 않는다.
+     * <p>이 신고는 임계값 이상 누적되면 트랙을 추천 후보에서 <b>자동 제외</b>시킨다. 즉 조회가 아니라 데이터 변경이다. 실제 재생 실패는 곡을 넘길 때 드물게
+     * 한두 번 발생하므로 10/분이면 정상 재생에 걸리지 않는다.
      */
     private static final int LIMIT_PLAYBACK_FAILED_PER_MIN = 10;
 
@@ -304,9 +303,9 @@ public class RateLimitInterceptor implements HandlerInterceptor {
      * 그대로 여기까지 온다. 429 를 받은 직후 이 헤더만 바꿔 보내면 새 버킷이 생겨 통과되는 것이 확인됐다. 즉 {@code
      * app.trust-proxy-headers=true} 인 지금, 아래의 모든 한도는 <b>성실한 사용자에겐 적용되지만 작정한 공격자는 우회할 수 있다</b>.
      *
-     * <p>이걸 코드로 고치지 않은 이유: "몇 번째 홉을 믿을지" 는 코드가 아니라 배포 토폴로지가 정하는 값이다. 프론트가 Vercel rewrite 로
-     * {@code /api/*} 를 프록시하므로 앞단 홉이 하나 더 있을 수 있고, 여기서 잘못 짚어 XFF 마지막 항목을 쓰면 모든 사용자가 <b>같은 프록시
-     * IP 한 개</b>로 뭉쳐 전원 429 가 된다. 지금 동작을 깨는 쪽 손해가 훨씬 크다.
+     * <p>이걸 코드로 고치지 않은 이유: "몇 번째 홉을 믿을지" 는 코드가 아니라 배포 토폴로지가 정하는 값이다. 프론트가 Vercel rewrite 로 {@code
+     * /api/*} 를 프록시하므로 앞단 홉이 하나 더 있을 수 있고, 여기서 잘못 짚어 XFF 마지막 항목을 쓰면 모든 사용자가 <b>같은 프록시 IP 한 개</b>로
+     * 뭉쳐 전원 429 가 된다. 지금 동작을 깨는 쪽 손해가 훨씬 크다.
      *
      * <p>권장 조치(운영): 백엔드 앞에 리버스 프록시를 두고 {@code proxy_set_header X-Real-IP $remote_addr;} 로 이 헤더를
      * <b>무조건 덮어쓰게</b> 한다. 그러면 코드 변경 없이 1번이 다시 신뢰 가능한 값이 된다. 실제 홉 수를 확인한 뒤에야 이 메서드를 손대는 게 맞다.

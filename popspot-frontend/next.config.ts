@@ -138,6 +138,17 @@ const nextConfig: NextConfig = {
           { key: 'Strict-Transport-Security', value: 'max-age=31536000; includeSubDomains' },
         ],
       },
+      {
+        /**
+         * v2.41 — 배경 영상에 1년 불변 캐시.
+         *
+         * <p>기본값은 max-age=0 이라 홈/로그인에 들어올 때마다 영상을 다시 받았고, 홈은
+         * 크로스페이드용으로 video 요소를 2개 렌더해서 같은 파일을 두 번 받는 일까지 있었다.
+         * 파일 내용이 바뀌면 파일명을 바꾸는 방식(login-bg-v2.mp4)으로 운영하므로 immutable 이 안전하다.
+         */
+        source: '/:all*(mp4|webm)',
+        headers: [{ key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }],
+      },
     ];
   },
 

@@ -9,9 +9,6 @@ import {
   Calendar,
   Users,
   X,
-  ArrowUp,
-  ArrowDown,
-  Minus,
   Route,
   Ticket,
   User as UserIcon,
@@ -174,8 +171,11 @@ export default function Home() {
   const { resolvedTheme } = useTheme();
   const [themeReady, setThemeReady] = useState(false);
   useEffect(() => setThemeReady(true), []);
-  // 라이트=매끄러운 루프(부메랑)로 재인코딩한 밝은 스카이라인(light-bg), 다크=서울 야경(login-bg).
-  const bgVideoSrc = resolvedTheme === 'dark' ? '/login-bg.mp4' : '/light-bg.mp4';
+  // 라이트=매끄러운 루프(부메랑)로 재인코딩한 밝은 스카이라인(light-bg), 다크=서울 야경(login-bg-v2).
+  // v2 = 1080p/7.9Mbps 원본(16.3MB)을 720p/CRF28 로 재인코딩한 것(2.8MB, SSIM 0.947). 스크림 두 겹
+  // 뒤에 깔리는 배경이라 체감 차이는 없고 모바일 첫 방문 전송량만 83% 줄었다. 파일명을 바꾼 건
+  // 캐시에 남은 옛 16MB 파일을 확실히 버리게 하려는 것.
+  const bgVideoSrc = resolvedTheme === 'dark' ? '/login-bg-v2.mp4' : '/light-bg.mp4';
   // 라이트 영상은 도심 불빛 반짝임이 커서 0.5배속으로 차분하게. 다크(야경)는 원속도 유지.
   const bgVideoRate = resolvedTheme === 'dark' ? 1 : 0.5;
 
@@ -212,7 +212,9 @@ export default function Home() {
   /** 게스트 모드 활성 시 남은 일수. null = 비활성 (로그인 사용자거나 게스트 미시작). */
   const [guestRemainingDays, setGuestRemainingDays] = useState<number | null>(null);
   /** 서치존에서 팝업 선택 시 지도를 그 위치로 이동시킬 좌표. */
-  const [mapCenter, setMapCenter] = useState<{ lat: number; lng: number } | undefined>(undefined);
+  // setter 는 쓰지 않는다 — 지도 이동은 좌표를 직접 넘기는 fitReq 가 전담한다(mapFit).
+  // center 는 지도 초기 진입점으로만 남겨 둔다.
+  const [mapCenter] = useState<{ lat: number; lng: number } | undefined>(undefined);
   // 검색 결과 선택 시 지도가 그 팝업 마커로 이동하도록 신호(nonce 로 재검색도 매번 반응).
   const [searchFocus, setSearchFocus] = useState<{ id: string; nonce: number } | null>(null);
   // AI 검색 결과 id 목록 — 지도에 이 핀들만 표시(null=전체). 서치존의 'AI로 찾기'가 세팅.
@@ -1440,6 +1442,30 @@ export default function Home() {
 
             {/* v2.34 — 기능 소개 개별 섹션 (코스·음악·여권·동행). 각각 다른 무드+비주얼+좌우 교차. */}
             <FeatureSections onNavigate={handleTabChange} />
+
+            {/* 의견 보내기 진입점 — v2.28 에서 독의 '의견' 탭이 빠진 뒤로 MY 탭 안쪽과 푸터 링크만
+                남아, 게스트(유입의 대부분)는 사실상 찾지 못했다. 새 모달/라우트를 만들지 않고 이미
+                있는 FEEDBACK 탭을 그대로 연다(게스트도 통과 — canAccessTab 참조).
+                모양은 지도 아래 유틸리티 스트립(혼잡도·캘린더)과 같은 카드 패턴을 그대로 써서
+                새 UI 처럼 보이지 않게 하고, 위치는 스크롤 끝이라 본 흐름을 가리지 않는다. */}
+            <button
+              type="button"
+              onClick={() => handleTabChange('FEEDBACK')}
+              className="group mb-16 flex w-full items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-white px-5 py-3.5 shadow-sm transition hover:border-primary hover:shadow-md dark:border-white/10 dark:bg-[#111]"
+            >
+              <div className="flex min-w-0 items-center gap-2.5">
+                <MessageCircle size={16} className="shrink-0 text-primary" aria-hidden />
+                <span className="shrink-0 text-sm font-bold text-gray-900 dark:text-white">
+                  의견 보내기
+                </span>
+                <span className="truncate text-sm text-gray-500 dark:text-white/60">
+                  · 빠진 팝업, 틀린 정보, 불편한 점
+                </span>
+              </div>
+              <span className="shrink-0 text-sm font-bold text-lime-600 dark:text-lime-400 group-hover:underline">
+                보내기 →
+              </span>
+            </button>
 
             {/* (구) 협업 프로모 — FeatureSections 로 대체됨(주석 유지 시 아래 미사용 블록 제거 필요) */}
             <motion.section

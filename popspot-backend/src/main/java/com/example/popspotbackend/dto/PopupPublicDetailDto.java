@@ -11,13 +11,12 @@ import lombok.Data;
  * 추가하면 그 순간 무인증 공개 API 의 스펙이 같이 늘어났다 — 아무도 그런 의도로 필드를 넣지 않는데도. 노출을 게이트가 아니라 화이트리스트로 고정한다.
  *
  * <p><b>뺀 필드.</b> crawledAt / lastSeenAt / confidenceScore / reviewStatus / externalId / reporterId
- * / partnerId / apiPopupId / isActive / images 원본 배열. 전부 수집·검수용 내부 값이고, 프론트 상세 화면
- * ({@code app/popup/[id]/page.tsx})에서 화면에 그려지는 곳이 없다({@code reviewStatus} 는 state 에 담기기만 하고 렌더에
- * 쓰이지 않는다).
+ * / partnerId / apiPopupId / isActive / images 원본 배열. 전부 수집·검수용 내부 값이고, 프론트 상세 화면 ({@code
+ * app/popup/[id]/page.tsx})에서 화면에 그려지는 곳이 없다({@code reviewStatus} 는 state 에 담기기만 하고 렌더에 쓰이지 않는다).
  *
- * <p><b>sourceUrl / sourceName 은 남긴다.</b> 목록에서는 뺐지만 상세에서는 유지한다. (1) 이용약관 §10-2 가 "자동수집 정보에는 항상
- * 원본 출처 링크가 함께 표시되며, 상세페이지에서 이용자가 원문으로 이동할 수 있도록 출처 링크를 제공한다" 고 공표돼 있고, (2) 상세 화면의 'AI 자동수집 정보'
- * 블록이 {@code sourceName} 문구와 '원문 출처 보기' 링크를 실제로 렌더한다. 여기서 빼면 화면 요소가 사라지고 저작권법 제37조(출처명시) 이행 근거도 함께
+ * <p><b>sourceUrl / sourceName 은 남긴다.</b> 목록에서는 뺐지만 상세에서는 유지한다. (1) 이용약관 §10-2 가 "자동수집 정보에는 항상 원본
+ * 출처 링크가 함께 표시되며, 상세페이지에서 이용자가 원문으로 이동할 수 있도록 출처 링크를 제공한다" 고 공표돼 있고, (2) 상세 화면의 'AI 자동수집 정보' 블록이
+ * {@code sourceName} 문구와 '원문 출처 보기' 링크를 실제로 렌더한다. 여기서 빼면 화면 요소가 사라지고 저작권법 제37조(출처명시) 이행 근거도 함께
  * 사라진다. 대량 유출 위험은 "요청 한 번에 전건" 인 목록 쪽이었고 그쪽은 {@link PopupPublicListDto} 가 막는다.
  */
 @Data
