@@ -6,6 +6,7 @@ import {
   CATEGORIES,
   BRANDS,
   classifyCategory,
+  matchesPeriod,
   isExpired,
   kstTodayStart,
 } from '@/lib/popupSlices';
@@ -42,6 +43,7 @@ type Marker = {
   name: string;
   location: string | null;
   category: string | null;
+  startDate: string | null;
   endDate: string | null;
 };
 
@@ -98,6 +100,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   for (const m of live) {
     const key = `${classifyRegion(m.location)}-${classifyCategory(m.category)}`;
     comboCounts.set(key, (comboCounts.get(key) ?? 0) + 1);
+  }
+
+  // v2.43 — 지역×시점 조합. 시점은 카테고리와 달리 마커당 하나로 정해지지 않으므로(한 팝업이 오늘·이번
+  // 주·이번 달에 동시에 걸린다) 시점별로 따로 센다.
+  const periodComboCounts = new Map<string, number>();
+  for (const m of live) {
+    const region = classifyRegion(m.location);
+    for (const p of PERIODS) {
+      if (!matchesPeriod(m.startDate, m.endDate, p.code, now)) continue;
+      const key = `${region}-${p.slug}`;
+      periodComboCounts.set(key, (periodComboCounts.get(key) ?? 0) + 1);
+    }
   }
 
   // 브랜드 매칭도 page.tsx 와 동일 — 이름+위치를 소문자로 합쳐 키워드 substring.
@@ -175,6 +189,17 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         lastModified: now,
         changeFrequency: 'weekly' as const,
         priority: 0.5,
+      })),
+    ),
+    // v2.43 — 지역×시점 조합 ("이번주 성수 팝업"). 네이버 서치어드바이저 검색어 1위가 이 형태인데
+    // 받을 페이지가 없었다(this-week 와 seongsu 가 따로 있을 뿐 조합이 없었다). 0곳 조합은 위와 같은
+    // 이유로 제외 — 페이지 자체가 noindex 다. 시점은 매일 바뀌므로 daily.
+    ...REGIONS.flatMap((r) =>
+      PERIODS.filter((p) => (periodComboCounts.get(`${r.slug}-${p.slug}`) ?? 0) > 0).map((p) => ({
+        url: `${SITE_URL}/popups/${r.slug}-${p.slug}`,
+        lastModified: now,
+        changeFrequency: 'daily' as const,
+        priority: 0.6,
       })),
     ),
   ];
