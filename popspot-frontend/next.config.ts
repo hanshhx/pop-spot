@@ -25,10 +25,28 @@ const nextConfig: NextConfig = {
   outputFileTracingRoot: projectRoot,
 
   images: {
+    /**
+     * v2.41 — remotePatterns 에 경로 제한을 건다.
+     *
+     * <p>이전엔 호스트만 열어 둬서(pathname 생략 = 사실상 {@code '**'}) 우리 DB 에 없는 임의의
+     * 스톡 사진까지 전부 /_next/image 로 변환됐다. 실측: 코드에 존재하지 않는 사진이 200 으로
+     * 변환됐고, 같은 사진에 쿼리 한 글자만 바꾸면 매번 새 변환이 생성됐다 — 외부인이 스크립트
+     * 한 줄로 Vercel 이미지 변환 쿼터·대역폭을 무한히 태울 수 있는 구조였다.
+     *
+     * <p>팝업 이미지 1,174건(pexels 789 / unsplash 385)이 두 호스트를 실제로 쓰므로 호스트를
+     * 지우면 안 된다. 대신 실제 URL 형태만 남긴다 — Pexels 는
+     * {@code /photos/<id>/pexels-photo-<id>.jpeg}, Unsplash 는 {@code /photo-<id>}
+     * (유료 사진은 {@code /premium_photo-<id>}).
+     */
     remotePatterns: [
-      { protocol: 'https', hostname: 'images.unsplash.com' },
-      { protocol: 'https', hostname: 'images.pexels.com' },
-      { protocol: 'http', hostname: 'localhost' },
+      { protocol: 'https', hostname: 'images.unsplash.com', pathname: '/photo-*' },
+      { protocol: 'https', hostname: 'images.unsplash.com', pathname: '/premium_photo-*' },
+      { protocol: 'https', hostname: 'images.pexels.com', pathname: '/photos/**' },
+      // localhost 는 개발 백엔드가 서빙하는 업로드 이미지 전용이라 운영 번들엔 있을 이유가 없다.
+      // (운영 백엔드는 아래 backendHostname 항목이 이미 커버한다.)
+      ...(process.env.NODE_ENV === 'production'
+        ? []
+        : [{ protocol: 'http' as const, hostname: 'localhost' }]),
       { protocol: 'https', hostname: 'k.kakaocdn.net' },
       { protocol: 'https', hostname: 'ssl.pstatic.net' },
       { protocol: 'https', hostname: 'lh3.googleusercontent.com' },
@@ -44,9 +62,9 @@ const nextConfig: NextConfig = {
   /**
    * v2.17 — 보안 헤더 (CSP / X-Frame-Options / Referrer-Policy / Permissions-Policy).
    *
-   * <p>CSP 는 외부 OAuth (구글/카카오/네이버) + Kakao Map SDK + Algolia + Spotify embed +
-   * YouTube IFrame 등 운영 중인 외부 리소스를 화이트리스트로 둔다. Next.js + React 의 inline
-   * script 호환을 위해 'unsafe-inline' 은 남기되, 'unsafe-eval' 은 개발 환경에서만 허용한다.
+   * <p>CSP 는 외부 OAuth (구글/카카오/네이버) + Spotify embed + YouTube IFrame 등 운영 중인
+   * 외부 리소스를 화이트리스트로 둔다. Next.js + React 의 inline script 호환을 위해
+   * 'unsafe-inline' 은 남기되, 'unsafe-eval' 은 개발 환경에서만 허용한다.
    * 운영 nonce 적용은 Next.js 동적 렌더링 전환과 함께 별도 진행한다.
    */
   async headers() {
@@ -60,7 +78,7 @@ const nextConfig: NextConfig = {
      *   <li>{@code *.ts.net} — Tailscale Funnel 운영 백엔드 도메인 (connect-src)
      * </ul>
      *
-     * <p>그 외 외부 OAuth / Kakao Map SDK / Algolia / YouTube / Spotify embed 는 v2.17 그대로.
+     * <p>그 외 외부 OAuth / YouTube / Spotify embed 는 v2.17 그대로.
      */
     const csp = [
       "default-src 'self'",
@@ -69,7 +87,11 @@ const nextConfig: NextConfig = {
       // 막혀서 useYouTubePlayer 가 player 인스턴스를 생성 못함 → 검은 화면. 음악 재생
       // "수두룩한 실패" 의 진짜 원인. v2.17 CSP 도입 시 누락된 도메인.
       // v2.21-S14 — script-src 에 Spotify Web Playback SDK (sdk.scdn.co) 추가.
-      `script-src 'self' 'unsafe-inline'${process.env.NODE_ENV === 'production' ? '' : " 'unsafe-eval'"} https://dapi.kakao.com https://t1.daumcdn.net https://www.googletagmanager.com https://*.algolia.net https://*.algolianet.com https://www.youtube.com https://s.ytimg.com https://sdk.scdn.co`,
+      // v2.41 — 실사용 0건이던 잔재 4개 제거. dapi.kakao.com / t1.daumcdn.net 은 app/layout.tsx
+      // 가 로드하던 Kakao Map SDK 전용이었는데 지도는 v2.36 에 MapLibre 로 교체돼 로더째 제거했다.
+      // (t1.daumcdn.net 은 MateChatModal 알림음이 쓰지만 그건 media-src 소관이라 무관.)
+      // www.googletagmanager.com 은 gtag 참조 0건, *.algolia* 는 AI 검색으로 대체돼 클라이언트 0건.
+      `script-src 'self' 'unsafe-inline'${process.env.NODE_ENV === 'production' ? '' : " 'unsafe-eval'"} https://www.youtube.com https://s.ytimg.com https://sdk.scdn.co`,
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net",
       // *.scdn.co / *.mzstatic.com — 음악 앨범아트. next/image 화이트리스트 대신 raw <img> 로
       // 렌더하므로(GlobalMusicPlayer·MusicForPopup·MusicTab) img-src 에 반드시 있어야 한다.
@@ -83,7 +105,9 @@ const nextConfig: NextConfig = {
       // api.spotify.com (Web API play call), *.spotify.com (SDK websocket), *.scdn.co (CDN).
       // v2.32 — MapLibre 지도용: protomaps.github.io(라틴/숫자 글리프 fetch). 타일은 same-origin
       // /basemap 프록시로 받으므로 build.protomaps.com 은 서버측 fetch(브라우저 CSP 무관).
-      `connect-src 'self' ${backendOrigin} ${backendWsOrigin} https://*.algolia.net https://*.algolianet.com https://dapi.kakao.com https://accounts.kakao.com https://accounts.google.com https://nid.naver.com https://*.ts.net wss://*.ts.net https://www.youtube.com https://s.ytimg.com https://api.spotify.com https://*.spotify.com https://*.scdn.co https://protomaps.github.io https://router.project-osrm.org wss://*.spotify.com${process.env.NODE_ENV === 'production' ? '' : ' ws://localhost:* http://localhost:*'}`,
+      // v2.41 — *.algolia* (AI 검색으로 대체, fetch 0건) 와 dapi.kakao.com (Kakao Map SDK 전용,
+      // 로더 제거) 을 뺀다. accounts.kakao.com 은 소셜 로그인이 아직 쓰므로 남긴다.
+      `connect-src 'self' ${backendOrigin} ${backendWsOrigin} https://accounts.kakao.com https://accounts.google.com https://nid.naver.com https://*.ts.net wss://*.ts.net https://www.youtube.com https://s.ytimg.com https://api.spotify.com https://*.spotify.com https://*.scdn.co https://protomaps.github.io https://router.project-osrm.org wss://*.spotify.com${process.env.NODE_ENV === 'production' ? '' : ' ws://localhost:* http://localhost:*'}`,
       // v2.32 — MapLibre GL JS 는 타일 파싱을 blob URL 웹워커에서 한다. worker-src 미지정 시
       // default-src 'self' 로 폴백돼 blob: 워커가 차단된다 → 지도 렌더 실패.
       "worker-src 'self' blob:",

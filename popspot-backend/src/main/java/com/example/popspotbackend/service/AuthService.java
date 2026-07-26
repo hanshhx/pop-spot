@@ -86,11 +86,22 @@ public class AuthService {
             // 같은 이메일로 두 번 가입을 시도하는 정상 사용자 케이스 → 입력 오류 (400).
             throw new IllegalArgumentException("이미 존재하는 이메일입니다.");
         }
+        // 보안(v2.41): 닉네임 중복 검사를 이메일과 동일한 방식으로 추가한다. 닉네임은 ChatIdentityResolver 가
+        // "서버가 확정한 발신자" 로 채팅에 박는 값이라, 중복을 허용하면 남의 이름 그대로 가입해 사칭해도
+        // 사용자·운영자 모두 구분할 수단이 없었다. 또 탈퇴 처리(AccountDeletionService)가 닉네임으로 채팅을
+        // 지우므로 동명이인이 있으면 남의 대화까지 지워진다.
+        // trim 하는 이유: 중복확인 API(/api/v1/users/check-nickname)가 trim 후 검사하므로, 여기서 원본을
+        // 그대로 저장하면 "중복확인은 통과했지만 공백만 다른 같은 이름" 이 만들어져 검사를 우회할 수 있다.
+        String nickname = requestDto.getNickname().trim();
+        if (userRepository.existsByNickname(nickname)) {
+            // 문구는 중복확인 API 응답(reason)과 동일하게 맞춰 프론트 안내가 갈리지 않게 한다.
+            throw new IllegalArgumentException("이미 사용 중인 닉네임입니다.");
+        }
         User user =
                 User.builder()
                         .email(requestDto.getEmail())
                         .password(passwordEncoder.encode(requestDto.getPassword()))
-                        .nickname(requestDto.getNickname())
+                        .nickname(nickname)
                         .phoneNumber(requestDto.getPhoneNumber())
                         .role(ROLE_USER)
                         .provider(PROVIDER_LOCAL)
