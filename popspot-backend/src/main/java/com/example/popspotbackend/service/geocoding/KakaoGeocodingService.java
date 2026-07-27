@@ -45,13 +45,23 @@ public class KakaoGeocodingService implements GeocodingService {
                 return tryGeocodeOnce(trimmedLoc);
             }
             return Optional.empty();
+        } catch (GeocodingUnavailableException e) {
+            throw e;
         } catch (Exception e) {
             log.debug("[Geocode] '{}' 실패: {}", name, e.toString());
-            return Optional.empty();
+            throw new GeocodingUnavailableException("지오코딩 조회 실패: " + name, e);
         }
     }
 
-    /** 단일 쿼리에 대한 시도. 빈 쿼리 / 빈 응답 / 좌표 누락은 모두 {@link Optional#empty()} 로 흡수한다. */
+    /**
+     * 단일 쿼리에 대한 시도.
+     *
+     * <p>빈 쿼리 / 빈 응답 / 좌표 누락은 {@link Optional#empty()} — <b>물어봤는데 답이 없는</b> 경우다.
+     *
+     * <p>v2.45 — API 호출이 <b>터진</b> 경우는 {@link GeocodingUnavailableException} 으로 구분해 던진다.
+     * 그전까지 둘 다 empty 였는데, 좌표 없는 팝업을 버리기 시작하면 이 구분이 없을 때 카카오 API 가
+     * 잠깐 죽는 동안 수집분이 통째로 사라진다(그 파일 주석에 경위).
+     */
     private Optional<Coordinates> tryGeocodeOnce(String query) {
         if (query == null || query.isBlank()) return Optional.empty();
         try {
@@ -73,7 +83,7 @@ public class KakaoGeocodingService implements GeocodingService {
             return Optional.of(
                     new Coordinates(String.valueOf(latitude), String.valueOf(longitude)));
         } catch (Exception e) {
-            return Optional.empty();
+            throw new GeocodingUnavailableException("지오코딩 API 호출 실패: " + query, e);
         }
     }
 

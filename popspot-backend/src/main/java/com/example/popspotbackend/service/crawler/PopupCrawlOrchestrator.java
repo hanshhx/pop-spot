@@ -10,6 +10,7 @@ import com.example.popspotbackend.service.ai.LlmQuotaExhaustedException;
 import com.example.popspotbackend.service.ai.LlmUsageTracker;
 import com.example.popspotbackend.service.geocoding.Coordinates;
 import com.example.popspotbackend.service.geocoding.GeocodingService;
+import com.example.popspotbackend.service.geocoding.GeocodingUnavailableException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
@@ -926,7 +927,12 @@ public class PopupCrawlOrchestrator {
             return;
         }
 
-        saveNewPopup(result, pickPrimarySource(snippets, result.getSourceIndex()), externalId);
+        // 좌표를 못 얻으면 저장하지 않는다(경위는 saveNewPopup 주석). 폐기도 rejected 로 센다 —
+        // 통계에서 사라지면 "왜 수집량이 줄었지" 를 추적할 수 없다.
+        if (!saveNewPopup(result, pickPrimarySource(snippets, result.getSourceIndex()), externalId)) {
+            stats.rejected++;
+            return;
+        }
         stats.autoPublished++;
     }
 
@@ -1045,11 +1051,45 @@ public class PopupCrawlOrchestrator {
         return !isBlank(start) && !isBlank(end) && start.compareTo(end) > 0;
     }
 
-    private void saveNewPopup(
+    /**
+     * 신규 팝업 저장. 좌표를 못 얻으면 저장하지 않고 {@code false} 를 돌려준다.
+     *
+     * <p>v2.45 — 지도에 찍히지 않는 팝업은 받지 않는다. 좌표가 없으면 목록에는 뜨는데 지도에는 없어
+     * "어디로 가야 하는지" 를 답하지 못하고, 이 서비스가 하려는 일 자체가 안 된다.
+     *
+     * <p>다만 <b>못 찾은 것과 물어보지도 못한 것은 다르다.</b> 카카오 API 가 죽어 있으면 그 시간에 수집된
+     * 팝업이 통째로 사라지고, 로그에는 "주소를 못 찾아 버림" 으로 남아 원인을 찾기도 어렵다. 그래서
+     * 조회 자체가 실패한 경우({@link GeocodingUnavailableException})는 <b>예전처럼 좌표 없이 저장</b>하고
+     * 관리자 백필({@code /api/admin/popups/geocode-missing})이 나중에 채우게 둔다.
+     *
+     * <p>지역 중심점으로 판정된 좌표({@link #withoutRegionCentroid})도 "못 찾음" 으로 본다 — 실제 위치가
+     * 아니라고 이미 판단한 값이라 지도에 찍어도 엉뚱한 곳을 가리킨다.
+     */
+    private boolean saveNewPopup(
             NormalizedPopup result, PopupCrawlSource primarySource, String externalId) {
-        Optional<Coordinates> coordinates =
-                withoutRegionCentroid(
-                        geocodingService.geocode(result.getName(), result.getLocation()));
+        Optional<Coordinates> coordinates;
+        boolean geocodeAnswered;
+        try {
+            coordinates =
+                    withoutRegionCentroid(
+                            geocodingService.geocode(result.getName(), result.getLocation()));
+            geocodeAnswered = true;
+        } catch (GeocodingUnavailableException e) {
+            log.warn(
+                    "[PopupCrawlOrchestrator] 지오코딩 조회 실패 — 좌표 없이 저장하고 백필에 맡긴다: {} ({})",
+                    result.getName(),
+                    e.getMessage());
+            coordinates = Optional.empty();
+            geocodeAnswered = false;
+        }
+
+        if (coordinates.isEmpty() && geocodeAnswered) {
+            log.debug(
+                    "[PopupCrawlOrchestrator] 좌표 없음 — 지도에 찍을 수 없어 폐기: {} ({})",
+                    result.getName(),
+                    result.getLocation());
+            return false;
+        }
 
         PopupStore newPopup =
                 PopupStore.builder()
@@ -1094,14 +1134,24 @@ public class PopupCrawlOrchestrator {
         // v2.13 — 신규 자동게시 row 는 즉시 Algolia 인덱스에 push (다음 수집 주기까지 검색에서
         // 누락되던 문제 해소). 인덱싱 가드는 SearchService.addPopup 안에서 다시 한 번 검증.
         reindexQuietly(saved);
+        return true;
     }
 
     /* =========================== Geocoding backfill =========================== */
 
     private boolean fillCoordinates(PopupStore popup) {
-        Optional<Coordinates> coords =
-                withoutRegionCentroid(
-                        geocodingService.geocode(popup.getName(), popup.getLocation()));
+        Optional<Coordinates> coords;
+        try {
+            coords =
+                    withoutRegionCentroid(
+                            geocodingService.geocode(popup.getName(), popup.getLocation()));
+        } catch (GeocodingUnavailableException e) {
+            // v2.45 — 조회 실패는 "못 채웠다" 로 넘긴다. 백필은 여러 건을 도는 반복문이라 여기서 예외가
+            // 그대로 올라가면 API 가 잠깐 흔들렸을 때 남은 대상까지 통째로 중단된다.
+            log.warn(
+                    "[Geocode-Backfill] 조회 실패 id={} — 건너뛴다 ({})", popup.getId(), e.getMessage());
+            return false;
+        }
         if (coords.isEmpty()) return false;
 
         popup.setLatitude(coords.get().latitude());
