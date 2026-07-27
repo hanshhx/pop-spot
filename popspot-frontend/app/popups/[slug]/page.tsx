@@ -313,6 +313,68 @@ function nearestDeadline(markers: Marker[]): string | null {
   return dday === 0 ? `${md}(오늘)` : `${md}(D-${dday})`;
 }
 
+/**
+ * JSON-LD 를 {@code <script>} 안에 넣을 때 쓰는 직렬화.
+ *
+ * <p>{@code JSON.stringify} 는 {@code <} 를 그대로 둔다. 아래 ItemList 에는 <b>크롤링해 온 팝업
+ * 이름</b>이 들어가므로, 이름에 {@code </script>} 가 섞여 들어오면 스크립트 블록이 그 자리에서 끊기고
+ * 뒤가 문서 본문으로 해석된다(스크립트 주입 경로). {@code <} 를 유니코드 이스케이프로 바꾸면 JSON
+ * 의미는 그대로면서 HTML 파서가 태그로 읽지 않는다.
+ */
+function jsonLd(obj: unknown): string {
+  return JSON.stringify(obj).replace(/</g, '\\u003c');
+}
+
+/** JSON-LD 날짜(YYYY-MM-DD). parseDate 가 현지 자정으로 만들므로 toISOString 을 쓰면 하루 밀린다. */
+function ymdOf(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/** 구조화 데이터에 담을 최대 개수. 성수처럼 193곳인 슬라이스도 있어 상한을 둔다(마감 임박순 앞에서부터). */
+const MAX_JSONLD_EVENTS = 20;
+
+/**
+ * ItemList 에 담을 실제 팝업들 — schema.org Event.
+ *
+ * <p>v2.43 — 그 전까지 ItemList 는 {@code numberOfItems} 만 있는 껍데기였다. "15개가 있다" 고만
+ * 말하고 그 15개가 뭔지는 안 알려주니 검색엔진이 얻을 게 없었다.
+ *
+ * <p>팝업은 이름·시작일·종료일·장소가 있는 전형적인 행사라 Event 가 그대로 들어맞는다. 구글은 행사
+ * 정보를 받으면 검색 결과에 날짜를 직접 띄우는데, 실측에서 "일정" 이 들어간 검색어가 CTR 2.31% 로
+ * 가장 낮았다(노출 216 · 클릭 5). 날짜를 보여주는 것이 그 질문에 대한 직접적인 답이다.
+ *
+ * <p>이름·시작일·장소가 없는 항목은 <b>건너뛴다.</b> Event 의 필수 항목이라 빠진 채로 내보내면 구글이
+ * 오류로 처리하고, 하나만 잘못돼도 블록 전체가 무시될 수 있다. 실제로 수집 마커의 36% 는 시작일이
+ * 없다 — 목록 화면에는 그대로 보이지만 구조화 데이터에는 넣지 않는다.
+ *
+ * <p>개별 팝업 주소({@code /popup/[id]})는 넣지 않는다 — noindex 라(약관 §14) 색인하지 말라고 해 둔
+ * 곳으로 검색 결과를 보낼 수는 없다. 팝업 정보가 이 페이지 안에 다 있으므로 링크 없는 형태가 맞다.
+ */
+function eventListElements(markers: Marker[]) {
+  const items: unknown[] = [];
+  for (const m of markers) {
+    if (items.length >= MAX_JSONLD_EVENTS) break;
+    if (!m.name || !m.location) continue;
+    const start = parseDate(m.startDate);
+    if (!start) continue;
+    const end = parseDate(m.endDate);
+    items.push({
+      '@type': 'ListItem',
+      position: items.length + 1,
+      item: {
+        '@type': 'Event',
+        name: m.name,
+        startDate: ymdOf(start),
+        ...(end ? { endDate: ymdOf(end) } : {}),
+        eventStatus: 'https://schema.org/EventScheduled',
+        eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode',
+        location: { '@type': 'Place', name: m.location, address: m.location },
+      },
+    });
+  }
+  return items;
+}
+
 /** 매칭 팝업들이 몰린 상위 지역 slug (브랜드 랜딩 크로스셀용 — 지도에서 바로 좁히게). */
 function topRegionSlugs(markers: Marker[], n: number): string[] {
   const counts: Record<string, number> = {};
@@ -672,17 +734,18 @@ export default async function PopupsBySlugPage({ params }: { params: Promise<{ s
         <FaqSection slice={slice} count={count} />
       </div>
 
-      {/* JSON-LD ItemList — 검색결과 풍부도 ↑ */}
+      {/* JSON-LD ItemList — 목록에 실제 팝업(행사)을 담는다. 경위는 eventListElements 주석. */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify({
+          __html: jsonLd({
             '@context': 'https://schema.org',
             '@type': 'ItemList',
             name: headingByKind[slice.kind],
             description: introByKind[slice.kind],
             url: mainHref,
             numberOfItems: count,
+            itemListElement: eventListElements(sorted.map((s) => s.m)),
           }),
         }}
       />
