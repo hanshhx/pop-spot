@@ -78,6 +78,7 @@ public class PopupNormalizationService {
 
     private static final String ERROR_EMPTY_NAME = "EMPTY_NAME";
     private static final String ERROR_NOT_IN_SEOUL = "NOT_IN_SEOUL";
+    private static final String ERROR_NO_DATE = "NO_DATE";
 
     private static final String PROMPT_TEMPLATE =
             """
@@ -403,7 +404,11 @@ public class PopupNormalizationService {
      *   <li>name 이 비어있으면 강제 0.0
      *   <li>서울 외 지역이면 강제 0.0
      *   <li>시작일이 종료일보다 늦으면 두 날짜를 폐기(추측 보충하지 않음)
+     *   <li>v2.45 — 날짜가 하나도 없으면 강제 0.0
      * </ul>
+     *
+     * <p>날짜 검증이 {@link #rejectInvertedDateRange} <b>뒤에</b> 오는 것은 순서가 결과를 바꾸기 때문이다 —
+     * 역전 구간은 두 날짜를 모두 null 로 만들므로, 그 앞에서 검사하면 "날짜가 있는데 통과" 로 잘못 판정된다.
      */
     private NormalizedPopup applyPostValidations(NormalizedPopup result) {
         if (isNameMissing(result)) {
@@ -413,6 +418,9 @@ public class PopupNormalizationService {
             forceRejection(result, ERROR_NOT_IN_SEOUL);
         }
         rejectInvertedDateRange(result);
+        if (isDateMissing(result)) {
+            forceRejection(result, ERROR_NO_DATE);
+        }
         return result;
     }
 
@@ -434,6 +442,27 @@ public class PopupNormalizationService {
 
     private boolean isNameMissing(NormalizedPopup result) {
         return result.getName() == null || result.getName().isBlank();
+    }
+
+    /**
+     * 시작일·종료일이 <b>둘 다</b> 없는가.
+     *
+     * <p>v2.45 — 날짜 없는 팝업을 저장하지 않는다. 프런트 실측 기준 수집분 1,355건 중 864건(64%)이 종료일이
+     * 없었고 그중 568건은 시작일마저 없었다. 본문이 "…성수동에서 열렸다" 처럼 과거형인 것도 섞여 있다 —
+     * 이미 지난 행사를 적은 글에서 뽑아낸 것이다.
+     *
+     * <p>날짜가 없으면 열려 있는지 끝났는지 판정할 방법이 없어, 화면에서는 어느 쪽으로든 추측해야 한다.
+     * 그 추측을 잘못하면 <b>닫힌 곳으로 사람을 보내게 된다.</b> 애초에 저장하지 않는 편이 낫다.
+     *
+     * <p>한쪽만 있으면 통과시킨다 — 시작일만 있으면 상시 운영이거나 종료일만 못 뽑은 경우이고, 적어도
+     * "문을 열었다" 는 근거는 있다. 종료일만 있어도 언제까지인지는 알 수 있다.
+     */
+    private boolean isDateMissing(NormalizedPopup result) {
+        return isBlank(result.getStartDate()) && isBlank(result.getEndDate());
+    }
+
+    private boolean isBlank(String s) {
+        return s == null || s.isBlank();
     }
 
     private boolean isLocationOutsideSeoul(NormalizedPopup result) {
