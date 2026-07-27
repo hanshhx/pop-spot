@@ -207,6 +207,46 @@ export function startOfDay(d: Date): Date {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate());
 }
 
+/**
+ * <b>지금 문이 열려 있는가.</b> 홈 목록·랭킹·지도가 공유하는 단일 기준.
+ *
+ * <p>v2.44 — 그 전까지는 {@link isExpired} 만 써서 "끝났다는 근거가 없으면 남긴다" 였다. 실측
+ * 1,355건 중 <b>864건(64%)이 종료일이 없고 그중 568건은 시작일마저 없어</b>, 랭킹이 "전체 1,355"
+ * 로 표시됐다. 서울에 팝업이 그만큼 동시에 열려 있을 리 없다. 본문이 "…성수동에서 열렸다" 처럼
+ * 과거형인 것도 섞여 있었다 — 수집 시점에 날짜를 못 뽑은 잔여물이다.
+ *
+ * <p>기준을 "열려 있다는 근거가 있으면 남긴다" 로 뒤집는다. 제외는 세 가지다.
+ *
+ * <ul>
+ *   <li><b>이미 종료</b> — 원래 하던 일.
+ *   <li><b>아직 시작 전</b> — 열려 있지 않다. 캘린더·시점 랜딩(/popups/tomorrow 등)이 예정 팝업을
+ *       따로 다루므로 접근 경로는 남는다.
+ *   <li><b>날짜 정보가 아예 없음</b> — 열렸다고 볼 근거도 끝났다고 볼 근거도 없다. 예전 주석은
+ *       남기는 근거로 "추측해서 지우지 않는다" 를 들었는데, <b>남기는 것도 "열려 있다" 는 추측</b>
+ *       이라는 점에서 같다. 둘 중 하나를 골라야 한다면 닫힌 곳을 열렸다고 보여주는 쪽이 더 나쁘다 —
+ *       찾아갔는데 없는 경험은 되돌릴 수 없다.
+ * </ul>
+ *
+ * <p>시작일만 있고 종료일이 없는 것은 남긴다 — 상시 운영이거나 종료일만 못 뽑은 경우이고, 적어도
+ * "문을 열었다" 는 근거는 있다.
+ *
+ * <p>이 판정을 한곳에 두는 이유는 이 파일이 원래 말하던 것과 같다 — 화면마다 날짜 해석이 다르면
+ * "홈엔 있는데 지도엔 없는" 불일치가 생긴다. 실제로 v2.44 작업 중 홈에만 규칙을 넣었더니 홈 659곳 /
+ * 지도 623곳으로 갈렸다.
+ */
+export function isOpenNow(
+  startDate: string | null | undefined,
+  endDate: string | null | undefined,
+  today: Date,
+): boolean {
+  const start = parseDate(startDate);
+  const end = parseDate(endDate);
+  if (!start && !end) return false;
+  if (isExpired(endDate, today)) return false;
+  if (start && startOfDay(start).getTime() > today.getTime()) return false;
+  return true;
+}
+
 /** 팝업이 특정 날짜에 열려있나? start ≤ date ≤ end. */
 function isOpenOn(start: Date | null, end: Date | null, date: Date): boolean {
   if (!start || !end) return false;
