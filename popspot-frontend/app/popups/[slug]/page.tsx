@@ -277,6 +277,42 @@ function ddayBadge(dday: number | null): { text: string; cls: string } | null {
   return { text: '진행 중', cls: 'bg-lime-300 text-ink-900' };
 }
 
+/**
+ * 제목에 건수를 끼워 넣는다 — "니케 팝업스토어 일정·위치" → "니케 팝업스토어 4곳 일정·위치".
+ *
+ * <p>"팝업스토어" 바로 뒤에 넣는 이유는 앞머리 키워드를 그대로 두기 위해서다. 검색 결과에서 숫자는
+ * 클릭을 끌지만, 제목 앞부분은 순위 판단에 쓰이므로 어순을 바꾸지 않는다. 슬라이스 종류마다 제목
+ * 형태가 달라도("…추천", "…일정·위치", 뒤에 아무것도 없는 것) 이 규칙 하나로 다 자연스럽게 붙는다.
+ */
+function withCount(title: string, count: number): string {
+  const KEY = '팝업스토어';
+  const i = title.indexOf(KEY);
+  if (i < 0) return `${title} ${count}곳`;
+  const at = i + KEY.length;
+  return `${title.slice(0, at)} ${count}곳${title.slice(at)}`;
+}
+
+/**
+ * 아직 안 끝난 것 중 가장 빨리 마감하는 날 — "7/30(D-3)". 종료일 있는 팝업이 없으면 null.
+ *
+ * <p>검색 결과 설명에 쓴다. "포켓몬 팝업스토어 일정" 같은 질의에 실제 날짜로 답하기 위한 것으로,
+ * 이 부류가 실측 CTR 2.31% 로 가장 낮았다(노출 216 · 클릭 5).
+ */
+function nearestDeadline(markers: Marker[]): string | null {
+  const today = kstTodayStart();
+  let best: Date | null = null;
+  for (const m of markers) {
+    const end = parseDate(m.endDate);
+    if (!end) continue;
+    if (startOfDay(end).getTime() < today.getTime()) continue; // 이미 지난 건 제외
+    if (!best || end.getTime() < best.getTime()) best = end;
+  }
+  if (!best) return null;
+  const dday = Math.round((startOfDay(best).getTime() - today.getTime()) / 86400000);
+  const md = `${best.getMonth() + 1}/${best.getDate()}`;
+  return dday === 0 ? `${md}(오늘)` : `${md}(D-${dday})`;
+}
+
 /** 매칭 팝업들이 몰린 상위 지역 slug (브랜드 랜딩 크로스셀용 — 지도에서 바로 좁히게). */
 function topRegionSlugs(markers: Marker[], n: number): string[] {
   const counts: Record<string, number> = {};
@@ -322,25 +358,66 @@ export async function generateMetadata({
     'region-period': `${slice.label}에서 문 여는 팝업스토어 목록. 영업 시간·위치·종료일까지 지도 한 화면에서 무료로.`,
   };
 
-  const title = titles[slice.kind];
-  const description = descriptions[slice.kind];
-  const url = `${SITE_URL}/popups/${slice.slug}`;
+  // 건수·마감일 뒤에 붙는 짧은 꼬리. 위 descriptions 는 0곳일 때만 쓰인다.
+  // 슬라이스 이름을 다시 넣지 않는다 — 앞에서 이미 말했고, 길이가 잘리면 이쪽이 먼저 날아간다.
+  const tails: Record<Slice['kind'], string> = {
+    region: '위치·마감일을 지도 한 화면에서 무료로.',
+    period: '영업시간·위치·종료일까지 한눈에.',
+    category: '신상·인기·마감임박순으로 정렬.',
+    brand: '일정과 위치를 지도로 한눈에. 무료.',
+    'region-category': '위치·일정을 지도 한 화면에서 무료로.',
+    'region-period': '영업시간·위치·마감일까지 지도에서.',
+  };
+
+  // v2.43 — 제목·설명에 실제 건수와 마감일을 넣는다.
+  //
+  // Search Console 실측(30일): 노출 2,187 · 클릭 103 · 평균 7.66위. 순위는 1페이지 하단인데 클릭이
+  // 안 붙었다. 원인 후보 중 확실한 하나는 <b>검색 결과에 내보내는 문장에 구체적인 정보가 없다</b>는
+  // 것이었다 — 코엑스(CTR 2.81%)와 니케(8.53%)의 설명문이 브랜드 이름만 빼면 글자까지 같았다.
+  // "일정과 위치를 지도로 한눈에" 는 어느 페이지에 붙여도 말이 되는 문장이라, 옆에 뜨는 블로그가
+  // "7/22~8/3 성수동" 을 보여줄 때 고를 이유가 없다.
+  //
+  // 페이지 본문은 이미 건수와 최단 마감을 계산해 h1 에 쓰고 있었다. 같은 값을 메타에도 보낸다.
+  // "일정" 이 들어간 검색어가 노출 216 에 클릭 5(CTR 2.31%)로 가장 부진했는데, 날짜를 실제로
+  // 보여주는 것이 그 질의에 대한 직접적인 답이기도 하다.
+  //
+  // 0곳이면 숫자를 빼고 기존 문장을 그대로 쓴다("0곳" 은 클릭을 부르지 않는다).
+  const matched = filterBySlice(await liveMarkers(), slice);
+  const count = matched.length;
 
   // 결과 0곳이면 thin content 방지 위해 noindex (페이지 접근·내부링크는 유지).
-  let robots: Metadata['robots'] | undefined;
+  //
   // region-period 도 같은 취급 — 조합 65개 중 상당수가 0곳이다(예: 성북 이번 주말).
   // 이 판정은 if 문이라 새 슬라이스를 추가해도 타입 검사에 걸리지 않는다. 종류를 늘릴 때
   // 위의 Record 들과 달리 여기는 컴파일러가 알려주지 않으므로 직접 확인해야 한다.
+  let robots: Metadata['robots'] | undefined;
   if (
-    slice.kind === 'region-category' ||
-    slice.kind === 'brand' ||
-    slice.kind === 'region-period'
+    (slice.kind === 'region-category' ||
+      slice.kind === 'brand' ||
+      slice.kind === 'region-period') &&
+    count === 0
   ) {
-    // 본문과 동일한 liveMarkers 기준. 만료 팝업만 남은 슬라이스는 본문이 "0곳" 이므로
-    // 메타데이터도 같은 판정을 해야 빈 페이지가 색인되지 않는다.
-    const count = filterBySlice(await liveMarkers(), slice).length;
-    if (count === 0) robots = { index: false, follow: true };
+    robots = { index: false, follow: true };
   }
+
+  // 제목에는 건수만. 앞머리 키워드("니케 팝업스토어")를 건드리지 않도록 뒤에 붙인다 — 검색 결과에서
+  // 숫자는 클릭을 끌지만 제목 앞부분은 순위에 쓰이므로 순서를 바꾸지 않는다.
+  const title = count > 0 ? withCount(titles[slice.kind], count) : titles[slice.kind];
+
+  // 설명 = 건수 + 최단 마감일 + 짧은 가치제안. 마감일 있는 팝업이 없으면 마감 문구를 뺀다.
+  //
+  // 기존 설명문을 그대로 뒤에 붙이면 "코엑스 팝업스토어 12곳 진행 중. … 코엑스 팝업스토어 일정과
+  // 위치를 …" 처럼 이름이 두 번 나오고 100자를 넘는다. 구글은 한글 기준 80자 안팎에서 자르므로
+  // 뒤가 통째로 날아간다. 그래서 짧은 꼬리를 따로 두고, 구체적인 값을 앞에 놓는다.
+  const soonest = nearestDeadline(matched);
+  const description =
+    count > 0
+      ? `${slice.label} 팝업스토어 ${count}곳 진행 중.` +
+        (soonest ? ` 가장 빠른 마감 ${soonest}.` : '') +
+        ` ${tails[slice.kind]}`
+      : descriptions[slice.kind];
+
+  const url = `${SITE_URL}/popups/${slice.slug}`;
 
   return {
     title,
