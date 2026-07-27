@@ -136,6 +136,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: 'monthly',
       priority: 0.8,
     },
+    // v2.43 — 지도 전용 문서. "팝업스토어 지도" 류 검색을 받는다(경위는 app/map/page.tsx).
+    {
+      url: `${SITE_URL}/map`,
+      lastModified: now,
+      changeFrequency: 'daily',
+      priority: 0.9,
+    },
     {
       url: `${SITE_URL}/terms`,
       lastModified: now,
