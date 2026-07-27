@@ -31,6 +31,7 @@ import org.springframework.stereotype.Component;
 public class PopupCrawlScheduler {
 
     private final PopupCrawlOrchestrator orchestrator;
+    private final PopupDateBackfillService dateBackfillService;
     private final PopupStoreService popupStoreService;
     private final PopupPhotoService popupPhotoService;
     private final OllamaHealthChecker ollamaHealthChecker;
@@ -109,6 +110,27 @@ public class PopupCrawlScheduler {
             log.info("[PopupCrawlScheduler] Geocoding 자동 백필 완료 — {}개 좌표 채움", filled);
         } catch (Exception e) {
             log.error("[PopupCrawlScheduler] Geocoding 백필 실패", e);
+        }
+    }
+
+    /**
+     * 날짜 누락 row 를 원본 글 본문에서 보강한다. 매일 04:55 — 본 수집·지오코딩 뒤라 그날 새로 들어온
+     * 결손분까지 함께 처리한다(v2.46, 경위는 {@link PopupDateBackfillService}).
+     *
+     * <p>v2.45 부터 날짜 없는 팝업은 저장하지 않지만, 그 전에 쌓인 결손분과 "종료일만 빈" 팝업이 남아
+     * 있어 계속 돌 이유가 있다.
+     */
+    @Scheduled(cron = "${popspot.crawler.body-date-backfill-cron:0 55 4 * * *}", zone = "Asia/Seoul")
+    public void scheduledBodyDateBackfill() {
+        if (!enabled) {
+            log.debug("[PopupCrawlScheduler] body-date-backfill disabled — 스킵");
+            return;
+        }
+        log.info("[PopupCrawlScheduler] === 본문 날짜 보강 시작 ===");
+        try {
+            log.info("[PopupCrawlScheduler] 본문 날짜 보강 완료 — {}", dateBackfillService.runOnce());
+        } catch (Exception e) {
+            log.error("[PopupCrawlScheduler] 본문 날짜 보강 실패", e);
         }
     }
 
