@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import Link from 'next/link';
 import { Flame, Ticket, Users, ArrowRight, Store } from 'lucide-react';
 import type { PopupStore } from '@/types/popup';
 import { isPexelsPhoto, popupCoverUrl } from '@/lib/popupCover';
@@ -116,10 +117,13 @@ export default function HomeBento1a({ popups, total, onOpenRanking, onNavigate }
               const coverUrl = popupCoverUrl(p, 200);
               const isStyledPhoto = isPexelsPhoto(p);
               return (
-                <button
+                // v2.44 — 카드는 그 팝업의 상세로 간다. 예전엔 어느 카드를 눌러도 랭킹 모달이 떠서,
+                // 3위가 궁금해 눌러도 목록이 다시 뜰 뿐 그 팝업 정보로는 갈 수 없었다.
+                // button 대신 Link 를 쓰는 것은 홈의 다른 팝업 카드(레일·캘린더)와 같은 방식이라
+                // 새 탭 열기·주소 복사 같은 링크 동작이 그대로 되기 때문이다.
+                <Link
                   key={p.id}
-                  type="button"
-                  onClick={onOpenRanking}
+                  href={`/popup/${p.id}`}
                   className="flex w-full items-center gap-3 rounded-2xl p-2 text-left transition hover:bg-black/5 dark:hover:bg-white/5"
                 >
                   <span
@@ -143,7 +147,7 @@ export default function HomeBento1a({ popups, total, onOpenRanking, onNavigate }
                       {isStyledPhoto && ' · 연출 이미지'}
                     </span>
                   </div>
-                </button>
+                </Link>
               );
             })
           )}
