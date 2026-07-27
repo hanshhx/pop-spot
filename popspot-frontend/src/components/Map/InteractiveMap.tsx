@@ -28,6 +28,8 @@ import {
   matchesPeriod,
   periodBySlug,
   categoryBySlug,
+  isOpenNow,
+  kstTodayStart,
   type PeriodCode,
   type CategoryCode,
 } from '@/lib/popupSlices';
@@ -335,16 +337,23 @@ export default function InteractiveMap({
             endDate: string | null;
           }>,
         ) => {
-          const mapped: MapMarkerData[] = (data ?? []).map((m) => ({
-            popupId: m.id,
-            name: m.name,
-            address: m.location ?? '',
-            latitude: m.latitude,
-            longitude: m.longitude,
-            category: m.category ?? undefined,
-            startDate: m.startDate ?? undefined,
-            endDate: m.endDate ?? undefined,
-          }));
+          // v2.44 — 지금 열려 있는 것만 핀으로 찍는다. 홈 목록·랭킹과 같은 판정을 쓴다
+          // (경위는 isOpenNow 주석). 예전엔 지도만 날짜를 안 보고 좌표만 걸러, 홈은 659곳인데
+          // 지도엔 623곳이 뜨는 식으로 화면끼리 숫자가 갈렸다. 특히 날짜를 못 뽑은 수집 잔여물이
+          // 핀으로 남아, 찾아갔는데 없는 곳으로 안내할 수 있었다.
+          const today = kstTodayStart();
+          const mapped: MapMarkerData[] = (data ?? [])
+            .filter((m) => isOpenNow(m.startDate, m.endDate, today))
+            .map((m) => ({
+              popupId: m.id,
+              name: m.name,
+              address: m.location ?? '',
+              latitude: m.latitude,
+              longitude: m.longitude,
+              category: m.category ?? undefined,
+              startDate: m.startDate ?? undefined,
+              endDate: m.endDate ?? undefined,
+            }));
           setAllMarkers(mapped);
         },
       )

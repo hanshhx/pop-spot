@@ -4,7 +4,7 @@ import { MapPin, ArrowRight } from 'lucide-react';
 
 import MapClient from './MapClient';
 import { REGIONS, classifyRegion } from '@/lib/regions';
-import { PERIODS, matchesPeriod, isExpired, kstTodayStart } from '@/lib/popupSlices';
+import { PERIODS, matchesPeriod, isOpenNow, kstTodayStart } from '@/lib/popupSlices';
 
 /**
  * /map — 서울 팝업스토어 지도.
@@ -70,8 +70,10 @@ async function liveMarkers(): Promise<Marker[]> {
     const res = await fetch(`${apiBase}/api/map/markers`, { next: { revalidate: 3600 } });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const markers = (await res.json()) as Marker[];
+    // v2.44 — 지도에 실제로 찍히는 핀과 같은 기준(isOpenNow). 이 페이지가 "N곳" 이라고 써 놓고
+    // 아래 지도에는 다른 수가 찍히면 안 된다.
     const today = kstTodayStart();
-    return markers.filter((m) => !isExpired(m.endDate, today));
+    return markers.filter((m) => isOpenNow(m.startDate, m.endDate, today));
   } catch (e) {
     console.error(
       `[map] 마커 fetch 실패(${e instanceof Error ? e.message : String(e)}) — 건수 없이 렌더.`,
