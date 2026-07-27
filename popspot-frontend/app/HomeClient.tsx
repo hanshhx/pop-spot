@@ -57,13 +57,12 @@ import MateBoard from '../src/components/MateBoard';
 import { apiFetch, AUTH_EXPIRED_EVENT } from '../src/lib/api';
 import { clearAuthToken } from '../src/lib/authStorage';
 import {
-  isExpired,
+  isOpenNow,
   kstTodayStart,
   classifyCategory,
   categoryLabel,
   CATEGORIES,
   parseDate,
-  startOfDay,
   type CategoryCode,
 } from '../src/lib/popupSlices';
 import { Header } from '../src/components/layout/Header';
@@ -122,48 +121,19 @@ const DEFAULT_TAB = 'MAP';
 const USER_ONLY_TABS = new Set<string>(['COURSE', 'MUSIC', 'MATE']);
 
 /**
- * 홈 목록·랭킹에 <b>지금 문이 열려 있는</b> 팝업만 남긴다.
+ * 홈 목록·랭킹에 지금 문이 열려 있는 팝업만 남긴다. 판정은 지도와 공유하는 {@link isOpenNow} —
+ * 화면마다 날짜 해석이 다르면 "홈엔 있는데 지도엔 없는" 불일치가 생긴다(그 함수 주석에 경위).
  *
- * <p>{@code /api/map/markers} 는 만료를 걸러 주지만 {@code /api/popups} 는 그렇지 않아, 홈 목록·랭킹에
- * 어제 마감된 팝업이 그대로 남는다("성수 팝업" 을 보러 왔는데 닫힌 곳이 나오는 신뢰 문제).
- * 백엔드 만료 스케줄러가 지연·실패해도 사용자에게는 보이지 않아야 하므로 화면에서 한 겹 더 막는다.
- *
- * <p>v2.44 — 기준을 "안 끝났으면 남긴다" 에서 "열려 있는 게 확인되면 남긴다" 로 뒤집었다. 실측
- * 1,355건 중 <b>864건(64%)이 종료일이 없고 그중 568건은 시작일마저 없었다.</b> 종료 근거가 없다고
- * 다 남기다 보니 랭킹이 "전체 1,355" 로 표시됐는데, 서울에 팝업이 그만큼 동시에 열려 있을 리 없다.
- * 본문이 "…성수동에서 열렸다" 처럼 과거형인 것도 섞여 있었다 — 수집 시점에 날짜를 못 뽑은 잔여물이다.
- *
- * <p>제외 기준 세 가지:
- *
- * <ul>
- *   <li><b>이미 종료</b> — 원래 하던 일. 실측 0건(백엔드가 이미 지우고 있다).
- *   <li><b>아직 시작 전</b> — 108건. 열려 있지 않으므로 "지금 열린 팝업" 이 아니다. 캘린더·시점
- *       랜딩(/popups/tomorrow 등)이 예정 팝업을 따로 다루므로 여기서 빼도 접근 경로는 남는다.
- *   <li><b>날짜 정보가 아예 없음</b> — 568건. 열려 있다고 볼 근거도, 끝났다고 볼 근거도 없다. 예전
- *       주석은 "추측해서 지우지 않는다" 였는데, 남기는 것도 "열려 있다" 는 추측이라는 점에서 같다.
- *       둘 중 하나를 골라야 한다면 <b>닫힌 곳을 열렸다고 보여주는 쪽이 더 나쁘다</b> — 찾아갔는데
- *       없는 경험은 되돌릴 수 없다.
- * </ul>
- *
- * <p>시작일만 있고 종료일이 없는 것은 남긴다 — 상시 운영이거나 종료일만 못 뽑은 경우이고, 적어도
- * "문을 열었다" 는 근거는 있다. 실측 결과 1,355 → 645건.
+ * <p>{@code /api/map/markers} 는 만료를 걸러 주지만 {@code /api/popups} 는 그렇지 않아, 백엔드 만료
+ * 스케줄러가 지연·실패하면 홈 목록·랭킹에 어제 마감된 팝업이 그대로 남는다. 화면에서 한 겹 더 막는다.
  *
  * <p>기준 시각은 KST 자정이다. 사용자의 브라우저 시간대가 어디든 "한국에서 오늘" 이 기준이어야
- * 자정 경계에서 하루가 어긋나지 않는다. 판정은 랜딩과 같은 공용 함수를 쓴다 — 두 화면이 서로 다른
- * 날짜 해석을 하면 "홈엔 있는데 랜딩엔 없는" 불일치가 생긴다.
+ * 자정 경계에서 하루가 어긋나지 않는다.
  */
 function keepOpenNow(list: PopupStore[]): PopupStore[] {
   if (!Array.isArray(list)) return [];
   const today = kstTodayStart();
-  return list.filter((p) => {
-    if (!p) return false;
-    const start = parseDate(p.startDate);
-    const end = parseDate(p.endDate);
-    if (!start && !end) return false; // 날짜 정보 없음
-    if (isExpired(p.endDate, today)) return false; // 이미 종료
-    if (start && startOfDay(start).getTime() > today.getTime()) return false; // 아직 시작 전
-    return true;
-  });
+  return list.filter((p) => p && isOpenNow(p.startDate, p.endDate, today));
 }
 
 /**
