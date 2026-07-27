@@ -342,8 +342,8 @@ public class PopupNormalizationService {
     /**
      * 스니펫 텍스트에 날짜처럼 보이는 표현이 있는가.
      *
-     * <p>느슨하게 잡는다 — 여기서 놓치면 "원본에 날짜가 없었다" 로 잘못 집계돼, 실제로는 프롬프트 문제인
-     * 것을 "본문을 가져와야 한다" 로 오진하게 된다. 과하게 잡히는 쪽이 안전하다.
+     * <p>느슨하게 잡는다 — 여기서 놓치면 "원본에 날짜가 없었다" 로 잘못 집계돼, 실제로는 프롬프트 문제인 것을 "본문을 가져와야 한다" 로 오진하게 된다. 과하게
+     * 잡히는 쪽이 안전하다.
      */
     private static final Pattern DATE_HINT =
             Pattern.compile(
@@ -360,15 +360,14 @@ public class PopupNormalizationService {
      *
      * <ul>
      *   <li><b>근거 스니펫에 날짜 표현이 있었는데 못 뽑음</b> — 프롬프트·모델 문제. 더 손볼 여지가 있다.
-     *   <li><b>스니펫에 아예 없었음</b> — 검색 요약문의 한계. 블로그 본문까지 가져와야 풀린다(토큰 비용이
-     *       10배 이상이라 별도 판단이 필요하다).
+     *   <li><b>스니펫에 아예 없었음</b> — 검색 요약문의 한계. 블로그 본문까지 가져와야 풀린다(토큰 비용이 10배 이상이라 별도 판단이 필요하다).
      * </ul>
      *
-     * <p>합계만 세면 이 둘을 구분할 수 없어 "날짜가 부족하다" 는 사실만 남고 대책은 계속 추측이 된다.
-     * v2.45 에서 날짜 없는 팝업을 버리기 시작했으므로, 버리는 양이 어느 쪽 원인인지 아는 것이 중요하다.
+     * <p>합계만 세면 이 둘을 구분할 수 없어 "날짜가 부족하다" 는 사실만 남고 대책은 계속 추측이 된다. v2.45 에서 날짜 없는 팝업을 버리기 시작했으므로, 버리는
+     * 양이 어느 쪽 원인인지 아는 것이 중요하다.
      *
-     * <p>sourceIndex 는 프롬프트 기준 1-based 다. 범위를 벗어나거나 없으면 판정에서 뺀다 — 근거를 모르는
-     * 채로 어느 한쪽에 넣으면 그 수치가 오히려 오판을 만든다.
+     * <p>sourceIndex 는 프롬프트 기준 1-based 다. 범위를 벗어나거나 없으면 판정에서 뺀다 — 근거를 모르는 채로 어느 한쪽에 넣으면 그 수치가 오히려
+     * 오판을 만든다.
      */
     private void logDateExtraction(List<NormalizedPopup> results, List<PopupCrawlSource> snippets) {
         if (results.isEmpty()) return;
@@ -421,14 +420,12 @@ public class PopupNormalizationService {
     /**
      * 한 줄 형태 — {@code [출처|작성일] 제목 : 요약}.
      *
-     * <p>v2.46 — <b>작성일을 넣는다.</b> 한국 블로그는 "7월 22일부터 8월 3일까지" 처럼 연도를 안 쓰는 일이
-     * 흔한데, 그전까지 LLM 에게는 오늘 날짜만 줬다. 오늘이 8월이면 "7월 22일" 이 지난달인지 작년인지 알 수
-     * 없어 안전하게 null 을 내놓는다. <b>글 작성일이 그 답을 거의 확정해 준다</b> — 7월 18일에 쓴 글의
-     * "7월 22일" 은 그 해 7월이다.
+     * <p>v2.46 — <b>작성일을 넣는다.</b> 한국 블로그는 "7월 22일부터 8월 3일까지" 처럼 연도를 안 쓰는 일이 흔한데, 그전까지 LLM 에게는 오늘
+     * 날짜만 줬다. 오늘이 8월이면 "7월 22일" 이 지난달인지 작년인지 알 수 없어 안전하게 null 을 내놓는다. <b>글 작성일이 그 답을 거의 확정해 준다</b>
+     * — 7월 18일에 쓴 글의 "7월 22일" 은 그 해 7월이다.
      *
-     * <p>이 값은 원래부터 수집하고 있었는데({@code NaverPopupCrawler} / {@code KakaoPopupCrawler} 가
-     * {@code postdate} · {@code pubDate} · {@code datetime} 을 채운다) 읽는 곳이 한 군데도 없었다.
-     * 토큰은 줄당 11자만 늘어난다.
+     * <p>이 값은 원래부터 수집하고 있었는데({@code NaverPopupCrawler} / {@code KakaoPopupCrawler} 가 {@code
+     * postdate} · {@code pubDate} · {@code datetime} 을 채운다) 읽는 곳이 한 군데도 없었다. 토큰은 줄당 11자만 늘어난다.
      */
     private String formatSingleSnippet(PopupCrawlSource snippet) {
         String posted = normalizePostDate(snippet.getPostDate());
@@ -445,7 +442,8 @@ public class PopupNormalizationService {
     private static final Pattern POST_DATE_COMPACT = Pattern.compile("^(\\d{4})(\\d{2})(\\d{2})$");
 
     /** 카카오 {@code datetime}(ISO8601) · 그 밖에 앞머리가 YYYY-MM-DD 인 형태. */
-    private static final Pattern POST_DATE_ISO_HEAD = Pattern.compile("^(\\d{4})-(\\d{2})-(\\d{2})");
+    private static final Pattern POST_DATE_ISO_HEAD =
+            Pattern.compile("^(\\d{4})-(\\d{2})-(\\d{2})");
 
     /** 네이버 뉴스 {@code pubDate}(RFC822) — 예: {@code Fri, 18 Jul 2026 10:00:00 +0900}. */
     private static final Pattern POST_DATE_RFC822 =
@@ -459,9 +457,8 @@ public class PopupNormalizationService {
     /**
      * 채널마다 다른 작성일 표기를 {@code YYYY-MM-DD} 로 통일한다. 못 읽으면 null — 프롬프트에서 그냥 빠진다.
      *
-     * <p>세 형태를 받는 이유는 채널이 셋이기 때문이다: 네이버 블로그는 {@code 20260718}, 네이버 뉴스는
-     * RFC822, 카카오는 ISO8601 로 준다. 하나만 처리하면 나머지 두 채널의 글은 작성일 없이 나가 원래 문제가
-     * 그대로 남는다.
+     * <p>세 형태를 받는 이유는 채널이 셋이기 때문이다: 네이버 블로그는 {@code 20260718}, 네이버 뉴스는 RFC822, 카카오는 ISO8601 로 준다.
+     * 하나만 처리하면 나머지 두 채널의 글은 작성일 없이 나가 원래 문제가 그대로 남는다.
      */
     String normalizePostDate(String raw) {
         if (raw == null) return null;
