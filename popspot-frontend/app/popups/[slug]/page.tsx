@@ -311,7 +311,10 @@ export async function generateMetadata({
     'region-period': `${slice.label} 팝업스토어`,
   };
   const descriptions: Record<Slice['kind'], string> = {
-    region: `${slice.label}에서 진행 중인 팝업스토어 일정과 위치를 한눈에. 위시 등록과 마감임박순 정렬까지 무료.`,
+    // v2.43 — "성수 팝업스토어 지도" 처럼 지도를 콕 집어 찾는 검색이 실제로 잡힌다. 지역별 지도
+    // 페이지를 따로 만들면 목록이 이 페이지와 똑같아 중복 문서가 되므로(경위는 app/map/page.tsx),
+    // 지역 랜딩이 그 검색을 받도록 설명문에 지도를 넣는다. 이 페이지에도 지도 진입 CTA 가 있다.
+    region: `${slice.label} 팝업스토어 위치를 지도에서 한눈에. 진행 중인 팝업의 일정·마감일까지 로그인 없이 무료로 확인.`,
     period: `${slice.label} 서울에서 열리는 팝업스토어 목록. 영업 시간, 위치, 종료일까지 정리.`,
     category: `${slice.label} 관련 팝업스토어 모음. 신상 / 인기 / 마감 임박 한눈에 보기.`,
     brand: `${slice.label} 팝업스토어 일정과 위치를 지도로 한눈에. 서울에서 진행 중인 ${slice.label} 팝업을 확인하고 위시 등록과 마감일 확인까지 무료.`,
