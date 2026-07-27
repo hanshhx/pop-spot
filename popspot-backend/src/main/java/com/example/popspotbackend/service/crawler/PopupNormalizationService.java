@@ -87,7 +87,7 @@ public class PopupNormalizationService {
             모두 찾아 JSON 배열로 출력해.
 
             오늘 날짜: %s
-            검색 결과 snippet (각 줄은 "번호. [출처] 제목 : 요약" 형태):
+            검색 결과 snippet (각 줄은 "번호. [출처|글 작성일] 제목 : 요약" 형태):
             %s
 
             출력 규칙:
@@ -99,6 +99,18 @@ public class PopupNormalizationService {
                - category (string): FASHION / FOOD / CULTURE / CHARACTER / BEAUTY / TECH / ETC 중 하나.
                - startDate (string): YYYY-MM-DD. 모르면 null.
                - endDate (string): YYYY-MM-DD. 모르면 null.
+                 ※ 날짜 읽는 법 (한국 글은 연도·월을 자주 생략한다):
+                   · 연도가 없으면 그 snippet 의 "글 작성일" 을 기준으로 채운다.
+                     예) 작성일 2026-07-18, 본문 "7월 22일 ~ 8월 3일" → 2026-07-22 / 2026-08-03
+                   · 작성일보다 앞선 달이 나오면 다음 해로 넘긴다.
+                     예) 작성일 2026-12-20, 본문 "1월 5일 오픈" → 2027-01-05
+                   · 종료일에 월이 생략되면 시작일의 월을 이어받는다.
+                     예) "7월 8일부터 25일까지" → 2026-07-08 / 2026-07-25
+                   · 시작일에 월이 생략되면 종료일의 월을 쓴다.
+                     예) "24일부터 5월 6일까지" → 2026-04-24 / 2026-05-06 (월이 넘어가면 한 달 앞)
+                   · "5월 24일부터 이틀 동안" 처럼 기간만 있으면 계산해서 종료일을 만든다 → 05-24 / 05-25
+                   · "7월 중", "여름 시즌" 처럼 특정 날짜가 없으면 그 필드만 null (지어내지 마).
+                   · 이미 끝난 행사를 회고하는 글이어도 적힌 날짜는 그대로 넣는다 — 종료 판정은 우리가 한다.
                - officialUrl (string): snippet 에 팝업 공식 홈페이지/공식 SNS/예약 페이지 URL 이 그대로 적혀 있으면 그 URL. 없으면 null. 절대 지어내지 마.
                - reservationUrl (string): snippet 에 예약/신청 링크 URL 이 그대로 적혀 있으면 그 URL. 없으면 null. 절대 지어내지 마.
                - description (string): 50자 내외 한 줄 설명.
@@ -222,6 +234,7 @@ public class PopupNormalizationService {
                 results.add(popup);
             }
             usageTracker.recordSuccess(LlmUsageTracker.Role.CRAWLER);
+            logDateExtraction(results, limited);
             return new NormalizationBatch(results, selection.modelName(), selection.local());
         } catch (Exception e) {
             // 모델은 응답했는데 JSON 이 아니었다 — 쿼터 문제와 전혀 다른 원인이므로 따로 센다.
@@ -326,6 +339,71 @@ public class PopupNormalizationService {
 
     /* =========================== 프롬프트 / 파싱 =========================== */
 
+    /**
+     * 스니펫 텍스트에 날짜처럼 보이는 표현이 있는가.
+     *
+     * <p>느슨하게 잡는다 — 여기서 놓치면 "원본에 날짜가 없었다" 로 잘못 집계돼, 실제로는 프롬프트 문제인
+     * 것을 "본문을 가져와야 한다" 로 오진하게 된다. 과하게 잡히는 쪽이 안전하다.
+     */
+    private static final Pattern DATE_HINT =
+            Pattern.compile(
+                    "\\d{1,2}\\s*월\\s*\\d{1,2}\\s*일" // 7월 22일
+                            + "|\\d{4}\\s*[.\\-/년]\\s*\\d{1,2}" // 2026.07 / 2026년 7
+                            + "|\\d{1,2}\\s*[./]\\s*\\d{1,2}\\s*[~\\-]" // 7.22~
+                            + "|\\d{1,2}\\s*일\\s*(부터|까지)" // 22일부터
+                            + "|\\d{1,2}\\s*월\\s*(중|말|초)"); // 7월 중
+
+    /**
+     * 날짜 추출 성적을 회차마다 남긴다 — <b>다음에 무엇을 고쳐야 하는지</b> 를 숫자로 답하기 위한 것이다.
+     *
+     * <p>날짜가 안 나온 팝업을 둘로 나눈다.
+     *
+     * <ul>
+     *   <li><b>근거 스니펫에 날짜 표현이 있었는데 못 뽑음</b> — 프롬프트·모델 문제. 더 손볼 여지가 있다.
+     *   <li><b>스니펫에 아예 없었음</b> — 검색 요약문의 한계. 블로그 본문까지 가져와야 풀린다(토큰 비용이
+     *       10배 이상이라 별도 판단이 필요하다).
+     * </ul>
+     *
+     * <p>합계만 세면 이 둘을 구분할 수 없어 "날짜가 부족하다" 는 사실만 남고 대책은 계속 추측이 된다.
+     * v2.45 에서 날짜 없는 팝업을 버리기 시작했으므로, 버리는 양이 어느 쪽 원인인지 아는 것이 중요하다.
+     *
+     * <p>sourceIndex 는 프롬프트 기준 1-based 다. 범위를 벗어나거나 없으면 판정에서 뺀다 — 근거를 모르는
+     * 채로 어느 한쪽에 넣으면 그 수치가 오히려 오판을 만든다.
+     */
+    private void logDateExtraction(List<NormalizedPopup> results, List<PopupCrawlSource> snippets) {
+        if (results.isEmpty()) return;
+
+        int extracted = 0;
+        int missedWithHint = 0;
+        int missedNoHint = 0;
+        int unknownSource = 0;
+
+        for (NormalizedPopup p : results) {
+            if (!isBlank(p.getStartDate()) || !isBlank(p.getEndDate())) {
+                extracted++;
+                continue;
+            }
+            Integer idx = p.getSourceIndex();
+            if (idx == null || idx < 1 || idx > snippets.size()) {
+                unknownSource++;
+                continue;
+            }
+            PopupCrawlSource src = snippets.get(idx - 1);
+            String text = safe(src.getTitle()) + " " + safe(src.getDescription());
+            if (DATE_HINT.matcher(text).find()) missedWithHint++;
+            else missedNoHint++;
+        }
+
+        log.info(
+                "[DateStats] 팝업 {}개 — 추출 {} / 미추출 {} (스니펫에 날짜 있었음 {} = 추출실패, 없었음 {}, 출처불명 {})",
+                results.size(),
+                extracted,
+                results.size() - extracted,
+                missedWithHint,
+                missedNoHint,
+                unknownSource);
+    }
+
     private String buildPrompt(List<PopupCrawlSource> snippets) {
         return String.format(PROMPT_TEMPLATE, LocalDate.now(), formatSnippetsForPrompt(snippets));
     }
@@ -340,13 +418,73 @@ public class PopupNormalizationService {
         return sb.toString();
     }
 
+    /**
+     * 한 줄 형태 — {@code [출처|작성일] 제목 : 요약}.
+     *
+     * <p>v2.46 — <b>작성일을 넣는다.</b> 한국 블로그는 "7월 22일부터 8월 3일까지" 처럼 연도를 안 쓰는 일이
+     * 흔한데, 그전까지 LLM 에게는 오늘 날짜만 줬다. 오늘이 8월이면 "7월 22일" 이 지난달인지 작년인지 알 수
+     * 없어 안전하게 null 을 내놓는다. <b>글 작성일이 그 답을 거의 확정해 준다</b> — 7월 18일에 쓴 글의
+     * "7월 22일" 은 그 해 7월이다.
+     *
+     * <p>이 값은 원래부터 수집하고 있었는데({@code NaverPopupCrawler} / {@code KakaoPopupCrawler} 가
+     * {@code postdate} · {@code pubDate} · {@code datetime} 을 채운다) 읽는 곳이 한 군데도 없었다.
+     * 토큰은 줄당 11자만 늘어난다.
+     */
     private String formatSingleSnippet(PopupCrawlSource snippet) {
+        String posted = normalizePostDate(snippet.getPostDate());
         return "["
                 + snippet.getSourceName()
+                + (posted == null ? "" : "|" + posted)
                 + "] "
                 + safe(snippet.getTitle())
                 + " : "
                 + safe(snippet.getDescription());
+    }
+
+    /** 네이버 블로그 {@code postdate}(YYYYMMDD) 8자리. */
+    private static final Pattern POST_DATE_COMPACT = Pattern.compile("^(\\d{4})(\\d{2})(\\d{2})$");
+
+    /** 카카오 {@code datetime}(ISO8601) · 그 밖에 앞머리가 YYYY-MM-DD 인 형태. */
+    private static final Pattern POST_DATE_ISO_HEAD = Pattern.compile("^(\\d{4})-(\\d{2})-(\\d{2})");
+
+    /** 네이버 뉴스 {@code pubDate}(RFC822) — 예: {@code Fri, 18 Jul 2026 10:00:00 +0900}. */
+    private static final Pattern POST_DATE_RFC822 =
+            Pattern.compile("(\\d{1,2})\\s+([A-Za-z]{3})\\s+(\\d{4})");
+
+    private static final List<String> RFC822_MONTHS =
+            List.of(
+                    "jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov",
+                    "dec");
+
+    /**
+     * 채널마다 다른 작성일 표기를 {@code YYYY-MM-DD} 로 통일한다. 못 읽으면 null — 프롬프트에서 그냥 빠진다.
+     *
+     * <p>세 형태를 받는 이유는 채널이 셋이기 때문이다: 네이버 블로그는 {@code 20260718}, 네이버 뉴스는
+     * RFC822, 카카오는 ISO8601 로 준다. 하나만 처리하면 나머지 두 채널의 글은 작성일 없이 나가 원래 문제가
+     * 그대로 남는다.
+     */
+    String normalizePostDate(String raw) {
+        if (raw == null) return null;
+        String s = raw.trim();
+        if (s.isEmpty()) return null;
+
+        Matcher iso = POST_DATE_ISO_HEAD.matcher(s);
+        if (iso.find()) return iso.group(1) + "-" + iso.group(2) + "-" + iso.group(3);
+
+        Matcher compact = POST_DATE_COMPACT.matcher(s);
+        if (compact.matches()) {
+            return compact.group(1) + "-" + compact.group(2) + "-" + compact.group(3);
+        }
+
+        Matcher rfc = POST_DATE_RFC822.matcher(s);
+        if (rfc.find()) {
+            int month = RFC822_MONTHS.indexOf(rfc.group(2).toLowerCase()) + 1;
+            if (month > 0) {
+                return String.format(
+                        "%s-%02d-%02d", rfc.group(3), month, Integer.parseInt(rfc.group(1)));
+            }
+        }
+        return null;
     }
 
     /** LLM 응답에서 마크다운 코드펜스를 제거한 후 JSON 파싱. */
@@ -407,8 +545,8 @@ public class PopupNormalizationService {
      *   <li>v2.45 — 날짜가 하나도 없으면 강제 0.0
      * </ul>
      *
-     * <p>날짜 검증이 {@link #rejectInvertedDateRange} <b>뒤에</b> 오는 것은 순서가 결과를 바꾸기 때문이다 —
-     * 역전 구간은 두 날짜를 모두 null 로 만들므로, 그 앞에서 검사하면 "날짜가 있는데 통과" 로 잘못 판정된다.
+     * <p>날짜 검증이 {@link #rejectInvertedDateRange} <b>뒤에</b> 오는 것은 순서가 결과를 바꾸기 때문이다 — 역전 구간은 두 날짜를 모두
+     * null 로 만들므로, 그 앞에서 검사하면 "날짜가 있는데 통과" 로 잘못 판정된다.
      */
     private NormalizedPopup applyPostValidations(NormalizedPopup result) {
         if (isNameMissing(result)) {
@@ -447,15 +585,14 @@ public class PopupNormalizationService {
     /**
      * 시작일·종료일이 <b>둘 다</b> 없는가.
      *
-     * <p>v2.45 — 날짜 없는 팝업을 저장하지 않는다. 프런트 실측 기준 수집분 1,355건 중 864건(64%)이 종료일이
-     * 없었고 그중 568건은 시작일마저 없었다. 본문이 "…성수동에서 열렸다" 처럼 과거형인 것도 섞여 있다 —
-     * 이미 지난 행사를 적은 글에서 뽑아낸 것이다.
+     * <p>v2.45 — 날짜 없는 팝업을 저장하지 않는다. 프런트 실측 기준 수집분 1,355건 중 864건(64%)이 종료일이 없었고 그중 568건은 시작일마저 없었다.
+     * 본문이 "…성수동에서 열렸다" 처럼 과거형인 것도 섞여 있다 — 이미 지난 행사를 적은 글에서 뽑아낸 것이다.
      *
-     * <p>날짜가 없으면 열려 있는지 끝났는지 판정할 방법이 없어, 화면에서는 어느 쪽으로든 추측해야 한다.
-     * 그 추측을 잘못하면 <b>닫힌 곳으로 사람을 보내게 된다.</b> 애초에 저장하지 않는 편이 낫다.
+     * <p>날짜가 없으면 열려 있는지 끝났는지 판정할 방법이 없어, 화면에서는 어느 쪽으로든 추측해야 한다. 그 추측을 잘못하면 <b>닫힌 곳으로 사람을 보내게
+     * 된다.</b> 애초에 저장하지 않는 편이 낫다.
      *
-     * <p>한쪽만 있으면 통과시킨다 — 시작일만 있으면 상시 운영이거나 종료일만 못 뽑은 경우이고, 적어도
-     * "문을 열었다" 는 근거는 있다. 종료일만 있어도 언제까지인지는 알 수 있다.
+     * <p>한쪽만 있으면 통과시킨다 — 시작일만 있으면 상시 운영이거나 종료일만 못 뽑은 경우이고, 적어도 "문을 열었다" 는 근거는 있다. 종료일만 있어도 언제까지인지는
+     * 알 수 있다.
      */
     private boolean isDateMissing(NormalizedPopup result) {
         return isBlank(result.getStartDate()) && isBlank(result.getEndDate());
