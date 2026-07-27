@@ -3,6 +3,7 @@ package com.example.popspotbackend.controller;
 import com.example.popspotbackend.entity.PopupStore;
 import com.example.popspotbackend.service.PopupStoreService;
 import com.example.popspotbackend.service.crawler.PopupCrawlOrchestrator;
+import com.example.popspotbackend.service.crawler.PopupDateBackfillService;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
@@ -41,6 +42,7 @@ public class PopupAdminReviewController {
 
     private final PopupStoreService popupStoreService;
     private final PopupCrawlOrchestrator orchestrator;
+    private final PopupDateBackfillService dateBackfillService;
 
     @GetMapping("/pending")
     public ResponseEntity<List<PopupStore>> pending(
@@ -104,5 +106,17 @@ public class PopupAdminReviewController {
     public ResponseEntity<Map<String, Object>> geocodeMissing() {
         log.info("[CrawlReview] geocoding backfill 시작");
         return ResponseEntity.ok(Map.of("geocoded", orchestrator.geocodeMissing()));
+    }
+
+    /**
+     * 날짜 누락 row 를 원본 글 <b>본문</b>에서 보강한다(v2.46).
+     *
+     * <p>매일 04:40 에 자동으로도 돌지만, 효과를 바로 재보거나 대량 결손을 밀어 넣을 때 쓴다. 외부
+     * 사이트를 순차로 읽어 한 번에 수십 초 걸릴 수 있다.
+     */
+    @PostMapping("/backfill-dates")
+    public ResponseEntity<Map<String, Object>> backfillDates() {
+        log.info("[CrawlReview] 본문 날짜 보강 시작");
+        return ResponseEntity.ok(Map.of("stats", dateBackfillService.runOnce()));
     }
 }
