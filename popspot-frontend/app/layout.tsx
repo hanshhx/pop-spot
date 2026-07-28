@@ -5,6 +5,7 @@ import { Analytics } from '@vercel/analytics/next';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import VisitTracker from '@/components/VisitTracker';
 import { Providers } from './Providers';
+import { LocaleProvider } from '@/lib/i18n';
 import AuthGuard from '@/components/AuthGuard';
 import GlobalChatManager from '@/components/GlobalChatManager';
 import { MusicPlayerProvider } from '@/components/music/MusicPlayerProvider';
@@ -147,13 +148,17 @@ export default function RootLayout({
       </head>
       <body className="font-sans antialiased">
         <Providers>
-          <AuthGuard>
-            <MusicPlayerProvider>
-              {children}
-              <GlobalChatManager />
-              <GlobalMusicPlayer />
-            </MusicPlayerProvider>
-          </AuthGuard>
+          {/* 언어는 앱 전체가 하나를 공유해야 한다 — 컴포넌트마다 훅을 따로 부르면 상태가 갈려
+              홈에서 바꿔도 일부 영역만 그대로 남는다(경위는 i18n.tsx 주석). */}
+          <LocaleProvider>
+            <AuthGuard>
+              <MusicPlayerProvider>
+                {children}
+                <GlobalChatManager />
+                <GlobalMusicPlayer />
+              </MusicPlayerProvider>
+            </AuthGuard>
+          </LocaleProvider>
         </Providers>
 
         {/* 익명 방문 비콘(어드민 방문 통계용) + Vercel Web Analytics.

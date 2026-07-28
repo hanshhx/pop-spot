@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { Flame, Ticket, Users, ArrowRight, Store } from 'lucide-react';
 import type { PopupStore } from '@/types/popup';
+import { useLocale } from '@/lib/i18n';
 import { isPexelsPhoto, popupCoverUrl } from '@/lib/popupCover';
 
 /**
@@ -40,6 +41,7 @@ interface Props {
 }
 
 export default function HomeBento1a({ popups, total, onOpenRanking, onNavigate }: Props) {
+  const { t } = useLocale();
   const [chip, setChip] = useState<ChipKey>('전체');
 
   const filtered = useMemo(() => {
@@ -59,11 +61,13 @@ export default function HomeBento1a({ popups, total, onOpenRanking, onNavigate }
 
   const top = filtered.slice(0, 4);
 
+  // key 는 한국어 그대로 둔다 — 위 filtered 의 분기 조건이라 바꾸면 필터가 통째로 깨진다.
+  // 화면에 보이는 label 만 언어에 맞춰 고른다.
   const chips: { key: ChipKey; label: string }[] = [
-    { key: '전체', label: `전체 ${total || popups.length}` },
-    { key: '이번 주', label: '이번 주' },
-    { key: '마감임박', label: '마감임박' },
-    { key: '혼잡', label: '혼잡' },
+    { key: '전체', label: `${t('chip.all')} ${total || popups.length}` },
+    { key: '이번 주', label: t('chip.thisWeek') },
+    { key: '마감임박', label: t('chip.closing') },
+    { key: '혼잡', label: t('chip.crowded') },
   ];
 
   return (
@@ -93,7 +97,7 @@ export default function HomeBento1a({ popups, total, onOpenRanking, onNavigate }
 
         <header className="mb-3 flex items-center gap-2">
           <Flame size={18} className="animate-pulse text-hot-400" />
-          <h3 className="text-lg font-black">실시간 랭킹</h3>
+          <h3 className="text-lg font-black">{t('section.ranking')}</h3>
         </header>
 
         <div className="flex-1 space-y-1">
@@ -110,7 +114,7 @@ export default function HomeBento1a({ popups, total, onOpenRanking, onNavigate }
             ))
           ) : top.length === 0 ? (
             <p className="py-8 text-center text-sm text-ink-400 dark:text-cream-200/40">
-              이 조건에 맞는 팝업이 없어요.
+              {t('ranking.empty')}
             </p>
           ) : (
             top.map((p, i) => {
@@ -143,8 +147,8 @@ export default function HomeBento1a({ popups, total, onOpenRanking, onNavigate }
                     <strong className="block truncate text-sm font-bold">{p.name}</strong>
                     <span className="block truncate text-[11px] text-ink-500 dark:text-cream-200/45">
                       {(p.location || '').split(' ').slice(0, 2).join(' ')} ·{' '}
-                      <span className={statusTone(p.status)}>{p.status || '영업중'}</span>
-                      {isStyledPhoto && ' · 연출 이미지'}
+                      <span className={statusTone(p.status)}>{p.status || t('status.open')}</span>
+                      {isStyledPhoto && ` · ${t('card.styledPhoto')}`}
                     </span>
                   </div>
                 </Link>
@@ -158,7 +162,7 @@ export default function HomeBento1a({ popups, total, onOpenRanking, onNavigate }
           onClick={onOpenRanking}
           className="mt-3 w-full rounded-xl bg-lime-400/15 py-2.5 text-center text-xs font-bold text-lime-700 transition hover:bg-lime-400/25 dark:bg-lime-300/15 dark:text-lime-300 dark:hover:bg-lime-300/25"
         >
-          전체 랭킹 보기 →
+          {t('ranking.viewAll')}
         </button>
       </div>
 

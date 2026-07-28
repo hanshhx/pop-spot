@@ -22,7 +22,8 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Map as MapLibreMap } from 'maplibre-gl';
 import { notify } from '@/lib/notify';
-import { classifyRegion, regionBySlug, regionLabel, type RegionCode } from '@/lib/regions';
+import { REGIONS, classifyRegion, regionBySlug, regionLabel, type RegionCode } from '@/lib/regions';
+import { localizedRegionLabel, useLocale } from '@/lib/i18n';
 import {
   classifyCategory,
   matchesPeriod,
@@ -242,6 +243,8 @@ export default function InteractiveMap({
   filterIds,
   fitReq,
 }: InteractiveMapProps) {
+  // 지역 필터 배지 표기에 쓴다. 팝업 이름·주소는 원문을 그대로 둔다.
+  const { locale } = useLocale();
   const [allMarkers, setAllMarkers] = useState<MapMarkerData[]>([]);
   const [selectedMarker, setSelectedMarker] = useState<MapMarkerData | null>(null);
   const [activeCategory, setActiveCategory] = useState('ALL');
@@ -529,7 +532,21 @@ export default function InteractiveMap({
           <span className="text-[10px] font-bold uppercase tracking-wider text-white/60 mr-1">
             필터:
           </span>
-          {activeRegion && <FilterBadge label={regionLabel(activeRegion)} paramKey="region" />}
+          {activeRegion && (
+            <FilterBadge
+              label={
+                // 지역만은 화면 언어를 따른다 — 외국인이 지역 필터를 걸었는데 한국어로만 나오면
+                // 무엇으로 좁혔는지 알 수 없다. 팝업 이름은 원문 그대로 둔다(i18n.ts 주석 참고).
+                REGIONS.find((r) => r.code === activeRegion)
+                  ? localizedRegionLabel(
+                      REGIONS.find((r) => r.code === activeRegion)!,
+                      locale,
+                    )
+                  : regionLabel(activeRegion)
+              }
+              paramKey="region"
+            />
+          )}
           {activePeriod && (
             <FilterBadge
               label={periodBySlug(periodSlug ?? '')?.label ?? activePeriod}
