@@ -289,7 +289,6 @@ function ddayBadge(dday: number | null, copy: LandingCopy): { text: string; cls:
   return { text: copy.ddayOngoing, cls: 'bg-lime-300 text-ink-900' };
 }
 
-
 /**
  * 아직 안 끝난 것 중 가장 빨리 마감하는 날 — "7/30(D-3)". 종료일 있는 팝업이 없으면 null.
  *
