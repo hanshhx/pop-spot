@@ -393,7 +393,14 @@ export const BRANDS: BrandDef[] = [
   { slug: 'disney', label: '디즈니', keywords: ['디즈니', 'disney'] },
   { slug: 'kakao-friends', label: '카카오프렌즈', keywords: ['카카오프렌즈', '춘식이'] },
   { slug: 'line-friends', label: '라인프렌즈', keywords: ['라인프렌즈'] },
-  { slug: 'one-piece', label: '원피스', keywords: ['원피스', 'one piece'] },
+  // '무기와라 스토어' 는 원피스 공식 굿즈샵 이름이라 트렌드에 따로 잡히지만, 별도 랜딩을 만들면
+  // 목록이 /popups/one-piece 와 거의 같아져 중복 문서가 된다. 여기에 키워드만 더한다.
+  // '무기나라' 는 오타 표기인데 실제 수집분에 있어 함께 넣는다.
+  {
+    slug: 'one-piece',
+    label: '원피스',
+    keywords: ['원피스', 'one piece', '무기와라', '무기 와라', '무기나라'],
+  },
   // 2026-07 트렌드 신규 — 좀비고는 "팝업 스토어" 다음가는 검색량(35)으로 급상승 중.
   {
     slug: 'zombie-high',
@@ -558,6 +565,21 @@ export const BRANDS: BrandDef[] = [
     // '하이브' 단독은 넣지 않는다 — 주소의 "강남구 하이브 사옥" 에 걸려 무관한 팝업을 끌어온다
     // (실측: 보이넥스트도어 팝업이 그렇게 잡혔다).
     keywords: ['브릿즈', 'bridz'],
+  },
+
+  // v2.48 — 구글 트렌드(2026-07)에 잡히는데 랜딩이 없던 것들. 매칭 팝업이 실제로 있는 것만 넣는다
+  // (0곳이면 페이지가 noindex 라 sitemap 만 늘고 크롤 예산을 쓴다).
+  {
+    slug: 'musinsa',
+    label: '무신사',
+    keywords: ['무신사', 'musinsa'],
+  },
+  {
+    // '현대백화점' 과 '더현대' 는 다르다. 더현대(the-hyundai)는 여의도 단일 점포고, 이쪽은 압구정·
+    // 목동·판교 등 전 점포를 아우른다. 한 슬러그로 합치면 어느 쪽을 찾는 사람에게도 목록이 어긋난다.
+    slug: 'hyundai-department',
+    label: '현대백화점',
+    keywords: ['현대백화점', '현대 백화점'],
   },
 ];
 

@@ -920,7 +920,7 @@ export default function Home() {
               onClick={() => router.push('/signup')}
               className="shrink-0 text-[11px] md:text-xs font-semibold underline-offset-2 hover:underline"
             >
-              지금 가입하기
+              {t('cta.signup')}
             </button>
           </div>
         )}
@@ -1006,7 +1006,7 @@ export default function Home() {
                           }
                           className="inline-flex items-center justify-center gap-2 rounded-pill bg-lime-300 px-6 py-3 text-sm md:text-base font-bold text-ink-900 transition hover:bg-lime-400"
                         >
-                          지도에서 둘러보기 <ArrowRight size={16} />
+                          {t('cta.browseMap')} <ArrowRight size={16} />
                         </button>
                         <Link
                           href="/signup"
@@ -1131,7 +1131,7 @@ export default function Home() {
                     aria-hidden
                   />
                   <span className="shrink-0 text-sm font-bold text-gray-900 dark:text-white">
-                    실시간 혼잡도
+                    {t('tile.congestion')}
                   </span>
                   {congestionData ? (
                     <span className="truncate text-sm text-gray-500 dark:text-white/60">
@@ -1142,12 +1142,12 @@ export default function Home() {
                     </span>
                   ) : (
                     <span className="hidden truncate text-sm text-gray-500 dark:text-white/60 sm:inline">
-                      · 지역별 분석
+                      {t('tile.congestionSub')}
                     </span>
                   )}
                 </div>
                 <span className="shrink-0 text-sm font-bold text-lime-600 dark:text-lime-400 group-hover:underline">
-                  지역별 보기 →
+                  {t('tile.congestionCta')}
                 </span>
               </button>
 
@@ -1160,14 +1160,14 @@ export default function Home() {
                 <div className="flex min-w-0 items-center gap-2.5">
                   <Calendar size={16} className="shrink-0 text-primary" aria-hidden />
                   <span className="shrink-0 text-sm font-bold text-gray-900 dark:text-white">
-                    팝업 캘린더
+                    {t('tile.calendar')}
                   </span>
                   <span className="hidden truncate text-sm text-gray-500 dark:text-white/60 sm:inline">
-                    · 언제 뭐가 열리나
+                    {t('tile.calendarSub')}
                   </span>
                 </div>
                 <span className="shrink-0 text-sm font-bold text-lime-600 dark:text-lime-400 group-hover:underline">
-                  달력 보기 →
+                  {t('tile.calendarCta')}
                 </span>
               </button>
             </div>
@@ -1325,9 +1325,9 @@ export default function Home() {
                     className="h-10 md:h-16 relative z-10 text-foreground"
                   />
                   <p className="text-gray-500 dark:text-white/60 max-w-md mt-2 md:mt-0 relative z-10 text-xs md:text-base">
-                    지금 서울에서 가장 많이 찾는 팝업,
+                    {t('poplook.lead')}
                     <br />
-                    진짜로 붐비는 곳만 골랐어요.
+                    {t('poplook.sub')}
                   </p>
                 </header>
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 lg:gap-6 h-auto lg:h-[440px]">
@@ -1362,7 +1362,7 @@ export default function Home() {
                     )}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent pointer-events-none" />
                     <span className="absolute top-4 left-4 inline-flex items-center gap-1 rounded-full bg-hot-400 px-2.5 py-1 text-[11px] font-bold text-white shadow-md">
-                      <Flame size={12} /> 지금 1위
+                      <Flame size={12} /> {t('poplook.first')}
                     </span>
                     <PhotoDisclosure popup={featuredPopup} className="absolute top-4 right-4" />
                     <div className="absolute bottom-5 left-5 right-5 text-white">
@@ -1391,7 +1391,7 @@ export default function Home() {
                   {/* 인기 급상승 TOP (2~4위) */}
                   <div className="lg:col-span-2 rounded-[2rem] lg:rounded-[2.5rem] p-5 lg:p-8 bg-white dark:bg-[#111] border border-gray-200 dark:border-white/5 flex flex-col">
                     <p className="mb-3 lg:mb-4 text-sm lg:text-base font-bold text-foreground">
-                      인기 급상승 <span className="text-lime-500">TOP</span>
+                      {t('poplook.rising')} <span className="text-lime-500">TOP</span>
                     </p>
                     {featuredRunnerUps.length > 0 ? (
                       <div className="flex flex-col divide-y divide-gray-100 dark:divide-white/5">
@@ -1438,7 +1438,7 @@ export default function Home() {
                       </div>
                     ) : (
                       <p className="flex-1 grid place-items-center text-sm text-muted-foreground">
-                        추천할 팝업을 모으는 중이에요.
+                        {t('poplook.loading')}
                       </p>
                     )}
                   </div>
@@ -1482,11 +1482,11 @@ export default function Home() {
                   의견 보내기
                 </span>
                 <span className="truncate text-sm text-gray-500 dark:text-white/60">
-                  · 빠진 팝업, 틀린 정보, 불편한 점
+                  {t('feedback.sub')}
                 </span>
               </div>
               <span className="shrink-0 text-sm font-bold text-lime-600 dark:text-lime-400 group-hover:underline">
-                보내기 →
+                {t('feedback.cta')}
               </span>
             </button>
 
@@ -2212,7 +2212,7 @@ export default function Home() {
             className="min-h-[60vh] rounded-xl border border-[var(--color-border)] bg-surface text-surface-foreground mb-16 p-4 lg:p-6 shadow-md"
           >
             <div className="mb-4">
-              <h2 className="text-xl font-bold text-foreground">의견 보내기</h2>
+              <h2 className="text-xl font-bold text-foreground">{t('feedback.title')}</h2>
               <p className="text-sm text-muted-foreground mt-1">
                 서비스를 쓰면서 느낀 점, 버그, 제안을 운영팀에 전달할 수 있습니다.
               </p>
