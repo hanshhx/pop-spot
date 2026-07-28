@@ -1,5 +1,6 @@
 package com.example.popspotbackend.service.crawler;
 
+import com.example.popspotbackend.config.HttpClients;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.net.URI;
@@ -46,7 +47,7 @@ public class NaverPopupCrawler {
     @Value("${naver.client.secret:}")
     private String clientSecret;
 
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final RestTemplate restTemplate = HttpClients.withTimeouts();
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public boolean isConfigured() {

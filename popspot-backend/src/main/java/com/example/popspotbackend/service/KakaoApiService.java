@@ -1,5 +1,6 @@
 package com.example.popspotbackend.service;
 
+import com.example.popspotbackend.config.HttpClients;
 import java.net.URI;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
@@ -23,7 +24,7 @@ public class KakaoApiService {
     @Value("${kakao.api.key}")
     private String kakaoApiKey;
 
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final RestTemplate restTemplate = HttpClients.withTimeouts();
 
     public Map<String, Object> searchPopups(String keyword) {
         URI uri =

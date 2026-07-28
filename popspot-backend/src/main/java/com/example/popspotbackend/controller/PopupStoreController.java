@@ -1,5 +1,6 @@
 package com.example.popspotbackend.controller;
 
+import com.example.popspotbackend.config.LogSafe;
 import com.example.popspotbackend.dto.CalendarPopupDto;
 import com.example.popspotbackend.dto.PopupPublicDetailDto;
 import com.example.popspotbackend.dto.PopupPublicListDto;
@@ -130,12 +131,14 @@ public class PopupStoreController {
         applyTakedown(popup, dto);
         popupStoreService.save(popup);
 
+        // 요청자 이메일은 마스킹하고 사유는 로그에 남기지 않는다. 둘 다 이미 DB(takedown 필드)에
+        // 저장돼 관리자 화면에서 볼 수 있으므로, 로그에 또 남기면 보존 기간만 길어지고 얻는 게 없다.
+        // 사유는 권리 주장 내용이라 제3자·계약 정보가 섞여 들어오기도 한다.
         log.warn(
-                "[Takedown] 팝업 id={} name='{}' 요청자={} 사유='{}' → 관리자 검증 대기",
+                "[Takedown] 팝업 id={} name='{}' 요청자={} → 관리자 검증 대기",
                 id,
                 popup.getName(),
-                dto.getRequesterEmail(),
-                dto.getReason());
+                LogSafe.email(dto.getRequesterEmail()));
 
         return ResponseEntity.ok(buildTakedownResponse(id));
     }

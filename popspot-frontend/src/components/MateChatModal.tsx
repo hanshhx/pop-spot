@@ -238,7 +238,14 @@ export default function MateChatModal({
         sender: nickname,
         message: savedFileName,
         type: isImage ? 'IMAGE' : 'FILE',
-        fileUrl: data.fileUrl,
+        // 업로드 응답(data.fileUrl)은 "https://호스트/uploads/파일명" 절대 URL 인데, 서버는 채팅 첨부를
+        // 상대 경로만 받는다(MateService.normalizeFileUrl). 절대 URL 을 그대로 보내면 저장 단계에서
+        // 거부돼 이미지 전송이 통째로 실패했다.
+        //
+        // 서버 검증을 푸는 대신 여기서 경로만 보낸다 — 그 검증은 채팅에 외부 주소를 심는 것을 막는
+        // 장치라, 절대 URL 을 허용하려면 호스트 허용목록이 따로 필요해진다.
+        // 표시 쪽(getImageUrl)은 이미 상대 경로를 API_BASE_URL 과 합쳐 처리한다.
+        fileUrl: savedFileName ? `/uploads/${savedFileName}` : null,
         sendTime: new Date().toISOString(),
       };
       client.current.publish({

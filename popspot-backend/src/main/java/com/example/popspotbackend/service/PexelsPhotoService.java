@@ -1,5 +1,6 @@
 package com.example.popspotbackend.service;
 
+import com.example.popspotbackend.config.HttpClients;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
@@ -32,7 +33,7 @@ public class PexelsPhotoService {
     @Value("${pexels.api-key:}")
     private String apiKey;
 
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final RestTemplate restTemplate = HttpClients.withTimeouts();
 
     /** 키 설정 여부. 백필/스케줄러가 사전 체크에 사용. */
     public boolean isConfigured() {
