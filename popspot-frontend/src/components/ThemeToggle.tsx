@@ -4,12 +4,14 @@ import { useTheme } from 'next-themes';
 import { useEffect, useState } from 'react';
 import { Sun, Moon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useLocale } from '@/lib/i18n';
 
 /**
  * 라이트/다크 토글.
  * SSR 시점에는 placeholder 자리만 잡고, mount 후 실제 아이콘 표시 (hydration mismatch 방지).
  */
 export default function ThemeToggle() {
+  const { t } = useLocale();
   const { resolvedTheme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
@@ -22,7 +24,7 @@ export default function ThemeToggle() {
       variant="outline"
       size="icon"
       onClick={() => setTheme(isDark ? 'light' : 'dark')}
-      aria-label={isDark ? '라이트 모드로 전환' : '다크 모드로 전환'}
+      aria-label={isDark ? t('theme.toLight') : t('theme.toDark')}
       className="rounded-pill"
     >
       {mounted ? (
