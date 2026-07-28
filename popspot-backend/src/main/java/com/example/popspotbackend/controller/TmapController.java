@@ -1,5 +1,6 @@
 package com.example.popspotbackend.controller;
 
+import com.example.popspotbackend.config.HttpClients;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -33,7 +34,7 @@ public class TmapController {
     @Value("${tmap.app-key}")
     private String tmapAppKey;
 
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final RestTemplate restTemplate = HttpClients.withTimeouts();
 
     @PostMapping("/route")
     public List<Point> getPedestrianRoute(@RequestBody RouteRequestDto request) {

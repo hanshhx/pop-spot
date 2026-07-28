@@ -1,5 +1,6 @@
 package com.example.popspotbackend.service.crawler;
 
+import com.example.popspotbackend.config.HttpClients;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.net.URI;
@@ -43,7 +44,7 @@ public class KakaoPopupCrawler {
     @Value("${kakao.rest.api-key:${kakao.api.key:}}")
     private String kakaoApiKey;
 
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final RestTemplate restTemplate = HttpClients.withTimeouts();
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public boolean isConfigured() {

@@ -1,5 +1,6 @@
 package com.example.popspotbackend.service;
 
+import com.example.popspotbackend.config.HttpClients;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.net.URI;
@@ -38,7 +39,7 @@ public class PexelsService {
     @Value("${pexels.api-key}")
     private String apiKey;
 
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final RestTemplate restTemplate = HttpClients.withTimeouts();
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final Random random = new Random();
 

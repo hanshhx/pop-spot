@@ -1,5 +1,6 @@
 package com.example.popspotbackend.service.music;
 
+import com.example.popspotbackend.config.HttpClients;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.net.URI;
@@ -47,7 +48,7 @@ public class SearchSuggestService {
     private static final int SCORE_OFFICIAL_AUDIO_KEYWORD = 4;
     private static final int SCORE_ALBUM_KEYWORD = 2;
 
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final RestTemplate restTemplate = HttpClients.withTimeouts();
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final ConcurrentMap<String, List<String>> suggestionCache = new ConcurrentHashMap<>();
 

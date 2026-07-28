@@ -1,5 +1,6 @@
 package com.example.popspotbackend.service.music;
 
+import com.example.popspotbackend.config.HttpClients;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.net.URLEncoder;
@@ -58,7 +59,7 @@ public class SpotifySearchService {
     private static final int RELEVANCE_FULL_MATCH_WEIGHT = 30;
     private static final int RELEVANCE_ARTIST_MATCH_WEIGHT = 20;
 
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final RestTemplate restTemplate = HttpClients.withTimeouts();
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final SearchSuggestService suggestService;
     private final MusicQueryNormalizationService queryNormalizer;

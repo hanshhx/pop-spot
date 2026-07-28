@@ -111,8 +111,7 @@ public class PopupAdminReviewController {
     /**
      * 날짜 누락 row 를 원본 글 <b>본문</b>에서 보강한다(v2.46).
      *
-     * <p>매일 04:40 에 자동으로도 돌지만, 효과를 바로 재보거나 대량 결손을 밀어 넣을 때 쓴다. 외부
-     * 사이트를 순차로 읽어 한 번에 수십 초 걸릴 수 있다.
+     * <p>매일 04:40 에 자동으로도 돌지만, 효과를 바로 재보거나 대량 결손을 밀어 넣을 때 쓴다. 외부 사이트를 순차로 읽어 한 번에 수십 초 걸릴 수 있다.
      */
     @PostMapping("/backfill-dates")
     public ResponseEntity<Map<String, Object>> backfillDates() {

@@ -13,6 +13,7 @@ import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.model.output.Response;
 import dev.langchain4j.model.output.TokenUsage;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.time.format.ResolverStyle;
@@ -69,6 +70,9 @@ public class PopupNormalizationService {
 
     private static final String DEFAULT_CATEGORY = "ETC";
     private static final String SEOUL_KEYWORD = "서울";
+
+    /** 팝업 날짜는 모두 한국 기준이다. 운영 서버(UTC)에서 하루가 어긋나지 않도록 존을 명시한다. */
+    private static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
 
     // v2.22 — 크롤링 텍스트 정제용 길이 상한. HTML 태그 제거와 함께 저장형 XSS 2중 방어 + DB 보호.
     private static final int MAX_NAME_LEN = 120;
@@ -404,7 +408,11 @@ public class PopupNormalizationService {
     }
 
     private String buildPrompt(List<PopupCrawlSource> snippets) {
-        return String.format(PROMPT_TEMPLATE, LocalDate.now(), formatSnippetsForPrompt(snippets));
+        // "오늘" 은 반드시 KST 다. LocalDate.now() 는 JVM 기본 시간대를 따르는데 운영 서버가 UTC 라,
+        // 한국 새벽(00~09시) 크롤에서는 하루 전 날짜가 프롬프트에 실린다. 그 값으로 LLM 이 연도·월을
+        // 보충하므로 팝업 기간이 통째로 하루씩 밀린다. 프론트에서도 같은 원인의 버그를 v2.43 에 고쳤다.
+        return String.format(
+                PROMPT_TEMPLATE, LocalDate.now(SEOUL), formatSnippetsForPrompt(snippets));
     }
 
     /** snippet 을 "1. [출처] 제목 : 요약" 형태로 번호를 매겨 나열 — LLM 이 sourceIndex 로 출처를 지목할 수 있게. */
