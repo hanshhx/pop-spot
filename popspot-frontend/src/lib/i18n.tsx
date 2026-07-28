@@ -1,6 +1,14 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react';
 
 /**
  * 화면 문구 다국어 — 서울에 온 외국인이 사이트를 읽을 수 있게 한다.
@@ -52,6 +60,18 @@ const DICT = {
     'common.count': '곳',
     'common.free': '무료 · 로그인 없이',
     'lang.label': '언어',
+    'chip.all': '전체',
+    'chip.thisWeek': '이번 주',
+    'chip.closing': '마감임박',
+    'chip.crowded': '혼잡',
+    'status.open': '영업중',
+    'card.styledPhoto': '연출 이미지',
+    'trending.desc': '정렬·필터로 원하는 팝업을 골라 사진으로 훑어보세요.',
+    'common.viewAll': '전체 보기',
+    'ranking.viewAll': '전체 랭킹 보기 →',
+    'ranking.empty': '이 조건에 맞는 팝업이 없어요.',
+    'chip.today': '오늘 오픈 팝업',
+    'chip.weekend': '이번 주말 마감 임박',
   },
   en: {
     'nav.map': 'Map',
@@ -78,6 +98,18 @@ const DICT = {
     'common.count': '',
     'common.free': 'Free · no sign-up',
     'lang.label': 'Language',
+    'chip.all': 'All',
+    'chip.thisWeek': 'This week',
+    'chip.closing': 'Closing soon',
+    'chip.crowded': 'Crowded',
+    'status.open': 'Open',
+    'card.styledPhoto': 'stock photo',
+    'trending.desc': 'Sort and filter to find the pop-up you want, then browse by photo.',
+    'common.viewAll': 'View all',
+    'ranking.viewAll': 'See full ranking →',
+    'ranking.empty': 'No pop-ups match this filter.',
+    'chip.today': 'Opening today',
+    'chip.weekend': 'Closing this weekend',
   },
   ja: {
     'nav.map': 'マップ',
@@ -104,6 +136,18 @@ const DICT = {
     'common.count': '件',
     'common.free': '無料・登録不要',
     'lang.label': '言語',
+    'chip.all': 'すべて',
+    'chip.thisWeek': '今週',
+    'chip.closing': '終了間近',
+    'chip.crowded': '混雑',
+    'status.open': '営業中',
+    'card.styledPhoto': 'イメージ写真',
+    'trending.desc': '並び替え・絞り込みで気になるポップアップを写真から探せます。',
+    'common.viewAll': 'すべて見る',
+    'ranking.viewAll': 'ランキングをすべて見る →',
+    'ranking.empty': '条件に合うポップアップがありません。',
+    'chip.today': '本日オープン',
+    'chip.weekend': '今週末に終了',
   },
 } as const;
 
@@ -131,13 +175,29 @@ function detectLocale(): Locale {
   return 'ko';
 }
 
+type LocaleContextValue = {
+  locale: Locale;
+  setLocale: (next: Locale) => void;
+  t: (key: MessageKey) => string;
+};
+
 /**
- * 현재 언어와 번역 함수.
+ * 언어 상태는 <b>앱 전체가 하나를 공유해야 한다.</b>
  *
- * <p>첫 렌더는 항상 'ko' 다 — 서버가 만든 HTML 과 다르면 화면이 깜빡이고 콘솔에 hydration 경고가
- * 뜬다. 브라우저에서 한 번 더 그린 뒤에 저장값·브라우저 언어를 반영한다.
+ * <p>처음에는 컨텍스트 없이 훅만 두고 각 컴포넌트가 호출하게 했는데, 훅은 <b>로직을 공유할 뿐 상태를
+ * 공유하지 않는다</b> — 호출할 때마다 별도의 useState 가 생긴다. 그래서 홈에서 언어를 바꿔도 랭킹
+ * 컴포넌트는 그대로 남아, 화면에 한국어와 일본어가 섞여 나왔다. 타입 검사와 빌드는 모두 통과했고
+ * 브라우저에서 실제로 눌러 보고서야 드러났다.
  */
-export function useLocale() {
+const LocaleContext = createContext<LocaleContextValue | null>(null);
+
+/**
+ * 앱 최상단에 한 번 감싼다.
+ *
+ * <p>첫 렌더는 항상 'ko' 다 — 서버가 만든 HTML 과 다르면 화면이 깜빡이고 hydration 경고가 뜬다.
+ * 브라우저에서 한 번 더 그린 뒤에 저장값·브라우저 언어를 반영한다.
+ */
+export function LocaleProvider({ children }: { children: ReactNode }) {
   const [locale, setLocaleState] = useState<Locale>('ko');
 
   useEffect(() => {
@@ -157,7 +217,25 @@ export function useLocale() {
 
   const t = useCallback((key: MessageKey) => DICT[locale][key] ?? DICT.ko[key] ?? key, [locale]);
 
-  return { locale, setLocale, t };
+  const value = useMemo(() => ({ locale, setLocale, t }), [locale, setLocale, t]);
+
+  return <LocaleContext.Provider value={value}>{children}</LocaleContext.Provider>;
+}
+
+/**
+ * 현재 언어와 번역 함수.
+ *
+ * <p>Provider 밖에서 부르면 한국어로 동작한다 — 언어 하나 때문에 화면이 통째로 죽는 것보다, 기본
+ * 언어로라도 보이는 편이 낫다.
+ */
+export function useLocale(): LocaleContextValue {
+  const ctx = useContext(LocaleContext);
+  if (ctx) return ctx;
+  return {
+    locale: 'ko',
+    setLocale: () => {},
+    t: (key: MessageKey) => DICT.ko[key] ?? key,
+  };
 }
 
 /** 지역 표시명 — 화면 언어에 맞춰 고른다. */
