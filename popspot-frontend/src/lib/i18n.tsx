@@ -197,13 +197,27 @@ const LocaleContext = createContext<LocaleContextValue | null>(null);
  * <p>첫 렌더는 항상 'ko' 다 — 서버가 만든 HTML 과 다르면 화면이 깜빡이고 hydration 경고가 뜬다.
  * 브라우저에서 한 번 더 그린 뒤에 저장값·브라우저 언어를 반영한다.
  */
-export function LocaleProvider({ children }: { children: ReactNode }) {
-  const [locale, setLocaleState] = useState<Locale>('ko');
+export function LocaleProvider({
+  children,
+  initialLocale,
+}: {
+  children: ReactNode;
+  /**
+   * 주소가 언어를 정하는 경우({@code /en}, {@code /ja})에 넘긴다.
+   *
+   * <p>이 값이 있으면 <b>저장값·브라우저 언어를 보지 않는다.</b> 서버가 그 언어로 HTML 을 그려야
+   * 검색엔진이 영어·일본어 페이지로 인식하는데, 브라우저에서 뒤늦게 바꾸면 크롤러가 보는 것은 여전히
+   * 한국어다. 주소와 화면 언어가 어긋나면 공유된 링크도 엉뚱한 언어로 열린다.
+   */
+  initialLocale?: Locale;
+}) {
+  const [locale, setLocaleState] = useState<Locale>(initialLocale ?? 'ko');
 
   useEffect(() => {
+    if (initialLocale) return; // 주소가 언어를 정했다 — 저장값이 이를 덮으면 안 된다.
     const saved = window.localStorage.getItem(STORAGE_KEY);
     setLocaleState(isLocale(saved) ? saved : detectLocale());
-  }, []);
+  }, [initialLocale]);
 
   // 스크린리더·검색엔진이 읽는 값이라 화면 언어와 어긋나면 안 된다.
   useEffect(() => {

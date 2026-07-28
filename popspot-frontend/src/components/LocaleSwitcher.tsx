@@ -1,22 +1,25 @@
 'use client';
 
+import Link from 'next/link';
 import { Globe } from 'lucide-react';
 import { LOCALES, type Locale } from '@/lib/i18n';
+import { LOCALE_PATH } from '@/lib/localeRoutes';
 
 /**
  * 언어 전환 — 한국어 · English · 日本語.
  *
- * <p>드롭다운이 아니라 <b>세 개를 한 줄로 펼친다.</b> 항목이 셋뿐이라 접어 둘 이유가 없고, 외국인
- * 방문자는 "메뉴를 열어 언어를 찾는" 단계에서 이탈한다. 각 언어를 <b>그 언어로</b> 적는 것도 같은
- * 이유다 — 한국어 화면에서 "Japanese" 를 찾는 것보다 "日本語" 를 찾는 편이 빠르다.
+ * <p><b>버튼이 아니라 링크다.</b> 화면 언어만 바꾸면 주소가 그대로라 공유한 링크가 상대에게는 다른
+ * 언어로 열리고, 검색엔진도 영어·일본어 판이 있다는 것을 알 수 없다. 언어마다 주소가 따로 있어야
+ * 한다({@code /}, {@code /en}, {@code /ja}).
+ *
+ * <p>드롭다운이 아니라 셋을 한 줄로 펼친다 — 항목이 셋뿐이라 접어 둘 이유가 없고, 외국인 방문자는
+ * "메뉴를 열어 언어를 찾는" 단계에서 이탈한다. 각 언어를 <b>그 언어로</b> 적는 것도 같은 이유다.
  */
 export default function LocaleSwitcher({
   locale,
-  onChange,
   className = '',
 }: {
   locale: Locale;
-  onChange: (next: Locale) => void;
   className?: string;
 }) {
   return (
@@ -29,11 +32,11 @@ export default function LocaleSwitcher({
       {LOCALES.map(({ code, label }) => {
         const active = code === locale;
         return (
-          <button
+          <Link
             key={code}
-            type="button"
-            onClick={() => onChange(code)}
-            aria-pressed={active}
+            href={LOCALE_PATH[code]}
+            hrefLang={code}
+            aria-current={active ? 'true' : undefined}
             className={`rounded-pill px-2.5 py-1 text-[11px] font-bold transition ${
               active
                 ? 'bg-lime-300 text-ink-900'
@@ -41,7 +44,7 @@ export default function LocaleSwitcher({
             }`}
           >
             {label}
-          </button>
+          </Link>
         );
       })}
     </div>

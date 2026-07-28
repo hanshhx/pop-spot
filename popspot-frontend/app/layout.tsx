@@ -138,6 +138,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
+    /*
+     * lang 은 여기(루트 레이아웃)에만 있어 하위 레이아웃이 덮을 수 없다. 그래서 /en·/ja 도 서버가
+     * 보내는 HTML 에는 "ko" 가 실린다. LocaleProvider 가 브라우저에서 바로 고치므로 스크린리더·
+     * 실사용자에게는 맞는 값이 간다.
+     *
+     * 굳이 서버 단계에서 맞추려면 라우트 그룹으로 루트 레이아웃을 언어마다 따로 두어야 하는데,
+     * 기존 244개 페이지를 전부 옮기고 레이아웃을 복제해야 한다. 구글은 언어 판정에 이 속성을 쓰지
+     * 않는다고 명시하고(hreflang 과 본문을 본다) 그 둘은 이미 언어별로 정확하므로, 지금은 위험 대비
+     * 얻는 것이 작다고 보고 두었다.
+     */
     <html lang="ko" suppressHydrationWarning>
       <head>
         {/* v2.17 — JSON-LD 구조화 데이터 (WebSite + Organization). 검색 결과 풍부도 ↑. */}
