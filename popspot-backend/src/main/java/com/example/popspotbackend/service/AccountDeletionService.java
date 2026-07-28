@@ -15,6 +15,7 @@ import com.example.popspotbackend.repository.UserMusicHistoryRepository;
 import com.example.popspotbackend.repository.UserRepository;
 import com.example.popspotbackend.repository.WishlistRepository;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +23,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 /** 개인정보 처리방침에 맞춰 계정 식별정보와 사용자 생성 데이터를 한 트랜잭션에서 정리한다. */
 @Slf4j
@@ -94,12 +97,34 @@ public class AccountDeletionService {
         user.changePassword(passwordEncoder.encode("DELETED-" + UUID.randomUUID()));
         userRepository.save(user);
 
-        // 파일 삭제는 마지막에. 실패해도 탈퇴 자체는 이미 끝났고(cleaner 가 예외를 삼킨다), 반대로
-        // 앞에서 지웠다가 뒤에서 트랜잭션이 되돌아가면 파일만 사라진 어긋난 상태가 된다.
-        int removed = fileCleaner.deleteAll(filesToDelete);
-        if (!filesToDelete.isEmpty()) {
-            log.info("[AccountDeletion] 업로드 파일 정리 — 대상 {}건 중 {}건 삭제", filesToDelete.size(), removed);
-        }
+        // 파일은 DB 커밋이 성공한 뒤에만 지운다. @Transactional 메서드의 마지막 줄도 아직 커밋 전이므로
+        // 여기서 바로 삭제하면, 이후 커밋 실패로 DB만 롤백되고 파일은 복구되지 않는 어긋난 상태가 된다.
+        scheduleFileCleanupAfterCommit(List.copyOf(new LinkedHashSet<>(filesToDelete)));
         return userId;
+    }
+
+    void scheduleFileCleanupAfterCommit(List<String> files) {
+        if (files.isEmpty()) return;
+
+        if (TransactionSynchronizationManager.isActualTransactionActive()
+                && TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(
+                    new TransactionSynchronization() {
+                        @Override
+                        public void afterCommit() {
+                            cleanupFiles(files);
+                        }
+                    });
+            return;
+        }
+
+        // 프록시 밖에서 직접 호출하는 단위 테스트 등 트랜잭션이 없는 경우의 안전한 폴백.
+        // 운영 deleteAccount 호출은 위 afterCommit 경로를 탄다.
+        cleanupFiles(files);
+    }
+
+    private void cleanupFiles(List<String> files) {
+        int removed = fileCleaner.deleteAll(files);
+        log.info("[AccountDeletion] 업로드 파일 정리 — 대상 {}건 중 {}건 삭제", files.size(), removed);
     }
 }

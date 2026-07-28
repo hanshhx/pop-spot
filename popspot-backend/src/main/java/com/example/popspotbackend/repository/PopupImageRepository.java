@@ -34,6 +34,12 @@ public interface PopupImageRepository extends JpaRepository<PopupImage, Long> {
     @Query("select i.pexelsPhotoId from PopupImage i where i.pexelsPhotoId is not null")
     List<Long> findAllUsedPexelsPhotoIds();
 
+    /** 과거 데이터에 사진 ID가 비어 있어도 같은 CDN URL을 다시 배정하지 않기 위한 보조 방어. */
+    @Query(
+            "select i.imageUrl from PopupImage i "
+                    + "where i.photoOrigin = 'PEXELS' and i.imageUrl is not null")
+    List<String> findAllUsedPexelsImageUrls();
+
     /**
      * 아직 이미지가 없는 팝업에, 다른 팝업이 사용하지 않은 Pexels 사진만 원자적으로 배정한다. DB 고유 인덱스와 {@code ON CONFLICT DO
      * NOTHING}이 동시 실행에서도 중복을 차단한다.
@@ -46,7 +52,8 @@ public interface PopupImageRepository extends JpaRepository<PopupImage, Long> {
                             + " pexels_photo_id, photo_source_url, photo_credit_name, photo_credit_url)"
                             + " SELECT :imageUrl, 'Y', :popupId, 'PEXELS', :photoId, :sourceUrl,"
                             + " :creditName, :creditUrl WHERE NOT EXISTS (SELECT 1 FROM popup_image"
-                            + " WHERE popup_id = :popupId) ON CONFLICT DO NOTHING",
+                            + " WHERE popup_id = :popupId) AND NOT EXISTS (SELECT 1 FROM popup_image"
+                            + " WHERE image_url = :imageUrl) ON CONFLICT DO NOTHING",
             nativeQuery = true)
     int insertMainPexelsImageIfUnused(
             @Param("popupId") Long popupId,

@@ -28,7 +28,7 @@ jobs:
         env:
           NEXT_PUBLIC_API_URL: http://localhost:8080
           NEXT_PUBLIC_SOCKET_URL: http://localhost:8080
-          POPSPOT_ALLOW_SSG_FALLBACK: "true"
+          ALLOW_EMPTY_SEO_BUILD: "true"
 
   backend:
     runs-on: ubuntu-latest
