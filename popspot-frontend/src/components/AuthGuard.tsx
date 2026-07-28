@@ -30,6 +30,27 @@ const PUBLIC_PATHS = [
 // 되지만 색인은 막혀 있다(회원 채팅이 같은 URL 에 있어 약관 §14. app/popup/[id]/layout.tsx).
 const PUBLIC_PREFIXES = ['/popups/', '/popup/'];
 
+/**
+ * 언어별 주소({@code /en}, {@code /ja})는 <b>한국어판과 같은 규칙을 따른다.</b>
+ *
+ * <p>v2.49 — 위 경고("sitemap 에 페이지를 추가하면 이 목록도 함께 봐야 한다")를 그대로 반복했다.
+ * /en · /ja 를 만들면서 여기에 넣지 않아, 검색로봇은 영어·일본어 페이지를 색인하는데 정작 그걸 보고
+ * 들어온 사람은 로그인 화면으로 튕겼다. 외국인 유입을 늘리려 만든 페이지가 외국인을 쫓아냈다.
+ *
+ * <p>그래서 목록을 늘리는 대신 <b>접두어를 떼고 판정한다.</b> 새 공개 페이지를 추가할 때 언어별
+ * 주소를 따로 챙길 필요가 없어진다 — 빠뜨릴 수 있는 자리를 없애는 편이 기억하는 것보다 낫다.
+ */
+const LOCALE_PREFIXES = ['/en', '/ja'];
+
+/** {@code /ja/popups/seongsu} → {@code /popups/seongsu}. 언어 홈({@code /ja})은 루트로. */
+function stripLocale(pathname: string): string {
+  for (const p of LOCALE_PREFIXES) {
+    if (pathname === p) return '/';
+    if (pathname.startsWith(`${p}/`)) return pathname.slice(p.length);
+  }
+  return pathname;
+}
+
 const USER_KEY = 'user';
 
 const EXPIRED_NOTICE_TITLE = '로그인이 만료되었습니다';
@@ -42,11 +63,11 @@ const EXPIRED_NOTICE_TEXT =
  * <p>이 판정은 <b>강제 이동 여부만</b> 결정한다. 토큰 검증과 만료 이벤트 수신은 경로와 무관하게 항상
  * 수행한다 — 이유는 아래 컴포넌트 주석 참고.
  */
-function isPublicPath(pathname: string | null): boolean {
+export function isPublicPath(pathname: string | null): boolean {
   if (!pathname) return true;
-  return (
-    PUBLIC_PATHS.includes(pathname) || PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix))
-  );
+  // 언어 접두어를 떼고 본다 — /ja/popups/seongsu 는 /popups/seongsu 와 같은 페이지다.
+  const path = stripLocale(pathname);
+  return PUBLIC_PATHS.includes(path) || PUBLIC_PREFIXES.some((prefix) => path.startsWith(prefix));
 }
 
 function GuardFallback() {
