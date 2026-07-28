@@ -26,6 +26,7 @@ import {
   type PeriodCode,
   type CategoryCode,
 } from '@/lib/popupSlices';
+import { localizedLabel, useLocale } from '@/lib/i18n';
 
 /**
  * v2.21 — 메인 페이지 BROWSE 섹션 + 슬라이스 모달.
@@ -80,6 +81,7 @@ type SliceItem = {
 const EXPAND_STORAGE_KEY = 'popspot:browse:expanded';
 
 export default function BrowseSection() {
+  const { t, locale } = useLocale();
   const [markers, setMarkers] = useState<Marker[] | null>(null);
   const [error, setError] = useState(false);
   const [activeSlice, setActiveSlice] = useState<ActiveSlice | null>(null);
@@ -127,13 +129,13 @@ export default function BrowseSection() {
     }
     return REGIONS.map((r) => ({
       key: r.code,
-      label: r.label,
+      label: localizedLabel(r, locale),
       count: counts.get(r.code) ?? 0,
       kind: 'region' as const,
       code: r.code,
       slug: r.slug,
     })).filter((s) => s.count > 0);
-  }, [markers]);
+  }, [markers, locale]);
 
   const periodSlices = useMemo<SliceItem[]>(() => {
     if (!markers) return [];
@@ -146,7 +148,7 @@ export default function BrowseSection() {
         );
         return {
           key: p.code,
-          label: p.label,
+          label: localizedLabel(p, locale),
           count,
           kind: 'period' as const,
           code: p.code,
@@ -154,7 +156,7 @@ export default function BrowseSection() {
         };
       })
       .filter((s) => s.count > 0);
-  }, [markers, periods]);
+  }, [markers, periods, locale]);
 
   const categorySlices = useMemo<SliceItem[]>(() => {
     if (!markers) return [];
@@ -165,13 +167,13 @@ export default function BrowseSection() {
     }
     return CATEGORIES.map((c) => ({
       key: c.code,
-      label: c.label,
+      label: localizedLabel(c, locale),
       count: counts.get(c.code) ?? 0,
       kind: 'category' as const,
       code: c.code,
       slug: c.slug,
     })).filter((s) => s.count > 0);
-  }, [markers]);
+  }, [markers, locale]);
 
   function handleSelect(item: SliceItem) {
     if (!markers) return;
@@ -190,7 +192,7 @@ export default function BrowseSection() {
   return (
     <>
       <section
-        aria-label="둘러보기"
+        aria-label={t('browse.aria')}
         className="relative mb-6 rounded-3xl border-2 bg-gradient-to-br from-white via-lime-50/40 to-white border-lime-300/50 dark:bg-gradient-to-br dark:from-[#111] dark:via-lime-900/20 dark:to-[#111] dark:border-lime-300/25 shadow-xl shadow-lime-500/10 dark:shadow-lime-300/5 overflow-hidden"
       >
         {/* v2.21-S6 — 좌측 라임색 accent stripe 으로 지도/랭킹 카드와 시각적 구분 */}
@@ -211,7 +213,7 @@ export default function BrowseSection() {
               BROWSE
             </p>
             <h3 className="text-base md:text-lg font-black text-gray-900 dark:text-white">
-              관심 있는 슬라이스로 둘러보기
+              {t('browse.title')}
             </h3>
           </div>
           <span
@@ -235,21 +237,21 @@ export default function BrowseSection() {
               <div className="divide-y divide-gray-200 dark:divide-white/5">
                 <SliceRow
                   icon={<MapPin size={16} className="text-lime-500" />}
-                  title="지역"
+                  title={t('browse.tabRegion')}
                   slices={regionSlices}
                   isLoading={markers === null}
                   onSelect={handleSelect}
                 />
                 <SliceRow
                   icon={<CalendarDays size={16} className="text-lime-500" />}
-                  title="시점"
+                  title={t('browse.tabPeriod')}
                   slices={periodSlices}
                   isLoading={markers === null}
                   onSelect={handleSelect}
                 />
                 <SliceRow
                   icon={<Tag size={16} className="text-lime-500" />}
-                  title="카테고리"
+                  title={t('browse.tabCategory')}
                   slices={categorySlices}
                   isLoading={markers === null}
                   onSelect={handleSelect}
@@ -282,6 +284,7 @@ function SliceRow({
   isLoading: boolean;
   onSelect: (item: SliceItem) => void;
 }) {
+  const { t } = useLocale();
   return (
     <div className="px-5 md:px-6 py-4">
       <div className="flex items-center gap-2 mb-3">
@@ -301,7 +304,7 @@ function SliceRow({
           ))}
         </div>
       ) : slices.length === 0 ? (
-        <p className="text-xs text-muted-foreground">해당 슬라이스에 진행 중인 팝업이 없어요.</p>
+        <p className="text-xs text-muted-foreground">{t('browse.emptySlice')}</p>
       ) : (
         <ul className="flex flex-wrap gap-2">
           {slices.map((s) => (
@@ -309,7 +312,7 @@ function SliceRow({
               <button
                 type="button"
                 onClick={() => onSelect(s)}
-                aria-label={`${s.label} 팝업 ${s.count}개 보기`}
+                aria-label={`${s.label} ${t('slice.popups')} ${s.count} ${t('slice.view')}`}
                 className="group inline-flex items-center gap-2 px-3 py-1.5 rounded-pill text-sm font-medium transition-all border bg-white text-gray-900 border-gray-200 hover:border-lime-300 hover:bg-lime-50 dark:bg-white/5 dark:text-white dark:border-white/10 dark:hover:bg-lime-300/10 dark:hover:border-lime-300/40"
               >
                 <span>{s.label}</span>
@@ -332,6 +335,7 @@ function SliceRow({
 /* ============================== 슬라이스 모달 ============================== */
 
 function SliceModal({ slice, onClose }: { slice: ActiveSlice; onClose: () => void }) {
+  const { t } = useLocale();
   const router = useRouter();
   const paramKey =
     slice.kind === 'region' ? 'region' : slice.kind === 'period' ? 'period' : 'category';
@@ -367,7 +371,7 @@ function SliceModal({ slice, onClose }: { slice: ActiveSlice; onClose: () => voi
       onClick={onClose}
       role="dialog"
       aria-modal="true"
-      aria-label={`${slice.label} 팝업 목록`}
+      aria-label={`${slice.label} ${t('slice.listAria')}`}
     >
       <motion.div
         initial={{ y: 60, opacity: 0 }}
@@ -384,14 +388,17 @@ function SliceModal({ slice, onClose }: { slice: ActiveSlice; onClose: () => voi
               {slice.kind === 'region' ? 'REGION' : slice.kind === 'period' ? 'WHEN' : 'CATEGORY'}
             </p>
             <h2 className="text-lg md:text-xl font-black text-gray-900 dark:text-white">
-              {slice.label} 팝업{' '}
-              <span className="text-lime-600 dark:text-lime-300">{slice.matches.length}곳</span>
+              {slice.label} {t('slice.popups')}{' '}
+              <span className="text-lime-600 dark:text-lime-300">
+                {slice.matches.length}
+                {t('slice.countUnit')}
+              </span>
             </h2>
           </div>
           <button
             type="button"
             onClick={onClose}
-            aria-label="닫기"
+            aria-label={t('common.close')}
             className="p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 transition-colors text-gray-500 dark:text-white/60"
           >
             <X size={18} />
@@ -401,9 +408,7 @@ function SliceModal({ slice, onClose }: { slice: ActiveSlice; onClose: () => voi
         {/* 리스트 */}
         <div className="flex-1 overflow-y-auto custom-scrollbar px-2 md:px-3 py-2">
           {slice.matches.length === 0 ? (
-            <p className="text-sm text-muted-foreground p-6 text-center">
-              지금 진행 중인 팝업이 없어요.
-            </p>
+            <p className="text-sm text-muted-foreground p-6 text-center">{t('browse.emptyAll')}</p>
           ) : (
             <ul>
               {slice.matches.slice(0, 50).map((m) => (
@@ -421,7 +426,7 @@ function SliceModal({ slice, onClose }: { slice: ActiveSlice; onClose: () => voi
                         {m.name}
                       </p>
                       <p className="text-xs text-muted-foreground truncate">
-                        {m.location ?? '위치 정보 없음'}
+                        {m.location ?? t('common.noLocation')}
                       </p>
                       {(m.startDate || m.endDate) && (
                         <p className="text-[11px] text-muted-foreground mt-0.5">
@@ -452,14 +457,14 @@ function SliceModal({ slice, onClose }: { slice: ActiveSlice; onClose: () => voi
             onClick={onClose}
             className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-lime-300 text-ink-900 font-bold text-sm hover:bg-lime-400 transition"
           >
-            <MapIcon size={14} /> 지도에서 보기
+            <MapIcon size={14} /> {t('browse.viewMap')}
           </Link>
           <Link
             href={landingHref}
             onClick={onClose}
             className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-gray-300 dark:border-white/15 bg-white dark:bg-white/5 text-gray-900 dark:text-white font-bold text-sm hover:bg-gray-100 dark:hover:bg-white/10 transition"
           >
-            <ExternalLink size={14} /> 전체 페이지
+            <ExternalLink size={14} /> {t('browse.viewAllPage')}
           </Link>
         </footer>
       </motion.div>

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { MessageCircle } from 'lucide-react';
 import Link from 'next/link';
+import { useLocale } from '@/lib/i18n';
 // GET 호출은 apiFetch 의 Content-Type 헤더가 preflight 를 일으켜서
 // 직접 fetch 를 사용한다.
 
@@ -15,6 +16,7 @@ interface TickerMessage {
 }
 
 export default function LiveChatTicker() {
+  const { t } = useLocale();
   const [messages, setMessages] = useState<TickerMessage[]>([]);
 
   // 1. 최신 채팅 데이터 가져오기 — Simple Request 로 보내야 preflight 회피
@@ -57,7 +59,7 @@ export default function LiveChatTicker() {
         <h3 className="font-black text-lg md:text-xl text-gray-900 dark:text-white uppercase italic tracking-tighter">
           LIVE NOW{' '}
           <span className="text-gray-400 text-[10px] md:text-sm font-normal not-italic ml-1.5 md:ml-2">
-            성수동 실시간 현황
+            {t('misc.tickerSubtitle')}
           </span>
         </h3>
       </div>
@@ -75,6 +77,7 @@ export default function LiveChatTicker() {
             repeat: Infinity,
           }}
         >
+          {/* 팝업 이름 · 닉네임 · 채팅 내용은 현장에서 오간 원문 그대로 흘린다 — 옮기면 누가 무슨 말을 했는지가 아니라 번역기의 말이 된다. */}
           {messages.map((msg, idx) => (
             <Link href={`/popup/${msg.popupId}`} key={idx} className="shrink-0">
               <div

@@ -1,4 +1,7 @@
+'use client';
+
 import Link from 'next/link';
+import { useLocale, type MessageKey } from '@/lib/i18n';
 import { Instagram } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Logo } from '@/components/layout/Logo';
@@ -28,21 +31,24 @@ const MAIL_SUBJECT_PARTNER = 'POP-SPOT 파트너 등록 문의';
 const MAIL_SUBJECT_BUSINESS = 'POP-SPOT 비즈니스 문의';
 const MAIL_SUBJECT_AD = 'POP-SPOT 광고 안내 문의';
 
-const PLATFORM_LINKS: ReadonlyArray<{ label: string; href: string }> = [
-  { label: '지도 보기', href: '/' },
-  { label: '팝업 캘린더', href: '/' },
-  { label: 'AI 혼잡도 분석', href: '/' },
-  { label: '매거진', href: '/' },
-  { label: '서비스 소개', href: '/about' },
-  { label: '의견 보내기', href: '/feedback' },
-  { label: '이용약관', href: '/terms' },
-  { label: '개인정보 처리방침', href: '/privacy' },
+const PLATFORM_LINKS: ReadonlyArray<{ labelKey: MessageKey; href: string }> = [
+  { labelKey: 'footer.mapView', href: '/' },
+  { labelKey: 'footer.calendar', href: '/' },
+  { labelKey: 'footer.congestion', href: '/' },
+  { labelKey: 'footer.magazine', href: '/' },
+  { labelKey: 'footer.about', href: '/about' },
+  { labelKey: 'feedback.send', href: '/feedback' },
+  { labelKey: 'footer.terms', href: '/terms' },
+  { labelKey: 'footer.privacy', href: '/privacy' },
 ];
 
-const PARTNER_LINKS: ReadonlyArray<{ label: string; href: string }> = [
-  { label: '파트너 등록', href: `mailto:${CONTACT_EMAIL}?subject=${MAIL_SUBJECT_PARTNER}` },
-  { label: '비즈니스 문의', href: `mailto:${CONTACT_EMAIL}?subject=${MAIL_SUBJECT_BUSINESS}` },
-  { label: '광고 안내', href: `mailto:${CONTACT_EMAIL}?subject=${MAIL_SUBJECT_AD}` },
+const PARTNER_LINKS: ReadonlyArray<{ labelKey: MessageKey; href: string }> = [
+  {
+    labelKey: 'footer.partnerReg',
+    href: `mailto:${CONTACT_EMAIL}?subject=${MAIL_SUBJECT_PARTNER}`,
+  },
+  { labelKey: 'footer.business', href: `mailto:${CONTACT_EMAIL}?subject=${MAIL_SUBJECT_BUSINESS}` },
+  { labelKey: 'footer.ads', href: `mailto:${CONTACT_EMAIL}?subject=${MAIL_SUBJECT_AD}` },
 ];
 
 interface FooterProps {
@@ -74,15 +80,16 @@ export function Footer({ className }: FooterProps) {
 /* ============================== 내부 컴포넌트 ============================== */
 
 function BrandColumn() {
+  const { t } = useLocale();
   return (
     <div className="col-span-1 sm:col-span-2">
       <h2 className="mb-3">
         <Logo className="h-6 lg:h-7" />
       </h2>
       <p className="text-sm text-muted-foreground max-w-sm mb-6 leading-relaxed">
-        서울 팝업스토어 정보를 한곳에 모아둔 곳.
+        {t('footer.tagline1')}
         <br className="hidden md:block" />
-        매일 새로 열리는 팝업을 찾고, 가고, 기록해요.
+        {t('footer.tagline2')}
       </p>
       <div className="flex gap-3">
         <SocialLink
@@ -112,11 +119,12 @@ function SocialLink({ href, label, icon }: { href: string; label: string; icon: 
 
 interface LinkColumnProps {
   title: string;
-  links: ReadonlyArray<{ label: string; href: string }>;
+  links: ReadonlyArray<{ labelKey: MessageKey; href: string }>;
   external?: boolean;
 }
 
 function LinkColumn({ title, links, external }: LinkColumnProps) {
+  const { t } = useLocale();
   return (
     <div>
       <h4 className="font-bold mb-5 uppercase tracking-[0.15em] text-xs text-foreground">
@@ -125,15 +133,15 @@ function LinkColumn({ title, links, external }: LinkColumnProps) {
       <ul className="space-y-3 text-sm text-muted-foreground">
         {links.map((l) =>
           external ? (
-            <li key={l.label}>
+            <li key={l.labelKey}>
               <a href={l.href} className="hover:text-lime-500 transition-colors">
-                {l.label}
+                {t(l.labelKey)}
               </a>
             </li>
           ) : (
-            <li key={l.label}>
+            <li key={l.labelKey}>
               <Link href={l.href} className="hover:text-lime-500 transition-colors">
-                {l.label}
+                {t(l.labelKey)}
               </Link>
             </li>
           ),
@@ -144,27 +152,23 @@ function LinkColumn({ title, links, external }: LinkColumnProps) {
 }
 
 function DisclaimerBox() {
+  const { t } = useLocale();
   return (
     <div className="mt-12 pt-8 border-t border-[var(--color-border)] text-center max-w-[1200px] mx-auto px-6">
       <div className="rounded-lg p-5 text-sm md:text-xs text-muted-foreground leading-relaxed border border-[var(--color-border)] bg-surface/50">
-        <p className="font-bold mb-2 text-foreground">
-          [정보 안내] 서울 팝업스토어 정보를 모아 안내하는 서비스입니다.
-        </p>
+        <p className="font-bold mb-2 text-foreground">{t('footer.noticeHead')}</p>
         <p className="mb-2">
-          본 서비스는 실제 티켓 예매 및 금전적 거래를 처리하지 않습니다. 팝업스토어 자체의 입장 /
-          예약 / 구매는 각 운영사의 공식 채널을 이용해 주세요.
+          {t('footer.noticePay')} {t('footer.noticePayTail')}
         </p>
         <p>
-          팝업스토어 정보 일부는 공개된 검색 API (네이버 · 카카오) 와 사용자 제보를 기반으로 자동 /
-          수동 수집 · 정리됩니다. 정보 정확성을 보장하지 않으며, 자세한 내용은{' '}
+          {t('footer.noticeSource')}{' '}
           <Link href="/terms" className="text-lime-500 hover:underline">
-            이용약관 §10
+            {t('footer.terms')} §10
           </Link>{' '}
-          를 참고해주세요.
+          {t('footer.noticeSourceTail')}
         </p>
         <p className="mt-2">
-          일부 커버는 실제 팝업 현장이 아닌 주제별 연출 이미지이며 화면에 별도 표시됩니다. 연출
-          이미지는{' '}
+          {t('footer.noticePhoto')}{' '}
           <a
             href="https://www.pexels.com/"
             target="_blank"
@@ -173,25 +177,24 @@ function DisclaimerBox() {
           >
             Photos provided by Pexels
           </a>
-          를 통해 제공됩니다.
+          {t('footer.noticePhotoTail')}
         </p>
         <p>
-          저작권 · 정보 오류 등으로 정보 삭제 · 수정이 필요한 경우 각 팝업 상세페이지의 신고 버튼
-          또는 아래 이메일로 연락 주시면 <strong>접수 즉시 노출이 차단되며 24시간 내 조치</strong>
-          됩니다.
+          {t('footer.noticeReport')} <strong>{t('footer.noticeReportStrong')}</strong>
+          {t('footer.noticeReportTail')}
         </p>
         <p className="mt-3 font-bold">
-          개인정보 보호 / 권리자 문의:{' '}
+          {t('footer.contact')}:{' '}
           <a href={`mailto:${CONTACT_EMAIL}`} className="text-lime-500 hover:underline">
             {CONTACT_EMAIL}
           </a>
         </p>
         {/* v2.18.1 — 운영자 정보. 사업자 / 통신판매업 신고는 실제 운영 시작 시 채워 넣기. */}
         <div className="mt-4 pt-4 border-t border-[var(--color-border)] grid grid-cols-1 md:grid-cols-2 gap-1 text-xs md:text-[10px] text-muted-foreground/80">
-          <p>서비스 제공: POP-SPOT 운영팀</p>
-          <p>호스팅 서비스 제공자: Vercel · 자체 운영 NAS</p>
-          <p>광고 / 후원 수익: 받지 않음 (개인 비영리 운영)</p>
-          <p>실제 결제 / 예매: 처리하지 않음 — 안내 서비스 한정</p>
+          <p>{t('footer.provider')}</p>
+          <p>{t('footer.hosting')}</p>
+          <p>{t('footer.revenue')}</p>
+          <p>{t('footer.noPayment')}</p>
         </div>
 
         <SectionLogo

@@ -14,6 +14,7 @@ import {
 
 import { apiFetch } from '@/lib/api';
 import { notify } from '@/lib/notify';
+import { useLocale } from '@/lib/i18n';
 import { useSpotifyAuth } from '@/features/music/useSpotifyAuth';
 import type { MatchResult, MusicTrack } from '@/types/music';
 import { useYouTubePlayer, describeYouTubeError } from './useYouTubePlayer';
@@ -109,6 +110,9 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
   // v2.21-S13 — Spotify 연결 / Premium 상태 (3-tier 엔진 결정에 사용).
   const spotifyAuth = useSpotifyAuth();
 
+  // 재생이 막혀 곡을 건너뛸 때 토스트로 이유를 알린다 — 그 문구만 언어를 탄다.
+  const { t } = useLocale();
+
   /**
    * v2.21-S13 — 재생 엔진 결정.
    *
@@ -146,11 +150,13 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
       if (skippedTrackIdRef.current === failed.id) return;
       skippedTrackIdRef.current = failed.id;
 
+      // 곡 제목은 원문 그대로 둔다 — 옮기면 무슨 곡인지 알아볼 수 없다.
+      // 실패 사유(describeYouTubeError)는 아직 훅 안의 한국어 문자열이라 여기서는 손대지 못한다.
       const reason = describeYouTubeError(code);
       notify({
         icon: 'info',
-        title: '다음 곡으로 넘어가요',
-        text: `"${failed.trackName ?? '이 곡'}" — ${reason}`,
+        title: t('spotify.skipTitle'),
+        text: `"${failed.trackName ?? t('spotify.thisTrack')}" — ${reason}`,
         timer: 2500,
       });
 
@@ -306,12 +312,13 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
 
     notify({
       icon: 'info',
-      title: '공식 음원을 찾지 못했어요',
-      text: `"${current.trackName ?? '이 곡'}" — 다음 곡으로 넘어갑니다`,
+      title: t('spotify.noMatchTitle'),
+      text: `"${current.trackName ?? t('spotify.thisTrack')}" — ${t('spotify.noMatchText')}`,
       timer: 2500,
     });
     playNextFromQueue();
-  }, [current, matchLoading, playNextFromQueue, engine]);
+    // t 가 늘어도 위의 noMatchHandledRef 가 같은 곡을 두 번 처리하지 않게 막아준다.
+  }, [current, matchLoading, playNextFromQueue, engine, t]);
 
   /* ============================== Context value ============================== */
 

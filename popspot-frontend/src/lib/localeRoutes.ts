@@ -47,6 +47,25 @@ export function localeAlternates(locale: Locale): Metadata['alternates'] {
   };
 }
 
+/**
+ * 검색 랜딩 페이지({@code /popups/<slug>})의 언어별 대체 주소.
+ *
+ * <p>슬러그는 세 언어가 <b>같은 값을 쓴다.</b> 주소까지 언어별로 번역하면(seongsu → ソンス) 이미
+ * 색인된 한국어 주소와 짝이 맞지 않고, 같은 곳을 가리키는 문서인지 검색엔진이 알 수 없다.
+ */
+export function slugAlternates(slug: string, locale: Locale): Metadata['alternates'] {
+  const at = (l: Locale) => `${SITE_URL}${l === 'ko' ? '' : LOCALE_PATH[l]}/popups/${slug}`;
+  return {
+    canonical: at(locale),
+    languages: {
+      [HREFLANG.ko]: at('ko'),
+      [HREFLANG.en]: at('en'),
+      [HREFLANG.ja]: at('ja'),
+      'x-default': at('ko'),
+    },
+  };
+}
+
 /** 검색 결과에 뜨는 제목·설명. 번역이 아니라 그 언어 사용자가 실제로 검색할 말로 쓴다. */
 export const LOCALE_META: Record<Locale, { title: string; description: string }> = {
   ko: {

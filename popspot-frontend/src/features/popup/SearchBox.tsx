@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Sparkles, Loader2, MapPin, ArrowRight } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import { SectionLogo } from '@/components/layout/BrandLogos';
+import { useLocale } from '@/lib/i18n';
 
 /**
  * AI 검색존 — 기존 Algolia 서치바를 걷어내고 자연어 'AI 검색'을 메인 검색으로 승격.
@@ -25,14 +26,22 @@ interface SearchZoneProps {
   popups?: { id: number; name: string; location: string }[];
 }
 
+/**
+ * 예시 검색어 — <b>보이는 문구와 실제로 보내는 검색어를 나눈다.</b>
+ *
+ * <p>이 칩은 누르면 그 문구가 그대로 검색어가 된다. 번역한 영어를 그대로 보내면 한국어 팝업 이름·
+ * 설명을 대상으로 도는 검색이 빈 결과를 낸다. 그래서 화면에는 각 언어로 보여 주되 질의는 한국어로
+ * 고정한다.
+ */
 const EXAMPLES = [
-  '비 오는 날 감성 카페',
-  '성수 캐릭터 굿즈',
-  '주말 전시 팝업',
-  '아이랑 가기 좋은 곳',
-];
+  { key: 'search.ex1', query: '비 오는 날 감성 카페' },
+  { key: 'search.ex2', query: '성수 캐릭터 굿즈' },
+  { key: 'search.ex3', query: '주말 전시 팝업' },
+  { key: 'search.ex4', query: '아이랑 가기 좋은 곳' },
+] as const;
 
 export function SearchZone({ onAiFilter, onSelectPopup, popups }: SearchZoneProps = {}) {
+  const { t } = useLocale();
   const [q, setQ] = useState('');
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<AiResult[] | null>(null);
@@ -143,8 +152,8 @@ export function SearchZone({ onAiFilter, onSelectPopup, popups }: SearchZoneProp
               setShowSuggest(false);
             }
           }}
-          placeholder="팝업 이름 또는 느낌으로 검색 — 예: 마뗑킴, 비 오는 날 감성 카페"
-          aria-label="팝업 이름·AI 검색"
+          placeholder={t('search.placeholder')}
+          aria-label={t('search.aria')}
           autoComplete="off"
           className="h-14 w-full rounded-pill border-2 border-lime-300/40 bg-surface py-3.5 pl-12 pr-24 text-sm text-foreground transition-all placeholder:text-muted-foreground focus:border-lime-400 focus:outline-none focus:ring-4 focus:ring-lime-300/20 md:text-base"
         />
@@ -155,11 +164,11 @@ export function SearchZone({ onAiFilter, onSelectPopup, popups }: SearchZoneProp
             run();
           }}
           disabled={loading || !q.trim()}
-          aria-label="AI 검색 실행"
+          aria-label={t('search.run')}
           className="absolute right-1.5 top-1/2 inline-flex h-11 -translate-y-1/2 items-center gap-1.5 rounded-pill bg-lime-300 px-4 text-sm font-bold text-ink-900 transition hover:bg-lime-400 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {loading ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
-          찾기
+          {t('search.submit')}
         </button>
 
         {/* 이름 즉시검색 드롭다운 — 고르면 지도가 그 핀으로 이동 + 카드 오픈 */}
@@ -180,13 +189,13 @@ export function SearchZone({ onAiFilter, onSelectPopup, popups }: SearchZoneProp
                       {p.name}
                     </span>
                     <span className="block truncate text-xs text-muted-foreground">
-                      {p.location || '위치 정보 없음'}
+                      {p.location || t('common.noLocation')}
                     </span>
                   </span>
                   {/* 지도 모드면 해당 핀으로 이동하고, 모달(글로벌 검색)에선 상세로 보낸다.
                       문구가 실제 동작과 어긋나면 사용자가 어디로 가는지 예측할 수 없다. */}
                   <span className="shrink-0 text-[10px] font-bold text-lime-600 dark:text-lime-300">
-                    {mapMode ? '지도에서 보기' : '상세 보기'}
+                    {mapMode ? t('browse.viewMap') : t('common.viewDetail')}
                   </span>
                 </button>
               </li>
@@ -200,9 +209,9 @@ export function SearchZone({ onAiFilter, onSelectPopup, popups }: SearchZoneProp
         <div className="mt-3 flex items-center justify-between gap-2 text-xs">
           <span className={erred ? 'font-medium text-hot-500' : 'text-muted-foreground'}>
             {erred
-              ? 'AI 검색이 잠시 안 돼요. 다시 시도해 주세요.'
+              ? t('search.aiError')
               : count === 0
-                ? '맞는 팝업을 못 찾았어요. 다르게 말해볼까요?'
+                ? t('search.noMatch')
                 : mapMode
                   ? `지도에 ${count}곳만 표시 중 ✨`
                   : `${count}곳 찾았어요 ✨`}
@@ -212,7 +221,7 @@ export function SearchZone({ onAiFilter, onSelectPopup, popups }: SearchZoneProp
             onClick={reset}
             className="shrink-0 font-bold text-lime-700 hover:underline dark:text-lime-300"
           >
-            {mapMode ? '전체 지도 보기' : '초기화'}
+            {mapMode ? t('search.viewFullMap') : t('course.reset')}
           </button>
         </div>
       )}
@@ -234,7 +243,7 @@ export function SearchZone({ onAiFilter, onSelectPopup, popups }: SearchZoneProp
                     {r.name}
                   </p>
                   <p className="truncate text-xs text-muted-foreground">
-                    {r.location || '위치 정보 없음'}
+                    {r.location || t('common.noLocation')}
                   </p>
                 </div>
                 <ArrowRight
@@ -252,12 +261,12 @@ export function SearchZone({ onAiFilter, onSelectPopup, popups }: SearchZoneProp
         <div className="mt-3 flex flex-wrap gap-1.5">
           {EXAMPLES.map((ex) => (
             <button
-              key={ex}
+              key={ex.key}
               type="button"
-              onClick={() => run(ex)}
+              onClick={() => run(ex.query)}
               className="rounded-pill border border-[var(--color-border)] bg-surface px-2.5 py-1 text-[11px] text-muted-foreground transition-colors hover:border-lime-300 hover:text-lime-600 dark:hover:text-lime-300"
             >
-              {ex}
+              {t(ex.key)}
             </button>
           ))}
         </div>

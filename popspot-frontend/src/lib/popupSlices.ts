@@ -10,6 +10,14 @@ export type PeriodCode = 'today' | 'tomorrow' | 'this-week' | 'this-weekend' | '
 export type PeriodDef = {
   code: PeriodCode;
   label: string;
+  /**
+   * 영어·일본어 표시명.
+   *
+   * <p>기간은 날짜·요일이 섞여 있어 단순 번역이 안 된다. 영어권은 {@code Jul 28} 처럼 월 이름을
+   * 쓰고 한·일은 {@code 7/28} 을 쓰며, 요일 표기도 서로 다르다. 그래서 언어마다 따로 만든다.
+   */
+  labelEn: string;
+  labelJa: string;
   slug: string;
 };
 
@@ -33,6 +41,24 @@ export type PeriodDef = {
 export function getPeriods(now: Date = new Date()): PeriodDef[] {
   const md = (d: Date) => `${d.getMonth() + 1}/${d.getDate()}`;
   const dow = (d: Date) => ['일', '월', '화', '수', '목', '금', '토'][d.getDay()];
+  const dowJa = (d: Date) => ['日', '月', '火', '水', '木', '金', '土'][d.getDay()];
+  const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const DOW_EN = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const mdEn = (d: Date) => `${MON[d.getMonth()]} ${d.getDate()}`;
+  const MONTH_EN = [
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
+  ];
 
   const today = kstCalendarDate(now);
   const tomorrow = new Date(today);
@@ -49,19 +75,49 @@ export function getPeriods(now: Date = new Date()): PeriodDef[] {
   const offsetToSat = (6 - today.getDay() + 7) % 7;
   const saturday = new Date(today);
   saturday.setDate(saturday.getDate() + offsetToSat);
-  const weekendLabel =
-    today.getDay() === 0 ? `다음 주말 (${md(saturday)})` : `이번 주말 (${md(saturday)})`;
+  const nextWeekend = today.getDay() === 0; // 일요일이면 이번 주말은 이미 지났다
+  const weekendLabel = nextWeekend ? `다음 주말 (${md(saturday)})` : `이번 주말 (${md(saturday)})`;
+  const weekendLabelEn = nextWeekend
+    ? `Next weekend (${mdEn(saturday)})`
+    : `This weekend (${mdEn(saturday)})`;
+  const weekendLabelJa = nextWeekend ? `来週末 (${md(saturday)})` : `今週末 (${md(saturday)})`;
 
   return [
-    { code: 'today', label: `오늘 (${md(today)} ${dow(today)})`, slug: 'today' },
-    { code: 'tomorrow', label: `내일 (${md(tomorrow)} ${dow(tomorrow)})`, slug: 'tomorrow' },
+    {
+      code: 'today',
+      label: `오늘 (${md(today)} ${dow(today)})`,
+      labelEn: `Today (${mdEn(today)}, ${DOW_EN[today.getDay()]})`,
+      labelJa: `今日 (${md(today)} ${dowJa(today)})`,
+      slug: 'today',
+    },
+    {
+      code: 'tomorrow',
+      label: `내일 (${md(tomorrow)} ${dow(tomorrow)})`,
+      labelEn: `Tomorrow (${mdEn(tomorrow)}, ${DOW_EN[tomorrow.getDay()]})`,
+      labelJa: `明日 (${md(tomorrow)} ${dowJa(tomorrow)})`,
+      slug: 'tomorrow',
+    },
     {
       code: 'this-week',
       label: `이번 주 (${md(weekStart)}~${md(weekEnd)})`,
+      labelEn: `This week (${mdEn(weekStart)}–${mdEn(weekEnd)})`,
+      labelJa: `今週 (${md(weekStart)}〜${md(weekEnd)})`,
       slug: 'this-week',
     },
-    { code: 'this-weekend', label: weekendLabel, slug: 'this-weekend' },
-    { code: 'this-month', label: `${today.getMonth() + 1}월`, slug: 'this-month' },
+    {
+      code: 'this-weekend',
+      label: weekendLabel,
+      labelEn: weekendLabelEn,
+      labelJa: weekendLabelJa,
+      slug: 'this-weekend',
+    },
+    {
+      code: 'this-month',
+      label: `${today.getMonth() + 1}월`,
+      labelEn: MONTH_EN[today.getMonth()],
+      labelJa: `${today.getMonth() + 1}月`,
+      slug: 'this-month',
+    },
   ];
 }
 
@@ -77,6 +133,15 @@ export type CategoryCode =
 export type CategoryDef = {
   code: CategoryCode;
   label: string;
+  /**
+   * 영어·일본어 표시명.
+   *
+   * <p>사전(i18n)이 아니라 정의에 함께 둔다 — 카테고리는 <b>서버가 만드는 검색 페이지</b>에서도
+   * 쓰이는데, 사전은 브라우저의 언어 상태에 기대는 훅이라 서버에서 읽을 수 없다. 지역도 같은 이유로
+   * regions.ts 에 labelEn/labelJa 를 둔다.
+   */
+  labelEn: string;
+  labelJa: string;
   slug: string;
   /** 한국어 카테고리 원문 매칭 키워드. 백엔드 category 필드가 자유 텍스트라 substring 매칭. */
   keywords: string[];
@@ -88,42 +153,56 @@ export const CATEGORIES: CategoryDef[] = [
   {
     code: 'character',
     label: '캐릭터',
+    labelEn: 'Characters',
+    labelJa: 'キャラクター',
     slug: 'character',
     keywords: ['캐릭터', '굿즈', '애니', 'character', 'CHARACTER'],
   },
   {
     code: 'fashion',
     label: '패션',
+    labelEn: 'Fashion',
+    labelJa: 'ファッション',
     slug: 'fashion',
     keywords: ['패션', '의류', '잡화', 'fashion', 'FASHION'],
   },
   {
     code: 'beauty',
     label: '뷰티',
+    labelEn: 'Beauty',
+    labelJa: 'ビューティー',
     slug: 'beauty',
     keywords: ['뷰티', '화장품', '코스메틱', 'beauty', 'BEAUTY'],
   },
   {
     code: 'dessert',
     label: '푸드',
+    labelEn: 'Food',
+    labelJa: 'フード',
     slug: 'dessert',
     keywords: ['디저트', '베이커리', '카페', '푸드', '음료', 'dessert', 'FOOD'],
   },
   {
     code: 'art',
     label: '문화',
+    labelEn: 'Culture',
+    labelJa: 'カルチャー',
     slug: 'art',
     keywords: ['아트', '전시', '갤러리', 'art', 'CULTURE'],
   },
   {
     code: 'lifestyle',
     label: '라이프',
+    labelEn: 'Lifestyle',
+    labelJa: 'ライフスタイル',
     slug: 'lifestyle',
     keywords: ['라이프', '리빙', '홈', 'lifestyle'],
   },
   {
     code: 'tech',
     label: '테크',
+    labelEn: 'Tech',
+    labelJa: 'テック',
     slug: 'tech',
     keywords: ['테크', '전자', 'IT', 'tech'],
   },
@@ -332,6 +411,17 @@ export function categoryBySlug(slug: string): CategoryDef | undefined {
 export type BrandDef = {
   slug: string;
   label: string;
+  /**
+   * 영어·일본어 표기 — <b>그 IP·브랜드가 실제로 쓰는 공식 이름</b>을 쓴다.
+   *
+   * <p>음역하면 그 언어권에서 아무도 검색하지 않는 말이 된다(귀멸의 칼날 → Gwimyeorui Kalnal).
+   * 공식 표기는 Demon Slayer / 鬼滅の刃 다.
+   *
+   * <p>공식 표기를 확인하지 못한 항목에는 옆에 표시를 달아 뒀다. 정식 라이선스가 나오면 바뀔 수
+   * 있으니 그때 다시 확인해야 한다.
+   */
+  labelEn: string;
+  labelJa: string;
   /** 팝업 이름/위치에 이 중 하나라도 포함되면 매칭(대소문자 무시). */
   keywords: string[];
 };
@@ -341,20 +431,32 @@ export type BrandDef = {
  * 매칭 팝업이 0곳이면 thin content 방지로 noindex(진행 중일 때만 색인). 구글 트렌드(2026-07) 고관심·급상승어 기반.
  */
 export const BRANDS: BrandDef[] = [
-  { slug: 'stellive', label: '스텔라이브', keywords: ['스텔라이브', '스텔 라이브'] },
+  {
+    slug: 'stellive',
+    label: '스텔라이브',
+    labelEn: 'StelLive',
+    labelJa: 'ステライブ',
+    keywords: ['스텔라이브', '스텔 라이브'],
+  },
   {
     slug: 'overwatch',
     label: '오버워치',
+    labelEn: 'Overwatch',
+    labelJa: 'オーバーウォッチ',
     keywords: ['오버워치', '오버 워치', 'overwatch', '옵치'],
   },
   {
     slug: 'pokemon',
     label: '포켓몬',
+    labelEn: 'Pokémon',
+    labelJa: 'ポケモン',
     keywords: ['포켓몬', 'pokemon', '피카츄', '메타몽', '이브이'],
   },
   {
     slug: 'sanrio',
     label: '산리오',
+    labelEn: 'Sanrio',
+    labelJa: 'サンリオ',
     keywords: [
       '산리오',
       'sanrio',
@@ -366,136 +468,391 @@ export const BRANDS: BrandDef[] = [
       '포차코',
     ],
   },
-  { slug: 'genshin', label: '원신', keywords: ['원신', 'genshin'] },
-  { slug: 'toy-story', label: '토이스토리', keywords: ['토이스토리', '토이 스토리', 'toy story'] },
-  { slug: 'demon-slayer', label: '귀멸의 칼날', keywords: ['귀멸의 칼날', '귀멸의칼날', '귀칼'] },
-  { slug: 'jujutsu-kaisen', label: '주술회전', keywords: ['주술회전', '주술 회전'] },
+  {
+    slug: 'genshin',
+    label: '원신',
+    labelEn: 'Genshin Impact',
+    labelJa: '原神',
+    keywords: ['원신', 'genshin'],
+  },
+  {
+    slug: 'toy-story',
+    label: '토이스토리',
+    labelEn: 'Toy Story',
+    labelJa: 'トイ・ストーリー',
+    keywords: ['토이스토리', '토이 스토리', 'toy story'],
+  },
+  {
+    slug: 'demon-slayer',
+    label: '귀멸의 칼날',
+    labelEn: 'Demon Slayer: Kimetsu no Yaiba',
+    labelJa: '鬼滅の刃',
+    keywords: ['귀멸의 칼날', '귀멸의칼날', '귀칼'],
+  },
+  {
+    slug: 'jujutsu-kaisen',
+    label: '주술회전',
+    labelEn: 'Jujutsu Kaisen',
+    labelJa: '呪術廻戦',
+    keywords: ['주술회전', '주술 회전'],
+  },
   // '승리의 여신' 은 국내 정식 표기(승리의 여신: 니케). 크롤러가 부제를 떼고 앞부분만 실어오면
   // '니케'/'nikke' 로는 못 잡아서 함께 둔다. 문구가 길어 오탐 위험은 사실상 없다.
-  { slug: 'nikke', label: '니케', keywords: ['니케', 'nikke', '승리의 여신'] },
+  {
+    slug: 'nikke',
+    label: '니케',
+    labelEn: 'Goddess of Victory: NIKKE',
+    labelJa: '勝利の女神：NIKKE',
+    keywords: ['니케', 'nikke', '승리의 여신'],
+  },
   {
     slug: 'project-sekai',
     label: '프로젝트 세카이',
+    labelEn: 'HATSUNE MIKU: COLORFUL STAGE!' /* 공식 표기 미확인 — 통용 표기 */,
+    labelJa: 'プロジェクトセカイ カラフルステージ！ feat. 初音ミク',
     keywords: ['프로젝트 세카이', '프세카', 'project sekai'],
   },
   {
     slug: 'hatsune-miku',
     label: '하츠네 미쿠',
+    labelEn: 'Hatsune Miku',
+    labelJa: '初音ミク',
     keywords: ['하츠네 미쿠', '하츠네미쿠', '미쿠', 'miku'],
   },
-  { slug: 'djmax', label: '디맥', keywords: ['디맥', 'djmax', '디제이맥스'] },
-  { slug: 'roblox', label: '로블록스', keywords: ['로블록스', 'roblox'] },
+  {
+    slug: 'djmax',
+    label: '디맥',
+    labelEn: 'DJMAX',
+    labelJa: 'DJMAX',
+    keywords: ['디맥', 'djmax', '디제이맥스'],
+  },
+  {
+    slug: 'roblox',
+    label: '로블록스',
+    labelEn: 'Roblox',
+    labelJa: 'ロブロックス',
+    keywords: ['로블록스', 'roblox'],
+  },
   {
     slug: 'blue-archive',
     label: '블루아카이브',
+    labelEn: 'Blue Archive',
+    labelJa: 'ブルーアーカイブ',
     keywords: ['블루아카이브', '블루 아카이브', '블아'],
   },
-  { slug: 'disney', label: '디즈니', keywords: ['디즈니', 'disney'] },
-  { slug: 'kakao-friends', label: '카카오프렌즈', keywords: ['카카오프렌즈', '춘식이'] },
-  { slug: 'line-friends', label: '라인프렌즈', keywords: ['라인프렌즈'] },
+  {
+    slug: 'disney',
+    label: '디즈니',
+    labelEn: 'Disney',
+    labelJa: 'ディズニー',
+    keywords: ['디즈니', 'disney'],
+  },
+  {
+    slug: 'kakao-friends',
+    label: '카카오프렌즈',
+    labelEn: 'KAKAO FRIENDS',
+    labelJa: 'カカオフレンズ',
+    keywords: ['카카오프렌즈', '춘식이'],
+  },
+  {
+    slug: 'line-friends',
+    label: '라인프렌즈',
+    labelEn: 'LINE FRIENDS',
+    labelJa: 'LINE FRIENDS',
+    keywords: ['라인프렌즈'],
+  },
   // '무기와라 스토어' 는 원피스 공식 굿즈샵 이름이라 트렌드에 따로 잡히지만, 별도 랜딩을 만들면
   // 목록이 /popups/one-piece 와 거의 같아져 중복 문서가 된다. 여기에 키워드만 더한다.
   // '무기나라' 는 오타 표기인데 실제 수집분에 있어 함께 넣는다.
   {
     slug: 'one-piece',
     label: '원피스',
+    labelEn: 'One Piece',
+    labelJa: 'ONE PIECE',
     keywords: ['원피스', 'one piece', '무기와라', '무기 와라', '무기나라'],
   },
   // 2026-07 트렌드 신규 — 좀비고는 "팝업 스토어" 다음가는 검색량(35)으로 급상승 중.
   {
     slug: 'zombie-high',
     label: '좀비고등학교',
+    labelEn: 'Zombie High School' /* 공식 표기 미확인 — 통용 표기 */,
+    labelJa: 'ゾンビ高校',
     keywords: ['좀비고', '좀비 고', '좀비고등학교'],
   },
-  { slug: 'kim-hamzzi', label: '김햄찌', keywords: ['김햄찌', '김 햄찌'] },
-  { slug: 'oasis', label: '오아시스', keywords: ['오아시스', 'oasis'] },
-  { slug: 'tft', label: '롤토체스', keywords: ['롤체', '롤토체스', 'teamfight'] },
+  {
+    slug: 'kim-hamzzi',
+    label: '김햄찌',
+    labelEn: 'Kim Hamzzi',
+    /* 공식 표기 미확인 — 통용 표기 */ labelJa: 'キムヘムチ',
+    keywords: ['김햄찌', '김 햄찌'],
+  },
+  {
+    slug: 'oasis',
+    label: '오아시스',
+    labelEn: 'Oasis',
+    labelJa: 'オアシス',
+    keywords: ['오아시스', 'oasis'],
+  },
+  {
+    slug: 'tft',
+    label: '롤토체스',
+    labelEn: 'Teamfight Tactics',
+    labelJa: 'チームファイト タクティクス',
+    keywords: ['롤체', '롤토체스', 'teamfight'],
+  },
   {
     slug: 'arknights',
     label: '명일방주',
+    labelEn: 'Arknights',
+    labelJa: 'アークナイツ',
     keywords: ['명일방주', '명방', 'arknights'],
   },
-  { slug: 't1', label: 'T1', keywords: ['t1 팝업', '티원'] },
-  { slug: 'the-hyundai', label: '더현대 서울', keywords: ['더현대', '더 현대'] },
-  { slug: 'yongsan-ipark', label: '용산 아이파크몰', keywords: ['용산 아이파크', '아이파크몰'] },
-  { slug: 'coex', label: '코엑스', keywords: ['코엑스', 'coex'] },
-  { slug: 'starfield', label: '스타필드', keywords: ['스타필드'] },
-  { slug: 'lotte-world-mall', label: '롯데월드몰', keywords: ['롯데월드몰', '롯데월드 몰'] },
-  { slug: 'ak-plaza', label: 'AK플라자', keywords: ['ak플라자', 'ak 플라자'] },
+  { slug: 't1', label: 'T1', labelEn: 'T1', labelJa: 'T1', keywords: ['t1 팝업', '티원'] },
+  {
+    slug: 'the-hyundai',
+    label: '더현대 서울',
+    labelEn: 'The Hyundai Seoul',
+    labelJa: 'ザ・ヒョンデ ソウル',
+    keywords: ['더현대', '더 현대'],
+  },
+  {
+    slug: 'yongsan-ipark',
+    label: '용산 아이파크몰',
+    labelEn: 'IPARK Mall Yongsan',
+    /* 공식 표기 미확인 — 통용 표기 */ labelJa: 'アイパークモール 龍山店',
+    keywords: ['용산 아이파크', '아이파크몰'],
+  },
+  {
+    slug: 'coex',
+    label: '코엑스',
+    labelEn: 'COEX',
+    labelJa: 'コエックス',
+    keywords: ['코엑스', 'coex'],
+  },
+  {
+    slug: 'starfield',
+    label: '스타필드',
+    labelEn: 'Starfield',
+    labelJa: 'スターフィールド',
+    keywords: ['스타필드'],
+  },
+  {
+    slug: 'lotte-world-mall',
+    label: '롯데월드몰',
+    labelEn: 'Lotte World Mall',
+    labelJa: 'ロッテワールドモール',
+    keywords: ['롯데월드몰', '롯데월드 몰'],
+  },
+  {
+    slug: 'ak-plaza',
+    label: 'AK플라자',
+    labelEn: 'AK PLAZA',
+    /* 공식 표기 미확인 — 통용 표기 */ labelJa: 'AKプラザ',
+    keywords: ['ak플라자', 'ak 플라자'],
+  },
   // 2026-07 트렌드 신규(최근 3개월 급상승·고관심) — 넥슨·호요버스·애니·K-pop IP 다수.
   {
     slug: 'maplestory',
     label: '메이플스토리',
+    labelEn: 'MapleStory',
+    labelJa: 'メイプルストーリー',
     keywords: ['메이플스토리', '메이플 스토리', '메이플', 'maplestory'],
   },
   {
     slug: 'honkai-star-rail',
     label: '붕괴 스타레일',
+    labelEn: 'Honkai: Star Rail',
+    labelJa: '崩壊：スターレイル',
     keywords: ['스타레일', '스타 레일', '붕괴 스타레일', 'honkai'],
   },
-  { slug: 'umamusume', label: '우마무스메', keywords: ['우마무스메', '우마 무스메', 'umamusume'] },
-  { slug: 'wuthering-waves', label: '명조', keywords: ['명조', 'wuthering'] },
-  { slug: 'chiikawa', label: '치이카와', keywords: ['치이카와', '치이 카와', 'chiikawa'] },
-  { slug: 'naruto', label: '나루토', keywords: ['나루토', 'naruto'] },
-  { slug: 'jojo', label: '죠죠', keywords: ['죠죠', '조조의 기묘한', 'jojo'] },
-  { slug: 'dungeon-meshi', label: '던전밥', keywords: ['던전밥', '던전 밥'] },
+  {
+    slug: 'umamusume',
+    label: '우마무스메',
+    labelEn: 'Umamusume: Pretty Derby',
+    labelJa: 'ウマ娘 プリティーダービー',
+    keywords: ['우마무스메', '우마 무스메', 'umamusume'],
+  },
+  {
+    slug: 'wuthering-waves',
+    label: '명조',
+    labelEn: 'Wuthering Waves',
+    labelJa: '鳴潮',
+    keywords: ['명조', 'wuthering'],
+  },
+  {
+    slug: 'chiikawa',
+    label: '치이카와',
+    labelEn: 'Chiikawa',
+    labelJa: 'ちいかわ',
+    keywords: ['치이카와', '치이 카와', 'chiikawa'],
+  },
+  {
+    slug: 'naruto',
+    label: '나루토',
+    labelEn: 'Naruto',
+    labelJa: 'NARUTO -ナルト-',
+    keywords: ['나루토', 'naruto'],
+  },
+  {
+    slug: 'jojo',
+    label: '죠죠',
+    labelEn: "JoJo's Bizarre Adventure",
+    labelJa: 'ジョジョの奇妙な冒険',
+    keywords: ['죠죠', '조조의 기묘한', 'jojo'],
+  },
+  {
+    slug: 'dungeon-meshi',
+    label: '던전밥',
+    labelEn: 'Delicious in Dungeon',
+    labelJa: 'ダンジョン飯',
+    keywords: ['던전밥', '던전 밥'],
+  },
   {
     slug: 'yumeiro-patissiere',
     label: '꿈빛 파티시엘',
+    labelEn: 'Yumeiro Patissiere' /* 공식 표기 미확인 — 통용 표기 */,
+    labelJa: '夢色パティシエール',
     keywords: ['꿈빛 파티시엘', '꿈빛파티시엘'],
   },
-  { slug: 'nmixx', label: '엔믹스', keywords: ['엔믹스', 'nmixx'] },
-  { slug: 'yorushika', label: '요루시카', keywords: ['요루시카', '요루 시카', 'yorushika'] },
-  { slug: 'sega', label: '세가', keywords: ['세가', 'sega'] },
+  {
+    slug: 'nmixx',
+    label: '엔믹스',
+    labelEn: 'NMIXX',
+    labelJa: 'NMIXX',
+    keywords: ['엔믹스', 'nmixx'],
+  },
+  {
+    slug: 'yorushika',
+    label: '요루시카',
+    labelEn: 'Yorushika',
+    labelJa: 'ヨルシカ',
+    keywords: ['요루시카', '요루 시카', 'yorushika'],
+  },
+  { slug: 'sega', label: '세가', labelEn: 'SEGA', labelJa: 'セガ', keywords: ['세가', 'sega'] },
   // 2026-07 트렌드 3차(최근 1달·1주 급상승, 웹리서치로 정체 확인 + 충돌 없는 키워드).
   {
     slug: 'omniscient-reader',
     label: '전지적 독자 시점',
+    labelEn: "Omniscient Reader's Viewpoint",
+    labelJa: '全知的な読者の視点から',
     keywords: ['전독시', '전지적 독자', '전지적독자'],
   },
-  { slug: 'lookism', label: '외모지상주의', keywords: ['외모지상주의', '외지주'] },
+  {
+    slug: 'lookism',
+    label: '외모지상주의',
+    labelEn: 'Lookism',
+    labelJa: '外見至上主義',
+    keywords: ['외모지상주의', '외지주'],
+  },
   {
     slug: 'hearts2hearts',
     label: '하츠투하츠',
+    labelEn: 'Hearts2Hearts',
+    labelJa: 'Hearts2Hearts',
     keywords: ['하츠투하츠', '하투하', 'hearts2hearts'],
   },
   {
     slug: 'alien-stage',
     label: '에일리언 스테이지',
+    labelEn: 'ALIEN STAGE',
+    labelJa: 'ALIEN STAGE',
     keywords: ['에일리언 스테이지', '에이스테', 'alien stage'],
   },
   {
     slug: 'cutie-street',
     label: '큐티 스트리트',
+    labelEn: 'CUTIE STREET',
+    labelJa: 'CUTIE STREET',
     keywords: ['큐티 스트리트', 'cutie street', '큐스토'],
   },
   {
     slug: 'ghost-story-commute',
     label: '괴담출근',
+    labelEn:
+      'Even If I Fall Into a Ghost Story, I Still Have to Go to Work' /* 공식 표기 미확인 — 통용 표기 */,
+    labelJa: '怪談に落ちても出勤しなければならないんだな',
     keywords: ['괴담출근', '괴담에 떨어져도 출근', '괴출 팝업'],
   },
-  { slug: 'minive', label: '미니브', keywords: ['미니브', 'minive'] },
-  { slug: 'angyeong-mandu', label: '안경만두', keywords: ['안경만두'] },
-  { slug: 'ganadi', label: '가나디', keywords: ['가나디'] },
-  { slug: 'latale', label: '라테일', keywords: ['라테일'] },
+  {
+    slug: 'minive',
+    label: '미니브',
+    labelEn: 'MINIVE',
+    labelJa: 'MINIVE',
+    keywords: ['미니브', 'minive'],
+  },
+  {
+    slug: 'angyeong-mandu',
+    label: '안경만두',
+    labelEn: 'ANGYENGMANDU',
+    /* 공식 표기 미확인 — 통용 표기 */ labelJa: 'メガネ餃子',
+    keywords: ['안경만두'],
+  },
+  { slug: 'ganadi', label: '가나디', labelEn: 'GANADI', labelJa: 'GANADI', keywords: ['가나디'] },
+  { slug: 'latale', label: '라테일', labelEn: 'LaTale', labelJa: 'ラテール', keywords: ['라테일'] },
   {
     slug: 'street-restaurant-fighter',
     label: '스트릿 레스토랑 파이터',
+    labelEn: 'Street Restaurant Fighter' /* 공식 표기 미확인 — 통용 표기 */,
+    labelJa: 'ストリート・レストラン・ファイター',
     keywords: ['스트릿 레스토랑 파이터', '스트릿레스토랑파이터'],
   },
-  { slug: 'gintama', label: '은혼', keywords: ['은혼', '긴타마', 'gintama'] },
-  { slug: 'hells-kitchen', label: '헬스키친', keywords: ['헬스키친'] },
-  { slug: 'digimon', label: '디지몬', keywords: ['디지몬', 'digimon'] },
-  { slug: 'spider-man', label: '스파이더맨', keywords: ['스파이더맨', 'spider-man', 'spiderman'] },
-  { slug: 'ive', label: '아이브', keywords: ['아이브'] },
-  { slug: 'fromis-9', label: '프로미스나인', keywords: ['프로미스나인', 'fromis_9', 'fromis'] },
-  { slug: 'yoasobi', label: '요아소비', keywords: ['요아소비', 'yoasobi'] },
+  {
+    slug: 'gintama',
+    label: '은혼',
+    labelEn: 'Gintama',
+    labelJa: '銀魂',
+    keywords: ['은혼', '긴타마', 'gintama'],
+  },
+  {
+    slug: 'hells-kitchen',
+    label: '헬스키친',
+    labelEn: "Hell's Kitchen",
+    labelJa: 'ヘルズ・キッチン',
+    keywords: ['헬스키친'],
+  },
+  {
+    slug: 'digimon',
+    label: '디지몬',
+    labelEn: 'Digimon',
+    labelJa: 'デジモン',
+    keywords: ['디지몬', 'digimon'],
+  },
+  {
+    slug: 'spider-man',
+    label: '스파이더맨',
+    labelEn: 'Spider-Man',
+    labelJa: 'スパイダーマン',
+    keywords: ['스파이더맨', 'spider-man', 'spiderman'],
+  },
+  { slug: 'ive', label: '아이브', labelEn: 'IVE', labelJa: 'IVE', keywords: ['아이브'] },
+  {
+    slug: 'fromis-9',
+    label: '프로미스나인',
+    labelEn: 'fromis_9',
+    labelJa: 'fromis_9',
+    keywords: ['프로미스나인', 'fromis_9', 'fromis'],
+  },
+  {
+    slug: 'yoasobi',
+    label: '요아소비',
+    labelEn: 'YOASOBI',
+    labelJa: 'YOASOBI',
+    keywords: ['요아소비', 'yoasobi'],
+  },
   {
     slug: 'project-i',
     label: '프로젝트아이',
+    labelEn: 'Project I' /* 공식 표기 미확인 — 통용 표기 */,
+    labelJa: 'プロジェクトアイ',
     keywords: ['프로젝트아이', '프로젝트 아이', '프젝아'],
   },
-  { slug: 'offside', label: '오프사이드', keywords: ['오프사이드'] },
+  {
+    slug: 'offside',
+    label: '오프사이드',
+    labelEn: 'Offside',
+    /* 공식 표기 미확인 — 통용 표기 */ labelJa: 'オフサイド',
+    keywords: ['오프사이드'],
+  },
   // 2026-07 트렌드 4차(6/26~7/26 KR 급상승어) — 검색어가 떴다고 다 넣지 않고, 운영 DB 에 실물이
   // 있는 것만 넣었다. 매칭 0곳이면 페이지는 noindex 고 sitemap 에서도 빠지므로(app/sitemap.ts)
   // 슬러그만 늘고 얻는 게 없다. 그래서 만석닭강정·애니메이트(둘 다 0건)는 뺐다.
@@ -507,6 +864,8 @@ export const BRANDS: BrandDef[] = [
   {
     slug: 'lost-ark',
     label: '로스트아크',
+    labelEn: 'Lost Ark',
+    labelJa: 'ロストアーク',
     // '로아' 는 "크로아상"·"크로아티아" 같은 무관한 이름에도 substring 으로 걸릴 수 있다. 그래도
     // 넣는 이유는 실측 8건이 이 약칭까지 포함해 센 수치라서다 — 빼면 근거 있는 건수가 아니게 된다.
     // ('블아'·'명방'·'옵치' 처럼 짧은 약칭을 쓰는 기존 항목과도 같은 수준의 위험이다.)
@@ -516,6 +875,8 @@ export const BRANDS: BrandDef[] = [
   {
     slug: 'crayon-shin-chan',
     label: '짱구',
+    labelEn: 'Crayon Shin-chan',
+    labelJa: 'クレヨンしんちゃん',
     // '짱구' 하나로 "짱구는 못말려"·"신짱구" 가 전부 걸린다(substring). 그래서 그 안에 '짱구' 가
     // 없는 국내 정식 표기 '크레용 신짱' 계열만 따로 적는다.
     keywords: ['짱구', '크레용 신짱', '크레용신짱', 'crayon shin', 'shin chan'],
@@ -523,6 +884,8 @@ export const BRANDS: BrandDef[] = [
   {
     slug: 'cookie-run',
     label: '쿠키런',
+    labelEn: 'Cookie Run',
+    labelJa: 'クッキーラン',
     // 띄어쓴 '쿠키 런' 은 일부러 뺐다 — "쿠키 런칭" 같은 디저트 팝업 이름을 그대로 잡는다.
     // 이 데이터셋은 디저트 팝업이 많아 오탐 비용이 특히 크다.
     keywords: ['쿠키런', 'cookie run', 'cookierun'],
@@ -530,6 +893,8 @@ export const BRANDS: BrandDef[] = [
   {
     slug: 'shin-ramyun',
     label: '신라면',
+    labelEn: 'Shin Ramyun',
+    labelJa: '辛ラーメン',
     // '신라면' 은 "신라면세점"(신라 + 면세점) 에도 그대로 들어간다. 실측 3건이 이 키워드 기준이라
     // 그대로 두되, 면세점 팝업이 섞여 보이면 '농심 신라면' 쪽으로 좁혀야 한다는 걸 남겨둔다.
     keywords: ['신라면', '辛라면', 'shin ramyun'],
@@ -537,6 +902,8 @@ export const BRANDS: BrandDef[] = [
   {
     slug: 'endfield',
     label: '엔드필드',
+    labelEn: 'Arknights: Endfield',
+    labelJa: 'アークナイツ：エンドフィールド',
     // 명일방주(arknights) 슬러그와 같은 팝업이 겹쳐 잡힐 수 있다. 슬라이스 중복은 원래 허용이고
     // (시점 슬라이스도 오늘=이번 주=이번 달로 겹친다), 검색어가 "엔드 필드" 로 따로 뜨는 이상
     // 랜딩도 따로 두는 편이 유입에 유리하다.
@@ -549,12 +916,16 @@ export const BRANDS: BrandDef[] = [
   {
     slug: 'casetify',
     label: '케이스티파이',
+    labelEn: 'CASETiFY',
+    labelJa: 'CASETiFY',
     // 비교가 소문자 기준이라 'casetify' 하나로 CASETiFY 표기까지 잡힌다.
     keywords: ['케이스티파이', '케이스 티파이', 'casetify'],
   },
   {
     slug: 'tom-and-jerry',
     label: '톰과 제리',
+    labelEn: 'Tom and Jerry',
+    labelJa: 'トムとジェリー',
     keywords: ['톰과 제리', '톰과제리', '톰앤제리', '톰 앤 제리', 'tom and jerry', 'tom & jerry'],
   },
   {
@@ -562,6 +933,8 @@ export const BRANDS: BrandDef[] = [
     // 거치지 않고 색인 대상이 되기 때문이다(매칭 건수로 자동 판정). 크롤러 검색어에도 이미 있다.
     slug: 'hybe-bridz',
     label: '하이브 브릿즈',
+    labelEn: 'HYBE BRIDZ',
+    labelJa: 'HYBE BRIDZ',
     // '하이브' 단독은 넣지 않는다 — 주소의 "강남구 하이브 사옥" 에 걸려 무관한 팝업을 끌어온다
     // (실측: 보이넥스트도어 팝업이 그렇게 잡혔다).
     keywords: ['브릿즈', 'bridz'],
@@ -572,6 +945,8 @@ export const BRANDS: BrandDef[] = [
   {
     slug: 'musinsa',
     label: '무신사',
+    labelEn: 'MUSINSA',
+    labelJa: 'ムシンサ',
     keywords: ['무신사', 'musinsa'],
   },
   {
@@ -579,6 +954,8 @@ export const BRANDS: BrandDef[] = [
     // 목동·판교 등 전 점포를 아우른다. 한 슬러그로 합치면 어느 쪽을 찾는 사람에게도 목록이 어긋난다.
     slug: 'hyundai-department',
     label: '현대백화점',
+    labelEn: 'Hyundai Department Store',
+    labelJa: '現代百貨店',
     keywords: ['현대백화점', '현대 백화점'],
   },
 ];

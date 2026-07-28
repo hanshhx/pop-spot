@@ -12,30 +12,38 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { useLocale, type MessageKey } from '@/lib/i18n';
 
+/** 저장 키 — 화면에 보이지 않는 값이라 언어와 무관하게 고정한다. */
 const STORAGE_KEY = 'popspot:onboarding-seen';
 
 interface OnboardingStep {
   icon: React.ReactNode;
-  title: string;
-  description: string;
+  /**
+   * 문구가 아니라 <b>사전 키</b>를 담는다.
+   *
+   * <p>이 배열은 컴포넌트 밖에 있어 훅을 부를 수 없다 — 여기서 번역해 두면 첫 로드 언어로 굳어
+   * 언어를 바꿔도 그대로 남는다. 실제 문구는 그리는 쪽에서 t() 로 꺼낸다.
+   */
+  titleKey: MessageKey;
+  descKey: MessageKey;
 }
 
 const STEPS: OnboardingStep[] = [
   {
     icon: <MapIcon className="size-10 text-lime-500" aria-hidden />,
-    title: '서울 팝업을 한 화면에서',
-    description: '지도 탭에서 오늘 열린 팝업을 카테고리별로 찾아볼 수 있습니다.',
+    titleKey: 'onboard.step1Title',
+    descKey: 'onboard.step1Desc',
   },
   {
     icon: <Route className="size-10 text-lime-500" aria-hidden />,
-    title: '나만의 코스를 만들어 보세요',
-    description: '마음에 드는 팝업을 코스에 담아 동선을 미리 계획할 수 있습니다.',
+    titleKey: 'onboard.step2Title',
+    descKey: 'onboard.step2Desc',
   },
   {
     icon: <MessageCircle className="size-10 text-lime-500" aria-hidden />,
-    title: '의견을 자유롭게 보내 주세요',
-    description: '버그 / 제안 / 좋은 점 모두 의견 탭으로 받습니다. 게스트도 보낼 수 있어요.',
+    titleKey: 'onboard.step3Title',
+    descKey: 'onboard.step3Desc',
   },
 ];
 
@@ -46,6 +54,7 @@ const STEPS: OnboardingStep[] = [
  * 즉시 닫기. 닫히면 다시는 안 뜸.
  */
 export function OnboardingModal() {
+  const { t } = useLocale();
   const [open, setOpen] = useState(false);
   const [showPrompt, setShowPrompt] = useState(false);
   const [stepIndex, setStepIndex] = useState(0);
@@ -71,10 +80,8 @@ export function OnboardingModal() {
     <>
       {showPrompt && !open ? (
         <aside className="fixed inset-x-4 bottom-24 z-40 mx-auto max-w-sm rounded-2xl border border-black/10 bg-white p-4 text-[#0a0a0a] shadow-2xl dark:border-white/15 dark:bg-[#151515] dark:text-white">
-          <p className="text-sm font-black">POP-SPOT이 처음이라면</p>
-          <p className="mt-1 text-xs leading-5 text-current/65">
-            지도·코스·의견 기능을 30초 안에 확인할 수 있음.
-          </p>
+          <p className="text-sm font-black">{t('onboard.promptTitle')}</p>
+          <p className="mt-1 text-xs leading-5 text-current/65">{t('onboard.promptDesc')}</p>
           <div className="mt-3 flex gap-2">
             <Button
               type="button"
@@ -85,10 +92,10 @@ export function OnboardingModal() {
                 setOpen(true);
               }}
             >
-              둘러보기
+              {t('onboard.promptCta')}
             </Button>
             <Button type="button" variant="ghost" size="sm" onClick={dismiss}>
-              닫기
+              {t('common.close')}
             </Button>
           </div>
         </aside>
@@ -96,15 +103,15 @@ export function OnboardingModal() {
       <Dialog open={open} onOpenChange={(v) => (!v ? dismiss() : setOpen(true))}>
         <DialogContent size="sm">
           <DialogHeader>
-            <DialogTitle className="sr-only">POP-SPOT 둘러보기</DialogTitle>
-            <DialogDescription className="sr-only">POP-SPOT 의 주요 기능 안내</DialogDescription>
+            <DialogTitle className="sr-only">{t('onboard.dialogTitle')}</DialogTitle>
+            <DialogDescription className="sr-only">{t('onboard.dialogDesc')}</DialogDescription>
           </DialogHeader>
 
           <div className="flex flex-col items-center text-center py-4 gap-4">
             <div className="rounded-full bg-lime-300/15 p-5">{step.icon}</div>
-            <h3 className="text-lg font-bold text-foreground">{step.title}</h3>
+            <h3 className="text-lg font-bold text-foreground">{t(step.titleKey)}</h3>
             <p className="text-sm text-muted-foreground leading-relaxed max-w-xs">
-              {step.description}
+              {t(step.descKey)}
             </p>
 
             {/* dots */}
@@ -123,7 +130,7 @@ export function OnboardingModal() {
 
           <DialogFooter className="flex flex-row justify-between gap-2">
             <Button type="button" variant="ghost" size="sm" onClick={dismiss}>
-              건너뛰기
+              {t('onboard.skip')}
             </Button>
             <Button
               type="button"
@@ -134,7 +141,7 @@ export function OnboardingModal() {
                 else setStepIndex((i) => i + 1);
               }}
             >
-              {isLastStep ? '시작하기' : '다음'}
+              {isLastStep ? t('onboard.start') : t('onboard.next')}
             </Button>
           </DialogFooter>
         </DialogContent>
