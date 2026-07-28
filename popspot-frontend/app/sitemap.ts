@@ -143,6 +143,20 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: 'daily',
       priority: 0.9,
     },
+    // v2.48 — 언어별 홈. 사이트맵에 없으면 검색엔진이 늦게 발견한다. hreflang 은 각 페이지가
+    // 서로를 가리켜 이미 선언돼 있고(app/../localeRoutes.ts), 여기서는 존재를 알리는 역할이다.
+    {
+      url: `${SITE_URL}/en`,
+      lastModified: now,
+      changeFrequency: 'daily',
+      priority: 0.9,
+    },
+    {
+      url: `${SITE_URL}/ja`,
+      lastModified: now,
+      changeFrequency: 'daily',
+      priority: 0.9,
+    },
     {
       url: `${SITE_URL}/terms`,
       lastModified: now,

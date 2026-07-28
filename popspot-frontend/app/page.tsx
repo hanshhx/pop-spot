@@ -5,6 +5,7 @@ import HomeClient from './HomeClient';
 import { REGIONS } from '@/lib/regions';
 import { CATEGORIES, BRANDS } from '@/lib/popupSlices';
 import { CRAWL_REFRESH_SENTENCE } from '@/lib/siteCopy';
+import { localeAlternates } from '@/lib/localeRoutes';
 
 /**
  * v2.32 — 메인 페이지 SEO 강화.
@@ -21,7 +22,9 @@ export const metadata: Metadata = {
   // 네이버 권장(80자 이내)에 맞춰 압축 — 핵심 키워드는 유지.
   description:
     '서울 팝업스토어 일정·위치를 지도 한 장에. 오늘·이번 주·주말 여는 성수·홍대·강남 팝업과 마감 임박까지 무료로 한눈에.',
-  alternates: { canonical: 'https://popspot.co.kr' },
+  // hreflang 은 양방향이어야 한다 — /en·/ja 만 이쪽을 가리키고 이쪽이 그들을 안 가리키면
+  // 검색엔진이 연결을 무시한다. 한쪽만 선언하면 언어별 주소를 만든 의미가 사라진다.
+  alternates: localeAlternates('ko'),
 };
 
 export default function Page() {
