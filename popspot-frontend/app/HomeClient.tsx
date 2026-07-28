@@ -1191,9 +1191,11 @@ export default function Home() {
             >
               <header className="mb-4 flex items-end justify-between gap-3">
                 <div>
-                  <h2 className="text-xl md:text-2xl font-bold text-foreground">지금 뜨는 팝업</h2>
+                  <h2 className="text-xl md:text-2xl font-bold text-foreground">
+                    {t('section.trending')}
+                  </h2>
                   <p className="mt-1 text-xs md:text-sm text-muted-foreground">
-                    정렬·필터로 원하는 팝업을 골라 사진으로 훑어보세요.
+                    {t('trending.desc')}
                   </p>
                 </div>
                 <button
@@ -1201,7 +1203,7 @@ export default function Home() {
                   onClick={handleOpenModal}
                   className="shrink-0 text-xs font-semibold text-primary hover:underline"
                 >
-                  전체 보기
+                  {t('common.viewAll')}
                 </button>
               </header>
 
@@ -1210,9 +1212,9 @@ export default function Home() {
                 <div className="inline-flex shrink-0 rounded-full border border-gray-200 bg-white p-0.5 dark:border-white/10 dark:bg-white/5">
                   {(
                     [
-                      ['popular', '인기순'],
-                      ['deadline', '마감임박'],
-                      ['latest', '최신순'],
+                      ['popular', t('sort.popular')],
+                      ['deadline', t('sort.deadline')],
+                      ['latest', t('sort.latest')],
                     ] as const
                   ).map(([key, label]) => (
                     <button
@@ -1232,7 +1234,7 @@ export default function Home() {
                       onClick={() => setRailCat('all')}
                       className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold transition ${railCat === 'all' ? 'bg-ink-900 text-white dark:bg-white dark:text-ink-900' : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-white/10 dark:text-white/60'}`}
                     >
-                      전체
+                      {t('filter.all')}
                     </button>
                     {railCategories.map((c) => (
                       <button
