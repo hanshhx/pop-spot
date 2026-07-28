@@ -30,6 +30,18 @@ export type RegionDef = {
   code: RegionCode;
   /** UI 표시명. */
   label: string;
+  /**
+   * 영어·일본어 표시명 — 서울에 온 외국인이 가장 먼저 필요로 하는 정보다.
+   *
+   * <p>팝업 이름·설명은 크롤링한 한국어 원문이라 그대로 두지만, <b>지역만은 옮긴다.</b> 어느 동네
+   * 얘기인지 모르면 목록 자체가 읽히지 않는다. 지역은 열한 곳뿐이라 손으로 정확히 넣을 수 있고,
+   * 자동 번역과 달리 고유명사가 엉뚱하게 바뀔 일이 없다.
+   *
+   * <p>일본어는 <b>가타카나 음역</b>을 쓴다. 한자를 붙이고 싶어지지만(성수동 = 聖水洞) 잘못 쓰면
+   * 일본인에게 다른 지명이 되고, 일본 여행 콘텐츠도 대체로 음역을 쓴다.
+   */
+  labelEn: string;
+  labelJa: string;
   /** SEO 슬러그 (URL). */
   slug: string;
   /** 우선순위 — 낮을수록 더 좁고 구체적인 매칭. 점수 같을 때 동률 깨기. */
@@ -70,6 +82,8 @@ export const REGIONS: RegionDef[] = [
   {
     code: 'seongsu',
     label: '성수',
+    labelEn: 'Seongsu',
+    labelJa: 'ソンス',
     slug: 'seongsu',
     priority: 1,
     keywords: ['성수동', '성수1가', '성수2가', '성수일로', '성수이로', '성수로'],
@@ -77,6 +91,8 @@ export const REGIONS: RegionDef[] = [
   {
     code: 'hannam',
     label: '한남',
+    labelEn: 'Hannam',
+    labelJa: 'ハンナム',
     slug: 'hannam',
     priority: 1,
     keywords: ['한남동', '한남대로', '한남오거리'],
@@ -84,6 +100,8 @@ export const REGIONS: RegionDef[] = [
   {
     code: 'apgujeong',
     label: '압구정',
+    labelEn: 'Apgujeong',
+    labelJa: 'アックジョン',
     slug: 'apgujeong',
     priority: 1,
     keywords: ['압구정동', '압구정로', '압구정역', '청담동', '청담로'],
@@ -91,6 +109,8 @@ export const REGIONS: RegionDef[] = [
   {
     code: 'hongdae',
     label: '홍대',
+    labelEn: 'Hongdae',
+    labelJa: 'ホンデ',
     slug: 'hongdae',
     priority: 1,
     keywords: ['홍대', '홍익대', '서교동', '동교동', '상수동', '합정동', '와우산로', '양화로'],
@@ -98,6 +118,8 @@ export const REGIONS: RegionDef[] = [
   {
     code: 'gangnam',
     label: '강남',
+    labelEn: 'Gangnam',
+    labelJa: 'カンナム',
     slug: 'gangnam',
     priority: 2,
     keywords: [
@@ -116,6 +138,8 @@ export const REGIONS: RegionDef[] = [
   {
     code: 'itaewon',
     label: '이태원',
+    labelEn: 'Itaewon',
+    labelJa: 'イテウォン',
     slug: 'itaewon',
     priority: 1,
     keywords: ['이태원동', '이태원로', '이태원역', '녹사평', '경리단길'],
@@ -123,6 +147,8 @@ export const REGIONS: RegionDef[] = [
   {
     code: 'jamsil',
     label: '잠실',
+    labelEn: 'Jamsil',
+    labelJa: 'チャムシル',
     slug: 'jamsil',
     priority: 1,
     keywords: ['잠실동', '잠실로', '잠실역', '송파대로', '올림픽로', '롯데월드'],
@@ -130,6 +156,8 @@ export const REGIONS: RegionDef[] = [
   {
     code: 'yeouido',
     label: '여의도',
+    labelEn: 'Yeouido',
+    labelJa: 'ヨイド',
     slug: 'yeouido',
     priority: 1,
     keywords: ['여의도동', '여의대로', '여의도역', '여의나루'],
@@ -137,6 +165,8 @@ export const REGIONS: RegionDef[] = [
   {
     code: 'myeongdong',
     label: '명동',
+    labelEn: 'Myeongdong',
+    labelJa: 'ミョンドン',
     slug: 'myeongdong',
     priority: 1,
     keywords: ['명동', '을지로입구', '남대문로'],
@@ -144,6 +174,8 @@ export const REGIONS: RegionDef[] = [
   {
     code: 'seongbuk',
     label: '성북',
+    labelEn: 'Seongbuk',
+    labelJa: 'ソンブク',
     slug: 'seongbuk',
     priority: 2,
     keywords: ['성북동', '성북로', '안암동', '안암로'],
@@ -151,6 +183,8 @@ export const REGIONS: RegionDef[] = [
   {
     code: 'mapo',
     label: '마포',
+    labelEn: 'Mapo',
+    labelJa: 'マポ',
     slug: 'mapo',
     priority: 3,
     keywords: ['공덕동', '마포대로', '용강동'],
