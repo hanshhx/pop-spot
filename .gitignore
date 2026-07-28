@@ -68,3 +68,6 @@ eslint-report*.tmp.json
 /SYNOLOGY_MIGRATION_GUIDE.md
 /architecture.svg
 /icon.svg
+
+# 브라우저 자동화 도구가 남기는 페이지 덤프 — 저장소에 둘 이유가 없다.
+.playwright-mcp/
