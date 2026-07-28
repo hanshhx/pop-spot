@@ -38,8 +38,43 @@ class PopupPhotoServiceTest {
 
         when(pexels.isConfigured()).thenReturn(true);
         when(imageRepository.findAllUsedPexelsPhotoIds()).thenReturn(List.of(10L));
+        when(imageRepository.findAllUsedPexelsImageUrls()).thenReturn(List.of());
         when(pexels.searchCandidates(anyString(), eq("CULTURE"), eq(1)))
                 .thenReturn(List.of(used, unused));
+        when(imageRepository.insertMainPexelsImageIfUnused(
+                        eq(2L), eq(11L), anyString(), anyString(), anyString(), anyString()))
+                .thenReturn(1);
+
+        assertThat(service.assignPhotoIfMissing(popup)).isTrue();
+        verify(imageRepository)
+                .insertMainPexelsImageIfUnused(
+                        eq(2L), eq(11L), anyString(), anyString(), anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("사진 ID가 비어 있던 과거 데이터도 같은 Pexels URL은 다시 배정하지 않는다")
+    void assignPhotoIfMissing_skipsUsedImageUrl() {
+        PopupStoreRepository popupStoreRepository = mock(PopupStoreRepository.class);
+        PopupImageRepository imageRepository = mock(PopupImageRepository.class);
+        PexelsPhotoService pexels = mock(PexelsPhotoService.class);
+        PopupPhotoService service =
+                new PopupPhotoService(popupStoreRepository, imageRepository, pexels);
+        PopupStore popup =
+                PopupStore.builder()
+                        .id(2L)
+                        .name("테스트 팝업")
+                        .category("CULTURE")
+                        .images(new ArrayList<>())
+                        .build();
+        PhotoCandidate duplicatedUrl = candidate(10L);
+        PhotoCandidate unused = candidate(11L);
+
+        when(pexels.isConfigured()).thenReturn(true);
+        when(imageRepository.findAllUsedPexelsPhotoIds()).thenReturn(List.of());
+        when(imageRepository.findAllUsedPexelsImageUrls())
+                .thenReturn(List.of(duplicatedUrl.imageUrl()));
+        when(pexels.searchCandidates(anyString(), eq("CULTURE"), eq(1)))
+                .thenReturn(List.of(duplicatedUrl, unused));
         when(imageRepository.insertMainPexelsImageIfUnused(
                         eq(2L), eq(11L), anyString(), anyString(), anyString(), anyString()))
                 .thenReturn(1);

@@ -22,13 +22,12 @@ import org.springframework.data.redis.core.script.RedisScript;
 /**
  * 회원가입이 <b>이메일 인증키를 1회용으로 소비한 뒤에만</b> 진행되는지 확인한다.
  *
- * <p>인증키 소비 방식이 {@code opsForValue().getAndDelete()} 에서 <b>Lua GET+DEL</b>
- * ({@code redisTemplate.execute(script, keys)})로 바뀌었다. 운영 Redis 가 6.0 이라 {@code GETDEL} 명령이
- * 없어서다. 테스트가 옛 방식을 계속 mock 하고 있어 실제 코드와 어긋난 채 실패하고 있었다 — 인증 로직
- * 자체의 문제가 아니라 테스트가 뒤처진 것이지만, CI 가 이 단계에서 멈춘다.
+ * <p>인증키 소비 방식이 {@code opsForValue().getAndDelete()} 에서 <b>Lua GET+DEL</b> ({@code
+ * redisTemplate.execute(script, keys)})로 바뀌었다. 운영 Redis 가 6.0 이라 {@code GETDEL} 명령이 없어서다. 테스트가 옛
+ * 방식을 계속 mock 하고 있어 실제 코드와 어긋난 채 실패하고 있었다 — 인증 로직 자체의 문제가 아니라 테스트가 뒤처진 것이지만, CI 가 이 단계에서 멈춘다.
  *
- * <p>{@code opsForValue()} stub 도 함께 걷어냈다. 지금 signup 경로는 {@code execute} 만 쓰므로,
- * Mockito 기본 엄격 모드에서는 <b>쓰이지 않는 stub 자체가 실패 사유</b>가 된다.
+ * <p>{@code opsForValue()} stub 도 함께 걷어냈다. 지금 signup 경로는 {@code execute} 만 쓰므로, Mockito 기본 엄격 모드에서는
+ * <b>쓰이지 않는 stub 자체가 실패 사유</b>가 된다.
  */
 @ExtendWith(MockitoExtension.class)
 class AuthControllerTest {
