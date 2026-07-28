@@ -13,6 +13,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { EmptyState } from '@/components/ui/feedback';
+import { useLocale } from '@/lib/i18n';
 import {
   type AppNotification,
   type NotificationType,
@@ -41,6 +42,7 @@ const TYPE_ICON: Record<NotificationType, React.ReactNode> = {
  * <p>현재는 localStorage 기반 클라이언트 알림만 — 백엔드 push 는 다음 라운드 (Web Push API).
  */
 export function NotificationCenter({ open, onOpenChange }: NotificationCenterProps) {
+  const { t } = useLocale();
   const [items, setItems] = useState<AppNotification[]>([]);
 
   useEffect(() => {
@@ -59,18 +61,16 @@ export function NotificationCenter({ open, onOpenChange }: NotificationCenterPro
       <DialogContent size="md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Bell className="size-5" aria-hidden /> 알림
+            <Bell className="size-5" aria-hidden /> {t('nav.notifications')}
           </DialogTitle>
-          <DialogDescription>
-            의견 답변 · 동행 채팅 · 시스템 안내를 한 곳에서 확인합니다.
-          </DialogDescription>
+          <DialogDescription>{t('misc.notifDesc')}</DialogDescription>
         </DialogHeader>
 
         {items.length === 0 ? (
           <EmptyState
             icon={<BellOff className="size-8" />}
-            title="알림이 없습니다"
-            description="새로운 답변이나 안내가 도착하면 여기에 표시됩니다."
+            title={t('misc.notifEmptyTitle')}
+            description={t('misc.notifEmptyDesc')}
             bordered={false}
           />
         ) : (
@@ -86,7 +86,7 @@ export function NotificationCenter({ open, onOpenChange }: NotificationCenterPro
                   setItems(readNotifications());
                 }}
               >
-                모두 읽음
+                {t('misc.notifMarkAllRead')}
               </Button>
               <Button
                 type="button"
@@ -97,7 +97,7 @@ export function NotificationCenter({ open, onOpenChange }: NotificationCenterPro
                   setItems([]);
                 }}
               >
-                모두 삭제
+                {t('misc.notifClearAll')}
               </Button>
             </div>
             <ul className="flex flex-col gap-2 max-h-[420px] overflow-y-auto">
@@ -130,6 +130,8 @@ function NotificationRow({
   notification: AppNotification;
   onClick: () => void;
 }) {
+  const { t } = useLocale();
+  // 알림의 제목 · 본문은 만들어질 때의 문구가 그대로 저장된 값이라 여기서 옮기지 않는다.
   const body = (
     <div
       className={
@@ -148,7 +150,10 @@ function NotificationRow({
         </p>
       </div>
       {!notification.read && (
-        <span className="mt-1.5 size-2 rounded-full bg-lime-500 shrink-0" aria-label="안 읽음" />
+        <span
+          className="mt-1.5 size-2 rounded-full bg-lime-500 shrink-0"
+          aria-label={t('misc.notifUnread')}
+        />
       )}
     </div>
   );

@@ -1,7 +1,8 @@
 'use client';
 
 import { Award, ChevronRight, Stamp } from 'lucide-react';
-import { getUserRank } from '@/lib/rank';
+import { getUserRank, nextRankLabels } from '@/lib/rank';
+import { localizedLabel, useLocale, type MessageKey } from '@/lib/i18n';
 
 interface Props {
   stampCount: number;
@@ -14,6 +15,7 @@ interface Props {
  * MY 탭의 POP-PASS 자리에 들어가서 사용자의 활동을 자랑/동기부여한다.
  */
 export default function RankCard({ stampCount, nickname, onSeeAll }: Props) {
+  const { t, locale } = useLocale();
   const rank = getUserRank(stampCount);
 
   // 다음 등급까지 진행도 (현재 단계 안에서의 비율)
@@ -39,10 +41,11 @@ export default function RankCard({ stampCount, nickname, onSeeAll }: Props) {
 
         <div className="flex-1 min-w-0">
           <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-            {nickname ? `${nickname} 님의 등급` : '내 등급'}
+            {/* 닉네임은 사용자가 지은 이름이라 번역 대상이 아니다. 붙는 말만 언어에 맞춘다. */}
+            {nickname ? `${nickname}${t('rank.ownerSuffix')}` : t('rank.myRank')}
           </p>
           <h4 className={`mt-0.5 text-lg lg:text-xl font-black tracking-tight ${rank.text}`}>
-            {rank.label}
+            {localizedLabel(rank, locale)}
           </h4>
         </div>
 
@@ -51,7 +54,7 @@ export default function RankCard({ stampCount, nickname, onSeeAll }: Props) {
             type="button"
             onClick={onSeeAll}
             className="grid h-9 w-9 place-items-center rounded-full bg-foreground/5 text-muted-foreground transition hover:bg-foreground/10 hover:text-foreground"
-            aria-label="패스포트 보기"
+            aria-label={t('rank.passportAria')}
           >
             <ChevronRight className="h-4 w-4" />
           </button>
@@ -61,14 +64,22 @@ export default function RankCard({ stampCount, nickname, onSeeAll }: Props) {
       {/* 다음 등급까지 진행도 */}
       <div className="relative mt-5">
         <div className="flex items-center justify-between text-[11px] font-semibold text-muted-foreground">
+          {/* 숫자를 사이에 끼우는 문장은 앞뒤 조각으로 나눈다 — 띄어쓰기는 사전 값이 들고 있다. */}
           <span>
-            도장 <strong className="text-foreground">{stampCount}</strong>개
+            {t('rank.stampsPrefix')}
+            <strong className="text-foreground">{stampCount}</strong>
+            {t('rank.stampsSuffix')}
           </span>
           {rank.key === 'MASTER' ? (
-            <span className="text-amber-500 dark:text-amber-300">최고 등급 달성</span>
+            <span className="text-amber-500 dark:text-amber-300">{t('rank.maxReached')}</span>
           ) : (
             <span>
-              <strong className="text-foreground">{rank.nextLabel}</strong> 까지 {rank.toNext}개
+              <strong className="text-foreground">
+                {localizedLabel(nextRankLabels(rank), locale)}
+              </strong>
+              {t('rank.toNextMid')}
+              {rank.toNext}
+              {t('rank.toNextSuffix')}
             </span>
           )}
         </div>
@@ -83,15 +94,16 @@ export default function RankCard({ stampCount, nickname, onSeeAll }: Props) {
 
       {/* 획득한 뱃지 미니 진열 */}
       <div className="relative mt-5 flex items-center gap-2">
-        <BadgePill label="입문자" achieved={stampCount >= 3} />
-        <BadgePill label="헌터" achieved={stampCount >= 6} />
-        <BadgePill label="마스터" achieved={stampCount >= 12} />
+        <BadgePill labelKey="rank.badgeBeginner" achieved={stampCount >= 3} />
+        <BadgePill labelKey="rank.badgeHunter" achieved={stampCount >= 6} />
+        <BadgePill labelKey="rank.badgeMaster" achieved={stampCount >= 12} />
       </div>
     </div>
   );
 }
 
-function BadgePill({ label, achieved }: { label: string; achieved: boolean }) {
+function BadgePill({ labelKey, achieved }: { labelKey: MessageKey; achieved: boolean }) {
+  const { t } = useLocale();
   return (
     <span
       className={`rounded-full px-2.5 py-1 text-[10px] font-bold transition ${
@@ -100,7 +112,7 @@ function BadgePill({ label, achieved }: { label: string; achieved: boolean }) {
           : 'bg-foreground/5 text-muted-foreground border border-[var(--color-border)]'
       }`}
     >
-      {label}
+      {t(labelKey)}
     </span>
   );
 }

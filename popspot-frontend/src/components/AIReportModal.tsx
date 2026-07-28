@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { X, Thermometer, Users, Clock, MapPin, RefreshCw, CloudRain } from 'lucide-react';
 import CongestionChart from './CongestionChart';
+import { useLocale, localizedStatus, type MessageKey } from '@/lib/i18n';
 
 import type { CongestionData } from '@/types/popup';
 
@@ -13,17 +14,24 @@ interface Props {
   onClose: () => void;
 }
 
-// 🗺️ 6대 핫플레이스 정의 (백엔드 키값과 일치)
-const HOTSPOTS = [
-  { key: 'SEONGSU', label: '성수/서울숲' },
-  { key: 'YEOUIDO', label: '여의도(더현대)' },
-  { key: 'HONGDAE', label: '홍대/연남' },
-  { key: 'GANGNAM', label: '강남/코엑스' },
-  { key: 'YONGSAN', label: '용산/이태원' },
-  { key: 'MYEONGDONG', label: '명동/DDP' },
+/**
+ * 6대 핫플레이스 정의.
+ *
+ * <p>{@code key} 는 백엔드가 받는 지역 코드라 <b>절대 건드리지 않는다</b> — 화면에 보이는 이름만
+ * 사전에서 꺼낸다. 모듈 최상단이라 훅을 부를 수 없어 키만 들고 있다가 그리는 쪽에서 t() 로 푼다.
+ */
+const HOTSPOTS: ReadonlyArray<{ key: string; labelKey: MessageKey }> = [
+  { key: 'SEONGSU', labelKey: 'airep.tabSeongsu' },
+  { key: 'YEOUIDO', labelKey: 'airep.tabYeouido' },
+  { key: 'HONGDAE', labelKey: 'airep.tabHongdae' },
+  { key: 'GANGNAM', labelKey: 'airep.tabGangnam' },
+  { key: 'YONGSAN', labelKey: 'airep.tabYongsan' },
+  { key: 'MYEONGDONG', labelKey: 'airep.tabMyeongdong' },
 ];
 
 export default function AIReportModal({ data: initialData, onClose }: Props) {
+  // 혼잡도 값(여유·보통·혼잡)은 아래 분기에 그대로 쓰이므로 locale 은 표시할 때만 쓴다.
+  const { t, locale } = useLocale();
   // [로직] 현재 사용자가 선택한 지역 탭 상태 (기본값: 성수)
   const [activeTab, setActiveTab] = useState('SEONGSU');
   // [로직] 화면에 렌더링할 리포트 데이터 상태
@@ -82,16 +90,16 @@ export default function AIReportModal({ data: initialData, onClose }: Props) {
                 <span className="w-1.5 h-1.5 bg-lime-300 rounded-full animate-pulse" /> LIVE DATA
               </span>
               <h2 className="text-xl md:text-2xl font-black text-gray-900 dark:text-white">
-                서울 핫스팟 AI 리포트
+                {t('airep.title')}
               </h2>
               <p className="text-xs md:text-sm text-gray-500 dark:text-cream-200/60 mt-0.5">
-                실시간 유동인구 및 혼잡도 분석
+                {t('airep.subtitle')}
               </p>
             </div>
             <button
               onClick={onClose}
               className="p-1.5 md:p-2 bg-gray-100 dark:bg-white/10 rounded-full hover:rotate-90 transition-transform"
-              aria-label="닫기"
+              aria-label={t('common.close')}
             >
               <X className="w-5 h-5 md:w-5 md:h-5 text-gray-900 dark:text-white" />
             </button>
@@ -109,7 +117,7 @@ export default function AIReportModal({ data: initialData, onClose }: Props) {
                     : 'bg-gray-50 text-gray-500 border-gray-200 dark:bg-white/5 dark:text-cream-200/40 dark:border-white/5 hover:bg-gray-100'
                 }`}
               >
-                {spot.label}
+                {t(spot.labelKey)}
               </button>
             ))}
           </div>
@@ -121,7 +129,7 @@ export default function AIReportModal({ data: initialData, onClose }: Props) {
             // 로딩 인디케이터
             <div className="flex flex-col items-center justify-center py-16 md:py-20 gap-3 md:gap-4 opacity-50">
               <RefreshCw className="animate-spin text-lime-500 w-8 h-8 md:w-10 md:h-10" />
-              <p className="text-xs md:text-sm font-bold text-gray-500">실시간 데이터 분석 중...</p>
+              <p className="text-xs md:text-sm font-bold text-gray-500">{t('airep.loading')}</p>
             </div>
           ) : (
             <>
@@ -140,14 +148,14 @@ export default function AIReportModal({ data: initialData, onClose }: Props) {
                     <MapPin className="w-3.5 h-3.5 md:w-4 md:h-4" /> {reportData.areaName}
                   </div>
                   <span className="text-[9px] md:text-xs bg-white dark:bg-black/30 px-1.5 py-0.5 md:px-2 md:py-1 rounded border border-black/5 dark:border-white/10">
-                    실시간 업데이트됨
+                    {t('airep.updatedLive')}
                   </span>
                 </div>
 
                 <div className="flex items-end justify-between">
                   <div>
                     <p className="text-xs md:text-sm text-gray-500 dark:text-cream-200/60 mb-0.5 md:mb-1">
-                      현재 혼잡도
+                      {t('airep.currentLevel')}
                     </p>
                     <h3
                       className={`text-3xl md:text-4xl font-black ${
@@ -158,15 +166,16 @@ export default function AIReportModal({ data: initialData, onClose }: Props) {
                             : 'text-red-600 dark:text-red-400'
                       }`}
                     >
-                      {reportData.level}
+                      {localizedStatus(reportData.level, locale)}
                     </h3>
                   </div>
                   <div className="text-right">
                     <p className="text-[10px] md:text-xs text-gray-400 mb-0.5 md:mb-1">
-                      실시간 인구
+                      {t('airep.livePop')}
                     </p>
                     <p className="text-lg md:text-xl font-bold text-gray-900 dark:text-white">
-                      {reportData.minPop?.toLocaleString()}명 ~
+                      {reportData.minPop?.toLocaleString()}
+                      {t('airep.popUnit')}
                     </p>
                   </div>
                 </div>
@@ -179,7 +188,7 @@ export default function AIReportModal({ data: initialData, onClose }: Props) {
               <div className="grid grid-cols-2 gap-3 md:gap-4">
                 <div className="p-3 md:p-4 rounded-xl md:rounded-2xl border border-gray-100 dark:border-white/5 bg-blue-50/50 dark:bg-blue-900/10">
                   <div className="flex items-center gap-1.5 md:gap-2 mb-1.5 md:mb-2 text-blue-600 dark:text-blue-400 font-bold text-xs md:text-sm">
-                    <Thermometer className="w-3.5 h-3.5 md:w-4 md:h-4" /> 현재 날씨
+                    <Thermometer className="w-3.5 h-3.5 md:w-4 md:h-4" /> {t('airep.weather')}
                   </div>
                   <div className="flex items-end gap-1.5 md:gap-2">
                     <p className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">
@@ -190,19 +199,23 @@ export default function AIReportModal({ data: initialData, onClose }: Props) {
                     </span>
                   </div>
                   <div className="mt-1.5 md:mt-2 text-[10px] md:text-xs text-blue-500 flex items-center gap-1">
-                    <CloudRain className="w-3 h-3 md:w-3 md:h-3" /> 강수확률 {reportData.rainChance}
-                    %
+                    <CloudRain className="w-3 h-3 md:w-3 md:h-3" /> {t('airep.rainChance')}{' '}
+                    {reportData.rainChance}%
                   </div>
                 </div>
                 <div className="p-3 md:p-4 rounded-xl md:rounded-2xl border border-gray-100 dark:border-white/5 bg-lime-300/10/50 dark:bg-ink-800/50">
                   <div className="flex items-center gap-1.5 md:gap-2 mb-1.5 md:mb-2 text-lime-500 font-bold text-xs md:text-sm">
-                    <Users className="w-3.5 h-3.5 md:w-4 md:h-4" /> 방문자 1위
+                    <Users className="w-3.5 h-3.5 md:w-4 md:h-4" /> {t('airep.topAge')}
                   </div>
                   <p className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">
-                    {reportData.ageRates?.['20s'] > reportData.ageRates?.['30s'] ? '20대' : '30대'}
+                    {/* '20s' · '30s' 는 백엔드 응답의 키다 — 표시 문구만 사전에서 꺼낸다. */}
+                    {reportData.ageRates?.['20s'] > reportData.ageRates?.['30s']
+                      ? t('airep.age20s')
+                      : t('airep.age30s')}
                   </p>
                   <p className="text-[10px] md:text-xs text-gray-500 mt-1.5 md:mt-2">
-                    20대 {reportData.ageRates?.['20s']}%, 30대 {reportData.ageRates?.['30s']}%
+                    {t('airep.age20s')} {reportData.ageRates?.['20s']}%, {t('airep.age30s')}{' '}
+                    {reportData.ageRates?.['30s']}%
                   </p>
                 </div>
               </div>
@@ -212,7 +225,7 @@ export default function AIReportModal({ data: initialData, onClose }: Props) {
                 <div className="flex items-center gap-1.5 md:gap-2 mb-3 md:mb-4">
                   <Clock className="w-4 h-4 md:w-4.5 md:h-4.5 text-gray-400" />
                   <h4 className="font-bold text-sm md:text-base text-gray-900 dark:text-white">
-                    시간대별 혼잡도 예측
+                    {t('airep.hourlyForecast')}
                   </h4>
                 </div>
 
@@ -221,13 +234,21 @@ export default function AIReportModal({ data: initialData, onClose }: Props) {
                 </div>
               </div>
 
-              {/* AI 기반 커스텀 한줄 코멘트 */}
+              {/*
+                AI 기반 커스텀 한줄 코멘트.
+
+                지역명이 문장 어디에 오는지가 언어마다 달라(한국어는 조사 앞, 영어는 문장 맨 앞)
+                한 문장으로 두면 옮길 수 없다. 앞·중간·뒤 세 조각으로 끊어 지역명을 끼워 넣는다.
+              */}
               <div className="bg-gray-900 dark:bg-white text-white dark:text-black p-4 md:p-5 rounded-xl md:rounded-2xl text-xs md:text-sm font-medium text-center shadow-lg leading-relaxed">
-                &ldquo;지금 {reportData.areaName}은 <strong>{reportData.level}</strong> 상태네요!
+                &ldquo;{t('airep.commentPrefix')}
+                {reportData.areaName}
+                {t('airep.commentMid')}
+                <strong>{localizedStatus(reportData.level, locale)}</strong>
+                {t('airep.commentSuffix')}
                 <br />
-                {reportData.level === '여유'
-                  ? '웨이팅 없이 팝업 즐기기 딱 좋은 타이밍! ⚡️'
-                  : '사람이 많아요. 원격 줄서기 걸어두고 카페 타임 추천! ☕'}
+                {/* 분기 기준은 백엔드가 주는 원본 값이라 한국어 그대로 둔다. */}
+                {reportData.level === '여유' ? t('airep.commentQuiet') : t('airep.commentBusy')}
                 &rdquo;
               </div>
             </>

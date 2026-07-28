@@ -10,6 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { useLocale } from '@/lib/i18n';
 
 import { SearchZone } from './SearchBox';
 
@@ -32,16 +33,15 @@ interface GlobalSearchModalProps {
  * <p>키보드 단축키: Ctrl+K (또는 Cmd+K) 로 열기 / ESC 로 닫기 (Radix Dialog 기본 동작).
  */
 export function GlobalSearchModal({ open, onOpenChange, popups }: GlobalSearchModalProps) {
+  const { t } = useLocale();
   const router = useRouter();
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent size="lg">
         <DialogHeader>
-          <DialogTitle>팝업 검색</DialogTitle>
-          <DialogDescription>
-            지역 · 팝업 이름 · 카테고리 어느 키워드로든 검색할 수 있습니다.
-          </DialogDescription>
+          <DialogTitle>{t('pmodal.search.title')}</DialogTitle>
+          <DialogDescription>{t('pmodal.search.desc')}</DialogDescription>
         </DialogHeader>
         {/*
           지도가 없는 모달이므로 고른 팝업은 상세 페이지로 보낸다(지도 모드에선 해당 핀으로 이동).

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { FileText, LogOut } from 'lucide-react';
 
 import { apiFetch } from '@/lib/api';
+import { useLocale } from '@/lib/i18n';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -38,6 +39,7 @@ interface TermsReconsentModalProps {
  * <p>마운트 시점에 한 번만 status 조회. 재로그인 / 다음 세션에 다시 확인됨.
  */
 export function TermsReconsentModal({ enabled, onDecline }: TermsReconsentModalProps) {
+  const { t } = useLocale();
   const [open, setOpen] = useState(false);
   const [status, setStatus] = useState<TermsStatus | null>(null);
   const [accepting, setAccepting] = useState(false);
@@ -66,6 +68,7 @@ export function TermsReconsentModal({ enabled, onDecline }: TermsReconsentModalP
     setAccepting(true);
     try {
       const res = await apiFetch('/api/v1/terms/accept', { method: 'POST' });
+      // 아래 catch 가 바로 삼키는 개발자용 메시지라 화면에 뜨지 않는다 — 사전에 넣지 않는다.
       if (!res.ok) throw new Error('동의 처리에 실패했습니다.');
       setOpen(false);
     } catch {
@@ -89,19 +92,18 @@ export function TermsReconsentModal({ enabled, onDecline }: TermsReconsentModalP
       <DialogContent size="sm">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <FileText className="size-5 text-lime-500" aria-hidden /> 약관이 업데이트되었습니다
+            <FileText className="size-5 text-lime-500" aria-hidden /> {t('terms.updatedTitle')}
           </DialogTitle>
-          <DialogDescription>
-            서비스를 계속 이용하시려면 새로운 약관에 동의해 주세요.
-          </DialogDescription>
+          <DialogDescription>{t('terms.updatedDesc')}</DialogDescription>
         </DialogHeader>
 
         <div className="py-2 text-sm text-foreground space-y-3">
           <p>
-            현재 버전: <strong className="text-lime-500">v{status.currentVersion}</strong>
+            {t('terms.currentVersion')}{' '}
+            <strong className="text-lime-500">v{status.currentVersion}</strong>
           </p>
           <p className="text-muted-foreground text-xs">
-            마지막 동의 버전: v{status.agreedVersion ?? '(없음)'}
+            {t('terms.agreedVersion')} v{status.agreedVersion ?? t('terms.noneAgreed')}
           </p>
 
           <div className="flex flex-col gap-1.5 text-xs">
@@ -111,7 +113,7 @@ export function TermsReconsentModal({ enabled, onDecline }: TermsReconsentModalP
               rel="noopener noreferrer"
               className="text-lime-500 hover:underline inline-flex items-center gap-1"
             >
-              <FileText className="size-3" aria-hidden /> 이용약관 전문 보기
+              <FileText className="size-3" aria-hidden /> {t('terms.viewTerms')}
             </Link>
             <Link
               href="/privacy"
@@ -119,7 +121,7 @@ export function TermsReconsentModal({ enabled, onDecline }: TermsReconsentModalP
               rel="noopener noreferrer"
               className="text-lime-500 hover:underline inline-flex items-center gap-1"
             >
-              <FileText className="size-3" aria-hidden /> 개인정보 처리방침 보기
+              <FileText className="size-3" aria-hidden /> {t('terms.viewPrivacy')}
             </Link>
           </div>
         </div>
@@ -132,7 +134,7 @@ export function TermsReconsentModal({ enabled, onDecline }: TermsReconsentModalP
             iconLeft={<LogOut className="size-3.5" aria-hidden />}
             onClick={onDecline}
           >
-            동의 안 함 (로그아웃)
+            {t('terms.decline')}
           </Button>
           <Button
             type="button"
@@ -141,7 +143,7 @@ export function TermsReconsentModal({ enabled, onDecline }: TermsReconsentModalP
             loading={accepting}
             onClick={handleAccept}
           >
-            동의하고 계속
+            {t('terms.accept')}
           </Button>
         </DialogFooter>
       </DialogContent>

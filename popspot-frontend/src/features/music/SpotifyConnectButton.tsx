@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Check, Disc3, Loader2, Music2, X } from 'lucide-react';
 
 import { notify } from '@/lib/notify';
+import { useLocale } from '@/lib/i18n';
 import { useSpotifyAuth } from './useSpotifyAuth';
 
 /**
@@ -27,32 +28,45 @@ import { useSpotifyAuth } from './useSpotifyAuth';
 export function SpotifyConnectButton() {
   const { connected, isPremium, loading, startLogin, disconnect, refresh } = useSpotifyAuth();
   const searchParams = useSearchParams();
+  const { t } = useLocale();
+
+  /*
+   * 콜백 결과는 한 번만 알린다.
+   *
+   * 아래에서 replaceState 로 ?spotify= 를 지워도 useSearchParams 가 보는 값은 그대로다 —
+   * 라우터를 거치지 않은 주소 변경이라 Next 가 모른다. t 가 의존성에 들어온 뒤로는 언어를 바꿀
+   * 때마다 이 효과가 다시 돌아 같은 토스트가 또 떴다. 처리 여부를 ref 로 붙잡아 막는다.
+   */
+  const calloutShownRef = useRef(false);
 
   // 콜백 후 토스트 + 상태 갱신 + URL 정리
   useEffect(() => {
     const status = searchParams?.get('spotify');
-    if (!status) return;
+    if (!status || calloutShownRef.current) return;
+    calloutShownRef.current = true;
 
+    // 분기 값(connected / denied / error)은 백엔드 콜백이 붙여 보내는 것이라 그대로 두고,
+    // 화면에 나가는 문구만 언어에 맞춘다.
     if (status === 'connected') {
       notify({
         icon: 'success',
-        title: 'Spotify 연결 완료',
-        text: '프리미엄이면 풀트랙, 무료면 30초 미리듣기로 재생됩니다.',
+        title: t('spotify.connectedTitle'),
+        text: t('spotify.connectedText'),
         timer: 3000,
       });
       void refresh();
     } else if (status === 'denied') {
       notify({
         icon: 'info',
-        title: 'Spotify 연결을 취소했어요',
-        text: '언제든 다시 연결할 수 있습니다.',
+        title: t('spotify.deniedTitle'),
+        text: t('spotify.deniedText'),
         timer: 2500,
       });
     } else if (status === 'error') {
       notify({
         icon: 'error',
-        title: 'Spotify 연결 실패',
-        text: '잠시 후 다시 시도해주세요.',
+        title: t('spotify.failedTitle'),
+        text: t('spotify.retryLater'),
         timer: 3000,
       });
     }
@@ -63,7 +77,7 @@ export function SpotifyConnectButton() {
       url.searchParams.delete('spotify');
       window.history.replaceState({}, '', url.toString());
     }
-  }, [searchParams, refresh]);
+  }, [searchParams, refresh, t]);
 
   async function handleConnect() {
     try {
@@ -71,30 +85,30 @@ export function SpotifyConnectButton() {
     } catch (e) {
       notify({
         icon: 'error',
-        title: '연결 시작 실패',
-        text: e instanceof Error ? e.message : '잠시 후 다시 시도해주세요.',
+        title: t('spotify.startFailedTitle'),
+        // e.message 는 useSpotifyAuth 가 던지는 한국어 원인 문자열이다. 사전이 아니라 훅에 있어
+        // 여기서는 못 옮긴다 — 훅을 손대는 차례에 함께 정리한다.
+        text: e instanceof Error ? e.message : t('spotify.retryLater'),
       });
     }
   }
 
   async function handleDisconnect() {
-    if (
-      !window.confirm('Spotify 연결을 해제할까요? 저장된 토큰이 즉시 삭제됩니다. (다시 연결 가능)')
-    ) {
+    if (!window.confirm(t('spotify.disconnectConfirm'))) {
       return;
     }
     try {
       await disconnect();
       notify({
         icon: 'success',
-        title: 'Spotify 연결 해제',
+        title: t('spotify.disconnectedTitle'),
         timer: 2000,
       });
     } catch {
       notify({
         icon: 'error',
-        title: '해제 실패',
-        text: '잠시 후 다시 시도해주세요.',
+        title: t('spotify.disconnectFailedTitle'),
+        text: t('spotify.retryLater'),
       });
     }
   }
@@ -103,10 +117,10 @@ export function SpotifyConnectButton() {
     return (
       <span
         className="inline-flex items-center gap-2 px-3 py-1.5 rounded-pill border border-gray-200 dark:border-white/10 text-xs text-muted-foreground"
-        aria-label="Spotify 연결 상태 확인 중"
+        aria-label={t('spotify.checkingAria')}
       >
         <Loader2 size={12} className="animate-spin" />
-        확인 중…
+        {t('spotify.checking')}
       </span>
     );
   }
@@ -116,11 +130,11 @@ export function SpotifyConnectButton() {
       <button
         type="button"
         onClick={handleConnect}
-        aria-label="Spotify 계정 연결"
+        aria-label={t('spotify.connectAria')}
         className="group inline-flex items-center gap-2 px-3 py-1.5 rounded-pill text-xs font-bold transition-all bg-[#1DB954] text-white hover:bg-[#1ed760] shadow-sm hover:shadow-md"
       >
         <Disc3 size={14} className="shrink-0" />
-        <span>Spotify 연결</span>
+        <span>{t('spotify.connect')}</span>
       </button>
     );
   }
@@ -134,19 +148,18 @@ export function SpotifyConnectButton() {
             ? 'bg-lime-300 text-ink-900 border border-lime-400'
             : 'bg-gray-100 text-gray-700 border border-gray-300 dark:bg-white/10 dark:text-white dark:border-white/15'
         }`}
-        title={
-          isPremium ? 'Premium 계정 — 풀트랙 320kbps 재생 가능' : 'Free 계정 — 30초 미리듣기로 재생'
-        }
+        title={isPremium ? t('spotify.premiumTip') : t('spotify.freeTip')}
       >
         <Music2 size={12} className="shrink-0" />
         <Check size={12} className="shrink-0" />
+        {/* 요금제 이름은 Spotify 가 어느 나라에서나 그대로 쓰는 표기라 옮기지 않는다. */}
         <span>{isPremium ? 'Spotify Premium' : 'Spotify Free'}</span>
       </span>
       <button
         type="button"
         onClick={handleDisconnect}
-        aria-label="Spotify 연결 해제"
-        title="Spotify 연결 해제"
+        aria-label={t('spotify.disconnect')}
+        title={t('spotify.disconnect')}
         className="p-1 rounded-full text-gray-400 hover:text-gray-600 dark:text-white/40 dark:hover:text-white/70 transition-colors"
       >
         <X size={12} />

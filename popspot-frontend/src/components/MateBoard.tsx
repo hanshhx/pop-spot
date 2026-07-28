@@ -20,6 +20,7 @@ import {
 import { useChatStore } from '../store/useChatStore';
 import { apiFetch } from '../lib/api';
 import { notify, notifyError } from '@/lib/notify';
+import { useLocale } from '@/lib/i18n';
 import { BOOST_LIMIT_HINT, type BoostStatus } from '@/lib/boost';
 import type { RankKey } from '@/lib/rank';
 import type { User as DomainUser } from '@/types/popup';
@@ -58,6 +59,7 @@ interface MatePost {
  */
 export default function MateBoard({ user }: MateBoardProps) {
   const router = useRouter();
+  const { t } = useLocale();
   const [posts, setPosts] = useState<MatePost[]>([]);
   const [isWriteOpen, setIsWriteOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -127,7 +129,7 @@ export default function MateBoard({ user }: MateBoardProps) {
 
   /** 로그인 필요한 액션의 공통 가드. */
   const requireLogin = () => {
-    notify('로그인이 필요합니다.');
+    notify(t('mate.needLogin'));
     router.push('/login');
   };
 
@@ -139,10 +141,10 @@ export default function MateBoard({ user }: MateBoardProps) {
 
   const handleSubmit = async () => {
     if (!user) return requireLogin();
-    if (!formData.title) return notify('제목을 입력해주세요.');
+    if (!formData.title) return notify(t('mate.needTitle'));
 
     const targetUserId = user.userId || user.id || '';
-    if (!targetUserId) return notify('사용자 정보를 확인할 수 없습니다.');
+    if (!targetUserId) return notify(t('mate.noUserInfo'));
 
     try {
       const res = await apiFetch('/api/mates', {
@@ -152,21 +154,18 @@ export default function MateBoard({ user }: MateBoardProps) {
       });
 
       if (res.ok) {
-        notify(
-          formData.useBoost
-            ? '상단 부스트가 적용된 모집글이 등록되었습니다.'
-            : '모집 글이 등록되었습니다.',
-        );
+        notify(formData.useBoost ? t('mate.postedBoost') : t('mate.posted'));
         setIsWriteOpen(false);
         fetchPosts();
         setFormData({ title: '', content: '', targetPopup: '', maxPeople: 2, useBoost: false });
         if (formData.useBoost) fetchBoostStatus(targetUserId);
       } else {
+        // errorText 는 서버가 내려준 사유라 그대로 붙인다 — 화면 문구가 아니라 원인 정보다.
         const errorText = await res.text();
-        notifyError(`등록 실패: ${errorText}`);
+        notifyError(`${t('mate.postFailed')}: ${errorText}`);
       }
     } catch {
-      notifyError('등록 실패');
+      notifyError(t('mate.postFailed'));
     }
   };
 
@@ -177,15 +176,15 @@ export default function MateBoard({ user }: MateBoardProps) {
     if (!user) return requireLogin();
     const targetUserId = user.userId || user.id || '';
     if (post.author.userId === targetUserId || post.author.nickname === user.nickname) {
-      return notify('본인 글은 신고할 수 없습니다.');
+      return notify(t('mate.reportSelf'));
     }
     const { confirmAction } = await import('@/lib/notify');
     const ok = await confirmAction({
-      title: '이 글을 신고할까요?',
-      text: '스팸 / 욕설 / 부적절한 내용 등을 신고하면 운영자가 검토합니다.',
+      title: t('mate.reportConfirmTitle'),
+      text: t('mate.reportConfirmText'),
       icon: 'warning',
       destructive: true,
-      confirmText: '신고',
+      confirmText: t('mate.reportAction'),
     });
     if (!ok) return;
 
@@ -195,14 +194,14 @@ export default function MateBoard({ user }: MateBoardProps) {
         { method: 'POST' },
       );
       if (res.ok) {
-        notify('신고가 접수되었습니다.');
+        notify(t('mate.reportDone'));
         fetchPosts();
       } else {
         const msg = await res.text();
-        notifyError(msg || '신고 처리에 실패했습니다.');
+        notifyError(msg || t('mate.reportFailed'));
       }
     } catch {
-      notifyError('서버 통신 오류가 발생했습니다.');
+      notifyError(t('mate.serverError'));
     }
   };
 
@@ -210,7 +209,7 @@ export default function MateBoard({ user }: MateBoardProps) {
     if (!user) return requireLogin();
 
     const targetUserId = user.userId || user.id || '';
-    if (!targetUserId) return notify('사용자 정보를 확인할 수 없습니다.');
+    if (!targetUserId) return notify(t('mate.noUserInfo'));
 
     if (post.author.nickname === user.nickname) {
       openChat({
@@ -229,6 +228,7 @@ export default function MateBoard({ user }: MateBoardProps) {
       });
       const msg = await res.text();
 
+      // '이미 참여' 는 서버 응답 본문이라 번역 대상이 아니다 — 옮기면 이 분기가 깨진다.
       if (res.ok || msg.includes('이미 참여')) {
         openChat({
           postId: post.id,
@@ -239,11 +239,11 @@ export default function MateBoard({ user }: MateBoardProps) {
         });
         fetchPosts();
       } else {
-        notify(msg === 'FULL' ? '모집 인원이 꽉 찼습니다.' : msg);
+        notify(msg === 'FULL' ? t('mate.full') : msg);
       }
     } catch (e) {
       console.error(e);
-      notifyError('서버 통신 오류가 발생했습니다.');
+      notifyError(t('mate.serverError'));
     }
   };
 
@@ -260,17 +260,17 @@ export default function MateBoard({ user }: MateBoardProps) {
       <div className="p-4 md:p-6 border-b border-[var(--color-border)] flex justify-between items-center gap-3 bg-surface/90 backdrop-blur-md sticky top-0 z-10">
         <div>
           <h2 className="text-xl md:text-2xl font-black text-foreground tracking-tight">
-            같이 갈 사람 구해요
+            {t('mate.boardTitle')}
           </h2>
           <p className="text-xs md:text-sm text-muted-foreground mt-0.5">
-            혼자 가기 아쉬운 팝업, 동행을 찾아보세요.
+            {t('mate.boardSubtitle')}
           </p>
         </div>
         <button
           onClick={openWrite}
           className="shrink-0 bg-lime-300 hover:bg-lime-400 text-ink-900 px-3.5 py-2 md:px-4 md:py-2.5 rounded-pill font-bold text-xs md:text-sm shadow-md flex items-center gap-1.5 transition-transform active:scale-95"
         >
-          <Plus size={15} className="md:w-4 md:h-4" /> 동행 구하기
+          <Plus size={15} className="md:w-4 md:h-4" /> {t('mate.writeCta')}
         </button>
       </div>
 
@@ -281,7 +281,7 @@ export default function MateBoard({ user }: MateBoardProps) {
             <div className="px-4 md:px-6 mb-3 flex items-center gap-2">
               <TrendingUp size={18} className="text-hot-400 md:w-5 md:h-5" />
               <span className="font-black text-sm md:text-base text-foreground tracking-wide">
-                상단 부스트
+                {t('mate.boostSection')}
               </span>
             </div>
 
@@ -295,7 +295,7 @@ export default function MateBoard({ user }: MateBoardProps) {
                   className="snap-start shrink-0 w-[280px] md:w-[320px] p-4 md:p-5 rounded-2xl border-2 border-hot-200 dark:border-hot-900/50 shadow-[0_4px_20px_rgba(236,72,153,0.15)] dark:shadow-[0_4px_20px_rgba(236,72,153,0.2)] bg-gradient-to-br from-hot-50 to-white dark:from-hot-900/30 dark:to-[#1a1a1a] relative overflow-hidden"
                 >
                   <div className="absolute top-0 right-0 bg-hot-400 text-white text-[9px] md:text-[10px] font-bold px-2 py-1 md:px-3 md:py-1.5 rounded-bl-lg md:rounded-bl-xl flex items-center gap-1 shadow-md z-10">
-                    <TrendingUp size={10} className="md:w-3 md:h-3" /> 부스트
+                    <TrendingUp size={10} className="md:w-3 md:h-3" /> {t('mate.boostBadge')}
                   </div>
 
                   <div className="flex gap-3">
@@ -303,7 +303,7 @@ export default function MateBoard({ user }: MateBoardProps) {
                     <div className="min-w-0 flex-1 pr-8">
                       <div className="flex flex-wrap gap-1.5 mb-1.5">
                         <span className="px-2 py-0.5 rounded-full text-[9px] md:text-[10px] font-bold bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400">
-                          모집중
+                          {t('mate.recruiting')}
                         </span>
                       </div>
                       <h3 className="text-base md:text-lg font-black text-foreground mb-0.5 truncate">
@@ -337,7 +337,7 @@ export default function MateBoard({ user }: MateBoardProps) {
                         )}
                         {mine(post) && (
                           <span className="ml-1 px-1.5 py-0.5 rounded text-[8px] md:text-[9px] font-black bg-lime-300 text-ink-900">
-                            내 글
+                            {t('mate.mine')}
                           </span>
                         )}
                       </span>
@@ -347,13 +347,14 @@ export default function MateBoard({ user }: MateBoardProps) {
                         <span className="text-hot-500 dark:text-hot-400 text-xs md:text-sm mr-0.5">
                           {post.currentPeople}
                         </span>
-                        /{post.maxPeople}명
+                        /{post.maxPeople}
+                        {t('mate.peopleUnit')}
                       </span>
                       <button
                         onClick={() => handleJoinChat(post)}
                         className="px-3 py-1.5 md:px-4 md:py-2 bg-hot-500 hover:bg-hot-400 text-white rounded-pill text-[10px] md:text-xs font-bold shadow-md shadow-hot-400/30 flex items-center gap-1 transition-all active:scale-95"
                       >
-                        <MessageCircle size={12} className="md:w-3.5 md:h-3.5" /> 참여
+                        <MessageCircle size={12} className="md:w-3.5 md:h-3.5" /> {t('mate.join')}
                       </button>
                     </div>
                   </div>
@@ -382,7 +383,7 @@ export default function MateBoard({ user }: MateBoardProps) {
                 >
                   {post.isMegaphone && post.status === 'CLOSED' && (
                     <div className="absolute top-0 right-0 bg-gray-400 text-white text-[9px] md:text-[10px] font-bold px-2 py-1 md:px-3 md:py-1.5 rounded-bl-lg md:rounded-bl-xl flex items-center gap-1">
-                      마감된 부스트
+                      {t('mate.boostClosed')}
                     </div>
                   )}
 
@@ -397,7 +398,9 @@ export default function MateBoard({ user }: MateBoardProps) {
                               : 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400'
                           }`}
                         >
-                          {post.status === 'RECRUITING' ? '모집중' : '모집완료'}
+                          {post.status === 'RECRUITING'
+                            ? t('mate.recruiting')
+                            : t('mate.recruitDone')}
                         </span>
                         <span className="ml-auto text-[10px] md:text-xs text-muted-foreground shrink-0">
                           {new Date(post.createdAt).toLocaleDateString()}
@@ -437,7 +440,7 @@ export default function MateBoard({ user }: MateBoardProps) {
                         )}
                         {mine(post) && (
                           <span className="ml-1 px-1.5 py-0.5 rounded text-[8px] md:text-[9px] font-black bg-lime-300 text-ink-900">
-                            내 글
+                            {t('mate.mine')}
                           </span>
                         )}
                       </span>
@@ -448,14 +451,15 @@ export default function MateBoard({ user }: MateBoardProps) {
                         <span className="text-lime-500 text-xs md:text-sm mr-0.5">
                           {post.currentPeople}
                         </span>
-                        / {post.maxPeople}명
+                        / {post.maxPeople}
+                        {t('mate.peopleUnit')}
                       </span>
                       {!mine(post) && (
                         <button
                           type="button"
                           onClick={() => handleReport(post)}
-                          aria-label="이 글 신고"
-                          title="신고"
+                          aria-label={t('mate.reportAria')}
+                          title={t('mate.reportAction')}
                           className="p-1.5 text-gray-400 hover:text-danger transition-colors rounded-pill hover:bg-danger/10"
                         >
                           <Flag size={12} className="md:w-3.5 md:h-3.5" />
@@ -469,7 +473,8 @@ export default function MateBoard({ user }: MateBoardProps) {
                             : 'bg-lime-300 hover:bg-lime-400 text-ink-900'
                         }`}
                       >
-                        <MessageCircle size={12} className="md:w-3.5 md:h-3.5" /> 채팅 참여
+                        <MessageCircle size={12} className="md:w-3.5 md:h-3.5" />{' '}
+                        {t('mate.joinChat')}
                       </button>
                     </div>
                   </div>
@@ -496,7 +501,7 @@ export default function MateBoard({ user }: MateBoardProps) {
                 >
                   <div className="flex justify-between items-center mb-4 md:mb-6">
                     <h3 className="text-lg md:text-xl font-bold text-gray-900 dark:text-white">
-                      동행 모집하기
+                      {t('mate.modalTitle')}
                     </h3>
                     <button
                       onClick={() => setIsWriteOpen(false)}
@@ -509,14 +514,14 @@ export default function MateBoard({ user }: MateBoardProps) {
                   <div className="space-y-3 md:space-y-4">
                     <input
                       type="text"
-                      placeholder="제목 (예: 이번주 토요일 탬버린즈 가실 분!)"
+                      placeholder={t('mate.titlePlaceholder')}
                       className="w-full p-2.5 md:p-3 bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-white/10 rounded-lg md:rounded-xl text-xs md:text-sm outline-none focus:border-lime-300 text-gray-900 dark:text-white"
                       value={formData.title}
                       onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                     />
                     <input
                       type="text"
-                      placeholder="목표 팝업 (선택사항)"
+                      placeholder={t('mate.targetPlaceholder')}
                       className="w-full p-2.5 md:p-3 bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-white/10 rounded-lg md:rounded-xl text-xs md:text-sm outline-none focus:border-lime-300 text-gray-900 dark:text-white"
                       value={formData.targetPopup}
                       onChange={(e) => setFormData({ ...formData, targetPopup: e.target.value })}
@@ -524,7 +529,7 @@ export default function MateBoard({ user }: MateBoardProps) {
 
                     <div className="flex items-center justify-between p-2.5 md:p-3 bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-white/10 rounded-lg md:rounded-xl">
                       <span className="text-xs md:text-sm font-bold text-gray-600 dark:text-gray-300">
-                        모집 인원 (본인 포함)
+                        {t('mate.maxPeopleLabel')}
                       </span>
                       <div className="flex items-center gap-2 md:gap-3">
                         <button
@@ -539,7 +544,8 @@ export default function MateBoard({ user }: MateBoardProps) {
                           -
                         </button>
                         <span className="font-black text-sm md:text-base text-lime-500 w-8 text-center">
-                          {formData.maxPeople}명
+                          {formData.maxPeople}
+                          {t('mate.peopleUnit')}
                         </span>
                         <button
                           onClick={() =>
@@ -556,7 +562,7 @@ export default function MateBoard({ user }: MateBoardProps) {
                     </div>
 
                     <textarea
-                      placeholder="간단한 소개와 일정 등을 적어주세요."
+                      placeholder={t('mate.contentPlaceholder')}
                       className="w-full p-2.5 md:p-3 bg-gray-50 dark:bg-black/40 border border-gray-200 dark:border-white/10 rounded-lg md:rounded-xl text-xs md:text-sm outline-none focus:border-lime-300 h-24 md:h-28 resize-none text-gray-900 dark:text-white custom-scrollbar"
                       value={formData.content}
                       onChange={(e) => setFormData({ ...formData, content: e.target.value })}
@@ -569,8 +575,8 @@ export default function MateBoard({ user }: MateBoardProps) {
                         if (next && (!boostStatus || boostStatus.remaining <= 0)) {
                           notify(
                             boostStatus && boostStatus.rank === 'NONE'
-                              ? '입문자 등급(스탬프 3개)에 도달해야 부스트를 사용할 수 있습니다.'
-                              : '이번 달 부스트 횟수를 모두 사용했습니다.',
+                              ? t('mate.boostRankLocked')
+                              : t('mate.boostExhausted'),
                           );
                           return;
                         }
@@ -586,7 +592,7 @@ export default function MateBoard({ user }: MateBoardProps) {
                           : 'bg-lime-300 hover:bg-lime-400 text-ink-900 shadow-md'
                       }`}
                     >
-                      {formData.useBoost ? '상단 부스트로 등록하기' : '동행 모집글 등록하기'}
+                      {formData.useBoost ? t('mate.submitBoost') : t('mate.submit')}
                     </button>
                   </div>
                 </motion.div>
@@ -632,29 +638,31 @@ function PopupThumb({ seed, size }: { seed: string; size: 'md' | 'lg' }) {
 
 /** 빈 상태 처방 — 안내 + 예시 카드(흐리게) + CTA. 검은 여백 금지. */
 function EmptyMate({ onWrite }: { onWrite: () => void }) {
+  const { t } = useLocale();
   return (
     <div className="px-1 py-8 md:py-10">
       <div className="mx-auto max-w-md text-center">
         <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl bg-lime-300/20 text-lime-600 dark:text-lime-300">
           <Users size={26} />
         </div>
-        <h3 className="text-lg font-black text-foreground">아직 등록된 동행글이 없어요</h3>
+        <h3 className="text-lg font-black text-foreground">{t('mate.emptyTitle')}</h3>
+        {/* CTA 이름은 버튼과 같은 키에서 꺼낸다 — 문구가 갈리면 어느 버튼을 누르라는 건지 알 수 없다. */}
         <p className="mt-1.5 text-sm text-muted-foreground">
-          혼자 가기 아쉬운 팝업이 있다면{' '}
-          <b className="text-lime-600 dark:text-lime-300">&lsquo;동행 구하기&rsquo;</b>를
-          눌러보세요.
-          <br className="hidden sm:block" /> 팝업 상세에서도 바로 만들 수 있어요.
+          {t('mate.emptyDescLead')}{' '}
+          <b className="text-lime-600 dark:text-lime-300">&lsquo;{t('mate.writeCta')}&rsquo;</b>
+          {t('mate.emptyDescTail')}
+          <br className="hidden sm:block" /> {t('mate.emptyDesc2')}
         </p>
         <button
           onClick={onWrite}
           className="mt-4 inline-flex items-center gap-1.5 rounded-pill bg-lime-300 px-5 py-2.5 text-sm font-bold text-ink-900 shadow-md transition hover:bg-lime-400 active:scale-95"
         >
-          <Plus size={15} /> 동행 구하기
+          <Plus size={15} /> {t('mate.writeCta')}
         </button>
       </div>
 
       <p className="mt-9 mb-3 text-center text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
-        이런 동행글이 올라와요 · 예시
+        {t('mate.exampleLabel')}
       </p>
       <div className="grid gap-3 sm:grid-cols-2 opacity-55 select-none pointer-events-none">
         {devMatePosts()
@@ -668,7 +676,7 @@ function EmptyMate({ onWrite }: { onWrite: () => void }) {
                 <PopupThumb seed={post.targetPopup || post.title} size="lg" />
                 <div className="min-w-0 flex-1">
                   <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400">
-                    모집중
+                    {t('mate.recruiting')}
                   </span>
                   <h3 className="mt-1 text-base font-bold text-foreground truncate">
                     {post.title}
@@ -686,7 +694,8 @@ function EmptyMate({ onWrite }: { onWrite: () => void }) {
                 </span>
                 <span className="text-[11px] font-bold text-muted-foreground">
                   <span className="text-lime-500 mr-0.5">{post.currentPeople}</span>/{' '}
-                  {post.maxPeople}명
+                  {post.maxPeople}
+                  {t('mate.peopleUnit')}
                 </span>
               </div>
             </div>
@@ -698,6 +707,7 @@ function EmptyMate({ onWrite }: { onWrite: () => void }) {
 
 /** 목록 끝의 고스트 CTA 카드 — '이 자리에 당신의 동행글'. */
 function GhostCTACard({ onWrite }: { onWrite: () => void }) {
+  const { t } = useLocale();
   return (
     <button
       type="button"
@@ -707,9 +717,10 @@ function GhostCTACard({ onWrite }: { onWrite: () => void }) {
       <span className="grid h-10 w-10 place-items-center rounded-full bg-lime-300/20 text-lime-600 dark:text-lime-300 transition group-hover:bg-lime-300 group-hover:text-ink-900">
         <Plus size={20} />
       </span>
-      <span className="text-sm font-bold text-foreground">이 자리에 당신의 동행글</span>
+      <span className="text-sm font-bold text-foreground">{t('mate.ghostTitle')}</span>
       <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-        팝업 상세에서 &lsquo;동행 구하기&rsquo;를 누르면 바로 올라와요 <ArrowRight size={11} />
+        {t('mate.ghostHintLead')} &lsquo;{t('mate.writeCta')}&rsquo;{t('mate.ghostHintTail')}{' '}
+        <ArrowRight size={11} />
       </span>
     </button>
   );
@@ -761,7 +772,12 @@ function isMyPost(post: MatePost, viewer: DomainUser): boolean {
   return post.author.nickname === viewer.nickname;
 }
 
-/** [redesign/test 전용] 백엔드 없을 때(로컬) 카드/빈상태 예시를 채우는 목업. */
+/**
+ * [redesign/test 전용] 백엔드 없을 때(로컬) 카드/빈상태 예시를 채우는 목업.
+ *
+ * <p>여기 글은 <b>사전으로 옮기지 않는다.</b> 실제 동행글은 한국인 이용자가 한국어로 쓰기 때문에,
+ * 예시가 영어·일본어로 보이면 실제 목록과 다른 인상을 준다. 팝업명·닉네임도 고유명사라 원문이 맞다.
+ */
 function devMatePosts(): MatePost[] {
   const now = new Date().toISOString();
   return [
@@ -800,6 +816,7 @@ interface BoostToggleProps {
 
 /** 글쓰기 모달의 상단 부스트 토글. 잔여 횟수가 0 이면 disabled 처럼 동작. */
 function BoostToggle({ boostStatus, active, onToggle }: BoostToggleProps) {
+  const { t } = useLocale();
   const rank: RankKey = boostStatus?.rank ?? 'NONE';
   const remaining = boostStatus?.remaining ?? 0;
   const limit = boostStatus?.monthlyLimit ?? 0;
@@ -833,10 +850,11 @@ function BoostToggle({ boostStatus, active, onToggle }: BoostToggleProps) {
               active ? 'text-hot-500 dark:text-hot-400' : 'text-gray-700 dark:text-gray-300'
             }`}
           >
-            상단 부스트 사용하기
+            {t('mate.boostToggle')}
           </span>
+          {/* BOOST_LIMIT_HINT 는 공용 lib/boost.ts 의 등급 한도 라벨이라 여기서 손대지 않는다. */}
           <span className="text-[10px] md:text-xs text-gray-500 mt-0.5 font-medium">
-            {BOOST_LIMIT_HINT[rank]} · 이번 달 남은 횟수{' '}
+            {BOOST_LIMIT_HINT[rank]} · {t('mate.boostRemaining')}{' '}
             <strong className="text-lime-500">{remaining}</strong> / {limit}
           </span>
         </div>

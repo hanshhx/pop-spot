@@ -1,3 +1,7 @@
+'use client';
+
+// 문구를 언어에 맞춰 꺼내려면 훅이 필요해 지시어를 명시한다. recharts 탓에 원래도 브라우저에서만
+// 돌지만, 지금까지는 부모(AIReportModal)의 'use client' 에 얹혀 있어 서버에서 부르면 깨졌다.
 import React from 'react';
 import {
   AreaChart,
@@ -8,6 +12,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
+import { useLocale } from '@/lib/i18n';
 
 // 1. 데이터 타입 정의
 interface ForecastData {
@@ -22,10 +27,12 @@ interface CongestionChartProps {
 }
 
 const CongestionChart: React.FC<CongestionChartProps> = ({ data }) => {
+  const { t } = useLocale();
+
   if (!data || data.length === 0) {
     return (
       <div className="text-center p-4 text-xs md:text-sm text-gray-500 dark:text-cream-200/60">
-        데이터 로딩 중...
+        {t('rank.chartLoading')}
       </div>
     );
   }
@@ -33,7 +40,7 @@ const CongestionChart: React.FC<CongestionChartProps> = ({ data }) => {
   return (
     <div className="w-full h-52 md:h-64 lg:h-72 bg-white dark:bg-[#1f1f1f] rounded-xl md:rounded-2xl shadow-lg p-3 md:p-5 border border-transparent dark:border-white/5 transition-colors">
       <h3 className="text-sm md:text-base lg:text-lg font-bold text-gray-800 dark:text-white mb-2 md:mb-4">
-        📈 12시간 혼잡도 예측
+        📈 {t('rank.chartTitle')}
       </h3>
 
       <ResponsiveContainer width="100%" height="100%">
@@ -70,7 +77,7 @@ const CongestionChart: React.FC<CongestionChartProps> = ({ data }) => {
             formatter={(value) => {
               const display =
                 typeof value === 'number' ? value.toLocaleString() : String(value ?? 0);
-              return [`${display}명`, '예측 인구'];
+              return [`${display}${t('rank.chartPeopleUnit')}`, t('rank.chartSeries')];
             }}
           />
 

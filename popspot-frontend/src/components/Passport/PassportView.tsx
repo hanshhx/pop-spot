@@ -6,6 +6,7 @@ import { Lock, Check, Store } from 'lucide-react';
 import { apiFetch } from '../../lib/api';
 import { popupCoverUrl } from '@/lib/popupCover';
 import { PhotoDisclosure } from '@/components/popup/PhotoDisclosure';
+import { useLocale } from '@/lib/i18n';
 import type { User } from '@/types/popup';
 
 /**
@@ -47,6 +48,7 @@ const CAT_GRAD: Record<string, string> = {
 const TOTAL_COUNT = 12;
 
 export default function PassportView() {
+  const { t } = useLocale();
   const [stamps, setStamps] = useState<StampData[]>([]);
   const [user, setUser] = useState<User | null>(null);
 
@@ -107,12 +109,10 @@ export default function PassportView() {
     >
       <header className="mb-6">
         <h2 className="text-2xl font-black text-foreground md:text-3xl">
-          내 스탬프 <span className="text-lime-500">{acquiredCount}</span>
+          {t('misc.passportStamps')} <span className="text-lime-500">{acquiredCount}</span>
           <span className="font-bold text-muted-foreground"> / {TOTAL_COUNT}</span>
         </h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          방문 인증할 때마다 그 팝업이 그대로 도장으로 남아요.
-        </p>
+        <p className="mt-1 text-sm text-muted-foreground">{t('misc.passportDesc')}</p>
       </header>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
@@ -174,7 +174,7 @@ export default function PassportView() {
           >
             <Lock size={22} className="text-gray-300 dark:text-white/20" />
             <span className="text-[11px] font-semibold text-muted-foreground">
-              {i === 0 ? '다음 팝업' : '방문하면 열림'}
+              {i === 0 ? t('misc.passportNext') : t('misc.passportLocked')}
             </span>
           </div>
         ))}

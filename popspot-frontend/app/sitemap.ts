@@ -225,5 +225,19 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ),
   ];
 
-  return [...staticPages, ...sliceLandings];
+  // v2.49 — 같은 슬러그의 영어·일본어 판을 함께 올린다.
+  //
+  // 색인 대상 판정(0곳이면 제외)을 여기서 다시 하지 않고 <b>위에서 만든 목록을 그대로 펼친다.</b>
+  // 언어별로 따로 세면 판정이 세 벌이 되고, 한쪽만 고쳤을 때 어긋난다 — 이 파일이 v2.42 에서
+  // 고쳤던 문제가 정확히 그것이었다. 세 언어는 같은 데이터를 보므로 건수도 같다.
+  const localized = sliceLandings.flatMap((e) =>
+    (['en', 'ja'] as const).map((loc) => ({
+      ...e,
+      url: e.url.replace(`${SITE_URL}/popups/`, `${SITE_URL}/${loc}/popups/`),
+      // 번역판은 원본보다 낮게 둔다. 크롤 예산이 한정돼 있으면 한국어를 먼저 도는 편이 낫다.
+      priority: Math.max(0.1, (e.priority ?? 0.5) - 0.1),
+    })),
+  );
+
+  return [...staticPages, ...sliceLandings, ...localized];
 }

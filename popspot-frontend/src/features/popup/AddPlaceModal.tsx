@@ -2,6 +2,7 @@
 
 import { AnimatePresence, motion } from 'framer-motion';
 import { PlusCircle, X } from 'lucide-react';
+import { useLocale } from '@/lib/i18n';
 import type { PopupStore } from '@/types/popup';
 
 interface AddPlaceModalProps {
@@ -17,8 +18,12 @@ interface AddPlaceModalProps {
  * <p>뷰포트 전체를 덮는 모달이 아니라 부모 컨테이너 안에서 {@code absolute inset-0}
  * 으로 채우는 로컬 시트. 따라서 Radix Dialog 가 아닌 자체 motion 래퍼를 유지한다.
  * 비즈니스 로직(중복 체크/state 변경)은 부모에 두고 여기서는 선택 이벤트만 흘려보낸다.
+ *
+ * <p>문구는 코스 탭의 버튼과 같은 말이라 {@code course.addPlace} 키를 같이 쓴다 — 여는 버튼과
+ * 열린 시트의 제목이 언어별로 갈라지면 같은 기능으로 보이지 않는다.
  */
 export function AddPlaceModal({ open, onClose, popups, onSelect }: AddPlaceModalProps) {
+  const { t } = useLocale();
   return (
     <AnimatePresence>
       {open && (
@@ -28,14 +33,14 @@ export function AddPlaceModal({ open, onClose, popups, onSelect }: AddPlaceModal
           exit={{ y: '100%' }}
           className="fixed inset-0 bg-surface z-[100] flex flex-col"
           role="dialog"
-          aria-label="장소 추가하기"
+          aria-label={t('course.addPlace')}
         >
           <header className="p-4 border-b border-[var(--color-border)] flex justify-between items-center">
-            <h3 className="font-bold text-lg text-foreground">장소 추가하기</h3>
+            <h3 className="font-bold text-lg text-foreground">{t('course.addPlace')}</h3>
             <button
               type="button"
               onClick={onClose}
-              aria-label="닫기"
+              aria-label={t('common.close')}
               className="size-9 inline-flex items-center justify-center bg-cream-300 dark:bg-ink-700 rounded-pill hover:bg-cream-400 dark:hover:bg-ink-600 transition-colors"
             >
               <X size={16} className="lg:w-5 lg:h-5" />

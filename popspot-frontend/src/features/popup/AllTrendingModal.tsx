@@ -9,6 +9,7 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { PopupCard } from '@/components/main/PopupCard';
+import { useLocale } from '@/lib/i18n';
 import type { PopupStore } from '@/types/popup';
 
 interface AllTrendingModalProps {
@@ -22,8 +23,12 @@ interface AllTrendingModalProps {
  *
  * <p>메인 랭킹 타일을 누르면 열린다. 텍스트 리스트 대신 팝업 <b>사진 + 이름</b> 카드로 보여주고,
  * 조회수(인기) 내림차순으로 정렬한다.
+ *
+ * <p>제목은 메인 섹션과 같은 말이라 {@code section.ranking} 을 같이 쓴다 — 눌러서 연 모달의 제목이
+ * 눌렀던 섹션과 다른 말이면 다른 화면으로 온 것처럼 읽힌다.
  */
 export function AllTrendingModal({ open, onOpenChange, popups }: AllTrendingModalProps) {
+  const { t } = useLocale();
   const router = useRouter();
   const ranked = [...popups].sort((a, b) => (b.viewCount || 0) - (a.viewCount || 0));
 
@@ -32,10 +37,10 @@ export function AllTrendingModal({ open, onOpenChange, popups }: AllTrendingModa
       <DialogContent size="xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl md:text-2xl font-black">
-            실시간 랭킹
+            {t('section.ranking')}
             <span className="text-lime-400">·</span>
           </DialogTitle>
-          <DialogDescription>서울에서 지금 가장 많이 찾는 팝업스토어 순</DialogDescription>
+          <DialogDescription>{t('pmodal.trending.desc')}</DialogDescription>
         </DialogHeader>
 
         <div className="overflow-y-auto custom-scrollbar -mx-1 px-1">

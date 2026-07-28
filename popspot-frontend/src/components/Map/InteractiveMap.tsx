@@ -23,7 +23,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import type { Map as MapLibreMap } from 'maplibre-gl';
 import { notify } from '@/lib/notify';
 import { REGIONS, classifyRegion, regionBySlug, regionLabel, type RegionCode } from '@/lib/regions';
-import { localizedRegionLabel, useLocale } from '@/lib/i18n';
+import { localizedLabel, useLocale, type Locale, type MessageKey } from '@/lib/i18n';
 import {
   classifyCategory,
   matchesPeriod,
@@ -78,44 +78,47 @@ interface MapMarkerData {
 const CATEGORIES = ['ALL', 'CHARACTER', 'FASHION', 'BEAUTY', 'FOOD', 'CULTURE', 'ETC'];
 
 /**
- * 카테고리 단일 출처 — 한글 라벨 · 핀 아이콘색 · 핀 테두리색 · 범례 스와치를 여기서만 정의한다.
- * (카테고리 값은 영문 그대로 두고 표시용 라벨만 한글 — DB 매칭 유지)
+ * 카테고리 단일 출처 — 표시명 키 · 핀 아이콘색 · 핀 테두리색 · 범례 스와치를 여기서만 정의한다.
+ * (카테고리 값 자체는 DB 매칭에 쓰이므로 영문 코드 그대로 두고, 화면에 보이는 이름만 사전 키로 뽑는다)
  *
  * <p>예전엔 CATEGORY_LABEL_KO / getCategoryStyle / LEGEND 세 곳에 손으로 나뉘어 있어, 범례의
  * '기타' 는 lime-400 인데 실제 핀 테두리는 lime-300 이라 <b>범례가 핀 색을 잘못 설명</b>하고 있었다.
  * 범례의 유일한 존재 이유가 '핀 색 설명' 이므로 출처를 하나로 합친다.
+ *
+ * <p>모듈 최상단이라 훅을 부를 수 없다. 그래서 문구가 아니라 <b>키</b>를 들고 있고, 그리는 쪽에서
+ * t() 로 편다 — 언어를 바꾸면 칩과 범례가 함께 따라온다.
  */
 const CATEGORY_META = {
   CHARACTER: {
-    label: '캐릭터',
+    labelKey: 'map.catCharacter',
     text: 'text-purple-400',
     border: 'border-purple-400',
     dot: 'bg-purple-400',
     Icon: Sparkles,
   },
   FASHION: {
-    label: '패션',
+    labelKey: 'map.catFashion',
     text: 'text-hot-400',
     border: 'border-hot-400',
     dot: 'bg-hot-400',
     Icon: ShoppingBag,
   },
   BEAUTY: {
-    label: '뷰티',
+    labelKey: 'map.catBeauty',
     text: 'text-pink-400',
     border: 'border-pink-400',
     dot: 'bg-pink-400',
     Icon: Camera,
   },
   FOOD: {
-    label: '푸드',
+    labelKey: 'map.catFood',
     text: 'text-orange-500',
     border: 'border-orange-500',
     dot: 'bg-orange-500',
     Icon: Coffee,
   },
   CULTURE: {
-    label: '문화',
+    labelKey: 'map.catCulture',
     text: 'text-cyan-400',
     border: 'border-cyan-400',
     dot: 'bg-cyan-400',
@@ -123,7 +126,7 @@ const CATEGORY_META = {
   },
   // 핀 테두리가 lime-300 이므로 범례 점도 lime-300 이어야 실제 화면과 일치한다.
   ETC: {
-    label: '기타',
+    labelKey: 'map.catEtc',
     text: 'text-lime-500',
     border: 'border-lime-300',
     dot: 'bg-lime-300',
@@ -133,20 +136,32 @@ const CATEGORY_META = {
 
 type CategoryKey = keyof typeof CATEGORY_META;
 
-const CATEGORY_LABEL_KO: Record<string, string> = {
-  ALL: '전체',
-  ...Object.fromEntries(Object.entries(CATEGORY_META).map(([code, m]) => [code, m.label])),
+const CATEGORY_LABEL_KEY: Record<string, MessageKey> = {
+  ALL: 'map.catAll',
+  ...Object.fromEntries(Object.entries(CATEGORY_META).map(([code, m]) => [code, m.labelKey])),
 };
 
-/** 동네 바로가기 — 팝업이 몰리는 핵심 상권. 클릭 시 지도를 그쪽으로 날린다. */
-const SEOUL_AREAS: { label: string; lng: number; lat: number; zoom: number }[] = [
-  { label: '성수', lng: 127.0557, lat: 37.5447, zoom: 14.3 },
-  { label: '홍대', lng: 126.9235, lat: 37.5563, zoom: 14.3 },
-  { label: '강남', lng: 127.0276, lat: 37.4979, zoom: 13.8 },
-  { label: '잠실', lng: 127.1, lat: 37.5133, zoom: 13.8 },
-  { label: '여의도', lng: 126.9245, lat: 37.525, zoom: 13.8 },
-  { label: '명동', lng: 126.985, lat: 37.5636, zoom: 14.3 },
+/**
+ * 동네 바로가기 — 팝업이 몰리는 핵심 상권. 클릭 시 지도를 그쪽으로 날린다.
+ *
+ * <p>표시명은 사전이 아니라 {@link REGIONS} 에서 가져온다(코드만 들고 있는 이유). 같은 동네를 이 칩과
+ * 필터 배지가 다르게 적으면 — 한쪽은 Seongsu, 한쪽은 성수 — 외국인은 서로 다른 곳으로 읽는다.
+ */
+const SEOUL_AREAS: { code: RegionCode; lng: number; lat: number; zoom: number }[] = [
+  { code: 'seongsu', lng: 127.0557, lat: 37.5447, zoom: 14.3 },
+  { code: 'hongdae', lng: 126.9235, lat: 37.5563, zoom: 14.3 },
+  { code: 'gangnam', lng: 127.0276, lat: 37.4979, zoom: 13.8 },
+  { code: 'jamsil', lng: 127.1, lat: 37.5133, zoom: 13.8 },
+  { code: 'yeouido', lng: 126.9245, lat: 37.525, zoom: 13.8 },
+  { code: 'myeongdong', lng: 126.985, lat: 37.5636, zoom: 14.3 },
 ];
+
+/** 동네 표시명 — 정의에 없는 코드면 코드를 그대로 보여준다(빈 칩보다는 낫다). */
+function areaLabel(code: RegionCode, locale: Locale): string {
+  const region = REGIONS.find((r) => r.code === code);
+  return region ? localizedLabel(region, locale) : code;
+}
+
 /** 서울 전체 조망 — "전체" 칩. */
 const SEOUL_OVERVIEW = { lng: 126.99, lat: 37.55, zoom: 11 };
 
@@ -180,9 +195,9 @@ function fitToPoints(map: MapLibreMap, pts: [number, number][]) {
 }
 
 /** 범례 — 카테고리 색은 CATEGORY_META 에서 파생하므로 핀과 절대 어긋나지 않는다(+지하철역). */
-const LEGEND: { label: string; cls: string }[] = [
-  ...Object.values(CATEGORY_META).map((m) => ({ label: m.label, cls: m.dot })),
-  { label: '지하철역', cls: 'bg-violet-400' },
+const LEGEND: { labelKey: MessageKey; cls: string }[] = [
+  ...Object.values(CATEGORY_META).map((m) => ({ labelKey: m.labelKey, cls: m.dot })),
+  { labelKey: 'map.legendSubway', cls: 'bg-violet-400' },
 ];
 
 /**
@@ -243,8 +258,8 @@ export default function InteractiveMap({
   filterIds,
   fitReq,
 }: InteractiveMapProps) {
-  // 지역 필터 배지 표기에 쓴다. 팝업 이름·주소는 원문을 그대로 둔다.
-  const { locale } = useLocale();
+  // 컨트롤·배지 문구에 쓴다. 팝업 이름·주소는 크롤링한 원문이라 그대로 둔다(간판·지도앱 대조용).
+  const { t, locale } = useLocale();
   const [allMarkers, setAllMarkers] = useState<MapMarkerData[]>([]);
   const [selectedMarker, setSelectedMarker] = useState<MapMarkerData | null>(null);
   const [activeCategory, setActiveCategory] = useState('ALL');
@@ -481,7 +496,7 @@ export default function InteractiveMap({
    */
   const handleMyLocation = () => {
     if (!navigator.geolocation || !map) {
-      notify('이 브라우저는 위치 정보를 지원하지 않습니다.');
+      notify(t('map.geoUnsupported'));
       return;
     }
     navigator.geolocation.getCurrentPosition(
@@ -491,7 +506,7 @@ export default function InteractiveMap({
         setUserLocation({ lat, lng });
         map.panTo([lng, lat]);
       },
-      () => notify('위치 정보를 가져올 수 없습니다. 브라우저 권한을 확인해주세요.'),
+      () => notify(t('map.geoDenied')),
       { enableHighAccuracy: false, timeout: 5000, maximumAge: 60_000 },
     );
   };
@@ -524,42 +539,48 @@ export default function InteractiveMap({
   // 선택된 팝업 카드의 세로 오프셋(px) — 아래 이름카드/핀을 넘어 위에 뜨도록.
   const selectedOffset: [number, number] = showPath || mode === 'PLAN' ? [0, -48] : [0, -34];
 
+  // 배지에 쓸 정의 — 지역·시점·카테고리는 언어별 표기를 정의(regions.ts · popupSlices.ts)가 들고 있다.
+  // 사전이 아니라 정의에 붙어 있는 이유는 이 셋이 서버가 만드는 검색 페이지에서도 쓰이기 때문(i18n.tsx 주석).
+  const regionDef = REGIONS.find((r) => r.code === activeRegion);
+  const periodDef = periodBySlug(periodSlug ?? '');
+  const browseCategoryDef = categoryBySlug(categorySlug ?? '');
+
   return (
     <div className="relative w-full h-full group overflow-hidden rounded-[20px] outline-none bg-ink-900">
       {/* v2.21-S2 — 활성 BROWSE 필터 배지 (좌측 상단). 사용자가 어떤 필터가 적용됐는지 즉시 인지. */}
       {!showPath && mode !== 'PLAN' && (activeRegion || activePeriod || activeBrowseCategory) && (
         <div className="absolute top-12 md:top-14 left-3 md:left-4 z-30 flex flex-wrap items-center gap-1.5 max-w-[calc(100%-1.5rem)]">
           <span className="text-[10px] font-bold uppercase tracking-wider text-white/60 mr-1">
-            필터:
+            {t('map.filterLabel')}
           </span>
           {activeRegion && (
             <FilterBadge
               label={
                 // 지역만은 화면 언어를 따른다 — 외국인이 지역 필터를 걸었는데 한국어로만 나오면
                 // 무엇으로 좁혔는지 알 수 없다. 팝업 이름은 원문 그대로 둔다(i18n.ts 주석 참고).
-                REGIONS.find((r) => r.code === activeRegion)
-                  ? localizedRegionLabel(
-                      REGIONS.find((r) => r.code === activeRegion)!,
-                      locale,
-                    )
-                  : regionLabel(activeRegion)
+                regionDef ? localizedLabel(regionDef, locale) : regionLabel(activeRegion)
               }
               paramKey="region"
             />
           )}
           {activePeriod && (
             <FilterBadge
-              label={periodBySlug(periodSlug ?? '')?.label ?? activePeriod}
+              label={periodDef ? localizedLabel(periodDef, locale) : activePeriod}
               paramKey="period"
             />
           )}
           {activeBrowseCategory && (
             <FilterBadge
-              label={categoryBySlug(categorySlug ?? '')?.label ?? activeBrowseCategory}
+              label={
+                browseCategoryDef ? localizedLabel(browseCategoryDef, locale) : activeBrowseCategory
+              }
               paramKey="category"
             />
           )}
-          <span className="text-[10px] font-bold text-lime-300 ml-1">{markers.length}건</span>
+          <span className="text-[10px] font-bold text-lime-300 ml-1">
+            {markers.length}
+            {t('map.countUnit')}
+          </span>
         </div>
       )}
 
@@ -581,7 +602,7 @@ export default function InteractiveMap({
                     : 'bg-black/40 text-white/70 border-white/10 hover:bg-white/10'
                 }`}
               >
-                {CATEGORY_LABEL_KO[cat] ?? cat}
+                {CATEGORY_LABEL_KEY[cat] ? t(CATEGORY_LABEL_KEY[cat]) : cat}
               </button>
             ))}
           </div>
@@ -590,7 +611,7 @@ export default function InteractiveMap({
           <div className="absolute top-3 md:top-4 right-3 md:right-4 z-30">
             <button
               onClick={() => setIsExploreOpen((v) => !v)}
-              aria-label="동네 바로가기 · 범례"
+              aria-label={t('map.exploreAria')}
               aria-expanded={isExploreOpen}
               className={`p-2 md:p-2.5 backdrop-blur-md border rounded-lg md:rounded-xl transition-all shadow-lg ${
                 isExploreOpen
@@ -612,37 +633,37 @@ export default function InteractiveMap({
                 >
                   {/* 동네 바로가기 */}
                   <div className="text-[10px] font-black uppercase tracking-wider opacity-50 mb-1.5">
-                    동네 바로가기
+                    {t('map.areasTitle')}
                   </div>
                   <div className="flex flex-wrap gap-1.5 mb-3">
                     {SEOUL_AREAS.map((area) => (
                       <button
-                        key={area.label}
+                        key={area.code}
                         onClick={() => flyToArea(area)}
                         className="px-2.5 py-1 rounded-full text-[11px] font-bold border border-gray-200 bg-gray-50 hover:border-primary hover:text-primary dark:border-white/15 dark:bg-white/5 transition-colors"
                       >
-                        {area.label}
+                        {areaLabel(area.code, locale)}
                       </button>
                     ))}
                     <button
                       onClick={() => flyToArea(SEOUL_OVERVIEW)}
                       className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-primary/15 text-primary border border-primary/30 hover:bg-primary/25 transition-colors"
                     >
-                      서울 전체
+                      {t('map.areaAll')}
                     </button>
                   </div>
 
                   {/* 범례 */}
                   <div className="text-[10px] font-black uppercase tracking-wider opacity-50 mb-1.5">
-                    범례
+                    {t('map.legendTitle')}
                   </div>
                   <div className="grid grid-cols-2 gap-x-2 gap-y-1.5">
                     {LEGEND.map((item) => (
-                      <div key={item.label} className="flex items-center gap-1.5 text-[11px]">
+                      <div key={item.labelKey} className="flex items-center gap-1.5 text-[11px]">
                         <span
                           className={`w-2.5 h-2.5 rounded-full ring-1 ring-black/10 dark:ring-white/20 ${item.cls}`}
                         />
-                        <span className="opacity-80">{item.label}</span>
+                        <span className="opacity-80">{t(item.labelKey)}</span>
                       </div>
                     ))}
                   </div>
@@ -681,7 +702,7 @@ export default function InteractiveMap({
                         onClick={() => moveToMarker(marker)}
                         role="button"
                         tabIndex={0}
-                        aria-label={`${marker.name} 지도에서 보기`}
+                        aria-label={`${marker.name}${t('map.markerAria')}`}
                         onKeyDown={(e) => {
                           if (e.key === 'Enter' || e.key === ' ') {
                             e.preventDefault();
@@ -706,9 +727,9 @@ export default function InteractiveMap({
                     ))
                   ) : (
                     <div className="text-center text-muted text-[10px] md:text-xs py-8 md:py-10">
-                      해당 카테고리의
+                      {t('map.emptyLine1')}
                       <br />
-                      팝업스토어가 없습니다.
+                      {t('map.emptyLine2')}
                     </div>
                   )}
                 </div>
@@ -726,7 +747,7 @@ export default function InteractiveMap({
           <div className="absolute bottom-4 md:bottom-6 right-3 md:right-4 z-20 flex flex-col gap-2">
             <button
               onClick={() => setIsListOpen(!isListOpen)}
-              aria-label="팝업 목록"
+              aria-label={t('map.listAria')}
               aria-expanded={isListOpen}
               className={`p-2 md:p-2.5 backdrop-blur-md border rounded-lg md:rounded-xl text-white transition-all shadow-lg ${
                 isListOpen
@@ -747,7 +768,7 @@ export default function InteractiveMap({
       >
         <button
           onClick={handleMyLocation}
-          aria-label="내 위치로 이동"
+          aria-label={t('map.myLocationAria')}
           className="p-2 md:p-2.5 bg-black/80 backdrop-blur-md border border-white/20 rounded-lg md:rounded-xl text-white hover:text-primary hover:border-primary transition-colors shadow-lg"
         >
           <Compass size={16} className="md:w-[18px] md:h-[18px]" />
@@ -756,14 +777,14 @@ export default function InteractiveMap({
         <div className="flex flex-col bg-black/80 backdrop-blur-md border border-white/20 rounded-lg md:rounded-xl overflow-hidden shadow-lg">
           <button
             onClick={zoomIn}
-            aria-label="확대"
+            aria-label={t('map.zoomIn')}
             className="p-2 md:p-2.5 text-white hover:text-primary hover:bg-white/10 transition-colors border-b border-white/10 flex items-center justify-center"
           >
             <Plus size={16} className="md:w-[18px] md:h-[18px]" />
           </button>
           <button
             onClick={zoomOut}
-            aria-label="축소"
+            aria-label={t('map.zoomOut')}
             className="p-2 md:p-2.5 text-white hover:text-primary hover:bg-white/10 transition-colors flex items-center justify-center"
           >
             <Minus size={16} className="md:w-[18px] md:h-[18px]" />
@@ -813,7 +834,7 @@ export default function InteractiveMap({
           {/* 사용자 현재 위치 마커 — 파란 점 + pulse ring. 클릭 X (단순 표시용). */}
           {userLocation && (
             <MapMarker position={userLocation} anchor="center">
-              <div className="relative" aria-label="내 위치">
+              <div className="relative" aria-label={t('map.myLocation')}>
                 <span className="absolute inset-0 -m-3 rounded-full bg-blue-400/30 animate-ping" />
                 <span className="relative block size-4 rounded-full bg-blue-500 ring-2 ring-white shadow-md" />
               </div>
@@ -969,7 +990,7 @@ export default function InteractiveMap({
                   }}
                   className="w-full py-1.5 md:py-2 bg-white/10 group-hover:bg-primary group-hover:text-black rounded-md md:rounded-lg text-[10px] md:text-xs font-bold transition-all flex items-center justify-center gap-1 text-white cursor-pointer"
                 >
-                  상세 보기{' '}
+                  {t('map.detailCta')}{' '}
                   <ArrowRight
                     size={10}
                     className="group-hover:translate-x-1 transition-transform md:w-2.5 md:h-2.5"
@@ -991,6 +1012,8 @@ export default function InteractiveMap({
  * router.replace 로 history 더럽히지 않게 처리.
  */
 function FilterBadge({ label, paramKey }: { label: string; paramKey: string }) {
+  const { t } = useLocale();
+
   function handleRemove() {
     if (typeof window === 'undefined') return;
     const url = new URL(window.location.href);
@@ -1006,7 +1029,7 @@ function FilterBadge({ label, paramKey }: { label: string; paramKey: string }) {
       <button
         type="button"
         onClick={handleRemove}
-        aria-label={`${label} 필터 해제`}
+        aria-label={`${label}${t('map.filterRemoveAria')}`}
         className="opacity-70 hover:opacity-100 transition-opacity"
       >
         <X size={10} strokeWidth={3} />

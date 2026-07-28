@@ -2,6 +2,7 @@
 
 import { Map as MapIcon, Route, Ticket, User, Users, Music2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useLocale, type MessageKey } from '@/lib/i18n';
 
 export type DockTab = 'MAP' | 'COURSE' | 'MUSIC' | 'PASSPORT' | 'MY' | 'MATE' | 'FEEDBACK';
 
@@ -13,7 +14,11 @@ interface BottomDockProps {
 interface DockItemDef {
   key: DockTab;
   icon: React.ElementType;
-  label: string;
+  /**
+   * 번역 키만 담는다 — 문구 자체를 담으면 이 상수가 모듈 최상단이라 언어를 알 수 없다.
+   * 실제 문구는 그리는 쪽에서 {@code t(labelKey)} 로 꺼낸다.
+   */
+  labelKey: MessageKey;
 }
 
 /**
@@ -21,12 +26,12 @@ interface DockItemDef {
  * 마이페이지/지도/음악 모두 같은 모델로 통일해서 깜빡임 없이 이동.
  */
 export const DOCK_ITEMS: DockItemDef[] = [
-  { key: 'MAP', icon: MapIcon, label: '지도' },
-  { key: 'COURSE', icon: Route, label: '코스' },
-  { key: 'MUSIC', icon: Music2, label: '음악' },
-  { key: 'PASSPORT', icon: Ticket, label: '여권' },
-  { key: 'MY', icon: User, label: 'MY' },
-  { key: 'MATE', icon: Users, label: '동행' },
+  { key: 'MAP', icon: MapIcon, labelKey: 'dock.map' },
+  { key: 'COURSE', icon: Route, labelKey: 'dock.course' },
+  { key: 'MUSIC', icon: Music2, labelKey: 'dock.music' },
+  { key: 'PASSPORT', icon: Ticket, labelKey: 'dock.passport' },
+  { key: 'MY', icon: User, labelKey: 'dock.my' },
+  { key: 'MATE', icon: Users, labelKey: 'dock.mate' },
 ];
 
 /**
@@ -36,9 +41,10 @@ export const DOCK_ITEMS: DockItemDef[] = [
  * 가능하게 만들어 좁은 화면에서도 모든 탭 접근 가능. 데스크탑은 기존과 동일하게 한 줄 정렬.
  */
 export function BottomDock({ currentTab, onTabChange }: BottomDockProps) {
+  const { t } = useLocale();
   return (
     <nav
-      aria-label="메인 네비게이션"
+      aria-label={t('nav.mainMenu')}
       className={cn(
         'fixed bottom-4 md:bottom-6 left-1/2 -translate-x-1/2 z-50 lg:hidden',
         'w-[95%] max-w-[560px]',
@@ -56,7 +62,7 @@ export function BottomDock({ currentTab, onTabChange }: BottomDockProps) {
           <DockButton
             key={item.key}
             icon={item.icon}
-            label={item.label}
+            label={t(item.labelKey)}
             isActive={currentTab === item.key}
             onClick={() => onTabChange(item.key)}
           />

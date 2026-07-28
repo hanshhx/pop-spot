@@ -72,7 +72,7 @@ export default function HomeBento1a({ popups, total, onOpenRanking, onNavigate }
 
   return (
     <section
-      aria-label="발견"
+      aria-label={t('bento.aria')}
       className="mb-10 grid grid-cols-1 gap-4 lg:grid-cols-3 lg:grid-rows-2"
     >
       {/* 실시간 랭킹 히어로 — 라이트=흰 카드/진한 글씨, 다크=딥카드(기존 유지) */}
@@ -186,12 +186,12 @@ export default function HomeBento1a({ popups, total, onOpenRanking, onNavigate }
             <Ticket size={18} />
           </span>
           <div>
-            <h3 className="text-base font-black">나의 기록</h3>
+            <h3 className="text-base font-black">{t('bento.recordTitle')}</h3>
             <p className="mt-1 text-xs leading-relaxed text-ink-500 dark:text-cream-200/55">
-              방문한 팝업을 도장으로 기록하고 스탬프를 모아요.
+              {t('bento.recordDesc')}
             </p>
             <span className="mt-3 inline-flex items-center gap-1 text-xs font-bold text-amber-600 dark:text-amber-300">
-              여권 열기{' '}
+              {t('bento.passportCta')}{' '}
               <ArrowRight size={13} className="transition-transform group-hover:translate-x-0.5" />
             </span>
           </div>
@@ -221,12 +221,12 @@ export default function HomeBento1a({ popups, total, onOpenRanking, onNavigate }
                 />
               ))}
             </div>
-            <h3 className="text-base font-black">같이 갈 사람</h3>
+            <h3 className="text-base font-black">{t('bento.mateTitle')}</h3>
             <p className="mt-1 text-xs leading-relaxed text-ink-500 dark:text-cream-200/55">
-              관심사 맞는 동행을 찾아 함께 다녀와요.
+              {t('bento.mateDesc')}
             </p>
             <span className="mt-3 inline-flex items-center gap-1 text-xs font-bold text-sky-600 dark:text-sky-300">
-              동행 찾기{' '}
+              {t('bento.mateCta')}{' '}
               <ArrowRight size={13} className="transition-transform group-hover:translate-x-0.5" />
             </span>
           </div>

@@ -6,6 +6,7 @@ import Link from 'next/link';
 
 import { apiFetch } from '@/lib/api';
 import { getAuthToken } from '@/lib/authStorage';
+import { useLocale, type MessageKey } from '@/lib/i18n';
 import { SpotifyConnectButton } from '@/features/music/SpotifyConnectButton';
 import { MatchResult, MusicTrack } from '@/types/music';
 import type { PopupStore } from '@/types/popup';
@@ -32,53 +33,58 @@ function useDebounce<T>(value: T, delay = 250) {
  * 이제 무드를 고르면 <b>그 무드의 팝업(사진 카드)</b>이 주 화면이고, 음악(배경음악 스트립)은 위젯으로 강등한다.
  * {@code music} = 배경음악 검색 키워드, {@code cats} = 그 무드로 보여줄 팝업 카테고리. "대충 붙인" 느낌이 없도록
  * 무드마다 음악·팝업을 함께 큐레이션했다.
+ *
+ * <p><b>보이는 문구와 보내는 값을 나눠 둔다.</b> {@code labelKey}·{@code descKey} 는 화면에만 쓰이니 사전
+ * 키로 두고, {@code music} 은 음악 API 로 그대로 나가는 검색어라 언어와 무관하게 고정한다 — 화면을 일본어로
+ * 바꿨다고 검색어까지 일본어가 되면 결과가 통째로 달라진다. 모듈 최상단이라 훅을 쓸 수 없어 키만 담고,
+ * 실제 번역은 그리는 쪽에서 t() 로 꺼낸다.
  */
 const MOODS: {
   id: string;
-  label: string;
-  desc: string;
+  labelKey: MessageKey;
+  descKey: MessageKey;
   music: string;
   cats: string[];
 }[] = [
   {
     id: 'chill',
-    label: '감성·카페',
-    desc: '잔잔하게 둘러보기',
+    labelKey: 'music.moodChillLabel',
+    descKey: 'music.moodChillDesc',
     music: 'korean lofi cafe chill',
     cats: ['FOOD', 'CULTURE'],
   },
   {
     id: 'trend',
-    label: '트렌디·K팝',
-    desc: '지금 가장 힙한',
+    labelKey: 'music.moodTrendLabel',
+    descKey: 'music.moodTrendDesc',
     music: 'k-pop hits 2025',
     cats: ['FASHION', 'BEAUTY'],
   },
   {
     id: 'cute',
-    label: '아기자기',
-    desc: '귀여운 캐릭터',
+    labelKey: 'music.moodCuteLabel',
+    descKey: 'music.moodCuteDesc',
     music: 'korean cute bright pop',
     cats: ['CHARACTER'],
   },
   {
     id: 'art',
-    label: '전시·아트',
-    desc: '감각을 채우는',
+    labelKey: 'music.moodArtLabel',
+    descKey: 'music.moodArtDesc',
     music: 'korean indie art',
     cats: ['CULTURE', 'TECH'],
   },
   {
     id: 'date',
-    label: '데이트',
-    desc: '둘이 설레는',
+    labelKey: 'music.moodDateLabel',
+    descKey: 'music.moodDateDesc',
     music: 'korean rnb soul love',
     cats: ['FASHION', 'FOOD', 'BEAUTY'],
   },
   {
     id: 'rainy',
-    label: '비 오는 날',
-    desc: '차분하게 젖어드는',
+    labelKey: 'music.moodRainyLabel',
+    descKey: 'music.moodRainyDesc',
     music: 'korean rainy day ballad',
     cats: ['CULTURE', 'FOOD'],
   },
@@ -102,6 +108,7 @@ export interface MusicTabProps {
  */
 export default function MusicTab({ popups, onOpenPopup }: MusicTabProps) {
   const player = useMusicPlayer();
+  const { t } = useLocale();
 
   const [activeMoodId, setActiveMoodId] = useState(MOODS[0].id);
   const activeMood = useMemo(
@@ -328,11 +335,10 @@ export default function MusicTab({ popups, onOpenPopup }: MusicTabProps) {
               POP · MUSIC
             </p>
             <h2 className="mt-2 text-2xl font-black leading-tight tracking-tight text-foreground sm:text-4xl">
-              무드로 고르는, <span className="text-lime-500 dark:text-lime-300">오늘의 팝업</span>
+              {t('music.heroLead')}
+              <span className="text-lime-500 dark:text-lime-300">{t('music.heroAccent')}</span>
             </h2>
-            <p className="mt-2 max-w-md text-sm text-muted-foreground">
-              지금 기분에 맞는 무드를 고르면, 어울리는 팝업과 배경음악을 함께 골라드려요.
-            </p>
+            <p className="mt-2 max-w-md text-sm text-muted-foreground">{t('music.heroDesc')}</p>
           </div>
           {/* Spotify 연결 칩. Premium 이면 풀트랙, Free/미연결은 30초 미리듣기. */}
           <div className="shrink-0 pt-1">
@@ -343,16 +349,18 @@ export default function MusicTab({ popups, onOpenPopup }: MusicTabProps) {
 
       {/* 당신을 위한 — 개인화 추천 (로그인 유저, 재생 이력 취향 기반) */}
       {isLoggedIn && forYou.length > 0 && (
-        <section aria-label="당신을 위한 추천" className="mb-7">
+        <section aria-label={t('music.forYouAria')} className="mb-7">
           <div className="mb-3 flex items-baseline gap-2">
             <h3 className="text-base font-black text-foreground">
-              당신을 위한 <span className="text-lime-500 dark:text-lime-300">추천</span>
+              {t('music.forYouLead')}
+              <span className="text-lime-500 dark:text-lime-300">{t('music.forYouAccent')}</span>
             </h3>
-            <span className="text-xs text-muted-foreground">들으신 곡 취향으로 골랐어요</span>
+            <span className="text-xs text-muted-foreground">{t('music.forYouHint')}</span>
           </div>
           <div className="custom-scrollbar -mx-1 flex snap-x gap-3 overflow-x-auto px-1 pb-2">
-            {forYou.map((t) => (
-              <TrackChip key={t.id} track={t} onPlay={() => player.play(t, forYou)} />
+            {/* 콜백 인자를 track 으로 둔다 — t 로 두면 번역 함수를 가려, 안에서 t('...') 를 쓰는 순간 깨진다. */}
+            {forYou.map((track) => (
+              <TrackChip key={track.id} track={track} onPlay={() => player.play(track, forYou)} />
             ))}
           </div>
         </section>
@@ -374,11 +382,11 @@ export default function MusicTab({ popups, onOpenPopup }: MusicTabProps) {
                   : 'border-[var(--color-border)] bg-cream-200 text-foreground hover:border-lime-300/60 dark:bg-ink-800'
               }`}
             >
-              <span className="text-sm font-black leading-tight">{m.label}</span>
+              <span className="text-sm font-black leading-tight">{t(m.labelKey)}</span>
               <span
                 className={`mt-0.5 text-[11px] leading-tight ${active ? 'text-ink-900/70' : 'text-muted-foreground'}`}
               >
-                {m.desc}
+                {t(m.descKey)}
               </span>
             </button>
           );
@@ -386,29 +394,30 @@ export default function MusicTab({ popups, onOpenPopup }: MusicTabProps) {
       </div>
 
       {/* PRIMARY — 이 무드의 팝업 사진 카드 */}
-      <section aria-label="이 무드의 팝업" className="mb-10">
+      <section aria-label={t('music.moodPopupsAria')} className="mb-10">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-baseline gap-2">
             <h3 className="text-base font-black text-foreground">
-              <span className="text-lime-500 dark:text-lime-300">{activeMood.label}</span> 무드의
-              팝업
+              <span className="text-lime-500 dark:text-lime-300">{t(activeMood.labelKey)}</span>
+              {t('music.moodPopupsSuffix')}
             </h3>
-            <span className="text-xs text-muted-foreground">사진으로 훑어보세요</span>
+            <span className="text-xs text-muted-foreground">{t('music.photoHint')}</span>
           </div>
           <label className="flex items-center gap-1.5 text-xs">
-            <span className="text-muted-foreground">정렬</span>
+            <span className="text-muted-foreground">{t('music.sortLabel')}</span>
             <select
               value={sortBy}
               onChange={(e) =>
                 setSortBy(e.target.value as 'default' | 'popular' | 'dday' | 'category')
               }
-              aria-label="팝업 정렬 기준"
+              aria-label={t('music.sortAria')}
               className="rounded-pill border border-[var(--color-border)] bg-surface px-3 py-1.5 text-xs font-semibold text-foreground focus:outline-none focus:border-lime-400"
             >
-              <option value="default">추천순</option>
-              <option value="popular">인기순</option>
-              <option value="dday">마감임박순</option>
-              <option value="category">카테고리순</option>
+              {/* value 는 정렬 분기에 그대로 쓰이는 값이라 고정하고, 보이는 글자만 옮긴다. */}
+              <option value="default">{t('music.sortDefault')}</option>
+              <option value="popular">{t('music.sortPopular')}</option>
+              <option value="dday">{t('music.sortDday')}</option>
+              <option value="category">{t('music.sortCategory')}</option>
             </select>
           </label>
         </div>
@@ -426,15 +435,15 @@ export default function MusicTab({ popups, onOpenPopup }: MusicTabProps) {
           </div>
         ) : (
           <div className="grid place-items-center rounded-2xl border border-dashed border-[var(--color-border)] bg-cream-200 px-6 py-16 text-center dark:bg-ink-800">
-            <p className="text-sm font-bold text-foreground">이 무드의 팝업을 불러오는 중이에요</p>
-            <p className="mt-1 text-xs text-muted-foreground">잠시 후 다시 확인해주세요</p>
+            <p className="text-sm font-bold text-foreground">{t('music.popupsLoading')}</p>
+            <p className="mt-1 text-xs text-muted-foreground">{t('music.popupsLoadingHint')}</p>
           </div>
         )}
       </section>
 
       {/* SECONDARY — 이 무드의 배경음악 위젯 (강등) */}
       <section
-        aria-label="이 무드의 배경음악"
+        aria-label={t('music.bgmTitle')}
         className="rounded-2xl border border-[var(--color-border)] bg-cream-100 p-4 dark:bg-ink-800/60 sm:p-5"
       >
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -443,9 +452,11 @@ export default function MusicTab({ popups, onOpenPopup }: MusicTabProps) {
               <Music2 className="h-4 w-4" />
             </span>
             <div>
-              <h3 className="text-sm font-black text-foreground">이 무드의 배경음악</h3>
+              <h3 className="text-sm font-black text-foreground">{t('music.bgmTitle')}</h3>
               <p className="text-[11px] text-muted-foreground">
-                {showSearch ? `검색 "${submittedQuery}"` : `${activeMood.label} 무드에 어울리는 곡`}
+                {showSearch
+                  ? `${t('music.searchedFor')} "${submittedQuery}"`
+                  : `${t(activeMood.labelKey)}${t('music.moodTracksSuffix')}`}
               </p>
             </div>
           </div>
@@ -462,14 +473,14 @@ export default function MusicTab({ popups, onOpenPopup }: MusicTabProps) {
               ) : (
                 <Dice5 className="h-3.5 w-3.5" />
               )}
-              운명의 곡
+              {t('music.roulette')}
             </button>
             <Link
               href="/music/passport"
               className="flex h-9 items-center gap-1.5 rounded-pill border border-[var(--color-border)] bg-surface px-3.5 text-xs font-bold text-foreground transition hover:bg-cream-300 dark:hover:bg-ink-700"
             >
               <Ticket className="h-3.5 w-3.5" />
-              패스포트
+              {t('music.passport')}
             </Link>
           </div>
         </div>
@@ -486,7 +497,7 @@ export default function MusicTab({ popups, onOpenPopup }: MusicTabProps) {
             }}
             onFocus={() => setSuggestOpen(true)}
             onKeyDown={handleKeyDown}
-            placeholder="아티스트·곡명으로 직접 검색"
+            placeholder={t('music.searchPlaceholder')}
             className="h-10 w-full rounded-pill border border-[var(--color-border)] bg-surface pl-10 pr-9 text-sm text-foreground placeholder:text-muted-foreground focus:border-lime-400 focus:outline-none"
             autoComplete="off"
           />
@@ -496,7 +507,7 @@ export default function MusicTab({ popups, onOpenPopup }: MusicTabProps) {
             <button
               type="button"
               onClick={clearSearch}
-              aria-label="검색 지우기"
+              aria-label={t('music.searchClear')}
               className="absolute right-2.5 top-1/2 grid h-6 w-6 -translate-y-1/2 place-items-center rounded-full text-muted-foreground hover:bg-foreground/5"
             >
               <X className="h-3.5 w-3.5" />
@@ -536,36 +547,39 @@ export default function MusicTab({ popups, onOpenPopup }: MusicTabProps) {
         {moodLoading && !showSearch ? (
           <TrackStripSkeleton />
         ) : strip.length === 0 ? (
-          <p className="py-8 text-center text-xs text-muted-foreground">
-            아직 표시할 곡이 없어요. 검색해보거나 잠시 후 다시 시도해주세요.
-          </p>
+          <p className="py-8 text-center text-xs text-muted-foreground">{t('music.tracksEmpty')}</p>
         ) : (
           <div className="custom-scrollbar -mx-1 flex snap-x gap-3 overflow-x-auto px-1 pb-2">
-            {strip.map((t) => (
-              <TrackChip key={t.id} track={t} onPlay={() => player.play(t, strip)} />
+            {strip.map((track) => (
+              <TrackChip key={track.id} track={track} onPlay={() => player.play(track, strip)} />
             ))}
           </div>
         )}
 
         {/* 어트리뷰션 (Spotify Branding Guidelines) */}
         <p className="mt-4 text-center text-[10px] tracking-wide text-muted-foreground">
-          음원 제공 · <span className="font-bold text-[#1DB954]">Spotify</span> · Apple Music ·
-          YouTube
+          {t('music.attribution')} · <span className="font-bold text-[#1DB954]">Spotify</span> ·
+          Apple Music · YouTube
         </p>
       </section>
 
       {/* 다음 추천 — 재생 중일 때 이어질 곡 (유튜브 up-next식, 재생 곡 기반 개인화) */}
       {player.current && player.autoQueue.length > 0 && (
-        <section aria-label="다음 추천" className="mt-6">
+        <section aria-label={t('music.nextUp')} className="mt-6">
           <div className="mb-3 flex items-baseline gap-2">
-            <h3 className="text-base font-black text-foreground">다음 추천</h3>
+            <h3 className="text-base font-black text-foreground">{t('music.nextUp')}</h3>
             <span className="min-w-0 truncate text-xs text-muted-foreground">
-              &ldquo;{player.current.trackName}&rdquo; 다음에 이어질 곡
+              {/* 곡명은 고유명사라 그대로 두고, 뒤에 붙는 설명만 언어별로 바꾼다. */}
+              &ldquo;{player.current.trackName}&rdquo;{t('music.nextUpSuffix')}
             </span>
           </div>
           <div className="custom-scrollbar -mx-1 flex snap-x gap-3 overflow-x-auto px-1 pb-2">
-            {player.autoQueue.map((t) => (
-              <TrackChip key={t.id} track={t} onPlay={() => player.play(t, player.autoQueue)} />
+            {player.autoQueue.map((track) => (
+              <TrackChip
+                key={track.id}
+                track={track}
+                onPlay={() => player.play(track, player.autoQueue)}
+              />
             ))}
           </div>
         </section>
