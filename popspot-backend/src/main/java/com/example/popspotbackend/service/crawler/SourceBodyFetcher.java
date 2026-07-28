@@ -16,8 +16,8 @@ import org.springframework.web.client.RestTemplate;
 /**
  * 원본 글의 본문 텍스트를 가져온다 — 날짜 2차 보강({@code PopupDateBackfillService})에서만 쓴다.
  *
- * <p>v2.46 — 1차 수집은 검색 API 의 짧은 요약문만 본다. 기간이 요약문에 안 잡히는 팝업이 많아, 날짜가
- * 빈 것만 골라 원본 글을 한 번 더 읽는다. 대상이 전체가 아니라 결손분뿐이라 부하가 작다.
+ * <p>v2.46 — 1차 수집은 검색 API 의 짧은 요약문만 본다. 기간이 요약문에 안 잡히는 팝업이 많아, 날짜가 빈 것만 골라 원본 글을 한 번 더 읽는다. 대상이
+ * 전체가 아니라 결손분뿐이라 부하가 작다.
  */
 @Slf4j
 @Component
@@ -32,15 +32,15 @@ public class SourceBodyFetcher {
     /**
      * 네이버 블로그 주소에서 blogId / logNo.
      *
-     * <p>네이버 블로그는 본문이 {@code iframe} 안에 있어 겉 페이지를 받으면 <b>빈 껍데기</b>가 온다.
-     * 실제 본문은 {@code PostView.naver} 로 따로 요청해야 한다(실측 19건 전부 이 경로로 성공).
+     * <p>네이버 블로그는 본문이 {@code iframe} 안에 있어 겉 페이지를 받으면 <b>빈 껍데기</b>가 온다. 실제 본문은 {@code
+     * PostView.naver} 로 따로 요청해야 한다(실측 19건 전부 이 경로로 성공).
      */
     private static final Pattern NAVER_BLOG =
             Pattern.compile("blog\\.naver\\.com/([^/?#]+)/(\\d+)");
 
     /**
-     * 타임아웃을 반드시 건다 — 외부 블로그를 순차로 읽으므로 한 곳이 응답을 안 주면 그 뒤 전부가 밀린다.
-     * {@code new RestTemplate()} 기본값은 무한 대기다.
+     * 타임아웃을 반드시 건다 — 외부 블로그를 순차로 읽으므로 한 곳이 응답을 안 주면 그 뒤 전부가 밀린다. {@code new RestTemplate()} 기본값은 무한
+     * 대기다.
      */
     private final RestTemplate restTemplate = new RestTemplate(timeoutFactory());
 

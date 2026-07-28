@@ -1,5 +1,6 @@
 package com.example.popspotbackend.exception;
 
+import com.example.popspotbackend.config.LogSafe;
 import io.sentry.Sentry;
 import java.time.OffsetDateTime;
 import java.util.HashMap;
@@ -114,7 +115,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<Map<String, Object>> handleDataIntegrityViolation(
             DataIntegrityViolationException ex) {
-        log.warn("DataIntegrityViolation: {}", ex.getMostSpecificCause().getMessage());
+        // 값 부분은 지우고 제약 이름만 남긴다. PostgreSQL 은 "Key (email)=(victim@example.com)" 처럼
+        // 위반한 값을 메시지에 그대로 실어 보내, 그대로 찍으면 가입 이메일·전화번호가 로그에 쌓인다.
+        log.warn(
+                "DataIntegrityViolation: {}",
+                LogSafe.constraintViolation(ex.getMostSpecificCause().getMessage()));
         return body(HttpStatus.CONFLICT, "Conflict", MESSAGE_CONFLICT);
     }
 

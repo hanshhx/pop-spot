@@ -1,5 +1,6 @@
 package com.example.popspotbackend.service.music;
 
+import com.example.popspotbackend.config.HttpClients;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.charset.StandardCharsets;
@@ -130,7 +131,7 @@ public class YouTubeMusicSearchService {
         "연주 영상"
     };
 
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final RestTemplate restTemplate = HttpClients.withTimeouts();
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Value("${youtube.api-key:}")

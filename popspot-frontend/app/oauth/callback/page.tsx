@@ -25,12 +25,13 @@ function CallbackContent() {
 
     const fetchUserInfo = async () => {
       try {
+        // 백엔드(OAuth2SuccessHandler)는 1회성 교환코드만 붙여 보낸다 — ?code= 하나뿐이다.
+        //
+        // v2.40 배포 시차 동안에는 구버전이 URL 로 JWT 를 직접 실어 주는 ?token= 도 받아 줬는데,
+        // 배포가 끝난 뒤에도 남아 있었다. 이 경로는 URL 로 온 토큰을 <b>검증 없이 그대로 저장</b>하므로,
+        // 공격자가 자기 토큰을 담은 링크를 보내면 피해자가 공격자 계정으로 로그인된다(로그인 CSRF).
+        // 그 상태로 입력한 정보는 공격자 계정에 쌓인다. 쓰이지 않으면서 위험만 남는 경로라 제거했다.
         const exchangeCode = searchParams.get('code');
-        // 과도기 호환: 백엔드 v2.40(1회성 교환코드) 배포 전에는 구버전이 URL 로 JWT 를
-        // 직접 실어 준다(?token=). 프론트만 먼저 배포되는 스큐 구간에도 소셜 로그인이
-        // 끊기지 않도록 두 방식을 모두 처리한다. 백엔드 배포 후엔 ?code= 만 오므로
-        // 아래 legacyToken 경로는 자연히 쓰이지 않는다.
-        const legacyToken = searchParams.get('token');
 
         if (exchangeCode) {
           // 신규(보안) 흐름: 1회성 교환코드를 서버에서 토큰으로 교환.
@@ -48,13 +49,8 @@ function CallbackContent() {
           if (!exchangeBody.token) throw new Error('로그인 토큰을 받지 못했습니다.');
           setAuthToken(exchangeBody.token);
           setStatus('인증 정보 저장 중...');
-        } else if (legacyToken) {
-          // 구버전 백엔드 폴백: URL 로 받은 JWT 를 바로 저장하고 URL 에서 즉시 제거.
-          window.history.replaceState({}, '', '/oauth/callback');
-          setAuthToken(legacyToken);
-          setStatus('인증 정보 저장 중...');
         } else {
-          // 코드도 토큰도 없으면 에러 처리 후 로그인 페이지로 보냅니다.
+          // 교환코드가 없으면 정상 진입이 아니다.
           setStatus('인증 토큰을 찾을 수 없습니다.');
           setTimeout(() => router.push('/login'), AUTH_ERROR_REDIRECT_MS);
           return;

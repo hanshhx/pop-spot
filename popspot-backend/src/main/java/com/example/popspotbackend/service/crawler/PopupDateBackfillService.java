@@ -3,6 +3,7 @@ package com.example.popspotbackend.service.crawler;
 import com.example.popspotbackend.entity.PopupStore;
 import com.example.popspotbackend.repository.PopupStoreRepository;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
@@ -32,6 +33,9 @@ import org.springframework.stereotype.Service;
 public class PopupDateBackfillService {
 
     private static final DateTimeFormatter ISO = DateTimeFormatter.ISO_LOCAL_DATE;
+
+    /** 팝업 날짜는 한국 기준. 운영 서버(UTC)에서 하루가 밀리지 않도록 존을 명시한다. */
+    private static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
 
     /** 한 번에 처리할 최대 건수. 외부 사이트를 순차로 읽으므로 상한을 둔다. */
     @Value("${popspot.crawler.body-date-backfill-limit:80}")
@@ -67,7 +71,8 @@ public class PopupDateBackfillService {
                 targets.stream()
                         .filter(p -> !isBlank(p.getStartDate()) && isBlank(p.getEndDate()))
                         .count();
-        log.info("[BodyDateBackfill] 시작 — 대상 {}건 (그중 종료일만 빈 것 {}건)", targets.size(), visibleTargets);
+        log.info(
+                "[BodyDateBackfill] 시작 — 대상 {}건 (그중 종료일만 빈 것 {}건)", targets.size(), visibleTargets);
 
         int fetched = 0;
         int filled = 0;
@@ -79,11 +84,12 @@ public class PopupDateBackfillService {
             if (body.isEmpty()) continue;
             fetched++;
 
-            // 연도 보충 기준: 수집 시각이 그 글을 본 시점이라 가장 가깝다.
+            // 연도 보충 기준: 수집 시각이 그 글을 본 시점이라 가장 가깝다. 수집 시각이 없으면 오늘을
+            // 쓰되 KST 로 잡는다 — 운영 서버가 UTC 라 한국 새벽에는 하루 전 날짜가 나온다.
             LocalDate reference =
                     popup.getCrawledAt() != null
                             ? popup.getCrawledAt().toLocalDate()
-                            : LocalDate.now();
+                            : LocalDate.now(SEOUL);
 
             Optional<PopupBodyDateExtractor.Period> period =
                     extractor.extract(body.get(), reference);

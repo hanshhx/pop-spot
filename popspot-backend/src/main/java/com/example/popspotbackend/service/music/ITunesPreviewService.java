@@ -1,5 +1,6 @@
 package com.example.popspotbackend.service.music;
 
+import com.example.popspotbackend.config.HttpClients;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.charset.StandardCharsets;
@@ -27,7 +28,7 @@ public class ITunesPreviewService {
     private static final String SEARCH_URL = "https://itunes.apple.com/search";
     private static final int RESULT_LIMIT = 5;
 
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final RestTemplate restTemplate = HttpClients.withTimeouts();
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     /**

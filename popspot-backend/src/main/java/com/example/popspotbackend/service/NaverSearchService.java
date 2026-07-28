@@ -1,5 +1,6 @@
 package com.example.popspotbackend.service;
 
+import com.example.popspotbackend.config.HttpClients;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -36,7 +37,7 @@ public class NaverSearchService {
     @Value("${naver.client.secret}")
     private String clientSecret;
 
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final RestTemplate restTemplate = HttpClients.withTimeouts();
 
     /** 키워드 + "팝업스토어" 로 보강한 이미지 검색. 결과 100건의 원본 링크만 추출해 반환. */
     public List<String> searchPopupImages(String keyword) {
