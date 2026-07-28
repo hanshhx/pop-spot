@@ -9,6 +9,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { usePathname } from 'next/navigation';
 
 /**
  * 화면 문구 다국어 — 서울에 온 외국인이 사이트를 읽을 수 있게 한다.
@@ -60,6 +61,8 @@ const DICT = {
     'common.count': '곳',
     'common.free': '무료 · 로그인 없이',
     'lang.label': '언어',
+    'theme.toDark': '다크 모드로 전환',
+    'theme.toLight': '라이트 모드로 전환',
     'music.heroLead': '무드로 고르는, ',
     'music.heroAccent': '오늘의 팝업',
     'music.heroDesc': '지금 기분에 맞는 무드를 고르면, 어울리는 팝업과 배경음악을 함께 골라드려요.',
@@ -644,6 +647,8 @@ const DICT = {
     'common.count': '',
     'common.free': 'Free · no sign-up',
     'lang.label': 'Language',
+    'theme.toDark': 'Switch to dark mode',
+    'theme.toLight': 'Switch to light mode',
     'music.heroLead': 'Today’s pop-ups, ',
     'music.heroAccent': 'picked by mood',
     'music.heroDesc':
@@ -1230,6 +1235,8 @@ const DICT = {
     'common.count': '件',
     'common.free': '無料・登録不要',
     'lang.label': '言語',
+    'theme.toDark': 'ダークモードに切り替え',
+    'theme.toLight': 'ライトモードに切り替え',
     'music.heroLead': 'ムードで選ぶ、',
     'music.heroAccent': '今日のポップアップ',
     'music.heroDesc':
@@ -1864,6 +1871,7 @@ export function LocaleProvider({
    */
   initialLocale?: Locale;
 }) {
+  const pathname = usePathname();
   const [locale, setLocaleState] = useState<Locale>(initialLocale ?? 'ko');
 
   useEffect(() => {
@@ -1872,10 +1880,23 @@ export function LocaleProvider({
     setLocaleState(isLocale(saved) ? saved : detectLocale());
   }, [initialLocale]);
 
-  // 스크린리더·검색엔진이 읽는 값이라 화면 언어와 어긋나면 안 된다.
+  /**
+   * {@code <html lang>} — 스크린리더가 읽는 값이라 화면 언어와 어긋나면 안 된다.
+   *
+   * <p>v2.49 — <b>Provider 가 겹칠 때 바깥이 이겨 버렸다.</b> {@code /ja} 아래는 루트 Provider 안에
+   * 또 하나가 있는데(주소가 언어를 정하는 구조), 화면은 가장 가까운 컨텍스트가 이기지만
+   * {@code document.documentElement} 는 <b>둘 다 건드리는 공유 자원</b>이다. 효과는 안쪽부터 도니
+   * 나중에 도는 바깥이 덮어써, 화면은 일본어인데 lang 은 "ko" 로 남았다.
+   *
+   * <p>주소에 언어가 박힌 구간에서는 <b>그 구간의 Provider 에게 맡긴다.</b> 경로를 의존성에 넣어야
+   * {@code /ja} 에서 {@code /} 로 돌아올 때도 다시 계산된다 — 안쪽이 사라진 것만으로는 바깥 효과가
+   * 다시 돌지 않는다.
+   */
   useEffect(() => {
+    const routeOwnsLocale = /^\/(en|ja)(\/|$)/.test(pathname ?? '');
+    if (!initialLocale && routeOwnsLocale) return;
     document.documentElement.lang = locale;
-  }, [locale]);
+  }, [locale, initialLocale, pathname]);
 
   const setLocale = useCallback((next: Locale) => {
     window.localStorage.setItem(STORAGE_KEY, next);
