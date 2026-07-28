@@ -34,6 +34,8 @@ import { motion, Variants, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import Image from 'next/image';
 import { isPexelsPhoto, popupCoverUrl } from '@/lib/popupCover';
+import { useLocale } from '@/lib/i18n';
+import LocaleSwitcher from '@/components/LocaleSwitcher';
 import { PhotoDisclosure } from '@/components/popup/PhotoDisclosure';
 import { useDragScroll } from '@/hooks/useDragScroll';
 
@@ -176,6 +178,10 @@ export default function Home() {
   const bgVideoSrc = resolvedTheme === 'dark' ? '/login-bg-v2.mp4' : '/light-bg.mp4';
   // 라이트 영상은 도심 불빛 반짝임이 커서 0.5배속으로 차분하게. 다크(야경)는 원속도 유지.
   const bgVideoRate = resolvedTheme === 'dark' ? 1 : 0.5;
+
+  // 화면 문구 언어. 첫 렌더는 항상 한국어이고(서버 HTML 과 맞춰 깜빡임 방지),
+  // 브라우저에서 저장값·브라우저 언어를 읽어 반영한다.
+  const { locale, setLocale, t } = useLocale();
 
   const [hotPopups, setHotPopups] = useState<PopupStore[]>([]);
   const [allPopups, setAllPopups] = useState<PopupStore[]>([]);
@@ -958,20 +964,37 @@ export default function Home() {
                     aria-hidden
                     className="pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full bg-lime-300/35 blur-3xl dark:bg-lime-400/20"
                   />
+                  {/* 언어 전환 — 외국인이 처음 보는 화면의 우상단. 메뉴 안에 숨기면 찾다가 이탈한다. */}
+                  <div className="absolute right-4 top-4 z-20 md:right-6 md:top-6">
+                    <LocaleSwitcher locale={locale} onChange={setLocale} />
+                  </div>
                   <div className="relative z-10 flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
                     <div className="text-center md:text-left">
                       <span className="inline-block mb-3 rounded-pill bg-lime-300 px-3 py-1 text-[10px] md:text-xs font-black tracking-[0.2em] uppercase text-ink-900">
-                        오늘의 서울 팝업
+                        {locale === 'ko' ? '오늘의 서울 팝업' : t('stat.open')}
                       </span>
                       <h2 className="text-2xl md:text-4xl font-black leading-tight text-gray-900 dark:text-white">
-                        지금 서울에{' '}
-                        <span className="text-lime-600 dark:text-lime-300">
-                          {mappablePopupCount || '…'}개
-                        </span>
-                        의<br className="hidden md:block" /> 팝업이 열렸어요
+                        {locale === 'ko' ? (
+                          <>
+                            지금 서울에{' '}
+                            <span className="text-lime-600 dark:text-lime-300">
+                              {mappablePopupCount || '…'}개
+                            </span>
+                            의<br className="hidden md:block" /> 팝업이 열렸어요
+                          </>
+                        ) : (
+                          <>
+                            <span className="text-lime-600 dark:text-lime-300">
+                              {mappablePopupCount || '…'}
+                            </span>{' '}
+                            {t('hero.title')}
+                          </>
+                        )}
                       </h2>
                       <p className="mt-2 text-sm md:text-base text-gray-600 dark:text-white/70">
-                        지도에서 일정과 장소를 확인하고, 마음에 드는 팝업을 저장하세요.
+                        {locale === 'ko'
+                          ? '지도에서 일정과 장소를 확인하고, 마음에 드는 팝업을 저장하세요.'
+                          : t('hero.subtitle')}
                       </p>
                       <div className="mt-5 flex flex-col sm:flex-row gap-2.5 justify-center md:justify-start">
                         <button
