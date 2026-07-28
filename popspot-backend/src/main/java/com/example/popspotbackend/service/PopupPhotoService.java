@@ -49,11 +49,13 @@ public class PopupPhotoService {
                         .toList();
 
         Set<Long> usedPhotoIds = new HashSet<>(popupImageRepository.findAllUsedPexelsPhotoIds());
+        Set<String> usedImageUrls =
+                new HashSet<>(popupImageRepository.findAllUsedPexelsImageUrls());
         Map<String, List<PhotoCandidate>> requestCache = new HashMap<>();
         int assigned = 0;
         for (PopupStore p : targets) {
             try {
-                if (assignUniquePhoto(p, usedPhotoIds, requestCache)) assigned++;
+                if (assignUniquePhoto(p, usedPhotoIds, usedImageUrls, requestCache)) assigned++;
             } catch (Exception e) {
                 log.warn("[PopupPhotoService] id={} 커버 배정 실패 err={}", p.getId(), e.toString());
             }
@@ -72,12 +74,15 @@ public class PopupPhotoService {
             return false;
         }
         Set<Long> usedPhotoIds = new HashSet<>(popupImageRepository.findAllUsedPexelsPhotoIds());
-        return assignUniquePhoto(popup, usedPhotoIds, new HashMap<>());
+        Set<String> usedImageUrls =
+                new HashSet<>(popupImageRepository.findAllUsedPexelsImageUrls());
+        return assignUniquePhoto(popup, usedPhotoIds, usedImageUrls, new HashMap<>());
     }
 
     private boolean assignUniquePhoto(
             PopupStore popup,
             Set<Long> usedPhotoIds,
+            Set<String> usedImageUrls,
             Map<String, List<PhotoCandidate>> requestCache) {
         for (int page = 1; page <= MAX_SEARCH_PAGES; page++) {
             String cacheKey =
@@ -94,7 +99,8 @@ public class PopupPhotoService {
             int start = (int) Math.floorMod(popup.getId(), candidates.size());
             for (int offset = 0; offset < candidates.size(); offset++) {
                 PhotoCandidate candidate = candidates.get((start + offset) % candidates.size());
-                if (usedPhotoIds.contains(candidate.id())) continue;
+                if (usedPhotoIds.contains(candidate.id())
+                        || usedImageUrls.contains(candidate.imageUrl())) continue;
 
                 int inserted =
                         popupImageRepository.insertMainPexelsImageIfUnused(
@@ -105,6 +111,7 @@ public class PopupPhotoService {
                                 candidate.photographerName(),
                                 candidate.photographerUrl());
                 usedPhotoIds.add(candidate.id());
+                usedImageUrls.add(candidate.imageUrl());
                 if (inserted == 1) return true;
             }
         }

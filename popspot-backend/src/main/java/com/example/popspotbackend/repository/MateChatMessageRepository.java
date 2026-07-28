@@ -18,8 +18,8 @@ public interface MateChatMessageRepository extends JpaRepository<MateChatMessage
     /**
      * 탈퇴 처리에서 지울 첨부 파일 경로를 모은다(v2.47).
      *
-     * <p>행을 지우기 <b>전에</b> 불러야 한다 — {@code deleteBySender} 로 먼저 지우면 어떤 파일이 이 사람
-     * 것이었는지 알 방법이 사라져, 디스크에 주인 없는 이미지가 영영 남는다.
+     * <p>행을 지우기 <b>전에</b> 불러야 한다 — {@code deleteBySender} 로 먼저 지우면 어떤 파일이 이 사람 것이었는지 알 방법이 사라져,
+     * 디스크에 주인 없는 이미지가 영영 남는다.
      */
     @Query(
             "SELECT m.fileUrl FROM MateChatMessage m "
