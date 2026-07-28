@@ -181,7 +181,7 @@ export default function Home() {
 
   // 화면 문구 언어. 첫 렌더는 항상 한국어이고(서버 HTML 과 맞춰 깜빡임 방지),
   // 브라우저에서 저장값·브라우저 언어를 읽어 반영한다.
-  const { locale, setLocale, t } = useLocale();
+  const { locale, t } = useLocale();
 
   const [hotPopups, setHotPopups] = useState<PopupStore[]>([]);
   const [allPopups, setAllPopups] = useState<PopupStore[]>([]);
@@ -966,7 +966,7 @@ export default function Home() {
                   />
                   {/* 언어 전환 — 외국인이 처음 보는 화면의 우상단. 메뉴 안에 숨기면 찾다가 이탈한다. */}
                   <div className="absolute right-4 top-4 z-20 md:right-6 md:top-6">
-                    <LocaleSwitcher locale={locale} onChange={setLocale} />
+                    <LocaleSwitcher locale={locale} />
                   </div>
                   <div className="relative z-10 flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
                     <div className="text-center md:text-left">
