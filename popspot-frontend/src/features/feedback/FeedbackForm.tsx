@@ -4,12 +4,9 @@ import { useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Input, Field } from '@/components/ui/input';
+import { useLocale, type MessageKey } from '@/lib/i18n';
 import { notifySuccess, notifyError } from '@/lib/notify';
-import {
-  CATEGORY_LABEL,
-  type FeedbackCategory,
-  type FeedbackCreatePayload,
-} from '@/types/feedback';
+import type { FeedbackCategory, FeedbackCreatePayload } from '@/types/feedback';
 
 import { createFeedback } from './api';
 
@@ -22,6 +19,20 @@ interface FeedbackFormProps {
 
 const CATEGORY_ORDER: FeedbackCategory[] = ['BUG', 'FEATURE', 'GOOD', 'OTHER'];
 
+/**
+ * 카테고리는 <b>보내는 값과 보이는 문구를 나눈다.</b>
+ *
+ * <p>{@code BUG · FEATURE …} 는 서버가 검증하는 화이트리스트라 화면 언어와 무관해야 하고, 옆에 붙는
+ * 라벨만 사전에서 꺼낸다. 공용 {@code CATEGORY_LABEL} 을 고치지 않고 여기에 키 매핑을 둔 것은 그
+ * 상수를 관리자 화면도 함께 쓰고 있어, 지금 손대면 아직 옮기지 않은 화면의 문구까지 흔들리기 때문이다.
+ */
+const CATEGORY_LABEL_KEY: Record<FeedbackCategory, MessageKey> = {
+  BUG: 'fb.catBug',
+  FEATURE: 'fb.catFeature',
+  GOOD: 'fb.catGood',
+  OTHER: 'fb.catOther',
+};
+
 const TITLE_MAX = 200;
 const CONTENT_MAX = 4000;
 
@@ -32,6 +43,7 @@ const CONTENT_MAX = 4000;
  * 화이트리스트 카테고리 4종을 라디오로 받는다.
  */
 export function FeedbackForm({ userId, onSubmitted }: FeedbackFormProps) {
+  const { t } = useLocale();
   const [category, setCategory] = useState<FeedbackCategory>('BUG');
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -54,11 +66,11 @@ export function FeedbackForm({ userId, onSubmitted }: FeedbackFormProps) {
     }
 
     if (!payload.title) {
-      notifyError('제목을 입력해 주세요.');
+      notifyError(t('fb.titleRequired'));
       return;
     }
     if (!payload.content) {
-      notifyError('내용을 입력해 주세요.');
+      notifyError(t('fb.contentRequired'));
       return;
     }
 
@@ -66,15 +78,16 @@ export function FeedbackForm({ userId, onSubmitted }: FeedbackFormProps) {
     try {
       await createFeedback(payload);
       await notifySuccess({
-        title: '의견 보내기 완료',
-        text: '확인 후 처리 결과를 알려 드리겠습니다.',
+        title: t('fb.sentTitle'),
+        text: t('fb.sentText'),
       });
       setTitle('');
       setContent('');
       setGuestEmail('');
       onSubmitted?.();
     } catch (err) {
-      const message = err instanceof Error ? err.message : '의견을 보내지 못했습니다.';
+      // 서버가 준 사유가 있으면 그대로 보여준다 — 어느 칸이 문제인지까지 알려주는 쪽이 더 쓸모 있다.
+      const message = err instanceof Error ? err.message : t('fb.sendFailed');
       notifyError(message);
     } finally {
       setSubmitting(false);
@@ -83,7 +96,7 @@ export function FeedbackForm({ userId, onSubmitted }: FeedbackFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <Field label="유형" required>
+      <Field label={t('fb.typeLabel')} required>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           {CATEGORY_ORDER.map((value) => {
             const active = category === value;
@@ -106,25 +119,25 @@ export function FeedbackForm({ userId, onSubmitted }: FeedbackFormProps) {
                   onChange={() => setCategory(value)}
                   className="sr-only"
                 />
-                {CATEGORY_LABEL[value]}
+                {t(CATEGORY_LABEL_KEY[value])}
               </label>
             );
           })}
         </div>
       </Field>
 
-      <Field label="제목" required>
+      <Field label={t('fb.titleLabel')} required>
         <Input
           name="title"
           required
           maxLength={TITLE_MAX}
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder="한 줄로 요약해 주세요"
+          placeholder={t('fb.titlePlaceholder')}
         />
       </Field>
 
-      <Field label="내용" required helper={`${content.length} / ${CONTENT_MAX}`}>
+      <Field label={t('fb.contentLabel')} required helper={`${content.length} / ${CONTENT_MAX}`}>
         <textarea
           name="content"
           required
@@ -133,12 +146,12 @@ export function FeedbackForm({ userId, onSubmitted }: FeedbackFormProps) {
           value={content}
           onChange={(e) => setContent(e.target.value)}
           className="w-full resize-none rounded-md border border-[var(--color-border-strong)] bg-surface p-3 text-sm text-surface-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          placeholder="언제, 어디서, 어떤 상황이었는지 자세히 적어 주세요."
+          placeholder={t('fb.contentPlaceholder')}
         />
       </Field>
 
       {isGuest && (
-        <Field label="답신용 이메일 (선택)" helper="입력하시면 처리 결과를 메일로 알려 드립니다.">
+        <Field label={t('fb.emailLabel')} helper={t('fb.emailHelper')}>
           <Input
             name="guestEmail"
             type="email"
@@ -150,7 +163,7 @@ export function FeedbackForm({ userId, onSubmitted }: FeedbackFormProps) {
       )}
 
       <Button type="submit" variant="primary" size="lg" block loading={submitting}>
-        보내기
+        {t('fb.submit')}
       </Button>
     </form>
   );

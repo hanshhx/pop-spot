@@ -5,6 +5,7 @@ import { Heart, MapPin, Shirt, Coffee, Palette, Star, Sparkles, Cpu, Store } fro
 import { cn } from '@/lib/utils';
 import { popupCoverUrl } from '@/lib/popupCover';
 import { PhotoDisclosure } from '@/components/popup/PhotoDisclosure';
+import { useLocale, type MessageKey } from '@/lib/i18n';
 import type { PopupStore } from '@/types/popup';
 
 /**
@@ -14,7 +15,22 @@ import type { PopupStore } from '@/types/popup';
  * next/image 대신 순수 <img> 로 렌더(도메인 화이트리스트 불필요). 사진 없으면 지도핀 플레이스홀더.
  */
 
-function ddayLabel(endDate?: string): string | null {
+/** 남은 기간 배지에 필요한 것 — 무엇을 쓸지(labelKey · days)와 어떤 색으로 그릴지(ended). */
+interface DdayBadge {
+  /** 정해진 문구가 있는 경우의 사전 키. 남은 일수를 세어 보여줄 때는 null. */
+  labelKey: MessageKey | null;
+  days: number;
+  ended: boolean;
+}
+
+/**
+ * 마감까지 남은 기간.
+ *
+ * <p>문구와 <b>종료 여부를 나눠서</b> 돌려준다. 예전에는 '종료' 같은 문자열 하나만 주고 배지 색을
+ * 고르는 쪽이 {@code dday === '종료'} 로 되물었는데, 그러면 문구를 옮기는 순간 비교가 빗나가
+ * 끝난 팝업까지 라임색 배지를 달게 된다 — 보이는 글자와 판단 기준이 같은 값이면 늘 이렇게 된다.
+ */
+function ddayBadge(endDate?: string): DdayBadge | null {
   if (!endDate) return null;
   const end = new Date(endDate);
   if (Number.isNaN(end.getTime())) return null;
@@ -22,19 +38,25 @@ function ddayLabel(endDate?: string): string | null {
   today.setHours(0, 0, 0, 0);
   end.setHours(0, 0, 0, 0);
   const diff = Math.round((end.getTime() - today.getTime()) / 86_400_000);
-  if (diff < 0) return '종료';
-  if (diff === 0) return '오늘 마감';
-  return `D-${diff}`;
+  if (diff < 0) return { labelKey: 'misc.cardEnded', days: diff, ended: true };
+  if (diff === 0) return { labelKey: 'card.today', days: 0, ended: false };
+  return { labelKey: null, days: diff, ended: false };
 }
 
-const CATEGORY_KO: Record<string, string> = {
-  FASHION: '패션',
-  FOOD: '푸드',
-  CULTURE: '문화',
-  CHARACTER: '캐릭터',
-  BEAUTY: '뷰티',
-  TECH: '테크',
-  ETC: '기타',
+/**
+ * 백엔드 카테고리 코드 → 표시 문구.
+ *
+ * <p>코드가 아니라 <b>키</b>를 담는다 — 이 배열은 컴포넌트 밖이라 훅을 부를 수 없고, 문구는 그리는
+ * 쪽에서 t() 로 꺼낸다. 여기에 없는 코드는 크롤링 원문을 그대로 보여준다(아래 cat 참고).
+ */
+const CATEGORY_LABEL_KEY: Record<string, MessageKey> = {
+  FASHION: 'misc.catFashion',
+  FOOD: 'misc.catFood',
+  CULTURE: 'misc.catCulture',
+  CHARACTER: 'misc.catCharacter',
+  BEAUTY: 'misc.catBeauty',
+  TECH: 'misc.catTech',
+  ETC: 'misc.catEtc',
 };
 
 /**
@@ -60,10 +82,14 @@ export interface PopupCardProps {
 }
 
 export function PopupCard({ popup, onClick, onWish, wished, className }: PopupCardProps) {
+  const { t } = useLocale();
   const [imgError, setImgError] = useState(false);
-  const dday = ddayLabel(popup.endDate);
-  const cat = popup.category ? (CATEGORY_KO[popup.category.toUpperCase()] ?? popup.category) : null;
-  const region = (popup.location || '').split(' ').slice(0, 2).join(' ') || '서울';
+  const dday = ddayBadge(popup.endDate);
+  const catKey = popup.category ? CATEGORY_LABEL_KEY[popup.category.toUpperCase()] : undefined;
+  // 아는 코드면 옮기고, 모르는 값이면 크롤링 원문을 그대로 — 지어내는 것보다 원문이 낫다.
+  const cat = catKey ? t(catKey) : popup.category || null;
+  const region =
+    (popup.location || '').split(' ').slice(0, 2).join(' ') || t('misc.cardRegionSeoul');
   const catStyle = CATEGORY_STYLE[popup.category?.toUpperCase() ?? 'ETC'] ?? CATEGORY_STYLE.ETC;
   const coverUrl = popupCoverUrl(popup);
 
@@ -104,10 +130,12 @@ export function PopupCard({ popup, onClick, onWish, wished, className }: PopupCa
         {dday && (
           <span
             className={`absolute left-2.5 top-2.5 rounded-full px-2.5 py-1 text-[11px] font-bold ${
-              dday === '종료' ? 'bg-gray-800/80 text-white' : 'bg-lime-300 text-ink-900'
+              dday.ended ? 'bg-gray-800/80 text-white' : 'bg-lime-300 text-ink-900'
             }`}
           >
-            {dday}
+            {dday.labelKey
+              ? t(dday.labelKey)
+              : `${t('misc.cardDdayPrefix')}${dday.days}${t('misc.cardDdaySuffix')}`}
           </span>
         )}
 
@@ -118,7 +146,7 @@ export function PopupCard({ popup, onClick, onWish, wished, className }: PopupCa
               e.stopPropagation();
               onWish();
             }}
-            aria-label="위시리스트에 담기"
+            aria-label={t('misc.cardWish')}
             className="absolute right-2.5 top-2.5 grid h-8 w-8 place-items-center rounded-full bg-white/85 text-hot-400 backdrop-blur transition hover:bg-white dark:bg-black/50"
           >
             <Heart size={15} fill={wished ? 'currentColor' : 'none'} />

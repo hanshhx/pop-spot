@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Megaphone } from 'lucide-react';
 
 import { apiFetch } from '@/lib/api';
+import { useLocale, type MessageKey } from '@/lib/i18n';
 import { notifySuccess, notifyError } from '@/lib/notify';
 import { Button } from '@/components/ui/button';
 import { Input, Field } from '@/components/ui/input';
@@ -22,10 +23,14 @@ interface ReportPopupModalProps {
   user: User | null;
 }
 
-const CATEGORY_OPTIONS = [
-  { value: 'FASHION', label: '패션' },
-  { value: 'FOOD', label: '음식' },
-  { value: 'POPUP', label: '일반' },
+/**
+ * 제보 카테고리 — <b>value 는 서버가 받는 코드라 언어와 무관하게 고정</b>이고, 화면에 보이는 이름만
+ * 사전 키로 뽑는다. 모듈 최상단이라 훅을 부를 수 없어 문구 대신 키를 담고, 그리는 쪽에서 t() 로 편다.
+ */
+const CATEGORY_OPTIONS: ReadonlyArray<{ value: string; labelKey: MessageKey }> = [
+  { value: 'FASHION', labelKey: 'report.catFashion' },
+  { value: 'FOOD', labelKey: 'report.catFood' },
+  { value: 'POPUP', labelKey: 'report.catGeneral' },
 ];
 
 /**
@@ -33,6 +38,7 @@ const CATEGORY_OPTIONS = [
  * 새 Dialog 컴포넌트(Radix) 사용 — 포커스 트랩 / ESC / 스크롤 잠금 자동.
  */
 export function ReportPopupModal({ open, onOpenChange, user }: ReportPopupModalProps) {
+  const { t } = useLocale();
   const [formData, setFormData] = useState<PopupReportPayload>({
     name: '',
     category: 'FASHION',
@@ -65,15 +71,15 @@ export function ReportPopupModal({ open, onOpenChange, user }: ReportPopupModalP
       });
       if (res.ok) {
         await notifySuccess({
-          title: '제보 완료',
-          text: '관리자 승인 후 지도에 노출됩니다.',
+          title: t('report.doneTitle'),
+          text: t('report.doneText'),
         });
         onOpenChange(false);
       } else {
-        notifyError('제보를 처리하지 못했습니다.');
+        notifyError(t('report.failed'));
       }
     } catch {
-      notifyError('서버와 연결할 수 없습니다.');
+      notifyError(t('report.networkError'));
     } finally {
       setSubmitting(false);
     }
@@ -85,25 +91,23 @@ export function ReportPopupModal({ open, onOpenChange, user }: ReportPopupModalP
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Megaphone className="size-5 text-lime-500" aria-hidden />
-            팝업 제보
+            {t('report.title')}
           </DialogTitle>
-          <DialogDescription>
-            알고 있는 팝업 정보를 공유해주세요. 관리자 검토 후 지도에 노출됩니다.
-          </DialogDescription>
+          <DialogDescription>{t('report.desc')}</DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <Field label="팝업 이름" required>
+          <Field label={t('report.nameLabel')} required>
             <Input
               name="name"
               required
               value={formData.name}
               onChange={handleChange}
-              placeholder="예: 젠틀몬스터 하우스도산"
+              placeholder={t('report.namePlaceholder')}
             />
           </Field>
 
-          <Field label="카테고리" required>
+          <Field label={t('report.categoryLabel')} required>
             <select
               name="category"
               value={formData.category}
@@ -112,34 +116,34 @@ export function ReportPopupModal({ open, onOpenChange, user }: ReportPopupModalP
             >
               {CATEGORY_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>
-                  {opt.label}
+                  {t(opt.labelKey)}
                 </option>
               ))}
             </select>
           </Field>
 
           <div className="grid grid-cols-2 gap-3">
-            <Field label="지역" required>
+            <Field label={t('report.locationLabel')} required>
               <Input
                 name="location"
                 required
                 value={formData.location}
                 onChange={handleChange}
-                placeholder="성수동"
+                placeholder={t('report.locationPlaceholder')}
               />
             </Field>
-            <Field label="주소">
+            <Field label={t('report.addressLabel')}>
               <Input
                 name="address"
                 value={formData.address}
                 onChange={handleChange}
-                placeholder="(선택)"
+                placeholder={t('report.optional')}
               />
             </Field>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <Field label="시작일" required>
+            <Field label={t('report.startDate')} required>
               <Input
                 name="startDate"
                 type="date"
@@ -148,7 +152,7 @@ export function ReportPopupModal({ open, onOpenChange, user }: ReportPopupModalP
                 onChange={handleChange}
               />
             </Field>
-            <Field label="종료일" required>
+            <Field label={t('report.endDate')} required>
               <Input
                 name="endDate"
                 type="date"
@@ -159,14 +163,14 @@ export function ReportPopupModal({ open, onOpenChange, user }: ReportPopupModalP
             </Field>
           </div>
 
-          <Field label="간단 설명">
+          <Field label={t('report.descLabel')}>
             <textarea
               name="description"
               rows={3}
               value={formData.description}
               onChange={handleChange}
               className="w-full rounded-md border border-[var(--color-border-strong)] bg-surface text-surface-foreground p-3 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-none"
-              placeholder="팝업의 컨셉이나 특징을 알려주세요."
+              placeholder={t('report.descPlaceholder')}
             />
           </Field>
 
@@ -178,7 +182,7 @@ export function ReportPopupModal({ open, onOpenChange, user }: ReportPopupModalP
             loading={submitting}
             iconLeft={<Megaphone className="size-4" aria-hidden />}
           >
-            제보 제출
+            {t('report.submit')}
           </Button>
         </form>
       </DialogContent>

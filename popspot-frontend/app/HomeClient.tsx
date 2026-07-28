@@ -34,7 +34,28 @@ import { motion, Variants, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import Image from 'next/image';
 import { isPexelsPhoto, popupCoverUrl } from '@/lib/popupCover';
-import { useLocale } from '@/lib/i18n';
+import {
+  localizedLabel,
+  localizedRegionLabel,
+  useLocale,
+  type Locale,
+  type MessageKey,
+} from '@/lib/i18n';
+import { REGIONS, type RegionCode } from '@/lib/regions';
+
+/**
+ * 소개 화면에 고정으로 박혀 있는 지역명.
+ *
+ * <p>실제 데이터가 아니라 예시지만 표기는 지역 페이지와 같아야 한다 — 같은 동네를 한쪽은
+ * {@code Seongsu}, 다른 쪽은 {@code 성수} 로 쓰면 같은 곳인지 알 수 없다.
+ */
+/** 홈의 지도 구획. "지도에서 둘러보기" 버튼이 이 id 로 찾아 스크롤한다. */
+const HOME_MAP_ID = 'home-map';
+
+function fixedRegionLabel(code: RegionCode, locale: Locale): string {
+  const region = REGIONS.find((r) => r.code === code);
+  return region ? localizedRegionLabel(region, locale) : code;
+}
 import LocaleSwitcher from '@/components/LocaleSwitcher';
 import { PhotoDisclosure } from '@/components/popup/PhotoDisclosure';
 import { useDragScroll } from '@/hooks/useDragScroll';
@@ -151,12 +172,17 @@ function canAccessTab(tab: string, hasUser: boolean, isGuestActive: boolean): bo
   return !USER_ONLY_TABS.has(tab);
 }
 
-/** USER_ONLY 탭을 게스트 만료 / 비로그인 사용자가 노크했을 때 보여줄 안내 문구. */
-function userOnlyTabHint(tab: string): string {
-  if (tab === 'COURSE') return 'AI 코스 추천은 가입 후 이용해주세요.';
-  if (tab === 'MUSIC') return '음악 추천은 가입 후 이용해주세요.';
-  if (tab === 'MATE') return '메이트 기능은 가입 후 이용해주세요.';
-  return '가입 후 이용해주세요.';
+/**
+ * USER_ONLY 탭을 게스트 만료 / 비로그인 사용자가 노크했을 때 보여줄 안내 문구의 <b>키</b>.
+ *
+ * <p>문구가 아니라 키를 돌려주는 이유는 이 함수가 컴포넌트 밖이라 훅({@link useLocale})을 쓸 수
+ * 없기 때문이다. 번역은 호출하는 쪽에서 t() 로 꺼낸다.
+ */
+function userOnlyTabHintKey(tab: string): MessageKey {
+  if (tab === 'COURSE') return 'home.hintCourse';
+  if (tab === 'MUSIC') return 'home.hintMusic';
+  if (tab === 'MATE') return 'home.hintMate';
+  return 'home.hintDefault';
 }
 
 /* -------------------------------------------------------------------------- */
@@ -328,11 +354,14 @@ export default function Home() {
       lat: parseFloat(popup.latitude || '37.5445'),
       lng: parseFloat(popup.longitude || '127.0560'),
       category: popup.category || 'POPUP',
+      // 화면 문구가 아니라 코스와 함께 서버에 저장되는 값이다 — 저장한 순간의 화면 언어를
+      // 굳혀 버리면 나중에 다른 언어로 열었을 때 남의 말이 섞여 나온다. AI가 채우는 reason 도
+      // 한국어라 표기가 갈리지 않게 그대로 둔다.
       reason: '사용자 추가 장소',
     };
 
     if (myCourseItems.find((item) => item.id === newItem.id)) {
-      notify('이미 코스에 추가된 장소입니다.');
+      notify(t('home.coursePlaceDup'));
       return;
     }
     setMyCourseItems([...myCourseItems, newItem]);
@@ -343,9 +372,9 @@ export default function Home() {
     if (!user) {
       if (
         await confirmAction({
-          title: '로그인이 필요합니다',
-          text: '작전 회의실은 회원 전용 기능입니다.',
-          confirmText: '로그인하기',
+          title: t('home.loginRequired'),
+          text: t('home.roomMemberOnly'),
+          confirmText: t('nav.login'),
         })
       ) {
         router.push('/login');
@@ -357,7 +386,7 @@ export default function Home() {
       const roomId = await res.text();
       router.push(`/planning?room=${roomId}`);
     } catch (e) {
-      notifyError('서버 연결 실패!');
+      notifyError(t('home.serverFail'));
     }
   };
 
@@ -440,8 +469,8 @@ export default function Home() {
     e.stopPropagation();
     if (!user) return;
     const confirmed = await confirmAction({
-      title: '찜 삭제',
-      text: '목록에서 삭제하시겠습니까?',
+      title: t('home.wishRemove'),
+      text: t('home.wishRemoveText'),
       destructive: true,
     });
     if (!confirmed) return;
@@ -450,7 +479,7 @@ export default function Home() {
       if (res.ok) {
         setMyWishlist((prev) => prev.filter((item) => item.popupId !== popupId));
         fetchMyPageData(user.userId);
-        notifySuccess('삭제되었습니다.');
+        notifySuccess(t('home.removed'));
       }
     } catch (e) {
       console.error('찜 삭제 오류:', e);
@@ -459,8 +488,8 @@ export default function Home() {
 
   const handleLoadCourse = async (courseDataStr: string) => {
     const confirmed = await confirmAction({
-      title: '코스 불러오기',
-      text: '현재 편집 중인 내용은 사라집니다. 계속할까요?',
+      title: t('home.courseLoadTitle'),
+      text: t('home.courseLoadText'),
       icon: 'warning',
     });
     if (!confirmed) return;
@@ -471,15 +500,15 @@ export default function Home() {
   const handleDeleteCourse = async (e: React.MouseEvent, courseId: number) => {
     e.stopPropagation();
     const confirmed = await confirmAction({
-      title: '코스 삭제',
-      text: '정말 삭제하시겠습니까?',
+      title: t('home.courseDeleteTitle'),
+      text: t('home.courseDeleteText'),
       destructive: true,
     });
     if (!confirmed) return;
     try {
       const res = await apiFetch(`/api/my-courses/${courseId}`, { method: 'DELETE' });
       if (res.ok) {
-        notifySuccess('삭제 완료');
+        notifySuccess(t('home.deleted'));
         if (user) fetchMyCourses(user.userId);
       }
     } catch (err) {
@@ -497,9 +526,9 @@ export default function Home() {
     if (guestExpiredOrInactive) {
       if (
         await confirmAction({
-          title: '회원 전용 기능',
-          text: userOnlyTabHint(tab),
-          confirmText: '회원가입',
+          title: t('home.memberOnlyTitle'),
+          text: t(userOnlyTabHintKey(tab)),
+          confirmText: t('auth.signup'),
         })
       ) {
         router.push('/signup');
@@ -508,8 +537,8 @@ export default function Home() {
     }
     if (
       await confirmAction({
-        title: '로그인이 필요합니다',
-        confirmText: '로그인',
+        title: t('home.loginRequired'),
+        confirmText: t('nav.login'),
       })
     ) {
       router.push('/login');
@@ -540,7 +569,7 @@ export default function Home() {
     clearAuthToken();
     sessionStorage.removeItem('aiCourseData');
     setUser(null);
-    await notifySuccess('로그아웃 되었습니다.');
+    await notifySuccess(t('home.loggedOut'));
     window.location.reload();
   };
 
@@ -555,21 +584,19 @@ export default function Home() {
   const handleDeleteAccount = async () => {
     if (!user) return;
     const firstOk = await confirmAction({
-      title: '정말 탈퇴하시겠어요?',
-      text:
-        '탈퇴하면 본인 식별 정보 (이메일 / 닉네임 / 프로필 사진 / 휴대전화) 가 즉시 익명화되며 ' +
-        '다시는 같은 계정으로 로그인할 수 없습니다.',
+      title: t('home.withdrawTitle'),
+      text: t('home.withdrawText'),
       icon: 'warning',
       destructive: true,
-      confirmText: '다음 단계',
+      confirmText: t('home.withdrawNext'),
     });
     if (!firstOk) return;
     const finalOk = await confirmAction({
-      title: '마지막 확인',
-      text: '되돌릴 수 없습니다. 정말 탈퇴를 진행할까요?',
+      title: t('home.withdrawFinalTitle'),
+      text: t('home.withdrawFinalText'),
       icon: 'warning',
       destructive: true,
-      confirmText: '탈퇴 진행',
+      confirmText: t('home.withdrawConfirm'),
     });
     if (!finalOk) return;
 
@@ -577,23 +604,25 @@ export default function Home() {
       const res = await apiFetch('/api/v1/users/me', { method: 'DELETE' });
       if (!res.ok) {
         const message = await res.text();
-        notifyError(message || '탈퇴 처리에 실패했습니다.');
+        // 서버 메시지는 한국어로 오지만 그대로 보여준다 — 사유(제재·미납 등)를 화면에서 지우면
+        // 사용자는 왜 막혔는지 알 길이 없다. 메시지가 비었을 때만 번역된 기본 문구로 대체.
+        notifyError(message || t('home.withdrawFail'));
         return;
       }
       localStorage.removeItem('user');
       clearAuthToken();
       sessionStorage.clear();
       setUser(null);
-      await notifySuccess('탈퇴가 완료되었습니다. 이용해 주셔서 감사합니다.');
+      await notifySuccess(t('home.withdrawDone'));
       router.replace('/login');
     } catch {
-      notifyError('탈퇴 처리 중 오류가 발생했습니다.');
+      notifyError(t('home.withdrawError'));
     }
   };
 
   const handleAiRecommend = async (vibe: string) => {
     if (!vibe.trim()) {
-      notify('분위기를 입력해주세요.');
+      notify(t('home.vibeRequired'));
       return;
     }
     setIsAiLoading(true);
@@ -615,7 +644,7 @@ export default function Home() {
         setAiCourse(mock);
         sessionStorage.setItem('aiCourseData', JSON.stringify({ vibe, course: mock }));
       } else {
-        notifyError('AI 연결 실패');
+        notifyError(t('home.aiFail'));
       }
     } finally {
       setIsAiLoading(false);
@@ -631,11 +660,11 @@ export default function Home() {
   /** AI 추천 코스(aiCourse)를 마이페이지에 저장. */
   const handleSaveAiCourse = async () => {
     if (aiCourse.length === 0) {
-      notifyWarning('먼저 코스를 추천받아주세요.');
+      notifyWarning(t('home.courseNeeded'));
       return;
     }
     if (!user) {
-      notify('로그인이 필요합니다.');
+      notify(t('home.loginRequired'));
       router.push('/login');
       return;
     }
@@ -645,25 +674,27 @@ export default function Home() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           userId: user.userId,
+          // 저장 이름은 서버에 그대로 남는 값이라 언어를 섞지 않는다 — selectedVibe 가 AI 에
+          // 넘기는 한국어 검색어라, 앞뒤만 번역하면 "핫플 Route" 같은 이름이 DB 에 쌓인다.
           courseName: `${selectedVibe || '나만의'} 코스 (${new Date().toLocaleDateString()})`,
           courseData: JSON.stringify(aiCourse),
         }),
       });
       if (res.ok) {
-        notifySuccess('코스가 마이페이지에 저장되었어요.');
+        notifySuccess(t('home.courseSavedMy'));
         setMyCourseItems(aiCourse);
         fetchMyCourses(user.userId);
       } else {
-        notifyError('저장 실패: 서버 오류가 발생했습니다.');
+        notifyError(t('home.saveFail'));
       }
     } catch {
-      notifyError('저장 중 오류가 발생했습니다.');
+      notifyError(t('home.saveError'));
     }
   };
 
   const handleSaveCourse = async () => {
     if (!user) {
-      notify('로그인이 필요합니다.');
+      notify(t('home.loginRequired'));
       return;
     }
 
@@ -675,19 +706,20 @@ export default function Home() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           userId: user.userId,
+          // 위 handleSaveAiCourse 와 같은 이유로 저장 이름은 한국어 고정.
           courseName: `나만의 코스 (${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString().slice(0, 5)})`,
           courseData: JSON.stringify(myCourseItems),
         }),
       });
 
       if (res.ok) {
-        notifySuccess('코스가 저장되었습니다.');
+        notifySuccess(t('home.courseSaved'));
         fetchMyCourses(user.userId);
       } else {
-        notifyError('저장 실패: 서버 오류가 발생했습니다.');
+        notifyError(t('home.saveFail'));
       }
     } catch (e) {
-      notifyError('저장 중 오류가 발생했습니다.');
+      notifyError(t('home.saveError'));
     }
   };
 
@@ -912,8 +944,8 @@ export default function Home() {
             <span className="inline-flex items-center gap-1.5 text-xs md:text-sm font-bold">
               <Clock className="size-3.5 md:size-4 shrink-0" aria-hidden />
               {guestRemainingDays > 0
-                ? `게스트 모드 · D-${guestRemainingDays}`
-                : '회원가입하면 찜·코스·메이트까지 계속 이용할 수 있어요'}
+                ? `${t('home.guestMode')} · D-${guestRemainingDays}`
+                : t('home.guestExpired')}
             </span>
             <button
               type="button"
@@ -939,22 +971,24 @@ export default function Home() {
                 <div className="w-full border rounded-xl p-5 md:p-8 relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-4 bg-ink-900 text-cream-200 border-ink-900 dark:bg-cream-200 dark:text-ink-900 dark:border-cream-200">
                   <div className="relative z-10 text-center md:text-left">
                     <h2 className="text-xl md:text-3xl font-bold mb-1 md:mb-2">
-                      반가워요,{' '}
-                      <span className="text-lime-300 dark:text-lime-700">{user.nickname}</span>님!
+                      {t('greet.hello')}{' '}
+                      <span className="text-lime-300 dark:text-lime-700">{user.nickname}</span>
+                      {t('greet.suffix')}
                     </h2>
                     <p className="text-xs md:text-base opacity-70">
-                      오늘 서울에{' '}
+                      {t('greet.countPrefix')}
                       <span className="font-bold text-lime-400 dark:text-lime-700">
-                        {mappablePopupCount}개
+                        {mappablePopupCount}
+                        {t('count.unit')}
                       </span>
-                      의 팝업이 열려있어요.
+                      {t('greet.countSuffix')}
                     </p>
                   </div>
                   <button
                     onClick={() => handleTabChange('PASSPORT')}
                     className="relative z-10 w-full md:w-auto inline-flex px-5 py-3 bg-lime-300 hover:bg-lime-400 text-ink-900 font-semibold rounded-pill items-center justify-center gap-2 transition-colors text-sm md:text-base"
                   >
-                    <Ticket size={18} /> 내 여권 확인
+                    <Ticket size={18} /> {t('greet.passport')}
                   </button>
                 </div>
               ) : (
@@ -976,11 +1010,14 @@ export default function Home() {
                       <h2 className="text-2xl md:text-4xl font-black leading-tight text-gray-900 dark:text-white">
                         {locale === 'ko' ? (
                           <>
-                            지금 서울에{' '}
+                            {t('hero.openedPrefix')}
                             <span className="text-lime-600 dark:text-lime-300">
-                              {mappablePopupCount || '…'}개
+                              {mappablePopupCount || '…'}
+                              {t('count.unit')}
                             </span>
-                            의<br className="hidden md:block" /> 팝업이 열렸어요
+                            {/* 조사는 개수 쪽에 붙인다 — 줄이 바뀌어도 "123개의 / 팝업이" 로 끊긴다. */}
+                            {t('hero.openedJoin')}
+                            <br className="hidden md:block" /> {t('hero.openedSuffix')}
                           </>
                         ) : (
                           <>
@@ -1000,8 +1037,10 @@ export default function Home() {
                         <button
                           type="button"
                           onClick={() =>
+                            // 예전에는 aria-label 의 한국어 문구로 찾았다 — 그 문구를 번역하는 순간
+                            // 영어·일본어에서 이 버튼이 조용히 아무 일도 안 하게 된다. id 로 찾는다.
                             document
-                              .querySelector('[aria-label="서울 팝업 지도"]')
+                              .getElementById(HOME_MAP_ID)
                               ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
                           }
                           className="inline-flex items-center justify-center gap-2 rounded-pill bg-lime-300 px-6 py-3 text-sm md:text-base font-bold text-ink-900 transition hover:bg-lime-400"
@@ -1012,7 +1051,7 @@ export default function Home() {
                           href="/signup"
                           className="inline-flex items-center justify-center gap-2 rounded-pill border border-gray-300 bg-white px-6 py-3 text-sm md:text-base font-bold text-gray-900 transition hover:bg-gray-100 dark:border-white/20 dark:bg-white/10 dark:text-white dark:hover:bg-white/20"
                         >
-                          회원가입
+                          {t('auth.signup')}
                         </Link>
                       </div>
                     </div>
@@ -1028,7 +1067,7 @@ export default function Home() {
                               handleTabChange('MAP');
                               router.push(`/popup/${p.id}`);
                             }}
-                            aria-label={`${p.name} 상세 보기`}
+                            aria-label={`${p.name} ${t('common.viewDetail')}`}
                             className={`aspect-[4/5] overflow-hidden rounded-xl ring-1 ring-black/5 dark:ring-white/10 transition hover:-translate-y-0.5 hover:shadow-lg ${i % 2 === 1 ? 'sm:translate-y-3' : ''}`}
                           >
                             <PopupCoverVisual popup={p} name={p.name} location={p.location} />
@@ -1046,7 +1085,8 @@ export default function Home() {
 
             {/* 서울 팝업 지도 — 홈의 주인공 (디자인 진단서 P0). 지도 전체폭·크게, 보조 정보는 아래 3열. */}
             <section
-              aria-label="서울 팝업 지도"
+              id={HOME_MAP_ID}
+              aria-label={t('map.aria')}
               className="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-10"
             >
               {/* Search Zone */}
@@ -1091,7 +1131,7 @@ export default function Home() {
                       }
                       if (typeof document !== 'undefined') {
                         document
-                          .querySelector('[aria-label="서울 팝업 지도"]')
+                          .getElementById(HOME_MAP_ID)
                           ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                       }
                     }
@@ -1111,7 +1151,7 @@ export default function Home() {
                 <div className="absolute bottom-4 md:bottom-6 left-4 md:left-6 flex gap-2 z-20">
                   <span className="backdrop-blur px-3 py-1.5 md:px-4 md:py-2 rounded-full border text-[10px] md:text-xs font-bold flex items-center gap-1.5 md:gap-2 bg-white/80 border-gray-200 text-gray-900 dark:bg-black/60 dark:border-white/10 dark:text-white">
                     <span className="w-1.5 h-1.5 md:w-2 md:h-2 bg-green-500 rounded-full animate-pulse" />{' '}
-                    실시간
+                    {t('bento.live')}
                   </span>
                 </div>
               </div>
@@ -1135,7 +1175,7 @@ export default function Home() {
                   </span>
                   {congestionData ? (
                     <span className="truncate text-sm text-gray-500 dark:text-white/60">
-                      · 성수{' '}
+                      · {fixedRegionLabel('seongsu', locale)}{' '}
                       <span className={`font-bold ${getCongestionColor(congestionData.level)}`}>
                         {congestionData.level}
                       </span>
@@ -1182,7 +1222,7 @@ export default function Home() {
 
             {/* 지금 뜨는 팝업 — 사진 카드 레일 (디자인 진단서 P0: 팝업 사진 카드로 코어 뷰잉 강화). */}
             <motion.section
-              aria-label="지금 뜨는 팝업"
+              aria-label={t('section.trending')}
               initial="hidden"
               whileInView="visible"
               viewport={{ once: true, margin: '-80px' }}
@@ -1243,7 +1283,7 @@ export default function Home() {
                         onClick={() => setRailCat(c.code)}
                         className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold transition ${railCat === c.code ? 'bg-ink-900 text-white dark:bg-white dark:text-ink-900' : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-white/10 dark:text-white/60'}`}
                       >
-                        {c.label}
+                        {localizedLabel(c, locale)}
                       </button>
                     ))}
                   </div>
@@ -1261,7 +1301,7 @@ export default function Home() {
                 </div>
               ) : railPopups.length === 0 ? (
                 <p className="rounded-2xl border border-dashed border-gray-200 py-10 text-center text-sm text-muted-foreground dark:border-white/10">
-                  이 조건에 맞는 팝업이 없어요.
+                  {t('rail.empty')}
                 </p>
               ) : (
                 <div className="relative md:px-16">
@@ -1269,7 +1309,7 @@ export default function Home() {
                     <>
                       <button
                         type="button"
-                        aria-label="이전"
+                        aria-label={t('home.railPrev')}
                         onClick={() => rail.scrollByPage(-1)}
                         disabled={rail.atStart}
                         className={`absolute left-1 top-1/2 z-10 hidden h-12 w-12 -translate-y-1/2 place-items-center rounded-full text-ink-900/90 transition hover:bg-black/5 dark:text-white/90 dark:hover:bg-white/10 md:grid ${rail.atStart ? 'pointer-events-none opacity-0' : ''}`}
@@ -1278,7 +1318,7 @@ export default function Home() {
                       </button>
                       <button
                         type="button"
-                        aria-label="다음"
+                        aria-label={t('home.railNext')}
                         onClick={() => rail.scrollByPage(1)}
                         disabled={rail.atEnd}
                         className={`absolute right-1 top-1/2 z-10 hidden h-12 w-12 -translate-y-1/2 place-items-center rounded-full text-ink-900/90 transition hover:bg-black/5 dark:text-white/90 dark:hover:bg-white/10 md:grid ${rail.atEnd ? 'pointer-events-none opacity-0' : ''}`}
@@ -1311,7 +1351,7 @@ export default function Home() {
             {/* 오늘의 추천 팝업 (구 pop-look) — 랜덤 스톡 영상이 아니라 실제 인기(조회수) 상위를 추천한다. */}
             {featuredPopup && (
               <motion.section
-                aria-label="오늘의 추천 팝업"
+                aria-label={t('home.featuredAria')}
                 initial="hidden"
                 whileInView="visible"
                 viewport={{ once: true }}
@@ -1374,7 +1414,7 @@ export default function Home() {
                           const d = getDday(featuredPopup.endDate ?? null);
                           return d !== null ? (
                             <span className="rounded-pill bg-lime-300 px-2.5 py-0.5 text-[11px] font-bold text-ink-900">
-                              {d === 0 ? '오늘 마감' : `D-${d}`}
+                              {d === 0 ? t('card.today') : `D-${d}`}
                             </span>
                           ) : null;
                         })()}
@@ -1384,7 +1424,8 @@ export default function Home() {
                       </h3>
                       <p className="mt-1.5 flex items-center gap-1 text-sm text-white/85">
                         <MapPin size={14} className="shrink-0" />{' '}
-                        {(featuredPopup.location || '').split(' ').slice(0, 2).join(' ') || '서울'}
+                        {(featuredPopup.location || '').split(' ').slice(0, 2).join(' ') ||
+                          t('home.seoul')}
                       </p>
                     </div>
                   </article>
@@ -1428,8 +1469,9 @@ export default function Home() {
                                 {p.name}
                               </strong>
                               <span className="block truncate text-xs text-muted-foreground">
-                                {(p.location || '').split(' ').slice(0, 2).join(' ') || '서울'} ·{' '}
-                                {categoryLabel(classifyCategory(p.category))}
+                                {(p.location || '').split(' ').slice(0, 2).join(' ') ||
+                                  t('home.seoul')}{' '}
+                                · {categoryLabel(classifyCategory(p.category))}
                               </span>
                             </div>
                             <ArrowRight size={16} className="shrink-0 text-muted-foreground" />
@@ -1458,7 +1500,7 @@ export default function Home() {
               <LiveChatTicker />
               <div className="text-center mt-6 lg:mt-8">
                 <p className="text-[10px] lg:text-sm text-gray-500 dark:text-white/40">
-                  * 서울 현장 유저들이 실시간으로 공유하는 정보입니다.
+                  {t('congestion.note')}
                 </p>
               </div>
             </motion.section>
@@ -1479,7 +1521,7 @@ export default function Home() {
               <div className="flex min-w-0 items-center gap-2.5">
                 <MessageCircle size={16} className="shrink-0 text-primary" aria-hidden />
                 <span className="shrink-0 text-sm font-bold text-gray-900 dark:text-white">
-                  의견 보내기
+                  {t('feedback.send')}
                 </span>
                 <span className="truncate text-sm text-gray-500 dark:text-white/60">
                   {t('feedback.sub')}
@@ -1502,24 +1544,24 @@ export default function Home() {
               <div className="flex flex-col lg:flex-row items-center justify-between gap-8 lg:gap-12 relative z-10">
                 <div className="flex-1 text-center lg:text-left">
                   <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-pill bg-lime-300/15 border border-lime-300/40 text-lime-300 text-[10px] lg:text-xs font-semibold tracking-wide mb-4 lg:mb-6">
-                    <Users size={12} className="lg:w-4 lg:h-4" /> 실시간 협업 기능
+                    <Users size={12} className="lg:w-4 lg:h-4" /> {t('collab.badge')}
                   </div>
                   <h2 className="text-2xl md:text-4xl lg:text-5xl font-black mb-4 lg:mb-6 leading-tight">
-                    친구와 함께 그리는
+                    {t('collab.lead')}
                     <br />
-                    <span className="text-lime-300">서울 작전지도</span>
+                    <span className="text-lime-300">{t('collab.title')}</span>
                   </h2>
                   <p className="text-gray-400 text-xs lg:text-lg mb-6 lg:mb-8 leading-relaxed max-w-lg mx-auto lg:mx-0">
-                    &ldquo;거기 어때?&rdquo; 링크 공유는 그만.
+                    {t('collab.desc1')}
                     <br />
-                    같은 화면을 보며 실시간으로 마커를 찍고 동선을 계획하세요.
+                    {t('collab.desc2')}
                     <br className="hidden lg:block" />
                   </p>
                   <button
                     onClick={handleCreateRoom}
                     className="group relative inline-flex items-center justify-center px-6 py-3 lg:px-8 lg:py-4 font-semibold text-ink-900 transition-colors bg-lime-300 hover:bg-lime-400 rounded-pill focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 text-sm lg:text-base w-full lg:w-auto"
                   >
-                    <span className="mr-2">작전 회의실 만들기</span>
+                    <span className="mr-2">{t('collab.cta')}</span>
                     <ArrowRight className="w-4 h-4 lg:w-5 lg:h-5 transition-transform group-hover:translate-x-1" />
                     <div className="absolute inset-0 rounded-full ring-2 ring-white/20 group-hover:ring-white/40 transition-all"></div>
                   </button>
@@ -1558,7 +1600,7 @@ export default function Home() {
                       <div className="absolute top-[18%] left-[15%] flex items-center gap-1.5">
                         <span className="w-3 h-3 rounded-full bg-lime-300 ring-2 ring-ink-900" />
                         <span className="text-[10px] font-semibold text-cream-200 bg-ink-900/80 px-1.5 py-0.5 rounded">
-                          성수
+                          {fixedRegionLabel('seongsu', locale)}
                         </span>
                       </div>
 
@@ -1569,14 +1611,14 @@ export default function Home() {
                           <span className="relative w-3 h-3 rounded-full bg-hot-400 ring-2 ring-ink-900" />
                         </span>
                         <span className="text-[10px] font-semibold text-cream-200 bg-ink-900/80 px-1.5 py-0.5 rounded">
-                          한남
+                          {fixedRegionLabel('hannam', locale)}
                         </span>
                       </div>
 
                       {/* 핀 3 — 압구정 */}
                       <div className="absolute bottom-[12%] right-[8%] flex items-center gap-1.5">
                         <span className="text-[10px] font-semibold text-cream-200 bg-ink-900/80 px-1.5 py-0.5 rounded">
-                          압구정
+                          {fixedRegionLabel('apgujeong', locale)}
                         </span>
                         <span className="w-3 h-3 rounded-full bg-cream-200 ring-2 ring-ink-900" />
                       </div>
@@ -1608,7 +1650,7 @@ export default function Home() {
                     <div className="mt-4 flex items-center justify-between gap-3 px-1">
                       <div className="flex items-center gap-2">
                         <span className="w-2 h-2 rounded-full bg-lime-300 animate-pulse" />
-                        <span className="text-[11px] text-cream-200/70">2명 함께 편집 중</span>
+                        <span className="text-[11px] text-cream-200/70">{t('collab.editing')}</span>
                       </div>
                       <span className="text-[10px] font-mono uppercase tracking-wider text-cream-200/40">
                         3 stops · 1.2km
@@ -1668,30 +1710,17 @@ export default function Home() {
               <h2 className="font-display-en text-2xl md:text-4xl lg:text-5xl font-extrabold tracking-tighter mb-2 text-foreground">
                 POP<span className="text-lime-300">-</span>COURSE
               </h2>
-              <p className="text-muted-foreground text-sm">
-                원하는 분위기를 선택하면 AI가 최적의 동선을 추천합니다.
-              </p>
+              <p className="text-muted-foreground text-sm">{t('course.moodHint')}</p>
             </header>
 
             <div className="w-full max-w-3xl z-10 mb-8 lg:mb-12 flex flex-col gap-3 lg:gap-4">
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4 px-2 lg:px-0">
+                {/* val 은 AI 에 그대로 넘어가는 검색어라 한국어로 고정한다 — 화면 문구만 옮긴다. */}
                 {[
-                  {
-                    val: '핫플',
-                    no: '01',
-                    label: '핫플레이스',
-                    desc: '지금 가장 뜨거운',
-                    icon: Flame,
-                  },
-                  { val: '데이트', no: '02', label: '데이트', desc: '둘이 가기 좋은', icon: Heart },
-                  {
-                    val: '사진',
-                    no: '03',
-                    label: '사진 명소',
-                    desc: '찍기 좋은 스팟',
-                    icon: Camera,
-                  },
-                  { val: '힐링', no: '04', label: '휴식·힐링', desc: '잠시 멈출 곳', icon: Coffee },
+                  { val: '핫플', no: '01', label: 'mood.hot', icon: Flame },
+                  { val: '데이트', no: '02', label: 'mood.date', icon: Heart },
+                  { val: '사진', no: '03', label: 'mood.photo', icon: Camera },
+                  { val: '힐링', no: '04', label: 'mood.heal', icon: Coffee },
                 ].map((item) => {
                   const Icon = item.icon;
                   const active = selectedVibe === item.val;
@@ -1727,12 +1756,12 @@ export default function Home() {
                         <div
                           className={`text-base lg:text-lg font-bold leading-tight ${active ? 'text-ink-900' : 'text-foreground'}`}
                         >
-                          {item.label}
+                          {t(`${item.label}Label` as MessageKey)}
                         </div>
                         <div
                           className={`text-xs mt-0.5 ${active ? 'text-ink-900/70' : 'text-muted-foreground'}`}
                         >
-                          {item.desc}
+                          {t(`${item.label}Desc` as MessageKey)}
                         </div>
                       </div>
 
@@ -1751,8 +1780,7 @@ export default function Home() {
                     onClick={() => setShowCustomInput(true)}
                     className="text-sm flex items-center gap-2 transition-colors border-b border-transparent pb-1 text-muted-foreground hover:text-lime-500 hover:border-lime-500"
                   >
-                    <Sparkles size={12} className="lg:w-3.5 lg:h-3.5" /> 찾는 분위기가 없나요? 직접
-                    입력하기
+                    <Sparkles size={12} className="lg:w-3.5 lg:h-3.5" /> {t('course.customAsk')}
                   </button>
                 ) : (
                   <motion.div
@@ -1764,7 +1792,7 @@ export default function Home() {
                       type="text"
                       value={customVibeInput}
                       onChange={(e) => setCustomVibeInput(e.target.value)}
-                      placeholder="예: 비 오는 날 가기 좋은 곳"
+                      placeholder={t('home.vibePlaceholder')}
                       className="flex-1 h-11 rounded-md px-4 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring bg-surface border border-[var(--color-border-strong)] text-foreground placeholder:text-muted-foreground text-sm"
                       onKeyDown={(e) => e.key === 'Enter' && handleAiRecommend(customVibeInput)}
                     />
@@ -1772,7 +1800,7 @@ export default function Home() {
                       onClick={() => handleAiRecommend(customVibeInput)}
                       className="bg-lime-300 hover:bg-lime-400 text-ink-900 px-4 lg:px-6 rounded-pill font-semibold transition-colors text-xs lg:text-sm whitespace-nowrap"
                     >
-                      추천
+                      {t('course.recommend')}
                     </button>
                     <button
                       onClick={() => setShowCustomInput(false)}
@@ -1794,17 +1822,17 @@ export default function Home() {
                     <Route size={16} className="text-lime-500 lg:w-5 lg:h-5" />
                   )}
                   {isAiLoading
-                    ? 'AI가 코스를 짜고 있어요...'
+                    ? t('home.aiBuilding')
                     : aiCourse.length > 0
                       ? 'AI RECOMMENDED COURSE'
-                      : '원하는 분위기를 선택해보세요.'}
+                      : t('home.pickMood')}
                 </h3>
                 {aiCourse.length > 0 && !isAiLoading && (
                   <button
                     onClick={handleResetCourse}
                     className="text-xs flex items-center gap-1 transition-colors text-muted-foreground hover:text-danger"
                   >
-                    <RefreshCw size={10} className="lg:w-3 lg:h-3" /> 초기화
+                    <RefreshCw size={10} className="lg:w-3 lg:h-3" /> {t('course.reset')}
                   </button>
                 )}
               </header>
@@ -1822,11 +1850,10 @@ export default function Home() {
                           FOR YOU
                         </span>
                         <h4 className="text-xl lg:text-2xl font-bold text-foreground">
-                          서울 <span className="text-hot-500">{selectedVibe}</span> 맞춤 코스
+                          {t('home.seoul')} <span className="text-hot-500">{selectedVibe}</span>{' '}
+                          {t('course.title')}
                         </h4>
-                        <p className="text-muted-foreground text-sm mt-1">
-                          AI가 제안하는 최적의 동선입니다.
-                        </p>
+                        <p className="text-muted-foreground text-sm mt-1">{t('course.desc')}</p>
                       </div>
                     </div>
 
@@ -1886,7 +1913,7 @@ export default function Home() {
                         onClick={handleSaveAiCourse}
                         className="flex w-full items-center justify-center gap-2 rounded-pill bg-lime-300 py-3.5 text-sm font-semibold text-ink-900 transition-colors hover:bg-lime-400 lg:text-base"
                       >
-                        <Ticket size={16} /> 마이페이지에 저장
+                        <Ticket size={16} /> {t('course.save')}
                       </button>
                     </div>
                   </div>
@@ -1899,7 +1926,7 @@ export default function Home() {
         {/* TAB: MY */}
         {currentTab === 'MY' && (
           <motion.section
-            aria-label="내 기록"
+            aria-label={t('home.myTabAria')}
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             className="mx-auto mb-16 max-w-3xl"
@@ -1911,13 +1938,14 @@ export default function Home() {
                         v2.17 — 회원 탈퇴 버튼 추가 (PIPA 의무). */}
               <div className="p-4 lg:p-6 border-b border-[var(--color-border)]">
                 <h3 className="text-base lg:text-lg font-bold mb-4 flex items-center gap-2 text-foreground">
-                  <UserIcon size={16} className="lg:w-[18px] lg:h-[18px] text-lime-500" /> 내 계정
+                  <UserIcon size={16} className="lg:w-[18px] lg:h-[18px] text-lime-500" />{' '}
+                  {t('my.account')}
                 </h3>
                 <div className="flex items-center gap-4 p-3 lg:p-4 rounded-md border border-[var(--color-border)] bg-cream-300 dark:bg-ink-800">
                   {user?.picture ? (
                     <Image
                       src={user.picture}
-                      alt="프로필 사진"
+                      alt={t('home.profilePhotoAlt')}
                       width={56}
                       height={56}
                       className="rounded-full object-cover w-14 h-14 border border-[var(--color-border)]"
@@ -1930,10 +1958,10 @@ export default function Home() {
                   )}
                   <div className="min-w-0 flex-1">
                     <p className="text-sm lg:text-base font-bold text-foreground truncate">
-                      {user?.nickname || '회원'}
+                      {user?.nickname || t('home.memberFallback')}
                     </p>
                     <p className="text-xs lg:text-sm text-muted-foreground truncate mt-0.5">
-                      {user?.email || '이메일 정보 없음'}
+                      {user?.email || t('home.noEmail')}
                     </p>
                   </div>
                 </div>
@@ -1943,14 +1971,14 @@ export default function Home() {
                     onClick={() => handleTabChange('FEEDBACK')}
                     className="text-xs font-semibold text-lime-600 dark:text-lime-400 underline-offset-2 hover:underline transition-colors"
                   >
-                    의견·문의 보내기
+                    {t('my.feedback')}
                   </button>
                   <button
                     type="button"
                     onClick={handleDeleteAccount}
                     className="text-xs text-muted-foreground hover:text-danger underline-offset-2 hover:underline transition-colors"
                   >
-                    회원 탈퇴
+                    {t('my.withdraw')}
                   </button>
                 </div>
               </div>
@@ -1958,7 +1986,8 @@ export default function Home() {
               {/* Activity Dashboard */}
               <div className="p-4 lg:p-6 border-b border-[var(--color-border)]">
                 <h3 className="text-base lg:text-lg font-bold mb-4 flex items-center gap-2 text-foreground">
-                  <UserIcon size={16} className="lg:w-[18px] lg:h-[18px] text-lime-500" /> 활동 기록
+                  <UserIcon size={16} className="lg:w-[18px] lg:h-[18px] text-lime-500" />{' '}
+                  {t('my.activity')}
                 </h3>
                 <div className="grid grid-cols-3 gap-2 lg:gap-3">
                   <div className="bg-cream-300 dark:bg-ink-800 p-4 rounded-md text-center border border-[var(--color-border)]">
@@ -1966,7 +1995,7 @@ export default function Home() {
                     <div className="text-2xl font-extrabold text-foreground">
                       {myPageInfo?.likeCount || 0}
                     </div>
-                    <div className="text-xs text-muted-foreground mt-0.5">찜한 팝업</div>
+                    <div className="text-xs text-muted-foreground mt-0.5">{t('my.wishlist')}</div>
                   </div>
                   <div className="bg-cream-300 dark:bg-ink-800 p-4 rounded-md text-center border border-[var(--color-border)]">
                     <Ticket size={16} className="lg:w-5 lg:h-5 mx-auto mb-1 text-lime-500" />
@@ -1974,7 +2003,7 @@ export default function Home() {
                       {myPageInfo?.stampCount || 0}
                       <span className="text-sm text-muted-foreground font-normal">/12</span>
                     </div>
-                    <div className="text-xs text-muted-foreground mt-0.5">획득 스탬프</div>
+                    <div className="text-xs text-muted-foreground mt-0.5">{t('my.stamps')}</div>
                   </div>
                   <div className="bg-cream-300 dark:bg-ink-800 p-4 rounded-md text-center border border-[var(--color-border)]">
                     <MessageCircle
@@ -1984,7 +2013,7 @@ export default function Home() {
                     <div className="text-2xl font-extrabold text-foreground">
                       {myPageInfo?.reviewCount || 0}
                     </div>
-                    <div className="text-xs text-muted-foreground mt-0.5">리뷰/톡</div>
+                    <div className="text-xs text-muted-foreground mt-0.5">{t('my.reviews')}</div>
                   </div>
                 </div>
               </div>
@@ -1992,7 +2021,8 @@ export default function Home() {
               {/* 등급 진열 카드 — 스탬프 누적량에 따른 등급 + 다음 단계 진행도 */}
               <div className="p-4 lg:p-6 border-b border-[var(--color-border)]">
                 <h3 className="text-base lg:text-lg font-bold mb-4 flex items-center gap-2 text-foreground">
-                  <Star size={16} className="lg:w-[18px] lg:h-[18px] text-amber-500" /> 내 등급
+                  <Star size={16} className="lg:w-[18px] lg:h-[18px] text-amber-500" />{' '}
+                  {t('my.grade')}
                 </h3>
                 <RankCard
                   stampCount={myPageInfo?.stampCount || 0}
@@ -2010,13 +2040,14 @@ export default function Home() {
               {/* Wishlist */}
               <div className="p-4 lg:p-6 border-b border-[var(--color-border)]">
                 <h3 className="text-base lg:text-lg font-bold mb-4 flex items-center gap-2 text-foreground">
-                  <Heart size={16} className="lg:w-[18px] lg:h-[18px] text-hot-400" /> 찜한 팝업
+                  <Heart size={16} className="lg:w-[18px] lg:h-[18px] text-hot-400" />{' '}
+                  {t('my.wishlist')}
                 </h3>
                 {myWishlist.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground text-sm border border-dashed border-[var(--color-border-strong)] rounded-md">
-                    아직 찜한 팝업스토어가 없습니다.
+                    {t('wish.empty')}
                     <br />
-                    마음에 드는 팝업에 하트를 눌러보세요!
+                    {t('wish.emptyHint')}
                   </div>
                 ) : (
                   <div className="grid grid-cols-2 gap-2 lg:gap-3">
@@ -2044,7 +2075,7 @@ export default function Home() {
                         <button
                           onClick={(e) => handleRemoveWishlist(e, item.popupId)}
                           className="absolute top-2 right-2 bg-ink-900/60 backdrop-blur rounded-pill p-1.5 text-hot-400 hover:bg-hot-400 hover:text-white transition-colors opacity-100 md:opacity-0 md:group-hover:opacity-100"
-                          title="찜 해제"
+                          title={t('home.wishRemove')}
                         >
                           <Heart size={10} className="lg:w-3 lg:h-3 fill-current" />
                         </button>
@@ -2059,13 +2090,13 @@ export default function Home() {
               {/* Saved Courses History */}
               <div className="p-4 lg:p-6 border-b border-[var(--color-border)]">
                 <h3 className="text-base lg:text-lg font-bold mb-4 flex items-center gap-2 text-foreground">
-                  <FolderOpen size={16} className="lg:w-[18px] lg:h-[18px] text-lime-500" /> 저장한
-                  코스
+                  <FolderOpen size={16} className="lg:w-[18px] lg:h-[18px] text-lime-500" />{' '}
+                  {t('course.saved')}
                 </h3>
 
                 {savedCourses.length === 0 ? (
                   <div className="text-center text-muted-foreground py-4 text-sm">
-                    아직 저장된 코스가 없습니다.
+                    {t('course.empty')}
                   </div>
                 ) : (
                   <div className="space-y-2">
@@ -2084,7 +2115,7 @@ export default function Home() {
                               {course.courseName}
                             </div>
                             <div className="text-xs text-muted-foreground mt-0.5">
-                              클릭하여 불러오기
+                              {t('course.loadHint')}
                             </div>
                           </div>
                         </div>
@@ -2092,7 +2123,7 @@ export default function Home() {
                         <button
                           onClick={(e) => handleDeleteCourse(e, course.id)}
                           className="p-2 text-muted-foreground hover:text-danger transition-colors rounded-pill hover:bg-hot-400/10"
-                          title="삭제하기"
+                          title={t('home.delete')}
                         >
                           <Trash2 size={14} className="lg:w-4 lg:h-4" />
                         </button>
@@ -2108,20 +2139,20 @@ export default function Home() {
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-base lg:text-lg font-bold flex items-center gap-2 text-foreground">
                     <MessageCircle size={16} className="lg:w-[18px] lg:h-[18px] text-lime-500" />{' '}
-                    내가 보낸 의견
+                    {t('feedback.mine')}
                   </h3>
                   <button
                     type="button"
                     onClick={() => handleTabChange('FEEDBACK')}
                     className="text-xs text-muted-foreground hover:text-foreground"
                   >
-                    전체 보기
+                    {t('feedback.viewAll')}
                   </button>
                 </div>
                 <MyFeedbackList
                   userId={user?.userId ?? null}
                   limit={3}
-                  emptyText="아직 보낸 의견이 없습니다. 자유롭게 의견을 남겨 주세요."
+                  emptyText={t('home.feedbackEmpty')}
                 />
               </div>
 
@@ -2133,8 +2164,9 @@ export default function Home() {
 
                 {myCourseItems.length === 0 && (
                   <div className="text-center text-muted-foreground py-6 border border-dashed border-[var(--color-border-strong)] rounded-md mb-4 text-sm">
-                    현재 편집 중인 코스가 없습니다.
-                    <br />위 목록에서 불러오거나 새로 추가하세요!
+                    {t('course.editingEmpty')}
+                    <br />
+                    {t('course.editingHint')}
                   </div>
                 )}
 
@@ -2149,13 +2181,13 @@ export default function Home() {
                         <div key={place.id} className="relative group">
                           <SortableItem id={place.id} place={place} index={index} />
                           <button
-                            aria-label="장소 제거"
+                            aria-label={t('home.placeRemove')}
                             onClick={() => {
                               const newItems = myCourseItems.filter((i) => i.id !== place.id);
                               setMyCourseItems(newItems);
                             }}
                             className="absolute -top-2 -right-2 bg-hot-400 text-white p-1 rounded-pill opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity shadow-md"
-                            title="삭제"
+                            title={t('home.delete')}
                           >
                             <X size={10} className="lg:w-3 lg:h-3" />
                           </button>
@@ -2169,7 +2201,7 @@ export default function Home() {
                   onClick={() => setIsAddPlaceOpen(true)}
                   className="w-full py-3 mt-4 border border-dashed border-[var(--color-border-strong)] rounded-md text-muted-foreground hover:border-lime-500 hover:text-lime-500 transition-colors flex items-center justify-center gap-2 font-medium text-sm"
                 >
-                  <PlusCircle size={14} className="lg:w-4 lg:h-4" /> 장소 추가하기
+                  <PlusCircle size={14} className="lg:w-4 lg:h-4" /> {t('course.addPlace')}
                 </button>
 
                 <button
@@ -2177,7 +2209,7 @@ export default function Home() {
                   className="w-full py-3 lg:py-4 mt-4 bg-ink-900 hover:bg-ink-700 text-cream-200 font-semibold rounded-pill shadow-md transition-colors active:scale-[0.98] flex items-center justify-center gap-2 dark:bg-cream-200 dark:text-ink-900 dark:hover:bg-cream-300 text-sm lg:text-base"
                 >
                   <Save size={14} className="lg:w-[18px] lg:h-[18px]" />{' '}
-                  <span>현재 코스 저장하기</span>
+                  <span>{t('course.saveCurrent')}</span>
                 </button>
               </div>
 
@@ -2213,20 +2245,22 @@ export default function Home() {
           >
             <div className="mb-4">
               <h2 className="text-xl font-bold text-foreground">{t('feedback.title')}</h2>
-              <p className="text-sm text-muted-foreground mt-1">
-                서비스를 쓰면서 느낀 점, 버그, 제안을 운영팀에 전달할 수 있습니다.
-              </p>
+              <p className="text-sm text-muted-foreground mt-1">{t('feedback.desc')}</p>
             </div>
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
               <div className="lg:col-span-3">
                 <div className="rounded-lg border border-[var(--color-border-strong)] bg-cream-300 dark:bg-ink-800 p-5">
-                  <h3 className="mb-4 text-base font-semibold text-foreground">새 의견</h3>
+                  <h3 className="mb-4 text-base font-semibold text-foreground">
+                    {t('feedback.new')}
+                  </h3>
                   <FeedbackForm userId={user?.userId ?? null} />
                 </div>
               </div>
               <aside className="lg:col-span-2">
                 <div className="rounded-lg border border-[var(--color-border-strong)] bg-cream-300 dark:bg-ink-800 p-5">
-                  <h3 className="mb-4 text-base font-semibold text-foreground">내가 보낸 의견</h3>
+                  <h3 className="mb-4 text-base font-semibold text-foreground">
+                    {t('feedback.mine')}
+                  </h3>
                   <MyFeedbackList userId={user?.userId ?? null} />
                 </div>
               </aside>
@@ -2290,6 +2324,7 @@ export default function Home() {
  * 자동으로 기록되고, 사용자가 MY 탭으로 돌아오면 다음 mount 에 갱신.
  */
 function RecentVisitsCard() {
+  const { t } = useLocale();
   const [visits, setVisits] = useState<
     Array<{ popupId: number; popupName: string; popupImage?: string }>
   >([]);
@@ -2305,7 +2340,7 @@ function RecentVisitsCard() {
   return (
     <div className="p-4 lg:p-6 border-b border-[var(--color-border)]">
       <h3 className="text-base lg:text-lg font-bold mb-4 flex items-center gap-2 text-foreground">
-        <Clock size={16} className="lg:w-[18px] lg:h-[18px] text-lime-500" /> 최근 본 팝업
+        <Clock size={16} className="lg:w-[18px] lg:h-[18px] text-lime-500" /> {t('recent.title')}
       </h3>
       <div className="grid grid-cols-3 gap-2">
         {visits.slice(0, 6).map((v) => (
@@ -2350,6 +2385,7 @@ function PopupCoverVisual({
   location?: string | null;
   compact?: boolean;
 }) {
+  const { t } = useLocale();
   const coverUrl = popupCoverUrl(popup, 400);
   const isStyledPhoto = isPexelsPhoto(popup);
   if (coverUrl) {
@@ -2359,7 +2395,7 @@ function PopupCoverVisual({
         <img
           src={coverUrl}
           alt={name}
-          title={isStyledPhoto ? '연출 이미지 · 실제 팝업 현장 아님' : undefined}
+          title={isStyledPhoto ? t('photo.styledTooltip') : undefined}
           loading="lazy"
           className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
         />
@@ -2368,7 +2404,7 @@ function PopupCoverVisual({
         )}
         {compact && isStyledPhoto && (
           <span className="absolute left-1 top-1 rounded bg-black/65 px-1 py-0.5 text-[8px] font-bold text-white">
-            연출
+            {t('photo.styled')}
           </span>
         )}
       </>

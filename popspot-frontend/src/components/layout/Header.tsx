@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils';
 import { Logo } from '@/components/layout/Logo';
 import { SectionLogo } from '@/components/layout/BrandLogos';
 import { DOCK_ITEMS } from '@/components/layout/BottomDock';
+import { useLocale } from '@/lib/i18n';
 
 export interface HeaderUser {
   userId: string;
@@ -56,6 +57,7 @@ export function Header({
   onNavChange,
   className,
 }: HeaderProps) {
+  const { t } = useLocale();
   // v2.18.1 — 미확인 알림 개수 (localStorage 기반).
   const [unread, setUnread] = useState(0);
   useEffect(() => {
@@ -94,7 +96,10 @@ export function Header({
 
       {/* 데스크톱(lg+) 상단 네비 — 모바일은 하단 BottomDock. */}
       {onNavChange && (
-        <nav aria-label="주요 메뉴" className="hidden lg:flex items-center gap-10 self-center">
+        <nav
+          aria-label={t('nav.mainMenu')}
+          className="hidden lg:flex items-center gap-10 self-center"
+        >
           {DOCK_ITEMS.map((item) => {
             const active = activeTab === item.key;
             return (
@@ -111,7 +116,7 @@ export function Header({
                     : 'text-muted-foreground font-medium hover:text-foreground after:bg-transparent',
                 )}
               >
-                {item.label}
+                {t(item.labelKey)}
               </button>
             );
           })}
@@ -119,7 +124,7 @@ export function Header({
       )}
 
       <nav
-        aria-label="사용자 메뉴"
+        aria-label={t('nav.userMenu')}
         className="flex items-center gap-2 md:gap-3 self-end md:self-auto"
       >
         <ThemeToggle />
@@ -128,7 +133,7 @@ export function Header({
           <button
             type="button"
             onClick={onBellClick}
-            aria-label={unread > 0 ? `알림 ${unread}건` : '알림'}
+            aria-label={unread > 0 ? `${t('nav.notifications')} ${unread}` : t('nav.notifications')}
             className={cn(
               'relative inline-flex items-center justify-center h-10 w-10 rounded-pill',
               'text-foreground hover:bg-foreground/5 transition-colors',
@@ -153,7 +158,7 @@ export function Header({
             onClick={onReportClick}
             iconLeft={<Megaphone className="size-3.5" aria-hidden />}
           >
-            제보하기
+            {t('nav.report')}
           </Button>
         )}
 
@@ -166,7 +171,7 @@ export function Header({
           >
             <Link href="/admin">
               <ShieldCheck className="size-3.5" aria-hidden />
-              관리자
+              {t('nav.admin')}
             </Link>
           </Button>
         )}
@@ -176,7 +181,7 @@ export function Header({
         ) : (
           <div className="hidden md:flex items-center gap-2">
             <Button asChild variant="ghost" size="md" className="text-sm md:text-[15px] font-bold">
-              <Link href="/login">로그인</Link>
+              <Link href="/login">{t('nav.login')}</Link>
             </Button>
             <Button
               asChild
@@ -184,7 +189,7 @@ export function Header({
               size="md"
               className="text-sm md:text-[15px] font-bold"
             >
-              <Link href="/signup">회원가입</Link>
+              <Link href="/signup">{t('auth.signup')}</Link>
             </Button>
           </div>
         )}
@@ -202,6 +207,7 @@ function UserChip({
   onLogout?: () => void;
   onProfileClick?: () => void;
 }) {
+  const { t } = useLocale();
   const ChipInner = (
     <>
       <Avatar picture={user.picture} isDark={user.isPremium === true} size={26} />
@@ -231,7 +237,7 @@ function UserChip({
         <button
           type="button"
           onClick={onProfileClick}
-          aria-label="프로필 수정"
+          aria-label={t('nav.editProfile')}
           className="inline-flex items-center gap-2 transition-opacity hover:opacity-80"
         >
           {ChipInner}
@@ -244,7 +250,7 @@ function UserChip({
           type="button"
           onClick={onLogout}
           className="inline-flex items-center gap-1 px-2 py-1 rounded-pill text-xs opacity-70 hover:opacity-100 transition-opacity"
-          aria-label="로그아웃"
+          aria-label={t('nav.logout')}
         >
           <LogOut className="size-3" aria-hidden />
         </button>

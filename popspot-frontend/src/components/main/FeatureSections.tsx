@@ -2,6 +2,14 @@
 
 import { motion, type Variants } from 'framer-motion';
 import { Route, Music, Ticket, Users, ArrowRight } from 'lucide-react';
+import { localizedLabel, useLocale } from '@/lib/i18n';
+import { REGIONS, type RegionCode } from '@/lib/regions';
+
+/** 소개용 예시 핀의 지역명 — 표기가 지역 페이지와 어긋나면 같은 곳인지 알 수 없다. */
+function fixedRegionLabel(code: RegionCode, locale: Parameters<typeof localizedLabel>[1]): string {
+  const region = REGIONS.find((r) => r.code === code);
+  return region ? localizedLabel(region, locale) : code;
+}
 
 /**
  * 기능 소개.
@@ -24,6 +32,7 @@ const DOTS: React.CSSProperties = {
 
 /** 코스 — 점선 경로 + 번호 핀 미니 지도. */
 function CourseVisual() {
+  const { t, locale } = useLocale();
   return (
     <div
       className="rounded-xl border border-black/10 bg-cream-100 p-4 dark:border-ink-700 dark:bg-ink-900"
@@ -47,9 +56,9 @@ function CourseVisual() {
           />
         </svg>
         {[
-          { top: '14%', left: '10%', n: '1', label: '성수' },
-          { top: '50%', left: '45%', n: '2', label: '한남' },
-          { top: '74%', left: '78%', n: '3', label: '압구정' },
+          { top: '14%', left: '10%', n: '1', code: 'seongsu' as RegionCode },
+          { top: '50%', left: '45%', n: '2', code: 'hannam' as RegionCode },
+          { top: '74%', left: '78%', n: '3', code: 'apgujeong' as RegionCode },
         ].map((p) => (
           <div
             key={p.n}
@@ -60,13 +69,13 @@ function CourseVisual() {
               {p.n}
             </span>
             <span className="rounded bg-ink-900/80 px-1.5 py-0.5 text-[10px] font-semibold text-cream-200">
-              {p.label}
+              {fixedRegionLabel(p.code, locale)}
             </span>
           </div>
         ))}
       </div>
       <div className="mt-3 flex items-center justify-between px-1 text-[11px] text-ink-400 dark:text-cream-200/50">
-        <span>추천 코스</span>
+        <span>{t('feat.recommendedCourse')}</span>
         <span className="font-mono uppercase tracking-wider">3 stops · 2.4km</span>
       </div>
     </div>
@@ -177,6 +186,7 @@ function PassportMini() {
 
 /** 동행 — 미니 아바타 + 매칭. */
 function MateMini() {
+  const { t } = useLocale();
   return (
     <div className="flex items-center gap-2">
       <div className="flex -space-x-2">
@@ -185,7 +195,7 @@ function MateMini() {
         ))}
       </div>
       <span className="rounded-pill bg-sky-400/15 px-2 py-0.5 text-[10px] font-bold text-sky-300">
-        매칭중 · 2/4
+        {t('feat.matching')}
       </span>
     </div>
   );
@@ -244,9 +254,10 @@ interface Props {
 
 /** 음악·여권·동행 타일 3열 — 실시간 랭킹/캘린더/혼잡도와 같은 크기(col-4, h-340). */
 export function FeatureTiles({ onNavigate }: Props) {
+  const { t } = useLocale();
   return (
     <motion.section
-      aria-label="기능 바로가기"
+      aria-label={t('feat.aria')}
       initial="hidden"
       whileInView="visible"
       viewport={{ once: true, margin: '-80px' }}
@@ -256,9 +267,9 @@ export function FeatureTiles({ onNavigate }: Props) {
       <FeatureTile
         Icon={Music}
         eyebrow="POP·MUSIC"
-        title="듣는 곡으로 찾는 팝업"
-        desc="지금 노래의 분위기에 맞는 팝업을 추천받아요."
-        cta="음악으로 찾기"
+        title={t('feat.musicTitle')}
+        desc={t('feat.musicDesc')}
+        cta={t('feat.musicCta')}
         onClick={() => onNavigate('MUSIC')}
         visual={<MusicMini />}
         accent={{ glow: 'bg-hot-400/25', chip: 'bg-hot-400 text-white', text: 'text-hot-400' }}
@@ -266,9 +277,9 @@ export function FeatureTiles({ onNavigate }: Props) {
       <FeatureTile
         Icon={Ticket}
         eyebrow="PASSPORT"
-        title="채워지는 나의 기록"
-        desc="다녀올수록 도장이 쌓이는 디지털 팝업 여권."
-        cta="내 여권 보기"
+        title={t('feat.passportTitle')}
+        desc={t('feat.passportDesc')}
+        cta={t('feat.passportCta')}
         onClick={() => onNavigate('PASSPORT')}
         visual={<PassportMini />}
         accent={{
@@ -280,9 +291,9 @@ export function FeatureTiles({ onNavigate }: Props) {
       <FeatureTile
         Icon={Users}
         eyebrow="MATE"
-        title="같이 갈 사람 찾기"
-        desc="관심사 맞는 사람과 매칭하고 채팅으로 시간 조율."
-        cta="동행 찾으러 가기"
+        title={t('feat.mateTitle')}
+        desc={t('feat.mateDesc')}
+        cta={t('feat.mateCta')}
         onClick={() => onNavigate('MATE')}
         visual={<MateMini />}
         accent={{ glow: 'bg-sky-400/25', chip: 'bg-sky-400 text-ink-900', text: 'text-sky-300' }}
@@ -294,20 +305,22 @@ export function FeatureTiles({ onNavigate }: Props) {
 /* =============================== 코스 풀폭 (default export) =============================== */
 
 export default function FeatureSections({ onNavigate }: Props) {
+  const { t } = useLocale();
   return (
     <div className="mb-16">
       <FeatureShell
-        eyebrow="나만의 하루 동선"
+        eyebrow={t('feat.courseTitle')}
         EyeIcon={Route}
         title={
           <>
-            가고 싶은 팝업,
+            {t('feat.courseLead1')}
             <br />
-            <span className="text-lime-300">하나의 코스</span>로 잇다
+            <span className="text-lime-300">{t('feat.courseLead2')}</span>
+            {t('feat.courseLead3')}
           </>
         }
-        desc="찜한 팝업들을 지도 위에서 순서대로 이어 나만의 하루 코스로. 이동 거리·시간까지 한눈에 계산해드려요."
-        cta="코스 짜러 가기"
+        desc={t('feat.courseDesc')}
+        cta={t('feat.courseCta')}
         onCta={() => onNavigate('COURSE')}
         visual={<CourseVisual />}
         accent={{

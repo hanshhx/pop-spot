@@ -4,7 +4,11 @@ import { notFound } from 'next/navigation';
 import { ArrowLeft, MapPin, Calendar, Tag, Clock, Flame, MessageSquare } from 'lucide-react';
 
 import { REGIONS, classifyRegion, regionBySlug } from '@/lib/regions';
-import { CRAWL_REFRESH_COPY } from '@/lib/siteCopy';
+import { LANDING_COPY, type LandingCopy } from '@/lib/landingCopy';
+import { localizedLabel } from '@/lib/localeLabel';
+import type { Locale } from '@/lib/i18n';
+import { LOCALE_PATH, slugAlternates } from '@/lib/localeRoutes';
+import { CRAWL_REFRESH_BY_LOCALE } from '@/lib/siteCopy';
 import {
   PERIODS,
   CATEGORIES,
@@ -48,7 +52,6 @@ import {
 
 const SITE_URL = 'https://popspot.co.kr';
 // 갱신 주기 카피는 홈 SEO 블록과도 공유한다(한 곳만 고치면 전부 반영). @see src/lib/siteCopy.ts
-const REFRESH_COPY = CRAWL_REFRESH_COPY;
 
 type Marker = {
   id: number;
@@ -96,15 +99,22 @@ export function generateStaticParams() {
   ];
 }
 
-function resolveSlice(slug: string): Slice | null {
+/**
+ * 슬러그 → 슬라이스. 표시 이름은 화면 언어로 고른다.
+ *
+ * <p>슬러그 자체는 언제나 로마자라 언어와 무관하다({@code /ja/popups/seongsu}). 주소를 언어마다
+ * 다르게 만들면 이미 색인된 한국어 주소와 짝이 안 맞고, 같은 곳을 가리키는지 검색엔진이 알 수 없다.
+ */
+function resolveSlice(slug: string, locale: Locale): Slice | null {
+  const L = (d: { label: string; labelEn: string; labelJa: string }) => localizedLabel(d, locale);
   const r = regionBySlug(slug);
-  if (r) return { kind: 'region', slug: r.slug, label: r.label };
+  if (r) return { kind: 'region', slug: r.slug, label: L(r) };
   const p = periodBySlug(slug);
-  if (p) return { kind: 'period', slug: p.slug, label: p.label };
+  if (p) return { kind: 'period', slug: p.slug, label: L(p) };
   const c = categoryBySlug(slug);
-  if (c) return { kind: 'category', slug: c.slug, label: c.label };
+  if (c) return { kind: 'category', slug: c.slug, label: L(c) };
   const b = brandBySlug(slug);
-  if (b) return { kind: 'brand', slug: b.slug, label: b.label, keywords: b.keywords };
+  if (b) return { kind: 'brand', slug: b.slug, label: L(b), keywords: b.keywords };
   for (const reg of REGIONS) {
     if (!slug.startsWith(`${reg.slug}-`)) continue;
     const rest = slug.slice(reg.slug.length + 1);
@@ -113,7 +123,7 @@ function resolveSlice(slug: string): Slice | null {
       return {
         kind: 'region-category',
         slug,
-        label: `${reg.label} ${cat.label}`,
+        label: `${L(reg)} ${L(cat)}`,
         regionSlug: reg.slug,
         categorySlug: cat.slug,
       };
@@ -124,7 +134,8 @@ function resolveSlice(slug: string): Slice | null {
       return {
         kind: 'region-period',
         slug,
-        label: `${per.label} ${reg.label}`,
+        // 한국어는 "이번 주 성수" 가 실제 검색 어순이지만, 영어는 "Seongsu — This week" 가 자연스럽다.
+        label: locale === 'ko' ? `${L(per)} ${L(reg)}` : `${L(reg)} — ${L(per)}`,
         regionSlug: reg.slug,
         periodSlug: per.slug,
       };
@@ -268,29 +279,16 @@ function ddayOf(endDate: string | null, today: Date): number | null {
 }
 
 /** D-day → 배지(문구·색). 상시(null)·종료(음수)는 무배지. */
-function ddayBadge(dday: number | null): { text: string; cls: string } | null {
+function ddayBadge(dday: number | null, copy: LandingCopy): { text: string; cls: string } | null {
   if (dday === null || dday < 0) return null;
-  if (dday === 0) return { text: '오늘 마감', cls: 'bg-red-500 text-white' };
-  if (dday === 1) return { text: '내일 마감', cls: 'bg-red-500 text-white' };
-  if (dday <= 3) return { text: `D-${dday}`, cls: 'bg-orange-500 text-white' };
-  if (dday <= 7) return { text: `D-${dday}`, cls: 'bg-amber-400 text-ink-900' };
-  return { text: '진행 중', cls: 'bg-lime-300 text-ink-900' };
+  if (dday === 0) return { text: copy.ddayToday, cls: 'bg-red-500 text-white' };
+  if (dday === 1) return { text: copy.ddayTomorrow, cls: 'bg-red-500 text-white' };
+  // 'D-3' 표기는 한국에서만 통한다. 영어권은 '3d', 일본은 'あと3日' 로 읽는다.
+  if (dday <= 3) return { text: copy.ddayValue(dday), cls: 'bg-orange-500 text-white' };
+  if (dday <= 7) return { text: copy.ddayValue(dday), cls: 'bg-amber-400 text-ink-900' };
+  return { text: copy.ddayOngoing, cls: 'bg-lime-300 text-ink-900' };
 }
 
-/**
- * 제목에 건수를 끼워 넣는다 — "니케 팝업스토어 일정·위치" → "니케 팝업스토어 4곳 일정·위치".
- *
- * <p>"팝업스토어" 바로 뒤에 넣는 이유는 앞머리 키워드를 그대로 두기 위해서다. 검색 결과에서 숫자는
- * 클릭을 끌지만, 제목 앞부분은 순위 판단에 쓰이므로 어순을 바꾸지 않는다. 슬라이스 종류마다 제목
- * 형태가 달라도("…추천", "…일정·위치", 뒤에 아무것도 없는 것) 이 규칙 하나로 다 자연스럽게 붙는다.
- */
-function withCount(title: string, count: number): string {
-  const KEY = '팝업스토어';
-  const i = title.indexOf(KEY);
-  if (i < 0) return `${title} ${count}곳`;
-  const at = i + KEY.length;
-  return `${title.slice(0, at)} ${count}곳${title.slice(at)}`;
-}
 
 /**
  * 아직 안 끝난 것 중 가장 빨리 마감하는 날 — "7/30(D-3)". 종료일 있는 팝업이 없으면 null.
@@ -298,7 +296,7 @@ function withCount(title: string, count: number): string {
  * <p>검색 결과 설명에 쓴다. "포켓몬 팝업스토어 일정" 같은 질의에 실제 날짜로 답하기 위한 것으로,
  * 이 부류가 실측 CTR 2.31% 로 가장 낮았다(노출 216 · 클릭 5).
  */
-function nearestDeadline(markers: Marker[]): string | null {
+function nearestDeadline(markers: Marker[], locale: Locale): string | null {
   const today = kstTodayStart();
   let best: Date | null = null;
   for (const m of markers) {
@@ -310,7 +308,7 @@ function nearestDeadline(markers: Marker[]): string | null {
   if (!best) return null;
   const dday = Math.round((startOfDay(best).getTime() - today.getTime()) / 86400000);
   const md = `${best.getMonth() + 1}/${best.getDate()}`;
-  return dday === 0 ? `${md}(오늘)` : `${md}(D-${dday})`;
+  return dday === 0 ? LANDING_COPY[locale].todayMark(md) : `${md}(D-${dday})`;
 }
 
 /**
@@ -390,46 +388,10 @@ function topRegionSlugs(markers: Marker[], n: number): string[] {
 
 /* ============================== 메타 ============================== */
 
-export async function generateMetadata({
-  params,
-}: {
-  params: Promise<{ slug: string }>;
-}): Promise<Metadata> {
-  const { slug } = await params;
-  const slice = resolveSlice(slug);
-  if (!slice) return { title: '찾을 수 없음', robots: { index: false } };
-
-  const titles: Record<Slice['kind'], string> = {
-    region: `${slice.label} 팝업스토어 추천`,
-    period: `${slice.label} 진행 팝업스토어`,
-    category: `${slice.label} 팝업스토어`,
-    brand: `${slice.label} 팝업스토어 일정·위치`,
-    'region-category': `${slice.label} 팝업스토어 추천`,
-    // label 이 "이번 주 (7/27~8/2) 성수" 순서라 제목이 실제 검색어("이번주 성수 팝업")와 같은 어순이 된다.
-    'region-period': `${slice.label} 팝업스토어`,
-  };
-  const descriptions: Record<Slice['kind'], string> = {
-    // v2.43 — "성수 팝업스토어 지도" 처럼 지도를 콕 집어 찾는 검색이 실제로 잡힌다. 지역별 지도
-    // 페이지를 따로 만들면 목록이 이 페이지와 똑같아 중복 문서가 되므로(경위는 app/map/page.tsx),
-    // 지역 랜딩이 그 검색을 받도록 설명문에 지도를 넣는다. 이 페이지에도 지도 진입 CTA 가 있다.
-    region: `${slice.label} 팝업스토어 위치를 지도에서 한눈에. 진행 중인 팝업의 일정·마감일까지 로그인 없이 무료로 확인.`,
-    period: `${slice.label} 서울에서 열리는 팝업스토어 목록. 영업 시간, 위치, 종료일까지 정리.`,
-    category: `${slice.label} 관련 팝업스토어 모음. 신상 / 인기 / 마감 임박 한눈에 보기.`,
-    brand: `${slice.label} 팝업스토어 일정과 위치를 지도로 한눈에. 서울에서 진행 중인 ${slice.label} 팝업을 확인하고 위시 등록과 마감일 확인까지 무료.`,
-    'region-category': `${slice.label} 팝업스토어를 한눈에. 위치·일정·카테고리별 큐레이션, 위시 등록과 마감일 확인까지 무료.`,
-    'region-period': `${slice.label}에서 문 여는 팝업스토어 목록. 영업 시간·위치·종료일까지 지도 한 화면에서 무료로.`,
-  };
-
-  // 건수·마감일 뒤에 붙는 짧은 꼬리. 위 descriptions 는 0곳일 때만 쓰인다.
-  // 슬라이스 이름을 다시 넣지 않는다 — 앞에서 이미 말했고, 길이가 잘리면 이쪽이 먼저 날아간다.
-  const tails: Record<Slice['kind'], string> = {
-    region: '위치·마감일을 지도 한 화면에서 무료로.',
-    period: '영업시간·위치·종료일까지 한눈에.',
-    category: '신상·인기·마감임박순으로 정렬.',
-    brand: '일정과 위치를 지도로 한눈에. 무료.',
-    'region-category': '위치·일정을 지도 한 화면에서 무료로.',
-    'region-period': '영업시간·위치·마감일까지 지도에서.',
-  };
+export async function sliceMetadata(slug: string, locale: Locale): Promise<Metadata> {
+  const copy = LANDING_COPY[locale];
+  const slice = resolveSlice(slug, locale);
+  if (!slice) return { title: copy.notFound, robots: { index: false } };
 
   // v2.43 — 제목·설명에 실제 건수와 마감일을 넣는다.
   //
@@ -464,38 +426,51 @@ export async function generateMetadata({
 
   // 제목에는 건수만. 앞머리 키워드("니케 팝업스토어")를 건드리지 않도록 뒤에 붙인다 — 검색 결과에서
   // 숫자는 클릭을 끌지만 제목 앞부분은 순위에 쓰이므로 순서를 바꾸지 않는다.
-  const title = count > 0 ? withCount(titles[slice.kind], count) : titles[slice.kind];
+  const base = copy.titles[slice.kind](slice.label);
+  const title = count > 0 ? copy.withCount(base, count) : base;
 
   // 설명 = 건수 + 최단 마감일 + 짧은 가치제안. 마감일 있는 팝업이 없으면 마감 문구를 뺀다.
   //
   // 기존 설명문을 그대로 뒤에 붙이면 "코엑스 팝업스토어 12곳 진행 중. … 코엑스 팝업스토어 일정과
   // 위치를 …" 처럼 이름이 두 번 나오고 100자를 넘는다. 구글은 한글 기준 80자 안팎에서 자르므로
   // 뒤가 통째로 날아간다. 그래서 짧은 꼬리를 따로 두고, 구체적인 값을 앞에 놓는다.
-  const soonest = nearestDeadline(matched);
+  const soonest = nearestDeadline(matched, locale);
   const description =
     count > 0
-      ? `${slice.label} 팝업스토어 ${count}곳 진행 중.` +
-        (soonest ? ` 가장 빠른 마감 ${soonest}.` : '') +
-        ` ${tails[slice.kind]}`
-      : descriptions[slice.kind];
+      ? copy.metaWithCount(slice.label, count) +
+        (soonest ? copy.metaSoonest(soonest) : '') +
+        ` ${copy.tails[slice.kind]}`
+      : copy.descriptions[slice.kind](slice.label);
 
-  const url = `${SITE_URL}/popups/${slice.slug}`;
+  const url = `${SITE_URL}${LOCALE_PATH[locale] === '/' ? '' : LOCALE_PATH[locale]}/popups/${slice.slug}`;
 
   return {
     title,
     description,
     robots,
-    alternates: { canonical: url },
+    // 세 언어 판이 서로를 가리키게 한다. 한쪽만 선언하면 검색엔진이 연결을 무시해서, 주소를 나눈
+    // 의미가 통째로 사라진다.
+    alternates: slugAlternates(slice.slug, locale),
     openGraph: { title: `${title} · POP-SPOT`, description, url, type: 'website' },
     twitter: { card: 'summary_large_image', title, description },
   };
 }
 
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  return sliceMetadata(slug, 'ko');
+}
+
 /* ============================== 페이지 ============================== */
 
-export default async function PopupsBySlugPage({ params }: { params: Promise<{ slug: string }> }) {
-  const { slug } = await params;
-  const slice = resolveSlice(slug);
+export async function SliceLandingPage({ slug, locale }: { slug: string; locale: Locale }) {
+  const copy = LANDING_COPY[locale];
+  const refresh = CRAWL_REFRESH_BY_LOCALE[locale];
+  const slice = resolveSlice(slug, locale);
   if (!slice) notFound();
 
   // 이미 끝난 팝업은 제외한다. 백엔드 만료 스케줄러가 지연·실패해도 사용자에게는 종료된 팝업이
@@ -505,7 +480,8 @@ export default async function PopupsBySlugPage({ params }: { params: Promise<{ s
   const filtered = filterBySlice(await liveMarkers(), slice);
   const count = filtered.length;
   const deepLink = deepLinkQuery(slice);
-  const mapHref = `/?tab=MAP${deepLink ? `&${deepLink}` : ''}`;
+  const home = LOCALE_PATH[locale];
+  const mapHref = `${home === '/' ? '' : home}/?tab=MAP${deepLink ? `&${deepLink}` : ''}`;
   const mainHref = `${SITE_URL}${mapHref}`;
 
   // "지금 가야 할 이유" 훅 — 전부 기존 endDate/startDate 의 파생값(무료).
@@ -530,28 +506,11 @@ export default async function PopupsBySlugPage({ params }: { params: Promise<{ s
   const soonest = sorted.length > 0 ? rank(sorted[0].dday) : Infinity;
   const minDday = Number.isFinite(soonest) ? soonest : null;
 
-  const headingByKind: Record<Slice['kind'], string> = {
-    region: `${slice.label} 팝업스토어 ${count}곳`,
-    period: `${slice.label} 진행 중인 팝업 ${count}곳`,
-    category: `${slice.label} 팝업스토어 ${count}곳`,
-    brand: `${slice.label} 팝업스토어 ${count}곳`,
-    'region-category': `${slice.label} 팝업스토어 ${count}곳`,
-    'region-period': `${slice.label} 팝업 ${count}곳`,
-  };
-  const introByKind: Record<Slice['kind'], string> = {
-    region: `${slice.label}에서 진행 중인 팝업스토어를 POP-SPOT 이 자동 큐레이션 합니다. 영업 기간이 끝난 팝업은 자동으로 빠지고, 신규 팝업은 ${REFRESH_COPY}에 갱신.`,
-    period: `${slice.label} 서울 곳곳에서 열리는 팝업스토어. 위치 · 카테고리 · 마감일을 지도 한 화면에서 확인.`,
-    category: `${slice.label} 관련 신상 / 인기 팝업스토어. 마감 임박순으로 정렬해 한눈에.`,
-    brand: `${slice.label} 관련 팝업스토어를 POP-SPOT 이 자동 큐레이션. 서울에서 진행 중인 ${slice.label} 팝업의 위치·일정을 한눈에. 마감 임박순으로 정렬해 제공.`,
-    'region-category': `${slice.label} 팝업스토어를 POP-SPOT 이 자동 큐레이션. 해당 지역·카테고리에 맞는 팝업만 모아 위치와 일정을 한눈에.`,
-    'region-period': `${slice.label}에서 여는 팝업스토어를 POP-SPOT 이 자동 큐레이션. 해당 기간에 실제로 문을 여는 팝업만 모아 위치·마감일을 한눈에. 신규 팝업은 ${REFRESH_COPY}에 갱신.`,
-  };
+  const heading = copy.h1[slice.kind](slice.label, count);
+  const intro = copy.lead[slice.kind](slice.label, refresh);
 
   // subcopy — 마감 임박이 있으면 손실회피 훅, 없으면 편익.
-  const subcopy =
-    minDday !== null
-      ? `가장 빨리 끝나는 곳은 D-${minDday}. 위치·영업기간·마감일을 로그인 없이 무료로, 지금 지도에서 확인하세요.`
-      : `${slice.label} 팝업 위치·영업기간·마감일을 지도 한 화면에서. 로그인 없이 무료로 지금 바로.`;
+  const subcopy = minDday !== null ? copy.urgencyWithDday(minDday) : copy.urgencyPlain(slice.label);
 
   // Record 로 둬야 슬라이스 종류가 늘 때 헤딩·소개문과 함께 타입 검사에 걸린다(삼항은 조용히 통과).
   const kickerByKind: Record<Slice['kind'], string> = {
@@ -568,10 +527,10 @@ export default async function PopupsBySlugPage({ params }: { params: Promise<{ s
     <main className="min-h-screen bg-white text-gray-900 dark:bg-[#0a0a0a] dark:text-white">
       <div className="max-w-3xl mx-auto px-5 md:px-8 py-8 md:py-14">
         <Link
-          href="/"
+          href={home}
           className="inline-flex items-center gap-1.5 text-xs md:text-sm text-muted-foreground hover:text-foreground transition mb-6"
         >
-          <ArrowLeft size={14} /> 메인으로
+          <ArrowLeft size={14} /> {copy.backHome}
         </Link>
 
         {/* 배지 — 진행 중이면 라임 펄스 점 + 카운트로 '살아있는' 신호 */}
@@ -583,36 +542,39 @@ export default async function PopupsBySlugPage({ params }: { params: Promise<{ s
           {count > 0 && (
             <span className="inline-flex items-center gap-1.5 text-xs font-bold text-lime-600 dark:text-lime-300">
               <span className="inline-block w-1.5 h-1.5 rounded-full bg-lime-400 motion-safe:animate-pulse" />
-              지금 진행 중 {count}곳
+              {copy.nowRunning(count)}
               {closingSoon > 0 && (
-                <span className="text-orange-500"> · 마감 임박 {closingSoon}곳</span>
+                <span className="text-orange-500">{copy.closingSoonSuffix(closingSoon)}</span>
               )}
             </span>
           )}
         </div>
 
-        <h1 className="text-3xl md:text-5xl font-black mb-3 leading-tight">
-          {headingByKind[slice.kind]}
-        </h1>
+        <h1 className="text-3xl md:text-5xl font-black mb-3 leading-tight">{heading}</h1>
 
         <p className="text-sm md:text-base text-gray-600 dark:text-white/70 max-w-2xl mb-6">
-          {count > 0 ? subcopy : introByKind[slice.kind]}
+          {count > 0 ? subcopy : intro}
         </p>
 
         {count > 0 && (
           <>
             {/* 긴급 스트립 — 가장 빠른 마감을 가장 크게 (핵심 전환 레버) */}
             <div className="mb-5 flex gap-2 md:gap-3">
-              <StatCard label="진행 중" value={`${count}곳`} />
+              <StatCard label={copy.statRunning} value={copy.statCount(count)} />
               {minDday !== null && (
                 <StatCard
-                  label="가장 빠른 마감"
-                  value={minDday === 0 ? '오늘' : `D-${minDday}`}
+                  label={copy.statSoonest}
+                  value={copy.ddayValue(minDday)}
                   big
                   tone={minDday <= 3 ? 'hot' : 'lime'}
                 />
               )}
-              {openingToday > 0 && <StatCard label="오늘 오픈" value={`${openingToday}곳`} />}
+              {openingToday > 0 && (
+                <StatCard
+                  label={copy.statOpeningToday}
+                  value={copy.statOpeningTodayValue(openingToday)}
+                />
+              )}
             </div>
 
             {/* 라임 CTA 박스 — 편익 CTA + 마찰 제거 + 편익 예고 */}
@@ -621,15 +583,15 @@ export default async function PopupsBySlugPage({ params }: { params: Promise<{ s
                 href={mapHref}
                 className="block w-full rounded-2xl bg-lime-300 px-6 py-4 text-center text-base font-black text-ink-900 shadow-lg transition hover:bg-lime-400 md:text-lg"
               >
-                지도에서 {slice.label} 팝업 위치·마감일 보기 →
+                {copy.mapCtaPrimary(slice.label)}
               </Link>
               <p className="mt-2.5 text-center text-xs text-muted-foreground">
-                무료 · 로그인 없이 · {REFRESH_COPY} 자동 갱신
+                {copy.freeAutoNote(refresh)}
               </p>
               <div className="mt-3 flex flex-wrap justify-center gap-1.5">
                 {/* 실행 경로가 있는 것만 적는다. 알림·동행 매칭은 이 페이지에서 누를 수 있는
                     진입점이 없어(그리고 알림 기능 자체가 없어) 빼고, 실제로 되는 것만 남긴다. */}
-                {['지도 한눈에', '마감임박순 정렬', '무료 · 로그인 없이'].map((b) => (
+                {[copy.badgeMap, copy.badgeSorted, copy.badgeFree].map((b) => (
                   <span
                     key={b}
                     className="inline-flex items-center rounded-pill border border-lime-300/50 bg-white/60 px-2.5 py-0.5 text-xs font-medium text-gray-700 dark:bg-white/5 dark:text-white/70"
@@ -643,11 +605,11 @@ export default async function PopupsBySlugPage({ params }: { params: Promise<{ s
             {/* 목록 — 마감임박순 + D-day 배지 (기존 기간 재포맷) */}
             <section className="rounded-2xl border border-gray-200 dark:border-white/10 bg-white dark:bg-[#111] shadow-lg shadow-black/5 dark:shadow-black/30 p-6 md:p-8 mb-6">
               <h2 className="text-lg md:text-xl font-bold mb-4 flex items-center gap-2">
-                <Clock size={16} className="text-orange-500" /> 마감 임박순 팝업
+                <Clock size={16} className="text-orange-500" /> {copy.listHeading}
               </h2>
               <ul className="space-y-3">
                 {sorted.slice(0, 30).map(({ m, dday }) => {
-                  const badge = ddayBadge(dday);
+                  const badge = ddayBadge(dday, copy);
                   return (
                     <li
                       key={m.id}
@@ -658,7 +620,7 @@ export default async function PopupsBySlugPage({ params }: { params: Promise<{ s
                           목록 훑기가 불가능해진다. aria-label 로 이름만 읽히게 한다. */}
                       <Link
                         href={`/popup/${m.id}`}
-                        aria-label={`${m.name} 상세 보기`}
+                        aria-label={copy.detailAria(m.name)}
                         className="absolute inset-0 z-10 rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lime-500"
                       />
                       <span className="text-lime-500 mt-1">
@@ -676,7 +638,7 @@ export default async function PopupsBySlugPage({ params }: { params: Promise<{ s
                           )}
                         </div>
                         <p className="text-xs text-muted-foreground truncate">
-                          {m.location ?? '위치 정보 없음'}
+                          {m.location ?? copy.noLocation}
                         </p>
                         {(m.startDate || m.endDate) && (
                           <p className="text-xs text-muted-foreground mt-0.5">
@@ -690,7 +652,7 @@ export default async function PopupsBySlugPage({ params }: { params: Promise<{ s
               </ul>
               {filtered.length > 30 && (
                 <p className="text-xs text-muted-foreground mt-3">
-                  외 {filtered.length - 30}곳 더 — 메인 지도에서 전체 확인
+                  {copy.moreCount(filtered.length - 30)}
                 </p>
               )}
             </section>
@@ -699,39 +661,34 @@ export default async function PopupsBySlugPage({ params }: { params: Promise<{ s
               href={mapHref}
               className="block w-full text-center px-6 py-4 rounded-2xl bg-lime-300 text-ink-900 font-black text-base md:text-lg hover:bg-lime-400 transition shadow-lg"
             >
-              지도에서 {slice.label} 팝업 보기 →
+              {copy.mapCtaSecondary(slice.label)}
             </Link>
           </>
         )}
 
         {count === 0 && (
           <section className="rounded-2xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5 p-6 md:p-8">
-            <h2 className="text-lg md:text-xl font-bold mb-2">
-              {slice.label} 팝업은 지금 잠시 쉬어가는 중이에요
-            </h2>
-            <p className="text-sm text-muted-foreground mb-4">
-              서울 전체는 지금도 열려 있어요. 새 팝업은 {REFRESH_COPY}에 자동 수집됩니다 — 지금 진행
-              중인 팝업부터 지도에서 둘러보세요.
-            </p>
+            <h2 className="text-lg md:text-xl font-bold mb-2">{copy.emptyHeading(slice.label)}</h2>
+            <p className="text-sm text-muted-foreground mb-4">{copy.emptyBody(refresh)}</p>
             <Link
-              href="/?tab=MAP"
+              href={`${home === '/' ? '' : home}/?tab=MAP`}
               className="inline-flex items-center gap-2 px-5 py-3 rounded-pill bg-lime-300 text-ink-900 font-bold text-sm hover:bg-lime-400 transition"
             >
-              지금 열린 팝업 지도에서 보기 →
+              {copy.mapCta}
             </Link>
             <p className="mt-3 text-xs text-muted-foreground">
               {/* "새 팝업 열릴 때 알림" 은 구현이 존재하지 않아 제거했다. 위시 등록 자체는 되므로
                   그것만 남긴다. */}
-              무료 · 로그인 없이 · 메인에서 위시 등록 가능
+              {copy.emptyNote}
             </p>
           </section>
         )}
 
-        <FeedbackNote label={slice.label} />
+        <FeedbackNote copy={copy} />
 
-        <CrossSell current={slice} filtered={filtered} />
+        <CrossSell current={slice} filtered={filtered} copy={copy} locale={locale} />
 
-        <FaqSection slice={slice} count={count} />
+        <FaqSection slice={slice} count={count} copy={copy} refresh={refresh} />
       </div>
 
       {/* JSON-LD ItemList — 목록에 실제 팝업(행사)을 담는다. 경위는 eventListElements 주석. */}
@@ -741,8 +698,8 @@ export default async function PopupsBySlugPage({ params }: { params: Promise<{ s
           __html: jsonLd({
             '@context': 'https://schema.org',
             '@type': 'ItemList',
-            name: headingByKind[slice.kind],
-            description: introByKind[slice.kind],
+            name: heading,
+            description: intro,
             url: mainHref,
             numberOfItems: count,
             itemListElement: eventListElements(sorted.map((s) => s.m)),
@@ -751,6 +708,11 @@ export default async function PopupsBySlugPage({ params }: { params: Promise<{ s
       />
     </main>
   );
+}
+
+export default async function PopupsBySlugPage({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  return <SliceLandingPage slug={slug} locale="ko" />;
 }
 
 /* ============================== 보조 컴포넌트 ============================== */
@@ -811,26 +773,23 @@ function SliceIcon({ kind }: { kind: Slice['kind'] }) {
  * 같은 아웃라인 계열로 낮춘다. {@code prefetch=false} 인 이유는 대부분의 방문자가 누르지 않는
  * 링크를 랜딩 160여 개에서 미리 받아올 이유가 없어서다(/feedback 은 noindex 라 SEO 영향도 없다).
  */
-function FeedbackNote({ label }: { label: string }) {
+function FeedbackNote({ copy }: { copy: LandingCopy }) {
   return (
     <section className="mt-10 rounded-2xl border border-gray-200 bg-gray-50 px-5 py-4 md:px-6 dark:border-white/10 dark:bg-white/5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <h3 className="flex items-center gap-2 text-sm font-bold md:text-base">
             <MessageSquare size={15} className="shrink-0 text-lime-500" />
-            {label} 팝업 정보가 빠졌거나 틀렸나요?
+            {copy.feedbackHeading}
           </h3>
-          <p className="mt-1 text-xs text-muted-foreground md:text-sm">
-            자동 수집이라 누락·오기가 있을 수 있습니다. 알려 주시면 확인해 반영합니다 — 로그인 없이
-            보낼 수 있어요.
-          </p>
+          <p className="mt-1 text-xs text-muted-foreground md:text-sm">{copy.feedbackNote}</p>
         </div>
         <Link
           href="/feedback"
           prefetch={false}
           className="inline-flex shrink-0 items-center justify-center rounded-pill border border-gray-200 bg-white px-4 py-2 text-xs font-bold text-gray-900 transition hover:border-lime-300 hover:bg-lime-50 md:text-sm dark:border-white/10 dark:bg-white/5 dark:text-white dark:hover:border-lime-300/40 dark:hover:bg-lime-300/10"
         >
-          의견 보내기
+          {copy.feedbackCta}
         </Link>
       </div>
     </section>
@@ -842,16 +801,32 @@ function FeedbackNote({ label }: { label: string }) {
  * (1) 고의도 칩(오늘 오픈 / 주말 마감임박) (2) 브랜드 랜딩이면 매칭 팝업의 상위 지역 칩
  * (3) 브랜드/IP 우선 + 지역·시점·카테고리 전체 링크(SEO 내부링크 밀도 유지).
  */
-function CrossSell({ current, filtered }: { current: Slice; filtered: Marker[] }) {
+function CrossSell({
+  current,
+  filtered,
+  copy,
+  locale,
+}: {
+  current: Slice;
+  filtered: Marker[];
+  copy: LandingCopy;
+  locale: Locale;
+}) {
+  const home = LOCALE_PATH[locale] === '/' ? '' : LOCALE_PATH[locale];
+  const L = (d: { label: string; labelEn: string; labelJa: string }) => localizedLabel(d, locale);
   // 고의도 칩
   const intent: { href: string; label: string; icon: 'flame' | 'clock' }[] = [];
   // 자기 자신으로 가는 순환 링크만 빼고 항상 노출한다.
   // (이전엔 `openingToday > 0 ||` 가 앞에 붙어 있었는데, today 가 아닌 페이지에선 뒤 절이 이미 참이라
   //  카운트 절이 아무것도 결정하지 못했고, 정작 /popups/today 에선 자기 자신을 가리키는 칩이 떴다.)
   if (current.slug !== 'today')
-    intent.push({ href: '/popups/today', label: '오늘 오픈 팝업', icon: 'flame' });
+    intent.push({ href: `${home}/popups/today`, label: copy.crossSellToday, icon: 'flame' });
   if (current.slug !== 'this-weekend')
-    intent.push({ href: '/popups/this-weekend', label: '이번 주말 마감 임박', icon: 'clock' });
+    intent.push({
+      href: `${home}/popups/this-weekend`,
+      label: copy.crossSellClosing,
+      icon: 'clock',
+    });
 
   // 브랜드 랜딩은 지도 필터가 없어 → 매칭 팝업 상위 지역으로 좁히게 유도
   const regionChips =
@@ -875,7 +850,10 @@ function CrossSell({ current, filtered }: { current: Slice; filtered: Marker[] }
   const regionPeriodLinks = currentRegionSlug
     ? PERIODS.map((p) => ({
         slug: `${currentRegionSlug}-${p.slug}`,
-        label: `${p.label} ${regionBySlug(currentRegionSlug)?.label ?? ''}`.trim(),
+        label: `${L(p)} ${(() => {
+          const rg = regionBySlug(currentRegionSlug);
+          return rg ? L(rg) : '';
+        })()}`.trim(),
         kind: 'region-period' as const,
       }))
     : [];
@@ -883,15 +861,15 @@ function CrossSell({ current, filtered }: { current: Slice; filtered: Marker[] }
   // 전체 링크(SEO) — 브랜드/IP 먼저
   const links: { slug: string; label: string; kind: Slice['kind'] }[] = [
     ...regionPeriodLinks,
-    ...BRANDS.map((b) => ({ slug: b.slug, label: b.label, kind: 'brand' as const })),
-    ...REGIONS.map((r) => ({ slug: r.slug, label: r.label, kind: 'region' as const })),
-    ...PERIODS.map((p) => ({ slug: p.slug, label: p.label, kind: 'period' as const })),
-    ...CATEGORIES.map((c) => ({ slug: c.slug, label: c.label, kind: 'category' as const })),
+    ...BRANDS.map((b) => ({ slug: b.slug, label: L(b), kind: 'brand' as const })),
+    ...REGIONS.map((r) => ({ slug: r.slug, label: L(r), kind: 'region' as const })),
+    ...PERIODS.map((p) => ({ slug: p.slug, label: L(p), kind: 'period' as const })),
+    ...CATEGORIES.map((c) => ({ slug: c.slug, label: L(c), kind: 'category' as const })),
   ].filter((s) => s.slug !== current.slug);
 
   return (
     <nav
-      aria-label="다른 팝업 둘러보기"
+      aria-label={copy.crossSellOther}
       className="mt-10 pt-6 border-t border-gray-200 dark:border-white/10"
     >
       <h3 className="text-sm md:text-base font-bold mb-3">이런 팝업도 지금 찾고 있나요?</h3>
@@ -911,11 +889,11 @@ function CrossSell({ current, filtered }: { current: Slice; filtered: Marker[] }
           {regionChips.map((r) => (
             <Link
               key={r.slug}
-              href={`/popups/${r.slug}`}
+              href={`${home}/popups/${r.slug}`}
               className="inline-flex items-center gap-1.5 rounded-pill border border-lime-300/60 bg-lime-50 px-3 py-1.5 text-xs font-bold text-lime-700 transition hover:bg-lime-100 dark:bg-lime-300/10 dark:text-lime-300 dark:hover:bg-lime-300/20"
             >
               <MapPin size={13} />
-              {r.label} {current.label} 팝업
+              {L(r)} {current.label}
             </Link>
           ))}
         </div>
@@ -925,7 +903,7 @@ function CrossSell({ current, filtered }: { current: Slice; filtered: Marker[] }
         {links.map((s) => (
           <li key={`${s.kind}-${s.slug}`}>
             <Link
-              href={`/popups/${s.slug}`}
+              href={`${home}/popups/${s.slug}`}
               className="inline-flex items-center px-3 py-1.5 rounded-pill text-xs font-medium border bg-white text-gray-900 border-gray-200 hover:border-lime-300 hover:bg-lime-50 dark:bg-white/5 dark:text-white dark:border-white/10 dark:hover:bg-lime-300/10 dark:hover:border-lime-300/40 transition"
             >
               {s.label}
@@ -937,35 +915,28 @@ function CrossSell({ current, filtered }: { current: Slice; filtered: Marker[] }
   );
 }
 
-function FaqSection({ slice, count }: { slice: Slice; count: number }) {
+function FaqSection({
+  slice,
+  count,
+  copy,
+  refresh,
+}: {
+  slice: Slice;
+  count: number;
+  copy: LandingCopy;
+  refresh: string;
+}) {
   const faqs = [
-    {
-      q: '팝업 정보는 얼마나 자주 갱신되나요?',
-      a: `${REFRESH_COPY}에 자동 수집합니다. 신규 팝업이 등록되면 BROWSE 와 지도에 즉시 반영됩니다.`,
-    },
-    {
-      q: `${slice.label} 슬라이스는 어떻게 분류되나요?`,
-      a:
-        slice.kind === 'region'
-          ? '팝업 주소의 동/로 이름을 기준으로 분류합니다. 정확한 위치는 지도에서 확인하세요.'
-          : slice.kind === 'period'
-            ? '팝업의 운영 시작일·종료일을 기준으로 해당 기간 안에 한 번이라도 열리면 포함됩니다.'
-            : slice.kind === 'brand'
-              ? '팝업 이름에 해당 브랜드/IP 이름이 포함되면 자동으로 모읍니다. 진행 중인 팝업만 표시됩니다.'
-              : slice.kind === 'region-period'
-                ? '팝업 주소로 지역을 가르고, 그중 해당 기간에 실제로 문을 여는 팝업만 남깁니다. 두 조건을 모두 만족해야 포함됩니다.'
-                : '팝업 카테고리 필드의 한글/영문 키워드를 매칭해 분류합니다.',
-    },
-    {
-      q: '위시 등록은 어디서 하나요?',
-      a: `메인 지도의 팝업 마커를 누른 뒤 상세 페이지에서 위시 등록할 수 있습니다. 현재 ${count}곳 진행 중.`,
-    },
+    { q: copy.faqRefreshQ, a: copy.faqRefreshA(refresh) },
+    // 삼항 사슬이던 것을 문안 쪽 Record 로 옮겼다 — 슬라이스 종류가 늘면 타입 검사가 알려준다.
+    { q: copy.faqSliceQ(slice.label), a: copy.faqSliceA[slice.kind] },
+    { q: copy.faqWishQ, a: copy.faqWishA(count) },
   ];
 
   return (
     <section className="mt-10 pt-6 border-t border-gray-200 dark:border-white/10">
       <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3">
-        자주 묻는 질문
+        {copy.faqHeading}
       </h3>
       <ul className="space-y-4">
         {faqs.map((f, i) => (
