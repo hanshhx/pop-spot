@@ -27,8 +27,19 @@ export type LandingCopy = {
   descriptions: ByKind<(label: string) => string>;
   /** 건수·마감일 뒤에 붙는 짧은 꼬리. 이름을 다시 넣지 않는다 — 길이가 잘리면 이쪽이 먼저 날아간다. */
   tails: ByKind<string>;
-  metaWithCount: (label: string, count: number) => string;
+  /**
+   * 건수 문장 — <b>슬라이스 종류를 받는다.</b>
+   *
+   * <p>하나의 문장으로 다 덮으려다 영어에서 깨졌다. "in Seongsu" 는 장소라 말이 되지만 같은 틀로
+   * 카테고리에 쓰면 "296 pop-up stores open in Fashion" 이 된다. 한국어는 이름이 앞에 붙는 구조라
+   * 종류와 무관하게 자연스러워서 눈에 띄지 않았다.
+   */
+  metaWithCount: (label: string, count: number, kind: SliceKind) => string;
   metaSoonest: (deadline: string) => string;
+  /** 마감일 표기 — 영어권은 월 이름을, 한·일은 7/30 형태를 쓴다. */
+  shortDate: (d: Date) => string;
+  /** 날짜와 남은 일수를 붙이는 방식 — 영어는 괄호 앞을 띄우고, 한·일은 붙인다. */
+  deadlineFormat: (date: string, dday: string) => string;
   /** 제목 안에 건수를 끼워 넣는다. 앞머리 키워드를 건드리지 않는 위치에. */
   withCount: (title: string, count: number) => string;
 
@@ -40,7 +51,6 @@ export type LandingCopy = {
   backHome: string;
   statCount: (count: number) => string;
   statSoonest: string;
-  statToday: string;
   statOpeningToday: string;
   statOpeningTodayValue: (n: number) => string;
   badgeMap: string;
@@ -127,6 +137,8 @@ const ko: LandingCopy = {
     'region-period': '영업시간·위치·마감일까지 지도에서.',
   },
   metaWithCount: (l, c) => `${l} 팝업스토어 ${c}곳 진행 중.`,
+  shortDate: (d) => `${d.getMonth() + 1}/${d.getDate()}`,
+  deadlineFormat: (date, dday) => `${date}(${dday})`,
   metaSoonest: (d) => ` 가장 빠른 마감 ${d}.`,
   withCount: (title, count) => {
     const KEY = '팝업스토어';
@@ -165,7 +177,6 @@ const ko: LandingCopy = {
   backHome: '메인으로',
   statCount: (c) => `${c}곳`,
   statSoonest: '가장 빠른 마감',
-  statToday: '오늘',
   statOpeningToday: '오늘 오픈',
   statOpeningTodayValue: (n) => `${n}곳`,
   badgeMap: '지도 한눈에',
@@ -255,7 +266,15 @@ const en: LandingCopy = {
     'region-category': 'Location and dates on one free map.',
     'region-period': 'Hours, location and closing dates on the map.',
   },
-  metaWithCount: (l, c) => `${c} pop-up stores open in ${l}.`,
+  metaWithCount: (l, c, kind) =>
+    kind === 'region' || kind === 'region-period'
+      ? `${c} pop-up stores open in ${l}, Seoul.`
+      : kind === 'period'
+        ? `${c} pop-up stores open in Seoul ${l}.`
+        : `${c} ${l} pop-up stores open in Seoul.`,
+  shortDate: (d) =>
+    `${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][d.getMonth()]} ${d.getDate()}`,
+  deadlineFormat: (date, dday) => `${date} (${dday})`,
   metaSoonest: (d) => ` Next to close: ${d}.`,
   withCount: (title, count) => {
     const KEY = 'Pop-up Stores';
@@ -296,7 +315,6 @@ const en: LandingCopy = {
   backHome: 'Home',
   statCount: (c) => `${c}`,
   statSoonest: 'Next to close',
-  statToday: 'Today',
   statOpeningToday: 'Opening today',
   statOpeningTodayValue: (n) => `${n}`,
   badgeMap: 'One map',
@@ -384,6 +402,8 @@ const ja: LandingCopy = {
     'region-period': '営業時間・場所・終了日までマップで。',
   },
   metaWithCount: (l, c) => `${l}のポップアップストア${c}件が開催中。`,
+  shortDate: (d) => `${d.getMonth() + 1}/${d.getDate()}`,
+  deadlineFormat: (date, dday) => `${date}（${dday}）`,
   metaSoonest: (d) => ` 最短の終了は${d}。`,
   withCount: (title, count) => {
     const KEY = 'ポップアップストア';
@@ -422,7 +442,6 @@ const ja: LandingCopy = {
   backHome: 'ホームへ',
   statCount: (c) => `${c}件`,
   statSoonest: '最短の終了',
-  statToday: '本日',
   statOpeningToday: '本日オープン',
   statOpeningTodayValue: (n) => `${n}件`,
   badgeMap: 'マップで一目',
