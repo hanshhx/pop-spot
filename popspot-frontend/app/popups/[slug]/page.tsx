@@ -305,9 +305,10 @@ function nearestDeadline(markers: Marker[], locale: Locale): string | null {
     if (!best || end.getTime() < best.getTime()) best = end;
   }
   if (!best) return null;
+  const copy = LANDING_COPY[locale];
   const dday = Math.round((startOfDay(best).getTime() - today.getTime()) / 86400000);
-  const md = `${best.getMonth() + 1}/${best.getDate()}`;
-  return dday === 0 ? LANDING_COPY[locale].todayMark(md) : `${md}(D-${dday})`;
+  // "D-2" 는 한국에서만 통하는 표기다. 언어별 표현을 쓴다(영어 "2d", 일본어 "あと2日").
+  return copy.deadlineFormat(copy.shortDate(best), copy.ddayValue(dday));
 }
 
 /**
@@ -436,7 +437,7 @@ export async function sliceMetadata(slug: string, locale: Locale): Promise<Metad
   const soonest = nearestDeadline(matched, locale);
   const description =
     count > 0
-      ? copy.metaWithCount(slice.label, count) +
+      ? copy.metaWithCount(slice.label, count, slice.kind) +
         (soonest ? copy.metaSoonest(soonest) : '') +
         ` ${copy.tails[slice.kind]}`
       : copy.descriptions[slice.kind](slice.label);
@@ -871,7 +872,7 @@ function CrossSell({
       aria-label={copy.crossSellOther}
       className="mt-10 pt-6 border-t border-gray-200 dark:border-white/10"
     >
-      <h3 className="text-sm md:text-base font-bold mb-3">이런 팝업도 지금 찾고 있나요?</h3>
+      <h3 className="text-sm md:text-base font-bold mb-3">{copy.crossSellHeading}</h3>
 
       {(intent.length > 0 || regionChips.length > 0) && (
         <div className="mb-4 flex flex-wrap gap-2">
