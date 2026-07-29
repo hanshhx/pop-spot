@@ -39,6 +39,10 @@ public class PopupMapController {
                 .category(store.getCategory())
                 .startDate(store.getStartDate())
                 .endDate(store.getEndDate())
+                .nameEn(store.getNameEn())
+                .nameJa(store.getNameJa())
+                .locationEn(store.getLocationEn())
+                .locationJa(store.getLocationJa())
                 .build();
     }
 
@@ -46,7 +50,16 @@ public class PopupMapController {
     @Builder
     public static class MapMarkerResponse {
         private Long id;
+
+        /**
+         * 한국어 원문. <b>번역이 있어도 이 값은 그대로 내보낸다.</b>
+         *
+         * <p>프론트가 이 값으로 지역을 분류하고(classifyRegion) 브랜드를 매칭한다. 번역된 값으로
+         * 바꾸면 성수·홍대 분류가 통째로 깨진다. 화면에서도 외국어 이름 옆에 원문을 함께 보여준다 —
+         * 번역명은 지도 앱 검색이나 현장에서 물어볼 때 통하지 않기 때문이다.
+         */
         private String name;
+
         private String location;
         private String latitude;
         private String longitude;
@@ -54,5 +67,16 @@ public class PopupMapController {
         private String category;
         private String startDate;
         private String endDate;
+
+        /**
+         * v2.51 — 외국어 화면 표시용. 비어 있으면 프론트가 원문을 쓴다.
+         *
+         * <p>확신이 없으면 채우지 않는다. 틀린 이름을 자신 있게 보여주면 관광객이 엉뚱한 곳으로 간다.
+         */
+        private String nameEn;
+
+        private String nameJa;
+        private String locationEn;
+        private String locationJa;
     }
 }

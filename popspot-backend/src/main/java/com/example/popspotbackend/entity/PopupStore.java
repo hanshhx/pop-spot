@@ -100,6 +100,38 @@ public class PopupStore {
     @Column(name = "reporter_id")
     private String reporterId;
 
+    /* ============================== v2.51 표시용 번역 ============================== */
+
+    /**
+     * 외국어 화면에서 보여줄 이름·장소. <b>원문({@link #name}, {@link #location})은 그대로 둔다.</b>
+     *
+     * <p>지역 분류와 브랜드 매칭이 원문을 그대로 쓰기 때문에, 번역해 덮어쓰면 성수·홍대 분류가 통째로
+     * 깨진다. 번역은 화면에 그릴 때만 쓰고, 비어 있으면 한국어 원문을 보여준다.
+     *
+     * <p><b>확신이 없으면 채우지 않는다.</b> 틀린 이름을 자신 있게 보여주면 관광객이 엉뚱한 곳으로
+     * 간다 — 검증에서 '현대백화점'을 'The Hyundai'(여의도의 별개 매장)로 옮기는 사례가 나왔다.
+     */
+    @Column(name = "name_en")
+    private String nameEn;
+
+    @Column(name = "name_ja")
+    private String nameJa;
+
+    @Column(name = "location_en")
+    private String locationEn;
+
+    @Column(name = "location_ja")
+    private String locationJa;
+
+    /**
+     * 번역을 <b>시도한</b> 시각.
+     *
+     * <p>번역 칸이 비어 있는 이유가 두 가지라 이 값이 필요하다 — 아직 안 해 본 것과, 해 봤지만 확신이
+     * 없어 비워 둔 것. 구분하지 않으면 백필이 같은 행을 영원히 다시 시도한다.
+     */
+    @Column(name = "translated_at")
+    private java.time.LocalDateTime translatedAt;
+
     /** N+1 폭주 방지를 위해 LAZY 로딩. */
     @Builder.Default
     @OneToMany(fetch = FetchType.LAZY)
