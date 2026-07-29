@@ -27,6 +27,7 @@ import {
   type CategoryCode,
 } from '@/lib/popupSlices';
 import { localizedLabel, useLocale } from '@/lib/i18n';
+import { bilingual } from '@/lib/bilingual';
 
 /**
  * v2.21 — 메인 페이지 BROWSE 섹션 + 슬라이스 모달.
@@ -49,6 +50,7 @@ import { localizedLabel, useLocale } from '@/lib/i18n';
 
 type Marker = {
   id: number;
+  /** 한국어 원문. 지역·카테고리 분류가 이 값을 쓰므로 번역본으로 바꾸면 안 된다. */
   name: string;
   location: string | null;
   latitude: string | null;
@@ -56,6 +58,11 @@ type Marker = {
   category: string | null;
   startDate: string | null;
   endDate: string | null;
+  /** v2.51 — 외국어 표시용. 백엔드가 확신 없으면 비워 두고, 그때는 원문을 보여준다. */
+  nameEn?: string | null;
+  nameJa?: string | null;
+  locationEn?: string | null;
+  locationJa?: string | null;
 };
 
 type SliceKind = 'region' | 'period' | 'category';
@@ -335,7 +342,7 @@ function SliceRow({
 /* ============================== 슬라이스 모달 ============================== */
 
 function SliceModal({ slice, onClose }: { slice: ActiveSlice; onClose: () => void }) {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const router = useRouter();
   const paramKey =
     slice.kind === 'region' ? 'region' : slice.kind === 'period' ? 'period' : 'category';
@@ -411,36 +418,57 @@ function SliceModal({ slice, onClose }: { slice: ActiveSlice; onClose: () => voi
             <p className="text-sm text-muted-foreground p-6 text-center">{t('browse.emptyAll')}</p>
           ) : (
             <ul>
-              {slice.matches.slice(0, 50).map((m) => (
-                <li key={m.id}>
-                  <button
-                    type="button"
-                    onClick={() => goToDetail(m.id)}
-                    className="w-full text-left flex items-start gap-3 px-3 py-3 rounded-xl hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
-                  >
-                    <span className="mt-1 text-lime-500 shrink-0">
-                      <MapPin size={14} />
-                    </span>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm md:text-base font-bold truncate text-gray-900 dark:text-white">
-                        {m.name}
-                      </p>
-                      <p className="text-xs text-muted-foreground truncate">
-                        {m.location ?? t('common.noLocation')}
-                      </p>
-                      {(m.startDate || m.endDate) && (
-                        <p className="text-[11px] text-muted-foreground mt-0.5">
-                          {m.startDate ?? '?'} ~ {m.endDate ?? '?'}
+              {slice.matches.slice(0, 50).map((m) => {
+                const shownName = bilingual(
+                  m.name,
+                  locale === 'en' ? m.nameEn : locale === 'ja' ? m.nameJa : null,
+                );
+                const shownPlace = bilingual(
+                  m.location,
+                  locale === 'en' ? m.locationEn : locale === 'ja' ? m.locationJa : null,
+                );
+                return (
+                  <li key={m.id}>
+                    <button
+                      type="button"
+                      onClick={() => goToDetail(m.id)}
+                      className="w-full text-left flex items-start gap-3 px-3 py-3 rounded-xl hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
+                    >
+                      <span className="mt-1 text-lime-500 shrink-0">
+                        <MapPin size={14} />
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm md:text-base font-bold truncate text-gray-900 dark:text-white">
+                          {shownName.display}
                         </p>
-                      )}
-                    </div>
-                    <ArrowRight
-                      size={14}
-                      className="mt-1 text-gray-300 dark:text-white/30 shrink-0"
-                    />
-                  </button>
-                </li>
-              ))}
+                        {/* 번역이 있을 때만 원문을 남긴다 — 지도 앱·현장에서 쓰는 것은 이쪽이다. */}
+                        {shownName.original && (
+                          <p className="truncate text-xs text-muted-foreground/70" lang="ko">
+                            {shownName.original}
+                          </p>
+                        )}
+                        <p className="text-xs text-muted-foreground truncate">
+                          {shownPlace.display ?? t('common.noLocation')}
+                        </p>
+                        {shownPlace.original && (
+                          <p className="truncate text-xs text-muted-foreground/70" lang="ko">
+                            {shownPlace.original}
+                          </p>
+                        )}
+                        {(m.startDate || m.endDate) && (
+                          <p className="text-[11px] text-muted-foreground mt-0.5">
+                            {m.startDate ?? '?'} ~ {m.endDate ?? '?'}
+                          </p>
+                        )}
+                      </div>
+                      <ArrowRight
+                        size={14}
+                        className="mt-1 text-gray-300 dark:text-white/30 shrink-0"
+                      />
+                    </button>
+                  </li>
+                );
+              })}
             </ul>
           )}
           {slice.matches.length > 50 && (

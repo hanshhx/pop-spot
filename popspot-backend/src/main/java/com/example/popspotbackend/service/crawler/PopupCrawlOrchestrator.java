@@ -563,6 +563,7 @@ public class PopupCrawlOrchestrator {
     private final CrawlCursorService cursorService;
     private final SearchApiBudgetTracker searchApiBudget;
     private final CrawlerLlm crawlerLlm;
+    private final PopupTranslationBackfillService translationBackfillService;
 
     @Value("${popspot.crawler.confidence-threshold:0.8}")
     private double confidenceThreshold;
@@ -607,6 +608,20 @@ public class PopupCrawlOrchestrator {
         processNormalizationAndSave(snippetsByKeyword, stats);
 
         Map<String, Integer> result = stats.toMap();
+
+        // v2.51 — 이번 회차에 들어온 팝업의 외국어 표시명을 채운다.
+        //
+        // 저장할 때마다 부르지 않는 이유는 비용이다 — 신규 한 건마다 LLM 호출 한 번이 되는데, 여기서
+        // 묶으면 회차당 몇 번으로 끝난다. 실패해도 조용히 넘어간다. 번역이 없으면 화면에 한국어 원문이
+        // 나올 뿐이고, 야간 백필이 같은 대상을 다시 잡는다.
+        try {
+            Map<String, Integer> translated = translationBackfillService.runOnce();
+            result = new java.util.LinkedHashMap<>(result);
+            result.put("translated", translated.getOrDefault("translated", 0));
+        } catch (Exception e) {
+            log.warn("[PopupCrawlOrchestrator] 신규 번역 실패 — 야간 백필에 맡김: {}", e.getMessage());
+        }
+
         log.info("[PopupCrawlOrchestrator] 통계 = {}", result);
         return result;
     }
