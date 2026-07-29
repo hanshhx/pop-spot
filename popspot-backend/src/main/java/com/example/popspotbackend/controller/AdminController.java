@@ -7,6 +7,7 @@ import com.example.popspotbackend.service.AdminService;
 import com.example.popspotbackend.service.ChatService;
 import com.example.popspotbackend.service.PopupDedupService;
 import com.example.popspotbackend.service.PopupPhotoService;
+import com.example.popspotbackend.service.crawler.PopupTranslationBackfillService;
 import com.example.popspotbackend.service.PopupStoreService;
 import com.example.popspotbackend.service.backup.DatabaseBackupScheduler;
 import java.util.List;
@@ -42,6 +43,7 @@ public class AdminController {
     private final PopupDedupService popupDedupService;
     private final ChatService chatService;
     private final DatabaseBackupScheduler databaseBackupScheduler;
+    private final PopupTranslationBackfillService popupTranslationBackfillService;
 
     /* ============================== 팝업 승인 큐 ============================== */
 
@@ -87,6 +89,18 @@ public class AdminController {
             @RequestParam(defaultValue = "150") int limit) {
         int assigned = popupPhotoService.backfillMissingPhotos(limit);
         return ResponseEntity.ok(Map.of("assigned", assigned));
+    }
+
+    /**
+     * 외국어 화면용 이름·장소 번역 백필.
+     *
+     * <p>매일 새벽에도 자동으로 돌지만, 과거분 1,400여 건을 빨리 메우고 싶을 때 손으로 부른다.
+     * 확신이 없어 비워 둔 건은 {@code skipped} 로 잡히고 다시 시도하지 않는다 — 원문이 나은 이름도
+     * 실제로 있다("한복상점" 을 "Hanbok Shop" 으로 풀면 서울에 수백 개인 업태명이 된다).
+     */
+    @PostMapping("/popups/backfill-translations")
+    public ResponseEntity<Map<String, Object>> backfillTranslations() {
+        return ResponseEntity.ok(Map.copyOf(popupTranslationBackfillService.runOnce()));
     }
 
     /** 이름이 완전히 동일한 중복 팝업 그룹 미리보기(적용 전 확인용). */

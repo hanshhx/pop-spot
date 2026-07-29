@@ -6,6 +6,7 @@ import { ArrowLeft, MapPin, Calendar, Tag, Clock, Flame, MessageSquare } from 'l
 import { REGIONS, classifyRegion, regionBySlug } from '@/lib/regions';
 import { LANDING_COPY, type LandingCopy } from '@/lib/landingCopy';
 import { localizedLabel } from '@/lib/localeLabel';
+import { bilingual } from '@/lib/bilingual';
 import type { Locale } from '@/lib/i18n';
 import { LOCALE_PATH, slugAlternates } from '@/lib/localeRoutes';
 import { CRAWL_REFRESH_BY_LOCALE } from '@/lib/siteCopy';
@@ -55,12 +56,28 @@ const SITE_URL = 'https://popspot.co.kr';
 
 type Marker = {
   id: number;
+  /**
+   * 한국어 원문. <b>분류가 이 값을 쓴다</b>(classifyRegion, 브랜드 키워드 매칭).
+   *
+   * <p>번역이 있어도 이 값으로 계속 거른다 — 번역본으로 바꾸면 성수·홍대 분류가 통째로 깨진다.
+   */
   name: string;
   location: string | null;
   category: string | null;
   startDate: string | null;
   endDate: string | null;
+  /**
+   * v2.51 — 외국어 표시용. 없으면 원문을 쓴다.
+   *
+   * <p>백엔드가 확신이 없으면 채우지 않는다. 틀린 이름을 자신 있게 보여주면 관광객이 엉뚱한 곳으로
+   * 간다(현대백화점을 'The Hyundai' 로 옮기면 여의도의 다른 매장이 된다).
+   */
+  nameEn?: string | null;
+  nameJa?: string | null;
+  locationEn?: string | null;
+  locationJa?: string | null;
 };
+
 
 type Slice =
   | { kind: 'region'; slug: string; label: string }
@@ -348,7 +365,7 @@ const MAX_JSONLD_EVENTS = 20;
  * <p>개별 팝업 주소({@code /popup/[id]})는 넣지 않는다 — noindex 라(약관 §14) 색인하지 말라고 해 둔
  * 곳으로 검색 결과를 보낼 수는 없다. 팝업 정보가 이 페이지 안에 다 있으므로 링크 없는 형태가 맞다.
  */
-function eventListElements(markers: Marker[]) {
+function eventListElements(markers: Marker[], locale: Locale) {
   const items: unknown[] = [];
   for (const m of markers) {
     if (items.length >= MAX_JSONLD_EVENTS) break;
@@ -356,17 +373,35 @@ function eventListElements(markers: Marker[]) {
     const start = parseDate(m.startDate);
     if (!start) continue;
     const end = parseDate(m.endDate);
+
+    // 이 블록을 읽는 것은 사람이 아니라 검색엔진과 AI 도우미다. 영어 페이지인데 이름이 한글이면
+    // 그대로 인용돼 영어 답변에 한글이 섞인다 — 실제로 ChatGPT·Perplexity 유입이 잡히고 있어
+    // 여기 언어를 맞추는 것이 화면 문구만큼 중요하다.
+    const name = bilingual(m.name, locale === 'en' ? m.nameEn : locale === 'ja' ? m.nameJa : null);
+    const place = bilingual(
+      m.location,
+      locale === 'en' ? m.locationEn : locale === 'ja' ? m.locationJa : null,
+    );
+
     items.push({
       '@type': 'ListItem',
       position: items.length + 1,
       item: {
         '@type': 'Event',
-        name: m.name,
+        name: name.display,
+        // 원문은 버리지 않고 alternateName 으로 남긴다. 현지 표기를 함께 아는 편이 지도·현장에서
+        // 쓸모 있고, 같은 행사를 다른 언어 판과 잇는 단서도 된다.
+        ...(name.original ? { alternateName: name.original } : {}),
         startDate: ymdOf(start),
         ...(end ? { endDate: ymdOf(end) } : {}),
         eventStatus: 'https://schema.org/EventScheduled',
         eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode',
-        location: { '@type': 'Place', name: m.location, address: m.location },
+        location: {
+          '@type': 'Place',
+          name: place.display,
+          address: place.display,
+          ...(place.original ? { alternateName: place.original } : {}),
+        },
       },
     });
   }
@@ -610,6 +645,14 @@ export async function SliceLandingPage({ slug, locale }: { slug: string; locale:
               <ul className="space-y-3">
                 {sorted.slice(0, 30).map(({ m, dday }) => {
                   const badge = ddayBadge(dday, copy);
+                  const shownName = bilingual(
+                    m.name,
+                    locale === 'en' ? m.nameEn : locale === 'ja' ? m.nameJa : null,
+                  );
+                  const shownPlace = bilingual(
+                    m.location,
+                    locale === 'en' ? m.locationEn : locale === 'ja' ? m.locationJa : null,
+                  );
                   return (
                     <li
                       key={m.id}
@@ -620,7 +663,7 @@ export async function SliceLandingPage({ slug, locale }: { slug: string; locale:
                           목록 훑기가 불가능해진다. aria-label 로 이름만 읽히게 한다. */}
                       <Link
                         href={`/popup/${m.id}`}
-                        aria-label={copy.detailAria(m.name)}
+                        aria-label={copy.detailAria(shownName.display ?? m.name)}
                         className="absolute inset-0 z-10 rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lime-500"
                       />
                       <span className="text-lime-500 mt-1">
@@ -628,7 +671,9 @@ export async function SliceLandingPage({ slug, locale }: { slug: string; locale:
                       </span>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <h3 className="text-sm md:text-base font-bold truncate">{m.name}</h3>
+                          <h3 className="text-sm md:text-base font-bold truncate">
+                            {shownName.display}
+                          </h3>
                           {badge && (
                             <span
                               className={`shrink-0 rounded-pill px-2 py-0.5 text-xs font-black ${badge.cls}`}
@@ -637,9 +682,22 @@ export async function SliceLandingPage({ slug, locale }: { slug: string; locale:
                             </span>
                           )}
                         </div>
+                        {/* 번역이 있을 때만 원문을 남긴다. 지도 앱에 넣거나 현장에서 물어볼 때
+                            쓰는 것은 번역명이 아니라 이쪽이다. lang 을 붙여 스크린리더가
+                            영어 문맥에서도 한국어로 읽게 한다. */}
+                        {shownName.original && (
+                          <p className="truncate text-xs text-muted-foreground/70" lang="ko">
+                            {shownName.original}
+                          </p>
+                        )}
                         <p className="text-xs text-muted-foreground truncate">
-                          {m.location ?? copy.noLocation}
+                          {shownPlace.display ?? copy.noLocation}
                         </p>
+                        {shownPlace.original && (
+                          <p className="truncate text-xs text-muted-foreground/70" lang="ko">
+                            {shownPlace.original}
+                          </p>
+                        )}
                         {(m.startDate || m.endDate) && (
                           <p className="text-xs text-muted-foreground mt-0.5">
                             {m.startDate ?? '?'} ~ {m.endDate ?? '?'}
@@ -702,7 +760,10 @@ export async function SliceLandingPage({ slug, locale }: { slug: string; locale:
             description: intro,
             url: mainHref,
             numberOfItems: count,
-            itemListElement: eventListElements(sorted.map((s) => s.m)),
+            itemListElement: eventListElements(
+              sorted.map((s) => s.m),
+              locale,
+            ),
           }),
         }}
       />
