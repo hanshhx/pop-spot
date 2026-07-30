@@ -41,8 +41,8 @@ public class TokenEncryption {
     void init() {
         if (encryptionKeyBase64 == null || encryptionKeyBase64.isBlank()) {
             log.warn(
-                    "[TokenEncryption] spotify.token.encryption-key 미설정 — Spotify OAuth 기능 비활성."
-                            + " 운영 환경에서는 반드시 32바이트 키 Base64 (예: openssl rand -base64 32) 를 환경변수로 주입.");
+                    "[TokenEncryption] spotify.token.encryption-key 미설정 — Spotify OAuth 기능 비활성. 운영"
+                            + " 환경에서는 반드시 32바이트 키 Base64 (예: openssl rand -base64 32) 를 환경변수로 주입.");
             return;
         }
         byte[] keyBytes = Base64.getDecoder().decode(encryptionKeyBase64);

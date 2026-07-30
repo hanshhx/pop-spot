@@ -1,14 +1,15 @@
 package com.example.popspotbackend.service;
 
-import java.io.File;
+import lombok.extern.slf4j.Slf4j;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collection;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Service;
 
 /**
  * 업로드 폴더의 파일을 지운다 — 회원 탈퇴 시 개인정보 파기용.
@@ -86,12 +87,18 @@ public class UploadedFileCleaner {
     }
 
     /**
-     * 저장된 값에서 파일명만 뽑는다.
+     * 저장된 값에서 <b>업로드 폴더 기준 상대 경로</b>를 뽑는다.
      *
-     * <p>세 가지 형태가 섞여 있다 — 절대 URL({@code https://호스트/uploads/a.webp}), 공개 경로 ({@code
-     * /uploads/a.webp}), 파일명만({@code a.webp}). 어느 쪽이든 마지막 조각만 쓴다.
+     * <p>세 가지 형태가 섞여 있다 — 절대 URL({@code https://호스트/uploads/avatar/a.webp}), 공개 경로 ({@code
+     * /uploads/avatar/a.webp}), 파일명만({@code a.webp}).
      *
-     * <p>업로드 폴더 밖을 가리키는 값(외부 URL·경로 구분자 포함)은 null 로 돌려 지우지 않는다.
+     * <p><b>하위 폴더를 버리면 안 된다.</b> 예전에는 마지막 조각만 떼어 {@code a.webp} 로 만들었는데, 프로필 사진은 {@code
+     * uploads/avatar/} 아래에 저장된다(UserProfileController). 그래서 삭제가 {@code uploads/a.webp} 를 찾다가 아무것도 못
+     * 지웠고, <b>탈퇴해도 프로필 사진이 공개 경로에 그대로 남았다.</b> 채팅 이미지는 업로드 루트에 평평하게 저장돼서 정상 동작했고, 테스트도 그쪽 경로만 써서 이
+     * 결함을 잡지 못했다.
+     *
+     * <p>업로드 폴더 밖을 가리키는 값(외부 URL·{@code ..} 포함·절대 경로)은 null 로 돌려 지우지 않는다. 최종 방어는 {@link #delete} 의
+     * canonical 울타리 검사지만, 여기서 먼저 걸러 둔다.
      */
     private String extractFileName(String urlOrPath) {
         if (urlOrPath == null || urlOrPath.isBlank()) return null;
@@ -103,14 +110,19 @@ public class UploadedFileCleaner {
         // 외부 URL 인데 /uploads/ 가 없으면 우리 파일이 아니다(소셜 프로필 사진 등).
         if (marker < 0 && (tail.startsWith("http://") || tail.startsWith("https://"))) return null;
 
-        // 쿼리스트링 제거 후 마지막 경로 조각만.
+        // 쿼리스트링·프래그먼트 제거.
         int query = tail.indexOf('?');
         if (query >= 0) tail = tail.substring(0, query);
-        tail = tail.replace('\\', '/');
-        int slash = tail.lastIndexOf('/');
-        if (slash >= 0) tail = tail.substring(slash + 1);
+        int hash = tail.indexOf('#');
+        if (hash >= 0) tail = tail.substring(0, hash);
 
-        if (tail.isBlank() || tail.contains("..") || tail.contains(File.separator)) return null;
+        tail = tail.replace('\\', '/').trim();
+        // 앞의 구분자만 떼고 나머지 하위 경로는 그대로 둔다 — avatar/a.webp 가 살아야 한다.
+        while (tail.startsWith("/")) tail = tail.substring(1);
+
+        if (tail.isBlank() || tail.endsWith("/")) return null;
+        // 상위로 올라가려는 값과 드라이브 문자(C:/...)는 여기서 버린다.
+        if (tail.contains("..") || tail.matches("(?i)^[a-z]:/.*")) return null;
         return tail;
     }
 }
