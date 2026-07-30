@@ -2,13 +2,12 @@ package com.example.popspotbackend.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 
 /**
  * 탈퇴 시 업로드 파일을 실제로 지우는지 — <b>진짜 파일로</b> 확인한다.

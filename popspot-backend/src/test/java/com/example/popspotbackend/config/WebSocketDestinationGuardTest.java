@@ -6,7 +6,8 @@ import static org.mockito.Mockito.mock;
 
 import com.example.popspotbackend.repository.UserRepository;
 import com.example.popspotbackend.service.MateService;
-
+import java.util.ArrayList;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -17,9 +18,6 @@ import org.springframework.messaging.simp.stomp.StompCommand;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.messaging.support.ChannelInterceptor;
 import org.springframework.messaging.support.MessageBuilder;
-
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * 클라이언트가 브로커 주소로 직접 메시지를 보내지 못하게 막는지 검사한다.
