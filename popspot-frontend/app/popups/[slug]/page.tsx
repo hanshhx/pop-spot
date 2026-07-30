@@ -78,7 +78,6 @@ type Marker = {
   locationJa?: string | null;
 };
 
-
 type Slice =
   | { kind: 'region'; slug: string; label: string }
   | { kind: 'period'; slug: string; label: string }

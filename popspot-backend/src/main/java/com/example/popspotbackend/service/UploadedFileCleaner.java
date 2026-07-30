@@ -1,15 +1,13 @@
 package com.example.popspotbackend.service;
 
-import lombok.extern.slf4j.Slf4j;
-
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Service;
-
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collection;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
 
 /**
  * 업로드 폴더의 파일을 지운다 — 회원 탈퇴 시 개인정보 파기용.

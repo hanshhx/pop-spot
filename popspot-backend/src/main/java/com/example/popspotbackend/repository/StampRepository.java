@@ -1,7 +1,6 @@
 package com.example.popspotbackend.repository;
 
 import com.example.popspotbackend.entity.Stamp;
-// 🔥 [임의 수정] EntityGraph를 쓰기 위한 임포트
 import java.time.LocalDateTime;
 import java.util.List;
 import org.springframework.data.jpa.repository.EntityGraph;
