@@ -1,8 +1,9 @@
 package com.example.popspotbackend.controller;
 
 import com.example.popspotbackend.service.TicketService;
-import java.util.Map;
+
 import lombok.RequiredArgsConstructor;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -10,6 +11,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.Map;
 
 /**
  * 티켓팅 시뮬레이션 게임 API.
@@ -52,9 +55,12 @@ public class GameController {
 
     /** 미인증 호출은 {@link SecurityException} → GlobalExceptionHandler 403. */
     private String requireAuthenticatedUserId(Authentication authentication) {
+        // Spring 익명 인증에서는 isAuthenticated() 가 <b>참</b>을 돌려주고 이름이 "anonymousUser" 다.
+        // 이 검사를 빼면 비로그인 요청이 그대로 통과한다 — 다른 컨트롤러들은 이미 걸러내고 있었다.
         if (authentication == null
                 || !authentication.isAuthenticated()
-                || authentication.getName() == null) {
+                || authentication.getName() == null
+                || "anonymousUser".equals(authentication.getName())) {
             throw new SecurityException("인증된 사용자만 티켓 예약이 가능합니다.");
         }
         return authentication.getName();
