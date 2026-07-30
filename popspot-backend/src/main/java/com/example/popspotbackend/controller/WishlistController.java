@@ -2,8 +2,9 @@ package com.example.popspotbackend.controller;
 
 import com.example.popspotbackend.dto.WishlistResponseDto;
 import com.example.popspotbackend.service.WishlistService;
-import java.util.List;
+
 import lombok.RequiredArgsConstructor;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -11,6 +12,8 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 /**
  * 위시리스트 토글 / 조회. 응답 문자열로 ADDED / REMOVED 를 구분.
@@ -44,7 +47,11 @@ public class WishlistController {
     private void requireSelf(Authentication authentication, String pathUserId) {
         if (authentication == null
                 || !authentication.isAuthenticated()
-                || authentication.getName() == null) {
+                || authentication.getName() == null
+                // Spring 익명 인증은 isAuthenticated() 가 참이고 이름이 "anonymousUser" 다. 바로 뒤의
+                // 본인 확인이 남의 데이터는 막지만, 이 검사가 없으면 비로그인 요청이 그 이름으로
+                // 자기 몫을 쓸 수 있다. 컨트롤러마다 규칙이 갈리지 않게 여기서도 걸러낸다.
+                || "anonymousUser".equals(authentication.getName())) {
             throw new SecurityException("인증된 사용자만 위시리스트에 접근할 수 있습니다.");
         }
         if (!authentication.getName().equals(pathUserId)) {

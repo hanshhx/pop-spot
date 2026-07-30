@@ -257,11 +257,11 @@ public interface PopupStoreRepository extends JpaRepository<PopupStore, Long> {
     /**
      * 표시용 번역 대상 — 아직 번역을 <b>시도하지 않은</b> 팝업.
      *
-     * <p>{@code translated_at IS NULL} 하나로 거른다. 번역 칸이 비어 있는지로 고르면, 확신이 없어 일부러
-     * 비워 둔 행을 매번 다시 시도하게 된다("한복상점" 처럼 원문이 나은 것이 실제로 있다).
+     * <p>{@code translated_at IS NULL} 하나로 거른다. 번역 칸이 비어 있는지로 고르면, 확신이 없어 일부러 비워 둔 행을 매번 다시 시도하게
+     * 된다("한복상점" 처럼 원문이 나은 것이 실제로 있다).
      *
-     * <p>이미 끝난 팝업은 뺀다. 화면에 안 나오는 것을 번역하는 데 LLM 예산을 쓸 이유가 없다.
-     * 시작일이 가까운 것부터 — 지금 열려 있거나 곧 열릴 팝업이 외국인에게 먼저 보인다.
+     * <p>이미 끝난 팝업은 뺀다. 화면에 안 나오는 것을 번역하는 데 LLM 예산을 쓸 이유가 없다. 시작일이 가까운 것부터 — 지금 열려 있거나 곧 열릴 팝업이
+     * 외국인에게 먼저 보인다.
      */
     @Query(
             value =
@@ -276,7 +276,8 @@ public interface PopupStoreRepository extends JpaRepository<PopupStore, Long> {
                     LIMIT :limit
                    """,
             nativeQuery = true)
-    List<PopupStore> findTranslationTargets(@Param("today") String today, @Param("limit") int limit);
+    List<PopupStore> findTranslationTargets(
+            @Param("today") String today, @Param("limit") int limit);
 
     /** 번역 진행 상황 — 관리자 응답에 쓴다. */
     @Query(

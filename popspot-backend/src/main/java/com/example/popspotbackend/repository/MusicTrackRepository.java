@@ -17,7 +17,8 @@ public interface MusicTrackRepository extends JpaRepository<MusicTrack, Long> {
 
     /** 가장 많이 재생된 N 곡 (인기 차트) */
     @Query(
-            "SELECT m FROM MusicTrack m WHERE m.youtubeVideoId IS NOT NULL ORDER BY m.playCount DESC")
+            "SELECT m FROM MusicTrack m WHERE m.youtubeVideoId IS NOT NULL ORDER BY m.playCount"
+                    + " DESC")
     List<MusicTrack> findTopPlayed(Pageable pageable);
 
     /** 무드 태그가 있는 곡 중 랜덤 1곡 (운명의 곡 룰렛) */
@@ -35,7 +36,8 @@ public interface MusicTrackRepository extends JpaRepository<MusicTrack, Long> {
 
     /** 무드 태그가 있는 모든 곡 (역방향 매칭용 — 팝업 → 곡) */
     @Query(
-            "SELECT m FROM MusicTrack m WHERE m.youtubeVideoId IS NOT NULL AND m.moodTags IS NOT NULL AND m.moodTags <> ''")
+            "SELECT m FROM MusicTrack m WHERE m.youtubeVideoId IS NOT NULL AND m.moodTags IS NOT"
+                    + " NULL AND m.moodTags <> ''")
     List<MusicTrack> findAllWithMood(Pageable pageable);
 
     /**
@@ -69,8 +71,8 @@ public interface MusicTrackRepository extends JpaRepository<MusicTrack, Long> {
     @Modifying
     @Transactional
     @Query(
-            "UPDATE MusicTrack m SET m.playbackFailedCount = COALESCE(m.playbackFailedCount, 0) + 1 "
-                    + "WHERE m.id = :id")
+            "UPDATE MusicTrack m SET m.playbackFailedCount = COALESCE(m.playbackFailedCount, 0) + 1"
+                    + " WHERE m.id = :id")
     int incrementPlaybackFailed(Long id);
 
     /** v2.21-S7 — 어드민 카드용: 임계값 이상 실패한 트랙 수 (embed 차단 통계). */

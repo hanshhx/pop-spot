@@ -3,8 +3,9 @@ package com.example.popspotbackend.controller;
 import com.example.popspotbackend.dto.CourseSaveRequestDto;
 import com.example.popspotbackend.dto.MyCourseResponseDto;
 import com.example.popspotbackend.service.MyCourseService;
-import java.util.List;
+
 import lombok.RequiredArgsConstructor;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -15,6 +16,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 /**
  * 내 코스 저장 / 조회 / 삭제.
@@ -65,9 +68,12 @@ public class MyCourseController {
     }
 
     private String requireAuthenticated(Authentication authentication) {
+        // Spring 익명 인증에서는 isAuthenticated() 가 <b>참</b>이고 이름이 "anonymousUser" 다.
+        // 이 검사를 빼면 비로그인 요청이 "anonymousUser" 라는 공유 계정처럼 코스를 쌓을 수 있다.
         if (authentication == null
                 || !authentication.isAuthenticated()
-                || authentication.getName() == null) {
+                || authentication.getName() == null
+                || "anonymousUser".equals(authentication.getName())) {
             throw new SecurityException("인증된 사용자만 코스에 접근할 수 있습니다.");
         }
         return authentication.getName();

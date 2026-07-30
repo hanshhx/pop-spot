@@ -2,8 +2,10 @@ package com.example.popspotbackend.controller;
 
 import com.example.popspotbackend.dto.MyPageDto;
 import com.example.popspotbackend.service.MyPageService;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -39,7 +41,11 @@ public class MyPageController {
     private void requireSelf(Authentication authentication, String pathUserId) {
         if (authentication == null
                 || !authentication.isAuthenticated()
-                || authentication.getName() == null) {
+                || authentication.getName() == null
+                // Spring 익명 인증은 isAuthenticated() 가 참이고 이름이 "anonymousUser" 다. 바로 뒤의
+                // 본인 확인이 남의 데이터는 막지만, 이 검사가 없으면 비로그인 요청이 그 이름으로
+                // 자기 몫을 쓸 수 있다. 컨트롤러마다 규칙이 갈리지 않게 여기서도 걸러낸다.
+                || "anonymousUser".equals(authentication.getName())) {
             throw new SecurityException("로그인이 필요합니다.");
         }
         if (!authentication.getName().equals(pathUserId)) {

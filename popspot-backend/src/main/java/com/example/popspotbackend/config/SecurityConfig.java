@@ -1,20 +1,17 @@
 package com.example.popspotbackend.config;
 
 import com.example.popspotbackend.service.CustomOAuth2UserService;
+
 import jakarta.servlet.http.HttpServletResponse;
-import java.io.IOException;
-import java.time.OffsetDateTime;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Set;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.config.ObjectPostProcessor;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -26,12 +23,21 @@ import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.header.HeaderWriterFilter;
 import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.CorsUtils;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import java.io.IOException;
+import java.time.OffsetDateTime;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Set;
 
 /**
  * Spring Security 설정.
@@ -119,6 +125,27 @@ public class SecurityConfig {
                 PathPatternRequestMatcher.withDefaults().matcher(API_PATH_PATTERN);
         http.csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                // CVE-2026-22732 임시 대응 — Spring Security 7.0.0~7.0.3 은 보안 응답 헤더가
+                // 아예 안 실릴 수 있다(현재 7.0.2). 캐시 관련 헤더가 빠지면 인증이 필요한 응답이
+                // 중간 캐시에 남을 수 있어 등급이 CRITICAL 이다.
+                //
+                // 공식 권고의 임시 대응이 이 값이다. 헤더를 <b>응답을 쓰기 전에 먼저</b> 심으므로,
+                // 애플리케이션이 나중에 넣는 캐시 헤더가 Security 의 것을 덮지 못한다 — 그게 이
+                // 설정의 동작 변화이고, API 서버라 캐시 헤더를 직접 다루는 곳이 없어 문제되지 않는다.
+                //
+                // 설정 DSL 에는 이 옵션이 없어서(HeadersConfigurer 7.0.2 에 없음) 필터를 만드는
+                // 시점에 직접 켠다. 7.0.4 이상으로 올리면 이 블록을 지운다.
+                .headers(
+                        headers ->
+                                headers.withObjectPostProcessor(
+                                        new ObjectPostProcessor<HeaderWriterFilter>() {
+                                            @Override
+                                            public <O extends HeaderWriterFilter> O postProcess(
+                                                    O filter) {
+                                                filter.setShouldWriteHeadersEagerly(true);
+                                                return filter;
+                                            }
+                                        }))
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .addFilterBefore(
                         jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
