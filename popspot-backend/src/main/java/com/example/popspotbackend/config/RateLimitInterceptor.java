@@ -155,6 +155,13 @@ public class RateLimitInterceptor implements HandlerInterceptor {
                     .expireAfterAccess(Duration.ofHours(1))
                     .build();
 
+    /** 프론트를 거쳤음을 증명하는 서명 검증기. 비밀키 미설정 시 비활성이며 기존 판별로 되돌아간다. */
+    private final EdgeSignatureVerifier edgeSignature;
+
+    public RateLimitInterceptor(EdgeSignatureVerifier edgeSignature) {
+        this.edgeSignature = edgeSignature;
+    }
+
     @Override
     public boolean preHandle(
             HttpServletRequest request, HttpServletResponse response, Object handler)
@@ -298,21 +305,24 @@ public class RateLimitInterceptor implements HandlerInterceptor {
      *   <li>{@code remoteAddr} — 프록시를 거치지 않은 직결 요청(로컬 개발).
      * </ol>
      *
-     * <p><b>알려진 한계(v2.41 감사에서 실증).</b> 위 1번은 {@code deploy/nginx-popspot.conf} 처럼 앞단이 헤더를 덮어쓰는 구성을
-     * 전제한다. 지금 운영은 Tailscale Funnel 이 백엔드 앞단이고 이 구성에서는 {@code X-Real-IP} 가 덮어써지지 않아 클라이언트가 보낸 값이
-     * 그대로 여기까지 온다. 429 를 받은 직후 이 헤더만 바꿔 보내면 새 버킷이 생겨 통과되는 것이 확인됐다. 즉 {@code
-     * app.trust-proxy-headers=true} 인 지금, 아래의 모든 한도는 <b>성실한 사용자에겐 적용되지만 작정한 공격자는 우회할 수 있다</b>.
+     * <p><b>위 순서만으로는 부족하다(v2.41 감사에서 실증).</b> 1번은 앞단이 헤더를 덮어쓰는 구성을 전제하는데, 운영 앞단인 Tailscale Funnel 은
+     * 덮어쓰지 않아 클라이언트가 보낸 {@code X-Real-IP} 가 그대로 여기까지 온다. 429 를 받은 직후 이 헤더만 바꿔 보내면 새 버킷이 생겨 통과되는 것이
+     * 확인됐다. 그렇다고 {@code app.trust-proxy-headers=false} 로 두면 Funnel 내부 주소 하나만 보여 <b>전 사용자가 버킷 하나를
+     * 공유</b>한다 — 인증메일 시간당 5회가 전체 합산이 되어 가입이 막힌다. <b>믿어도 뚫리고 안 믿어도 망가진다.</b>
      *
-     * <p>이걸 코드로 고치지 않은 이유: "몇 번째 홉을 믿을지" 는 코드가 아니라 배포 토폴로지가 정하는 값이다. 프론트가 Vercel rewrite 로 {@code
-     * /api/*} 를 프록시하므로 앞단 홉이 하나 더 있을 수 있고, 여기서 잘못 짚어 XFF 마지막 항목을 쓰면 모든 사용자가 <b>같은 프록시 IP 한 개</b>로
-     * 뭉쳐 전원 429 가 된다. 지금 동작을 깨는 쪽 손해가 훨씬 크다.
+     * <p><b>그래서 v2.52 부터 {@link EdgeSignatureVerifier} 가 우선한다.</b> 신뢰 여부를 헤더 이름이 아니라 서명으로 판단한다 —
+     * 프론트(Vercel)가 위조 불가능한 접속 IP에 HMAC 을 붙여 보내고, 서명이 맞을 때만 그 IP를 쓴다. 증명이 없으면 헤더를 일절 믿지 않고 {@code
+     * remoteAddr} 로 강등하므로, Funnel 주소를 직접 때리는 요청은 전부 버킷 하나를 나눠 쓰게 된다.
      *
-     * <p>권장 조치(운영): 백엔드 앞에 리버스 프록시를 두고 {@code proxy_set_header X-Real-IP $remote_addr;} 로 이 헤더를
-     * <b>무조건 덮어쓰게</b> 한다. 그러면 코드 변경 없이 1번이 다시 신뢰 가능한 값이 된다. 실제 홉 수를 확인한 뒤에야 이 메서드를 손대는 게 맞다.
-     *
-     * <p>주의: 앞단에 프록시를 하나 더 두게 되면 "마지막에서 N번째" 로 조정해야 한다.
+     * <p>아래 1~3번은 <b>비밀키를 설정하지 않았을 때의 기존 동작</b>으로 남는다. 켜고 끄는 것을 배포와 분리하기 위해서다.
      */
     private String clientIp(HttpServletRequest req) {
+        // 서명 검증이 켜져 있으면 증명된 IP만 쓴다. 증명이 없으면 헤더는 보지 않는다 — 위조 경로를 닫는 지점.
+        if (edgeSignature.isEnabled()) {
+            String verified = edgeSignature.verifiedIp(req);
+            return verified != null ? verified : req.getRemoteAddr();
+        }
+
         if (!trustProxyHeaders) return req.getRemoteAddr();
         String real = req.getHeader("X-Real-IP");
         if (real != null && !real.isBlank()) return real.trim();
