@@ -46,6 +46,9 @@ const SECRET = (process.env.EDGE_SIGNING_SECRET ?? '').trim();
 /** IPv6 최대 표기 길이. 비정상적으로 긴 값은 붙이지 않는다. */
 const MAX_IP_LENGTH = 45;
 
+/** 키 지문 길이. 백엔드 `EdgeSignatureVerifier.FINGERPRINT_LENGTH` 와 같아야 한다. */
+const FINGERPRINT_LENGTH = 12;
+
 const encoder = new TextEncoder();
 
 /**
@@ -96,6 +99,18 @@ function clientIp(request: NextRequest): string | null {
  * 따로 빼 둔 이유는 테스트에서 직접 부르기 위해서다 — 양쪽 구현이 같은 값을 내는지는 실제로
  * 대조해 보지 않으면 알 수 없고, 어긋나도 화면에는 아무 증상이 없다.
  */
+/**
+ * 비밀키의 지문 — 키를 드러내지 않고 백엔드 로그와 대조하기 위한 값.
+ *
+ * SHA-256 앞 12자리라 되돌려 키를 알아낼 수 없다. 백엔드는 서명이 안 맞을 때 이 값을 자기 것과
+ * 비교해서 "키가 다르다" 와 "키는 같은데 서명 방식이 어긋났다" 를 구분해 로그에 남긴다. 이 구분이
+ * 없어서 운영에서 두 시간을 썼다.
+ */
+export async function keyFingerprint(): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-256', encoder.encode(SECRET));
+  return toHex(digest).slice(0, FINGERPRINT_LENGTH);
+}
+
 export async function edgeSignature(ip: string, timestamp: string): Promise<string> {
   const signature = await crypto.subtle.sign(
     'HMAC',
@@ -112,6 +127,7 @@ export async function proxy(request: NextRequest) {
   headers.delete('x-edge-ip');
   headers.delete('x-edge-ts');
   headers.delete('x-edge-sig');
+  headers.delete('x-edge-kid');
 
   try {
     const ip = SECRET ? clientIp(request) : null;
@@ -121,6 +137,7 @@ export async function proxy(request: NextRequest) {
       headers.set('x-edge-ip', ip);
       headers.set('x-edge-ts', timestamp);
       headers.set('x-edge-sig', signature);
+      headers.set('x-edge-kid', await keyFingerprint());
     }
   } catch (error) {
     // 서명에 실패해도 요청은 살린다. 백엔드는 서명 없는 요청을 remoteAddr 로 강등할 뿐 막지 않는다.

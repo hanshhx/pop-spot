@@ -16,6 +16,9 @@ const PINNED_IP = '203.0.113.77';
 const PINNED_TIMESTAMP = '1785460374973';
 const PINNED_SIGNATURE = '4692ed3706bda7f5296f8cfc444b4d5488ab822c5010003fffc90fdbac3d2c47';
 
+/** `printf '%s' 'test-secret-123' | sha256sum | cut -c1-12` 과 같은 값. 백엔드도 이 값을 대조한다. */
+const PINNED_FINGERPRINT = '33e29618af5c';
+
 /** 비밀키는 모듈을 읽는 시점에 한 번만 잡히므로, 값을 바꾸려면 모듈을 다시 불러와야 한다. */
 async function loadWithSecret(secret: string) {
   vi.stubEnv('EDGE_SIGNING_SECRET', secret);
@@ -40,6 +43,19 @@ describe('엣지 서명', () => {
     const { edgeSignature } = await loadWithSecret(`  ${SECRET}\n`);
 
     await expect(edgeSignature(PINNED_IP, PINNED_TIMESTAMP)).resolves.toBe(PINNED_SIGNATURE);
+  });
+
+  it('키 지문이 셸 sha256sum 앞 12자리와 같다 — 운영자가 눈으로 대조하는 값', async () => {
+    const { keyFingerprint } = await loadWithSecret(SECRET);
+
+    await expect(keyFingerprint()).resolves.toBe(PINNED_FINGERPRINT);
+  });
+
+  it('키 지문도 공백을 무시한다 — 서명과 같은 키를 봐야 진단이 맞다', async () => {
+    // 지문만 공백을 안 떼면 "키는 같은데 지문이 다르다" 는 엉뚱한 진단이 나온다.
+    const { keyFingerprint } = await loadWithSecret(`  ${SECRET}\n`);
+
+    await expect(keyFingerprint()).resolves.toBe(PINNED_FINGERPRINT);
   });
 
   it('IP 나 시각이 다르면 서명도 달라진다 — 값이 실제로 서명에 들어간다', async () => {
