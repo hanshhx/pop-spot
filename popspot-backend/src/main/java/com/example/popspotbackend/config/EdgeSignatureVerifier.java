@@ -4,8 +4,10 @@ import jakarta.servlet.http.HttpServletRequest;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.util.Locale;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
@@ -43,6 +45,14 @@ public class EdgeSignatureVerifier {
     static final String HEADER_TS = "X-Edge-Ts";
     static final String HEADER_SIG = "X-Edge-Sig";
 
+    /**
+     * 프론트가 쓰는 비밀키의 <b>지문</b>. 키 자체가 아니라 SHA-256 앞 12자리라 값이 새어도 키를 복원할 수 없다.
+     *
+     * <p>이게 없으면 검증 실패의 원인을 로그만 보고는 가릴 수 없다 — "키가 다르다" 와 "키는 같은데 서명 방식이 어긋났다" 는 완전히 다른 문제인데 증상이 똑같기
+     * 때문이다. 실제로 이걸 구분하지 못해 운영에서 두 시간을 썼다.
+     */
+    static final String HEADER_KID = "X-Edge-Kid";
+
     private static final String ALGORITHM = "HmacSHA256";
 
     /**
@@ -62,19 +72,56 @@ public class EdgeSignatureVerifier {
     /** 검증 실패 경고는 분당 한 번만. 공격받는 동안 로그가 디스크를 채우면 안 된다. */
     private static final long WARN_INTERVAL_MS = Duration.ofMinutes(1).toMillis();
 
+    /** 지문 길이(16진수 글자 수). 셸에서 {@code sha256sum | cut -c1-12} 로 낸 값과 같아야 한다. */
+    private static final int FINGERPRINT_LENGTH = 12;
+
     private final byte[] secret;
+    private final String keyFingerprint;
     private final AtomicLong lastWarnAt = new AtomicLong(0);
+
+    /**
+     * 첫 성공을 한 번만 알리기 위한 표시.
+     *
+     * <p>성공이 아무 흔적도 남기지 않으면 운영자는 <b>"경고가 없다"</b> 로만 정상을 판단하게 되는데, 그건 트래픽이 아예 없을 때와 구분이 안 된다. 실제로 켜고
+     * 나서 이게 없어 확신을 못 했다.
+     */
+    private final AtomicBoolean firstSuccessLogged = new AtomicBoolean(false);
 
     public EdgeSignatureVerifier(@Value("${app.edge-secret:}") String secret) {
         this.secret =
                 (secret == null || secret.isBlank())
                         ? null
                         : secret.trim().getBytes(StandardCharsets.UTF_8);
+        this.keyFingerprint = this.secret == null ? null : fingerprint(this.secret);
 
         if (this.secret == null) {
             log.info("[EdgeSig] 엣지 서명 검증 꺼짐 — app.edge-secret 미설정. 기존 IP 판별 방식을 사용한다.");
         } else {
-            log.info("[EdgeSig] 엣지 서명 검증 켜짐 — 서명된 요청의 IP만 신뢰한다.");
+            log.info(
+                    "[EdgeSig] 엣지 서명 검증 켜짐 — 서명된 요청의 IP만 신뢰한다. (키 지문 {} — Vercel 값의"
+                            + " sha256sum 앞 12자리와 같아야 한다)",
+                    keyFingerprint);
+        }
+    }
+
+    /**
+     * 비밀키의 지문 — 키를 드러내지 않고 양쪽이 같은 키를 쓰는지 대조하기 위한 값.
+     *
+     * <p>셸에서 {@code printf '%s' "$KEY" | sha256sum | cut -c1-12} 로 낸 값과 일부러 똑같이 맞췄다. 운영자가 Vercel 에
+     * 넣은 값을 그 명령으로 찍어 로그와 눈으로 비교할 수 있어야 하기 때문이다.
+     */
+    static String fingerprint(byte[] secret) {
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256").digest(secret);
+            StringBuilder hex = new StringBuilder(FINGERPRINT_LENGTH);
+            for (int i = 0; hex.length() < FINGERPRINT_LENGTH; i++) {
+                hex.append(Character.forDigit((digest[i] >> 4) & 0xF, 16));
+                hex.append(Character.forDigit(digest[i] & 0xF, 16));
+            }
+            return hex.toString();
+        } catch (NoSuchAlgorithmException e) {
+            // SHA-256 은 모든 JVM 에 있다. 진단용 값이라 없더라도 검증을 막지는 않는다.
+            return "(지문 계산 실패)";
         }
     }
 
@@ -119,11 +166,36 @@ public class EdgeSignatureVerifier {
         }
 
         if (!matches(ip, timestamp.trim(), signature.trim())) {
-            // 비밀키가 양쪽에서 다를 때도 여기로 온다. 켠 직후 이 경고가 계속 뜨면 키 불일치를 의심할 것.
-            warnThrottled("[EdgeSig] 서명 불일치 — 프론트/백엔드 비밀키가 같은지 확인할 것");
+            warnThrottled(diagnoseMismatch(request.getHeader(HEADER_KID)));
             return null;
         }
+
+        if (firstSuccessLogged.compareAndSet(false, true)) {
+            log.info("[EdgeSig] 첫 정상 서명 확인 — 검증이 실제로 동작하고 있다. (키 지문 {})", keyFingerprint);
+        }
         return ip;
+    }
+
+    /**
+     * 서명이 안 맞을 때 <b>무엇을 고쳐야 하는지</b>까지 알려준다.
+     *
+     * <p>원인은 둘 중 하나인데 증상이 같다 — 키가 서로 다르거나, 키는 같은데 서명 만드는 방식이 어긋났거나. 프론트가 보낸 키 지문을 내 것과 대조하면 바로 갈린다.
+     * "비밀키를 확인하라" 는 안내만 있으면 이미 맞는 키를 계속 다시 넣어 보게 된다.
+     */
+    private String diagnoseMismatch(String presentedKid) {
+        String theirs = presentedKid == null ? null : presentedKid.trim();
+
+        if (theirs == null || theirs.isEmpty()) {
+            return "[EdgeSig] 서명 불일치 — 프론트/백엔드 비밀키가 같은지 확인할 것 (백엔드 키 지문 " + keyFingerprint + ")";
+        }
+        if (!theirs.equals(keyFingerprint)) {
+            return "[EdgeSig] 비밀키가 서로 다르다 — 백엔드 "
+                    + keyFingerprint
+                    + " · 프론트 "
+                    + theirs
+                    + ". 한쪽을 다른 쪽 값으로 맞출 것";
+        }
+        return "[EdgeSig] 키 지문(" + keyFingerprint + ")은 같은데 서명이 다르다 — 양쪽 서명 방식이 어긋났다. 배포 버전을 확인할 것";
     }
 
     /** 서명 대조. 값 자체가 비밀은 아니지만, 어디까지 맞았는지 흘리지 않도록 전체 길이를 비교한다. */

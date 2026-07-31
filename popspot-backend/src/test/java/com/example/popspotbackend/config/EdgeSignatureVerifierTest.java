@@ -65,6 +65,25 @@ class EdgeSignatureVerifierTest {
     }
 
     @Test
+    @DisplayName("키 지문이 셸 sha256sum 앞 12자리와 같다 — 운영자가 눈으로 대조하는 값")
+    void fingerprintMatchesShellCommand() {
+        // printf '%s' 'test-secret-123' | sha256sum | cut -c1-12
+        // 프론트 proxy.test.ts 도 같은 값을 대조한다. 한쪽만 바꾸면 진단 로그가 거짓말을 하게 된다.
+        assertThat(EdgeSignatureVerifier.fingerprint(SECRET.getBytes(StandardCharsets.UTF_8)))
+                .isEqualTo("33e29618af5c");
+    }
+
+    @Test
+    @DisplayName("키 앞뒤 공백은 지문에도 영향을 주지 않는다 — 서명과 같은 키를 봐야 한다")
+    void fingerprintIgnoresSurroundingWhitespace() throws Exception {
+        // Vercel 환경변수에 줄바꿈이 딸려 들어가는 실수를 실제로 겪었다. 지문만 공백을 안 떼면
+        // "키는 같은데 지문이 다르다" 는 엉뚱한 진단이 나온다.
+        EdgeSignatureVerifier padded = new EdgeSignatureVerifier("  " + SECRET + "\n");
+
+        assertThat(padded.verifiedIp(signedNow(SECRET, "1.2.3.4"))).isEqualTo("1.2.3.4");
+    }
+
+    @Test
     @DisplayName("정상 서명이면 그 IP를 돌려준다")
     void acceptsValidSignature() throws Exception {
         EdgeSignatureVerifier verifier = new EdgeSignatureVerifier(SECRET);
