@@ -35,7 +35,13 @@ export const config = {
   matcher: '/api/:path*',
 };
 
-const SECRET = process.env.EDGE_SIGNING_SECRET ?? '';
+/**
+ * 앞뒤 공백을 뗀다 — 백엔드(`EdgeSignatureVerifier`)도 같은 처리를 한다.
+ *
+ * 한쪽만 떼면 서명이 전부 어긋나고, 그 대가는 "전 사용자가 레이트리밋 버킷을 공유" 라는 조용한
+ * 장애다. Vercel 환경변수에 값을 붙여넣을 때 줄바꿈이 딸려 들어가는 일이 흔해서 실제로 겪었다.
+ */
+const SECRET = (process.env.EDGE_SIGNING_SECRET ?? '').trim();
 
 /** IPv6 최대 표기 길이. 비정상적으로 긴 값은 붙이지 않는다. */
 const MAX_IP_LENGTH = 45;
@@ -83,6 +89,22 @@ function clientIp(request: NextRequest): string | null {
   return first;
 }
 
+/**
+ * 서명 계산 — 백엔드 `EdgeSignatureVerifier.hexSignature` 와 글자 하나까지 같아야 한다.
+ *
+ * 서명 대상은 `IP + 줄바꿈 + 밀리초타임스탬프`, 알고리즘은 HMAC-SHA256, 표기는 소문자 16진수다.
+ * 따로 빼 둔 이유는 테스트에서 직접 부르기 위해서다 — 양쪽 구현이 같은 값을 내는지는 실제로
+ * 대조해 보지 않으면 알 수 없고, 어긋나도 화면에는 아무 증상이 없다.
+ */
+export async function edgeSignature(ip: string, timestamp: string): Promise<string> {
+  const signature = await crypto.subtle.sign(
+    'HMAC',
+    await signingKey(),
+    encoder.encode(`${ip}\n${timestamp}`),
+  );
+  return toHex(signature);
+}
+
 export async function proxy(request: NextRequest) {
   const headers = new Headers(request.headers);
 
@@ -95,14 +117,10 @@ export async function proxy(request: NextRequest) {
     const ip = SECRET ? clientIp(request) : null;
     if (ip) {
       const timestamp = Date.now().toString();
-      const signature = await crypto.subtle.sign(
-        'HMAC',
-        await signingKey(),
-        encoder.encode(`${ip}\n${timestamp}`),
-      );
+      const signature = await edgeSignature(ip, timestamp);
       headers.set('x-edge-ip', ip);
       headers.set('x-edge-ts', timestamp);
-      headers.set('x-edge-sig', toHex(signature));
+      headers.set('x-edge-sig', signature);
     }
   } catch (error) {
     // 서명에 실패해도 요청은 살린다. 백엔드는 서명 없는 요청을 remoteAddr 로 강등할 뿐 막지 않는다.
