@@ -1,0 +1,113 @@
+import { NextResponse, type NextRequest } from 'next/server';
+
+/**
+ * 백엔드로 넘어가는 요청에 "이 요청은 Vercel 을 거쳤고 접속자는 이 IP다" 라는 서명을 붙인다.
+ *
+ * ## 왜 필요한가
+ *
+ * 백엔드의 레이트리밋(횟수 제한)은 IP 하나당 몇 회로 세는데, 그 IP를 클라이언트가 보낸 헤더에서 읽고
+ * 있었다. 헤더 한 줄만 바꾸면 매번 새 IP로 인식돼 제한이 통째로 무력해진다 — v2.41 감사에서 실증됐다.
+ * 그렇다고 헤더를 안 믿으면 백엔드가 보는 주소는 Tailscale Funnel 내부 주소 하나뿐이라 전 사용자가
+ * 제한을 공유하게 되어, 인증메일(시간당 5회)이 사실상 막힌다.
+ *
+ * ## 어떻게 푸는가
+ *
+ * Vercel 가장자리는 클라이언트가 보낸 IP 헤더를 **버리고** 진짜 접속 IP로 덮어쓴다(공식 문서: "we
+ * currently overwrite the X-Forwarded-For header and do not forward external IPs. This
+ * restriction is in place to prevent IP spoofing"). 그래서 이 파일 안에서 읽는 IP는 신뢰할 수 있다.
+ * 여기에 백엔드와 공유하는 비밀키로 HMAC 서명을 붙여 보내면, 백엔드는 서명이 맞는 요청의 IP만 쓰면 된다.
+ * 비밀키가 없는 공격자는 Funnel 주소를 직접 때려도 임의 IP의 서명을 만들 수 없다.
+ *
+ * ## 안전장치
+ *
+ * - `EDGE_SIGNING_SECRET` 이 없으면 아무것도 붙이지 않는다. 백엔드도 같은 조건에서 검증을 끄므로,
+ *   **먼저 배포해 두고 나중에 양쪽 키를 채워 켜는** 순서가 가능하다. 되돌릴 때도 키만 지우면 된다.
+ * - 어떤 예외가 나도 요청을 그대로 통과시킨다. 여기는 모든 `/api` 요청이 지나는 길목이라 오류가
+ *   곧 전면 장애다. 서명 실패의 대가는 "제한이 예전처럼 동작" 이지 "사이트가 죽음" 이 아니어야 한다.
+ * - 클라이언트가 보낸 `x-edge-*` 는 **먼저 지운다.** 서명이 붙지 않는 경우에도 위조된 값이 백엔드까지
+ *   흘러가면 안 된다.
+ *
+ * 짝이 되는 백엔드 코드: `popspot-backend/.../config/EdgeSignatureVerifier.java`
+ */
+
+export const config = {
+  // 백엔드로 넘어가는 경로만. 페이지 렌더링에는 개입하지 않는다.
+  matcher: '/api/:path*',
+};
+
+const SECRET = process.env.EDGE_SIGNING_SECRET ?? '';
+
+/** IPv6 최대 표기 길이. 비정상적으로 긴 값은 붙이지 않는다. */
+const MAX_IP_LENGTH = 45;
+
+const encoder = new TextEncoder();
+
+/**
+ * 키 객체는 만드는 비용이 있어 isolate 당 한 번만 만든다.
+ *
+ * 실패한 Promise 를 캐시하면 그 isolate 가 사는 동안 계속 실패하므로, 실패 시 캐시를 비운다.
+ */
+let cachedKey: Promise<CryptoKey> | null = null;
+
+function signingKey(): Promise<CryptoKey> {
+  if (!cachedKey) {
+    cachedKey = crypto.subtle
+      .importKey('raw', encoder.encode(SECRET), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'])
+      .catch((error) => {
+        cachedKey = null;
+        throw error;
+      });
+  }
+  return cachedKey;
+}
+
+function toHex(buffer: ArrayBuffer): string {
+  return Array.from(new Uint8Array(buffer))
+    .map((byte) => byte.toString(16).padStart(2, '0'))
+    .join('');
+}
+
+/**
+ * 접속자의 공인 IP.
+ *
+ * `x-vercel-forwarded-for` 를 먼저 본다 — 나중에 Vercel 앞에 다른 프록시(CDN 등)를 두더라도 이 값은
+ * Vercel 이 정하는 값으로 남는다. `x-forwarded-for` 는 그때 덮어써질 수 있다.
+ */
+function clientIp(request: NextRequest): string | null {
+  const raw =
+    request.headers.get('x-vercel-forwarded-for') ?? request.headers.get('x-forwarded-for');
+  if (!raw) return null;
+
+  const first = raw.split(',')[0]?.trim();
+  if (!first || first.length > MAX_IP_LENGTH) return null;
+  return first;
+}
+
+export async function proxy(request: NextRequest) {
+  const headers = new Headers(request.headers);
+
+  // 위조 시도를 먼저 걷어낸다. 아래에서 서명을 못 붙이는 경우에도 남아 있으면 안 된다.
+  headers.delete('x-edge-ip');
+  headers.delete('x-edge-ts');
+  headers.delete('x-edge-sig');
+
+  try {
+    const ip = SECRET ? clientIp(request) : null;
+    if (ip) {
+      const timestamp = Date.now().toString();
+      const signature = await crypto.subtle.sign(
+        'HMAC',
+        await signingKey(),
+        encoder.encode(`${ip}\n${timestamp}`),
+      );
+      headers.set('x-edge-ip', ip);
+      headers.set('x-edge-ts', timestamp);
+      headers.set('x-edge-sig', toHex(signature));
+    }
+  } catch (error) {
+    // 서명에 실패해도 요청은 살린다. 백엔드는 서명 없는 요청을 remoteAddr 로 강등할 뿐 막지 않는다.
+    console.error('[proxy] 엣지 서명 실패 — 서명 없이 통과시킨다', error);
+  }
+
+  return NextResponse.next({ request: { headers } });
+}
