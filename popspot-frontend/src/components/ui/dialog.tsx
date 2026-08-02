@@ -4,6 +4,7 @@ import * as React from 'react';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useLocale } from '@/lib/i18n';
 
 /**
  * Radix Dialog 기반 모달.
@@ -52,46 +53,50 @@ export interface DialogContentProps extends React.ComponentPropsWithoutRef<
 export const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   DialogContentProps
->(({ className, children, size = 'md', hideClose, ...props }, ref) => (
-  <DialogPortal>
-    <DialogOverlay />
-    <DialogPrimitive.Content
-      ref={ref}
-      className={cn(
-        'fixed left-1/2 top-1/2 z-50 -translate-x-1/2 -translate-y-1/2',
-        'w-[calc(100%-2rem)]',
-        sizeClass[size],
-        'bg-surface text-surface-foreground',
-        'border border-[var(--color-border)]',
-        'rounded-xl shadow-pop',
-        'p-6 md:p-8',
-        'max-h-[90vh] overflow-auto',
-        'focus:outline-none',
-        'data-[state=open]:animate-in data-[state=closed]:animate-out',
-        'data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
-        'data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
-        className,
-      )}
-      {...props}
-    >
-      {children}
-      {!hideClose && (
-        <DialogPrimitive.Close
-          className={cn(
-            'absolute right-4 top-4 size-8 inline-flex items-center justify-center',
-            'rounded-pill text-muted-foreground',
-            'hover:bg-foreground/5 hover:text-foreground',
-            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-            'transition-colors',
-          )}
-          aria-label="닫기"
-        >
-          <X className="size-4" />
-        </DialogPrimitive.Close>
-      )}
-    </DialogPrimitive.Content>
-  </DialogPortal>
-));
+>(({ className, children, size = 'md', hideClose, ...props }, ref) => {
+  const { locale } = useLocale();
+  const closeLabel = locale === 'en' ? 'Close' : locale === 'ja' ? '閉じる' : '닫기';
+  return (
+    <DialogPortal>
+      <DialogOverlay />
+      <DialogPrimitive.Content
+        ref={ref}
+        className={cn(
+          'fixed left-1/2 top-1/2 z-50 -translate-x-1/2 -translate-y-1/2',
+          'w-[calc(100%-2rem)]',
+          sizeClass[size],
+          'bg-surface text-surface-foreground',
+          'border border-[var(--color-border)]',
+          'rounded-xl shadow-pop',
+          'p-6 md:p-8',
+          'max-h-[90vh] overflow-auto',
+          'focus:outline-none',
+          'data-[state=open]:animate-in data-[state=closed]:animate-out',
+          'data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
+          'data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
+          className,
+        )}
+        {...props}
+      >
+        {children}
+        {!hideClose && (
+          <DialogPrimitive.Close
+            className={cn(
+              'absolute right-4 top-4 size-8 inline-flex items-center justify-center',
+              'rounded-pill text-muted-foreground',
+              'hover:bg-foreground/5 hover:text-foreground',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+              'transition-colors',
+            )}
+            aria-label={closeLabel}
+          >
+            <X className="size-4" />
+          </DialogPrimitive.Close>
+        )}
+      </DialogPrimitive.Content>
+    </DialogPortal>
+  );
+});
 DialogContent.displayName = DialogPrimitive.Content.displayName;
 
 export const DialogHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (

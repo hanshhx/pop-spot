@@ -6,6 +6,7 @@ import { Instagram } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Logo } from '@/components/layout/Logo';
 import { SectionLogo } from '@/components/layout/BrandLogos';
+import { localizedPath } from '@/lib/localePath';
 
 /**
  * X (구 Twitter) 브랜드 로고 — lucide-react 가 리브랜딩된 X 로고를 제공하지 않아 inline SVG 로 처리.
@@ -27,9 +28,6 @@ function XLogo({ className }: { className?: string }) {
  */
 
 const CONTACT_EMAIL = 'reo4321@naver.com';
-const MAIL_SUBJECT_PARTNER = 'POP-SPOT 파트너 등록 문의';
-const MAIL_SUBJECT_BUSINESS = 'POP-SPOT 비즈니스 문의';
-const MAIL_SUBJECT_AD = 'POP-SPOT 광고 안내 문의';
 
 const PLATFORM_LINKS: ReadonlyArray<{ labelKey: MessageKey; href: string }> = [
   { labelKey: 'footer.mapView', href: '/' },
@@ -45,10 +43,10 @@ const PLATFORM_LINKS: ReadonlyArray<{ labelKey: MessageKey; href: string }> = [
 const PARTNER_LINKS: ReadonlyArray<{ labelKey: MessageKey; href: string }> = [
   {
     labelKey: 'footer.partnerReg',
-    href: `mailto:${CONTACT_EMAIL}?subject=${MAIL_SUBJECT_PARTNER}`,
+    href: `mailto:${CONTACT_EMAIL}`,
   },
-  { labelKey: 'footer.business', href: `mailto:${CONTACT_EMAIL}?subject=${MAIL_SUBJECT_BUSINESS}` },
-  { labelKey: 'footer.ads', href: `mailto:${CONTACT_EMAIL}?subject=${MAIL_SUBJECT_AD}` },
+  { labelKey: 'footer.business', href: `mailto:${CONTACT_EMAIL}` },
+  { labelKey: 'footer.ads', href: `mailto:${CONTACT_EMAIL}` },
 ];
 
 interface FooterProps {
@@ -124,7 +122,27 @@ interface LinkColumnProps {
 }
 
 function LinkColumn({ title, links, external }: LinkColumnProps) {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
+  const mailSubject = (key: MessageKey) => {
+    const subjects: Record<string, Record<typeof locale, string>> = {
+      'footer.partnerReg': {
+        ko: 'POP-SPOT 파트너 등록 문의',
+        en: 'POP-SPOT partnership inquiry',
+        ja: 'POP-SPOT パートナー登録のお問い合わせ',
+      },
+      'footer.business': {
+        ko: 'POP-SPOT 비즈니스 문의',
+        en: 'POP-SPOT business inquiry',
+        ja: 'POP-SPOT ビジネスのお問い合わせ',
+      },
+      'footer.ads': {
+        ko: 'POP-SPOT 광고 안내 문의',
+        en: 'POP-SPOT advertising inquiry',
+        ja: 'POP-SPOT 広告のお問い合わせ',
+      },
+    };
+    return subjects[key]?.[locale];
+  };
   return (
     <div>
       <h4 className="font-bold mb-5 uppercase tracking-[0.15em] text-xs text-foreground">
@@ -134,13 +152,19 @@ function LinkColumn({ title, links, external }: LinkColumnProps) {
         {links.map((l) =>
           external ? (
             <li key={l.labelKey}>
-              <a href={l.href} className="hover:text-lime-500 transition-colors">
+              <a
+                href={`${l.href}?subject=${encodeURIComponent(mailSubject(l.labelKey) ?? 'POP-SPOT')}`}
+                className="hover:text-lime-500 transition-colors"
+              >
                 {t(l.labelKey)}
               </a>
             </li>
           ) : (
             <li key={l.labelKey}>
-              <Link href={l.href} className="hover:text-lime-500 transition-colors">
+              <Link
+                href={localizedPath(l.href, locale)}
+                className="hover:text-lime-500 transition-colors"
+              >
                 {t(l.labelKey)}
               </Link>
             </li>
@@ -152,7 +176,7 @@ function LinkColumn({ title, links, external }: LinkColumnProps) {
 }
 
 function DisclaimerBox() {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   return (
     <div className="mt-12 pt-8 border-t border-[var(--color-border)] text-center max-w-[1200px] mx-auto px-6">
       <div className="rounded-lg p-5 text-sm md:text-xs text-muted-foreground leading-relaxed border border-[var(--color-border)] bg-surface/50">
@@ -162,7 +186,7 @@ function DisclaimerBox() {
         </p>
         <p>
           {t('footer.noticeSource')}{' '}
-          <Link href="/terms" className="text-lime-500 hover:underline">
+          <Link href={localizedPath('/terms', locale)} className="text-lime-500 hover:underline">
             {t('footer.terms')} §10
           </Link>{' '}
           {t('footer.noticeSourceTail')}

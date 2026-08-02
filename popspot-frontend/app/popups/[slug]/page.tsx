@@ -9,6 +9,7 @@ import { localizedLabel } from '@/lib/localeLabel';
 import { bilingual } from '@/lib/bilingual';
 import type { Locale } from '@/lib/i18n';
 import { LOCALE_PATH, slugAlternates } from '@/lib/localeRoutes';
+import { localizedPath } from '@/lib/localePath';
 import { CRAWL_REFRESH_BY_LOCALE } from '@/lib/siteCopy';
 import {
   getPeriods,
@@ -97,6 +98,13 @@ type Slice =
       label: string;
       regionSlug: string;
       periodSlug: string;
+    }
+  | {
+      kind: 'category-period';
+      slug: string;
+      label: string;
+      categorySlug: string;
+      periodSlug: string;
     };
 
 // v2.21-S3 — ISR + 알 수 없는 슬러그는 404.
@@ -113,6 +121,7 @@ export function generateStaticParams() {
     ...BRANDS.map((b) => ({ slug: b.slug })),
     ...REGIONS.flatMap((r) => CATEGORIES.map((c) => ({ slug: `${r.slug}-${c.slug}` }))),
     ...REGIONS.flatMap((r) => getPeriods().map((p) => ({ slug: `${r.slug}-${p.slug}` }))),
+    ...CATEGORIES.flatMap((c) => getPeriods().map((p) => ({ slug: `${c.slug}-${p.slug}` }))),
   ];
 }
 
@@ -158,6 +167,25 @@ function resolveSlice(slug: string, locale: Locale): Slice | null {
       };
     }
   }
+  for (const cat of CATEGORIES) {
+    if (!slug.startsWith(`${cat.slug}-`)) continue;
+    const rest = slug.slice(cat.slug.length + 1);
+    const per = periodBySlug(rest);
+    if (!per) continue;
+    const label =
+      locale === 'ko'
+        ? `${L(per)} ${L(cat)}`
+        : locale === 'ja'
+          ? `${L(per)}の${L(cat)}`
+          : `${L(cat)} ${L(per)}`;
+    return {
+      kind: 'category-period',
+      slug,
+      label,
+      categorySlug: cat.slug,
+      periodSlug: per.slug,
+    };
+  }
   return null;
 }
 
@@ -177,6 +205,8 @@ function deepLinkQuery(slice: Slice): string {
       return `region=${slice.regionSlug}&category=${slice.categorySlug}`;
     case 'region-period':
       return `region=${slice.regionSlug}&period=${slice.periodSlug}`;
+    case 'category-period':
+      return `category=${slice.categorySlug}&period=${slice.periodSlug}`;
   }
 }
 
@@ -269,6 +299,12 @@ function filterBySlice(markers: Marker[], slice: Slice): Marker[] {
       return markers.filter(
         (m) =>
           classifyRegion(m.location) === slice.regionSlug &&
+          matchesPeriod(m.startDate, m.endDate, slice.periodSlug as never),
+      );
+    case 'category-period':
+      return markers.filter(
+        (m) =>
+          classifyCategory(m.category) === slice.categorySlug &&
           matchesPeriod(m.startDate, m.endDate, slice.periodSlug as never),
       );
   }
@@ -452,8 +488,8 @@ export async function sliceMetadata(slug: string, locale: Locale): Promise<Metad
   //
   // v2.53 — region 단독도 넣는다. 그전에는 지역이 0곳이어도 색인됐다(실제로 마포가 0곳이었다).
   // 데이터가 빠지면 thin page 를 제 손으로 색인시키는 구멍이라, 지금 0곳이 없다고 두면 안 된다.
-  // period·category 는 제외한다 — 시점은 날짜가 바뀌면 저절로 채워지고, 카테고리 7개는 상시 0곳이
-  // 되지 않는다.
+  // 종류와 관계없이 0곳이면 색인하지 않는다. 시점·카테고리도 데이터 변화나 분류 오류로 비게 될 수
+  // 있고, 실제로 lifestyle 카테고리가 0곳인 상태가 확인됐다. 빈 페이지를 검색 결과에 남길 근거가 없다.
   //
   // 이 판정은 if 문이라 새 슬라이스를 추가해도 타입 검사에 걸리지 않는다. 종류를 늘릴 때
   // 위의 Record 들과 달리 여기는 컴파일러가 알려주지 않으므로 직접 확인해야 한다.
@@ -461,13 +497,7 @@ export async function sliceMetadata(slug: string, locale: Locale): Promise<Metad
   // <b>app/sitemap.ts 의 방출 조건과 반드시 같은 범위여야 한다.</b> 어긋나면 v2.42 사고가 재발한다
   // (noindex 인 URL 을 sitemap 에 실어 보내 크롤 예산만 쓰게 했다).
   let robots: Metadata['robots'] | undefined;
-  if (
-    (slice.kind === 'region-category' ||
-      slice.kind === 'brand' ||
-      slice.kind === 'region-period' ||
-      slice.kind === 'region') &&
-    count === 0
-  ) {
+  if (count === 0) {
     robots = { index: false, follow: true };
   }
 
@@ -567,6 +597,7 @@ export async function SliceLandingPage({ slug, locale }: { slug: string; locale:
     brand: 'BRAND',
     'region-category': 'REGION × CATEGORY',
     'region-period': 'REGION × WHEN',
+    'category-period': 'CATEGORY × WHEN',
   };
   const kicker = kickerByKind[slice.kind];
 
@@ -674,7 +705,7 @@ export async function SliceLandingPage({ slug, locale }: { slug: string; locale:
                           "누데이크 팝업 D-3 서울 성동구 2026-07-01 ~ 2026-07-31 링크" 로 읽어
                           목록 훑기가 불가능해진다. aria-label 로 이름만 읽히게 한다. */}
                       <Link
-                        href={`/popup/${m.id}`}
+                        href={localizedPath(`/popup/${m.id}`, locale)}
                         aria-label={copy.detailAria(shownName.display ?? m.name)}
                         className="absolute inset-0 z-10 rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lime-500"
                       />
@@ -831,7 +862,8 @@ function SliceIcon({ kind }: { kind: Slice['kind'] }) {
   const cls = 'text-lime-500';
   if (kind === 'region') return <MapPin size={16} className={cls} />;
   // region-period 는 시점이 구별 축이라 달력 쪽이 맞다.
-  if (kind === 'period' || kind === 'region-period') return <Calendar size={16} className={cls} />;
+  if (kind === 'period' || kind === 'region-period' || kind === 'category-period')
+    return <Calendar size={16} className={cls} />;
   return <Tag size={16} className={cls} />;
 }
 
@@ -931,9 +963,36 @@ function CrossSell({
       }))
     : [];
 
+  // 카테고리 문맥에서는 같은 카테고리의 날짜 조합으로 바로 좁힐 수 있게 한다. 전 조합을 모든
+  // 페이지에 뿌리지 않고 현재 문맥의 5개만 연결해 검색엔진과 사용자가 같은 탐색 구조를 보게 한다.
+  const currentCategorySlug =
+    current.kind === 'category'
+      ? current.slug
+      : current.kind === 'category-period' || current.kind === 'region-category'
+        ? current.categorySlug
+        : null;
+  const categoryPeriodLinks = currentCategorySlug
+    ? getPeriods().map((p) => {
+        const cat = categoryBySlug(currentCategorySlug);
+        const label = cat
+          ? locale === 'ko'
+            ? `${L(p)} ${L(cat)}`
+            : locale === 'ja'
+              ? `${L(p)}の${L(cat)}`
+              : `${L(cat)} ${L(p)}`
+          : L(p);
+        return {
+          slug: `${currentCategorySlug}-${p.slug}`,
+          label,
+          kind: 'category-period' as const,
+        };
+      })
+    : [];
+
   // 전체 링크(SEO) — 브랜드/IP 먼저
   const links: { slug: string; label: string; kind: Slice['kind'] }[] = [
     ...regionPeriodLinks,
+    ...categoryPeriodLinks,
     ...BRANDS.map((b) => ({ slug: b.slug, label: L(b), kind: 'brand' as const })),
     ...REGIONS.map((r) => ({ slug: r.slug, label: L(r), kind: 'region' as const })),
     ...getPeriods().map((p) => ({ slug: p.slug, label: L(p), kind: 'period' as const })),

@@ -4,10 +4,12 @@ import { useEffect, useState } from 'react';
 import { useChatStore } from '../store/useChatStore';
 import MateChatModal from './MateChatModal';
 import { notify } from '@/lib/notify';
+import { useLocale } from '@/lib/i18n';
 
 // TypeScript가 MateChatModal에 어떤 값이 들어가는지 명확히 알 수 있도록
 // 컴포넌트 내부에서 사용하는 Props 타입을 인터페이스로 정의합니다.
 export default function GlobalChatManager() {
+  const { locale } = useLocale();
   const [isMounted, setIsMounted] = useState(false);
   const { activeChat, closeChat } = useChatStore();
 
@@ -33,7 +35,13 @@ export default function GlobalChatManager() {
       isAuthor={activeChat.isAuthor}
       onClose={closeChat}
       onDeleteSuccess={() => {
-        notify('채팅방이 삭제되었습니다.');
+        notify(
+          locale === 'en'
+            ? 'The chat room was deleted.'
+            : locale === 'ja'
+              ? 'チャットルームを削除しました。'
+              : '채팅방이 삭제되었습니다.',
+        );
         closeChat();
       }}
     />

@@ -6,9 +6,12 @@ import { ArrowLeft, User, Phone, Mail, KeyRound, ChevronRight, Lock } from 'luci
 import { motion, AnimatePresence } from 'framer-motion';
 import { apiFetch } from '../../src/lib/api';
 import { notify, notifyError } from '@/lib/notify';
+import { useLocale } from '@/lib/i18n';
+import { localizedPath } from '@/lib/localePath';
 
 export default function FindAccountPage() {
   const router = useRouter();
+  const { t, locale } = useLocale();
 
   // 탭: 'id'(아이디찾기) / 'pw'(비번찾기)
   const [activeTab, setActiveTab] = useState<'id' | 'pw'>('id');
@@ -42,7 +45,7 @@ export default function FindAccountPage() {
   };
 
   const handleFindId = async () => {
-    if (!name || !phone) return notify('이름과 휴대폰 번호를 입력해주세요.');
+    if (!name || !phone) return notify(t('account.needNamePhone'));
 
     setLoading(true);
     try {
@@ -50,17 +53,18 @@ export default function FindAccountPage() {
 
       if (res.ok) {
         const data = await res.json();
+        setFoundEmail(data.email ?? '');
         if (data.provider && data.provider !== 'LOCAL') {
           setProviderInfo(data.provider);
         } else {
           setProviderInfo('');
         }
       } else {
-        notify('일치하는 회원 정보가 없습니다.');
+        notify(t('account.notFound'));
       }
     } catch (e) {
       console.error(e);
-      notifyError('서버 오류가 발생했습니다.');
+      notifyError(t('signup.serverError'));
     } finally {
       setLoading(false);
     }
@@ -68,7 +72,7 @@ export default function FindAccountPage() {
 
   // 🔵 [비번 찾기 1] 소셜 회원 차단 로직
   const handleSendEmailCode = async () => {
-    if (!email || !name) return notify('이메일과 이름을 입력해주세요.');
+    if (!email || !name) return notify(t('account.needEmailName'));
 
     setLoading(true);
     try {
@@ -79,7 +83,7 @@ export default function FindAccountPage() {
       });
 
       if (res.ok) {
-        notify('인증번호가 메일로 발송되었습니다!');
+        notify(t('account.codeSent'));
         setPwStep(2);
       } else {
         const msg = await res.text();
@@ -87,15 +91,13 @@ export default function FindAccountPage() {
         if (msg.includes('SOCIAL_USER')) {
           // 예: "SOCIAL_USER:google" -> "GOOGLE" 추출
           const provider = msg.split(':')[1].toUpperCase();
-          notify(
-            `[안내] 해당 계정은 ${provider} 간편 로그인 회원입니다.\n비밀번호 찾기 대신 소셜 로그인을 이용해주세요.`,
-          );
+          notify(`${provider}: ${t('account.socialNotice')}`);
         } else {
-          notify('정보가 일치하지 않거나 존재하지 않습니다.');
+          notify(t('account.infoMismatch'));
         }
       }
     } catch (e) {
-      notifyError('서버 연결 실패');
+      notifyError(t('login.serverTitle'));
     } finally {
       setLoading(false);
     }
@@ -103,7 +105,7 @@ export default function FindAccountPage() {
 
   // 🔵 [비번 찾기 2] 인증번호 검증
   const handleVerifyCode = async () => {
-    if (!authCode) return notify('인증번호를 입력해주세요.');
+    if (!authCode) return notify(t('account.needCode'));
 
     setLoading(true);
     try {
@@ -116,10 +118,10 @@ export default function FindAccountPage() {
       if (res.ok) {
         setPwStep(3);
       } else {
-        notify('인증번호가 올바르지 않습니다.');
+        notify(t('account.invalidCode'));
       }
     } catch (e) {
-      notifyError('인증 오류');
+      notifyError(t('signup.verifyError'));
     } finally {
       setLoading(false);
     }
@@ -127,7 +129,7 @@ export default function FindAccountPage() {
 
   // 🔵 [비번 찾기 3] 비밀번호 변경
   const handleChangePassword = async () => {
-    if (!newPassword) return notify('새 비밀번호를 입력해주세요.');
+    if (!newPassword) return notify(t('account.needNewPassword'));
 
     setLoading(true);
     try {
@@ -138,13 +140,13 @@ export default function FindAccountPage() {
       });
 
       if (res.ok) {
-        notify('비밀번호가 변경되었습니다! 로그인해주세요.');
-        router.push('/login');
+        notify(t('account.passwordChanged'));
+        router.push(localizedPath('/login', locale));
       } else {
-        notifyError('변경 실패');
+        notifyError(t('account.changeFailed'));
       }
     } catch (e) {
-      notifyError('서버 오류');
+      notifyError(t('signup.serverError'));
     } finally {
       setLoading(false);
     }
@@ -165,11 +167,12 @@ export default function FindAccountPage() {
         <div className="flex items-center justify-between mb-6 md:mb-8">
           <button
             onClick={() => router.back()}
+            aria-label={t('common.back')}
             className="text-white/50 hover:text-white transition-colors p-1"
           >
             <ArrowLeft size={20} className="md:w-6 md:h-6" />
           </button>
-          <h1 className="text-xl md:text-2xl font-black tracking-tight">계정 찾기</h1>
+          <h1 className="text-xl md:text-2xl font-black tracking-tight">{t('account.title')}</h1>
           <div className="w-6" />
         </div>
 
@@ -179,13 +182,13 @@ export default function FindAccountPage() {
             onClick={() => handleTabChange('id')}
             className={`flex-1 py-2.5 md:py-3 rounded-md md:rounded-lg text-xs md:text-sm font-bold transition-all flex items-center justify-center gap-1.5 md:gap-2 ${activeTab === 'id' ? 'bg-lime-300 text-ink-900 shadow-lg' : 'text-white/50 hover:text-white'}`}
           >
-            <User size={14} className="md:w-4 md:h-4" /> 아이디 찾기
+            <User size={14} className="md:w-4 md:h-4" /> {t('account.findId')}
           </button>
           <button
             onClick={() => handleTabChange('pw')}
             className={`flex-1 py-2.5 md:py-3 rounded-md md:rounded-lg text-xs md:text-sm font-bold transition-all flex items-center justify-center gap-1.5 md:gap-2 ${activeTab === 'pw' ? 'bg-lime-300 text-ink-900 shadow-lg' : 'text-white/50 hover:text-white'}`}
           >
-            <KeyRound size={14} className="md:w-4 md:h-4" /> 비밀번호 찾기
+            <KeyRound size={14} className="md:w-4 md:h-4" /> {t('account.findPassword')}
           </button>
         </div>
 
@@ -200,12 +203,12 @@ export default function FindAccountPage() {
             >
               <div className="space-y-1">
                 <label className="text-[10px] md:text-xs text-white/50 pl-1 font-bold">
-                  이름 (닉네임)
+                  {t('account.name')}
                 </label>
                 <div className="relative">
                   <input
                     type="text"
-                    placeholder="가입한 이름"
+                    placeholder={t('account.namePlaceholder')}
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     className="w-full bg-[#222] border border-white/10 rounded-lg md:rounded-xl p-3 md:p-4 pl-10 md:pl-12 text-sm md:text-base text-white outline-none focus:border-lime-300 transition-colors"
@@ -215,7 +218,7 @@ export default function FindAccountPage() {
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] md:text-xs text-white/50 pl-1 font-bold">
-                  휴대폰 번호
+                  {t('account.phone')}
                 </label>
                 <div className="relative">
                   <input
@@ -233,7 +236,7 @@ export default function FindAccountPage() {
                 disabled={loading}
                 className="w-full bg-lime-300 hover:bg-lime-400 text-ink-900 font-bold py-3.5 md:py-4 rounded-lg md:rounded-xl transition-all disabled:opacity-50 mt-2 md:mt-4 text-sm md:text-base"
               >
-                {loading ? '찾는 중...' : '내 아이디 찾기'}
+                {loading ? t('account.searching') : t('account.findMyId')}
               </button>
             </motion.div>
           )}
@@ -249,7 +252,9 @@ export default function FindAccountPage() {
                 <Mail className="w-8 h-8 md:w-10 md:h-10" />
               </div>
               <div>
-                <p className="text-white/50 text-xs md:text-sm mb-1 md:mb-2">회원님의 아이디는</p>
+                <p className="text-white/50 text-xs md:text-sm mb-1 md:mb-2">
+                  {t('account.idLead')}
+                </p>
                 <h2 className="text-xl md:text-2xl font-black text-white break-all px-2">
                   {foundEmail}
                 </h2>
@@ -260,16 +265,20 @@ export default function FindAccountPage() {
                     <span className="text-[10px] md:text-xs text-lime-300 font-bold uppercase">
                       {providerInfo}
                     </span>
-                    <span className="text-[10px] md:text-xs text-white/60">가입 계정</span>
+                    <span className="text-[10px] md:text-xs text-white/60">
+                      {t('account.socialAccount')}
+                    </span>
                   </div>
                 )}
-                <p className="text-white/50 text-xs md:text-sm mt-3 md:mt-4">입니다.</p>
+                <p className="text-white/50 text-xs md:text-sm mt-3 md:mt-4">
+                  {t('account.idTail')}
+                </p>
               </div>
               <button
-                onClick={() => router.push('/login')}
+                onClick={() => router.push(localizedPath('/login', locale))}
                 className="w-full bg-white text-black font-bold py-3.5 md:py-4 rounded-lg md:rounded-xl hover:bg-white/90 transition-colors text-sm md:text-base"
               >
-                로그인하러 가기
+                {t('signup.goLogin')}
               </button>
             </motion.div>
           )}
@@ -285,7 +294,7 @@ export default function FindAccountPage() {
             >
               <div className="space-y-1">
                 <label className="text-[10px] md:text-xs text-white/50 pl-1 font-bold">
-                  이메일 (아이디)
+                  {t('account.email')}
                 </label>
                 <div className="relative">
                   <input
@@ -300,12 +309,12 @@ export default function FindAccountPage() {
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] md:text-xs text-white/50 pl-1 font-bold">
-                  이름 (닉네임)
+                  {t('account.name')}
                 </label>
                 <div className="relative">
                   <input
                     type="text"
-                    placeholder="가입한 이름"
+                    placeholder={t('account.namePlaceholder')}
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     className="w-full bg-[#222] border border-white/10 rounded-lg md:rounded-xl p-3 md:p-4 pl-10 md:pl-12 text-sm md:text-base text-white outline-none focus:border-lime-300"
@@ -318,7 +327,7 @@ export default function FindAccountPage() {
                 disabled={loading}
                 className="w-full bg-lime-300 hover:bg-lime-400 text-ink-900 font-bold py-3.5 md:py-4 rounded-lg md:rounded-xl mt-2 md:mt-4 flex items-center justify-center gap-2 text-sm md:text-base"
               >
-                {loading ? '확인 중...' : '인증메일 발송'}{' '}
+                {loading ? t('account.checking') : t('account.sendCode')}{' '}
                 <ChevronRight className="w-4 h-4 md:w-5 md:h-5" />
               </button>
             </motion.div>
@@ -333,9 +342,7 @@ export default function FindAccountPage() {
               className="space-y-3 md:space-y-4"
             >
               <div className="text-center mb-2 md:mb-4">
-                <p className="text-white/70 text-xs md:text-sm">
-                  이메일로 전송된 인증번호를 입력하세요.
-                </p>
+                <p className="text-white/70 text-xs md:text-sm">{t('account.codeInstruction')}</p>
                 <p className="text-lime-300 font-bold mt-1 text-sm md:text-base break-all px-2">
                   {email}
                 </p>
@@ -354,7 +361,7 @@ export default function FindAccountPage() {
                 disabled={loading}
                 className="w-full bg-lime-300 hover:bg-lime-400 text-ink-900 font-bold py-3.5 md:py-4 rounded-lg md:rounded-xl mt-2 text-sm md:text-base"
               >
-                {loading ? '확인 중...' : '인증번호 확인'}
+                {loading ? t('account.checking') : t('account.verifyCode')}
               </button>
             </motion.div>
           )}
@@ -368,12 +375,12 @@ export default function FindAccountPage() {
             >
               <div className="space-y-1">
                 <label className="text-[10px] md:text-xs text-white/50 pl-1 font-bold">
-                  새 비밀번호
+                  {t('account.newPassword')}
                 </label>
                 <div className="relative">
                   <input
                     type="password"
-                    placeholder="새 비밀번호 입력"
+                    placeholder={t('account.newPasswordPlaceholder')}
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
                     className="w-full bg-[#222] border border-white/10 rounded-lg md:rounded-xl p-3 md:p-4 pl-10 md:pl-12 text-sm md:text-base text-white outline-none focus:border-lime-300"
@@ -386,7 +393,7 @@ export default function FindAccountPage() {
                 disabled={loading}
                 className="w-full bg-lime-300 hover:bg-lime-400 text-ink-900 font-bold py-3.5 md:py-4 rounded-lg md:rounded-xl mt-2 md:mt-4 text-sm md:text-base"
               >
-                {loading ? '변경 중...' : '비밀번호 변경 완료'}
+                {loading ? t('account.changing') : t('account.changeDone')}
               </button>
             </motion.div>
           )}

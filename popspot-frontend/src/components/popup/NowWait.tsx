@@ -5,6 +5,7 @@ import { Clock, Users } from 'lucide-react';
 
 import { apiFetch } from '@/lib/api';
 import { getVisitorId } from '@/lib/visitorId';
+import { useLocale, type Locale } from '@/lib/i18n';
 
 /**
  * "지금 어때요?" — 원터치 대기 제보.
@@ -16,10 +17,67 @@ import { getVisitorId } from '@/lib/visitorId';
 type WaitStatus = { level: number | null; count: number; updatedAt: string | null };
 
 const LEVELS = [
-  { value: 0, label: '바로 입장', short: '바로 입장 가능', tone: 'lime' as const },
-  { value: 1, label: '조금 대기', short: '조금 기다려요', tone: 'amber' as const },
-  { value: 2, label: '많이 대기', short: '많이 기다려요', tone: 'rose' as const },
+  { value: 0, tone: 'lime' as const },
+  { value: 1, tone: 'amber' as const },
+  { value: 2, tone: 'rose' as const },
 ];
+
+const COPY = {
+  ko: {
+    title: '지금 어때요?',
+    reports: (n: number) => `${n}명 제보`,
+    now: '방금',
+    minutes: (n: number) => `${n}분 전`,
+    hours: (n: number) => `${n}시간 전`,
+    recent: '최근 3시간 방문자 제보',
+    empty: '아직 제보가 없어요.',
+    first: '첫 제보',
+    emptyTail: '를 남겨주시면 다음 방문자에게 큰 도움이 돼요!',
+    thanks: '고마워요! 다음 방문자에게 바로 보여요 🙌',
+    prompt: '버튼만 누르면 끝 · 로그인 없이도 참여할 수 있어요',
+    levels: [
+      ['바로 입장', '바로 입장 가능'],
+      ['조금 대기', '조금 기다려요'],
+      ['많이 대기', '많이 기다려요'],
+    ],
+  },
+  en: {
+    title: 'What is it like now?',
+    reports: (n: number) => `${n} ${n === 1 ? 'report' : 'reports'}`,
+    now: 'Just now',
+    minutes: (n: number) => `${n} min ago`,
+    hours: (n: number) => `${n} hr ago`,
+    recent: 'Reports from the last 3 hours',
+    empty: 'No reports yet.',
+    first: 'Be the first',
+    emptyTail: ' to help the next visitor.',
+    thanks: 'Thank you! The next visitor can see it now 🙌',
+    prompt: 'One tap · no login required',
+    levels: [
+      ['Walk right in', 'No wait'],
+      ['Short wait', 'A short wait'],
+      ['Long wait', 'A long wait'],
+    ],
+  },
+  ja: {
+    title: '今の待ち時間は？',
+    reports: (n: number) => `${n}件の報告`,
+    now: 'たった今',
+    minutes: (n: number) => `${n}分前`,
+    hours: (n: number) => `${n}時間前`,
+    recent: '直近3時間の訪問者情報',
+    empty: 'まだ報告がありません。',
+    first: '最初の報告',
+    emptyTail: 'を残すと、次の訪問者の助けになります。',
+    thanks: 'ありがとうございます！次の訪問者にすぐ表示されます 🙌',
+    prompt: 'ボタンを押すだけ・ログイン不要',
+    levels: [
+      ['すぐ入れる', '待ち時間なし'],
+      ['少し待つ', '少し待ちます'],
+      ['かなり待つ', 'かなり待ちます'],
+    ],
+  },
+} as const;
 
 const TONE_CLASS: Record<string, { chip: string; btn: string }> = {
   lime: {
@@ -37,17 +95,20 @@ const TONE_CLASS: Record<string, { chip: string; btn: string }> = {
 };
 
 /** "20분 전" 처럼 상대 시간으로. */
-function timeAgo(iso: string | null): string {
+function timeAgo(iso: string | null, locale: Locale): string {
   if (!iso) return '';
   const t = new Date(iso).getTime();
   if (Number.isNaN(t)) return '';
   const min = Math.max(0, Math.round((Date.now() - t) / 60000));
-  if (min < 1) return '방금';
-  if (min < 60) return `${min}분 전`;
-  return `${Math.round(min / 60)}시간 전`;
+  const copy = COPY[locale];
+  if (min < 1) return copy.now;
+  if (min < 60) return copy.minutes(min);
+  return copy.hours(Math.round(min / 60));
 }
 
 export default function NowWait({ popupId }: { popupId: number }) {
+  const { locale } = useLocale();
+  const copy = COPY[locale];
   const [status, setStatus] = useState<WaitStatus | null>(null);
   const [sending, setSending] = useState(false);
   const [thanks, setThanks] = useState(false);
@@ -94,14 +155,14 @@ export default function NowWait({ popupId }: { popupId: number }) {
   return (
     <section className="mt-8">
       <div className="mb-3 flex items-center justify-between gap-2">
-        <h2 className="text-lg font-black">지금 어때요?</h2>
+        <h2 className="text-lg font-black">{copy.title}</h2>
         {status && status.count > 0 && (
           <span className="flex items-center gap-1 text-xs text-muted-foreground">
-            <Users size={13} /> {status.count}명 제보
+            <Users size={13} /> {copy.reports(status.count)}
             {status.updatedAt && (
               <>
                 {' · '}
-                <Clock size={12} /> {timeAgo(status.updatedAt)}
+                <Clock size={12} /> {timeAgo(status.updatedAt, locale)}
               </>
             )}
           </span>
@@ -115,14 +176,14 @@ export default function NowWait({ popupId }: { popupId: number }) {
             <span
               className={`rounded-pill px-3 py-1 text-sm font-black ${TONE_CLASS[current.tone].chip}`}
             >
-              {current.short}
+              {copy.levels[current.value][1]}
             </span>
-            <span className="text-xs text-muted-foreground">최근 3시간 방문자 제보</span>
+            <span className="text-xs text-muted-foreground">{copy.recent}</span>
           </div>
         ) : (
           <p className="mb-3 text-sm text-muted-foreground">
-            아직 제보가 없어요. <b className="text-foreground">첫 제보</b>를 남겨주시면 다음
-            방문자에게 큰 도움이 돼요!
+            {copy.empty} <b className="text-foreground">{copy.first}</b>
+            {copy.emptyTail}
           </p>
         )}
 
@@ -136,18 +197,16 @@ export default function NowWait({ popupId }: { popupId: number }) {
               onClick={() => report(l.value)}
               className={`rounded-xl border border-[var(--color-border)] bg-cream-100 px-2 py-3 text-xs font-bold text-foreground transition active:scale-95 disabled:opacity-50 dark:bg-ink-800 ${TONE_CLASS[l.tone].btn}`}
             >
-              {l.label}
+              {copy.levels[l.value][0]}
             </button>
           ))}
         </div>
 
         <p className="mt-2.5 text-center text-[11px] text-muted-foreground">
           {thanks ? (
-            <span className="font-bold text-lime-600 dark:text-lime-300">
-              고마워요! 다음 방문자에게 바로 보여요 🙌
-            </span>
+            <span className="font-bold text-lime-600 dark:text-lime-300">{copy.thanks}</span>
           ) : (
-            '버튼만 누르면 끝 · 로그인 없이도 참여할 수 있어요'
+            copy.prompt
           )}
         </p>
       </div>

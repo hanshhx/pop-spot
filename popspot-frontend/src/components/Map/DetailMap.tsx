@@ -4,6 +4,7 @@ import { MapPin } from 'lucide-react';
 import { MapGL, MapMarker } from './MapGL';
 import { zoomFromLevel } from './mapStyle';
 import { useMapMode } from './useMapMode';
+import { useLocale } from '@/lib/i18n';
 
 interface DetailMapProps {
   latitude: number;
@@ -15,6 +16,13 @@ interface DetailMapProps {
  * 좌표 하나를 중심에 두고 라임 핀 하나를 찍는다. 사이트 전역 테마(다크/라이트)를 따른다.
  */
 export default function DetailMap({ latitude, longitude }: DetailMapProps) {
+  const { locale } = useLocale();
+  const labels =
+    locale === 'en'
+      ? { pin: 'Pop-up location', empty: 'Location information is unavailable.' }
+      : locale === 'ja'
+        ? { pin: 'ポップアップの場所', empty: '場所の情報がありません。' }
+        : { pin: '팝업 위치', empty: '위치 정보가 없습니다.' };
   // 사이트 테마 연동 + 테마 확정 전 렌더 보류. InteractiveMap 과 같은 훅을 쓴다. @see useMapMode
   const { mode, ready: mounted } = useMapMode();
 
@@ -30,7 +38,7 @@ export default function DetailMap({ latitude, longitude }: DetailMapProps) {
           className="w-full h-full outline-none"
         >
           <MapMarker position={{ lat: latitude, lng: longitude }} anchor="bottom">
-            <div className="relative flex flex-col items-center -mb-1" aria-label="팝업 위치">
+            <div className="relative flex flex-col items-center -mb-1" aria-label={labels.pin}>
               <div className="flex items-center justify-center size-8 rounded-full bg-lime-400 text-ink-900 shadow-lg ring-2 ring-white/70">
                 <MapPin size={16} strokeWidth={2.5} />
               </div>
@@ -40,7 +48,7 @@ export default function DetailMap({ latitude, longitude }: DetailMapProps) {
         </MapGL>
       ) : (
         <div className="w-full h-full flex items-center justify-center text-muted text-xs">
-          위치 정보가 없습니다.
+          {labels.empty}
         </div>
       )}
       {/* 지도 위를 덮는 얇은 테두리 (디자인) */}

@@ -6,6 +6,9 @@ import { Sparkles, Loader2, MapPin, ArrowRight } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import { SectionLogo } from '@/components/layout/BrandLogos';
 import { useLocale } from '@/lib/i18n';
+import { localizedPath } from '@/lib/localePath';
+import { bilingual } from '@/lib/bilingual';
+import type { PopupStore } from '@/types/popup';
 
 /**
  * AI 검색존 — 기존 Algolia 서치바를 걷어내고 자연어 'AI 검색'을 메인 검색으로 승격.
@@ -15,7 +18,10 @@ import { useLocale } from '@/lib/i18n';
  * 또렷하되, AI 답게 스파클·라임 글로우·예시 칩으로 특색을 준다.
  */
 
-type AiResult = { id: string; name: string; location: string };
+type AiResult = Pick<
+  PopupStore,
+  'name' | 'location' | 'nameEn' | 'nameJa' | 'locationEn' | 'locationJa'
+> & { id: string };
 
 interface SearchZoneProps {
   /** 이름 매칭으로 고른 팝업 → 지도에서 해당 핀으로 이동 + 정보카드 오픈. */
@@ -23,7 +29,7 @@ interface SearchZoneProps {
   /** AI 검색 결과 id 목록(또는 null=전체 복원). 지정되면 지도 핀 필터 모드. 미지정이면 결과 목록 모드. */
   onAiFilter?: (ids: string[] | null) => void;
   /** 이름 즉시검색용 팝업 목록(지도 모드). 있으면 입력 즉시 이름 부분일치 드롭다운을 띄운다. */
-  popups?: { id: number; name: string; location: string }[];
+  popups?: PopupStore[];
 }
 
 /**
@@ -41,7 +47,7 @@ const EXAMPLES = [
 ] as const;
 
 export function SearchZone({ onAiFilter, onSelectPopup, popups }: SearchZoneProps = {}) {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const [q, setQ] = useState('');
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<AiResult[] | null>(null);
@@ -55,14 +61,21 @@ export function SearchZone({ onAiFilter, onSelectPopup, popups }: SearchZoneProp
   const nameMatches = useMemo(() => {
     const low = q.trim().toLowerCase();
     if (low.length < 1 || !popups?.length) return [];
-    return popups.filter((p) => p.name?.toLowerCase().includes(low)).slice(0, 6);
+    return popups
+      .filter((p) =>
+        [p.name, p.location, p.nameEn, p.nameJa, p.locationEn, p.locationJa].some((value) =>
+          value?.toLowerCase().includes(low),
+        ),
+      )
+      .slice(0, 6);
   }, [q, popups]);
 
   const canSuggest = typeof onSelectPopup === 'function';
 
   /** 이름 매칭 결과 선택 → 지도가 그 핀으로 이동하고 카드를 연다. */
-  function pick(p: { id: number; name: string; location: string }) {
-    setQ(p.name);
+  function pick(p: PopupStore) {
+    const shownName = (locale === 'en' ? p.nameEn : locale === 'ja' ? p.nameJa : null) || p.name;
+    setQ(shownName);
     setShowSuggest(false);
     setResults(null);
     setErred(false);
@@ -79,11 +92,18 @@ export function SearchZone({ onAiFilter, onSelectPopup, popups }: SearchZoneProp
       const res = await apiFetch(`/api/search/ai?q=${encodeURIComponent(text)}`);
       const data = await res.json().catch(() => ({}));
       const list: AiResult[] = Array.isArray(data?.results)
-        ? data.results.map((r: { id: unknown; name?: string; location?: string }) => ({
-            id: String(r.id),
-            name: r.name ?? '',
-            location: r.location ?? '',
-          }))
+        ? data.results.map((r: { id: unknown; name?: string; location?: string }) => {
+            const local = popups?.find((p) => String(p.id) === String(r.id));
+            return {
+              id: String(r.id),
+              name: local?.name ?? r.name ?? '',
+              location: local?.location ?? r.location ?? '',
+              nameEn: local?.nameEn,
+              nameJa: local?.nameJa,
+              locationEn: local?.locationEn,
+              locationJa: local?.locationJa,
+            };
+          })
         : [];
       setResults(list);
       onAiFilter?.(list.map((r) => r.id));
@@ -174,32 +194,42 @@ export function SearchZone({ onAiFilter, onSelectPopup, popups }: SearchZoneProp
         {/* 이름 즉시검색 드롭다운 — 고르면 지도가 그 핀으로 이동 + 카드 오픈 */}
         {canSuggest && showSuggest && nameMatches.length > 0 && (
           <ul className="absolute left-0 right-0 top-[calc(100%+6px)] z-[60] max-h-[320px] overflow-y-auto custom-scrollbar rounded-2xl border border-[var(--color-border)] bg-surface shadow-2xl">
-            {nameMatches.map((p) => (
-              <li key={p.id}>
-                <button
-                  type="button"
-                  // input blur 로 드롭다운이 닫히기 전에 클릭이 처리되도록
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => pick(p)}
-                  className="flex w-full items-center gap-3 p-3 text-left transition-colors hover:bg-lime-300/10"
-                >
-                  <MapPin size={16} className="shrink-0 text-lime-500" />
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-bold text-foreground">
-                      {p.name}
+            {nameMatches.map((p) => {
+              const shownName = bilingual(
+                p.name,
+                locale === 'en' ? p.nameEn : locale === 'ja' ? p.nameJa : null,
+              );
+              const shownPlace = bilingual(
+                p.location,
+                locale === 'en' ? p.locationEn : locale === 'ja' ? p.locationJa : null,
+              );
+              return (
+                <li key={p.id}>
+                  <button
+                    type="button"
+                    // input blur 로 드롭다운이 닫히기 전에 클릭이 처리되도록
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => pick(p)}
+                    className="flex w-full items-center gap-3 p-3 text-left transition-colors hover:bg-lime-300/10"
+                  >
+                    <MapPin size={16} className="shrink-0 text-lime-500" />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-bold text-foreground">
+                        {shownName.display || p.name}
+                      </span>
+                      <span className="block truncate text-xs text-muted-foreground">
+                        {shownPlace.display || t('common.noLocation')}
+                      </span>
                     </span>
-                    <span className="block truncate text-xs text-muted-foreground">
-                      {p.location || t('common.noLocation')}
-                    </span>
-                  </span>
-                  {/* 지도 모드면 해당 핀으로 이동하고, 모달(글로벌 검색)에선 상세로 보낸다.
+                    {/* 지도 모드면 해당 핀으로 이동하고, 모달(글로벌 검색)에선 상세로 보낸다.
                       문구가 실제 동작과 어긋나면 사용자가 어디로 가는지 예측할 수 없다. */}
-                  <span className="shrink-0 text-[10px] font-bold text-lime-600 dark:text-lime-300">
-                    {mapMode ? t('browse.viewMap') : t('common.viewDetail')}
-                  </span>
-                </button>
-              </li>
-            ))}
+                    <span className="shrink-0 text-[10px] font-bold text-lime-600 dark:text-lime-300">
+                      {mapMode ? t('browse.viewMap') : t('common.viewDetail')}
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>
@@ -213,8 +243,16 @@ export function SearchZone({ onAiFilter, onSelectPopup, popups }: SearchZoneProp
               : count === 0
                 ? t('search.noMatch')
                 : mapMode
-                  ? `지도에 ${count}곳만 표시 중 ✨`
-                  : `${count}곳 찾았어요 ✨`}
+                  ? locale === 'ko'
+                    ? `지도에 ${count}곳만 표시 중 ✨`
+                    : locale === 'ja'
+                      ? `マップに${count}件を表示中 ✨`
+                      : `Showing ${count} on the map ✨`
+                  : locale === 'ko'
+                    ? `${count}곳 찾았어요 ✨`
+                    : locale === 'ja'
+                      ? `${count}件見つかりました ✨`
+                      : `${count} found ✨`}
           </span>
           <button
             type="button"
@@ -229,30 +267,40 @@ export function SearchZone({ onAiFilter, onSelectPopup, popups }: SearchZoneProp
       {/* 결과 목록 — 지도가 없는 모달 모드에서만(맵 모드는 지도 핀으로 표시) */}
       {!mapMode && results && results.length > 0 && (
         <ul className="mt-3 max-h-[360px] divide-y divide-[var(--color-border)] overflow-y-auto custom-scrollbar rounded-lg border border-[var(--color-border)]">
-          {results.map((r) => (
-            <li key={r.id}>
-              <Link
-                href={`/popup/${r.id}`}
-                className="group flex items-center gap-3 p-3 transition-colors hover:bg-lime-300/10"
-              >
-                <span className="shrink-0 text-lime-500">
-                  <MapPin size={16} />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-bold text-foreground group-hover:text-lime-600 dark:group-hover:text-lime-300">
-                    {r.name}
-                  </p>
-                  <p className="truncate text-xs text-muted-foreground">
-                    {r.location || t('common.noLocation')}
-                  </p>
-                </div>
-                <ArrowRight
-                  size={14}
-                  className="shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100"
-                />
-              </Link>
-            </li>
-          ))}
+          {results.map((r) => {
+            const shownName = bilingual(
+              r.name,
+              locale === 'en' ? r.nameEn : locale === 'ja' ? r.nameJa : null,
+            );
+            const shownPlace = bilingual(
+              r.location,
+              locale === 'en' ? r.locationEn : locale === 'ja' ? r.locationJa : null,
+            );
+            return (
+              <li key={r.id}>
+                <Link
+                  href={localizedPath(`/popup/${r.id}`, locale)}
+                  className="group flex items-center gap-3 p-3 transition-colors hover:bg-lime-300/10"
+                >
+                  <span className="shrink-0 text-lime-500">
+                    <MapPin size={16} />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-bold text-foreground group-hover:text-lime-600 dark:group-hover:text-lime-300">
+                      {shownName.display || r.name}
+                    </p>
+                    <p className="truncate text-xs text-muted-foreground">
+                      {shownPlace.display || t('common.noLocation')}
+                    </p>
+                  </div>
+                  <ArrowRight
+                    size={14}
+                    className="shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100"
+                  />
+                </Link>
+              </li>
+            );
+          })}
         </ul>
       )}
 

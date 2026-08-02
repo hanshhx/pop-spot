@@ -5,6 +5,44 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import { apiFetch } from '../../../src/lib/api';
 import { setAuthToken } from '../../../src/lib/authStorage';
+import { useLocale } from '@/lib/i18n';
+import { localizedPath } from '@/lib/localePath';
+
+const COPY = {
+  ko: {
+    processing: '로그인 처리 중...',
+    expired: '로그인 교환 코드가 만료되었거나 이미 사용되었습니다.',
+    noToken: '로그인 토큰을 받지 못했습니다.',
+    saving: '인증 정보 저장 중...',
+    missing: '인증 토큰을 찾을 수 없습니다.',
+    success: '로그인 성공! 메인으로 이동합니다.',
+    denied: (status: number) => `인증이 거부되었습니다 (${status}).`,
+    network: '서버에 연결하지 못했습니다.',
+    fallback: '인증 정보를 확인 중입니다...',
+  },
+  en: {
+    processing: 'Signing you in…',
+    expired: 'This sign-in code has expired or has already been used.',
+    noToken: 'The server did not return a login token.',
+    saving: 'Saving your sign-in…',
+    missing: 'No sign-in code was found.',
+    success: 'Signed in. Taking you to POP-SPOT…',
+    denied: (status: number) => `Sign-in was denied (${status}).`,
+    network: 'Could not connect to the server.',
+    fallback: 'Checking your sign-in…',
+  },
+  ja: {
+    processing: 'ログイン処理中…',
+    expired: 'ログインコードの期限が切れているか、すでに使用されています。',
+    noToken: 'ログイン情報を受け取れませんでした。',
+    saving: 'ログイン情報を保存中…',
+    missing: 'ログインコードが見つかりません。',
+    success: 'ログインしました。メイン画面へ移動します…',
+    denied: (status: number) => `ログインが拒否されました（${status}）。`,
+    network: 'サーバーに接続できませんでした。',
+    fallback: 'ログイン情報を確認中…',
+  },
+} as const;
 
 // OAuth 콜백 페이지의 자동 리다이렉트 타이밍.
 // 짧으면 사용자가 메시지를 못 읽고, 길면 답답함. UX 테스트로 잡은 값.
@@ -15,7 +53,9 @@ const AUTH_FAILURE_REDIRECT_MS = 3000;
 function CallbackContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [status, setStatus] = useState('로그인 처리 중...');
+  const { locale } = useLocale();
+  const copy = COPY[locale];
+  const [status, setStatus] = useState<string>(copy.processing);
   const hasFetched = useRef(false); // React StrictMode 이중 호출 방지용
 
   useEffect(() => {
@@ -36,23 +76,23 @@ function CallbackContent() {
         if (exchangeCode) {
           // 신규(보안) 흐름: 1회성 교환코드를 서버에서 토큰으로 교환.
           // 보안: 코드를 URL/히스토리에서 즉시 제거 (프록시 로그·뒤로가기 노출 최소화).
-          window.history.replaceState({}, '', '/oauth/callback');
+          window.history.replaceState({}, '', localizedPath('/oauth/callback', locale));
           const exchangeResponse = await apiFetch('/api/v1/auth/oauth/exchange', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ code: exchangeCode }),
           });
           if (!exchangeResponse.ok) {
-            throw new Error('로그인 교환 코드가 만료되었거나 이미 사용되었습니다.');
+            throw new Error(copy.expired);
           }
           const exchangeBody = (await exchangeResponse.json()) as { token?: string };
-          if (!exchangeBody.token) throw new Error('로그인 토큰을 받지 못했습니다.');
+          if (!exchangeBody.token) throw new Error(copy.noToken);
           setAuthToken(exchangeBody.token);
-          setStatus('인증 정보 저장 중...');
+          setStatus(copy.saving);
         } else {
           // 교환코드가 없으면 정상 진입이 아니다.
-          setStatus('인증 토큰을 찾을 수 없습니다.');
-          setTimeout(() => router.push('/login'), AUTH_ERROR_REDIRECT_MS);
+          setStatus(copy.missing);
+          setTimeout(() => router.push(localizedPath('/login', locale)), AUTH_ERROR_REDIRECT_MS);
           return;
         }
 
@@ -75,26 +115,24 @@ function CallbackContent() {
           localStorage.setItem('user', JSON.stringify(realUser));
 
           // 5. 로그인 성공 처리 (인트로 미들웨어 우회 — 메인 직행)
-          setStatus('로그인 성공! 메인으로 이동합니다.');
+          setStatus(copy.success);
           setTimeout(() => {
-            window.location.href = '/?entered=1';
+            window.location.href = localizedPath('/?entered=1', locale);
           }, AUTH_SUCCESS_REDIRECT_MS);
         } else {
           // 백엔드가 401 에러 등을 보내면, 에러 메시지를 까서 보여줍니다.
-          const errorText = await res.text();
-          setStatus(`인증 거부됨: ${res.status} - ${errorText}`);
-          setTimeout(() => router.push('/login'), AUTH_FAILURE_REDIRECT_MS);
+          setStatus(copy.denied(res.status));
+          setTimeout(() => router.push(localizedPath('/login', locale)), AUTH_FAILURE_REDIRECT_MS);
         }
       } catch (error) {
         console.error('Fetch API 에러:', error);
-        const message = error instanceof Error ? error.message : String(error);
-        setStatus(`서버 연결 차단됨: ${message}`);
-        setTimeout(() => router.push('/login'), AUTH_FAILURE_REDIRECT_MS);
+        setStatus(error instanceof Error && error.message ? error.message : copy.network);
+        setTimeout(() => router.push(localizedPath('/login', locale)), AUTH_FAILURE_REDIRECT_MS);
       }
     };
 
     fetchUserInfo();
-  }, [router, searchParams]);
+  }, [router, searchParams, locale, copy]);
 
   return (
     <div className="flex flex-col items-center gap-3 md:gap-4 px-4 text-center">
@@ -105,14 +143,13 @@ function CallbackContent() {
 }
 
 export default function OAuthCallbackPage() {
+  const { locale } = useLocale();
   return (
     <div className="min-h-screen flex items-center justify-center bg-black p-4">
       {/* [구조 해석] useSearchParams를 사용하기 위해 Suspense로 감싸는 기존 구조를 유지합니다. */}
       <Suspense
         fallback={
-          <div className="text-white text-sm md:text-base font-medium">
-            인증 정보를 확인 중입니다...
-          </div>
+          <div className="text-white text-sm md:text-base font-medium">{COPY[locale].fallback}</div>
         }
       >
         <CallbackContent />

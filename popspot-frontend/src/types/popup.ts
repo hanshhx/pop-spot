@@ -47,6 +47,11 @@ export interface PopupStore {
   id: number;
   name: string;
   location: string;
+  /** 외국어 화면용 표시명. 비어 있으면 한국어 원문을 함께 보여준다. */
+  nameEn?: string | null;
+  nameJa?: string | null;
+  locationEn?: string | null;
+  locationJa?: string | null;
   status: string;
   viewCount: number;
   prevRank?: number;

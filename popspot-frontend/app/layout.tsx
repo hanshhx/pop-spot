@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next';
+import { headers } from 'next/headers';
 import './globals.css';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { Analytics } from '@vercel/analytics/next';
@@ -98,30 +99,40 @@ export const metadata: Metadata = {
  * v2.17 — JSON-LD 구조화 데이터.
  * 검색 결과에 sitelinks search box / 조직 정보 풍부도 향상.
  */
-const JSON_LD = {
-  '@context': 'https://schema.org',
-  '@graph': [
-    {
-      '@type': 'WebSite',
-      name: 'POP-SPOT',
-      url: 'https://popspot.co.kr',
-      description: '서울 팝업스토어 정보를 모아 안내하는 서비스',
-      inLanguage: 'ko-KR',
-      potentialAction: {
-        '@type': 'SearchAction',
-        target: 'https://popspot.co.kr/?q={search_term_string}',
-        'query-input': 'required name=search_term_string',
+function jsonLdFor(locale: 'ko' | 'en' | 'ja') {
+  const description = {
+    ko: '서울 팝업스토어 정보를 모아 안내하는 서비스',
+    en: 'A guide to pop-up stores across Seoul',
+    ja: 'ソウルのポップアップストア情報をまとめた案内サービス',
+  }[locale];
+  const inLanguage = { ko: 'ko-KR', en: 'en-US', ja: 'ja-JP' }[locale];
+  const localePath = locale === 'ko' ? '' : `/${locale}`;
+
+  return {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'WebSite',
+        name: 'POP-SPOT',
+        url: 'https://popspot.co.kr',
+        description,
+        inLanguage,
+        potentialAction: {
+          '@type': 'SearchAction',
+          target: `https://popspot.co.kr${localePath}/?q={search_term_string}`,
+          'query-input': 'required name=search_term_string',
+        },
       },
-    },
-    {
-      '@type': 'Organization',
-      name: 'POP-SPOT',
-      url: 'https://popspot.co.kr',
-      logo: 'https://popspot.co.kr/og-image.png',
-      sameAs: [],
-    },
-  ],
-};
+      {
+        '@type': 'Organization',
+        name: 'POP-SPOT',
+        url: 'https://popspot.co.kr',
+        logo: 'https://popspot.co.kr/og-image.png',
+        sameAs: [],
+      },
+    ],
+  };
+}
 
 export const viewport: Viewport = {
   themeColor: [
@@ -132,35 +143,33 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const requestHeaders = await headers();
+  const headerLocale = requestHeaders.get('x-popspot-locale');
+  const locale = headerLocale === 'en' || headerLocale === 'ja' ? headerLocale : 'ko';
+  const jsonLd = jsonLdFor(locale);
+
   return (
-    /*
-     * lang 은 여기(루트 레이아웃)에만 있어 하위 레이아웃이 덮을 수 없다. 그래서 /en·/ja 도 서버가
-     * 보내는 HTML 에는 "ko" 가 실린다. LocaleProvider 가 브라우저에서 바로 고치므로 스크린리더·
-     * 실사용자에게는 맞는 값이 간다.
-     *
-     * 굳이 서버 단계에서 맞추려면 라우트 그룹으로 루트 레이아웃을 언어마다 따로 두어야 하는데,
-     * 기존 244개 페이지를 전부 옮기고 레이아웃을 복제해야 한다. 구글은 언어 판정에 이 속성을 쓰지
-     * 않는다고 명시하고(hreflang 과 본문을 본다) 그 둘은 이미 언어별로 정확하므로, 지금은 위험 대비
-     * 얻는 것이 작다고 보고 두었다.
-     */
-    <html lang="ko" suppressHydrationWarning>
+    /* Proxy가 주소의 /en·/ja 접두어를 요청 헤더로 넘긴다. 루트 레이아웃에서 이를 읽어 서버가 보내는
+       첫 HTML부터 올바른 lang과 언어별 JSON-LD를 넣는다. 브라우저에서 뒤늦게 바꾸는 방식은
+       화면 낭독기와 자바스크립트를 적게 실행하는 검색로봇이 한국어 문서로 오인할 수 있다. */
+    <html lang={locale} suppressHydrationWarning>
       <head>
         {/* v2.17 — JSON-LD 구조화 데이터 (WebSite + Organization). 검색 결과 풍부도 ↑. */}
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON_LD) }}
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c') }}
         />
       </head>
       <body className="font-sans antialiased">
         <Providers>
           {/* 언어는 앱 전체가 하나를 공유해야 한다 — 컴포넌트마다 훅을 따로 부르면 상태가 갈려
               홈에서 바꿔도 일부 영역만 그대로 남는다(경위는 i18n.tsx 주석). */}
-          <LocaleProvider>
+          <LocaleProvider initialLocale={locale}>
             <AuthGuard>
               <MusicPlayerProvider>
                 {children}

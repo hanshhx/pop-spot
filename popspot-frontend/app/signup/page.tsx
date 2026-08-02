@@ -9,6 +9,8 @@ import Swal from 'sweetalert2';
 import { apiFetch } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input, Field } from '@/components/ui/input';
+import { useLocale } from '@/lib/i18n';
+import { localizedPath } from '@/lib/localePath';
 
 // 이메일 인증번호 유효 시간 카운트다운의 틱 주기 (1초).
 const COUNTDOWN_TICK_MS = 1000;
@@ -64,6 +66,7 @@ function BirthSelect({
 
 export default function SignupPage() {
   const router = useRouter();
+  const { t, locale } = useLocale();
   const searchParams = useSearchParams();
   /** 인트로/메인에서 게스트 7일 만료 후 강제 리다이렉트된 경우 안내 배너를 띄운다. */
   const guestExpired = searchParams.get('reason') === 'guest_expired';
@@ -177,11 +180,11 @@ export default function SignupPage() {
 
   const handleSendAuth = async () => {
     if (!formData.email) {
-      Swal.fire({ icon: 'warning', title: '이메일을 입력해주세요' });
+      Swal.fire({ icon: 'warning', title: t('signup.enterEmail') });
       return;
     }
     if (!isValidEmail) {
-      Swal.fire({ icon: 'warning', title: '이메일 형식이 올바르지 않습니다' });
+      Swal.fire({ icon: 'warning', title: t('signup.invalidEmail') });
       return;
     }
 
@@ -195,18 +198,18 @@ export default function SignupPage() {
         setTimer(300); // Redis 5분
         Swal.fire({
           icon: 'success',
-          title: '인증번호 발송 완료',
-          text: '메일함을 확인해주세요.',
+          title: t('signup.sentTitle'),
+          text: t('signup.checkInbox'),
         });
       } else {
         Swal.fire({
           icon: 'error',
-          title: '메일 전송 실패',
-          text: '이미 가입된 이메일이거나 서버 오류입니다.',
+          title: t('signup.sendFailed'),
+          text: t('signup.sendFailedText'),
         });
       }
     } catch {
-      Swal.fire({ icon: 'error', title: '서버 연결 오류' });
+      Swal.fire({ icon: 'error', title: t('signup.connectionError') });
     }
   };
 
@@ -225,19 +228,19 @@ export default function SignupPage() {
         setIsAuthVerified(true);
         Swal.fire({
           icon: 'success',
-          title: '이메일 인증 완료',
+          title: t('signup.verifiedTitle'),
           showConfirmButton: false,
           timer: 1200,
         });
       } else {
         Swal.fire({
           icon: 'error',
-          title: '인증 실패',
-          text: '인증번호가 일치하지 않습니다.',
+          title: t('signup.verifyFailed'),
+          text: t('signup.codeMismatch'),
         });
       }
     } catch {
-      Swal.fire({ icon: 'error', title: '인증 오류' });
+      Swal.fire({ icon: 'error', title: t('signup.verifyError') });
     }
   };
 
@@ -245,8 +248,8 @@ export default function SignupPage() {
     if (!isFormValid) {
       Swal.fire({
         icon: 'warning',
-        title: '입력 정보를 확인해주세요',
-        text: '필수 약관 동의와 인증을 완료해주세요.',
+        title: t('signup.checkForm'),
+        text: t('signup.checkFormText'),
       });
       return;
     }
@@ -257,7 +260,7 @@ export default function SignupPage() {
       // 메시지 노출 없이 조용히 실패 처리 — 진짜 봇이면 실패 사실 자체를 숨김.
       await Swal.fire({
         icon: 'info',
-        title: '잠시 후 다시 시도해 주세요',
+        title: t('signup.retry'),
       });
       return;
     }
@@ -274,19 +277,17 @@ export default function SignupPage() {
       if (res.ok) {
         await Swal.fire({
           icon: 'success',
-          title: '환영합니다',
-          text:
-            '회원가입이 완료되었습니다. 로그인 후 헤더의 프로필을 눌러' +
-            ' 닉네임과 프로필 사진을 변경하실 수 있습니다.',
-          confirmButtonText: '로그인하러 가기',
+          title: t('signup.welcome'),
+          text: t('signup.completeText'),
+          confirmButtonText: t('signup.goLogin'),
         });
-        router.push('/login');
+        router.push(localizedPath('/login', locale));
       } else {
         const msg = await res.text();
-        Swal.fire({ icon: 'error', title: '가입 실패', text: msg });
+        Swal.fire({ icon: 'error', title: t('signup.failed'), text: msg });
       }
     } catch {
-      Swal.fire({ icon: 'error', title: '서버 오류가 발생했습니다' });
+      Swal.fire({ icon: 'error', title: t('signup.serverError') });
     }
   };
 
@@ -305,12 +306,16 @@ export default function SignupPage() {
         <button
           type="button"
           onClick={() => router.back()}
-          aria-label="뒤로가기"
+          aria-label={t('common.back')}
           className="absolute left-0 size-8 inline-flex items-center justify-center text-cream-200/60 hover:text-cream-200 transition-colors"
         >
           <ChevronLeft className="size-6" aria-hidden />
         </button>
-        <button type="button" onClick={() => router.push('/')} className="w-full text-center">
+        <button
+          type="button"
+          onClick={() => router.push(localizedPath('/', locale))}
+          className="w-full text-center"
+        >
           <h1 className="font-display-en text-2xl md:text-3xl font-extrabold tracking-tighter">
             POP-SPOT<span className="text-lime-300">.</span>
           </h1>
@@ -319,9 +324,9 @@ export default function SignupPage() {
 
       {guestExpired && (
         <div className="w-full max-w-[460px] md:max-w-[540px] mb-6 rounded-2xl bg-lime-300/15 ring-1 ring-lime-300/40 px-5 py-4">
-          <p className="font-bold text-lime-300 mb-1">7일 무료 체험이 끝났어요</p>
+          <p className="font-bold text-lime-300 mb-1">{t('signup.guestExpiredTitle')}</p>
           <p className="text-sm leading-relaxed text-cream-200/85">
-            계속 POP-SPOT 을 이용하시려면 회원가입을 해주세요. 30초면 끝나요.
+            {t('signup.guestExpiredText')}
           </p>
         </div>
       )}
@@ -341,11 +346,11 @@ export default function SignupPage() {
 
         {/* 이메일 */}
         <Field
-          label={<span className="text-cream-200/70">이메일 (아이디)</span>}
+          label={<span className="text-cream-200/70">{t('signup.email')}</span>}
           error={
             formData.email.length > 0 && !isValidEmail && !isAuthVerified ? (
               <span className="flex items-center gap-1">
-                <XCircle className="size-3" /> 올바른 이메일 형식이 아닙니다.
+                <XCircle className="size-3" /> {t('signup.emailInvalid')}
               </span>
             ) : undefined
           }
@@ -370,7 +375,7 @@ export default function SignupPage() {
               disabled={isAuthVerified}
               className="shrink-0"
             >
-              {isAuthVerified ? '인증완료' : '인증하기'}
+              {isAuthVerified ? t('signup.verified') : t('signup.verify')}
             </Button>
           </div>
         </Field>
@@ -382,7 +387,7 @@ export default function SignupPage() {
               <Input
                 name="authCode"
                 type="text"
-                placeholder="인증번호 6자리"
+                placeholder={t('signup.codePlaceholder')}
                 onChange={handleChange}
                 inputMode="numeric"
                 maxLength={6}
@@ -399,25 +404,25 @@ export default function SignupPage() {
               onClick={handleVerifyAuth}
               className="shrink-0"
             >
-              확인
+              {t('signup.confirm')}
             </Button>
           </div>
         )}
 
         {/* 비밀번호 */}
         <Field
-          label={<span className="text-cream-200/70">비밀번호</span>}
+          label={<span className="text-cream-200/70">{t('signup.password')}</span>}
           error={
             formData.password.length > 0 && !isValidPassword ? (
               <span className="flex items-center gap-1">
-                <XCircle className="size-3" /> 영문, 숫자, 특수문자를 포함해 8~20자로 입력해주세요.
+                <XCircle className="size-3" /> {t('signup.passwordRule')}
               </span>
             ) : undefined
           }
           helper={
             formData.password.length > 0 && isValidPassword ? (
               <span className="flex items-center gap-1 text-success">
-                <CheckCircle2 className="size-3" /> 안전한 비밀번호입니다.
+                <CheckCircle2 className="size-3" /> {t('signup.passwordSafe')}
               </span>
             ) : undefined
           }
@@ -425,7 +430,7 @@ export default function SignupPage() {
           <Input
             name="password"
             type={showPassword ? 'text' : 'password'}
-            placeholder="영문, 숫자, 특수문자 포함 8~20자"
+            placeholder={t('signup.passwordPlaceholder')}
             value={formData.password}
             onChange={handleChange}
             invalid={formData.password.length > 0 && !isValidPassword}
@@ -435,7 +440,7 @@ export default function SignupPage() {
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                aria-label={showPassword ? '비밀번호 숨기기' : '비밀번호 보기'}
+                aria-label={showPassword ? t('login.hidePassword') : t('login.showPassword')}
                 className="text-cream-200/50 hover:text-cream-200 transition-colors"
               >
                 {/* state-icon 컨벤션 — 눈 뜸 = 현재 보이는 상태, 눈 감김 = 현재 가려진 상태. */}
@@ -451,18 +456,18 @@ export default function SignupPage() {
 
         {/* 비밀번호 확인 */}
         <Field
-          label={<span className="text-cream-200/70">비밀번호 확인</span>}
+          label={<span className="text-cream-200/70">{t('signup.passwordConfirm')}</span>}
           error={
             isPasswordMismatch ? (
               <span className="flex items-center gap-1">
-                <XCircle className="size-3" /> 비밀번호가 일치하지 않습니다.
+                <XCircle className="size-3" /> {t('signup.passwordMismatch')}
               </span>
             ) : undefined
           }
           helper={
             isPasswordMatch ? (
               <span className="flex items-center gap-1 text-success">
-                <CheckCircle2 className="size-3" /> 비밀번호가 일치합니다.
+                <CheckCircle2 className="size-3" /> {t('signup.passwordMatch')}
               </span>
             ) : undefined
           }
@@ -470,7 +475,7 @@ export default function SignupPage() {
           <Input
             name="passwordConfirm"
             type={showPasswordConfirm ? 'text' : 'password'}
-            placeholder="비밀번호를 한 번 더 입력해주세요"
+            placeholder={t('signup.passwordConfirmPlaceholder')}
             value={formData.passwordConfirm}
             onChange={handleChange}
             invalid={isPasswordMismatch}
@@ -480,7 +485,7 @@ export default function SignupPage() {
               <button
                 type="button"
                 onClick={() => setShowPasswordConfirm(!showPasswordConfirm)}
-                aria-label={showPasswordConfirm ? '비밀번호 숨기기' : '비밀번호 보기'}
+                aria-label={showPasswordConfirm ? t('login.hidePassword') : t('login.showPassword')}
                 className="text-cream-200/50 hover:text-cream-200 transition-colors"
               >
                 {/* state-icon — 눈 뜸 = 현재 보이는 상태, 눈 감김 = 현재 가려진 상태. */}
@@ -496,18 +501,18 @@ export default function SignupPage() {
 
         {/* 이름 (닉네임) */}
         <Field
-          label={<span className="text-cream-200/70">이름 (닉네임)</span>}
+          label={<span className="text-cream-200/70">{t('signup.name')}</span>}
           error={
             formData.name.length > 0 && !isValidName ? (
               <span className="flex items-center gap-1">
-                <XCircle className="size-3" /> 한글, 영문, 숫자 2~8자리만 가능합니다.
+                <XCircle className="size-3" /> {t('signup.nameRule')}
               </span>
             ) : undefined
           }
           helper={
             formData.name.length > 0 && isValidName ? (
               <span className="flex items-center gap-1 text-success">
-                <CheckCircle2 className="size-3" /> 사용 가능한 이름입니다.
+                <CheckCircle2 className="size-3" /> {t('signup.nameAvailable')}
               </span>
             ) : undefined
           }
@@ -516,7 +521,7 @@ export default function SignupPage() {
             name="name"
             type="text"
             maxLength={8}
-            placeholder="특수문자 제외 2~8글자"
+            placeholder={t('signup.namePlaceholder')}
             value={formData.name}
             onChange={handleChange}
             invalid={formData.name.length > 0 && !isValidName}
@@ -525,45 +530,45 @@ export default function SignupPage() {
         </Field>
 
         {/* 생년월일 — 연 / 월 / 일 모두 select 로 통일 (유효성 사전 차단 + 입력 일관성). */}
-        <Field label={<span className="text-cream-200/70">생년월일</span>}>
+        <Field label={<span className="text-cream-200/70">{t('signup.birthdate')}</span>}>
           <div className="grid grid-cols-3 gap-2">
             <BirthSelect
-              ariaLabel="연도"
-              placeholder="연도"
+              ariaLabel={t('signup.year')}
+              placeholder={t('signup.year')}
               value={birthYear}
               onChange={setBirthYear}
               options={BIRTH_YEAR_OPTIONS}
-              suffix="년"
+              suffix={t('signup.yearSuffix')}
             />
             <BirthSelect
-              ariaLabel="월"
-              placeholder="월"
+              ariaLabel={t('signup.month')}
+              placeholder={t('signup.month')}
               value={birthMonth}
               onChange={setBirthMonth}
               options={BIRTH_MONTH_OPTIONS}
-              suffix="월"
+              suffix={t('signup.monthSuffix')}
             />
             <BirthSelect
-              ariaLabel="일"
-              placeholder="일"
+              ariaLabel={t('signup.day')}
+              placeholder={t('signup.day')}
               value={birthDay}
               onChange={setBirthDay}
               options={BIRTH_DAY_OPTIONS}
-              suffix="일"
+              suffix={t('signup.daySuffix')}
             />
           </div>
         </Field>
 
         {/* 성별 — 토글 */}
-        <Field label={<span className="text-cream-200/70">성별</span>}>
+        <Field label={<span className="text-cream-200/70">{t('signup.gender')}</span>}>
           <div
             className="inline-flex w-full rounded-md overflow-hidden border border-cream-200/15 bg-ink-800"
             role="radiogroup"
-            aria-label="성별"
+            aria-label={t('signup.gender')}
           >
             {[
-              { v: 'M', label: '남자' },
-              { v: 'F', label: '여자' },
+              { v: 'M', label: t('signup.male') },
+              { v: 'F', label: t('signup.female') },
             ].map((g) => {
               const active = formData.gender === g.v;
               return (
@@ -588,18 +593,18 @@ export default function SignupPage() {
 
         {/* 휴대전화 */}
         <Field
-          label={<span className="text-cream-200/70">휴대전화</span>}
+          label={<span className="text-cream-200/70">{t('signup.phone')}</span>}
           error={
             formData.phoneNumber.length > 0 && !isValidPhone ? (
               <span className="flex items-center gap-1">
-                <XCircle className="size-3" /> 010으로 시작하는 11자리 숫자만 입력 가능합니다.
+                <XCircle className="size-3" /> {t('signup.phoneRule')}
               </span>
             ) : undefined
           }
           helper={
             formData.phoneNumber.length > 0 && isValidPhone ? (
               <span className="flex items-center gap-1 text-success">
-                <CheckCircle2 className="size-3" /> 올바른 전화번호 형식입니다.
+                <CheckCircle2 className="size-3" /> {t('signup.phoneValid')}
               </span>
             ) : undefined
           }
@@ -607,7 +612,7 @@ export default function SignupPage() {
           <Input
             name="phoneNumber"
             type="text"
-            placeholder="01012345678 (- 제외)"
+            placeholder="01012345678"
             value={formData.phoneNumber}
             onChange={handleChange}
             invalid={formData.phoneNumber.length > 0 && !isValidPhone}
@@ -620,10 +625,7 @@ export default function SignupPage() {
 
         {/* 약관 동의 */}
         <div className="bg-ink-800 p-4 rounded-md border border-cream-200/15 space-y-3 mt-6">
-          <p className="text-xs text-cream-200/60 pb-2 leading-relaxed">
-            POP-SPOT 은 <strong className="text-cream-200">만 14세 이상</strong>만 가입할 수
-            있습니다. 가입을 진행하면 본인이 만 14세 이상임을 확인한 것으로 봅니다.
-          </p>
+          <p className="text-xs text-cream-200/60 pb-2 leading-relaxed">{t('signup.ageNotice')}</p>
           <label className="flex items-center gap-3 cursor-pointer pb-3 border-b border-cream-200/10 select-none">
             <input
               type="checkbox"
@@ -639,19 +641,19 @@ export default function SignupPage() {
             >
               {isAllAgreed && <Check className="size-3 text-ink-900" />}
             </span>
-            <span className="font-bold text-sm text-cream-200">전체 약관에 동의합니다</span>
+            <span className="font-bold text-sm text-cream-200">{t('signup.agreeAll')}</span>
           </label>
 
           {[
             {
               key: 'terms' as const,
-              label: '[필수] POP-SPOT 서비스 이용약관',
-              href: '/terms',
+              label: t('signup.termsRequired'),
+              href: localizedPath('/terms', locale),
             },
             {
               key: 'privacy' as const,
-              label: '[필수] 개인정보 수집 및 이용 (만 14세 이상)',
-              href: '/privacy',
+              label: t('signup.privacyRequired'),
+              href: localizedPath('/privacy', locale),
             },
           ].map((item) => (
             <div key={item.key} className="flex items-center justify-between gap-3">
@@ -680,9 +682,9 @@ export default function SignupPage() {
                 target="_blank"
                 rel="noopener noreferrer"
                 className="shrink-0 inline-flex items-center gap-1 text-[11px] text-cream-200/50 hover:text-lime-300 transition-colors underline underline-offset-2"
-                aria-label={`${item.label} 보기 (새 탭)`}
+                aria-label={`${item.label} — ${t('signup.viewNewTab')}`}
               >
-                보기
+                {t('signup.view')}
                 <ExternalLink className="size-2.5" aria-hidden />
               </Link>
             </div>
@@ -698,7 +700,7 @@ export default function SignupPage() {
           disabled={!isFormValid}
           className="mt-6"
         >
-          POP-SPOT 시작하기
+          {t('signup.start')}
         </Button>
       </div>
     </div>

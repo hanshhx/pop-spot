@@ -7,6 +7,7 @@ import { Music2, Play, Sparkles } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import { MusicTrack } from '@/types/music';
 import { useMusicPlayer } from './MusicPlayerProvider';
+import { useLocale } from '@/lib/i18n';
 
 interface TrackMatch {
   track: MusicTrack;
@@ -23,6 +24,13 @@ interface Props {
  * 백엔드 GET /api/music/by-popup/{id} 호출 → 곡 카드 목록 + 인라인 플레이어.
  */
 export default function MusicForPopup({ popupId }: Props) {
+  const { locale } = useLocale();
+  const copy =
+    locale === 'en'
+      ? { title: 'Music for this pop-up', ai: 'AI match', score: 'Match' }
+      : locale === 'ja'
+        ? { title: 'このポップアップに合う曲', ai: 'AIマッチ', score: '一致度' }
+        : { title: '이 팝업과 어울리는 곡', ai: 'AI 매칭', score: '매칭' };
   const player = useMusicPlayer();
   const [matches, setMatches] = useState<TrackMatch[]>([]);
   const [loading, setLoading] = useState(true);
@@ -61,10 +69,10 @@ export default function MusicForPopup({ popupId }: Props) {
         <header className="mb-4 flex items-center gap-2">
           <Sparkles className="h-4 w-4 text-lime-500" />
           <h3 className="text-sm font-black uppercase tracking-widest text-foreground">
-            이 팝업과 어울리는 곡
+            {copy.title}
           </h3>
           <span className="ml-auto rounded-full bg-foreground/5 px-2 py-0.5 text-[10px] font-bold text-muted-foreground">
-            AI 매칭
+            {copy.ai}
           </span>
         </header>
 
@@ -102,7 +110,7 @@ export default function MusicForPopup({ popupId }: Props) {
                 <div className="absolute inset-0 flex items-end bg-gradient-to-t from-black/80 to-transparent opacity-0 transition group-hover:opacity-100">
                   <div className="flex w-full items-center justify-between p-2">
                     <span className="rounded-full bg-lime-300 px-2 py-0.5 text-[9px] font-bold text-ink-900">
-                      매칭 {m.score}%
+                      {copy.score} {m.score}%
                     </span>
                     <span className="grid h-8 w-8 place-items-center rounded-full bg-lime-300 text-ink-900 shadow-lg transition group-hover:scale-110">
                       <Play className="ml-0.5 h-3.5 w-3.5" fill="currentColor" />

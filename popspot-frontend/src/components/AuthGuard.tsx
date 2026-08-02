@@ -7,6 +7,8 @@ import { Loader2 } from 'lucide-react';
 import { apiFetch, AUTH_EXPIRED_EVENT } from '@/lib/api';
 import { clearAuthToken, getAuthToken } from '@/lib/authStorage';
 import { notifyWarning } from '@/lib/notify';
+import { useLocale } from '@/lib/i18n';
+import { localizedPath } from '@/lib/localePath';
 
 // 인증 불필요 공개 경로 — 정확 일치. (sitemap 포함 페이지 + 인증 흐름 페이지)
 const PUBLIC_PATHS = [
@@ -53,9 +55,23 @@ function stripLocale(pathname: string): string {
 
 const USER_KEY = 'user';
 
-const EXPIRED_NOTICE_TITLE = '로그인이 만료되었습니다';
-const EXPIRED_NOTICE_TEXT =
-  '보안을 위해 일정 시간이 지나면 자동으로 로그아웃됩니다. 다시 로그인하시면 찜·저장한 코스·여권이 그대로 있습니다.';
+const EXPIRED_COPY = {
+  ko: {
+    title: '로그인이 만료되었습니다',
+    text: '보안을 위해 일정 시간이 지나면 자동으로 로그아웃됩니다. 다시 로그인하시면 찜·저장한 코스·여권이 그대로 있습니다.',
+    loading: '불러오는 중...',
+  },
+  en: {
+    title: 'Your session has expired',
+    text: 'For your security, POP-SPOT signs you out after a while. Log in again to find your saved pop-ups, routes, and passport unchanged.',
+    loading: 'Loading…',
+  },
+  ja: {
+    title: 'ログインの有効期限が切れました',
+    text: '安全のため、一定時間が経つと自動的にログアウトします。再度ログインすると、保存したポップアップ・コース・パスポートをそのまま確認できます。',
+    loading: '読み込み中…',
+  },
+} as const;
 
 /**
  * 공개 경로 판정 — 정확 일치 또는 공개 prefix. pathname 불명 시 공개로 간주(막지 않음).
@@ -71,10 +87,11 @@ export function isPublicPath(pathname: string | null): boolean {
 }
 
 function GuardFallback() {
+  const { locale } = useLocale();
   return (
     <div className="h-screen flex flex-col items-center justify-center bg-black text-white">
       <Loader2 className="w-10 h-10 animate-spin text-lime-500 mb-4" />
-      <p className="text-gray-400 font-bold">불러오는 중...</p>
+      <p className="text-gray-400 font-bold">{EXPIRED_COPY[locale].loading}</p>
     </div>
   );
 }
@@ -104,6 +121,8 @@ function GuardFallback() {
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
+  const { locale } = useLocale();
+  const expiredCopy = EXPIRED_COPY[locale];
 
   useEffect(() => {
     // 공개 경로에서 생략하는 것은 '강제 이동'뿐이다. 검증과 이벤트 수신은 아래에서 그대로 수행한다.
@@ -119,15 +138,15 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     const handleExpired = () => {
       clearAuthToken();
       localStorage.removeItem(USER_KEY);
-      void notifyWarning({ title: EXPIRED_NOTICE_TITLE, text: EXPIRED_NOTICE_TEXT });
-      if (!publicPath) router.replace('/login');
+      void notifyWarning({ title: expiredCopy.title, text: expiredCopy.text });
+      if (!publicPath) router.replace(localizedPath('/login', locale));
     };
 
     const verify = async () => {
       const token = getAuthToken();
       if (!token) {
         // 비로그인 상태. 공개 경로는 그대로 두고, 보호 경로만 로그인으로 보낸다.
-        if (!publicPath) router.replace('/login');
+        if (!publicPath) router.replace(localizedPath('/login', locale));
         return;
       }
       try {
@@ -150,7 +169,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
       cancelled = true;
       window.removeEventListener(AUTH_EXPIRED_EVENT, handleExpired);
     };
-  }, [pathname, router]);
+  }, [pathname, router, locale, expiredCopy]);
 
   return <Suspense fallback={<GuardFallback />}>{children}</Suspense>;
 }
