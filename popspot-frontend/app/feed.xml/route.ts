@@ -8,6 +8,7 @@ import {
   classifyCategory,
   matchesPeriod,
   isExpired,
+  isStale,
   kstTodayStart,
   parseDate,
 } from '@/lib/popupSlices';
@@ -77,7 +78,9 @@ async function liveMarkers(): Promise<Marker[]> {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const markers = (await res.json()) as Marker[];
     const today = kstTodayStart();
-    return markers.filter((m) => !isExpired(m.endDate, today));
+    return markers.filter(
+      (m) => !isExpired(m.endDate, today) && !isStale(m.startDate, m.endDate, today),
+    );
   } catch (e) {
     console.error(
       `[feed] 마커 fetch 실패(${e instanceof Error ? e.message : String(e)}) — ` +
