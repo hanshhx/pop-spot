@@ -1,23 +1,39 @@
 import { Activity, Cpu, Database, Globe } from 'lucide-react';
 import { LogViewer } from '@/components/admin/log/LogViewer';
 import { MetricCard } from '@/components/admin/metrics/MetricCard';
-import type { DashboardMetrics, MetricData } from '@/features/admin/types';
+import type { DashboardMetrics, MetricData, ServerResource } from '@/features/admin/types';
 
 type SystemTabProps = {
   dashboard: DashboardMetrics;
   realtimeMetrics: MetricData[];
+  serverResource: ServerResource | null;
   cpuNow: number;
   memNow: number;
   serverStatus: 'online' | 'offline';
 };
 
+/** `1.2 / 8.0 GB` 처럼. 총량을 모르면 사용량만 보여 준다 — 0 을 총량으로 쓰면 100% 로 보인다. */
+function usage(used: number, total: number, unit: string): string {
+  const u = used >= 100 ? Math.round(used) : Number(used.toFixed(1));
+  if (!total) return `${u}${unit}`;
+  const t = total >= 100 ? Math.round(total) : Number(total.toFixed(1));
+  return `${u} / ${t}${unit}`;
+}
+
 export function SystemTab({
   dashboard,
   realtimeMetrics,
+  serverResource,
   cpuNow,
   memNow,
   serverStatus,
 }: SystemTabProps) {
+  const memPercent = serverResource?.memoryTotalMb
+    ? (serverResource.memoryUsedMb / serverResource.memoryTotalMb) * 100
+    : 0;
+  const diskPercent = serverResource?.diskTotalGb
+    ? (serverResource.diskUsedGb / serverResource.diskTotalGb) * 100
+    : 0;
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
@@ -63,11 +79,44 @@ export function SystemTab({
       <div className="rounded-2xl border border-[var(--color-border)] bg-surface p-5">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-bold text-sm flex items-center gap-2">
-            <Cpu size={16} className="text-lime-500" /> GCP 서버 실시간 리소스
+            <Cpu size={16} className="text-lime-500" /> 운영 서버 실시간 리소스
           </h3>
-          <div className="flex gap-3 text-xs font-mono">
+          <div className="flex flex-wrap gap-3 text-xs font-mono">
             <span className="text-lime-600 dark:text-lime-400 font-bold">CPU {cpuNow}%</span>
-            <span className="text-emerald-600 dark:text-emerald-400 font-bold">MEM {memNow}MB</span>
+            {/*
+              v2.53 — 예전에는 여기 JVM 힙이 "MEM" 으로 떠 있었다. 서버에 8GB 가 있어도 자바가 쓰는
+              몇백 MB 만 보여서, 서버가 실제로 여유가 있는지 알 수 없었다. 이제 OS 물리 메모리다.
+            */}
+            <span
+              className={`font-bold ${memPercent > 85 ? 'text-red-500' : 'text-emerald-600 dark:text-emerald-400'}`}
+              title="운영 서버의 물리 메모리"
+            >
+              MEM{' '}
+              {serverResource
+                ? usage(
+                    serverResource.memoryUsedMb / 1024,
+                    serverResource.memoryTotalMb / 1024,
+                    'GB',
+                  )
+                : `${memNow}MB`}
+              {memPercent > 0 && ` (${Math.round(memPercent)}%)`}
+            </span>
+            <span
+              className={`font-bold ${diskPercent > 85 ? 'text-red-500' : 'text-sky-600 dark:text-sky-400'}`}
+              title="업로드가 쌓이는 파일시스템"
+            >
+              DISK{' '}
+              {serverResource
+                ? usage(serverResource.diskUsedGb, serverResource.diskTotalGb, 'GB')
+                : '—'}
+              {diskPercent > 0 && ` (${Math.round(diskPercent)}%)`}
+            </span>
+            <span className="text-muted-foreground" title="JVM 힙 — 서버 메모리와 다르다">
+              HEAP{' '}
+              {serverResource
+                ? usage(serverResource.heapUsedMb, serverResource.heapMaxMb, 'MB')
+                : '—'}
+            </span>
             <span
               className={`flex items-center gap-1 ${serverStatus === 'online' ? 'text-green-600' : 'text-red-500'}`}
             >
@@ -85,12 +134,14 @@ export function SystemTab({
             </p>
           ) : (
             (() => {
+              // 막대 높이는 구간 내 최댓값 기준이라, 값의 절대 크기가 바뀌어도(힙 MB → 서버 MB)
+              // 그래프 모양은 그대로 읽힌다. 총량 대비 비율은 위의 MEM 숫자가 알려 준다.
               const maxMem = Math.max(...realtimeMetrics.map((m) => m.memory), 1);
               return realtimeMetrics.map((m, i) => (
                 <div
                   key={i}
                   className="flex-1 flex flex-col items-center justify-end gap-1 h-full"
-                  title={`${m.time} · CPU ${m.cpu}% · MEM ${m.memory}MB`}
+                  title={`${m.time} · CPU ${m.cpu}% · 서버 메모리 ${(m.memory / 1024).toFixed(1)}GB`}
                 >
                   <div
                     className="w-full bg-lime-300 rounded-t-sm"
