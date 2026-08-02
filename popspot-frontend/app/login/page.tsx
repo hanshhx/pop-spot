@@ -13,9 +13,12 @@ import { Button } from '@/components/ui/button';
 import { Input, Field } from '@/components/ui/input';
 import { notify, notifyError, notifySuccess } from '@/lib/notify';
 import { GUEST_GRACE_PERIOD_DAYS, startGuestMode } from '@/lib/guestMode';
+import { useLocale } from '@/lib/i18n';
+import { localizedPath } from '@/lib/localePath';
 
 export default function LoginPage() {
   const router = useRouter();
+  const { t, locale } = useLocale();
 
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [showPassword, setShowPassword] = useState(false);
@@ -59,20 +62,21 @@ export default function LoginPage() {
         if (saveId) localStorage.setItem('savedEmail', formData.email);
         else localStorage.removeItem('savedEmail');
 
-        await notifySuccess(`${data.nickname}님 환영합니다`);
+        await notifySuccess(`${data.nickname}${t('login.welcomeSuffix')}`);
         // 인트로 미들웨어 우회 — 방금 인트로 거쳐서 로그인 왔으니 메인 직행
-        router.push('/?entered=1');
+        router.push(localizedPath('/?entered=1', locale));
       } else {
-        notifyError({ title: '로그인 실패', text: '아이디나 비밀번호를 확인해주세요.' });
+        notifyError({ title: t('login.failedTitle'), text: t('login.failedText') });
       }
     } catch {
-      notifyError({ title: '서버 연결 실패', text: '잠시 후 다시 시도해주세요.' });
+      notifyError({ title: t('login.serverTitle'), text: t('login.serverText') });
     } finally {
       setSubmitting(false);
     }
   };
 
   const handleSocialLogin = (provider: string) => {
+    localStorage.setItem('popspot:oauth-locale', locale);
     window.location.href = `${API_BASE_URL}/oauth2/authorization/${provider}`;
   };
 
@@ -86,11 +90,11 @@ export default function LoginPage() {
     startGuestMode();
     await notify({
       icon: 'info',
-      title: `게스트로 ${GUEST_GRACE_PERIOD_DAYS}일 동안 둘러보기`,
-      text: '기간이 끝나면 회원가입이 필요해요.',
+      title: `${t('login.guestPrefix')} ${GUEST_GRACE_PERIOD_DAYS}${t('login.guestSuffix')}`,
+      text: t('login.guestDesc'),
       timer: 1600,
     });
-    router.push('/?entered=1');
+    router.push(localizedPath('/?entered=1', locale));
   };
 
   return (
@@ -131,7 +135,7 @@ export default function LoginPage() {
         <button
           type="button"
           onClick={() => router.back()}
-          aria-label="뒤로가기"
+          aria-label={t('common.back')}
           className="absolute top-4 left-4 size-8 inline-flex items-center justify-center text-cream-200/60 hover:text-cream-200 transition-colors"
         >
           <ArrowLeft className="size-5" aria-hidden />
@@ -140,10 +144,10 @@ export default function LoginPage() {
         <h1 className="flex justify-center mt-4 mb-1">
           <Logo className="h-7 md:h-8 text-cream-200" />
         </h1>
-        <p className="text-center text-cream-200/60 text-sm mb-8">돌아오신 걸 환영합니다</p>
+        <p className="text-center text-cream-200/60 text-sm mb-8">{t('login.welcome')}</p>
 
         <div className="space-y-4">
-          <Field label={<span className="text-cream-200">이메일</span>}>
+          <Field label={<span className="text-cream-200">{t('login.email')}</span>}>
             <Input
               name="email"
               type="email"
@@ -157,11 +161,11 @@ export default function LoginPage() {
             />
           </Field>
 
-          <Field label={<span className="text-cream-200">비밀번호</span>}>
+          <Field label={<span className="text-cream-200">{t('login.password')}</span>}>
             <Input
               name="password"
               type={showPassword ? 'text' : 'password'}
-              placeholder="비밀번호 입력"
+              placeholder={t('login.passwordPlaceholder')}
               value={formData.password}
               onChange={handleChange}
               onKeyDown={handleKeyDown}
@@ -170,7 +174,7 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  aria-label={showPassword ? '비밀번호 숨기기' : '비밀번호 보기'}
+                  aria-label={showPassword ? t('login.hidePassword') : t('login.showPassword')}
                   className="text-cream-200/50 hover:text-cream-200 transition-colors"
                 >
                   {showPassword ? (
@@ -205,25 +209,25 @@ export default function LoginPage() {
               {saveId && <Check className="size-3 text-ink-900" aria-hidden />}
             </span>
             <span className="text-xs text-cream-200/60 group-hover:text-cream-200 transition-colors">
-              아이디 저장
+              {t('login.saveId')}
             </span>
           </label>
 
           <Link
-            href="/find-account"
+            href={localizedPath('/find-account', locale)}
             className="text-xs text-cream-200/60 hover:text-cream-200 transition-colors"
           >
-            아이디 · 비밀번호 찾기
+            {t('login.findAccount')}
           </Link>
         </div>
 
         <Button variant="primary" size="lg" block onClick={handleLogin} loading={submitting}>
-          로그인
+          {t('login.submit')}
         </Button>
 
         <div className="relative flex py-4 items-center">
           <div className="flex-grow border-t border-cream-200/10" />
-          <span className="flex-shrink-0 mx-4 text-cream-200/40 text-xs">소셜 로그인</span>
+          <span className="flex-shrink-0 mx-4 text-cream-200/40 text-xs">{t('login.social')}</span>
           <div className="flex-grow border-t border-cream-200/10" />
         </div>
 
@@ -234,7 +238,7 @@ export default function LoginPage() {
             className="w-full h-11 rounded-pill font-semibold bg-[#FEE500] text-ink-900 hover:bg-[#FDD835] transition-colors flex items-center justify-center gap-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FEE500] focus-visible:ring-offset-2 focus-visible:ring-offset-ink-800"
           >
             <MessageCircle className="size-4" fill="currentColor" aria-hidden />
-            <span>카카오로 시작하기</span>
+            <span>{t('login.kakao')}</span>
           </button>
 
           <button
@@ -245,7 +249,7 @@ export default function LoginPage() {
             <span className="font-extrabold text-lg" aria-hidden>
               N
             </span>
-            <span>네이버로 시작하기</span>
+            <span>{t('login.naver')}</span>
           </button>
 
           <button
@@ -271,7 +275,7 @@ export default function LoginPage() {
                 fill="#EA4335"
               />
             </svg>
-            <span>Google로 시작하기</span>
+            <span>{t('login.google')}</span>
           </button>
         </div>
 
@@ -280,23 +284,24 @@ export default function LoginPage() {
             type="button"
             onClick={handleGuestLogin}
             className="w-full h-11 rounded-pill font-semibold bg-transparent text-cream-200 border border-cream-200/25 hover:bg-cream-200/8 hover:border-cream-200/45 transition-colors flex items-center justify-center gap-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-300 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-800"
-            aria-label={`게스트로 ${GUEST_GRACE_PERIOD_DAYS}일 동안 둘러보기`}
+            aria-label={`${t('login.guestPrefix')} ${GUEST_GRACE_PERIOD_DAYS}${t('login.guestSuffix')}`}
           >
             <Clock className="size-4" aria-hidden />
-            <span>게스트로 {GUEST_GRACE_PERIOD_DAYS}일 둘러보기</span>
+            <span>
+              {t('login.guestPrefix')} {GUEST_GRACE_PERIOD_DAYS}
+              {t('login.guestSuffix')}
+            </span>
           </button>
-          <p className="mt-2 text-center text-[11px] text-cream-200/45">
-            가입 없이 바로 시작. 기간이 끝나면 회원가입이 필요해요.
-          </p>
+          <p className="mt-2 text-center text-[11px] text-cream-200/45">{t('login.guestDesc')}</p>
         </div>
 
         <div className="mt-6 text-center text-sm">
-          <span className="text-cream-200/50">아직 회원이 아니신가요?</span>{' '}
+          <span className="text-cream-200/50">{t('login.notMember')}</span>{' '}
           <Link
-            href="/signup"
+            href={localizedPath('/signup', locale)}
             className="font-semibold text-lime-300 hover:text-lime-400 transition-colors"
           >
-            회원가입
+            {t('auth.signup')}
           </Link>
         </div>
       </motion.div>

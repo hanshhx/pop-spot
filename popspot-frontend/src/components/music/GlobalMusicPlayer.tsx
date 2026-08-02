@@ -18,6 +18,8 @@ import {
 import { PopupMatch } from '@/types/music';
 import { isPexelsPhoto, popupCoverUrl } from '@/lib/popupCover';
 import { useMusicPlayer } from './MusicPlayerProvider';
+import { useLocale } from '@/lib/i18n';
+import { localizedPath } from '@/lib/localePath';
 
 function formatSeconds(sec: number) {
   if (!Number.isFinite(sec) || sec <= 0) return '0:00';
@@ -55,6 +57,7 @@ export function GlobalMusicPlayer() {
 function MiniPlayerBar() {
   const { current, isPlaying, progress, toggle, next, prev, expand, close, match } =
     useMusicPlayer();
+  const { t, locale } = useLocale();
   if (!current) return null;
 
   const topPopup = match?.popups?.[0];
@@ -78,7 +81,7 @@ function MiniPlayerBar() {
             type="button"
             onClick={expand}
             className="flex flex-1 items-center gap-3 text-left"
-            aria-label="전체화면으로 보기"
+            aria-label={t('player.expand')}
           >
             {/* Spotify CDN 호스트가 next.config.ts 이미지 도메인에 없어 next/image 대신 <img> 사용. */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -97,7 +100,7 @@ function MiniPlayerBar() {
           <button
             type="button"
             onClick={prev}
-            aria-label="이전 곡"
+            aria-label={t('player.previous')}
             className="grid h-9 w-9 place-items-center rounded-full text-foreground transition hover:bg-foreground/10"
           >
             <SkipBack className="h-4 w-4" />
@@ -105,7 +108,7 @@ function MiniPlayerBar() {
           <button
             type="button"
             onClick={toggle}
-            aria-label={isPlaying ? '일시정지' : '재생'}
+            aria-label={isPlaying ? t('player.pause') : t('player.play')}
             className="grid h-10 w-10 place-items-center rounded-full bg-lime-300 text-ink-900 shadow-sm transition hover:scale-105"
           >
             {isPlaying ? (
@@ -117,7 +120,7 @@ function MiniPlayerBar() {
           <button
             type="button"
             onClick={next}
-            aria-label="다음 곡"
+            aria-label={t('player.next')}
             className="grid h-9 w-9 place-items-center rounded-full text-foreground transition hover:bg-foreground/10"
           >
             <SkipForward className="h-4 w-4" />
@@ -129,7 +132,7 @@ function MiniPlayerBar() {
               e.preventDefault();
               close();
             }}
-            aria-label="플레이어 닫기"
+            aria-label={t('player.close')}
             className="grid h-9 w-9 place-items-center rounded-full text-muted-foreground transition hover:bg-foreground/10"
           >
             <X className="h-4 w-4" />
@@ -139,13 +142,15 @@ function MiniPlayerBar() {
         {/* 매칭된 팝업 1순위만 살짝 노출 — 가벼운 디스커버리용 */}
         {topPopup && (
           <Link
-            href={`/popup/${topPopup.popupId}`}
+            href={localizedPath(`/popup/${topPopup.popupId}`, locale)}
             className="flex items-center gap-2 border-t border-[var(--color-border)] bg-foreground/[0.03] px-3 py-2 text-xs transition hover:bg-foreground/[0.06]"
           >
             <Sparkles className="h-3 w-3 text-lime-500" />
             <span className="truncate text-muted-foreground">
               <span className="font-bold text-foreground">{topPopup.name}</span>
-              <span className="ml-1.5">· 이 곡 분위기와 {topPopup.score}% 매칭</span>
+              <span className="ml-1.5">
+                · {t('player.matchLead')} {topPopup.score}% {t('player.matchTail')}
+              </span>
             </span>
             <MapPin className="ml-auto h-3 w-3 shrink-0 text-muted-foreground" />
           </Link>
@@ -172,6 +177,7 @@ function FullScreenPlayer() {
     match,
     matchLoading,
   } = useMusicPlayer();
+  const { t, locale } = useLocale();
   if (!current) return null;
 
   return (
@@ -202,7 +208,7 @@ function FullScreenPlayer() {
           e.preventDefault();
           collapse();
         }}
-        aria-label="미니 플레이어로 줄이기"
+        aria-label={t('player.collapse')}
         className="absolute right-4 top-4 z-20 grid place-items-center rounded-full bg-white/10 p-2 text-white backdrop-blur transition hover:bg-white/20"
       >
         <ChevronDown className="h-6 w-6" />
@@ -275,7 +281,7 @@ function FullScreenPlayer() {
             type="button"
             onClick={prev}
             className="rounded-full p-2 transition hover:bg-white/10"
-            aria-label="이전 곡"
+            aria-label={t('player.previous')}
           >
             <SkipBack className="h-7 w-7" />
           </button>
@@ -283,7 +289,7 @@ function FullScreenPlayer() {
             type="button"
             onClick={toggle}
             className="grid h-16 w-16 place-items-center rounded-full bg-white text-black shadow-2xl transition hover:scale-105"
-            aria-label={isPlaying ? '일시정지' : '재생'}
+            aria-label={isPlaying ? t('player.pause') : t('player.play')}
           >
             {isPlaying ? (
               <Pause className="h-8 w-8" />
@@ -295,7 +301,7 @@ function FullScreenPlayer() {
             type="button"
             onClick={next}
             className="rounded-full p-2 transition hover:bg-white/10"
-            aria-label="다음 곡"
+            aria-label={t('player.next')}
           >
             <SkipForward className="h-7 w-7" />
           </button>
@@ -306,7 +312,7 @@ function FullScreenPlayer() {
           <header className="mb-3 flex items-center gap-2 text-white">
             <Sparkles className="h-4 w-4 text-lime-300" />
             <h2 className="text-sm font-bold uppercase tracking-widest">
-              이 곡 분위기에 어울리는 팝업
+              {t('player.popupTitle')}
             </h2>
           </header>
 
@@ -323,10 +329,10 @@ function FullScreenPlayer() {
             </div>
           )}
 
-          {matchLoading && <p className="text-sm text-white/50">분위기 분석 중...</p>}
+          {matchLoading && <p className="text-sm text-white/50">{t('player.analyzing')}</p>}
 
           {match && match.popups.length === 0 && !matchLoading && (
-            <p className="text-sm text-white/50">매칭된 팝업이 아직 없어요.</p>
+            <p className="text-sm text-white/50">{t('player.noMatches')}</p>
           )}
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -337,7 +343,7 @@ function FullScreenPlayer() {
               return (
                 <Link
                   key={popup.popupId}
-                  href={`/popup/${popup.popupId}`}
+                  href={localizedPath(`/popup/${popup.popupId}`, locale)}
                   onClick={collapse}
                   className="group flex gap-3 rounded-xl bg-white/5 p-3 backdrop-blur transition hover:bg-white/10"
                 >
@@ -360,11 +366,11 @@ function FullScreenPlayer() {
                       {popup.location}
                     </p>
                     <span className="mt-1 inline-block rounded-full bg-lime-300/20 px-2 py-0.5 text-[10px] font-bold text-lime-300">
-                      매칭 {popup.score}%
+                      {t('player.match')} {popup.score}%
                     </span>
                     {isStyledPhoto && (
                       <span className="ml-1 text-[9px] font-semibold text-white/45">
-                        연출 이미지
+                        {t('card.styledPhoto')}
                       </span>
                     )}
                   </div>
@@ -376,8 +382,8 @@ function FullScreenPlayer() {
 
         {/* v2.21-S16 — 어트리뷰션 (Spotify Branding Guidelines). 음원 출처 명시. */}
         <p className="mt-8 text-[10px] tracking-wide text-white/35">
-          음원 제공 · <span className="font-bold text-[#1DB954]/70">Spotify</span> · Apple Music ·
-          YouTube
+          {t('music.attribution')} · <span className="font-bold text-[#1DB954]/70">Spotify</span> ·
+          Apple Music · YouTube
         </p>
       </div>
     </motion.div>

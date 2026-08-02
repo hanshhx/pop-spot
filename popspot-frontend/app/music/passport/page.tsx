@@ -9,6 +9,56 @@ import { ArrowLeft, Ticket, Music2, MapPin, Sparkles } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import { MusicTrack, UserMusicHistory } from '@/types/music';
 import { useMusicPlayer } from '@/components/music/MusicPlayerProvider';
+import { useLocale } from '@/lib/i18n';
+import { localizedPath } from '@/lib/localePath';
+
+const COPY = {
+  ko: {
+    back: '뒤로',
+    description: '내가 들었던 음악으로 만든 팝업 기록',
+    plays: '총 재생',
+    tracks: '감상한 곡',
+    popups: '매칭된 팝업',
+    playUnit: '회',
+    trackUnit: '곡',
+    popupUnit: '개',
+    recent: '최근 재생 기록',
+    match: '매칭 팝업',
+    empty: '아직 재생한 곡이 없어요',
+    emptyHint: '음악 페이지에서 곡을 재생하면 패스포트에 기록됩니다.',
+    browse: '음악 둘러보기',
+  },
+  en: {
+    back: 'Back',
+    description: 'A pop-up record built from the music you played',
+    plays: 'Total plays',
+    tracks: 'Tracks heard',
+    popups: 'Matched pop-ups',
+    playUnit: '',
+    trackUnit: '',
+    popupUnit: '',
+    recent: 'Recent listening',
+    match: 'Matched pop-up',
+    empty: 'You have not played any music yet',
+    emptyHint: 'Play a track on the music page and it will appear in your passport.',
+    browse: 'Browse music',
+  },
+  ja: {
+    back: '戻る',
+    description: '聴いた音楽から作るポップアップの記録',
+    plays: '総再生',
+    tracks: '聴いた曲',
+    popups: '一致したポップアップ',
+    playUnit: '回',
+    trackUnit: '曲',
+    popupUnit: '件',
+    recent: '最近の再生履歴',
+    match: '一致したポップアップ',
+    empty: 'まだ再生した曲がありません',
+    emptyHint: '音楽ページで曲を再生すると、パスポートに記録されます。',
+    browse: '音楽を見る',
+  },
+} as const;
 
 type HistoryItem = UserMusicHistory;
 /*
@@ -18,6 +68,8 @@ type HistoryItem = UserMusicHistory;
 
 export default function MusicPassportPage() {
   const router = useRouter();
+  const { locale } = useLocale();
+  const copy = COPY[locale];
   const player = useMusicPlayer();
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [tracks, setTracks] = useState<Record<number, MusicTrack>>({});
@@ -65,7 +117,7 @@ export default function MusicPassportPage() {
         <header className="flex items-center gap-3">
           <button
             onClick={() => router.back()}
-            aria-label="뒤로"
+            aria-label={copy.back}
             className="grid h-10 w-10 place-items-center rounded-full bg-white/10 backdrop-blur transition hover:bg-white/20"
           >
             <ArrowLeft className="h-5 w-5" />
@@ -89,14 +141,14 @@ export default function MusicPassportPage() {
               <p className="text-[10px] font-bold uppercase tracking-[0.4em] text-white/50">
                 Pop·Spot Music Passport
               </p>
-              <p className="text-base font-black text-white">내가 들었던 음악으로 만든 팝업 기록</p>
+              <p className="text-base font-black text-white">{copy.description}</p>
             </div>
           </div>
 
           <div className="mt-8 grid grid-cols-3 gap-3 sm:gap-6">
-            <StatCell label="총 재생" value={stats.plays} suffix="회" />
-            <StatCell label="감상한 곡" value={stats.uniqueTracks} suffix="곡" />
-            <StatCell label="매칭된 팝업" value={stats.matchedPopups} suffix="개" />
+            <StatCell label={copy.plays} value={stats.plays} suffix={copy.playUnit} />
+            <StatCell label={copy.tracks} value={stats.uniqueTracks} suffix={copy.trackUnit} />
+            <StatCell label={copy.popups} value={stats.matchedPopups} suffix={copy.popupUnit} />
           </div>
         </motion.section>
 
@@ -104,14 +156,14 @@ export default function MusicPassportPage() {
         <div className="mt-12 mb-5 flex items-center gap-2">
           <Sparkles className="h-4 w-4 text-amber-300" />
           <h3 className="text-sm font-black uppercase tracking-widest text-white/80">
-            최근 재생 기록
+            {copy.recent}
           </h3>
         </div>
 
         {loading ? (
           <SkeletonRows />
         ) : history.length === 0 ? (
-          <EmptyHistory />
+          <EmptyHistory locale={locale} />
         ) : (
           <ol className="space-y-2">
             {history.map((h, i) => {
@@ -149,17 +201,17 @@ export default function MusicPassportPage() {
                       {t?.trackName ?? `Track #${h.trackId}`}
                     </p>
                     <p className="truncate text-xs text-white/50">
-                      {t?.artistName ?? '—'} · {fmtDate(h.playedAt)}
+                      {t?.artistName ?? '—'} · {fmtDate(h.playedAt, locale)}
                     </p>
                   </div>
 
                   {h.matchedPopupId && (
                     <Link
-                      href={`/popup/${h.matchedPopupId}`}
+                      href={localizedPath(`/popup/${h.matchedPopupId}`, locale)}
                       className="hidden items-center gap-1 rounded-full bg-amber-300/20 px-2.5 py-1 text-[11px] font-bold text-amber-200 transition hover:bg-amber-300/30 sm:inline-flex"
                     >
                       <MapPin className="h-3 w-3" />
-                      매칭 팝업
+                      {copy.match}
                     </Link>
                   )}
                 </motion.li>
@@ -202,32 +254,31 @@ function SkeletonRows() {
   );
 }
 
-function EmptyHistory() {
+function EmptyHistory({ locale }: { locale: 'ko' | 'en' | 'ja' }) {
+  const copy = COPY[locale];
   return (
     <div className="grid place-items-center rounded-2xl border border-dashed border-white/10 bg-white/5 px-6 py-16 text-center backdrop-blur">
       <div className="mb-3 grid h-14 w-14 place-items-center rounded-2xl bg-white/10">
         <Music2 className="h-6 w-6 text-white/50" />
       </div>
-      <p className="text-sm font-bold text-white/70">아직 재생한 곡이 없어요</p>
-      <p className="mt-1 text-xs text-white/40">
-        음악 페이지에서 곡을 재생하면 패스포트에 기록됩니다.
-      </p>
+      <p className="text-sm font-bold text-white/70">{copy.empty}</p>
+      <p className="mt-1 text-xs text-white/40">{copy.emptyHint}</p>
       <Link
-        href="/music"
+        href={localizedPath('/music', locale)}
         className="mt-5 inline-flex items-center gap-2 rounded-full bg-amber-300 px-4 py-2 text-xs font-black text-ink-900 transition hover:scale-105"
       >
         <Music2 className="h-3.5 w-3.5" />
-        음악 둘러보기
+        {copy.browse}
       </Link>
     </div>
   );
 }
 
-function fmtDate(iso?: string) {
+function fmtDate(iso?: string, locale: 'ko' | 'en' | 'ja' = 'ko') {
   if (!iso) return '—';
   try {
     const d = new Date(iso);
-    return d.toLocaleString('ko-KR', {
+    return d.toLocaleString(locale === 'en' ? 'en-US' : locale === 'ja' ? 'ja-JP' : 'ko-KR', {
       month: 'short',
       day: 'numeric',
       hour: '2-digit',

@@ -5,6 +5,9 @@ import Link from 'next/link';
 import { Flame, Ticket, Users, ArrowRight, Store } from 'lucide-react';
 import type { PopupStore } from '@/types/popup';
 import { useLocale } from '@/lib/i18n';
+import { localizedPath } from '@/lib/localePath';
+import { bilingual } from '@/lib/bilingual';
+import { popupStatusLabel } from '@/lib/popupLocale';
 import { isPexelsPhoto, popupCoverUrl } from '@/lib/popupCover';
 
 /**
@@ -41,7 +44,7 @@ interface Props {
 }
 
 export default function HomeBento1a({ popups, total, onOpenRanking, onNavigate }: Props) {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const [chip, setChip] = useState<ChipKey>('전체');
 
   const filtered = useMemo(() => {
@@ -120,6 +123,14 @@ export default function HomeBento1a({ popups, total, onOpenRanking, onNavigate }
             top.map((p, i) => {
               const coverUrl = popupCoverUrl(p, 200);
               const isStyledPhoto = isPexelsPhoto(p);
+              const shownName = bilingual(
+                p.name,
+                locale === 'en' ? p.nameEn : locale === 'ja' ? p.nameJa : null,
+              );
+              const shownPlace = bilingual(
+                p.location,
+                locale === 'en' ? p.locationEn : locale === 'ja' ? p.locationJa : null,
+              );
               return (
                 // v2.44 — 카드는 그 팝업의 상세로 간다. 예전엔 어느 카드를 눌러도 랭킹 모달이 떠서,
                 // 3위가 궁금해 눌러도 목록이 다시 뜰 뿐 그 팝업 정보로는 갈 수 없었다.
@@ -127,7 +138,7 @@ export default function HomeBento1a({ popups, total, onOpenRanking, onNavigate }
                 // 새 탭 열기·주소 복사 같은 링크 동작이 그대로 되기 때문이다.
                 <Link
                   key={p.id}
-                  href={`/popup/${p.id}`}
+                  href={localizedPath(`/popup/${p.id}`, locale)}
                   className="flex w-full items-center gap-3 rounded-2xl p-2 text-left transition hover:bg-black/5 dark:hover:bg-white/5"
                 >
                   <span
@@ -144,10 +155,12 @@ export default function HomeBento1a({ popups, total, onOpenRanking, onNavigate }
                     )}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <strong className="block truncate text-sm font-bold">{p.name}</strong>
+                    <strong className="block truncate text-sm font-bold">
+                      {shownName.display || p.name}
+                    </strong>
                     <span className="block truncate text-[11px] text-ink-500 dark:text-cream-200/45">
-                      {(p.location || '').split(' ').slice(0, 2).join(' ')} ·{' '}
-                      <span className={statusTone(p.status)}>{p.status || t('status.open')}</span>
+                      {(shownPlace.display || '').split(' ').slice(0, 3).join(' ')} ·{' '}
+                      <span className={statusTone(p.status)}>{popupStatusLabel(p.status, t)}</span>
                       {isStyledPhoto && ` · ${t('card.styledPhoto')}`}
                     </span>
                   </div>

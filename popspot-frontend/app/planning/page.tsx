@@ -26,6 +26,9 @@ import InteractiveMap from '../../src/components/Map/InteractiveMap';
 import { SOCKET_BASE_URL } from '../../src/lib/api';
 import { getAuthToken } from '../../src/lib/authStorage';
 import { notify, confirmAction } from '@/lib/notify';
+import { useLocale } from '@/lib/i18n';
+import { localizedPath } from '@/lib/localePath';
+import { bilingual } from '@/lib/bilingual';
 
 interface MarkerData {
   id: string;
@@ -40,6 +43,10 @@ interface SearchResult {
   id: number;
   name: string;
   location: string;
+  nameEn?: string | null;
+  nameJa?: string | null;
+  locationEn?: string | null;
+  locationJa?: string | null;
   latitude: string;
   longitude: string;
 }
@@ -48,6 +55,87 @@ interface Participant {
   name: string;
   color: string;
 }
+
+const COPY = {
+  ko: {
+    needThree: '최적화하려면 장소가 3개 이상 필요합니다.',
+    confirmOptimize: '현재 위치를 시작점으로 최적 경로를 계산하시겠습니까?',
+    optimized: '동선이 최적화되었습니다.',
+    connecting: '서버와 연결 중입니다.',
+    duplicate: '이미 추가된 장소입니다.',
+    copied: '초대 링크가 복사되었습니다.',
+    invalid: '잘못된 접근입니다.',
+    login: '로그인이 필요한 서비스입니다.',
+    seeded: '추천 코스를 작전지도로 옮겼습니다. 함께 편집해보세요.',
+    home: '메인으로 돌아가기',
+    room: '작전 회의실',
+    invite: '초대',
+    me: '나',
+    search: '성수동 팝업 검색...',
+    total: '총 이동 시간',
+    approx: '약',
+    minutes: '분',
+    estimate: '소요 예상',
+    optimize: '최적화',
+    added: '추가된 장소',
+    empty: '아직 추가된 장소가 없습니다.',
+    emptyHint: '위에서 검색하여 코스를 짜보세요.',
+    walk: '도보',
+    remove: '장소 삭제',
+  },
+  en: {
+    needThree: 'Add at least three places before optimizing.',
+    confirmOptimize: 'Calculate the shortest route starting from the first place?',
+    optimized: 'The route has been optimized.',
+    connecting: 'Connecting to the server.',
+    duplicate: 'This place is already on the route.',
+    copied: 'Invitation link copied.',
+    invalid: 'This room link is not valid.',
+    login: 'Please log in to use this feature.',
+    seeded: 'The recommended route is on the planning map. You can edit it together.',
+    home: 'Back to home',
+    room: 'Planning room',
+    invite: 'Invite',
+    me: 'Me',
+    search: 'Search Seongsu pop-ups...',
+    total: 'Total travel time',
+    approx: 'About',
+    minutes: ' min',
+    estimate: 'estimated',
+    optimize: 'Optimize',
+    added: 'Places added',
+    empty: 'No places have been added yet.',
+    emptyHint: 'Search above to build your route.',
+    walk: 'Walk',
+    remove: 'Remove place',
+  },
+  ja: {
+    needThree: '最適化するには3か所以上追加してください。',
+    confirmOptimize: '最初の場所を出発点として最短ルートを計算しますか？',
+    optimized: '移動ルートを最適化しました。',
+    connecting: 'サーバーに接続中です。',
+    duplicate: 'この場所はすでに追加されています。',
+    copied: '招待リンクをコピーしました。',
+    invalid: 'このルームへのリンクは無効です。',
+    login: 'この機能を使うにはログインしてください。',
+    seeded: 'おすすめコースを作戦地図に移しました。一緒に編集できます。',
+    home: 'ホームに戻る',
+    room: '作戦会議室',
+    invite: '招待',
+    me: '自分',
+    search: 'ソンスのポップアップを検索...',
+    total: '合計移動時間',
+    approx: '約',
+    minutes: '分',
+    estimate: 'の予定',
+    optimize: '最適化',
+    added: '追加した場所',
+    empty: 'まだ場所が追加されていません。',
+    emptyHint: '上の検索からコースを作ってみましょう。',
+    walk: '徒歩',
+    remove: '場所を削除',
+  },
+} as const;
 
 const getRandomColor = () => {
   const colors = [
@@ -118,6 +206,8 @@ const calculateRouteInfo = (lat1: number, lng1: number, lat2: number, lng2: numb
 export default function PlanningPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { locale } = useLocale();
+  const copy = COPY[locale];
   const roomId = searchParams.get('room');
 
   const [markers, setMarkers] = useState<MarkerData[]>([]);
@@ -157,9 +247,8 @@ export default function PlanningPage() {
 
   // 동선 최적화 알고리즘
   const optimizeRoute = async () => {
-    if (markers.length < 3) return notify('최적화하려면 장소가 3개 이상 필요합니다!');
-    if (!(await confirmAction({ text: '현재 위치를 시작점으로 최적 경로를 계산하시겠습니까?' })))
-      return;
+    if (markers.length < 3) return notify(copy.needThree);
+    if (!(await confirmAction({ text: copy.confirmOptimize }))) return;
 
     const sorted = [markers[0]];
     const remaining = markers.slice(1);
@@ -180,7 +269,7 @@ export default function PlanningPage() {
       remaining.splice(nearestIdx, 1);
     }
     setMarkers(sorted);
-    notify('⚡ 동선이 최적화되었습니다!');
+    notify(`⚡ ${copy.optimized}`);
   };
 
   const sendVote = (placeId: string, voteType: 'LIKE' | 'FIRE') => {
@@ -194,8 +283,8 @@ export default function PlanningPage() {
 
   const addPlaceToMap = (place: SearchResult) => {
     if (!stompClientRef.current || !stompClientRef.current.connected)
-      return notify('서버와 연결 중입니다.');
-    if (markers.some((m) => m.name === place.name)) return notify('이미 추가된 장소입니다.');
+      return notify(copy.connecting);
+    if (markers.some((m) => m.name === place.name)) return notify(copy.duplicate);
     const dataStr = `${place.name}|${place.latitude}|${place.longitude}`;
     stompClientRef.current.publish({
       destination: `/app/plan/${roomId}/action`,
@@ -215,19 +304,19 @@ export default function PlanningPage() {
   const inviteFriend = () => {
     const url = window.location.href;
     navigator.clipboard.writeText(url);
-    notify('🔗 초대 링크가 복사되었습니다!');
+    notify(`🔗 ${copy.copied}`);
   };
 
   useEffect(() => {
     if (!roomId) {
-      notify('잘못된 접근입니다.');
-      router.push('/');
+      notify(copy.invalid);
+      router.push(localizedPath('/', locale));
       return;
     }
     const storedUser = localStorage.getItem('user');
     if (!storedUser) {
-      notify('로그인이 필요한 서비스입니다.');
-      router.push('/login');
+      notify(copy.login);
+      router.push(localizedPath('/login', locale));
       return;
     }
     const userData = JSON.parse(storedUser);
@@ -346,7 +435,7 @@ export default function PlanningPage() {
                 body: JSON.stringify({ type: 'ADD', data: dataStr, sender: myNickname }),
               });
             });
-            if (valid.length > 0) notify('추천 코스를 작전지도로 옮겼어요. 함께 편집해보세요!');
+            if (valid.length > 0) notify(copy.seeded);
           }
         } catch {
           /* 시드 파싱 실패는 무시 */
@@ -359,7 +448,7 @@ export default function PlanningPage() {
     return () => {
       if (client) client.deactivate();
     };
-  }, [roomId, router, myInfo.color]); // myInfo.color 의존성 추가
+  }, [roomId, router, myInfo.color, locale, copy]);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -411,15 +500,15 @@ export default function PlanningPage() {
           <div className="flex justify-between items-start mb-2 md:mb-4">
             <div className="flex items-start gap-2">
               <button
-                onClick={() => router.push('/?entered=1')}
-                aria-label="메인으로 돌아가기"
+                onClick={() => router.push(localizedPath('/?entered=1', locale))}
+                aria-label={copy.home}
                 className="mt-0.5 inline-flex items-center justify-center size-7 md:size-8 rounded-full bg-white/8 hover:bg-white/15 text-gray-300 hover:text-white transition-colors ring-1 ring-white/10 hover:ring-white/20"
               >
                 <ChevronLeft size={16} className="md:w-[18px] md:h-[18px]" />
               </button>
               <div>
                 <h2 className="font-bold text-base md:text-lg flex items-center gap-1.5 md:gap-2 text-lime-300">
-                  <Navigation size={16} className="md:w-[18px] md:h-[18px]" /> 작전 회의실
+                  <Navigation size={16} className="md:w-[18px] md:h-[18px]" /> {copy.room}
                 </h2>
                 <p className="text-xs text-gray-500 font-mono mt-0.5 md:mt-1">ROOM ID: {roomId}</p>
               </div>
@@ -428,7 +517,7 @@ export default function PlanningPage() {
               onClick={inviteFriend}
               className="px-2.5 py-1.5 md:px-3 md:py-1.5 bg-lime-300 hover:bg-lime-400 text-ink-900 rounded-full text-xs font-bold transition-all flex items-center gap-1 shadow-lg shadow-md"
             >
-              <UserPlus size={12} className="md:w-3.5 md:h-3.5" /> 초대
+              <UserPlus size={12} className="md:w-3.5 md:h-3.5" /> {copy.invite}
             </button>
           </div>
 
@@ -445,7 +534,7 @@ export default function PlanningPage() {
                   {p.name.charAt(0).toUpperCase()}
                 </div>
                 <span className="max-w-[50px] truncate text-xs text-gray-400">
-                  {p.name === myInfo.name ? '나' : p.name}
+                  {p.name === myInfo.name ? copy.me : p.name}
                 </span>
               </div>
             ))}
@@ -457,7 +546,7 @@ export default function PlanningPage() {
           <form onSubmit={handleSearch} className="relative">
             <input
               type="text"
-              placeholder="성수동 팝업 검색..."
+              placeholder={copy.search}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full bg-[#111] border border-white/10 rounded-lg md:rounded-xl py-2.5 md:py-3 pl-9 md:pl-10 pr-4 text-xs md:text-sm text-white focus:outline-none focus:border-lime-300 transition-colors"
@@ -490,10 +579,24 @@ export default function PlanningPage() {
                 >
                   <span>
                     <span className="block text-xs md:text-sm font-bold text-gray-200 group-hover:text-lime-300">
-                      {place.name}
+                      {
+                        bilingual(
+                          place.name,
+                          locale === 'en' ? place.nameEn : locale === 'ja' ? place.nameJa : null,
+                        ).display
+                      }
                     </span>
                     <span className="mt-0.5 block max-w-[200px] truncate text-xs text-gray-500">
-                      {place.location}
+                      {
+                        bilingual(
+                          place.location,
+                          locale === 'en'
+                            ? place.locationEn
+                            : locale === 'ja'
+                              ? place.locationJa
+                              : null,
+                        ).display
+                      }
                     </span>
                   </span>
                   <PlusCircle
@@ -510,10 +613,12 @@ export default function PlanningPage() {
         <div className="px-3 py-2.5 md:px-4 md:py-3 bg-ink-900/20 border-b border-lime-300/20 flex items-center justify-between">
           <div>
             <div className="flex items-center gap-1.5 md:gap-2 text-lime-400 text-xs font-bold">
-              <Footprints size={12} className="md:w-3.5 md:h-3.5" /> 총 이동 시간
+              <Footprints size={12} className="md:w-3.5 md:h-3.5" /> {copy.total}
             </div>
             <div className="text-white font-bold text-xs md:text-sm mt-0.5">
-              약 {totalTime}분 <span className="text-xs font-normal text-gray-400">소요 예상</span>
+              {copy.approx} {totalTime}
+              {copy.minutes}{' '}
+              <span className="text-xs font-normal text-gray-400">{copy.estimate}</span>
             </div>
           </div>
           {markers.length >= 3 && (
@@ -521,7 +626,7 @@ export default function PlanningPage() {
               onClick={optimizeRoute}
               className="px-2.5 py-1.5 md:px-3 md:py-1.5 bg-white/10 hover:bg-white/20 border border-white/10 rounded-md md:rounded-lg text-xs font-bold text-yellow-400 flex items-center gap-1 transition-colors"
             >
-              <Wand2 size={10} className="md:w-3 md:h-3" /> 최적화
+              <Wand2 size={10} className="md:w-3 md:h-3" /> {copy.optimize}
             </button>
           )}
         </div>
@@ -529,14 +634,14 @@ export default function PlanningPage() {
         {/* 마커 리스트 */}
         <div className="flex-1 overflow-y-auto p-3 md:p-4 space-y-0 custom-scrollbar relative pb-20 md:pb-4">
           <div className="text-xs font-bold text-gray-500 mb-3 md:mb-4 px-1 flex items-center gap-1">
-            <MapPin size={12} /> 추가된 장소 ({markers.length})
+            <MapPin size={12} /> {copy.added} ({markers.length})
           </div>
           {markers.length === 0 ? (
             <div className="text-center py-8 md:py-12 text-gray-600 text-xs">
               <p>
-                아직 추가된 장소가 없습니다.
+                {copy.empty}
                 <br />
-                위에서 검색하여 코스를 짜보세요!
+                {copy.emptyHint}
               </p>
             </div>
           ) : (
@@ -572,6 +677,7 @@ export default function PlanningPage() {
                         </div>
                         <button
                           onClick={() => removeMarker(m)}
+                          aria-label={copy.remove}
                           className="p-1.5 md:p-2 text-gray-600 hover:text-red-500 hover:bg-red-500/10 rounded-md md:rounded-lg transition-all"
                         >
                           <Trash2 size={12} className="md:w-3.5 md:h-3.5" />
@@ -601,7 +707,10 @@ export default function PlanningPage() {
                         <div className="h-3 md:h-4 border-l-2 border-dashed border-gray-700"></div>
                         <div className="bg-gray-800 px-2.5 py-0.5 md:px-3 md:py-1 rounded-full text-xs font-bold text-gray-400 border border-gray-700 flex items-center gap-1 shadow-sm">
                           <MoveDown size={8} className="md:w-2.5 md:h-2.5" />{' '}
-                          <span>도보 {routeInfo.time}분</span>{' '}
+                          <span>
+                            {copy.walk} {routeInfo.time}
+                            {copy.minutes}
+                          </span>{' '}
                           <span className="text-gray-600">|</span> <span>{routeInfo.dist}</span>
                         </div>
                         <div className="h-3 md:h-4 border-l-2 border-dashed border-gray-700"></div>

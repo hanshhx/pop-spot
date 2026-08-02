@@ -42,6 +42,7 @@ import {
   type MessageKey,
 } from '@/lib/i18n';
 import { REGIONS, type RegionCode } from '@/lib/regions';
+import { localizedPath } from '@/lib/localePath';
 
 /**
  * 소개 화면에 고정으로 박혀 있는 지역명.
@@ -208,6 +209,8 @@ export default function Home() {
   // 화면 문구 언어. 첫 렌더는 항상 한국어이고(서버 HTML 과 맞춰 깜빡임 방지),
   // 브라우저에서 저장값·브라우저 언어를 읽어 반영한다.
   const { locale, t } = useLocale();
+  const defaultCourseName =
+    locale === 'en' ? 'My route' : locale === 'ja' ? 'マイコース' : '나만의 코스';
 
   const [hotPopups, setHotPopups] = useState<PopupStore[]>([]);
   const [allPopups, setAllPopups] = useState<PopupStore[]>([]);
@@ -377,14 +380,14 @@ export default function Home() {
           confirmText: t('nav.login'),
         })
       ) {
-        router.push('/login');
+        router.push(localizedPath('/login', locale));
       }
       return;
     }
     try {
       const res = await apiFetch('/api/planning/create', { method: 'POST' });
       const roomId = await res.text();
-      router.push(`/planning?room=${roomId}`);
+      router.push(localizedPath(`/planning?room=${roomId}`, locale));
     } catch (e) {
       notifyError(t('home.serverFail'));
     }
@@ -531,7 +534,7 @@ export default function Home() {
           confirmText: t('auth.signup'),
         })
       ) {
-        router.push('/signup');
+        router.push(localizedPath('/signup', locale));
       }
       return;
     }
@@ -541,7 +544,7 @@ export default function Home() {
         confirmText: t('nav.login'),
       })
     ) {
-      router.push('/login');
+      router.push(localizedPath('/login', locale));
     }
   };
 
@@ -665,7 +668,7 @@ export default function Home() {
     }
     if (!user) {
       notify(t('home.loginRequired'));
-      router.push('/login');
+      router.push(localizedPath('/login', locale));
       return;
     }
     try {
@@ -674,9 +677,8 @@ export default function Home() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           userId: user.userId,
-          // 저장 이름은 서버에 그대로 남는 값이라 언어를 섞지 않는다 — selectedVibe 가 AI 에
-          // 넘기는 한국어 검색어라, 앞뒤만 번역하면 "핫플 Route" 같은 이름이 DB 에 쌓인다.
-          courseName: `${selectedVibe || '나만의'} 코스 (${new Date().toLocaleDateString()})`,
+          // AI 검색에 쓰는 한국어 분위기 값은 저장명에 섞지 않고, 사용자가 보는 언어의 기본 이름을 쓴다.
+          courseName: `${defaultCourseName} (${new Date().toLocaleDateString()})`,
           courseData: JSON.stringify(aiCourse),
         }),
       });
@@ -706,8 +708,7 @@ export default function Home() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           userId: user.userId,
-          // 위 handleSaveAiCourse 와 같은 이유로 저장 이름은 한국어 고정.
-          courseName: `나만의 코스 (${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString().slice(0, 5)})`,
+          courseName: `${defaultCourseName} (${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString().slice(0, 5)})`,
           courseData: JSON.stringify(myCourseItems),
         }),
       });
@@ -726,7 +727,7 @@ export default function Home() {
   const handleOpenModal = () => setIsModalOpen(true);
 
   const handleMarkerClickToDetail = (popupId: number | string) => {
-    router.push(`/popup/${popupId}`);
+    router.push(localizedPath(`/popup/${popupId}`, locale));
   };
 
   /*
@@ -949,7 +950,7 @@ export default function Home() {
             </span>
             <button
               type="button"
-              onClick={() => router.push('/signup')}
+              onClick={() => router.push(localizedPath('/signup', locale))}
               className="shrink-0 text-[11px] md:text-xs font-semibold underline-offset-2 hover:underline"
             >
               {t('cta.signup')}
@@ -1065,7 +1066,7 @@ export default function Home() {
                             type="button"
                             onClick={() => {
                               handleTabChange('MAP');
-                              router.push(`/popup/${p.id}`);
+                              router.push(localizedPath(`/popup/${p.id}`, locale));
                             }}
                             aria-label={`${p.name} ${t('common.viewDetail')}`}
                             className={`aspect-[4/5] overflow-hidden rounded-xl ring-1 ring-black/5 dark:ring-white/10 transition hover:-translate-y-0.5 hover:shadow-lg ${i % 2 === 1 ? 'sm:translate-y-3' : ''}`}
@@ -1338,7 +1339,7 @@ export default function Home() {
                           popup={p}
                           onClick={() => {
                             handleTabChange('MAP');
-                            router.push(`/popup/${p.id}`);
+                            router.push(localizedPath(`/popup/${p.id}`, locale));
                           }}
                         />
                       </div>
@@ -1377,13 +1378,13 @@ export default function Home() {
                     tabIndex={0}
                     onClick={() => {
                       handleTabChange('MAP');
-                      router.push(`/popup/${featuredPopup.id}`);
+                      router.push(localizedPath(`/popup/${featuredPopup.id}`, locale));
                     }}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' || e.key === ' ') {
                         e.preventDefault();
                         handleTabChange('MAP');
-                        router.push(`/popup/${featuredPopup.id}`);
+                        router.push(localizedPath(`/popup/${featuredPopup.id}`, locale));
                       }
                     }}
                     className="lg:col-span-1 rounded-[2rem] lg:rounded-[2.5rem] overflow-hidden relative shadow-2xl border border-gray-200 dark:border-white/10 group cursor-pointer h-[320px] lg:h-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-400"
@@ -1442,7 +1443,7 @@ export default function Home() {
                             type="button"
                             onClick={() => {
                               handleTabChange('MAP');
-                              router.push(`/popup/${p.id}`);
+                              router.push(localizedPath(`/popup/${p.id}`, locale));
                             }}
                             className="flex items-center gap-3 py-3 -mx-2 rounded-xl px-2 text-left transition hover:bg-black/[0.03] dark:hover:bg-white/[0.04]"
                           >
@@ -1641,7 +1642,7 @@ export default function Home() {
                           />
                         </svg>
                         <div className="ml-3 mt-0 px-1.5 py-0.5 bg-amber-400 text-ink-900 text-[9px] font-bold rounded whitespace-nowrap">
-                          민지
+                          {locale === 'en' ? 'Minji' : locale === 'ja' ? 'ミンジ' : '민지'}
                         </div>
                       </div>
                     </div>
@@ -1689,7 +1690,7 @@ export default function Home() {
               popups={allPopups}
               onOpenPopup={(id) => {
                 handleTabChange('MAP');
-                router.push(`/popup/${id}`);
+                router.push(localizedPath(`/popup/${id}`, locale));
               }}
             />
           </motion.section>
@@ -1882,7 +1883,7 @@ export default function Home() {
                           <button
                             type="button"
                             className="flex-1 pb-4 text-left lg:pb-6"
-                            onClick={() => router.push(`/popup/${item.id}`)}
+                            onClick={() => router.push(localizedPath(`/popup/${item.id}`, locale))}
                           >
                             <div className="p-4 rounded-md border border-[var(--color-border)] transition-colors bg-cream-300 dark:bg-ink-800 hover:border-lime-300/60">
                               <div className="flex justify-between items-center mb-1">
@@ -2080,7 +2081,10 @@ export default function Home() {
                           <Heart size={10} className="lg:w-3 lg:h-3 fill-current" />
                         </button>
 
-                        <Link href={`/popup/${item.popupId}`} className="absolute inset-0 z-0" />
+                        <Link
+                          href={localizedPath(`/popup/${item.popupId}`, locale)}
+                          className="absolute inset-0 z-0"
+                        />
                       </div>
                     ))}
                   </div>
@@ -2324,7 +2328,7 @@ export default function Home() {
  * 자동으로 기록되고, 사용자가 MY 탭으로 돌아오면 다음 mount 에 갱신.
  */
 function RecentVisitsCard() {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const [visits, setVisits] = useState<
     Array<{ popupId: number; popupName: string; popupImage?: string }>
   >([]);
@@ -2346,7 +2350,7 @@ function RecentVisitsCard() {
         {visits.slice(0, 6).map((v) => (
           <Link
             key={v.popupId}
-            href={`/popup/${v.popupId}`}
+            href={localizedPath(`/popup/${v.popupId}`, locale)}
             className="group block rounded-md overflow-hidden border border-[var(--color-border)] bg-cream-300 dark:bg-ink-800 aspect-square relative"
           >
             <PopupCoverVisual

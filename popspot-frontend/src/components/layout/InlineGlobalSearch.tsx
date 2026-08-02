@@ -6,6 +6,9 @@ import { Search, X, Loader2, MapPin } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 import { apiFetch } from '@/lib/api';
+import { useLocale } from '@/lib/i18n';
+import { localizedPath } from '@/lib/localePath';
+import { bilingual } from '@/lib/bilingual';
 
 /**
  * v2.21-S5 — 헤더 인라인 통합검색.
@@ -27,6 +30,10 @@ type Hit = {
   id: number;
   name: string;
   location?: string | null;
+  nameEn?: string | null;
+  nameJa?: string | null;
+  locationEn?: string | null;
+  locationJa?: string | null;
 };
 
 const MAX_HITS = 8;
@@ -34,6 +41,7 @@ const DEBOUNCE_MS = 200;
 
 export default function InlineGlobalSearch() {
   const router = useRouter();
+  const { t, locale } = useLocale();
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [hits, setHits] = useState<Hit[]>([]);
@@ -129,13 +137,13 @@ export default function InlineGlobalSearch() {
     const q = query.trim();
     if (!q) return;
     if (hits[0]) {
-      router.push(`/popup/${hits[0].id}`);
+      router.push(localizedPath(`/popup/${hits[0].id}`, locale));
       close();
     }
   }
 
   function goToHit(id: number) {
-    router.push(`/popup/${id}`);
+    router.push(localizedPath(`/popup/${id}`, locale));
     close();
   }
 
@@ -147,8 +155,8 @@ export default function InlineGlobalSearch() {
             key="trigger"
             type="button"
             onClick={open}
-            aria-label="통합검색 열기"
-            title="통합검색 (Ctrl+K)"
+            aria-label={t('quickSearch.open')}
+            title={t('quickSearch.shortcut')}
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
@@ -156,7 +164,7 @@ export default function InlineGlobalSearch() {
             className="group inline-flex items-center gap-2 h-10 px-4 rounded-pill border bg-lime-300 text-ink-900 border-lime-400 hover:bg-lime-400 transition-colors shadow-sm font-bold text-xs md:text-sm whitespace-nowrap"
           >
             <Search size={14} className="shrink-0" />
-            <span>통합검색</span>
+            <span>{t('quickSearch.title')}</span>
           </motion.button>
         ) : (
           <motion.form
@@ -169,7 +177,7 @@ export default function InlineGlobalSearch() {
             style={{ transformOrigin: 'right center' }}
             className="flex items-center h-10 rounded-pill border bg-white dark:bg-[#1a1a1a] border-lime-400 dark:border-lime-300/50 shadow-md w-[220px] md:w-[320px] overflow-hidden"
             role="search"
-            aria-label="통합검색"
+            aria-label={t('quickSearch.title')}
           >
             <span className="pl-3 text-lime-600 dark:text-lime-300 shrink-0">
               <Search size={16} />
@@ -181,7 +189,7 @@ export default function InlineGlobalSearch() {
               autoComplete="off"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="팝업 이름 / 지역 검색…"
+              placeholder={t('quickSearch.placeholder')}
               className="flex-1 h-full px-3 bg-transparent text-sm text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-white/40 focus:outline-none"
             />
             {loading && (
@@ -192,7 +200,7 @@ export default function InlineGlobalSearch() {
             <button
               type="button"
               onClick={close}
-              aria-label="검색 닫기"
+              aria-label={t('quickSearch.close')}
               className="pr-3 pl-1 text-gray-400 dark:text-white/40 hover:text-gray-600 dark:hover:text-white/70 shrink-0"
             >
               <X size={16} />
@@ -212,35 +220,49 @@ export default function InlineGlobalSearch() {
             role="listbox"
           >
             {loading && hits.length === 0 ? (
-              <p className="p-4 text-xs text-muted-foreground text-center">검색 중…</p>
+              <p className="p-4 text-xs text-muted-foreground text-center">
+                {t('quickSearch.loading')}
+              </p>
             ) : hits.length === 0 ? (
               <p className="p-4 text-xs text-muted-foreground text-center">
-                일치하는 팝업이 없어요.
+                {t('quickSearch.empty')}
               </p>
             ) : (
               <ul>
-                {hits.map((h) => (
-                  <li key={h.id}>
-                    <button
-                      type="button"
-                      onClick={() => goToHit(h.id)}
-                      className="w-full flex items-start gap-2 px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-white/5 transition-colors border-b border-gray-100 dark:border-white/5 last:border-0"
-                      role="option"
-                    >
-                      <span className="text-lime-500 mt-0.5 shrink-0">
-                        <MapPin size={12} />
-                      </span>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-bold text-gray-900 dark:text-white truncate">
-                          {h.name}
-                        </p>
-                        {h.location && (
-                          <p className="text-[11px] text-muted-foreground truncate">{h.location}</p>
-                        )}
-                      </div>
-                    </button>
-                  </li>
-                ))}
+                {hits.map((h) => {
+                  const shownName = bilingual(
+                    h.name,
+                    locale === 'en' ? h.nameEn : locale === 'ja' ? h.nameJa : null,
+                  );
+                  const shownPlace = bilingual(
+                    h.location ?? null,
+                    locale === 'en' ? h.locationEn : locale === 'ja' ? h.locationJa : null,
+                  );
+                  return (
+                    <li key={h.id}>
+                      <button
+                        type="button"
+                        onClick={() => goToHit(h.id)}
+                        className="w-full flex items-start gap-2 px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-white/5 transition-colors border-b border-gray-100 dark:border-white/5 last:border-0"
+                        role="option"
+                      >
+                        <span className="text-lime-500 mt-0.5 shrink-0">
+                          <MapPin size={12} />
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-bold text-gray-900 dark:text-white truncate">
+                            {shownName.display || h.name}
+                          </p>
+                          {shownPlace.display && (
+                            <p className="text-[11px] text-muted-foreground truncate">
+                              {shownPlace.display}
+                            </p>
+                          )}
+                        </div>
+                      </button>
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </motion.div>

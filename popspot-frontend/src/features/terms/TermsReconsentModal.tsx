@@ -6,6 +6,7 @@ import { FileText, LogOut } from 'lucide-react';
 
 import { apiFetch } from '@/lib/api';
 import { useLocale } from '@/lib/i18n';
+import { localizedPath } from '@/lib/localePath';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -39,7 +40,7 @@ interface TermsReconsentModalProps {
  * <p>마운트 시점에 한 번만 status 조회. 재로그인 / 다음 세션에 다시 확인됨.
  */
 export function TermsReconsentModal({ enabled, onDecline }: TermsReconsentModalProps) {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const [open, setOpen] = useState(false);
   const [status, setStatus] = useState<TermsStatus | null>(null);
   const [accepting, setAccepting] = useState(false);
@@ -108,7 +109,7 @@ export function TermsReconsentModal({ enabled, onDecline }: TermsReconsentModalP
 
           <div className="flex flex-col gap-1.5 text-xs">
             <Link
-              href="/terms"
+              href={localizedPath('/terms', locale)}
               target="_blank"
               rel="noopener noreferrer"
               className="text-lime-500 hover:underline inline-flex items-center gap-1"
@@ -116,7 +117,7 @@ export function TermsReconsentModal({ enabled, onDecline }: TermsReconsentModalP
               <FileText className="size-3" aria-hidden /> {t('terms.viewTerms')}
             </Link>
             <Link
-              href="/privacy"
+              href={localizedPath('/privacy', locale)}
               target="_blank"
               rel="noopener noreferrer"
               className="text-lime-500 hover:underline inline-flex items-center gap-1"

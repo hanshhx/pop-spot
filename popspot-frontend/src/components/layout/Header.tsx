@@ -13,6 +13,7 @@ import { Logo } from '@/components/layout/Logo';
 import { SectionLogo } from '@/components/layout/BrandLogos';
 import { DOCK_ITEMS } from '@/components/layout/BottomDock';
 import { useLocale } from '@/lib/i18n';
+import { localizedPath } from '@/lib/localePath';
 
 export interface HeaderUser {
   userId: string;
@@ -57,7 +58,7 @@ export function Header({
   onNavChange,
   className,
 }: HeaderProps) {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   // v2.18.1 — 미확인 알림 개수 (localStorage 기반).
   const [unread, setUnread] = useState(0);
   useEffect(() => {
@@ -77,7 +78,11 @@ export function Header({
         className,
       )}
     >
-      <Link href="/?entered=1" onClick={onLogoClick} className="group inline-flex flex-col">
+      <Link
+        href={localizedPath('/?entered=1', locale)}
+        onClick={onLogoClick}
+        className="group inline-flex flex-col"
+      >
         <h1 className="leading-none">
           <Logo className="h-10 md:h-14 transition-opacity group-hover:opacity-80" />
         </h1>
@@ -181,7 +186,7 @@ export function Header({
         ) : (
           <div className="hidden md:flex items-center gap-2">
             <Button asChild variant="ghost" size="md" className="text-sm md:text-[15px] font-bold">
-              <Link href="/login">{t('nav.login')}</Link>
+              <Link href={localizedPath('/login', locale)}>{t('nav.login')}</Link>
             </Button>
             <Button
               asChild
@@ -189,7 +194,7 @@ export function Header({
               size="md"
               className="text-sm md:text-[15px] font-bold"
             >
-              <Link href="/signup">{t('auth.signup')}</Link>
+              <Link href={localizedPath('/signup', locale)}>{t('auth.signup')}</Link>
             </Button>
           </div>
         )}

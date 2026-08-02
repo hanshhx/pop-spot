@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { MessageCircle } from 'lucide-react';
 import Link from 'next/link';
 import { useLocale } from '@/lib/i18n';
+import { localizedPath } from '@/lib/localePath';
 // GET 호출은 apiFetch 의 Content-Type 헤더가 preflight 를 일으켜서
 // 직접 fetch 를 사용한다.
 
@@ -16,7 +17,7 @@ interface TickerMessage {
 }
 
 export default function LiveChatTicker() {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const [messages, setMessages] = useState<TickerMessage[]>([]);
 
   // 1. 최신 채팅 데이터 가져오기 — Simple Request 로 보내야 preflight 회피
@@ -79,7 +80,11 @@ export default function LiveChatTicker() {
         >
           {/* 팝업 이름 · 닉네임 · 채팅 내용은 현장에서 오간 원문 그대로 흘린다 — 옮기면 누가 무슨 말을 했는지가 아니라 번역기의 말이 된다. */}
           {messages.map((msg, idx) => (
-            <Link href={`/popup/${msg.popupId}`} key={idx} className="shrink-0">
+            <Link
+              href={localizedPath(`/popup/${msg.popupId}`, locale)}
+              key={idx}
+              className="shrink-0"
+            >
               <div
                 className="
                 flex items-center gap-2 md:gap-3 px-4 py-2 md:px-6 md:py-3 rounded-full border backdrop-blur-md transition-all cursor-pointer

@@ -24,6 +24,92 @@ import { apiFetch, SOCKET_BASE_URL, API_BASE_URL } from '../lib/api';
 import { getAuthToken } from '../lib/authStorage';
 import { notify, notifyError, confirmAction } from '@/lib/notify';
 import { addPromiseToCalendar } from '@/lib/calendar';
+import { useLocale } from '@/lib/i18n';
+
+const COPY = {
+  ko: {
+    unread: (n: number) => `새 메시지 ${n}개`,
+    leaveConfirm: '채팅방에서 나가시겠습니까?',
+    deleteConfirm: '정말 폭파하시겠습니까? 팀원들의 채팅방도 모두 삭제됩니다.',
+    deleted: '채팅방이 폭파되었습니다.',
+    deleteError: '삭제 중 오류가 발생했습니다.',
+    uploadError: '파일 전송 실패',
+    calendarTitle: (place: string) => `팝스팟 동행 · ${place || '약속'}`,
+    calendarOpened: (p: PromiseData) =>
+      `📅 캘린더 앱을 열었습니다.\n\n날짜: ${p.date}\n시간: ${p.time}\n장소: ${p.location}`,
+    invalidDate: '날짜·시간이 올바르지 않아 캘린더에 추가하지 못했습니다.',
+    subtitle: '실시간 동행 채팅',
+    close: '닫기',
+    meetLead: '우리 여기서',
+    meetTail: '만나는 거 어때요?',
+    accept: '일정 수락하고 저장하기',
+    imageAlt: '채팅 이미지',
+    location: '장소 입력 (예: 더현대 서울 팝업 앞)',
+    sendInvite: '초대장 발송하기',
+    cancel: '취소',
+    message: '메시지를 입력하세요...',
+    send: '메시지 전송',
+    plan: '동행 약속잡기',
+    leave: '나가기',
+    leaveAria: '채팅방 나가기',
+    destroy: '폭파하기',
+  },
+  en: {
+    unread: (n: number) => `${n} new ${n === 1 ? 'message' : 'messages'}`,
+    leaveConfirm: 'Leave this chat room?',
+    deleteConfirm: 'Delete this room for everyone? All members will lose access to the chat.',
+    deleted: 'The chat room was deleted.',
+    deleteError: 'Could not delete the chat room.',
+    uploadError: 'Could not send the file.',
+    calendarTitle: (place: string) => `POP-SPOT meetup · ${place || 'Meetup'}`,
+    calendarOpened: (p: PromiseData) =>
+      `📅 Opened your calendar.\n\nDate: ${p.date}\nTime: ${p.time}\nPlace: ${p.location}`,
+    invalidDate: 'The date or time is invalid, so it could not be added to your calendar.',
+    subtitle: 'Live meetup chat',
+    close: 'Close',
+    meetLead: 'How about meeting',
+    meetTail: 'here?',
+    accept: 'Accept and save to calendar',
+    imageAlt: 'Chat image',
+    location: 'Meeting place (e.g. outside The Hyundai Seoul pop-up)',
+    sendInvite: 'Send invitation',
+    cancel: 'Cancel',
+    message: 'Write a message…',
+    send: 'Send message',
+    plan: 'Plan a meetup',
+    leave: 'Leave',
+    leaveAria: 'Leave chat room',
+    destroy: 'Delete room',
+  },
+  ja: {
+    unread: (n: number) => `新着メッセージ ${n}件`,
+    leaveConfirm: 'チャットルームから退出しますか？',
+    deleteConfirm:
+      'このルームを全員から削除しますか？メンバー全員がチャットを利用できなくなります。',
+    deleted: 'チャットルームを削除しました。',
+    deleteError: 'チャットルームを削除できませんでした。',
+    uploadError: 'ファイルを送信できませんでした。',
+    calendarTitle: (place: string) => `POP-SPOT同行 · ${place || '待ち合わせ'}`,
+    calendarOpened: (p: PromiseData) =>
+      `📅 カレンダーを開きました。\n\n日付: ${p.date}\n時間: ${p.time}\n場所: ${p.location}`,
+    invalidDate: '日付または時刻が正しくないため、カレンダーに追加できませんでした。',
+    subtitle: 'リアルタイム同行チャット',
+    close: '閉じる',
+    meetLead: 'ここで',
+    meetTail: '会いませんか？',
+    accept: '承認してカレンダーに保存',
+    imageAlt: 'チャット画像',
+    location: '待ち合わせ場所（例：ザ・ヒュンダイ・ソウルのポップアップ前）',
+    sendInvite: '招待を送る',
+    cancel: 'キャンセル',
+    message: 'メッセージを入力…',
+    send: 'メッセージを送信',
+    plan: '待ち合わせを決める',
+    leave: '退出',
+    leaveAria: 'チャットルームから退出',
+    destroy: 'ルームを削除',
+  },
+} as const;
 
 interface MateChatModalProps {
   postId: number;
@@ -58,6 +144,8 @@ export default function MateChatModal({
   isAuthor,
   onDeleteSuccess,
 }: MateChatModalProps) {
+  const { locale } = useLocale();
+  const copy = COPY[locale];
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [showPromiseForm, setShowPromiseForm] = useState(false);
@@ -70,7 +158,7 @@ export default function MateChatModal({
   const [promiseDetails, setPromiseDetails] = useState<PromiseData>({
     date: new Date().toISOString().split('T')[0],
     time: '14:00',
-    location: '더현대 서울',
+    location: 'The Hyundai Seoul',
   });
 
   const client = useRef<Client | null>(null);
@@ -81,12 +169,12 @@ export default function MateChatModal({
   useEffect(() => {
     if (unreadCount > 0) {
       const originalTitle = document.title;
-      document.title = `(새 메시지 ${unreadCount}개) POP-SPOT`;
+      document.title = `(${copy.unread(unreadCount)}) POP-SPOT`;
       return () => {
         document.title = originalTitle;
       };
     }
-  }, [unreadCount]);
+  }, [unreadCount, copy]);
 
   useEffect(() => {
     if (!isMinimized) {
@@ -97,7 +185,10 @@ export default function MateChatModal({
   const formatTime = (dateStr: string) => {
     try {
       const date = new Date(dateStr);
-      return date.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+      return date.toLocaleTimeString(
+        locale === 'ko' ? 'ko-KR' : locale === 'ja' ? 'ja-JP' : 'en-US',
+        { hour: '2-digit', minute: '2-digit' },
+      );
     } catch (e) {
       return '';
     }
@@ -198,23 +289,20 @@ export default function MateChatModal({
   };
 
   const handleLeaveChat = async () => {
-    if (!(await confirmAction({ text: '채팅방에서 나가시겠습니까?' }))) return;
+    if (!(await confirmAction({ text: copy.leaveConfirm }))) return;
     onClose();
   };
 
   const handleDeleteRoom = async () => {
-    if (
-      !(await confirmAction({ text: '정말 폭파하시겠습니까? 팀원들의 채팅방도 모두 삭제됩니다.' }))
-    )
-      return;
+    if (!(await confirmAction({ text: copy.deleteConfirm }))) return;
     try {
       const res = await apiFetch(`/api/mates/${postId}?userId=${userId}`, { method: 'DELETE' });
       if (res.ok) {
-        notify('채팅방이 폭파되었습니다.');
+        notify(copy.deleted);
         onDeleteSuccess();
       }
     } catch (e) {
-      notifyError('삭제 중 오류가 발생했습니다.');
+      notifyError(copy.deleteError);
     }
   };
 
@@ -254,7 +342,7 @@ export default function MateChatModal({
       });
       if (fileInputRef.current) fileInputRef.current.value = '';
     } catch (err) {
-      notifyError('파일 전송 실패');
+      notifyError(copy.uploadError);
     }
   };
 
@@ -285,15 +373,15 @@ export default function MateChatModal({
   const addToCalendar = (p: { date: string; time: string; location: string }) => {
     // 실제로 캘린더에 등록한다. 예전엔 아무것도 안 하고 성공 메시지만 띄우는 가짜 버튼이었다.
     const ok = addPromiseToCalendar({
-      title: `팝스팟 동행 · ${p.location || '약속'}`,
+      title: copy.calendarTitle(p.location),
       date: p.date,
       time: p.time,
       location: p.location,
     });
     if (ok) {
-      notify(`📅 캘린더 앱을 열었어요!\n\n날짜: ${p.date}\n시간: ${p.time}\n장소: ${p.location}`);
+      notify(copy.calendarOpened(p));
     } else {
-      notify(`⚠️ 날짜·시간이 올바르지 않아 캘린더에 추가하지 못했어요.`);
+      notify(`⚠️ ${copy.invalidDate}`);
     }
   };
 
@@ -331,7 +419,7 @@ export default function MateChatModal({
                   <h3 className="font-bold text-xs sm:text-sm truncate max-w-[150px] sm:max-w-[180px]">
                     {postTitle}
                   </h3>
-                  <p className="text-xs opacity-80">실시간 동행 채팅</p>
+                  <p className="text-xs opacity-80">{copy.subtitle}</p>
                 </div>
               </div>
               <div className="flex items-center gap-1">
@@ -344,7 +432,7 @@ export default function MateChatModal({
                 <button
                   onClick={onClose}
                   className="p-1 sm:p-1.5 hover:bg-white/10 rounded-md transition-colors"
-                  aria-label="닫기"
+                  aria-label={copy.close}
                 >
                   <X size={16} className="sm:w-[18px] sm:h-[18px]" />
                 </button>
@@ -385,9 +473,9 @@ export default function MateChatModal({
                             <Sparkles size={10} className="sm:w-3 sm:h-3" /> POP-SPOT INVITATION
                           </div>
                           <h4 className="text-base sm:text-lg font-black text-gray-900 dark:text-white mb-3 sm:mb-4 leading-tight">
-                            우리 여기서
+                            {copy.meetLead}
                             <br />
-                            만나는 거 어때요?
+                            {copy.meetTail}
                           </h4>
                           <div className="space-y-2 mb-4 sm:mb-5 bg-white/60 dark:bg-black/40 rounded-xl sm:rounded-2xl p-3 sm:p-4 backdrop-blur-sm border border-white/50 dark:border-white/5">
                             <div className="flex items-center gap-2 sm:gap-3 text-xs sm:text-sm">
@@ -419,7 +507,7 @@ export default function MateChatModal({
                             onClick={() => addToCalendar(p)}
                             className="w-full py-2.5 sm:py-3 bg-gray-900 hover:bg-black dark:bg-white dark:hover:bg-gray-200 dark:text-black text-white rounded-lg sm:rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 sm:gap-2 shadow-xl hover:shadow-2xl hover:-translate-y-0.5"
                           >
-                            <Check size={12} className="sm:w-3.5 sm:h-3.5" /> 일정 수락하고 저장하기
+                            <Check size={12} className="sm:w-3.5 sm:h-3.5" /> {copy.accept}
                           </button>
                         </div>
                       </div>
@@ -441,7 +529,7 @@ export default function MateChatModal({
                         <div className="rounded-xl sm:rounded-2xl overflow-hidden border-2 border-white dark:border-[#333] shadow-sm">
                           <Image
                             src={getImageUrl(msg)}
-                            alt="채팅 이미지"
+                            alt={copy.imageAlt}
                             width={300}
                             height={200}
                             unoptimized
@@ -494,7 +582,7 @@ export default function MateChatModal({
                   </div>
                   <input
                     type="text"
-                    placeholder="장소 입력 (예: 더현대 서울 팝업 앞)"
+                    placeholder={copy.location}
                     value={promiseDetails.location}
                     onChange={(e) =>
                       setPromiseDetails({ ...promiseDetails, location: e.target.value })
@@ -506,13 +594,13 @@ export default function MateChatModal({
                       onClick={sendPromise}
                       className="flex-1 py-2 sm:py-2.5 bg-lime-300 hover:bg-lime-400 text-ink-900 text-xs font-bold rounded-lg sm:rounded-xl transition-colors shadow-lg"
                     >
-                      초대장 발송하기
+                      {copy.sendInvite}
                     </button>
                     <button
                       onClick={() => setShowPromiseForm(false)}
                       className="px-3 sm:px-4 py-2 sm:py-2.5 bg-gray-200 hover:bg-gray-300 dark:bg-[#444] dark:hover:bg-[#555] text-gray-700 dark:text-gray-200 text-xs font-bold rounded-lg sm:rounded-xl transition-colors"
                     >
-                      취소
+                      {copy.cancel}
                     </button>
                   </div>
                 </motion.div>
@@ -536,12 +624,12 @@ export default function MateChatModal({
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
-                  placeholder="메시지를 입력하세요..."
+                  placeholder={copy.message}
                   className="flex-1 bg-gray-100 dark:bg-black/30 border border-transparent dark:border-white/10 rounded-lg sm:rounded-xl px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm focus:outline-none focus:border-lime-300 dark:text-white transition-colors"
                 />
                 <button
                   onClick={sendMessage}
-                  aria-label="메시지 전송"
+                  aria-label={copy.send}
                   className="p-2 sm:p-2.5 bg-lime-300 hover:bg-lime-400 text-ink-900 rounded-lg sm:rounded-xl transition-all shadow-lg active:scale-95"
                 >
                   <Send size={16} className="sm:w-[18px] sm:h-[18px]" />
@@ -553,22 +641,22 @@ export default function MateChatModal({
                   onClick={() => setShowPromiseForm(!showPromiseForm)}
                   className="text-xs font-bold text-lime-500 hover:text-lime-700 dark:text-lime-300 dark:hover:text-lime-400 flex items-center gap-1 sm:gap-1.5 transition-colors bg-lime-300/10 dark:bg-ink-800 px-2 sm:px-3 py-1 sm:py-1.5 rounded-md sm:rounded-lg"
                 >
-                  <CalendarPlus size={12} className="sm:w-3.5 sm:h-3.5" /> 동행 약속잡기
+                  <CalendarPlus size={12} className="sm:w-3.5 sm:h-3.5" /> {copy.plan}
                 </button>
                 <div className="flex gap-2 sm:gap-4">
                   <button
                     onClick={handleLeaveChat}
                     className="text-xs font-medium text-gray-500 hover:text-red-500 flex items-center gap-1 transition-colors"
-                    aria-label="채팅방 나가기"
+                    aria-label={copy.leaveAria}
                   >
-                    <LogOut size={12} /> 나가기
+                    <LogOut size={12} /> {copy.leave}
                   </button>
                   {isAuthor && (
                     <button
                       onClick={handleDeleteRoom}
                       className="text-xs text-red-500 hover:text-white hover:bg-red-500 bg-red-50 dark:bg-red-900/20 px-2 sm:px-3 py-1 sm:py-1.5 rounded-md sm:rounded-lg font-bold flex items-center gap-1 transition-all"
                     >
-                      <Trash2 size={12} /> 폭파하기
+                      <Trash2 size={12} /> {copy.destroy}
                     </button>
                   )}
                 </div>
