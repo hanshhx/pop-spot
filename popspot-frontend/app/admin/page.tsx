@@ -9,7 +9,6 @@ import {
   MapPin,
   Store,
   AlertCircle,
-  BarChart3,
   Users,
   MessageSquare,
   Gift,
@@ -18,10 +17,8 @@ import {
   Cpu,
   Database,
   Globe,
-  Inbox,
   ChevronRight,
   LogOut,
-  Footprints,
 } from 'lucide-react';
 import Swal from 'sweetalert2';
 
@@ -36,183 +33,25 @@ import {
 import { LogViewer } from '@/components/admin/log/LogViewer';
 import { AdminFeedbackPanel } from '@/features/feedback/AdminFeedbackPanel';
 
-interface MetricData {
-  time: string;
-  cpu: number;
-  memory: number;
-}
-
-interface AdminStats {
-  totalUsers?: number;
-  totalPopups?: number;
-  activePopups?: number;
-  pendingPopups?: number;
-  totalMatePosts?: number;
-  pendingReview?: number;
-  autoPublished?: number;
-  todayStamps?: number;
-}
-
-interface AdminMatePost {
-  id: number;
-  title: string;
-  content?: string;
-  author?: { nickname?: string };
-  createdAt?: string;
-  isMegaphone?: boolean;
-}
-
-interface AdminUser {
-  userId: string;
-  email: string;
-  nickname: string;
-  picture?: string | null;
-  provider?: string | null;
-  role: string;
-  createdAt?: string;
-  isPremium?: boolean;
-  premiumExpiryDate?: string | null;
-  stampCount?: number;
-  likeCount?: number;
-}
-
-interface AdminVisitStats {
-  todayVisitors: number;
-  todayPageviews: number;
-  todayGuests: number;
-  todayMembers: number;
-  weekVisitors: number;
-  daily: { date: string; visitors: number }[];
-  topPaths: { path: string; count: number }[];
-}
-
-/** 유입 경로 집계 1행. source 는 사람이 읽는 묶음명(네이버·구글·직접 방문…), host 는 원본 도메인. */
-interface AdminReferrer {
-  source: string;
-  host: string;
-  visits: number;
-}
-
-// 실시간 폴링 — 3초 주기. 더 잦으면 백엔드 부하, 더 느슨하면 모니터링 가치 떨어짐.
-const SERVER_METRICS_POLL_INTERVAL_MS = 3000;
-const SERVER_METRICS_BUFFER_SIZE = 15;
-
-/** 로컬 미리보기 여부 — dev 빌드이거나 localhost 접속. 프로덕션(실도메인)에서는 항상 false. */
-function isPreviewEnv() {
-  if (process.env.NODE_ENV === 'development') return true;
-  return (
-    typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname)
-  );
-}
-
-/**
- * 통합 메트릭 (`/api/admin/metrics/dashboard`) 응답을 차트 점 1 개로 압축.
- * useDashboardMetrics 훅이 매 폴링마다 호출한다.
- */
-function toLinePoint(s: DashboardSnapshot, now: Date): Record<string, number | string> {
-  const time = `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
-  return {
-    time,
-    heapMb: Number(s.jvm?.heapUsedMb ?? 0),
-    httpRps: Number(s.http?.requestCount ?? 0),
-  };
-}
-
-/**
- * 좌측 사이드바 네비게이션 — 개선안 #7: 상단 가로 탭 + "MASTER ADMIN" 해커 터미널 톤 대신
- * 소비자 앱과 같은 디자인 시스템의 밝은 사이드바. 서비스 운영 항목이 위, 시스템은 맨 아래.
- */
-const NAV: { id: string; label: string; icon: typeof Users; badge?: boolean }[] = [
-  { id: 'DASHBOARD', label: '대시보드', icon: BarChart3 },
-  { id: 'POPUPS', label: '팝업 관리', icon: Store },
-  { id: 'PENDING', label: '제보 승인', icon: AlertCircle, badge: true },
-  { id: 'MEMBERS', label: '회원', icon: Users },
-  { id: 'MATES', label: '커뮤니티', icon: MessageSquare },
-  { id: 'COMMENTS', label: '라이브 댓글', icon: MessageSquare },
-  { id: 'VISITS', label: '방문 통계', icon: Globe },
-  { id: 'VISITORS', label: '방문자', icon: Footprints },
-  { id: 'REWARDS', label: '보상 지급', icon: Gift },
-  { id: 'FEEDBACK', label: '의견', icon: Inbox },
-  { id: 'SYSTEM', label: '시스템', icon: Activity },
-];
-
-const TAB_TITLE: Record<string, string> = {
-  DASHBOARD: '서비스 대시보드',
-  POPUPS: '팝업 관리',
-  PENDING: '제보 승인',
-  MEMBERS: '회원',
-  MATES: '커뮤니티 관리',
-  COMMENTS: '라이브 댓글 관리',
-  VISITS: '방문 통계',
-  VISITORS: '방문자 목록',
-  REWARDS: '보상 지급',
-  FEEDBACK: '의견',
-  SYSTEM: '시스템',
-};
-
-/** UA 에 흔한 브라우저 토큰이 하나도 없으면 봇 의심(강화 필터를 통과했더라도 눈으로 확인용). */
-function uaLooksBot(ua: string | null | undefined): boolean {
-  if (!ua) return false;
-  return !/(chrome|crios|firefox|fxios|safari|edg|samsungbrowser|whale|opr|trident|msie|naver|kakao)/i.test(
-    ua,
-  );
-}
-
-/* [redesign/test 전용] 백엔드 없을 때(로컬) 관리자 화면을 미리볼 수 있게 하는 목업. */
-const devAdminStats: AdminStats = {
-  totalUsers: 22,
-  activePopups: 134,
-  pendingPopups: 3,
-  totalMatePosts: 8,
-  todayStamps: 12,
-};
-const devPending: PopupStore[] = [
-  {
-    id: 5001,
-    name: '성수 커피 팝업',
-    location: '서울 성동구 성수동',
-    status: 'PENDING',
-    viewCount: 0,
-    reporterId: 'user_88',
-  },
-  {
-    id: 5002,
-    name: '한남 브랜드전',
-    location: '서울 용산구 한남동',
-    status: 'PENDING',
-    viewCount: 0,
-    reporterId: 'user_12',
-  },
-  {
-    id: 5003,
-    name: '홍대 아트마켓',
-    location: '서울 마포구 홍대',
-    status: 'PENDING',
-    viewCount: 0,
-    reporterId: 'user_41',
-  },
-];
-const devVisitStats: AdminVisitStats = {
-  todayVisitors: 87,
-  todayPageviews: 312,
-  todayGuests: 61,
-  todayMembers: 26,
-  weekVisitors: 540,
-  daily: [
-    { date: '07.04', visitors: 62 },
-    { date: '07.05', visitors: 74 },
-    { date: '07.06', visitors: 58 },
-    { date: '07.07', visitors: 91 },
-    { date: '07.08', visitors: 103 },
-    { date: '07.09', visitors: 128 },
-    { date: '07.10', visitors: 87 },
-  ],
-  topPaths: [
-    { path: '/', count: 210 },
-    { path: '/popup', count: 156 },
-    { path: '/music', count: 44 },
-  ],
-};
+import { StatCard } from '@/components/admin/StatCard';
+import {
+  NAV,
+  SERVER_METRICS_BUFFER_SIZE,
+  SERVER_METRICS_POLL_INTERVAL_MS,
+  TAB_TITLE,
+} from '@/features/admin/constants';
+import { devAdminStats, devPending, devVisitStats } from '@/features/admin/devData';
+import { isPreviewEnv, toLinePoint, uaLooksBot } from '@/features/admin/helpers';
+import type {
+  AdminMatePost,
+  AdminReferrer,
+  AdminStats,
+  AdminTodayPath,
+  AdminUser,
+  AdminVisitStats,
+  AdminVisitor,
+  MetricData,
+} from '@/features/admin/types';
 
 export default function AdminPage() {
   const router = useRouter();
@@ -265,20 +104,9 @@ export default function AdminPage() {
   const [matePosts, setMatePosts] = useState<AdminMatePost[]>([]);
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [visitStats, setVisitStats] = useState<AdminVisitStats | null>(null);
-  const [todayPaths, setTodayPaths] = useState<
-    { path: string; total: number; members: number; guests: number }[]
-  >([]);
+  const [todayPaths, setTodayPaths] = useState<AdminTodayPath[]>([]);
   const [referrers, setReferrers] = useState<AdminReferrer[]>([]);
-  const [visitors, setVisitors] = useState<
-    {
-      visitorId: string;
-      visits: number;
-      paths: string;
-      lastSeen: string;
-      guest: boolean;
-      userAgent: string | null;
-    }[]
-  >([]);
+  const [visitors, setVisitors] = useState<AdminVisitor[]>([]);
 
   // v2.10 — 통합 메트릭 폴링. authorized 전엔 시작하지 않아 403 도배 차단.
   const dashboard = useDashboardMetrics(
@@ -1705,40 +1533,6 @@ export default function AdminPage() {
           </div>
         </div>
       </main>
-    </div>
-  );
-}
-
-/** 대시보드 서비스 지표 카드. tone 으로 아이콘/값 강조색만 바꾼다. */
-function StatCard({
-  label,
-  value,
-  sub,
-  icon,
-  tone,
-}: {
-  label: string;
-  value: number;
-  sub: string;
-  icon: ReactNode;
-  tone: 'lime' | 'green' | 'amber' | 'violet';
-}) {
-  const toneCls: Record<string, string> = {
-    lime: 'bg-lime-300/20 text-lime-600 dark:text-lime-300',
-    green: 'bg-green-100 text-green-600 dark:bg-green-900/25 dark:text-green-400',
-    amber: 'bg-amber-100 text-amber-600 dark:bg-amber-900/25 dark:text-amber-400',
-    violet: 'bg-violet-100 text-violet-600 dark:bg-violet-900/25 dark:text-violet-400',
-  };
-  return (
-    <div className="rounded-2xl border border-[var(--color-border)] bg-surface p-4 md:p-5">
-      <div className="flex items-center justify-between">
-        <p className="text-xs font-bold text-muted-foreground">{label}</p>
-        <span className={`grid h-8 w-8 place-items-center rounded-lg ${toneCls[tone]}`}>
-          {icon}
-        </span>
-      </div>
-      <p className="mt-2 text-3xl font-black tracking-tight">{value.toLocaleString()}</p>
-      <p className="mt-0.5 text-[11px] text-muted-foreground">{sub}</p>
     </div>
   );
 }
