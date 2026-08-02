@@ -67,6 +67,9 @@ public class WebConfig implements WebMvcConfigurer {
      */
     private static final String TAKEDOWN_PATH_PATTERN = "/api/popups/*/takedown";
 
+    /** 감사 로그 대상 — 관리자 API 전체. */
+    private static final String ADMIN_PATH_PATTERN = "/api/admin/**";
+
     /**
      * 회원 콘텐츠 경로 — 약관 §14 비색인 대상(동행·의견·채팅).
      *
@@ -86,6 +89,7 @@ public class WebConfig implements WebMvcConfigurer {
     private String uploadPath;
 
     private final RateLimitInterceptor rateLimitInterceptor;
+    private final AdminAuditInterceptor adminAuditInterceptor;
 
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
@@ -111,6 +115,12 @@ public class WebConfig implements WebMvcConfigurer {
 
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
+        // 감사 로그를 <b>요청 제한보다 먼저</b> 등록한다. 순서가 반대면 제한에 걸려 429 로 끝난
+        // 관리자 요청이 한 줄도 남지 않는다 — 앞선 인터셉터가 요청을 막으면 뒤에 등록된
+        // 인터셉터의 afterCompletion 은 호출되지 않기 때문이다. 관리자 계정이 갑자기 제한에
+        // 걸리기 시작하는 것 자체가 봐야 할 신호라, 그게 사라지면 안 된다.
+        registry.addInterceptor(adminAuditInterceptor).addPathPatterns(ADMIN_PATH_PATTERN);
+
         registry.addInterceptor(rateLimitInterceptor)
                 .addPathPatterns(AUTH_PATH_PATTERN, TAKEDOWN_PATH_PATTERN)
                 .addPathPatterns(RATE_LIMITED_API_PATTERNS);
