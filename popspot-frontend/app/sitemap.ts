@@ -8,6 +8,7 @@ import {
   classifyCategory,
   matchesPeriod,
   isExpired,
+  isStale,
   kstTodayStart,
 } from '@/lib/popupSlices';
 
@@ -79,7 +80,9 @@ async function liveMarkers(): Promise<Marker[]> {
     const markers = (await res.json()) as Marker[];
     const today = kstTodayStart();
     // 만료 팝업 제외 — page.tsx 의 liveMarkers() 와 같은 기준(isExpired + kstTodayStart).
-    return markers.filter((m) => !isExpired(m.endDate, today));
+    return markers.filter(
+      (m) => !isExpired(m.endDate, today) && !isStale(m.startDate, m.endDate, today),
+    );
   } catch (e) {
     console.error(
       `[sitemap] 마커 fetch 실패(${e instanceof Error ? e.message : String(e)}) — ` +
