@@ -6,6 +6,7 @@ import com.example.popspotbackend.dto.SignupRequestDto;
 import com.example.popspotbackend.entity.User;
 import com.example.popspotbackend.exception.ResourceNotFoundException;
 import com.example.popspotbackend.repository.UserRepository;
+import com.example.popspotbackend.service.auth.TotpAuthService;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import io.jsonwebtoken.Jwts;
@@ -19,9 +20,12 @@ import java.time.LocalDateTime;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -56,8 +60,13 @@ public class AuthService {
     private static final String PROVIDER_LOCAL = "LOCAL";
     private static final String SOCIAL_USER_ERROR_PREFIX = "SOCIAL_USER:";
 
+    private static final String TOTP_CHALLENGE_PREFIX = "TOTP_CHALLENGE:";
+    private static final long TOTP_CHALLENGE_TTL_MINUTES = 5;
+
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final TotpAuthService totpAuth;
+    private final StringRedisTemplate redisTemplate;
 
     @Value("${jwt.secret:}")
     private String jwtSecret;
@@ -137,6 +146,16 @@ public class AuthService {
 
         // 성공 시 카운터 초기화.
         loginAttempts.invalidate(email);
+
+        // 비밀번호는 맞았다. 2단계 인증이 켜져 있으면 여기서 멈추고 표만 준다 —
+        // 이 표에는 아무 권한이 없다. JWT 를 먼저 주고 나중에 코드를 확인하는 방식이면
+        // 코드를 못 맞혀도 이미 로그인된 것이라 2단계 인증이 무의미해진다.
+        if (totpAuth.isRequiredFor(user)) {
+            return LoginResponseDto.builder()
+                    .totpRequired(true)
+                    .challengeToken(issueChallenge(user.getUserId()))
+                    .build();
+        }
 
         return LoginResponseDto.builder()
                 .userId(user.getUserId())
@@ -252,6 +271,62 @@ public class AuthService {
     }
 
     /** OAuth2SuccessHandler 와 동일한 형식의 JWT 발급. */
+    /**
+     * 2단계 인증 완료 — 코드를 맞히면 그때 진짜 토큰을 준다.
+     *
+     * <p>표는 <b>한 번 쓰면 사라진다.</b> 코드를 틀렸을 때도 마찬가지다 — 남겨 두면 같은 표로 6자리를 계속 대입할 수 있어 레이트리밋만으로는 부족해진다. 다시
+     * 하려면 비밀번호부터 다시 넣어야 한다.
+     */
+    public LoginResponseDto completeTotpLogin(String challengeToken, String code) {
+        String userId = consumeChallenge(challengeToken);
+        if (userId == null) {
+            throw new IllegalArgumentException("인증 시간이 지났습니다. 다시 로그인해 주세요.");
+        }
+        if (!totpAuth.verifyForLogin(userId, code)) {
+            throw new IllegalArgumentException("코드가 맞지 않습니다. 다시 로그인해 주세요.");
+        }
+
+        User user =
+                userRepository
+                        .findById(userId)
+                        .orElseThrow(() -> ResourceNotFoundException.user(userId));
+        if (!user.isAccountActive()) {
+            throw new IllegalArgumentException("비활성화된 계정입니다.");
+        }
+
+        return LoginResponseDto.builder()
+                .userId(user.getUserId())
+                .email(user.getEmail())
+                .nickname(user.getNickname())
+                .role(user.getRole())
+                .isPremium(user.isPremium())
+                .megaphoneCount(user.getMegaphoneCount())
+                .token(issueJwt(user))
+                .build();
+    }
+
+    /** 비밀번호를 맞혔다는 사실만 담는 단기 표. 5분이면 코드를 입력하기에 충분하다. */
+    private String issueChallenge(String userId) {
+        String token = UUID.randomUUID().toString();
+        redisTemplate
+                .opsForValue()
+                .set(
+                        TOTP_CHALLENGE_PREFIX + token,
+                        userId,
+                        TOTP_CHALLENGE_TTL_MINUTES,
+                        TimeUnit.MINUTES);
+        return token;
+    }
+
+    /** 표를 쓰고 없앤다. 없거나 이미 쓴 표면 null. */
+    private String consumeChallenge(String token) {
+        if (token == null || token.isBlank() || token.length() > 100) return null;
+        String key = TOTP_CHALLENGE_PREFIX + token;
+        String userId = redisTemplate.opsForValue().get(key);
+        redisTemplate.delete(key);
+        return userId;
+    }
+
     private String issueJwt(User user) {
         return Jwts.builder()
                 .setSubject(user.getUserId())

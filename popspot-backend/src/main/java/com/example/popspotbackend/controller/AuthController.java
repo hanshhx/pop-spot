@@ -88,6 +88,18 @@ public class AuthController {
         return ResponseEntity.ok(authService.login(requestDto));
     }
 
+    /**
+     * 로그인 2단계 — 인증 앱의 6자리 또는 복구 코드.
+     *
+     * <p>{@code /login} 이 {@code totpRequired=true} 와 {@code challengeToken} 을 돌려준 경우에만 쓴다. 표는 한 번
+     * 쓰면 사라지므로, 코드를 틀리면 비밀번호부터 다시 넣어야 한다 — 같은 표로 6자리를 계속 대입하지 못하게 하기 위해서다.
+     */
+    @PostMapping("/login/totp")
+    public ResponseEntity<LoginResponseDto> loginTotp(@RequestBody Map<String, String> body) {
+        return ResponseEntity.ok(
+                authService.completeTotpLogin(body.get("challengeToken"), body.get("code")));
+    }
+
     @PostMapping("/oauth/exchange")
     public ResponseEntity<?> exchangeOAuthCode(@RequestBody Map<String, String> body) {
         String code = body.get("code");
