@@ -5,9 +5,12 @@ import com.example.popspotbackend.exception.ResourceNotFoundException;
 import com.example.popspotbackend.repository.UserRepository;
 import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,10 +30,21 @@ public class TotpAuthService {
     private static final String ISSUER = "POP-SPOT";
     private static final int TIME_STEP_SECONDS = 30;
 
+    /**
+     * "비밀번호(또는 소셜 인증)는 통과했다" 는 사실만 담는 단기 표.
+     *
+     * <p>이메일 로그인과 소셜 로그인이 <b>같은 표를 쓴다.</b> 따로 만들면 한쪽에만 2단계 인증이 붙는 사고가 난다 — 실제로 처음에 이메일 경로만 만들었다가
+     * 소셜이 통째로 우회하는 것을 발견했다.
+     */
+    private static final String CHALLENGE_PREFIX = "TOTP_CHALLENGE:";
+
+    private static final long CHALLENGE_TTL_MINUTES = 5;
+
     private final UserRepository userRepository;
     private final TotpService totp;
     private final TotpSecretCipher cipher;
     private final RecoveryCodeService recoveryCodes;
+    private final StringRedisTemplate redisTemplate;
 
     @Value("${app.totp.enabled:false}")
     private boolean featureEnabled;
@@ -128,6 +142,34 @@ public class TotpAuthService {
     /** 로그인 때 이 사용자에게 2단계 인증을 물어야 하는가. */
     public boolean isRequiredFor(User user) {
         return featureEnabled && user != null && user.isTotpEnabled();
+    }
+
+    /**
+     * 1차 인증을 통과했다는 단기 표를 만든다. <b>이 표에는 아무 권한이 없다.</b>
+     *
+     * <p>이메일 로그인과 소셜 로그인이 이 메서드를 함께 쓴다. 여기에 JWT 를 주고 나중에 코드를 확인하는 방식이면 코드를 못 맞혀도 이미 로그인된 것이라 2단계
+     * 인증이 무의미해진다.
+     */
+    public String issueChallenge(String userId) {
+        String token = UUID.randomUUID().toString();
+        redisTemplate
+                .opsForValue()
+                .set(CHALLENGE_PREFIX + token, userId, CHALLENGE_TTL_MINUTES, TimeUnit.MINUTES);
+        return token;
+    }
+
+    /**
+     * 표를 쓰고 없앤다. 없거나 이미 쓴 표면 {@code null}.
+     *
+     * <p><b>코드를 틀렸을 때도 없앤다</b>(호출부가 실패해도 다시 부르지 않는다). 남겨 두면 같은 표로 6자리를 계속 대입할 수 있어, 다시 하려면 비밀번호부터
+     * 넣게 만드는 편이 안전하다.
+     */
+    public String consumeChallenge(String token) {
+        if (token == null || token.isBlank() || token.length() > 100) return null;
+        String key = CHALLENGE_PREFIX + token;
+        String userId = redisTemplate.opsForValue().get(key);
+        redisTemplate.delete(key);
+        return userId;
     }
 
     /**
