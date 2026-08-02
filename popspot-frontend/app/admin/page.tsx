@@ -22,7 +22,6 @@ import { CommentsTab } from '@/features/admin/tabs/CommentsTab';
 import { MembersTab } from '@/features/admin/tabs/MembersTab';
 import { VisitsTab } from '@/features/admin/tabs/VisitsTab';
 import { VisitorsTab } from '@/features/admin/tabs/VisitorsTab';
-import { RewardsTab } from '@/features/admin/tabs/RewardsTab';
 import { FeedbackTab } from '@/features/admin/tabs/FeedbackTab';
 import { SystemTab } from '@/features/admin/tabs/SystemTab';
 import {
@@ -111,9 +110,6 @@ export default function AdminPage() {
   const [realtimeMetrics, setRealtimeMetrics] = useState<MetricData[]>([]);
   const [serverStatus, setServerStatus] = useState<'online' | 'offline'>('online');
   const [serverResource, setServerResource] = useState<ServerResource | null>(null);
-
-  // 보상 지급 폼 상태
-  const [rewardForm, setRewardForm] = useState({ nickname: '', itemType: 'MEGAPHONE', amount: 1 });
 
   // 1. 대시보드 데이터 (통계 + 제보 대기열)
   const loadDashboardData = async () => {
@@ -256,7 +252,7 @@ export default function AdminPage() {
     else if (activeTab === 'MEMBERS') loadUsers();
     else if (activeTab === 'VISITS') loadVisitStats();
     else if (activeTab === 'VISITORS') loadVisitors();
-    else setIsLoading(false); // SYSTEM / REWARDS / FEEDBACK 은 별도 fetch 없음
+    else setIsLoading(false); // SYSTEM / FEEDBACK 은 별도 fetch 없음
   }, [activeTab, authorized]);
 
   /**
@@ -551,24 +547,6 @@ export default function AdminPage() {
     }
   };
 
-  const handleGiveReward = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const res = await apiFetch('/api/admin/reward', {
-        method: 'POST',
-        body: JSON.stringify(rewardForm),
-      });
-      if (res.ok) {
-        notifySuccess('지급 완료!');
-        setRewardForm({ nickname: '', itemType: 'MEGAPHONE', amount: 1 });
-      } else {
-        notifyError({ title: '실패', text: await res.text() });
-      }
-    } catch (e) {
-      notifyError('보상 지급 중 오류가 발생했습니다.');
-    }
-  };
-
   if (!authorized) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-cream-100 dark:bg-ink-900 text-muted-foreground">
@@ -737,15 +715,6 @@ export default function AdminPage() {
             {/* ===== 방문자 목록 ===== */}
             {!isLoading && activeTab === 'VISITORS' && (
               <VisitorsTab visitors={visitors} loadVisitors={loadVisitors} />
-            )}
-
-            {/* ===== 보상 지급 ===== */}
-            {!isLoading && activeTab === 'REWARDS' && (
-              <RewardsTab
-                rewardForm={rewardForm}
-                setRewardForm={setRewardForm}
-                handleGiveReward={handleGiveReward}
-              />
             )}
 
             {/* ===== 의견 ===== */}

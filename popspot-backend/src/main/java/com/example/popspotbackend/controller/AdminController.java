@@ -153,39 +153,6 @@ public class AdminController {
 
     /* ============================== 보상 / 메이트 운영 ============================== */
 
-    /**
-     * 유저 nickname 으로 MEGAPHONE / POPPASS 아이템 수동 지급.
-     *
-     * <p>입력 검증은 {@link IllegalArgumentException} 으로 격상해 GlobalExceptionHandler 위임.
-     */
-    @PostMapping("/reward")
-    public ResponseEntity<String> giveReward(@RequestBody Map<String, String> request) {
-        String nickname = requireField(request, "nickname");
-        String itemType = requireField(request, "itemType");
-        int amount = parseAmount(request.get("amount"));
-        adminService.giveReward(nickname, itemType, amount);
-        return ResponseEntity.ok(nickname + "님에게 보상이 지급되었습니다.");
-    }
-
-    private String requireField(Map<String, String> request, String key) {
-        String value = request.get(key);
-        if (value == null || value.isBlank()) {
-            throw new IllegalArgumentException(key + " 값이 비어 있습니다.");
-        }
-        return value;
-    }
-
-    private int parseAmount(String raw) {
-        if (raw == null || raw.isBlank()) {
-            throw new IllegalArgumentException("amount 값이 비어 있습니다.");
-        }
-        try {
-            return Integer.parseInt(raw);
-        } catch (NumberFormatException e) {
-            throw new IllegalArgumentException("amount 는 정수여야 합니다: " + raw);
-        }
-    }
-
     @GetMapping("/mate-posts")
     public ResponseEntity<List<MatePost>> getAllMatePosts() {
         return ResponseEntity.ok(adminService.findAllMatePostsOrdered());

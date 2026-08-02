@@ -116,7 +116,7 @@ public class RateLimitInterceptor implements HandlerInterceptor {
     /**
      * 무겁게 취급할 관리자 경로.
      *
-     * <p>기준은 셋 중 하나다 — 외부 API 를 수십~수백 번 부르거나(크롤·백필), 되돌릴 수 없거나(보상 지급·중복 정리), 보안 조치라 반복될 이유가 없다(세션
+     * <p>기준은 셋 중 하나다 — 외부 API 를 수십~수백 번 부르거나(크롤·백필), 되돌릴 수 없거나(중복 정리·채팅 일괄삭제), 보안 조치라 반복될 이유가 없다(세션
      * 무효화).
      */
     private static final String[] ADMIN_HEAVY_PATHS = {
@@ -130,7 +130,6 @@ public class RateLimitInterceptor implements HandlerInterceptor {
         "/api/admin/music/refresh-covers",
         // 되돌릴 수 없다.
         "/api/admin/popups/dedupe",
-        "/api/admin/reward",
         "/api/admin/chat/delete-batch",
         // 보안 조치라 반복될 이유가 없다.
         "/api/admin/session/revoke-all",
