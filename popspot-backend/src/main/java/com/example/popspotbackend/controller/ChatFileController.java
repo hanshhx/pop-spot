@@ -1,6 +1,7 @@
 package com.example.popspotbackend.controller;
 
 import com.example.popspotbackend.service.media.ImageUploadGuard;
+import com.example.popspotbackend.service.media.UploadQuotaService;
 import jakarta.servlet.http.HttpServletRequest;
 import java.io.File;
 import java.io.IOException;
@@ -13,6 +14,7 @@ import java.util.UUID;
 import java.util.regex.Pattern;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.util.StringUtils;
@@ -67,14 +69,17 @@ public class ChatFileController {
 
     private final List<Pattern> allowedHostPatterns;
     private final ImageUploadGuard imageGuard;
+    private final UploadQuotaService uploadQuota;
 
     public ChatFileController(
             @Value("${" + ALLOWED_HOST_PATTERNS_PROP + ":}") String allowedHostPatternsCsv,
             @Value("${app.upload.path}") String uploadPath,
-            ImageUploadGuard imageGuard) {
+            ImageUploadGuard imageGuard,
+            UploadQuotaService uploadQuota) {
         this.allowedHostPatterns = compilePatterns(allowedHostPatternsCsv);
         this.uploadDir = Paths.get(uploadPath).toAbsolutePath().normalize().toString();
         this.imageGuard = imageGuard;
+        this.uploadQuota = uploadQuota;
     }
 
     @PostMapping("/upload")
@@ -100,9 +105,19 @@ public class ChatFileController {
             return ResponseEntity.badRequest().body(inspection.rejection());
         }
 
+        // 하루 한도 검사는 <b>검증을 통과한 뒤·저장 직전</b>에 한다. 앞에서 하면 이미지가 아니라
+        // 거부될 파일로도 한도가 깎이고, 뒤에서 하면 이미 디스크에 쓴 뒤라 막는 의미가 없다.
+        // 크기는 재인코딩된 실제 저장 바이트로 센다 — 원본이 아니라 이게 디스크를 차지한다.
+        UploadQuotaService.Decision quota =
+                uploadQuota.check(authentication.getName(), inspection.bytes().length);
+        if (!quota.allowed()) {
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(quota.reason());
+        }
+
         try {
             File destination = prepareDestination(inspection.extension());
             Files.write(destination.toPath(), inspection.bytes());
+            uploadQuota.record(authentication.getName(), inspection.bytes().length);
 
             String savedFileName = destination.getName();
             String fileUrl = buildPublicUrl(request, savedFileName);
