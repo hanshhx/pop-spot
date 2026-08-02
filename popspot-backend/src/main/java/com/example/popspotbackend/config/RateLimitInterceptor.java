@@ -33,6 +33,16 @@ import org.springframework.web.servlet.HandlerInterceptor;
 public class RateLimitInterceptor implements HandlerInterceptor {
 
     private static final String PATH_LOGIN = "/api/v1/auth/login";
+
+    /**
+     * 로그인 2단계(TOTP) 검증.
+     *
+     * <p>6자리는 100만 가지뿐이라 <b>대입이 현실적으로 가능하다.</b> 챌린지 표가 한 번 쓰면 사라지긴 하지만, 비밀번호를 아는 상태에서 표를 계속 새로 받아
+     * 시도할 수 있으므로 횟수도 함께 조인다.
+     */
+    private static final String PATH_LOGIN_TOTP = "/api/v1/auth/login/totp";
+
+    private static final int LIMIT_TOTP_PER_MIN = 5;
     private static final String PATH_EMAIL_SEND = "/api/v1/auth/email/send";
     private static final String PATH_EMAIL_SEND_FOR_PW = "/api/v1/auth/email/send-for-pw";
     private static final String PATH_EMAIL_VERIFY = "/api/v1/auth/email/verify";
@@ -352,6 +362,9 @@ public class RateLimitInterceptor implements HandlerInterceptor {
                     Refill.intervally(LIMIT_GENERAL_PER_MIN, Duration.ofMinutes(1)));
         }
         return switch (uri) {
+            case PATH_LOGIN_TOTP -> Bandwidth.classic(
+                    LIMIT_TOTP_PER_MIN,
+                    Refill.intervally(LIMIT_TOTP_PER_MIN, Duration.ofMinutes(1)));
             case PATH_LOGIN -> Bandwidth.classic(
                     LIMIT_LOGIN_PER_MIN,
                     Refill.intervally(LIMIT_LOGIN_PER_MIN, Duration.ofMinutes(1)));
