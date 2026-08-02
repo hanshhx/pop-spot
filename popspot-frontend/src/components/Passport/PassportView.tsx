@@ -8,6 +8,7 @@ import { popupCoverUrl } from '@/lib/popupCover';
 import { PhotoDisclosure } from '@/components/popup/PhotoDisclosure';
 import { useLocale } from '@/lib/i18n';
 import type { User } from '@/types/popup';
+import { bilingual } from '@/lib/bilingual';
 
 /**
  * 여권 — '스탬프 = 방문한 팝업의 추억'.
@@ -22,6 +23,8 @@ interface StampData {
   popupStore: {
     popupId: number;
     name: string;
+    nameEn?: string | null;
+    nameJa?: string | null;
     category: string;
     imageUrl?: string;
     photoOrigin?: string;
@@ -48,7 +51,7 @@ const CAT_GRAD: Record<string, string> = {
 const TOTAL_COUNT = 12;
 
 export default function PassportView() {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const [stamps, setStamps] = useState<StampData[]>([]);
   const [user, setUser] = useState<User | null>(null);
 
@@ -117,6 +120,10 @@ export default function PassportView() {
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
         {stamps.map((s, idx) => {
+          const shownName = bilingual(
+            s.popupStore.name,
+            locale === 'en' ? s.popupStore.nameEn : locale === 'ja' ? s.popupStore.nameJa : null,
+          );
           const grad = CAT_GRAD[s.popupStore.category?.toUpperCase()] ?? CAT_GRAD.ETC;
           const coverUrl = popupCoverUrl({
             id: s.popupStore.popupId,
@@ -158,7 +165,12 @@ export default function PassportView() {
                 />
               </div>
               <div className="p-2.5">
-                <p className="truncate text-xs font-bold text-foreground">{s.popupStore.name}</p>
+                <p className="truncate text-xs font-bold text-foreground">{shownName.display}</p>
+                {shownName.original && (
+                  <p className="truncate text-[10px] text-muted-foreground" lang="ko">
+                    {shownName.original}
+                  </p>
+                )}
                 <p className="mt-0.5 text-[10px] text-muted-foreground">
                   {s.stampDate.split('T')[0]}
                 </p>

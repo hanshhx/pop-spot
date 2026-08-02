@@ -31,6 +31,10 @@ public class PopupPublicListDto {
     private Long id;
     private String name;
     private String location;
+    private String nameEn;
+    private String nameJa;
+    private String locationEn;
+    private String locationJa;
     private String category;
     private String status;
     private String startDate;
@@ -59,6 +63,10 @@ public class PopupPublicListDto {
                 .id(p.getId())
                 .name(p.getName())
                 .location(p.getLocation())
+                .nameEn(p.getNameEn())
+                .nameJa(p.getNameJa())
+                .locationEn(p.getLocationEn())
+                .locationJa(p.getLocationJa())
                 .category(p.getCategory())
                 .status(p.getStatus())
                 .startDate(p.getStartDate())

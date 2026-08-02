@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/dialog';
 import { PopupCard } from '@/components/main/PopupCard';
 import { useLocale } from '@/lib/i18n';
+import { localizedPath } from '@/lib/localePath';
 import type { PopupStore } from '@/types/popup';
 
 interface AllTrendingModalProps {
@@ -28,7 +29,7 @@ interface AllTrendingModalProps {
  * 눌렀던 섹션과 다른 말이면 다른 화면으로 온 것처럼 읽힌다.
  */
 export function AllTrendingModal({ open, onOpenChange, popups }: AllTrendingModalProps) {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const router = useRouter();
   const ranked = [...popups].sort((a, b) => (b.viewCount || 0) - (a.viewCount || 0));
 
@@ -69,7 +70,7 @@ export function AllTrendingModal({ open, onOpenChange, popups }: AllTrendingModa
                     className="w-full"
                     onClick={() => {
                       onOpenChange(false);
-                      router.push(`/popup/${popup.id}`);
+                      router.push(localizedPath(`/popup/${popup.id}`, locale));
                     }}
                   />
                 </div>

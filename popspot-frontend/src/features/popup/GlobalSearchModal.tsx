@@ -11,6 +11,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { useLocale } from '@/lib/i18n';
+import { localizedPath } from '@/lib/localePath';
+import type { PopupStore } from '@/types/popup';
 
 import { SearchZone } from './SearchBox';
 
@@ -21,7 +23,7 @@ interface GlobalSearchModalProps {
    * 이름 즉시검색용 팝업 목록. 없으면 SearchZone 이 이름 드롭다운을 띄우지 못하고
    * 자연어 AI 검색만 남는다 — 이 모달이 "무엇을 쳐도 0건" 이던 원인이었다.
    */
-  popups?: { id: number; name: string; location: string }[];
+  popups?: PopupStore[];
 }
 
 /**
@@ -33,7 +35,7 @@ interface GlobalSearchModalProps {
  * <p>키보드 단축키: Ctrl+K (또는 Cmd+K) 로 열기 / ESC 로 닫기 (Radix Dialog 기본 동작).
  */
 export function GlobalSearchModal({ open, onOpenChange, popups }: GlobalSearchModalProps) {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const router = useRouter();
 
   return (
@@ -51,7 +53,7 @@ export function GlobalSearchModal({ open, onOpenChange, popups }: GlobalSearchMo
           popups={popups}
           onSelectPopup={(hit) => {
             onOpenChange(false);
-            router.push(`/popup/${hit.objectID}`);
+            router.push(localizedPath(`/popup/${hit.objectID}`, locale));
           }}
         />
       </DialogContent>

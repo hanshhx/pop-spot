@@ -17,6 +17,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 
 import { apiFetch } from '@/lib/api';
+import { localizedPath } from '@/lib/localePath';
 import { REGIONS, classifyRegion, type RegionCode } from '@/lib/regions';
 import {
   getPeriods,
@@ -365,7 +366,7 @@ function SliceModal({ slice, onClose }: { slice: ActiveSlice; onClose: () => voi
 
   function goToDetail(id: number) {
     onClose();
-    router.push(`/popup/${id}`);
+    router.push(localizedPath(`/popup/${id}`, locale));
   }
 
   return (
@@ -473,7 +474,11 @@ function SliceModal({ slice, onClose }: { slice: ActiveSlice; onClose: () => voi
           )}
           {slice.matches.length > 50 && (
             <p className="text-xs text-muted-foreground px-4 py-3">
-              외 {slice.matches.length - 50}곳 더 — 아래 &ldquo;지도에서 모두 보기&rdquo; 클릭
+              {locale === 'en'
+                ? `${slice.matches.length - 50} more — use “View all on map” below`
+                : locale === 'ja'
+                  ? `ほか${slice.matches.length - 50}件 — 下の「地図ですべて見る」を選択`
+                  : `외 ${slice.matches.length - 50}곳 더 — 아래 “지도에서 모두 보기” 클릭`}
             </p>
           )}
         </div>

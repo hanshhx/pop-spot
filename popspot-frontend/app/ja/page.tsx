@@ -15,6 +15,13 @@ import { LOCALE_META, localeAlternates } from '@/lib/localeRoutes';
 export const metadata: Metadata = {
   title: LOCALE_META.ja.title,
   description: LOCALE_META.ja.description,
+  keywords: [
+    'ソウル ポップアップストア',
+    'ソウル ポップアップ マップ',
+    '聖水 ポップアップ',
+    '韓国 ポップアップイベント',
+    'ソウル 観光',
+  ],
   alternates: localeAlternates('ja'),
   openGraph: {
     title: LOCALE_META.ja.title,
@@ -23,6 +30,13 @@ export const metadata: Metadata = {
     type: 'website',
     url: 'https://popspot.co.kr/ja',
     siteName: 'POP-SPOT',
+    images: ['/og-image.png'],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: LOCALE_META.ja.title,
+    description: LOCALE_META.ja.description,
+    images: ['/og-image.png'],
   },
 };
 

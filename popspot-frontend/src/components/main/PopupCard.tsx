@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 import { popupCoverUrl } from '@/lib/popupCover';
 import { PhotoDisclosure } from '@/components/popup/PhotoDisclosure';
 import { useLocale, type MessageKey } from '@/lib/i18n';
+import { bilingual } from '@/lib/bilingual';
 import type { PopupStore } from '@/types/popup';
 
 /**
@@ -82,14 +83,22 @@ export interface PopupCardProps {
 }
 
 export function PopupCard({ popup, onClick, onWish, wished, className }: PopupCardProps) {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const [imgError, setImgError] = useState(false);
   const dday = ddayBadge(popup.endDate);
   const catKey = popup.category ? CATEGORY_LABEL_KEY[popup.category.toUpperCase()] : undefined;
   // 아는 코드면 옮기고, 모르는 값이면 크롤링 원문을 그대로 — 지어내는 것보다 원문이 낫다.
   const cat = catKey ? t(catKey) : popup.category || null;
+  const shownName = bilingual(
+    popup.name,
+    locale === 'en' ? popup.nameEn : locale === 'ja' ? popup.nameJa : null,
+  );
+  const shownPlace = bilingual(
+    popup.location,
+    locale === 'en' ? popup.locationEn : locale === 'ja' ? popup.locationJa : null,
+  );
   const region =
-    (popup.location || '').split(' ').slice(0, 2).join(' ') || t('misc.cardRegionSeoul');
+    (shownPlace.display || '').split(' ').slice(0, 3).join(' ') || t('misc.cardRegionSeoul');
   const catStyle = CATEGORY_STYLE[popup.category?.toUpperCase() ?? 'ETC'] ?? CATEGORY_STYLE.ETC;
   const coverUrl = popupCoverUrl(popup);
 
@@ -114,7 +123,7 @@ export function PopupCard({ popup, onClick, onWish, wished, className }: PopupCa
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={coverUrl}
-            alt={popup.name}
+            alt={shownName.display || popup.name}
             loading="lazy"
             onError={() => setImgError(true)}
             className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
@@ -156,7 +165,14 @@ export function PopupCard({ popup, onClick, onWish, wished, className }: PopupCa
       </div>
 
       <div className="flex flex-col gap-1 p-3">
-        <h3 className="truncate text-sm font-bold text-gray-900 dark:text-white">{popup.name}</h3>
+        <h3 className="truncate text-sm font-bold text-gray-900 dark:text-white">
+          {shownName.display || popup.name}
+        </h3>
+        {shownName.original && (
+          <span className="truncate text-[10px] text-gray-400 dark:text-white/35">
+            {shownName.original}
+          </span>
+        )}
         <div className="flex items-center gap-1 text-[11px] text-gray-500 dark:text-white/50">
           <MapPin size={11} className="shrink-0" />
           <span className="truncate">{region}</span>

@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 import { useLocale, type MessageKey } from '@/lib/i18n';
+import { localizedPath } from '@/lib/localePath';
 import type { PopupStore } from '@/types/popup';
 
 interface PopupCalendarModalProps {
@@ -218,7 +219,7 @@ export function PopupCalendarModal({ open, onOpenChange, popups }: PopupCalendar
               <div className="space-y-2">
                 {selectedPopups.map((popup) => (
                   <Link
-                    href={`/popup/${popup.id}`}
+                    href={localizedPath(`/popup/${popup.id}`, locale)}
                     key={popup.id}
                     onClick={() => onOpenChange(false)}
                   >

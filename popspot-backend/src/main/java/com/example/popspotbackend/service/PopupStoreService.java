@@ -174,9 +174,7 @@ public class PopupStoreService {
 
     /** 키워드가 이름 / 위치에 포함된 팝업 (공개 가능한 것만). */
     public List<PopupStore> searchPopups(String keyword) {
-        return popupStoreRepository
-                .findByNameContainingOrLocationContaining(keyword, keyword)
-                .stream()
+        return popupStoreRepository.searchByLocalizedNameOrLocation(keyword.trim()).stream()
                 .filter(this::isPublic)
                 .toList();
     }

@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { cn } from '@/lib/utils';
+import { useLocale } from '@/lib/i18n';
 
 /**
  * 텍스트 입력 — `<Input>`.
@@ -101,6 +102,7 @@ export function Field({
   className,
   children,
 }: FieldProps) {
+  const { locale } = useLocale();
   const generatedId = React.useId();
   const id = htmlFor ?? generatedId;
 
@@ -110,7 +112,10 @@ export function Field({
         <label htmlFor={id} className="text-xs font-semibold text-foreground tracking-wide">
           {label}
           {required && (
-            <span className="text-danger ml-0.5" aria-label="필수">
+            <span
+              className="text-danger ml-0.5"
+              aria-label={locale === 'en' ? 'Required' : locale === 'ja' ? '必須' : '필수'}
+            >
               *
             </span>
           )}

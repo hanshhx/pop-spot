@@ -30,7 +30,17 @@ public interface PopupStoreRepository extends JpaRepository<PopupStore, Long> {
     // 3. 검색 기능 (기존 코드 유지)
     // 🔥 [임의 수정]
     @EntityGraph(attributePaths = {"images"})
-    List<PopupStore> findByNameContainingOrLocationContaining(String name, String location);
+    @Query(
+            """
+           SELECT p FROM PopupStore p
+            WHERE LOWER(COALESCE(p.name, ''))       LIKE LOWER(CONCAT('%', :keyword, '%'))
+               OR LOWER(COALESCE(p.location, ''))   LIKE LOWER(CONCAT('%', :keyword, '%'))
+               OR LOWER(COALESCE(p.nameEn, ''))     LIKE LOWER(CONCAT('%', :keyword, '%'))
+               OR LOWER(COALESCE(p.nameJa, ''))     LIKE LOWER(CONCAT('%', :keyword, '%'))
+               OR LOWER(COALESCE(p.locationEn, '')) LIKE LOWER(CONCAT('%', :keyword, '%'))
+               OR LOWER(COALESCE(p.locationJa, '')) LIKE LOWER(CONCAT('%', :keyword, '%'))
+           """)
+    List<PopupStore> searchByLocalizedNameOrLocation(@Param("keyword") String keyword);
 
     // 🔥 [임의 수정]
     @EntityGraph(attributePaths = {"images"})

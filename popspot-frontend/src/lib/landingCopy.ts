@@ -13,7 +13,13 @@ import type { Locale } from './i18n';
  */
 
 export type SliceKind =
-  'region' | 'period' | 'category' | 'brand' | 'region-category' | 'region-period';
+  | 'region'
+  | 'period'
+  | 'category'
+  | 'brand'
+  | 'region-category'
+  | 'region-period'
+  | 'category-period';
 
 type ByKind<T> = Record<SliceKind, T>;
 
@@ -115,6 +121,7 @@ const ko: LandingCopy = {
     'region-category': (l) => `${l} 팝업스토어 추천`,
     // label 이 "이번 주 (7/27~8/2) 성수" 순서라 제목이 실제 검색어("이번주 성수 팝업")와 같은 어순이 된다.
     'region-period': (l) => `${l} 팝업스토어`,
+    'category-period': (l) => `${l} 팝업스토어`,
   },
   descriptions: {
     region: (l) =>
@@ -127,6 +134,8 @@ const ko: LandingCopy = {
       `${l} 팝업스토어를 한눈에. 위치·일정·카테고리별 큐레이션, 위시 등록과 마감일 확인까지 무료.`,
     'region-period': (l) =>
       `${l}에서 문 여는 팝업스토어 목록. 영업 시간·위치·종료일까지 지도 한 화면에서 무료로.`,
+    'category-period': (l) =>
+      `${l}에 서울에서 문 여는 팝업스토어 목록. 위치·운영 기간·종료일까지 한눈에 확인.`,
   },
   tails: {
     region: '위치·마감일을 지도 한 화면에서 무료로.',
@@ -135,6 +144,7 @@ const ko: LandingCopy = {
     brand: '일정과 위치를 지도로 한눈에. 무료.',
     'region-category': '위치·일정을 지도 한 화면에서 무료로.',
     'region-period': '영업시간·위치·마감일까지 지도에서.',
+    'category-period': '위치·운영 기간·마감일까지 한눈에.',
   },
   metaWithCount: (l, c) => `${l} 팝업스토어 ${c}곳 진행 중.`,
   shortDate: (d) => `${d.getMonth() + 1}/${d.getDate()}`,
@@ -155,6 +165,7 @@ const ko: LandingCopy = {
     brand: (l, c) => `${l} 팝업스토어 ${c}곳`,
     'region-category': (l, c) => `${l} 팝업스토어 ${c}곳`,
     'region-period': (l, c) => `${l} 팝업 ${c}곳`,
+    'category-period': (l, c) => `${l} 팝업 ${c}곳`,
   },
   lead: {
     region: (l, r) =>
@@ -168,6 +179,8 @@ const ko: LandingCopy = {
       `${l} 팝업스토어를 POP-SPOT 이 자동 큐레이션. 해당 지역·카테고리에 맞는 팝업만 모아 위치와 일정을 한눈에.`,
     'region-period': (l) =>
       `${l}에서 여는 팝업스토어를 POP-SPOT 이 자동 큐레이션. 해당 기간에 실제로 문을 여는 팝업만 모아 위치·마감일을 한눈에.`,
+    'category-period': (l) =>
+      `${l}에 실제로 문을 여는 팝업만 모았습니다. 위치와 운영 기간, 마감일을 한눈에 확인할 수 있습니다.`,
   },
   urgencyWithDday: (d) =>
     `${d === 0 ? '오늘 끝나는 팝업이 있어요' : `가장 빨리 끝나는 곳은 D-${d}`}. 위치·영업기간·마감일을 로그인 없이 무료로, 지금 지도에서 확인하세요.`,
@@ -213,6 +226,8 @@ const ko: LandingCopy = {
       '팝업 주소로 지역을 가르고, 카테고리 키워드로 한 번 더 거릅니다. 두 조건을 모두 만족해야 포함됩니다.',
     'region-period':
       '팝업 주소로 지역을 가르고, 그중 해당 기간에 실제로 문을 여는 팝업만 남깁니다. 두 조건을 모두 만족해야 포함됩니다.',
+    'category-period':
+      '팝업의 카테고리를 먼저 확인하고, 그중 해당 기간에 실제로 문을 여는 팝업만 남깁니다. 두 조건을 모두 만족해야 포함됩니다.',
   },
   faqWishQ: '위시 등록은 어디서 하나요?',
   faqWishA: (c) =>
@@ -243,6 +258,7 @@ const en: LandingCopy = {
     brand: (l) => `${l} Pop-up Store in Seoul — Dates & Location`,
     'region-category': (l) => `${l} Pop-up Stores in Seoul`,
     'region-period': (l) => `Pop-up Stores in Seoul — ${l}`,
+    'category-period': (l) => `${l}: Seoul Pop-up Stores`,
   },
   descriptions: {
     region: (l) =>
@@ -257,6 +273,8 @@ const en: LandingCopy = {
       `${l} pop-up stores in Seoul, with location, dates and closing days. Free.`,
     'region-period': (l) =>
       `Pop-up stores open in Seoul ${l}. Hours, location and closing dates on one map.`,
+    'category-period': (l) =>
+      `${l} pop-up stores in Seoul, with locations, run dates and closing days in one place.`,
   },
   tails: {
     region: 'Location and closing dates on one free map.',
@@ -265,13 +283,16 @@ const en: LandingCopy = {
     brand: 'Dates and location on one map. Free.',
     'region-category': 'Location and dates on one free map.',
     'region-period': 'Hours, location and closing dates on the map.',
+    'category-period': 'Locations, run dates and closing days at a glance.',
   },
   metaWithCount: (l, c, kind) =>
     kind === 'region' || kind === 'region-period'
       ? `${c} pop-up stores open in ${l}, Seoul.`
       : kind === 'period'
         ? `${c} pop-up stores open in Seoul ${l}.`
-        : `${c} ${l} pop-up stores open in Seoul.`,
+        : kind === 'category-period'
+          ? `${c} ${l} pop-up stores open in Seoul.`
+          : `${c} ${l} pop-up stores open in Seoul.`,
   shortDate: (d) =>
     `${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][d.getMonth()]} ${d.getDate()}`,
   deadlineFormat: (date, dday) => `${date} (${dday})`,
@@ -291,6 +312,7 @@ const en: LandingCopy = {
     brand: (l, c) => `${c} ${l} pop-up stores`,
     'region-category': (l, c) => `${c} ${l} pop-up stores`,
     'region-period': (l, c) => `${c} pop-ups — ${l}`,
+    'category-period': (l, c) => `${c} ${l} pop-ups in Seoul`,
   },
   lead: {
     region: (l, r) =>
@@ -304,6 +326,8 @@ const en: LandingCopy = {
       `${l} pop-up stores, collected automatically — only the ones matching both the area and the category.`,
     'region-period': (l) =>
       `Pop-up stores opening ${l}, collected automatically — only the ones actually open in that window.`,
+    'category-period': (l) =>
+      `${l} pop-up stores that are actually open in that window, with locations and closing dates in one place.`,
   },
   urgencyWithDday: (d) =>
     `${
@@ -351,6 +375,8 @@ const en: LandingCopy = {
       'The address decides the area, then category keywords filter it again. Both have to match.',
     'region-period':
       'The address decides the area, then only pop-ups actually open in that window are kept. Both have to match.',
+    'category-period':
+      'The category is checked first, then only pop-ups actually open in that window are kept. Both have to match.',
   },
   faqWishQ: 'Where do I save one?',
   faqWishA: (c) =>
@@ -380,6 +406,7 @@ const ja: LandingCopy = {
     brand: (l) => `${l} ポップアップストア（ソウル）— 日程・場所`,
     'region-category': (l) => `${l}のポップアップストア（ソウル）`,
     'region-period': (l) => `ソウルのポップアップストア — ${l}`,
+    'category-period': (l) => `ソウルの${l}ポップアップストア`,
   },
   descriptions: {
     region: (l) =>
@@ -392,6 +419,8 @@ const ja: LandingCopy = {
       `${l}のポップアップストアを一画面で。場所・日程・カテゴリ別、保存も終了日チェックも無料。`,
     'region-period': (l) =>
       `${l}にオープンするポップアップストア一覧。営業時間・場所・終了日までマップ一画面で無料。`,
+    'category-period': (l) =>
+      `${l}ポップアップストア一覧。場所・開催期間・終了日まで一画面で確認できます。`,
   },
   tails: {
     region: '場所と終了日をマップ一画面で無料に。',
@@ -400,6 +429,7 @@ const ja: LandingCopy = {
     brand: '日程と場所をマップで。無料です。',
     'region-category': '場所と日程をマップ一画面で無料に。',
     'region-period': '営業時間・場所・終了日までマップで。',
+    'category-period': '場所・開催期間・終了日まで一目で。',
   },
   metaWithCount: (l, c) => `${l}のポップアップストア${c}件が開催中。`,
   shortDate: (d) => `${d.getMonth() + 1}/${d.getDate()}`,
@@ -420,6 +450,7 @@ const ja: LandingCopy = {
     brand: (l, c) => `${l} ポップアップストア ${c}件`,
     'region-category': (l, c) => `${l}のポップアップストア ${c}件`,
     'region-period': (l, c) => `${l}のポップアップ ${c}件`,
+    'category-period': (l, c) => `${l}ポップアップ ${c}件`,
   },
   lead: {
     region: (l, r) =>
@@ -433,6 +464,8 @@ const ja: LandingCopy = {
       `${l}のポップアップストアを POP-SPOT が自動でまとめています。エリアとカテゴリの両方に合うものだけを集めました。`,
     'region-period': (l) =>
       `${l}にオープンするポップアップストアを POP-SPOT が自動でまとめています。その期間に実際に開くものだけを集めました。`,
+    'category-period': (l) =>
+      `${l}ポップアップのうち、その期間に実際に開くものだけをまとめました。場所・開催期間・終了日を一目で確認できます。`,
   },
   urgencyWithDday: (d) =>
     `${d === 0 ? '本日終了するものがあります' : `最短で終了するのはあと${d}日`}。場所・開催期間・終了日を、登録不要・無料でマップからご確認ください。`,
@@ -478,6 +511,8 @@ const ja: LandingCopy = {
       '住所でエリアを分け、さらにカテゴリのキーワードで絞ります。両方に合うものだけが含まれます。',
     'region-period':
       '住所でエリアを分け、その中でその期間に実際に開くものだけを残します。両方に合うものだけが含まれます。',
+    'category-period':
+      'カテゴリを確認し、その中でその期間に実際に開くものだけを残します。両方に合うものだけが含まれます。',
   },
   faqWishQ: '保存はどこからできますか？',
   faqWishA: (c) =>

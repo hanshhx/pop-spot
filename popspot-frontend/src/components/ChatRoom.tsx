@@ -8,6 +8,43 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 import { apiFetch, SOCKET_BASE_URL, API_BASE_URL } from '../lib/api';
 import { getAuthToken } from '../lib/authStorage';
+import { useLocale } from '../lib/i18n';
+
+const COPY = {
+  ko: {
+    anonymous: '익명',
+    title: '방문 팁',
+    everyone: '누구나 남길 수 있어요',
+    empty: '아직 남겨진 팁이 없어요',
+    hint: '웨이팅·주차·굿즈 같은 정보를 한 줄 남겨주시면 다음 방문자에게 큰 도움이 돼요.',
+    imageAlt: '공유된 이미지',
+    now: '방금',
+    placeholder: '웨이팅·주차·굿즈… 한 줄 남기기',
+    send: '메시지 전송',
+  },
+  en: {
+    anonymous: 'Anonymous',
+    title: 'Visitor tips',
+    everyone: 'Anyone can leave a tip',
+    empty: 'No tips yet',
+    hint: 'Share a quick note about waiting time, parking, or merchandise to help the next visitor.',
+    imageAlt: 'Shared image',
+    now: 'Just now',
+    placeholder: 'Waiting, parking, merchandise… leave a tip',
+    send: 'Send message',
+  },
+  ja: {
+    anonymous: '匿名',
+    title: '訪問者のメモ',
+    everyone: '誰でも投稿できます',
+    empty: 'まだメモはありません',
+    hint: '待ち時間、駐車場、グッズなどを一言残すと、次の訪問者の助けになります。',
+    imageAlt: '共有画像',
+    now: 'たった今',
+    placeholder: '待ち時間・駐車場・グッズなどを投稿',
+    send: 'メッセージを送信',
+  },
+} as const;
 
 interface Message {
   id: number;
@@ -24,6 +61,8 @@ interface Props {
 }
 
 export default function ChatRoom({ roomId, nickname }: Props) {
+  const { locale } = useLocale();
+  const copy = COPY[locale];
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const client = useRef<Client | null>(null);
@@ -66,7 +105,7 @@ export default function ChatRoom({ roomId, nickname }: Props) {
 
   const sendMessage = () => {
     if (!input.trim() || !client.current?.connected) return;
-    const payload = { sender: nickname || '익명', message: input, type: 'TALK' };
+    const payload = { sender: nickname || copy.anonymous, message: input, type: 'TALK' };
     client.current.publish({
       destination: `/pub/chat/message/${roomId}`,
       body: JSON.stringify(payload),
@@ -80,10 +119,10 @@ export default function ChatRoom({ roomId, nickname }: Props) {
         {/* '실시간 톡방'은 동시 접속자가 있어야 말이 되는 이름이라, 아무도 없을 때 빈 방처럼 보였다.
             남긴 글이 그대로 쌓여 다음 방문자가 보는 '방문 팁'으로 성격을 바꾼다. */}
         <h3 className="font-bold text-sm md:text-base text-gray-800 dark:text-white flex items-center gap-1.5 md:gap-2">
-          💬 방문 팁
+          💬 {copy.title}
         </h3>
         <span className="text-[10px] md:text-xs text-gray-600 dark:text-gray-400 flex items-center gap-1">
-          누구나 남길 수 있어요
+          {copy.everyone}
         </span>
       </div>
 
@@ -95,14 +134,8 @@ export default function ChatRoom({ roomId, nickname }: Props) {
         {messages.length === 0 && (
           <div className="flex h-full flex-col items-center justify-center gap-2 px-6 text-center">
             <span className="text-3xl">✍️</span>
-            <p className="text-sm font-bold text-gray-700 dark:text-gray-100">
-              아직 남겨진 팁이 없어요
-            </p>
-            <p className="text-xs leading-relaxed text-gray-600 dark:text-gray-300">
-              웨이팅·주차·굿즈 같은 정보를 한 줄 남겨주시면
-              <br />
-              다음에 오는 사람에게 큰 도움이 돼요.
-            </p>
+            <p className="text-sm font-bold text-gray-700 dark:text-gray-100">{copy.empty}</p>
+            <p className="text-xs leading-relaxed text-gray-600 dark:text-gray-300">{copy.hint}</p>
           </div>
         )}
         <AnimatePresence>
@@ -168,7 +201,7 @@ export default function ChatRoom({ roomId, nickname }: Props) {
                     >
                       <Image
                         src={`${API_BASE_URL}/uploads/${content.trim()}`}
-                        alt="공유된 이미지"
+                        alt={copy.imageAlt}
                         width={200}
                         height={200}
                         unoptimized
@@ -199,7 +232,7 @@ export default function ChatRoom({ roomId, nickname }: Props) {
                           hour: '2-digit',
                           minute: '2-digit',
                         })
-                      : '방금'}
+                      : copy.now}
                   </span>
                 </div>
               </motion.div>
@@ -214,12 +247,12 @@ export default function ChatRoom({ roomId, nickname }: Props) {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
-          placeholder="웨이팅·주차·굿즈… 한 줄 남기기"
+          placeholder={copy.placeholder}
           className="flex-1 bg-gray-100 dark:bg-black/20 rounded-full px-3 py-2 md:px-4 md:py-3 text-xs md:text-sm focus:outline-none dark:text-white"
         />
         <button
           onClick={sendMessage}
-          aria-label="메시지 전송"
+          aria-label={copy.send}
           className="p-2 md:p-3 bg-[#ffeb33] hover:bg-[#ffe600] rounded-full text-black shadow-sm shrink-0"
         >
           <Send

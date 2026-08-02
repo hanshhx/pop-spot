@@ -26,6 +26,10 @@ public class PopupPublicDetailDto {
     private Long id;
     private String name;
     private String location;
+    private String nameEn;
+    private String nameJa;
+    private String locationEn;
+    private String locationJa;
 
     /** 상세 주소. 프론트가 {@code location} 이 비면 이 값으로 폴백한다. */
     private String address;
@@ -65,6 +69,10 @@ public class PopupPublicDetailDto {
                 .id(p.getId())
                 .name(p.getName())
                 .location(p.getLocation())
+                .nameEn(p.getNameEn())
+                .nameJa(p.getNameJa())
+                .locationEn(p.getLocationEn())
+                .locationJa(p.getLocationJa())
                 .address(p.getAddress())
                 .category(p.getCategory())
                 .status(p.getStatus())

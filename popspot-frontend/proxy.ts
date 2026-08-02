@@ -31,8 +31,11 @@ import { NextResponse, type NextRequest } from 'next/server';
  */
 
 export const config = {
-  // 백엔드로 넘어가는 경로만. 페이지 렌더링에는 개입하지 않는다.
-  matcher: '/api/:path*',
+  // 페이지에는 서버가 처음부터 올바른 <html lang> 을 만들 수 있도록 언어 헤더를 전달한다.
+  // 정적 파일은 제외해 이미지·번들 요청마다 Proxy 가 실행되는 낭비를 막는다.
+  matcher: [
+    '/((?!_next/static|_next/image|favicon.ico|icon.svg|og-image.png|.*\\.(?:svg|png|jpg|jpeg|gif|webp|avif|ico|mp4|webm)$).*)',
+  ],
 };
 
 /**
@@ -122,6 +125,8 @@ export async function edgeSignature(ip: string, timestamp: string): Promise<stri
 
 export async function proxy(request: NextRequest) {
   const headers = new Headers(request.headers);
+  const localeMatch = request.nextUrl.pathname.match(/^\/(en|ja)(?=\/|$)/);
+  headers.set('x-popspot-locale', localeMatch?.[1] ?? 'ko');
 
   // 위조 시도를 먼저 걷어낸다. 아래에서 서명을 못 붙이는 경우에도 남아 있으면 안 된다.
   headers.delete('x-edge-ip');
@@ -130,6 +135,10 @@ export async function proxy(request: NextRequest) {
   headers.delete('x-edge-kid');
 
   try {
+    // 엣지 서명은 API 요청에만 필요하다. 페이지 요청에는 언어 헤더만 전달한다.
+    if (!request.nextUrl.pathname.startsWith('/api/')) {
+      return NextResponse.next({ request: { headers } });
+    }
     const ip = SECRET ? clientIp(request) : null;
     if (ip) {
       const timestamp = Date.now().toString();

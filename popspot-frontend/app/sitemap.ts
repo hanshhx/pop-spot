@@ -108,12 +108,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // v2.43 — 지역×시점 조합. 시점은 카테고리와 달리 마커당 하나로 정해지지 않으므로(한 팝업이 오늘·이번
   // 주·이번 달에 동시에 걸린다) 시점별로 따로 센다.
   const periodComboCounts = new Map<string, number>();
+  const categoryPeriodCounts = new Map<string, number>();
   for (const m of live) {
     const region = classifyRegion(m.location);
+    const category = classifyCategory(m.category);
     for (const p of getPeriods()) {
       if (!matchesPeriod(m.startDate, m.endDate, p.code, now)) continue;
-      const key = `${region}-${p.slug}`;
-      periodComboCounts.set(key, (periodComboCounts.get(key) ?? 0) + 1);
+      const regionKey = `${region}-${p.slug}`;
+      periodComboCounts.set(regionKey, (periodComboCounts.get(regionKey) ?? 0) + 1);
+      const categoryKey = `${category}-${p.slug}`;
+      categoryPeriodCounts.set(categoryKey, (categoryPeriodCounts.get(categoryKey) ?? 0) + 1);
     }
   }
 
@@ -183,9 +187,17 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // 시점·카테고리는 걸러내지 않는다 — 시점은 날짜가 바뀌면 저절로 채워지고 카테고리 7개는 상시
   // 0곳이 되지 않으므로, 여기서 빼면 색인 가능한 URL 을 제 손으로 버리는 셈이 된다.
   const regionCounts = new Map<string, number>();
+  const categoryCounts = new Map<string, number>();
+  const periodCounts = new Map<string, number>();
   for (const m of live) {
     const code = classifyRegion(m.location);
     regionCounts.set(code, (regionCounts.get(code) ?? 0) + 1);
+    const category = classifyCategory(m.category);
+    categoryCounts.set(category, (categoryCounts.get(category) ?? 0) + 1);
+    for (const period of getPeriods()) {
+      if (!matchesPeriod(m.startDate, m.endDate, period.code, now)) continue;
+      periodCounts.set(period.slug, (periodCounts.get(period.slug) ?? 0) + 1);
+    }
   }
 
   const sliceLandings: MetadataRoute.Sitemap = [
@@ -195,13 +207,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: 'daily' as const,
       priority: 0.7,
     })),
-    ...getPeriods().map((p) => ({
-      url: `${SITE_URL}/popups/${p.slug}`,
-      lastModified: now,
-      changeFrequency: 'daily' as const,
-      priority: 0.6,
-    })),
-    ...CATEGORIES.map((c) => ({
+    ...getPeriods()
+      .filter((p) => (periodCounts.get(p.slug) ?? 0) > 0)
+      .map((p) => ({
+        url: `${SITE_URL}/popups/${p.slug}`,
+        lastModified: now,
+        changeFrequency: 'daily' as const,
+        priority: 0.6,
+      })),
+    ...CATEGORIES.filter((c) => (categoryCounts.get(c.code) ?? 0) > 0).map((c) => ({
       url: `${SITE_URL}/popups/${c.slug}`,
       lastModified: now,
       changeFrequency: 'weekly' as const,
@@ -223,6 +237,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         changeFrequency: 'weekly' as const,
         priority: 0.5,
       })),
+    ),
+    // 카테고리×시점 조합. 영어·일본어의 "K-beauty pop-ups this weekend"처럼 구매·방문 의도가
+    // 분명한 검색을 받는다. 실제 결과가 있는 조합만 공개해 키워드만 바꾼 빈 페이지를 만들지 않는다.
+    ...CATEGORIES.flatMap((c) =>
+      getPeriods()
+        .filter((p) => (categoryPeriodCounts.get(`${c.code}-${p.slug}`) ?? 0) > 0)
+        .map((p) => ({
+          url: `${SITE_URL}/popups/${c.slug}-${p.slug}`,
+          lastModified: now,
+          changeFrequency: 'daily' as const,
+          priority: 0.6,
+        })),
     ),
     // v2.43 — 지역×시점 조합 ("이번주 성수 팝업"). 네이버 서치어드바이저 검색어 1위가 이 형태인데
     // 받을 페이지가 없었다(this-week 와 seongsu 가 따로 있을 뿐 조합이 없었다). 0곳 조합은 위와 같은
@@ -253,5 +279,20 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     })),
   );
 
-  return [...staticPages, ...sliceLandings, ...localized];
+  // 검색 가능한 정적 안내 페이지도 각 언어 주소를 직접 알린다. 로그인·의견·협업 화면은 noindex라 제외.
+  const localizedStatic: MetadataRoute.Sitemap = (['en', 'ja'] as const).flatMap((locale) =>
+    [
+      { path: 'about', frequency: 'monthly' as const, priority: 0.7 },
+      { path: 'map', frequency: 'daily' as const, priority: 0.8 },
+      { path: 'terms', frequency: 'yearly' as const, priority: 0.2 },
+      { path: 'privacy', frequency: 'yearly' as const, priority: 0.2 },
+    ].map((page) => ({
+      url: `${SITE_URL}/${locale}/${page.path}`,
+      lastModified: now,
+      changeFrequency: page.frequency,
+      priority: page.priority,
+    })),
+  );
+
+  return [...staticPages, ...localizedStatic, ...sliceLandings, ...localized];
 }

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import type { YouTubeIframeSdk, YouTubePlayer, YouTubePlayerEvent } from '@/types/sdk';
+import type { Locale } from '@/lib/i18n';
 
 declare global {
   interface Window {
@@ -45,20 +46,44 @@ function loadYouTubeApi(cb: () => void) {
  */
 export type YouTubePlayerErrorCode = 2 | 5 | 100 | 101 | 150;
 
-export function describeYouTubeError(code: YouTubePlayerErrorCode | number): string {
-  switch (code) {
-    case 2:
-      return '잘못된 영상 ID';
-    case 5:
-      return '재생기 내부 오류';
-    case 100:
-      return '영상이 비공개 또는 삭제됨';
-    case 101:
-    case 150:
-      return '업로더가 외부 재생을 차단한 영상';
-    default:
-      return `알 수 없는 오류 (코드 ${code})`;
-  }
+export function describeYouTubeError(
+  code: YouTubePlayerErrorCode | number,
+  locale: Locale = 'ko',
+): string {
+  const reason =
+    code === 2
+      ? 'invalid'
+      : code === 5
+        ? 'player'
+        : code === 100
+          ? 'missing'
+          : code === 101 || code === 150
+            ? 'blocked'
+            : 'unknown';
+  const copy = {
+    ko: {
+      invalid: '잘못된 영상 ID',
+      player: '재생기 내부 오류',
+      missing: '영상이 비공개이거나 삭제됨',
+      blocked: '외부 재생이 차단된 영상',
+      unknown: `알 수 없는 오류 (코드 ${code})`,
+    },
+    en: {
+      invalid: 'Invalid video ID',
+      player: 'Player error',
+      missing: 'Video is private or deleted',
+      blocked: 'The uploader blocked playback on other sites',
+      unknown: `Unknown error (code ${code})`,
+    },
+    ja: {
+      invalid: '動画IDが正しくありません',
+      player: 'プレーヤー内部のエラー',
+      missing: '動画が非公開または削除済み',
+      blocked: '投稿者が外部サイトでの再生を制限しています',
+      unknown: `不明なエラー（コード ${code}）`,
+    },
+  } as const;
+  return copy[locale][reason];
 }
 
 interface UsePlayerOptions {
