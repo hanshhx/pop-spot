@@ -122,10 +122,17 @@ export function getPeriods(now: Date = new Date()): PeriodDef[] {
 }
 
 /**
- * 기존 PERIODS 호환성 — 슬러그 / 코드만 필요한 곳용 (generateStaticParams 등).
- * 라벨은 빌드 타임 기준이라 사용자 표시에는 getPeriods() 사용 권장.
+ * 시점 슬라이스는 <b>상수로 굳히지 않는다.</b> 항상 {@link getPeriods} 를 그 자리에서 부른다.
+ *
+ * <p>예전에는 {@code export const PERIODS = getPeriods()} 가 있었다. 모듈이 처음 읽힐 때 한 번만
+ * 계산되므로 <b>"이번 주 (7/21~7/27)" 같은 날짜가 라벨에 박힌 채 남았다.</b> 목록을 거르는 {@link
+ * matchesPeriod} 는 부를 때마다 현재 시각을 새로 읽어서, 결과적으로 <b>제목은 지난주인데 목록은
+ * 이번주</b>인 상태가 만들어졌다. 둘 다 낡는 것보다 나쁘다 — 사용자는 목록이 틀렸다고 읽는다.
+ *
+ * <p>슬러그만 필요한 곳(generateStaticParams·sitemap)에서도 그냥 {@link getPeriods} 를 쓴다.
+ * 슬러그는 날짜와 무관해서 결과가 같고, 상수를 남겨 두면 <b>라벨이 필요한 곳에서 그걸 집어 쓰는
+ * 실수</b>가 반드시 다시 난다. 5개짜리 배열을 만드는 비용은 무시할 수 있다.
  */
-export const PERIODS: PeriodDef[] = getPeriods();
 
 export type CategoryCode =
   'fashion' | 'beauty' | 'character' | 'dessert' | 'lifestyle' | 'art' | 'tech' | 'other';
@@ -966,6 +973,12 @@ export function brandBySlug(slug: string): BrandDef | undefined {
   return BRAND_BY_SLUG.get(slug);
 }
 
-export function periodBySlug(slug: string): PeriodDef | undefined {
-  return PERIODS.find((p) => p.slug === slug);
+/**
+ * 슬러그로 시점 슬라이스를 찾는다. <b>라벨은 부르는 시점의 날짜로 만들어진다.</b>
+ *
+ * <p>{@code now} 를 받는 이유는 테스트에서 시각을 고정하기 위해서다. 이 함수가 날짜를 따라가는지는
+ * 눈으로 볼 수 없고(주가 바뀌어야 드러난다) 틀려도 조용해서, 시각을 넣어 확인할 수 있어야 한다.
+ */
+export function periodBySlug(slug: string, now: Date = new Date()): PeriodDef | undefined {
+  return getPeriods(now).find((p) => p.slug === slug);
 }
