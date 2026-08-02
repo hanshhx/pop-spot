@@ -30,4 +30,3 @@ export function localeFromPath(pathname: string | null | undefined): Locale {
   const match = pathname?.match(LOCALE_PREFIX);
   return match?.[1] === 'en' || match?.[1] === 'ja' ? match[1] : 'ko';
 }
-
