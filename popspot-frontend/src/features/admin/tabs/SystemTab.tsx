@@ -1,6 +1,7 @@
 import { Activity, Cpu, Database, Globe, ShieldAlert } from 'lucide-react';
 import { LogViewer } from '@/components/admin/log/LogViewer';
 import { MetricCard } from '@/components/admin/metrics/MetricCard';
+import { TotpSetupPanel } from '@/features/admin/TotpSetupPanel';
 import type { DashboardMetrics, MetricData, ServerResource } from '@/features/admin/types';
 
 type SystemTabProps = {
@@ -162,6 +163,8 @@ export function SystemTab({
         </h3>
         <LogViewer active={true} />
       </div>
+
+      <TotpSetupPanel />
 
       {/*
         토큰이 샜다고 의심될 때 쓰는 비상 스위치. 아래에 두는 이유는 실수로 누를 자리가 아니기

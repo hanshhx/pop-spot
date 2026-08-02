@@ -7,6 +7,7 @@ import { apiFetch } from '../../../src/lib/api';
 import { setAuthToken } from '../../../src/lib/authStorage';
 import { useLocale } from '@/lib/i18n';
 import { localizedPath } from '@/lib/localePath';
+import { TotpChallenge } from '@/features/auth/TotpChallenge';
 
 const COPY = {
   ko: {
@@ -57,6 +58,8 @@ function CallbackContent() {
   const copy = COPY[locale];
   const [status, setStatus] = useState<string>(copy.processing);
   const hasFetched = useRef(false); // React StrictMode 이중 호출 방지용
+  /** 2단계 인증이 남았을 때 받은 단기 표. */
+  const [totpChallenge, setTotpChallenge] = useState<string | null>(null);
 
   useEffect(() => {
     // 이미 한 번 요청을 보냈다면 중복 실행 방지
@@ -85,7 +88,18 @@ function CallbackContent() {
           if (!exchangeResponse.ok) {
             throw new Error(copy.expired);
           }
-          const exchangeBody = (await exchangeResponse.json()) as { token?: string };
+          const exchangeBody = (await exchangeResponse.json()) as {
+            token?: string;
+            totpRequired?: string | boolean;
+            challengeToken?: string;
+          };
+
+          // 2단계 인증이 남았으면 토큰이 오지 않는다. 이메일 로그인과 <b>같은</b> 6자리 화면으로
+          // 이어간다 — 경로가 갈리면 한쪽만 고치는 사고가 난다.
+          if (exchangeBody.totpRequired && exchangeBody.challengeToken) {
+            setTotpChallenge(exchangeBody.challengeToken);
+            return;
+          }
           if (!exchangeBody.token) throw new Error(copy.noToken);
           setAuthToken(exchangeBody.token);
           setStatus(copy.saving);
@@ -133,6 +147,32 @@ function CallbackContent() {
 
     fetchUserInfo();
   }, [router, searchParams, locale, copy]);
+
+  // 2단계 인증 — 이메일 로그인과 <b>같은</b> 화면을 쓴다.
+  if (totpChallenge) {
+    return (
+      <div className="w-full max-w-sm rounded-xl border border-cream-200/10 bg-ink-800/80 p-6 backdrop-blur-xl">
+        <TotpChallenge
+          challengeToken={totpChallenge}
+          onSuccess={(profile) => {
+            // 아래 정상 경로가 저장하는 모양을 그대로 맞춘다. 응답을 통째로 넣으면 email 같은
+            // 값이 localStorage 에 새로 남는다 — 2단계 인증 여부에 따라 저장 내용이 달라지면 안 된다.
+            localStorage.setItem(
+              'user',
+              JSON.stringify({
+                userId: profile.userId,
+                nickname: profile.nickname,
+                isPremium: profile.isPremium,
+                role: profile.role,
+                isSocial: true,
+              }),
+            );
+            window.location.href = localizedPath('/?entered=1', locale);
+          }}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col items-center gap-3 md:gap-4 px-4 text-center">
