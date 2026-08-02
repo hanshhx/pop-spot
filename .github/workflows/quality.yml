@@ -55,6 +55,12 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
       - run: chmod +x gradlew
       - run: ./gradlew spotlessCheck test bootJar
-      - run: ./gradlew dependencyCheckAnalyze
-        env:
-          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+      # 의존성 취약점 검사(dependencyCheckAnalyze)는 여기 없다 — security-scan.yml 로 옮겼다.
+      #
+      # 이 검사는 미국 취약점 DB(NVD) 전체를 내려받는데, 커밋마다 돌리면 한 번에 30~50분이 걸리고
+      # NVD 가 응답을 끊으면 그대로 실패한다(실측: 성공 29·30·56분 / 실패 3·4·7분). 결과적으로
+      # <b>내 코드는 멀쩡한데 빨간불만 켜져 있는</b> 상태가 반복됐다.
+      #
+      # 검사 대상은 내 코드가 아니라 <b>남이 만든 라이브러리</b>다. 커밋을 해도 그 목록은 바뀌지
+      # 않으므로 매번 돌릴 이유가 없다. 주 1회로 충분하고, 새 취약점은 발표 시점에 생기지 커밋
+      # 시점에 생기지 않는다.
