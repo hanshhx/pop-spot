@@ -173,11 +173,20 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   // v2.21-S3 — Long-tail 슬라이스 랜딩 페이지
   //
-  // 지역 / 시점 / 카테고리는 0곳이어도 뺄 이유가 없다. page.tsx 가 noindex 를 붙이는 대상은
-  // region-category 와 brand 두 종류뿐이라, 여기서 더 걸러내면 색인 가능한 URL 을 제 손으로
-  // 버리는 셈이 된다. 제외 기준은 page.tsx 와 정확히 같은 범위여야 한다.
+  // 제외 기준은 page.tsx 의 noindex 조건과 <b>정확히 같은 범위</b>여야 한다. 어긋나면 v2.42 사고가
+  // 재발한다 — noindex 인 URL 을 sitemap 에 실어 보내 크롤 예산만 태웠다.
+  //
+  // 지금 걸러내는 것: region(0곳) · region-category(0곳) · region-period(0곳) · brand(0곳).
+  // 시점·카테고리는 걸러내지 않는다 — 시점은 날짜가 바뀌면 저절로 채워지고 카테고리 7개는 상시
+  // 0곳이 되지 않으므로, 여기서 빼면 색인 가능한 URL 을 제 손으로 버리는 셈이 된다.
+  const regionCounts = new Map<string, number>();
+  for (const m of live) {
+    const code = classifyRegion(m.location);
+    regionCounts.set(code, (regionCounts.get(code) ?? 0) + 1);
+  }
+
   const sliceLandings: MetadataRoute.Sitemap = [
-    ...REGIONS.map((r) => ({
+    ...REGIONS.filter((r) => (regionCounts.get(r.code) ?? 0) > 0).map((r) => ({
       url: `${SITE_URL}/popups/${r.slug}`,
       lastModified: now,
       changeFrequency: 'daily' as const,

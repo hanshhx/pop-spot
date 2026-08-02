@@ -965,6 +965,19 @@ export const BRANDS: BrandDef[] = [
     labelJa: '現代百貨店',
     keywords: ['현대백화점', '현대 백화점'],
   },
+  {
+    // v2.53 — 트렌드 급상승어 13개를 대조해 <b>유일하게 남은</b> 한 건이다. 나머지는 이미 있는
+    // 슬러그가 받고 있거나(모코코→lost-ark, 무기와라→one-piece, 명조→wuthering-waves,
+    // 외지주→lookism, 니케 여름→nikke), 운영 데이터에 실물이 0건이라 만들면 thin page 가 된다
+    // (이환·팬게이머·이직로그·만석닭강정). 이쪽은 실물 5건이 있고 기간·장소도 언론에 확인된다.
+    //
+    // 'city' 나 '시티' 단독은 절대 넣지 않는다 — 그 글자가 든 장소·브랜드를 전부 끌어온다.
+    slug: 'man-city',
+    label: '맨시티',
+    labelEn: 'Manchester City',
+    labelJa: 'マンチェスター・シティ',
+    keywords: ['맨시티', '맨체스터 시티', 'man city', 'manchester city'],
+  },
 ];
 
 const BRAND_BY_SLUG = new Map(BRANDS.map((b) => [b.slug, b]));

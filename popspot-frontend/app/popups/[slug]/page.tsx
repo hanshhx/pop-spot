@@ -446,13 +446,23 @@ export async function sliceMetadata(slug: string, locale: Locale): Promise<Metad
   // 결과 0곳이면 thin content 방지 위해 noindex (페이지 접근·내부링크는 유지).
   //
   // region-period 도 같은 취급 — 조합 65개 중 상당수가 0곳이다(예: 성북 이번 주말).
+  //
+  // v2.53 — region 단독도 넣는다. 그전에는 지역이 0곳이어도 색인됐다(실제로 마포가 0곳이었다).
+  // 데이터가 빠지면 thin page 를 제 손으로 색인시키는 구멍이라, 지금 0곳이 없다고 두면 안 된다.
+  // period·category 는 제외한다 — 시점은 날짜가 바뀌면 저절로 채워지고, 카테고리 7개는 상시 0곳이
+  // 되지 않는다.
+  //
   // 이 판정은 if 문이라 새 슬라이스를 추가해도 타입 검사에 걸리지 않는다. 종류를 늘릴 때
   // 위의 Record 들과 달리 여기는 컴파일러가 알려주지 않으므로 직접 확인해야 한다.
+  //
+  // <b>app/sitemap.ts 의 방출 조건과 반드시 같은 범위여야 한다.</b> 어긋나면 v2.42 사고가 재발한다
+  // (noindex 인 URL 을 sitemap 에 실어 보내 크롤 예산만 쓰게 했다).
   let robots: Metadata['robots'] | undefined;
   if (
     (slice.kind === 'region-category' ||
       slice.kind === 'brand' ||
-      slice.kind === 'region-period') &&
+      slice.kind === 'region-period' ||
+      slice.kind === 'region') &&
     count === 0
   ) {
     robots = { index: false, follow: true };
