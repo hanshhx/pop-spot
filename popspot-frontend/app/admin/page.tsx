@@ -22,6 +22,7 @@ import { CommentsTab } from '@/features/admin/tabs/CommentsTab';
 import { MembersTab } from '@/features/admin/tabs/MembersTab';
 import { VisitsTab } from '@/features/admin/tabs/VisitsTab';
 import { VisitorsTab } from '@/features/admin/tabs/VisitorsTab';
+import { AuditTab } from '@/features/admin/tabs/AuditTab';
 import { FeedbackTab } from '@/features/admin/tabs/FeedbackTab';
 import { SystemTab } from '@/features/admin/tabs/SystemTab';
 import {
@@ -252,7 +253,7 @@ export default function AdminPage() {
     else if (activeTab === 'MEMBERS') loadUsers();
     else if (activeTab === 'VISITS') loadVisitStats();
     else if (activeTab === 'VISITORS') loadVisitors();
-    else setIsLoading(false); // SYSTEM / FEEDBACK 은 별도 fetch 없음
+    else setIsLoading(false); // SYSTEM / FEEDBACK / AUDIT 은 각자 불러온다
   }, [activeTab, authorized]);
 
   /**
@@ -719,6 +720,9 @@ export default function AdminPage() {
 
             {/* ===== 의견 ===== */}
             {activeTab === 'FEEDBACK' && <FeedbackTab />}
+
+            {/* ===== 감사 로그 (스스로 불러온다 — 위 loadX 분기에 넣지 않는 이유) ===== */}
+            {activeTab === 'AUDIT' && <AuditTab />}
 
             {/* ===== 시스템 (서버 지표 + 로그) ===== */}
             {activeTab === 'SYSTEM' && (
