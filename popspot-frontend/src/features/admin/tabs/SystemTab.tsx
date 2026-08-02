@@ -1,4 +1,4 @@
-import { Activity, Cpu, Database, Globe } from 'lucide-react';
+import { Activity, Cpu, Database, Globe, ShieldAlert } from 'lucide-react';
 import { LogViewer } from '@/components/admin/log/LogViewer';
 import { MetricCard } from '@/components/admin/metrics/MetricCard';
 import type { DashboardMetrics, MetricData, ServerResource } from '@/features/admin/types';
@@ -10,6 +10,7 @@ type SystemTabProps = {
   cpuNow: number;
   memNow: number;
   serverStatus: 'online' | 'offline';
+  onRevokeAllSessions: () => void;
 };
 
 /** `1.2 / 8.0 GB` 처럼. 총량을 모르면 사용량만 보여 준다 — 0 을 총량으로 쓰면 100% 로 보인다. */
@@ -27,6 +28,7 @@ export function SystemTab({
   cpuNow,
   memNow,
   serverStatus,
+  onRevokeAllSessions,
 }: SystemTabProps) {
   const memPercent = serverResource?.memoryTotalMb
     ? (serverResource.memoryUsedMb / serverResource.memoryTotalMb) * 100
@@ -159,6 +161,29 @@ export function SystemTab({
           <Activity size={16} className="text-lime-500" /> 실시간 로그
         </h3>
         <LogViewer active={true} />
+      </div>
+
+      {/*
+        토큰이 샜다고 의심될 때 쓰는 비상 스위치. 아래에 두는 이유는 실수로 누를 자리가 아니기
+        때문이다 — 누르면 지금 이 창도 로그아웃된다.
+      */}
+      <div className="rounded-2xl border border-red-500/30 bg-red-500/5 p-5">
+        <h3 className="font-bold text-sm flex items-center gap-2 text-red-600 dark:text-red-400">
+          <ShieldAlert size={16} /> 계정 보안
+        </h3>
+        <p className="mt-2 text-sm text-muted-foreground">
+          관리자 토큰이 샜다고 의심되면 모든 기기에서 한 번에 로그아웃할 수 있습니다.{' '}
+          <b className="text-foreground">지금 보고 있는 이 창도 함께 로그아웃됩니다.</b>
+        </p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          이미 열려 있는 실시간 로그 연결은 그 연결이 끊길 때까지 유지됩니다.
+        </p>
+        <button
+          onClick={onRevokeAllSessions}
+          className="mt-4 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-red-700"
+        >
+          모든 기기에서 로그아웃
+        </button>
       </div>
     </div>
   );
