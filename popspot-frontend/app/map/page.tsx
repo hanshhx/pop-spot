@@ -4,7 +4,7 @@ import { MapPin, ArrowRight } from 'lucide-react';
 
 import MapClient from './MapClient';
 import { REGIONS, classifyRegion } from '@/lib/regions';
-import { PERIODS, matchesPeriod, isOpenNow, kstTodayStart } from '@/lib/popupSlices';
+import { getPeriods, matchesPeriod, isOpenNow, kstTodayStart } from '@/lib/popupSlices';
 
 /**
  * /map — 서울 팝업스토어 지도.
@@ -148,7 +148,7 @@ export default async function MapPage() {
         <section className="mt-8 border-t border-gray-200 pt-6 dark:border-white/10">
           <h2 className="mb-3 text-sm font-bold md:text-base">언제 갈지 정해 보기</h2>
           <div className="flex flex-wrap gap-2">
-            {PERIODS.map((p) => (
+            {getPeriods().map((p) => (
               <Link
                 key={p.slug}
                 href={`/popups/${p.slug}`}
