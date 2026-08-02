@@ -74,6 +74,39 @@ public class User {
     @JsonIgnore
     private long tokenVersion = 0L;
 
+    /**
+     * 인증 앱과 공유하는 TOTP 비밀키 — <b>암호화된 상태</b>로 보관한다(TotpSecretCipher).
+     *
+     * <p>{@code @JsonIgnore} 는 필수다. 이 값이 응답에 실려 나가면 누구나 코드를 만들 수 있어 2단계 인증이 없는 것과 같아진다.
+     */
+    @Column(name = "TOTP_SECRET", length = 512)
+    @JsonIgnore
+    private String totpSecret;
+
+    /**
+     * 등록을 끝냈는가.
+     *
+     * <p>비밀키만 있고 이 값이 false 면 "QR 은 받았는데 아직 6자리 확인을 안 한" 상태다. 그때 로그인을 막으면 등록하다 만 사람이 잠긴다.
+     */
+    @Column(name = "TOTP_ENABLED", nullable = false)
+    @Builder.Default
+    @JsonIgnore
+    private boolean totpEnabled = false;
+
+    /** 복구 코드의 SHA-256 해시(쉼표 구분). 원문은 발급 때 한 번 보여 주고 저장하지 않는다. */
+    @Column(name = "TOTP_RECOVERY_CODES", columnDefinition = "TEXT")
+    @JsonIgnore
+    private String totpRecoveryCodes;
+
+    /**
+     * 마지막으로 성공한 시간 창. 같은 코드의 재사용을 막는다.
+     *
+     * <p>TOTP 는 한 창(30초) 안에서 여러 번 유효하므로, 코드를 가로챈 사람이 그대로 다시 쓸 수 있다. 재사용 차단은 서버가 따로 해야 한다.
+     */
+    @Column(name = "TOTP_LAST_USED_STEP")
+    @JsonIgnore
+    private Long totpLastUsedStep;
+
     /** 탈퇴 계정은 기존 토큰과 무관하게 모든 인증을 거부한다. */
     @Column(name = "ACCOUNT_ACTIVE", nullable = false)
     @Builder.Default
