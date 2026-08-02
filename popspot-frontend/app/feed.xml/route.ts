@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 
 import { REGIONS, classifyRegion } from '@/lib/regions';
 import {
-  PERIODS,
+  getPeriods,
   CATEGORIES,
   BRANDS,
   classifyCategory,
@@ -169,7 +169,7 @@ export async function GET() {
   const items: FeedItem[] = [];
 
   // ① 시점 — 매일 내용이 바뀌므로 신선도 신호가 가장 크다. 네이버 검색어 상위가 "이번주 성수 팝업" 류다.
-  for (const p of PERIODS) {
+  for (const p of getPeriods(now)) {
     const matched = live.filter((m) => matchesPeriod(m.startDate, m.endDate, p.code, now));
     const it = sliceItem(
       p.slug,
@@ -213,7 +213,7 @@ export async function GET() {
   for (const r of REGIONS) {
     const inRegion = byRegion.get(r.code) ?? [];
     if (inRegion.length === 0) continue;
-    for (const p of PERIODS) {
+    for (const p of getPeriods(now)) {
       const matched = inRegion.filter((m) => matchesPeriod(m.startDate, m.endDate, p.code, now));
       const it = sliceItem(
         `${r.slug}-${p.slug}`,

@@ -11,7 +11,7 @@ import type { Locale } from '@/lib/i18n';
 import { LOCALE_PATH, slugAlternates } from '@/lib/localeRoutes';
 import { CRAWL_REFRESH_BY_LOCALE } from '@/lib/siteCopy';
 import {
-  PERIODS,
+  getPeriods,
   CATEGORIES,
   BRANDS,
   matchesPeriod,
@@ -107,11 +107,11 @@ export const dynamicParams = false;
 export function generateStaticParams() {
   return [
     ...REGIONS.map((r) => ({ slug: r.slug })),
-    ...PERIODS.map((p) => ({ slug: p.slug })),
+    ...getPeriods().map((p) => ({ slug: p.slug })),
     ...CATEGORIES.map((c) => ({ slug: c.slug })),
     ...BRANDS.map((b) => ({ slug: b.slug })),
     ...REGIONS.flatMap((r) => CATEGORIES.map((c) => ({ slug: `${r.slug}-${c.slug}` }))),
-    ...REGIONS.flatMap((r) => PERIODS.map((p) => ({ slug: `${r.slug}-${p.slug}` }))),
+    ...REGIONS.flatMap((r) => getPeriods().map((p) => ({ slug: `${r.slug}-${p.slug}` }))),
   ];
 }
 
@@ -908,7 +908,7 @@ function CrossSell({
         ? current.regionSlug
         : null;
   const regionPeriodLinks = currentRegionSlug
-    ? PERIODS.map((p) => ({
+    ? getPeriods().map((p) => ({
         slug: `${currentRegionSlug}-${p.slug}`,
         label: `${L(p)} ${(() => {
           const rg = regionBySlug(currentRegionSlug);
@@ -923,7 +923,7 @@ function CrossSell({
     ...regionPeriodLinks,
     ...BRANDS.map((b) => ({ slug: b.slug, label: L(b), kind: 'brand' as const })),
     ...REGIONS.map((r) => ({ slug: r.slug, label: L(r), kind: 'region' as const })),
-    ...PERIODS.map((p) => ({ slug: p.slug, label: L(p), kind: 'period' as const })),
+    ...getPeriods().map((p) => ({ slug: p.slug, label: L(p), kind: 'period' as const })),
     ...CATEGORIES.map((c) => ({ slug: c.slug, label: L(c), kind: 'category' as const })),
   ].filter((s) => s.slug !== current.slug);
 
