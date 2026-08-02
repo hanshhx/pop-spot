@@ -41,6 +41,7 @@ import type {
   AdminVisitStats,
   AdminVisitor,
   MetricData,
+  ServerResource,
 } from '@/features/admin/types';
 
 export default function AdminPage() {
@@ -108,6 +109,7 @@ export default function AdminPage() {
 
   const [realtimeMetrics, setRealtimeMetrics] = useState<MetricData[]>([]);
   const [serverStatus, setServerStatus] = useState<'online' | 'offline'>('online');
+  const [serverResource, setServerResource] = useState<ServerResource | null>(null);
 
   // 보상 지급 폼 상태
   const [rewardForm, setRewardForm] = useState({ nickname: '', itemType: 'MEGAPHONE', amount: 1 });
@@ -143,6 +145,14 @@ export default function AdminPage() {
         if (res.ok) {
           const newData = await res.json();
           setServerStatus('online');
+          setServerResource({
+            memoryUsedMb: Number(newData.memory ?? 0),
+            memoryTotalMb: Number(newData.memoryTotal ?? 0),
+            diskUsedGb: Number(newData.diskUsed ?? 0),
+            diskTotalGb: Number(newData.diskTotal ?? 0),
+            heapUsedMb: Number(newData.heap ?? 0),
+            heapMaxMb: Number(newData.heapMax ?? 0),
+          });
           setRealtimeMetrics((prev) => {
             const now = new Date();
             const timeStr = `${now.getHours()}:${now.getMinutes()}:${now.getSeconds()}`;
@@ -712,6 +722,7 @@ export default function AdminPage() {
             {/* ===== 시스템 (서버 지표 + 로그) ===== */}
             {activeTab === 'SYSTEM' && (
               <SystemTab
+                serverResource={serverResource}
                 dashboard={dashboard}
                 realtimeMetrics={realtimeMetrics}
                 cpuNow={cpuNow}
