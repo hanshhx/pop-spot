@@ -2,6 +2,7 @@ package com.example.popspotbackend.config;
 
 import com.example.popspotbackend.entity.User;
 import com.example.popspotbackend.repository.UserRepository;
+import com.example.popspotbackend.service.auth.TotpAuthService;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
@@ -40,10 +41,20 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
     private static final String CLAIM_ROLE = "role";
     private static final String QUERY_PARAM_CODE = "code";
     public static final String OAUTH_EXCHANGE_KEY_PREFIX = "OAUTH_EXCHANGE:";
+
+    /**
+     * 교환 슬롯에 토큰 대신 "2단계 인증이 남았다" 를 담을 때 쓰는 표시.
+     *
+     * <p>소셜 로그인도 이메일 로그인과 <b>같은 2단계</b>를 거쳐야 한다. 처음에는 이메일 경로에만 붙였는데, 관리자 계정이 카카오로도 들어올 수 있어 그쪽이 통째로
+     * 우회하고 있었다. 방어는 가장 약한 경로만큼만 강하다.
+     */
+    public static final String TOTP_CHALLENGE_MARKER = "TOTP:";
+
     private static final String REDIRECT_NO_EMAIL_QUERY = "?error=no_email";
 
     private final UserRepository userRepository;
     private final StringRedisTemplate redisTemplate;
+    private final TotpAuthService totpAuth;
 
     @Value("${app.oauth2.redirect-uri}")
     private String redirectUri;
@@ -85,11 +96,18 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
             getRedirectStrategy().sendRedirect(request, response, redirectUri + "?error=inactive");
             return;
         }
-        String accessToken = issueJwt(user);
         String exchangeCode = UUID.randomUUID().toString();
+
+        // 2단계 인증이 켜져 있으면 토큰을 만들지 않는다. 교환 슬롯에는 "코드를 더 받아야 한다" 는
+        // 표시와 단기 표만 넣는다 — 토큰을 먼저 만들어 두면 그것만 가로채도 로그인이 끝난다.
+        String slotValue =
+                totpAuth.isRequiredFor(user)
+                        ? TOTP_CHALLENGE_MARKER + totpAuth.issueChallenge(user.getUserId())
+                        : issueJwt(user);
+
         redisTemplate
                 .opsForValue()
-                .set(OAUTH_EXCHANGE_KEY_PREFIX + exchangeCode, accessToken, 60, TimeUnit.SECONDS);
+                .set(OAUTH_EXCHANGE_KEY_PREFIX + exchangeCode, slotValue, 60, TimeUnit.SECONDS);
         String targetUrl =
                 UriComponentsBuilder.fromUriString(redirectUri)
                         .queryParam(QUERY_PARAM_CODE, exchangeCode)

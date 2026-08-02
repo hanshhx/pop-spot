@@ -106,11 +106,22 @@ public class AuthController {
         if (isBlank(code) || code.length() > 100) {
             return ResponseEntity.badRequest().body("유효하지 않은 로그인 교환 코드입니다.");
         }
-        String token = consumeKey(OAuth2SuccessHandler.OAUTH_EXCHANGE_KEY_PREFIX + code);
-        if (token == null) {
+        String value = consumeKey(OAuth2SuccessHandler.OAUTH_EXCHANGE_KEY_PREFIX + code);
+        if (value == null) {
             return ResponseEntity.status(401).body("로그인 교환 코드가 만료되었거나 이미 사용되었습니다.");
         }
-        return ResponseEntity.ok(Map.of("token", token));
+
+        // 2단계 인증이 남았으면 토큰 대신 표를 준다. 프론트는 이메일 로그인과 <b>같은</b> 6자리
+        // 화면으로 이어간다 — 경로가 갈리면 한쪽만 고치는 사고가 난다.
+        if (value.startsWith(OAuth2SuccessHandler.TOTP_CHALLENGE_MARKER)) {
+            return ResponseEntity.ok(
+                    Map.of(
+                            "totpRequired",
+                            "true",
+                            "challengeToken",
+                            value.substring(OAuth2SuccessHandler.TOTP_CHALLENGE_MARKER.length())));
+        }
+        return ResponseEntity.ok(Map.of("token", value));
     }
 
     @GetMapping("/check-email")

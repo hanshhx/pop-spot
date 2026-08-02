@@ -13,6 +13,8 @@ import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.test.util.ReflectionTestUtils;
 
 /**
@@ -29,17 +31,23 @@ class TotpAuthServiceTest {
     private static final String KEY = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
 
     private UserRepository users;
+    private StringRedisTemplate redis;
+    private ValueOperations<String, String> redisOps;
     private TotpService totp;
     private TotpAuthService auth;
     private User user;
 
     @BeforeEach
+    @SuppressWarnings("unchecked")
     void setUp() {
         users = mock(UserRepository.class);
+        redis = mock(StringRedisTemplate.class);
+        redisOps = mock(ValueOperations.class);
+        when(redis.opsForValue()).thenReturn(redisOps);
         totp = new TotpService();
         auth =
                 new TotpAuthService(
-                        users, totp, new TotpSecretCipher(KEY), new RecoveryCodeService());
+                        users, totp, new TotpSecretCipher(KEY), new RecoveryCodeService(), redis);
         enableFeature(true);
 
         user = User.builder().userId(USER_ID).email("admin@popspot.co.kr").build();
@@ -158,7 +166,7 @@ class TotpAuthServiceTest {
     void refusesSetupWithoutEncryptionKey() {
         TotpAuthService noKey =
                 new TotpAuthService(
-                        users, totp, new TotpSecretCipher(""), new RecoveryCodeService());
+                        users, totp, new TotpSecretCipher(""), new RecoveryCodeService(), redis);
         ReflectionTestUtils.setField(noKey, "featureEnabled", true);
 
         assertThatThrownBy(() -> noKey.beginSetup(USER_ID))

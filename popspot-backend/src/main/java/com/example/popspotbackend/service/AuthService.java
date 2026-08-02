@@ -20,12 +20,9 @@ import java.time.LocalDateTime;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.UUID;
-import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -60,13 +57,9 @@ public class AuthService {
     private static final String PROVIDER_LOCAL = "LOCAL";
     private static final String SOCIAL_USER_ERROR_PREFIX = "SOCIAL_USER:";
 
-    private static final String TOTP_CHALLENGE_PREFIX = "TOTP_CHALLENGE:";
-    private static final long TOTP_CHALLENGE_TTL_MINUTES = 5;
-
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final TotpAuthService totpAuth;
-    private final StringRedisTemplate redisTemplate;
 
     @Value("${jwt.secret:}")
     private String jwtSecret;
@@ -153,7 +146,7 @@ public class AuthService {
         if (totpAuth.isRequiredFor(user)) {
             return LoginResponseDto.builder()
                     .totpRequired(true)
-                    .challengeToken(issueChallenge(user.getUserId()))
+                    .challengeToken(totpAuth.issueChallenge(user.getUserId()))
                     .build();
         }
 
@@ -278,7 +271,7 @@ public class AuthService {
      * 하려면 비밀번호부터 다시 넣어야 한다.
      */
     public LoginResponseDto completeTotpLogin(String challengeToken, String code) {
-        String userId = consumeChallenge(challengeToken);
+        String userId = totpAuth.consumeChallenge(challengeToken);
         if (userId == null) {
             throw new IllegalArgumentException("인증 시간이 지났습니다. 다시 로그인해 주세요.");
         }
@@ -303,28 +296,6 @@ public class AuthService {
                 .megaphoneCount(user.getMegaphoneCount())
                 .token(issueJwt(user))
                 .build();
-    }
-
-    /** 비밀번호를 맞혔다는 사실만 담는 단기 표. 5분이면 코드를 입력하기에 충분하다. */
-    private String issueChallenge(String userId) {
-        String token = UUID.randomUUID().toString();
-        redisTemplate
-                .opsForValue()
-                .set(
-                        TOTP_CHALLENGE_PREFIX + token,
-                        userId,
-                        TOTP_CHALLENGE_TTL_MINUTES,
-                        TimeUnit.MINUTES);
-        return token;
-    }
-
-    /** 표를 쓰고 없앤다. 없거나 이미 쓴 표면 null. */
-    private String consumeChallenge(String token) {
-        if (token == null || token.isBlank() || token.length() > 100) return null;
-        String key = TOTP_CHALLENGE_PREFIX + token;
-        String userId = redisTemplate.opsForValue().get(key);
-        redisTemplate.delete(key);
-        return userId;
     }
 
     private String issueJwt(User user) {
