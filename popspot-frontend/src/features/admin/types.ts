@@ -110,3 +110,21 @@ export interface RewardForm {
 export type DashboardMetrics = ReturnType<
   typeof useDashboardMetrics<Record<string, number | string>>
 >;
+
+/**
+ * 운영 서버(VM)의 현재 자원 — 시계열이 아니라 <b>지금 값</b>이다.
+ *
+ * <p>총량과 디스크는 3초마다 바뀌지 않으므로 차트에 넣지 않는다. {@link MetricData} 는 그리는 값,
+ * 이쪽은 옆에 숫자로 보여 주는 값이다.
+ */
+export interface ServerResource {
+  /** OS 물리 메모리(MB). */
+  memoryUsedMb: number;
+  memoryTotalMb: number;
+  /** 업로드가 쌓이는 파일시스템(GB). */
+  diskUsedGb: number;
+  diskTotalGb: number;
+  /** JVM 힙(MB) — 서버 메모리와 다르다. 자바 쪽 누수를 보는 값. */
+  heapUsedMb: number;
+  heapMaxMb: number;
+}
