@@ -86,6 +86,7 @@ import {
   classifyCategory,
   categoryLabel,
   CATEGORIES,
+  getPeriods,
   parseDate,
   type CategoryCode,
 } from '../src/lib/popupSlices';
@@ -143,6 +144,55 @@ const INITIAL_MY_COURSE: CourseItem[] = [];
 /* -------------------------------------------------------------------------- */
 const DEFAULT_TAB = 'MAP';
 const USER_ONLY_TABS = new Set<string>(['COURSE', 'MUSIC', 'MATE']);
+
+/**
+ * 검색엔진과 사용자가 함께 쓰는 랜딩 디렉터리.
+ *
+ * <p>예전에는 같은 링크를 {@code sr-only} 영역에만 넣어 사용자에게는 숨겼다. 네이버는 숨긴 키워드
+ * 묶음보다 실제로 탐색할 수 있는 표준 링크를 권장한다. 접힌 상태에서도 사용자가 직접 열 수 있는
+ * {@code details} 로 바꿔 지역·일정·카테고리 페이지를 정직하게 연결한다.
+ */
+function SeoLandingDirectory() {
+  const { locale } = useLocale();
+  const periods = getPeriods();
+  const title =
+    locale === 'en'
+      ? 'Browse pop-ups by area, date, or category'
+      : locale === 'ja'
+        ? 'エリア・日程・カテゴリーから探す'
+        : '지역·일정·카테고리로 팝업 찾기';
+
+  const groups = [
+    { key: 'region', items: REGIONS },
+    { key: 'period', items: periods },
+    { key: 'category', items: CATEGORIES },
+  ];
+
+  return (
+    <section className="mx-auto mb-8 max-w-[1600px] px-4 md:px-6" aria-label={title}>
+      <details className="rounded-2xl border border-gray-200 bg-white/90 px-5 py-4 text-sm shadow-sm dark:border-white/10 dark:bg-[#111]/90">
+        <summary className="cursor-pointer font-bold text-gray-900 dark:text-white">
+          {title}
+        </summary>
+        <div className="mt-4 space-y-4">
+          {groups.map((group) => (
+            <nav key={group.key} className="flex flex-wrap gap-2" aria-label={group.key}>
+              {group.items.map((item) => (
+                <Link
+                  key={item.slug}
+                  href={localizedPath(`/popups/${item.slug}`, locale)}
+                  className="rounded-full border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs font-medium text-gray-700 transition hover:border-lime-300 hover:bg-lime-50 dark:border-white/10 dark:bg-white/5 dark:text-white/75 dark:hover:border-lime-300/40"
+                >
+                  {localizedLabel(item, locale)}
+                </Link>
+              ))}
+            </nav>
+          ))}
+        </div>
+      </details>
+    </section>
+  );
+}
 
 /**
  * 홈 목록·랭킹에 지금 문이 열려 있는 팝업만 남긴다. 판정은 지도와 공유하는 {@link isOpenNow} —
@@ -212,9 +262,8 @@ export default function Home() {
   const defaultCourseName =
     locale === 'en' ? 'My route' : locale === 'ja' ? 'マイコース' : '나만의 코스';
 
-  const [hotPopups, setHotPopups] = useState<PopupStore[]>([]);
   const [allPopups, setAllPopups] = useState<PopupStore[]>([]);
-  // "지금 뜨는 팝업" 레일 정렬/필터. 전체(allPopups)에서 파생 — hotPopups(인기 top5)는 히어로·랭킹 재사용용으로 그대로 둔다.
+  // "지금 뜨는 팝업" 레일 정렬/필터. 전체(allPopups)에서 파생한다.
   const [railSort, setRailSort] = useState<'popular' | 'deadline' | 'latest'>('popular');
   const [railCat, setRailCat] = useState<CategoryCode | 'all'>('all');
   const rail = useDragScroll<HTMLDivElement>();
@@ -258,7 +307,7 @@ export default function Home() {
 
   /**
    * "지금 뜨는 팝업" 레일에 실제로 렌더할 목록 — 전체(allPopups)에 카테고리 필터 + 정렬 적용.
-   * hotPopups(인기 top5)는 히어로·랭킹 재사용을 위해 그대로 두고, 레일만 이 파생 리스트를 쓴다.
+   * POP-LOOK 랭킹은 아래에서 지도 노출 가능 팝업만 다시 거르므로, 이 레일과 목록 범위가 다를 수 있다.
    */
   const railPopups = useMemo(() => {
     const base =
@@ -323,10 +372,27 @@ export default function Home() {
    * 홈 인사말의 팝업 개수 — 지도(하단 'Total N Locations')와 숫자를 맞추기 위해 '지도에 실제로 찍히는
    * (진짜 위치 있는) 활성 팝업'만 센다. 좌표 없는 것 + 지역 중심점에 몰린 가짜 위치는 제외.
    */
-  const mappablePopupCount = useMemo(
-    () => allPopups.filter(hasRealMapLocation).length,
+  const mappablePopups = useMemo(
+    () => allPopups.filter(hasRealMapLocation),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [allPopups, fallbackCoordKeys],
+  );
+
+  const mappablePopupCount = mappablePopups.length;
+
+  /**
+   * POP-LOOK — 상세 페이지가 실제로 열린 횟수(viewCount) 순.
+   *
+   * <p>상세 API가 열릴 때마다 서버에서 1씩 증가하므로 고정 추천이나 이름순이 아니다. 지도에 핀이 없는
+   * 팝업은 사용자가 순위에서 눌러도 지도에서 찾을 수 없으므로 랭킹과 전체 목록 양쪽에서 제외한다.
+   * 동점은 새로 수집된 팝업(id가 큰 것)을 먼저 보여준다.
+   */
+  const hotPopups = useMemo(
+    () =>
+      [...mappablePopups]
+        .sort((a, b) => (b.viewCount || 0) - (a.viewCount || 0) || b.id - a.id)
+        .slice(0, 5),
+    [mappablePopups],
   );
 
   // pop-look → "오늘의 추천 팝업": 실제 인기순 상위(랜덤 아님). hotPopups 가 이미 viewCount desc 정렬.
@@ -743,10 +809,6 @@ export default function Home() {
     if (cachedPopups) {
       const data = keepOpenNow(JSON.parse(cachedPopups));
       setAllPopups(data);
-      const sortedData = [...(data as PopupStore[])].sort(
-        (a, b) => (b.viewCount || 0) - (a.viewCount || 0),
-      );
-      setHotPopups(sortedData.slice(0, 5));
     }
 
     apiFetch('/api/popups')
@@ -754,10 +816,6 @@ export default function Home() {
       .then((raw) => {
         const data = keepOpenNow(raw);
         setAllPopups(data);
-        const sortedData = [...(data as PopupStore[])].sort(
-          (a, b) => (b.viewCount || 0) - (a.viewCount || 0),
-        );
-        setHotPopups(sortedData.slice(0, 5));
         localStorage.setItem('cached_popups', JSON.stringify(data));
       })
       .catch((err) => {
@@ -766,7 +824,6 @@ export default function Home() {
         if (process.env.NODE_ENV === 'development') {
           const mock = devMockPopups();
           setAllPopups(mock);
-          setHotPopups(mock.slice(0, 8));
         }
       });
 
@@ -971,11 +1028,11 @@ export default function Home() {
               {user ? (
                 <div className="w-full border rounded-xl p-5 md:p-8 relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-4 bg-ink-900 text-cream-200 border-ink-900 dark:bg-cream-200 dark:text-ink-900 dark:border-cream-200">
                   <div className="relative z-10 text-center md:text-left">
-                    <h2 className="text-xl md:text-3xl font-bold mb-1 md:mb-2">
+                    <h1 className="text-xl md:text-3xl font-bold mb-1 md:mb-2">
                       {t('greet.hello')}{' '}
                       <span className="text-lime-300 dark:text-lime-700">{user.nickname}</span>
                       {t('greet.suffix')}
-                    </h2>
+                    </h1>
                     <p className="text-xs md:text-base opacity-70">
                       {t('greet.countPrefix')}
                       <span className="font-bold text-lime-400 dark:text-lime-700">
@@ -1008,7 +1065,7 @@ export default function Home() {
                       <span className="inline-block mb-3 rounded-pill bg-lime-300 px-3 py-1 text-[10px] md:text-xs font-black tracking-[0.2em] uppercase text-ink-900">
                         {locale === 'ko' ? '오늘의 서울 팝업' : t('stat.open')}
                       </span>
-                      <h2 className="text-2xl md:text-4xl font-black leading-tight text-gray-900 dark:text-white">
+                      <h1 className="text-2xl md:text-4xl font-black leading-tight text-gray-900 dark:text-white">
                         {locale === 'ko' ? (
                           <>
                             {t('hero.openedPrefix')}
@@ -1028,7 +1085,7 @@ export default function Home() {
                             {t('hero.title')}
                           </>
                         )}
-                      </h2>
+                      </h1>
                       <p className="mt-2 text-sm md:text-base text-gray-600 dark:text-white/70">
                         {locale === 'ko'
                           ? '지도에서 일정과 장소를 확인하고, 마음에 드는 팝업을 저장하세요.'
@@ -1365,11 +1422,21 @@ export default function Home() {
                     label="POP-LOOK"
                     className="h-10 md:h-16 relative z-10 text-foreground"
                   />
-                  <p className="text-gray-500 dark:text-white/60 max-w-md mt-2 md:mt-0 relative z-10 text-xs md:text-base">
-                    {t('poplook.lead')}
-                    <br />
-                    {t('poplook.sub')}
-                  </p>
+                  <div className="mt-2 flex flex-col items-center gap-3 md:mt-0 md:items-end">
+                    <p className="text-gray-500 dark:text-white/60 max-w-md relative z-10 text-xs md:text-base">
+                      {t('poplook.lead')}
+                      <br />
+                      {t('poplook.sub')}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={handleOpenModal}
+                      className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3.5 py-2 text-xs font-bold text-foreground shadow-sm transition hover:border-lime-300 hover:bg-lime-50 dark:border-white/10 dark:bg-white/5 dark:hover:bg-lime-300/10"
+                    >
+                      <Store size={14} /> {t('poplook.all')} {mappablePopupCount}
+                      <ArrowRight size={14} />
+                    </button>
+                  </div>
                 </header>
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 lg:gap-6 h-auto lg:h-[440px]">
                   {/* 1위 히어로 */}
@@ -2273,13 +2340,15 @@ export default function Home() {
         )}
       </div>
 
+      {currentTab === 'MAP' && <SeoLandingDirectory />}
+
       <Footer />
 
       {/* Navigation Dock */}
       <BottomDock currentTab={currentTab as DockTab} onTabChange={(t) => handleTabChange(t)} />
 
       {/* Modals — 새 Dialog 컴포넌트(Radix) 사용. 포커스 트랩·ESC·스크롤 잠금 자동. */}
-      <AllTrendingModal open={isModalOpen} onOpenChange={setIsModalOpen} popups={allPopups} />
+      <AllTrendingModal open={isModalOpen} onOpenChange={setIsModalOpen} popups={mappablePopups} />
       <ReportPopupModal open={isReportPopupOpen} onOpenChange={setIsReportPopupOpen} user={user} />
       <GlobalSearchModal
         open={isGlobalSearchOpen}

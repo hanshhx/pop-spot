@@ -33,6 +33,7 @@ import {
 const SITE_URL = 'https://popspot.co.kr';
 const SITE_TITLE = 'POP-SPOT — 서울 팝업스토어 큐레이션';
 const SITE_DESCRIPTION = '서울 팝업스토어를 지도와 위시 · 메이트 보드로 모아보는 큐레이션 서비스';
+const ABOUT_PUBLISHED_AT = new Date('2026-05-27T01:26:12Z');
 
 /** 1시간. 슬라이스 건수는 팝업이 열리고 닫힐 때만 바뀌므로 더 자주 만들 이유가 없다. */
 export const revalidate = 3600;
@@ -249,6 +250,17 @@ export async function GET() {
     if (it) items.push(it);
   }
 
+  // 동적 목록을 가져오지 못해도 RSS 자체가 빈 문서가 되지 않도록 서비스 소개 한 건은 남긴다.
+  // 이용약관·개인정보처리방침까지 매 요청 시각으로 넣던 이전 구현은 세 문서를 매시간 새 글로
+  // 위장했다. 실제 공개일을 가진 소개만 두고, 정책 문서는 sitemap 에서 찾게 한다.
+  items.push({
+    title: 'POP-SPOT 서비스 소개',
+    link: `${SITE_URL}/about`,
+    description:
+      '서울 팝업스토어 정보를 지도 한 화면에서 보는 무료 큐레이션 서비스. 지역 · 브랜드 · 마감임박순.',
+    date: ABOUT_PUBLISHED_AT,
+  });
+
   // 최신순. RSS 리더와 검색엔진 모두 앞쪽을 중요하게 본다.
   items.sort((a, b) => b.date.getTime() - a.date.getTime());
 
@@ -263,28 +275,9 @@ export async function GET() {
   // 정렬한 뒤 자르므로 그 역할은 그대로 유지된다.
   const MAX_SLICE_ITEMS = 60;
   items.length = Math.min(items.length, MAX_SLICE_ITEMS);
-
-  // 운영자가 쓴 정적 페이지는 뒤에 붙인다 — 자주 바뀌지 않으므로 신선도 경쟁에서 앞자리를 차지할 이유가 없다.
-  items.push(
-    {
-      title: 'POP-SPOT 서비스 소개',
-      link: `${SITE_URL}/about`,
-      description:
-        '서울 팝업스토어 정보를 지도 한 화면에서 보는 무료 큐레이션 서비스. 지역 · 브랜드 · 마감임박순.',
-      date: now,
-    },
-    {
-      title: '이용 약관',
-      link: `${SITE_URL}/terms`,
-      description: 'POP-SPOT 서비스 이용 약관. 자동수집 정책 (§10-2) 포함.',
-      date: now,
-    },
-    {
-      title: '개인정보 처리방침',
-      link: `${SITE_URL}/privacy`,
-      description: '수집 항목 · 보관 기간 · DPO 연락처 등 개인정보 처리방침.',
-      date: now,
-    },
+  const lastBuildDate = items.reduce(
+    (latest, item) => (item.date.getTime() > latest.getTime() ? item.date : latest),
+    ABOUT_PUBLISHED_AT,
   );
 
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
@@ -295,7 +288,7 @@ export async function GET() {
     <atom:link href="${SITE_URL}/feed.xml" rel="self" type="application/rss+xml"/>
     <description>${escapeXml(SITE_DESCRIPTION)}</description>
     <language>ko-KR</language>
-    <lastBuildDate>${now.toUTCString()}</lastBuildDate>
+    <lastBuildDate>${lastBuildDate.toUTCString()}</lastBuildDate>
     <generator>Next.js (popspot)</generator>
 ${items.map(renderItem).join('\n')}
   </channel>

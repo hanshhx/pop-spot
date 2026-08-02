@@ -11,6 +11,7 @@ import com.example.popspotbackend.service.ai.LlmUsageTracker;
 import com.example.popspotbackend.service.geocoding.Coordinates;
 import com.example.popspotbackend.service.geocoding.GeocodingService;
 import com.example.popspotbackend.service.geocoding.GeocodingUnavailableException;
+import com.example.popspotbackend.service.seo.IndexNowService;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
@@ -564,6 +565,7 @@ public class PopupCrawlOrchestrator {
     private final SearchApiBudgetTracker searchApiBudget;
     private final CrawlerLlm crawlerLlm;
     private final PopupTranslationBackfillService translationBackfillService;
+    private final IndexNowService indexNowService;
 
     @Value("${popspot.crawler.confidence-threshold:0.8}")
     private double confidenceThreshold;
@@ -620,6 +622,12 @@ public class PopupCrawlOrchestrator {
             result.put("translated", translated.getOrDefault("translated", 0));
         } catch (Exception e) {
             log.warn("[PopupCrawlOrchestrator] 신규 번역 실패 — 야간 백필에 맡김: {}", e.getMessage());
+        }
+
+        int changed =
+                result.getOrDefault("autoPublished", 0) + result.getOrDefault("datesBackfilled", 0);
+        if (changed > 0) {
+            indexNowService.notifyFrequentlyChangingPages();
         }
 
         log.info("[PopupCrawlOrchestrator] 통계 = {}", result);

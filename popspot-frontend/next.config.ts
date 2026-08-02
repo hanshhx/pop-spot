@@ -59,6 +59,18 @@ const nextConfig: NextConfig = {
     return [{ source: '/api/:path*', destination: `${API_URL}/api/:path*` }];
   },
 
+  async redirects() {
+    return [
+      {
+        // 네이버에 예전 /intro 주소가 아직 노출되고 있다. 없는 페이지로 버리지 않고 현재 소개 문서로
+        // 영구 이전해 기존 검색 신호와 방문자를 /about 으로 모은다.
+        source: '/intro',
+        destination: '/about',
+        permanent: true,
+      },
+    ];
+  },
+
   /**
    * v2.17 — 보안 헤더 (CSP / X-Frame-Options / Referrer-Policy / Permissions-Policy).
    *

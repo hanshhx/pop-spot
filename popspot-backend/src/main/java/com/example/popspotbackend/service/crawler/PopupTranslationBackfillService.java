@@ -13,7 +13,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 /**
  * 아직 번역하지 않은 팝업을 훑어 영어·일본어 표시명을 채운다.
@@ -63,7 +62,6 @@ public class PopupTranslationBackfillService {
      *
      * @return 통계(대상 / 번역됨 / 확신 없어 비움)
      */
-    @Transactional
     public Map<String, Integer> runOnce() {
         String today = LocalDate.now(SEOUL).format(ISO);
         List<PopupStore> targets =
@@ -73,8 +71,10 @@ public class PopupTranslationBackfillService {
         if (targets.isEmpty()) {
             log.info("[TranslationBackfill] 대상 없음 — 모두 처리됨");
             stats.put("targets", 0);
+            stats.put("attempted", 0);
             stats.put("translated", 0);
             stats.put("skipped", 0);
+            stats.put("deferred", 0);
             return stats;
         }
 
@@ -83,16 +83,26 @@ public class PopupTranslationBackfillService {
                 translationService.translate(targets);
         int filled = translationService.applyAll(targets, result);
 
-        // 트랜잭션 안에서 조회한 엔티티라 더티 체킹으로 반영된다. save 를 명시하지 않는 것은
-        // 나머지 필드를 건드리지 않았음을 코드로 드러내기 위해서다.
+        // LLM 호출 동안 DB 트랜잭션과 커넥션을 붙잡지 않는다. 정상 응답이 있었던 행만 짧게 저장한다.
+        // 호출 실패·깨진 응답·누락된 id는 translatedAt을 건드리지 않아 다음 회차에서 다시 시도된다.
+        List<PopupStore> attempted =
+                targets.stream().filter(popup -> result.containsKey(popup.getId())).toList();
+        if (!attempted.isEmpty()) {
+            popupStoreRepository.saveAll(attempted);
+        }
+
         stats.put("targets", targets.size());
+        stats.put("attempted", attempted.size());
         stats.put("translated", filled);
-        stats.put("skipped", targets.size() - filled);
+        stats.put("skipped", attempted.size() - filled);
+        stats.put("deferred", targets.size() - attempted.size());
         log.info(
-                "[TranslationBackfill] 완료 — 대상 {}건 · 번역 {}건 · 확신없어 비움 {}건",
+                "[TranslationBackfill] 완료 — 대상 {}건 · 정상응답 {}건 · 번역 {}건 · 확신없어 비움 {}건 · 재시도 {}건",
                 targets.size(),
+                attempted.size(),
                 filled,
-                targets.size() - filled);
+                attempted.size() - filled,
+                targets.size() - attempted.size());
         return stats;
     }
 }

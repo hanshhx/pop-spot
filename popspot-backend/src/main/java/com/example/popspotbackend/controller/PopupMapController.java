@@ -2,6 +2,9 @@ package com.example.popspotbackend.controller;
 
 import com.example.popspotbackend.entity.PopupStore;
 import com.example.popspotbackend.service.PopupStoreService;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import lombok.Builder;
 import lombok.Getter;
@@ -43,7 +46,22 @@ public class PopupMapController {
                 .nameJa(store.getNameJa())
                 .locationEn(store.getLocationEn())
                 .locationJa(store.getLocationJa())
+                .lastModified(lastModified(store))
                 .build();
+    }
+
+    private String lastModified(PopupStore store) {
+        LocalDateTime latest = null;
+        // lastSeenAt은 같은 원문을 다시 발견할 때마다 바뀌며 화면 내용의 수정 시각이 아니다.
+        // 여기에 포함하면 사이트맵의 모든 페이지가 매 수집 때 새 문서처럼 보인다.
+        for (LocalDateTime candidate :
+                new LocalDateTime[] {store.getCrawledAt(), store.getTranslatedAt()}) {
+            if (candidate != null && (latest == null || candidate.isAfter(latest)))
+                latest = candidate;
+        }
+        if (latest == null) return null;
+        return latest.atZone(ZoneId.of("Asia/Seoul"))
+                .format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
     }
 
     @Getter
@@ -77,5 +95,6 @@ public class PopupMapController {
         private String nameJa;
         private String locationEn;
         private String locationJa;
+        private String lastModified;
     }
 }

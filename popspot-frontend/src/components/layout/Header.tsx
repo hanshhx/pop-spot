@@ -83,9 +83,9 @@ export function Header({
         onClick={onLogoClick}
         className="group inline-flex flex-col"
       >
-        <h1 className="leading-none">
+        <div className="leading-none">
           <Logo className="h-10 md:h-14 transition-opacity group-hover:opacity-80" />
-        </h1>
+        </div>
         {subtitle ? (
           <p className="text-[10px] md:text-xs mt-1 tracking-[0.2em] uppercase text-muted-foreground">
             {subtitle}

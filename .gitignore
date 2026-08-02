@@ -74,3 +74,4 @@ eslint-report*.tmp.json
 
 # 복구 코드·비밀키를 손으로 받아 적어 두는 파일. 평문이라 절대 올라가면 안 된다.
 /recovery-codes.txt
+/*복구코드*.txt

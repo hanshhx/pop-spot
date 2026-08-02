@@ -46,7 +46,34 @@ type Marker = {
   category: string | null;
   startDate: string | null;
   endDate: string | null;
+  /** 백엔드가 아는 실제 데이터 변경 시각. 이전 백엔드 응답에는 없을 수 있다. */
+  lastModified?: string | null;
 };
+
+/**
+ * 사이트맵 lastmod 는 빌드 시각이 아니라 페이지 내용이 실제로 달라진 시각이어야 한다.
+ *
+ * <p>백엔드 배포 전 응답에는 lastModified 가 없으므로 시작일을 보수적인 대체값으로 쓴다. 미래
+ * 시작일은 미래 수정일이 아니므로 현재 시각까지만 인정한다.
+ */
+function markerModifiedAt(marker: Marker, now: Date): Date | null {
+  for (const raw of [marker.lastModified, marker.startDate]) {
+    if (!raw) continue;
+    const parsed = new Date(raw);
+    if (Number.isNaN(parsed.getTime())) continue;
+    return parsed.getTime() > now.getTime() ? now : parsed;
+  }
+  return null;
+}
+
+function latestModified(markers: Marker[], now: Date): Date | undefined {
+  let latest = 0;
+  for (const marker of markers) {
+    const modified = markerModifiedAt(marker, now);
+    if (modified && modified.getTime() > latest) latest = modified.getTime();
+  }
+  return latest > 0 ? new Date(latest) : undefined;
+}
 
 /**
  * 진행 중인 마커 — 색인 여부를 판정하는 원본 데이터.
@@ -95,6 +122,7 @@ async function liveMarkers(): Promise<Marker[]> {
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
   const live = await liveMarkers();
+  const liveLastModified = latestModified(live, now);
 
   // 지역×카테고리 건수는 마커를 한 번만 순회해 집계한다(조합 77개 × 전체 마커 재순회를 피한다).
   // 키를 classify* 의 반환값(코드)으로 만들고 조회는 slug 로 하는 것은 page.tsx 의 filterBySlice 와
@@ -133,20 +161,19 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const staticPages: MetadataRoute.Sitemap = [
     {
       url: `${SITE_URL}/`,
-      lastModified: now,
+      lastModified: liveLastModified,
       changeFrequency: 'daily',
       priority: 1.0,
     },
     {
       url: `${SITE_URL}/about`,
-      lastModified: now,
       changeFrequency: 'monthly',
       priority: 0.8,
     },
     // v2.43 — 지도 전용 문서. "팝업스토어 지도" 류 검색을 받는다(경위는 app/map/page.tsx).
     {
       url: `${SITE_URL}/map`,
-      lastModified: now,
+      lastModified: liveLastModified,
       changeFrequency: 'daily',
       priority: 0.9,
     },
@@ -154,25 +181,23 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // 서로를 가리켜 이미 선언돼 있고(app/../localeRoutes.ts), 여기서는 존재를 알리는 역할이다.
     {
       url: `${SITE_URL}/en`,
-      lastModified: now,
+      lastModified: liveLastModified,
       changeFrequency: 'daily',
       priority: 0.9,
     },
     {
       url: `${SITE_URL}/ja`,
-      lastModified: now,
+      lastModified: liveLastModified,
       changeFrequency: 'daily',
       priority: 0.9,
     },
     {
       url: `${SITE_URL}/terms`,
-      lastModified: now,
       changeFrequency: 'yearly',
       priority: 0.3,
     },
     {
       url: `${SITE_URL}/privacy`,
-      lastModified: now,
       changeFrequency: 'yearly',
       priority: 0.3,
     },
@@ -201,54 +226,82 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }
 
   const sliceLandings: MetadataRoute.Sitemap = [
-    ...REGIONS.filter((r) => (regionCounts.get(r.code) ?? 0) > 0).map((r) => ({
-      url: `${SITE_URL}/popups/${r.slug}`,
-      lastModified: now,
-      changeFrequency: 'daily' as const,
-      priority: 0.7,
-    })),
+    ...REGIONS.filter((r) => (regionCounts.get(r.code) ?? 0) > 0).map((r) => {
+      const matched = live.filter((m) => classifyRegion(m.location) === r.code);
+      return {
+        url: `${SITE_URL}/popups/${r.slug}`,
+        lastModified: latestModified(matched, now),
+        changeFrequency: 'daily' as const,
+        priority: 0.7,
+      };
+    }),
     ...getPeriods()
       .filter((p) => (periodCounts.get(p.slug) ?? 0) > 0)
-      .map((p) => ({
-        url: `${SITE_URL}/popups/${p.slug}`,
-        lastModified: now,
+      .map((p) => {
+        const matched = live.filter((m) => matchesPeriod(m.startDate, m.endDate, p.code, now));
+        return {
+          url: `${SITE_URL}/popups/${p.slug}`,
+          lastModified: latestModified(matched, now),
+          changeFrequency: 'daily' as const,
+          priority: 0.6,
+        };
+      }),
+    ...CATEGORIES.filter((c) => (categoryCounts.get(c.code) ?? 0) > 0).map((c) => {
+      const matched = live.filter((m) => classifyCategory(m.category) === c.code);
+      return {
+        url: `${SITE_URL}/popups/${c.slug}`,
+        lastModified: latestModified(matched, now),
+        changeFrequency: 'weekly' as const,
+        priority: 0.5,
+      };
+    }),
+    // 브랜드·IP·장소 랜딩 ("스텔라이브 팝업" 등). 매칭 0곳이면 페이지가 noindex 라 여기서도 뺀다.
+    ...BRANDS.filter((b) => brandHasMatch(b.keywords)).map((b) => {
+      const kws = b.keywords.map((keyword) => keyword.toLowerCase());
+      const matched = live.filter((m) => {
+        const hay = `${m.name ?? ''} ${m.location ?? ''}`.toLowerCase();
+        return kws.some((keyword) => hay.includes(keyword));
+      });
+      return {
+        url: `${SITE_URL}/popups/${b.slug}`,
+        lastModified: latestModified(matched, now),
         changeFrequency: 'daily' as const,
         priority: 0.6,
-      })),
-    ...CATEGORIES.filter((c) => (categoryCounts.get(c.code) ?? 0) > 0).map((c) => ({
-      url: `${SITE_URL}/popups/${c.slug}`,
-      lastModified: now,
-      changeFrequency: 'weekly' as const,
-      priority: 0.5,
-    })),
-    // 브랜드·IP·장소 랜딩 ("스텔라이브 팝업" 등). 매칭 0곳이면 페이지가 noindex 라 여기서도 뺀다.
-    ...BRANDS.filter((b) => brandHasMatch(b.keywords)).map((b) => ({
-      url: `${SITE_URL}/popups/${b.slug}`,
-      lastModified: now,
-      changeFrequency: 'daily' as const,
-      priority: 0.6,
-    })),
+      };
+    }),
     // v2.29 — 지역×카테고리 조합 롱테일 랜딩 ("성수 패션" 등, 큐레이션 집계라 §10-2 준수).
     // 브랜드와 같은 이유로 0곳 조합은 제외(/popups/mapo-tech 처럼 대부분이 여기서 나왔다).
     ...REGIONS.flatMap((r) =>
-      CATEGORIES.filter((c) => (comboCounts.get(`${r.slug}-${c.slug}`) ?? 0) > 0).map((c) => ({
-        url: `${SITE_URL}/popups/${r.slug}-${c.slug}`,
-        lastModified: now,
-        changeFrequency: 'weekly' as const,
-        priority: 0.5,
-      })),
+      CATEGORIES.filter((c) => (comboCounts.get(`${r.slug}-${c.slug}`) ?? 0) > 0).map((c) => {
+        const matched = live.filter(
+          (m) => classifyRegion(m.location) === r.code && classifyCategory(m.category) === c.code,
+        );
+        return {
+          url: `${SITE_URL}/popups/${r.slug}-${c.slug}`,
+          lastModified: latestModified(matched, now),
+          changeFrequency: 'weekly' as const,
+          priority: 0.5,
+        };
+      }),
     ),
     // 카테고리×시점 조합. 영어·일본어의 "K-beauty pop-ups this weekend"처럼 구매·방문 의도가
     // 분명한 검색을 받는다. 실제 결과가 있는 조합만 공개해 키워드만 바꾼 빈 페이지를 만들지 않는다.
     ...CATEGORIES.flatMap((c) =>
       getPeriods()
         .filter((p) => (categoryPeriodCounts.get(`${c.code}-${p.slug}`) ?? 0) > 0)
-        .map((p) => ({
-          url: `${SITE_URL}/popups/${c.slug}-${p.slug}`,
-          lastModified: now,
-          changeFrequency: 'daily' as const,
-          priority: 0.6,
-        })),
+        .map((p) => {
+          const matched = live.filter(
+            (m) =>
+              classifyCategory(m.category) === c.code &&
+              matchesPeriod(m.startDate, m.endDate, p.code, now),
+          );
+          return {
+            url: `${SITE_URL}/popups/${c.slug}-${p.slug}`,
+            lastModified: latestModified(matched, now),
+            changeFrequency: 'daily' as const,
+            priority: 0.6,
+          };
+        }),
     ),
     // v2.43 — 지역×시점 조합 ("이번주 성수 팝업"). 네이버 서치어드바이저 검색어 1위가 이 형태인데
     // 받을 페이지가 없었다(this-week 와 seongsu 가 따로 있을 뿐 조합이 없었다). 0곳 조합은 위와 같은
@@ -256,12 +309,19 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...REGIONS.flatMap((r) =>
       getPeriods()
         .filter((p) => (periodComboCounts.get(`${r.slug}-${p.slug}`) ?? 0) > 0)
-        .map((p) => ({
-          url: `${SITE_URL}/popups/${r.slug}-${p.slug}`,
-          lastModified: now,
-          changeFrequency: 'daily' as const,
-          priority: 0.6,
-        })),
+        .map((p) => {
+          const matched = live.filter(
+            (m) =>
+              classifyRegion(m.location) === r.code &&
+              matchesPeriod(m.startDate, m.endDate, p.code, now),
+          );
+          return {
+            url: `${SITE_URL}/popups/${r.slug}-${p.slug}`,
+            lastModified: latestModified(matched, now),
+            changeFrequency: 'daily' as const,
+            priority: 0.6,
+          };
+        }),
     ),
   ];
 
@@ -288,7 +348,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       { path: 'privacy', frequency: 'yearly' as const, priority: 0.2 },
     ].map((page) => ({
       url: `${SITE_URL}/${locale}/${page.path}`,
-      lastModified: now,
       changeFrequency: page.frequency,
       priority: page.priority,
     })),
