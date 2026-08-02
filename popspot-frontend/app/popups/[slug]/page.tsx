@@ -23,6 +23,7 @@ import {
   startOfDay,
   kstTodayStart,
   isExpired,
+  isStale,
 } from '@/lib/popupSlices';
 
 /**
@@ -284,7 +285,9 @@ function filterBySlice(markers: Marker[], slice: Slice): Marker[] {
  */
 async function liveMarkers(): Promise<Marker[]> {
   const today = kstTodayStart();
-  return (await fetchMarkers()).filter((m) => !isExpired(m.endDate, today));
+  return (await fetchMarkers()).filter(
+    (m) => !isExpired(m.endDate, today) && !isStale(m.startDate, m.endDate, today),
+  );
 }
 
 /** endDate 까지 남은 일수. 0=오늘 마감, 1=내일, 음수=이미 종료, null=종료일 없음. */

@@ -289,6 +289,42 @@ export function isExpired(endDate: string | null | undefined, today: Date): bool
   return startOfDay(end).getTime() < today.getTime();
 }
 
+/**
+ * 종료일이 없는 팝업의 유효기간(일). 이 기간이 지나면 끝난 것으로 본다.
+ *
+ * <p>90일은 팝업 운영 기간(대개 2~4주)보다 넉넉하게 잡은 값이다. 짧게 잡으면 장기 운영하는 팝업이
+ * 사라지고, 길게 잡으면 끝난 팝업이 오래 남는다. 잘못 지우는 쪽이 더 나쁘므로 넉넉한 쪽으로 뒀다.
+ */
+export const STALE_AFTER_DAYS = 90;
+
+/**
+ * 종료일이 없어 <b>영원히 안 사라지던</b> 팝업을 걸러낸다.
+ *
+ * <p>{@link isExpired} 는 종료일이 없으면 false 를 돌려준다 — "끝났다는 근거가 없다" 는 뜻이다.
+ * 그 판단 자체는 맞지만, 결과적으로 <b>종료일 없는 팝업은 영구히 목록에 남았다.</b> 실측 1,456건 중
+ * 807건(55%)이 종료일이 없고, 그 안에 2017년 팝업까지 섞여 있었다.
+ *
+ * <p>본문에서 날짜를 되살릴 수는 없다 — 807건 중 751건은 원문에 날짜 표현이 아예 없다. 크롤러가
+ * 놓친 게 아니라 출처에 안 적혀 있다.
+ *
+ * <p>그래서 시작일을 기준으로 삼는다. <b>시작일마저 없는 것은 여기서 판단하지 않는다</b>(false).
+ * 그쪽은 수집 시각이 있어야 재는데 지금 그 칸이 없다 — 백엔드에 추가한 뒤 별도로 처리한다.
+ */
+export function isStale(
+  startDate: string | null | undefined,
+  endDate: string | null | undefined,
+  today: Date,
+): boolean {
+  // 종료일이 있으면 그쪽이 정답이다. 이 규칙은 종료일이 없을 때만 쓴다.
+  if (parseDate(endDate)) return false;
+
+  const start = parseDate(startDate);
+  if (!start) return false;
+
+  const elapsed = today.getTime() - startOfDay(start).getTime();
+  return elapsed > STALE_AFTER_DAYS * 86400000;
+}
+
 export function startOfDay(d: Date): Date {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate());
 }
@@ -329,6 +365,7 @@ export function isOpenNow(
   const end = parseDate(endDate);
   if (!start && !end) return false;
   if (isExpired(endDate, today)) return false;
+  if (isStale(startDate, endDate, today)) return false;
   if (start && startOfDay(start).getTime() > today.getTime()) return false;
   return true;
 }

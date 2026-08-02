@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { getPeriods, periodBySlug } from '@/lib/popupSlices';
+import { getPeriods, isOpenNow, isStale, periodBySlug } from '@/lib/popupSlices';
 
 /**
  * 시점 라벨이 **부르는 시점의 날짜를 따라가는지** 확인한다.
@@ -65,5 +65,42 @@ describe('시점 라벨은 부르는 시점을 따라간다', () => {
 
     expect(before).toEqual(after);
     expect(before).toEqual(['today', 'tomorrow', 'this-week', 'this-weekend', 'this-month']);
+  });
+});
+
+describe('종료일 없는 팝업의 90일 규칙', () => {
+  const TODAY = new Date(2026, 7, 2); // 2026-08-02
+
+  it('종료일이 있으면 이 규칙을 쓰지 않는다 — 종료일이 언제나 정답', () => {
+    // 시작한 지 3년 지났어도 종료일이 미래면 진행 중이다(장기 운영 매장).
+    expect(isStale('2023-01-01', '2027-01-01', TODAY)).toBe(false);
+  });
+
+  it('종료일이 없고 시작한 지 90일이 넘으면 끝난 것으로 본다', () => {
+    expect(isStale('2017-07-07', null, TODAY)).toBe(true);
+    expect(isStale('2026-01-01', null, TODAY)).toBe(true);
+  });
+
+  it('90일이 안 지났으면 남긴다 — 진행 중일 수 있다', () => {
+    expect(isStale('2026-07-20', null, TODAY)).toBe(false);
+    expect(isStale('2026-08-10', null, TODAY)).toBe(false); // 아직 시작 전
+  });
+
+  it('경계 — 정확히 90일째는 아직 남긴다', () => {
+    const d90 = new Date(TODAY);
+    d90.setDate(d90.getDate() - 90);
+    const iso = `${d90.getFullYear()}-${d90.getMonth() + 1}-${d90.getDate()}`;
+
+    expect(isStale(iso, null, TODAY)).toBe(false);
+  });
+
+  it('시작일도 없으면 판단하지 않는다 — 수집 시각이 있어야 잴 수 있다', () => {
+    // 여기서 true 를 돌려주면 날짜 없는 541건이 한꺼번에 사라진다. 근거 없이 지우지 않는다.
+    expect(isStale(null, null, TODAY)).toBe(false);
+    expect(isStale('', '', TODAY)).toBe(false);
+  });
+
+  it('isOpenNow 도 같은 기준을 쓴다 — 화면마다 갈리면 안 된다', () => {
+    expect(isOpenNow('2017-07-07', null, TODAY)).toBe(false);
   });
 });
