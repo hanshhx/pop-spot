@@ -49,6 +49,14 @@ public class AdminAuditInterceptor implements AsyncHandlerInterceptor {
      */
     private static final String RECORDED = AdminAuditInterceptor.class.getName() + ".recorded";
 
+    /**
+     * 컨트롤러가 처리 건수를 덧붙이는 통로.
+     *
+     * <p>일괄 처리는 "무엇을 했는가" 만으로 부족하다 — 되돌릴 수 없는 삭제에서 <b>몇 건이었는지</b>가 피해 규모를 말해 준다. 그 숫자는 작업이 끝나야 알 수
+     * 있어서 인터셉터 혼자서는 구할 수 없다. 컨트롤러가 {@link #addDetail} 로 남겨 두면 기록할 때 함께 붙는다.
+     */
+    private static final String EXTRA_DETAIL = AdminAuditInterceptor.class.getName() + ".detail";
+
     /** {@code detail} 에 담을 파라미터와 각각의 허용 형식. 이름만 거르고 값을 그대로 넣으면 결국 아무거나 들어온다. */
     private static final Map<String, Pattern> DETAIL_PARAMS =
             Map.of(
@@ -60,6 +68,13 @@ public class AdminAuditInterceptor implements AsyncHandlerInterceptor {
                     "status", Pattern.compile("^[A-Za-z_]{1,20}$"));
 
     private final AdminAuditService auditService;
+
+    /** 일괄 처리 컨트롤러가 처리 건수를 남길 때 쓴다. 예: {@code addDetail(request, "삭제=12")} */
+    public static void addDetail(HttpServletRequest request, String text) {
+        if (request == null || text == null || text.isBlank()) return;
+        Object prev = request.getAttribute(EXTRA_DETAIL);
+        request.setAttribute(EXTRA_DETAIL, prev == null ? text : prev + " " + text);
+    }
 
     @Override
     public void afterCompletion(
@@ -178,6 +193,8 @@ public class AdminAuditInterceptor implements AsyncHandlerInterceptor {
     /** 허용 목록에 있고 <b>형식까지 맞는</b> 파라미터만. 요청 본문은 읽지 않는다. */
     private String detail(HttpServletRequest request) {
         StringBuilder sb = new StringBuilder();
+        Object extra = request.getAttribute(EXTRA_DETAIL);
+        if (extra != null) sb.append(extra);
         DETAIL_PARAMS.forEach(
                 (name, allowed) -> {
                     String value = request.getParameter(name);

@@ -14,6 +14,8 @@ import com.example.popspotbackend.service.crawler.PopupTranslationBulkJobService
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
+import com.example.popspotbackend.config.AdminAuditInterceptor;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -88,8 +90,9 @@ public class AdminController {
      */
     @PostMapping("/popups/backfill-photos")
     public ResponseEntity<Map<String, Object>> backfillPhotos(
-            @RequestParam(defaultValue = "150") int limit) {
+            @RequestParam(defaultValue = "150") int limit, HttpServletRequest request) {
         int assigned = popupPhotoService.backfillMissingPhotos(limit);
+        AdminAuditInterceptor.addDetail(request, "배정=" + assigned);
         return ResponseEntity.ok(Map.of("assigned", assigned));
     }
 
@@ -123,10 +126,16 @@ public class AdminController {
         return ResponseEntity.ok(popupDedupService.previewDuplicates());
     }
 
-    /** 중복 정리 실행 — 그룹별 대표 1건만 남기고 나머지 숨김 + Algolia 색인 제거. */
+    /**
+     * 중복 정리 실행 — 그룹별 대표 1건만 남기고 나머지 숨김 + Algolia 색인 제거.
+     *
+     * <p>처리 건수를 감사 기록에 덧붙인다. 되돌릴 수 없는 일괄 처리에서는 "무엇을 했는가" 만으로 부족하고 <b>몇 건이었는지</b>가 피해 규모를 말해 준다.
+     */
     @PostMapping("/popups/dedupe")
-    public ResponseEntity<Map<String, Object>> dedupe() {
-        return ResponseEntity.ok(popupDedupService.dedupe());
+    public ResponseEntity<Map<String, Object>> dedupe(HttpServletRequest request) {
+        Map<String, Object> result = popupDedupService.dedupe();
+        AdminAuditInterceptor.addDetail(request, "결과=" + result);
+        return ResponseEntity.ok(result);
     }
 
     /* ============================== 라이브 댓글(채팅) 관리 ============================== */
@@ -144,10 +153,12 @@ public class AdminController {
         return ResponseEntity.ok("삭제 완료");
     }
 
-    /** 라이브 댓글 일괄 삭제 — 선택한 id 목록을 한 번에. */
+    /** 라이브 댓글 일괄 삭제 — 선택한 id 목록을 한 번에. 삭제 건수를 감사 기록에 덧붙인다. */
     @PostMapping("/chat/delete-batch")
-    public ResponseEntity<Map<String, Object>> deleteChatsBatch(@RequestBody List<Long> ids) {
+    public ResponseEntity<Map<String, Object>> deleteChatsBatch(
+            @RequestBody List<Long> ids, HttpServletRequest request) {
         int deleted = chatService.deleteMessages(ids);
+        AdminAuditInterceptor.addDetail(request, "삭제=" + deleted);
         return ResponseEntity.ok(Map.of("deleted", deleted));
     }
 
