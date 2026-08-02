@@ -1,3 +1,5 @@
+import type { useDashboardMetrics } from '@/components/admin/metrics/useDashboardMetrics';
+
 /**
  * 관리자 화면이 쓰는 응답 타입.
  *
@@ -82,3 +84,29 @@ export interface AdminTodayPath {
   members: number;
   guests: number;
 }
+
+/** 라이브 댓글 1행. */
+export interface AdminLiveComment {
+  id: number;
+  sender: string;
+  message: string;
+  sendTime?: string;
+  popupName?: string;
+}
+
+/** 보상 지급 폼 상태. */
+export interface RewardForm {
+  nickname: string;
+  itemType: string;
+  amount: number;
+}
+
+/**
+ * 통합 메트릭 훅의 반환값.
+ *
+ * <p>훅에서 직접 끌어와 <b>훅이 바뀌면 여기도 같이 깨지게</b> 둔다. 모양을 손으로 베껴 적으면
+ * 한쪽만 바뀌었을 때 조용히 어긋난다.
+ */
+export type DashboardMetrics = ReturnType<
+  typeof useDashboardMetrics<Record<string, number | string>>
+>;
