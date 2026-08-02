@@ -1,6 +1,7 @@
 package com.example.popspotbackend.config;
 
 import com.example.popspotbackend.service.CustomOAuth2UserService;
+import com.example.popspotbackend.service.admin.AdminAuditService;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.time.OffsetDateTime;
@@ -25,6 +26,8 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.header.HeaderWriterFilter;
@@ -95,9 +98,13 @@ public class SecurityConfig {
         "/uploads/**"
     };
 
+    /** 감사 기록 대상인 관리자 영역. */
+    private static final String ADMIN_PATH_PREFIX = "/api/admin/";
+
     private final CustomOAuth2UserService customOAuth2UserService;
     private final OAuth2SuccessHandler oAuth2SuccessHandler;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final AdminAuditService adminAuditService;
 
     @Value("${app.frontend.url:http://localhost:3000}")
     private String frontendUrl;
@@ -211,10 +218,32 @@ public class SecurityConfig {
                         response, HttpStatus.UNAUTHORIZED, "Unauthorized", MESSAGE_UNAUTHORIZED);
     }
 
-    /** {@code /api/**} 인증은 됐으나 권한이 모자랄 때 403 JSON. 401 과 구분돼야 프론트가 재로그인 유도 여부를 판단할 수 있다. */
+    /**
+     * {@code /api/**} 인증은 됐으나 권한이 모자랄 때 403 JSON. 401 과 구분돼야 프론트가 재로그인 유도 여부를 판단할 수 있다.
+     *
+     * <p>관리자 영역의 권한 거부는 감사 표에도 남긴다. 이 경로는 <b>인터셉터가 볼 수 없다</b> — 권한 거부는 Spring Security 필터가
+     * DispatcherServlet 앞에서 끊어 버려서, MVC 인터셉터까지 요청이 오지 않는다. 여기서 남기지 않으면 "권한 없는 사람이 관리자 주소를 두드렸다" 는
+     * 신호가 통째로 사라진다.
+     *
+     * <p><b>응답을 먼저 확정하고 기록한다.</b> 순서가 반대면 DB 가 느릴 때 그 대기 시간이 그대로 403 응답 지연이 된다. 감사 기록 때문에 응답이 늦어지는
+     * 것은 곁다리가 본체를 붙잡는 것이라 받아들일 수 없다.
+     */
     private AccessDeniedHandler apiForbiddenHandler() {
-        return (request, response, accessDeniedException) ->
-                writeErrorBody(response, HttpStatus.FORBIDDEN, "Forbidden", MESSAGE_FORBIDDEN);
+        return (request, response, accessDeniedException) -> {
+            writeErrorBody(response, HttpStatus.FORBIDDEN, "Forbidden", MESSAGE_FORBIDDEN);
+            if (request.getRequestURI().startsWith(ADMIN_PATH_PREFIX)) {
+                adminAuditService.recordAccessDenied(
+                        currentActorId(), request.getMethod() + " " + request.getRequestURI());
+            }
+        };
+    }
+
+    /** 감사 기록용 행위자. 익명은 이 프로젝트에서도 {@code isAuthenticated()} 가 참이라 이름으로 걸러야 한다. */
+    private static String currentActorId() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated()) return null;
+        String name = auth.getName();
+        return name == null || name.isBlank() || "anonymousUser".equals(name) ? null : name;
     }
 
     /**
