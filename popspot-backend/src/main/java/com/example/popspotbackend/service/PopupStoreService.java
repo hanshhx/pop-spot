@@ -207,9 +207,12 @@ public class PopupStoreService {
     public PopupStore getPopupById(Long id) {
         PopupStore popup = findOrThrow(id);
         if (!passesModerationGate(popup)) throw ResourceNotFoundException.popup(id);
-        int currentViews = popup.getViewCount() != null ? popup.getViewCount() : 0;
-        popup.setViewCount(currentViews + 1);
-        return popup;
+        if (popupStoreRepository.incrementViewCount(id) != 1) {
+            throw ResourceNotFoundException.popup(id);
+        }
+        // incrementViewCount가 영속성 컨텍스트를 비우므로 DB의 최신 숫자를 다시 읽는다. 동시에 여러
+        // 요청이 들어와도 응답과 다음 POP-LOOK 목록이 같은 누적값을 보게 한다.
+        return findOrThrow(id);
     }
 
     /** 캘린더 — 행사 기간이 [from, to] 와 겹치는 공개 팝업. 파라미터 생략 시 오늘 ~ 60일 후. */

@@ -10,6 +10,7 @@ import com.example.popspotbackend.service.PopupPhotoService;
 import com.example.popspotbackend.service.PopupStoreService;
 import com.example.popspotbackend.service.backup.DatabaseBackupScheduler;
 import com.example.popspotbackend.service.crawler.PopupTranslationBackfillService;
+import com.example.popspotbackend.service.crawler.PopupTranslationBulkJobService;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
@@ -44,6 +45,7 @@ public class AdminController {
     private final ChatService chatService;
     private final DatabaseBackupScheduler databaseBackupScheduler;
     private final PopupTranslationBackfillService popupTranslationBackfillService;
+    private final PopupTranslationBulkJobService popupTranslationBulkJobService;
 
     /* ============================== 팝업 승인 큐 ============================== */
 
@@ -94,12 +96,25 @@ public class AdminController {
     /**
      * 외국어 화면용 이름·장소 번역 백필.
      *
-     * <p>매일 새벽에도 자동으로 돌지만, 과거분 1,400여 건을 빨리 메우고 싶을 때 손으로 부른다. 확신이 없어 비워 둔 건은 {@code skipped} 로 잡히고
-     * 다시 시도하지 않는다 — 원문이 나은 이름도 실제로 있다("한복상점" 을 "Hanbok Shop" 으로 풀면 서울에 수백 개인 업태명이 된다).
+     * <p>매일 새벽에도 자동으로 돌지만, 한 배치를 바로 확인하고 싶을 때 손으로 부른다. 확신이 없어 비워 둔 건은 {@code skipped} 로 잡히고 다시 시도하지
+     * 않는다 — 원문이 나은 이름도 실제로 있다("한복상점" 을 "Hanbok Shop" 으로 풀면 서울에 수백 개인 업태명이 된다).
      */
     @PostMapping("/popups/backfill-translations")
     public ResponseEntity<Map<String, Object>> backfillTranslations() {
         return ResponseEntity.ok(Map.copyOf(popupTranslationBackfillService.runOnce()));
+    }
+
+    /** 누락된 과거 행을 재대기시킨 뒤 Ollama로 여러 배치를 백그라운드 처리한다. */
+    @PostMapping("/popups/backfill-translations/bulk")
+    public ResponseEntity<Map<String, Object>> startTranslationBulkBackfill(
+            @RequestParam(defaultValue = "true") boolean retryMissing) {
+        return ResponseEntity.accepted().body(popupTranslationBulkJobService.start(retryMissing));
+    }
+
+    /** 대량 번역 작업 진행 상태. 서버 재시작 시 작업은 중단되며 다시 시작할 수 있다. */
+    @GetMapping("/popups/backfill-translations/status")
+    public ResponseEntity<Map<String, Object>> translationBulkBackfillStatus() {
+        return ResponseEntity.ok(popupTranslationBulkJobService.status());
     }
 
     /** 이름이 완전히 동일한 중복 팝업 그룹 미리보기(적용 전 확인용). */

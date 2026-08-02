@@ -3,6 +3,7 @@ package com.example.popspotbackend.service.crawler;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.example.popspotbackend.entity.PopupStore;
@@ -15,6 +16,7 @@ import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.util.ReflectionTestUtils;
 
 /**
  * 번역 결과를 <b>거르는</b> 부분을 고정한다.
@@ -36,7 +38,11 @@ class PopupTranslationServiceTest {
         CrawlerLlm llm = mock(CrawlerLlm.class);
         when(llm.select()).thenReturn(new CrawlerLlm.Selection(model, "test", true));
 
-        return new PopupTranslationService(llm, mock(LlmUsageTracker.class));
+        return new PopupTranslationService(
+                llm,
+                mock(LlmUsageTracker.class),
+                mock(OllamaTranslationClient.class),
+                new PopupTranslationGlossary());
     }
 
     @Test
@@ -46,15 +52,15 @@ class PopupTranslationServiceTest {
         PopupTranslationService service =
                 serviceReturning(
                         """
-                        [{"id":1,"nameEn":"Attack on Titan Pop-up Store","nameJa":"進撃の巨人 ポップアップストア",
-                          "locationEn":"The Hyundai Seoul","locationJa":"ザ・ヒョンデ・ソウル"}]
+                        [{"id":1,"nameEn":"ZXQTERM0QXZ ZXQTERM1QXZ","nameJa":"ZXQTERM0QXZ ZXQTERM1QXZ",
+                          "locationEn":"ZXQTERM1QXZ ZXQTERM0QXZ","locationJa":"ZXQTERM1QXZ ZXQTERM0QXZ"}]
                         """);
 
         Map<Long, PopupTranslationService.Translated> out = service.translate(List.of(p));
 
         assertThat(out).containsKey(1L);
         assertThat(out.get(1L).nameEn()).isEqualTo("Attack on Titan Pop-up Store");
-        assertThat(out.get(1L).locationJa()).isEqualTo("ザ・ヒョンデ・ソウル");
+        assertThat(out.get(1L).locationJa()).isEqualTo("ソウル ザ・ヒョンデ・ソウル");
     }
 
     @Test
@@ -67,7 +73,10 @@ class PopupTranslationServiceTest {
                         [{"id":2,"nameEn":"한복상점","nameJa":"한복상점","locationEn":null,"locationJa":null}]
                         """);
 
-        assertThat(service.translate(List.of(p))).isEmpty();
+        Map<Long, PopupTranslationService.Translated> out = service.translate(List.of(p));
+
+        assertThat(out).containsKey(2L);
+        assertThat(out.get(2L).isEmpty()).isTrue();
     }
 
     @Test
@@ -77,14 +86,14 @@ class PopupTranslationServiceTest {
         PopupTranslationService service =
                 serviceReturning(
                         """
-                        [{"id":3,"nameEn":"Seongsu 치이카와 Pop-up","nameJa":"ソンス ちいかわ ポップアップ"}]
+                        [{"id":3,"nameEn":"Seongsu ZXQTERM0QXZ ZXQTERM1QXZ","nameJa":"ソンス ZXQTERM0QXZ ZXQTERM1QXZ"}]
                         """);
 
         Map<Long, PopupTranslationService.Translated> out = service.translate(List.of(p));
 
-        // 일본어는 살고 영어만 버려진다 — 칸 단위로 판단해야 한쪽이 좋을 때 통째로 잃지 않는다.
+        // 확인되지 않은 '성수'가 남아 있었던 예전 응답을 가정한다. 부분 번역은 두 언어 모두 버린다.
         assertThat(out.get(3L).nameEn()).isNull();
-        assertThat(out.get(3L).nameJa()).isEqualTo("ソンス ちいかわ ポップアップ");
+        assertThat(out.get(3L).nameJa()).isNull();
     }
 
     @Test
@@ -94,7 +103,7 @@ class PopupTranslationServiceTest {
         PopupTranslationService service =
                 serviceReturning(
                         """
-                        [{"id":4,"nameEn":"Hermes Pop-up"},{"id":999,"nameEn":"Ghost Pop-up"}]
+                        [{"id":4,"nameEn":"ZXQTERM0QXZ ZXQTERM1QXZ"},{"id":999,"nameEn":"Ghost Pop-up"}]
                         """);
 
         Map<Long, PopupTranslationService.Translated> out = service.translate(List.of(p));
@@ -112,31 +121,64 @@ class PopupTranslationServiceTest {
     }
 
     @Test
-    @DisplayName("번역을 못 해도 시도 시각은 남긴다 — 안 그러면 같은 행을 영원히 다시 본다")
-    void stampsAttemptEvenWhenEmpty() {
+    @DisplayName("Ollama 전용 모드에서는 로컬이 꺼져도 Groq로 넘어가지 않는다")
+    void localOnlyNeverFallsBackToCloud() {
+        CrawlerLlm llm = mock(CrawlerLlm.class);
+        OllamaTranslationClient local = mock(OllamaTranslationClient.class);
+        when(local.isAvailable()).thenReturn(false);
+        PopupTranslationService service =
+                new PopupTranslationService(
+                        llm, mock(LlmUsageTracker.class), local, new PopupTranslationGlossary());
+        ReflectionTestUtils.setField(service, "localOnly", true);
+
+        assertThat(service.translate(List.of(popup(8L, "원피스 팝업", null)))).isEmpty();
+        verifyNoInteractions(llm);
+    }
+
+    @Test
+    @DisplayName("응답에서 id가 빠지면 시도 시각을 남기지 않아 다음 회차에 재시도한다")
+    void doesNotStampWhenResponseOmitsId() {
         PopupStore p = popup(6L, "방배 한바퀴", null);
         PopupTranslationService service = serviceReturning("[]");
 
         service.applyAll(List.of(p), service.translate(List.of(p)));
 
-        assertThat(p.getTranslatedAt()).isNotNull();
+        assertThat(p.getTranslatedAt()).isNull();
         assertThat(p.getNameEn()).isNull();
     }
 
     @Test
     @DisplayName("원문은 절대 건드리지 않는다 — 지역 분류가 이 값을 쓴다")
     void neverTouchesOriginal() {
-        PopupStore p = popup(7L, "성수 블루보틀 팝업", "서울 성동구 성수동");
+        PopupStore p = popup(7L, "블루보틀 성수 팝업", "서울 성동구 성수동");
         PopupTranslationService service =
                 serviceReturning(
                         """
-                        [{"id":7,"nameEn":"Blue Bottle Seongsu Pop-up","locationEn":"Seongsu-dong, Seoul"}]
+                        [{"id":7,"nameEn":"ZXQTERM0QXZ ZXQTERM2QXZ ZXQTERM1QXZ",
+                          "locationEn":"ZXQTERM2QXZ ZXQTERM1QXZ ZXQTERM0QXZ"}]
                         """);
 
         service.applyAll(List.of(p), service.translate(List.of(p)));
 
-        assertThat(p.getName()).isEqualTo("성수 블루보틀 팝업");
+        assertThat(p.getName()).isEqualTo("블루보틀 성수 팝업");
         assertThat(p.getLocation()).isEqualTo("서울 성동구 성수동");
-        assertThat(p.getNameEn()).isEqualTo("Blue Bottle Seongsu Pop-up");
+        assertThat(p.getNameEn()).isEqualTo("Blue Bottle Coffee Seongsu Pop-up");
+    }
+
+    @Test
+    @DisplayName("이미 검증해 저장한 언어는 재백필이 덮어쓰지 않는다")
+    void preservesExistingTranslationWhileFillingMissingLanguage() {
+        PopupStore p = popup(9L, "원피스 팝업", null);
+        p.setNameEn("Verified ONE PIECE Event");
+        PopupTranslationService service =
+                serviceReturning(
+                        """
+                        [{"id":9,"nameEn":"ZXQTERM0QXZ ZXQTERM1QXZ","nameJa":"ZXQTERM0QXZ ZXQTERM1QXZ"}]
+                        """);
+
+        service.applyAll(List.of(p), service.translate(List.of(p)));
+
+        assertThat(p.getNameEn()).isEqualTo("Verified ONE PIECE Event");
+        assertThat(p.getNameJa()).isEqualTo("ONE PIECE ポップアップ");
     }
 }

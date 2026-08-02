@@ -21,51 +21,7 @@ export const metadata: Metadata = {
   // 네이버 권장(80자 이내). 페이지별 미지정 시 쓰이는 기본 설명.
   description:
     '서울 팝업스토어 일정을 지도로 한눈에. 성수·홍대·강남 팝업까지 지역·브랜드별로 무료 확인.',
-  keywords: [
-    // 브랜드
-    'POP-SPOT',
-    '팝스팟',
-    'popspot',
-    // 핵심 일반어
-    '팝업스토어',
-    '팝업스토어 추천',
-    '팝업스토어 일정',
-    '팝업스토어 캘린더',
-    '팝업스토어 지도',
-    '서울 팝업',
-    '서울 팝업스토어',
-    // 지역
-    '성수동 팝업',
-    '성수 팝업스토어',
-    '한남동 팝업',
-    '압구정 팝업',
-    '홍대 팝업',
-    '강남 팝업',
-    '이태원 팝업',
-    '잠실 팝업',
-    // 인기 장소(백화점/몰)
-    '더현대 팝업',
-    '더현대 서울 팝업',
-    '용산 아이파크몰 팝업',
-    '코엑스 팝업',
-    // 시점
-    '오늘 팝업',
-    '이번 주 팝업',
-    '주말 팝업',
-    '이번 달 팝업',
-    '신상 팝업',
-    '신규 오픈 팝업',
-    // 카테고리
-    '패션 팝업',
-    '뷰티 팝업',
-    '캐릭터 팝업',
-    '디저트 팝업',
-    '브랜드 팝업스토어',
-    // 기능
-    '팝업 위시리스트',
-    '팝업 마감일',
-    '팝업 지도',
-  ],
+  keywords: ['POP-SPOT', '팝스팟', 'popspot'],
   openGraph: {
     title: 'POP-SPOT — 서울 팝업스토어 인텔리전스',
     description:
@@ -106,7 +62,6 @@ function jsonLdFor(locale: 'ko' | 'en' | 'ja') {
     ja: 'ソウルのポップアップストア情報をまとめた案内サービス',
   }[locale];
   const inLanguage = { ko: 'ko-KR', en: 'en-US', ja: 'ja-JP' }[locale];
-  const localePath = locale === 'ko' ? '' : `/${locale}`;
 
   return {
     '@context': 'https://schema.org',
@@ -117,18 +72,12 @@ function jsonLdFor(locale: 'ko' | 'en' | 'ja') {
         url: 'https://popspot.co.kr',
         description,
         inLanguage,
-        potentialAction: {
-          '@type': 'SearchAction',
-          target: `https://popspot.co.kr${localePath}/?q={search_term_string}`,
-          'query-input': 'required name=search_term_string',
-        },
       },
       {
         '@type': 'Organization',
         name: 'POP-SPOT',
         url: 'https://popspot.co.kr',
         logo: 'https://popspot.co.kr/og-image.png',
-        sameAs: [],
       },
     ],
   };
