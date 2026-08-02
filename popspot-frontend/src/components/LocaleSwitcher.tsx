@@ -1,9 +1,10 @@
 'use client';
 
 import Link from 'next/link';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { Globe } from 'lucide-react';
-import { LOCALES, type Locale } from '@/lib/i18n';
-import { LOCALE_PATH } from '@/lib/localeRoutes';
+import { LOCALES, type Locale, useLocale } from '@/lib/i18n';
+import { localizedPath } from '@/lib/localePath';
 
 /**
  * 언어 전환 — 한국어 · English · 日本語.
@@ -22,6 +23,12 @@ export default function LocaleSwitcher({
   locale: Locale;
   className?: string;
 }) {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const { setLocale } = useLocale();
+  const query = searchParams.toString();
+  const currentHref = `${pathname || '/'}${query ? `?${query}` : ''}`;
+
   return (
     <div
       className={`inline-flex items-center gap-1 rounded-pill border border-gray-200 bg-white/80 px-1.5 py-1 backdrop-blur dark:border-white/10 dark:bg-black/40 ${className}`}
@@ -34,8 +41,9 @@ export default function LocaleSwitcher({
         return (
           <Link
             key={code}
-            href={LOCALE_PATH[code]}
+            href={localizedPath(currentHref, code)}
             hrefLang={code}
+            onClick={() => setLocale(code)}
             aria-current={active ? 'true' : undefined}
             className={`rounded-pill px-2.5 py-1 text-[11px] font-bold transition ${
               active

@@ -94,13 +94,6 @@ export interface AdminLiveComment {
   popupName?: string;
 }
 
-/** 보상 지급 폼 상태. */
-export interface RewardForm {
-  nickname: string;
-  itemType: string;
-  amount: number;
-}
-
 /**
  * 통합 메트릭 훅의 반환값.
  *
