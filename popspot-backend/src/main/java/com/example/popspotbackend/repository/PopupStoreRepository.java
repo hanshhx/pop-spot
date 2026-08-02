@@ -157,6 +157,16 @@ public interface PopupStoreRepository extends JpaRepository<PopupStore, Long> {
         return findTrendingPublicAsOf(todayKst(), pageable);
     }
 
+    /**
+     * 상세 열람 수를 DB에서 원자적으로 1 증가시킨다.
+     *
+     * <p>엔티티를 읽고 자바에서 {@code 현재값 + 1}로 저장하면 두 요청이 동시에 같은 값을 읽었을 때 마지막 저장 하나만 남는다. POP-LOOK 순위의 원본
+     * 숫자이므로 단일 UPDATE로 누락을 막는다.
+     */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("UPDATE PopupStore p SET p.viewCount = COALESCE(p.viewCount, 0) + 1 WHERE p.id = :id")
+    int incrementViewCount(@Param("id") Long id);
+
     /** admin 검수 큐 (신뢰도 낮음) */
     @EntityGraph(attributePaths = {"images"})
     @Query(
@@ -288,6 +298,20 @@ public interface PopupStoreRepository extends JpaRepository<PopupStore, Long> {
             nativeQuery = true)
     List<PopupStore> findTranslationTargets(
             @Param("today") String today, @Param("limit") int limit);
+
+    /** 과거 호출 실패 때 시도 완료로 잘못 찍힌 행을, 운영자가 명시적으로 한 번만 재대기시킨다. */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @org.springframework.transaction.annotation.Transactional
+    @Query(
+            value =
+                    """
+                   UPDATE popup_store
+                      SET translated_at = NULL
+                    WHERE name IS NOT NULL AND name <> ''
+                      AND (name_en IS NULL OR name_en = '' OR name_ja IS NULL OR name_ja = '')
+                   """,
+            nativeQuery = true)
+    int requeueMissingTranslations();
 
     /** 번역 진행 상황 — 관리자 응답에 쓴다. */
     @Query(

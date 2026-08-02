@@ -519,11 +519,28 @@ export async function sliceMetadata(slug: string, locale: Locale): Promise<Metad
         ` ${copy.tails[slice.kind]}`
       : copy.descriptions[slice.kind](slice.label);
 
+  // 한국 검색 성과에서 실제로 확인된 표현만 사용한다. 별도 얇은 페이지를 대량 생성하지 않고, 같은
+  // 목록을 찾는 말(팝업/팝업스토어·일정·위치·지도·연도)을 한 문서의 검색 단서로 묶는다. 괄호 안의
+  // 동적 날짜는 검색어로 쓰이지 않으므로 키워드에서는 제거한다.
+  const keywordLabel = slice.label.replace(/\s*\([^)]*\)/g, '').trim();
+  const koreanKeywords =
+    locale === 'ko'
+      ? [
+          `${keywordLabel} 팝업`,
+          `${keywordLabel} 팝업스토어`,
+          `${keywordLabel} 팝업 일정`,
+          `${keywordLabel} 팝업 위치`,
+          `${keywordLabel} 팝업 지도`,
+          `${keywordLabel} 팝업 ${kstTodayStart().getFullYear()}`,
+        ]
+      : undefined;
+
   const url = `${SITE_URL}${LOCALE_PATH[locale] === '/' ? '' : LOCALE_PATH[locale]}/popups/${slice.slug}`;
 
   return {
     title,
     description,
+    keywords: koreanKeywords,
     robots,
     // 세 언어 판이 서로를 가리키게 한다. 한쪽만 선언하면 검색엔진이 연결을 무시해서, 주소를 나눈
     // 의미가 통째로 사라진다.

@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 /**
@@ -46,7 +47,13 @@ public class PopupTranslationService {
 
     private final CrawlerLlm crawlerLlm;
     private final LlmUsageTracker usageTracker;
+    private final OllamaTranslationClient ollamaTranslationClient;
+    private final PopupTranslationGlossary glossary;
     private final ObjectMapper objectMapper = new ObjectMapper();
+
+    /** 번역 백필은 로컬 PC가 꺼졌다고 유료·쿼터 제한 Groq로 넘어가지 않는다. */
+    @Value("${popspot.crawler.translation-local-only:true}")
+    private boolean localOnly;
 
     /** 번역 한 벌. 확신이 없으면 해당 칸이 null 이다. */
     public record Translated(String nameEn, String nameJa, String locationEn, String locationJa) {
@@ -62,7 +69,8 @@ public class PopupTranslationService {
      * <p>실패해도 예외를 밖으로 내보내지 않는다 — 번역은 <b>있으면 좋은 것</b>이라, 못 했다고 수집이나 백필 전체가 멈추면 안 된다. 못 한 건은 결과에서 빠지고
      * 호출자가 원문을 그대로 쓴다.
      *
-     * @return 팝업 id → 번역. 확신이 없거나 실패한 건은 들어 있지 않다.
+     * @return 팝업 id → 번역. 정상 응답에서 확신이 없어 비운 id는 빈 {@link Translated}로 들어가고, 호출 실패·응답 누락 id는 들어 있지
+     *     않다.
      */
     public Map<Long, Translated> translate(List<PopupStore> popups) {
         Map<Long, Translated> result = new HashMap<>();
@@ -84,6 +92,13 @@ public class PopupTranslationService {
     }
 
     private Map<Long, Translated> translateBatch(List<PopupStore> batch) {
+        List<ProtectedPopup> protectedBatch = protect(batch);
+        String prompt = buildPrompt(protectedBatch);
+
+        if (localOnly) {
+            return translateLocally(prompt, protectedBatch);
+        }
+
         CrawlerLlm.Selection selection = crawlerLlm.select();
 
         // 클라우드 한도는 크롤과 공유한다. 번역이 한도를 다 써서 정작 수집이 막히면 안 되므로,
@@ -94,7 +109,6 @@ public class PopupTranslationService {
             return Map.of();
         }
 
-        String prompt = buildPrompt(batch);
         usageTracker.recordAttempt(LlmUsageTracker.Role.CRAWLER);
 
         Response<AiMessage> response;
@@ -109,7 +123,39 @@ public class PopupTranslationService {
         }
         recordTokens(response.tokenUsage());
 
-        return parse(response.content().text(), batch);
+        return parse(response.content().text(), protectedBatch);
+    }
+
+    private Map<Long, Translated> translateLocally(
+            String prompt, List<ProtectedPopup> protectedBatch) {
+        if (!ollamaTranslationClient.isAvailable()) {
+            log.info("[PopupTranslation] 번역용 Ollama를 사용할 수 없어 이번 배치를 보류합니다");
+            return Map.of();
+        }
+
+        usageTracker.recordAttempt(LlmUsageTracker.Role.CRAWLER);
+        try {
+            OllamaTranslationClient.TranslationResponse response =
+                    ollamaTranslationClient.translate(prompt);
+            usageTracker.recordResponse(
+                    LlmUsageTracker.Role.CRAWLER, response.inputTokens(), response.outputTokens());
+            return parse(response.content(), protectedBatch);
+        } catch (Exception e) {
+            usageTracker.recordFailure(LlmUsageTracker.Role.CRAWLER, LlmErrors.classify(e));
+            throw new IllegalStateException("Ollama 번역 호출 실패: " + e.getMessage(), e);
+        }
+    }
+
+    private List<ProtectedPopup> protect(List<PopupStore> batch) {
+        List<ProtectedPopup> protectedBatch = new ArrayList<>(batch.size());
+        for (PopupStore popup : batch) {
+            protectedBatch.add(
+                    new ProtectedPopup(
+                            popup,
+                            glossary.protect(popup.getName()),
+                            glossary.protect(popup.getLocation())));
+        }
+        return protectedBatch;
     }
 
     /**
@@ -118,17 +164,21 @@ public class PopupTranslationService {
      * <p>지시가 긴 이유는 <b>측정에서 드러난 실패를 하나씩 막기 위해서</b>다. 음역으로 흐르는 것, 공식 행사명을 무시하고 조합하는 것, 고유명을 업종명으로 풀어
      * 버리는 것("한복상점" → "Hanbok Shop" 은 서울에 수백 개 있는 업태명이 된다) 이 실제로 나왔다.
      */
-    private String buildPrompt(List<PopupStore> batch) {
+    private String buildPrompt(List<ProtectedPopup> batch) {
         StringBuilder items = new StringBuilder();
-        for (PopupStore p : batch) {
+        for (ProtectedPopup protectedPopup : batch) {
+            PopupStore p = protectedPopup.popup();
             items.append("- id: ").append(p.getId()).append('\n');
-            items.append("  name: ").append(safe(p.getName())).append('\n');
+            items.append("  name: ").append(safe(protectedPopup.name().masked())).append('\n');
             if (p.getLocation() != null && !p.getLocation().isBlank()) {
-                items.append("  location: ").append(safe(p.getLocation())).append('\n');
+                items.append("  location: ")
+                        .append(safe(protectedPopup.location().masked()))
+                        .append('\n');
             }
         }
 
         return """
+        /no_think
         서울 팝업스토어 안내 서비스의 영어·일본어 화면에 쓸 이름을 만든다.
 
         # 핵심: 번역이 아니라 "원래 이름 복원"이다
@@ -154,6 +204,8 @@ public class PopupTranslationService {
            "한복상점" -> "Hanbok Shop" (X) — 서울에 수백 개 있는 업태명이 되어 특정이 안 된다.
         4. 공식 행사명이 따로 있으면 그것을 써라. 단어를 임의로 조합하지 마라.
         5. location 은 대부분 번지가 아니라 장소 이름이다. 층수는 그대로 옮긴다(지하 1층 -> B1 / 地下1階).
+        6. ZXQTERM0QXZ 같은 보호 토큰은 철자·대소문자·위치를 그대로 유지한다. 번역하거나 생략하지 마라.
+           보호 토큰은 검증된 공식 이름이며 응답을 받은 뒤 서버가 정확한 표기로 복원한다.
 
         # 출력
         JSON 배열만. 설명·코드펜스 없이.
@@ -166,10 +218,10 @@ public class PopupTranslationService {
                 .formatted(items.toString().trim());
     }
 
-    private Map<Long, Translated> parse(String raw, List<PopupStore> batch) {
-        Map<Long, PopupStore> byId = new HashMap<>();
-        for (PopupStore p : batch) {
-            byId.put(p.getId(), p);
+    private Map<Long, Translated> parse(String raw, List<ProtectedPopup> batch) {
+        Map<Long, ProtectedPopup> byId = new HashMap<>();
+        for (ProtectedPopup p : batch) {
+            byId.put(p.popup().getId(), p);
         }
 
         JsonNode array;
@@ -190,20 +242,59 @@ public class PopupTranslationService {
             JsonNode idNode = node.path("id");
             if (!idNode.canConvertToLong()) continue;
             long id = idNode.asLong();
-            PopupStore source = byId.get(id);
-            if (source == null) continue; // 입력에 없던 id 를 지어낸 경우
+            ProtectedPopup protectedPopup = byId.get(id);
+            if (protectedPopup == null) continue; // 입력에 없던 id 를 지어낸 경우
+            PopupStore source = protectedPopup.popup();
 
             Translated t =
                     new Translated(
-                            clean(node, "nameEn", source.getName()),
-                            clean(node, "nameJa", source.getName()),
-                            clean(node, "locationEn", source.getLocation()),
-                            clean(node, "locationJa", source.getLocation()));
-            if (!t.isEmpty()) {
-                out.put(id, t);
-            }
+                            restoreName(
+                                    clean(node, "nameEn", source.getName()),
+                                    protectedPopup.name(),
+                                    true),
+                            restoreName(
+                                    clean(node, "nameJa", source.getName()),
+                                    protectedPopup.name(),
+                                    false),
+                            restoreLocation(
+                                    clean(node, "locationEn", source.getLocation()),
+                                    protectedPopup.location(),
+                                    true),
+                            restoreLocation(
+                                    clean(node, "locationJa", source.getLocation()),
+                                    protectedPopup.location(),
+                                    false));
+            // 정상 JSON에 이 id가 있었다는 사실도 결과다. 네 칸이 모두 null이어도 "확신 없어 비움"으로
+            // 기록하고, 호출 실패나 응답 누락은 map에 넣지 않아 다음 회차에서 재시도한다.
+            out.put(id, t);
         }
         return out;
+    }
+
+    private String restoreName(
+            String translated,
+            PopupTranslationGlossary.ProtectedText protectedText,
+            boolean english) {
+        if (translated == null) return null;
+
+        // 한글 이름을 자동 저장하려면 최소 하나의 검증된 IP·브랜드·시설명이 있어야 하고,
+        // 사전으로 잠근 뒤 해석되지 않은 한글이 남아 있으면 안 된다.
+        if (protectedText.sourceHadHangul()
+                && (!protectedText.properNameFound() || protectedText.hasUnprotectedHangul()))
+            return null;
+        return english
+                ? protectedText.restoreEnglish(translated)
+                : protectedText.restoreJapanese(translated);
+    }
+
+    private String restoreLocation(
+            String translated,
+            PopupTranslationGlossary.ProtectedText protectedText,
+            boolean english) {
+        if (translated == null || protectedText.hasUnprotectedHangul()) return null;
+        return english
+                ? protectedText.restoreEnglish(translated)
+                : protectedText.restoreJapanese(translated);
     }
 
     /**
@@ -242,17 +333,30 @@ public class PopupTranslationService {
     /**
      * 번역 결과를 엔티티에 반영한다.
      *
-     * <p>{@code translatedAt} 은 <b>결과와 무관하게</b> 찍는다. 확신이 없어 비워 둔 행과 아직 안 해 본 행을 구분하지 않으면, 백필이 같은 행을
-     * 영원히 다시 시도한다.
+     * <p>{@code translatedAt} 은 LLM이 해당 id를 정상 응답한 경우에만 찍는다. 확신이 없어 비운 응답은 완료로 기록하되, 호출 실패·깨진
+     * JSON·응답 누락은 다음 회차에서 다시 시도해야 한다.
      */
-    public void apply(PopupStore popup, Translated t) {
-        if (t != null) {
-            if (t.nameEn() != null) popup.setNameEn(t.nameEn());
-            if (t.nameJa() != null) popup.setNameJa(t.nameJa());
-            if (t.locationEn() != null) popup.setLocationEn(t.locationEn());
-            if (t.locationJa() != null) popup.setLocationJa(t.locationJa());
+    public boolean apply(PopupStore popup, Translated t) {
+        if (t == null) return false;
+        boolean changed = false;
+        if (isBlank(popup.getNameEn()) && t.nameEn() != null) {
+            popup.setNameEn(t.nameEn());
+            changed = true;
+        }
+        if (isBlank(popup.getNameJa()) && t.nameJa() != null) {
+            popup.setNameJa(t.nameJa());
+            changed = true;
+        }
+        if (isBlank(popup.getLocationEn()) && t.locationEn() != null) {
+            popup.setLocationEn(t.locationEn());
+            changed = true;
+        }
+        if (isBlank(popup.getLocationJa()) && t.locationJa() != null) {
+            popup.setLocationJa(t.locationJa());
+            changed = true;
         }
         popup.setTranslatedAt(LocalDateTime.now());
+        return changed;
     }
 
     /** 번역 결과를 목록 전체에 반영하고, 실제로 채워진 건수를 돌려준다. */
@@ -260,12 +364,22 @@ public class PopupTranslationService {
         int filled = 0;
         List<PopupStore> touched = new ArrayList<>();
         for (PopupStore p : popups) {
+            if (!translations.containsKey(p.getId())) continue;
             Translated t = translations.get(p.getId());
-            apply(p, t);
+            boolean changed = apply(p, t);
             touched.add(p);
-            if (t != null) filled++;
+            if (changed) filled++;
         }
         log.info("[PopupTranslation] {}건 시도 · {}건 번역됨", touched.size(), filled);
         return filled;
+    }
+
+    private record ProtectedPopup(
+            PopupStore popup,
+            PopupTranslationGlossary.ProtectedText name,
+            PopupTranslationGlossary.ProtectedText location) {}
+
+    private boolean isBlank(String value) {
+        return value == null || value.isBlank();
     }
 }
