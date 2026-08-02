@@ -44,7 +44,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final UserRepository userRepository;
 
-    /** 브라우저 EventSource 가 헤더를 못 보내는 SSE 엔드포인트만 쿼리 토큰 허용. */
     @Value("${jwt.secret:}")
     private String jwtSecret;
 
@@ -84,7 +83,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
     }
 
-    /** Authorization 헤더 우선, 없으면 SSE 경로 한정 {@code ?token=} 폴백 (URL 노출 위험 차단). */
+    /**
+     * {@code Authorization: Bearer} <b>헤더만</b> 받는다.
+     *
+     * <p>예전에는 SSE 경로에 한해 {@code ?token=} 폴백이 있었다. {@code EventSource} 가 커스텀 헤더를 못 보내기 때문이었는데, 토큰이
+     * URL 에 실리면 프록시·서버 접근 로그에 관리자 토큰이 그대로 남는다. 프론트를 {@code fetch()} 스트리밍으로 바꾸면서 폴백을
+     * 없앴다(useSseStream.ts).
+     *
+     * <p><b>다시 넣지 말 것.</b> 쿼리 파라미터는 로그·Referer·브라우저 기록에 남는 경로가 너무 많다.
+     */
     private String extractToken(HttpServletRequest request) {
         String bearerHeader = request.getHeader("Authorization");
         if (bearerHeader != null && bearerHeader.startsWith(BEARER_PREFIX)) {

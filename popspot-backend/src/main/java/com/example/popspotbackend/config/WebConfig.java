@@ -29,6 +29,13 @@ public class WebConfig implements WebMvcConfigurer {
     private static final String UPLOAD_URL_PATTERN = "/uploads/**";
     private static final String AUTH_PATH_PATTERN = "/api/v1/auth/**";
     private static final String[] RATE_LIMITED_API_PATTERNS = {
+        // v2.53 — 관리자 API. 여기 없어서 무제한이었다.
+        //
+        // 권한 검사(hasRole('ADMIN'))는 통과 여부만 정하지 <b>횟수를 세지 않는다</b>. 토큰이 한 번
+        // 새면 크롤 실행·사진 백필·보상 지급을 무한히 부를 수 있었다. 게다가 업로드·백필·로그
+        // 스트림은 프론트가 백엔드를 직접 부르므로 앞단에 방화벽을 둬도 지나지 않는다 —
+        // 횟수 제한은 이 애플리케이션이 스스로 해야 한다.
+        "/api/admin/**",
         "/api/game/**",
         "/api/visits",
         "/api/planning/**",

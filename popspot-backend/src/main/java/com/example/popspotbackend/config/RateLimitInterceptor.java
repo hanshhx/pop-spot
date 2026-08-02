@@ -13,6 +13,8 @@ import java.time.Duration;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.HandlerInterceptor;
@@ -94,6 +96,45 @@ public class RateLimitInterceptor implements HandlerInterceptor {
     private static final int LIMIT_TAKEDOWN_PER_HOUR = 3;
     private static final int LIMIT_GAME_START_PER_MIN = 3;
     private static final int LIMIT_GENERAL_PER_MIN = 60;
+
+    /** Spring 익명 인증의 사용자 이름. {@code isAuthenticated()} 가 참이라 이름으로 걸러야 한다. */
+    private static final String ANONYMOUS_USER = "anonymousUser";
+
+    private static final String ADMIN_PATH_PREFIX = "/api/admin/";
+
+    /**
+     * 관리자 API 한도(관리자 한 명당 · 경로당 · 분당).
+     *
+     * <p>화면이 서버 지표를 3초마다 가져가 그것만 분당 20회다. 목록을 넘기며 훑는 것도 겹치므로 120 으로 잡았다 — 정상 사용이 막히면 관리자가 이 기능 자체를
+     * 꺼 버리게 된다.
+     */
+    private static final int LIMIT_ADMIN_PER_MIN = 120;
+
+    /** 되돌릴 수 없거나 외부 비용이 드는 관리자 작업. */
+    private static final int LIMIT_ADMIN_HEAVY_PER_MIN = 3;
+
+    /**
+     * 무겁게 취급할 관리자 경로.
+     *
+     * <p>기준은 셋 중 하나다 — 외부 API 를 수십~수백 번 부르거나(크롤·백필), 되돌릴 수 없거나(보상 지급·중복 정리), 보안 조치라 반복될 이유가 없다(세션
+     * 무효화).
+     */
+    private static final String[] ADMIN_HEAVY_PATHS = {
+        // 외부 API 를 수십~수백 번 직렬 호출한다.
+        //
+        // 크롤은 클래스 단위 매핑이 /api/admin/popups/crawl 이라 하위 전체를 묶는다.
+        "/api/admin/popups/crawl",
+        "/api/admin/popups/backfill-photos",
+        "/api/admin/popups/backfill-translations",
+        // 커버 이미지 갱신은 음악 컨트롤러 아래다(/api/admin/music).
+        "/api/admin/music/refresh-covers",
+        // 되돌릴 수 없다.
+        "/api/admin/popups/dedupe",
+        "/api/admin/reward",
+        "/api/admin/chat/delete-batch",
+        // 보안 조치라 반복될 이유가 없다.
+        "/api/admin/session/revoke-all",
+    };
 
     /**
      * 방문 비콘 30/분.
@@ -195,7 +236,7 @@ public class RateLimitInterceptor implements HandlerInterceptor {
             limit = FALLBACK_LIMIT;
         }
 
-        String key = bucketName + "|" + clientIp(request);
+        String key = bucketName + "|" + rateLimitIdentity(request, uri);
         Bandwidth effectiveLimit = limit;
         Bucket bucket = buckets.get(key, k -> Bucket.builder().addLimit(effectiveLimit).build());
 
@@ -203,6 +244,35 @@ public class RateLimitInterceptor implements HandlerInterceptor {
 
         rejectAsRateLimited(request, response);
         return false;
+    }
+
+    /**
+     * 버킷을 나누는 기준 — 보통은 IP, <b>관리자 경로는 계정+IP</b>.
+     *
+     * <p>관리자 경로에서 IP 만 쓰면 두 가지가 곤란하다.
+     *
+     * <ul>
+     *   <li>업로드·사진 백필·로그 스트림은 프론트가 백엔드를 <b>직접</b> 부른다(api.ts 의 FORCE_ABSOLUTE_PREFIXES). 엣지 서명이 안
+     *       붙어 IP 가 {@code remoteAddr} 로 강등되므로, IP 만으로는 사실상 모든 관리자 요청이 한 바구니가 된다.
+     *   <li>반대로 토큰이 샌 경우, 공격자가 IP 를 바꿔 가며 부르면 IP 기준 한도는 의미가 없다. 계정을 섞으면 <b>그 토큰 자체</b>에 한도가 걸린다.
+     * </ul>
+     *
+     * <p>관리자 외 경로는 건드리지 않는다. 거기까지 계정을 섞으면 같은 IP 의 여러 계정이 각자 한도를 갖게 되어 <b>지금보다 느슨해진다</b>.
+     */
+    private String rateLimitIdentity(HttpServletRequest request, String uri) {
+        String ip = clientIp(request);
+        if (!uri.startsWith(ADMIN_PATH_PREFIX)) return ip;
+
+        String account = currentAccountId();
+        return account == null ? ip : account + "@" + ip;
+    }
+
+    /** 로그인한 사용자 id. 비로그인·익명이면 null — Spring 의 익명 인증은 이름이 anonymousUser 다. */
+    private String currentAccountId() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated()) return null;
+        String name = auth.getName();
+        return name == null || name.isBlank() || ANONYMOUS_USER.equals(name) ? null : name;
     }
 
     /** 요청이 권리자 takedown 핸들러로 매핑됐는지 — 문자열이 아니라 실제 매칭 결과로 판정. */
@@ -232,6 +302,23 @@ public class RateLimitInterceptor implements HandlerInterceptor {
     }
 
     private Bandwidth resolveLimit(String uri) {
+        // v2.53 — 관리자 경로. 버킷 키에 계정이 섞이므로 아래 숫자는 "관리자 한 명당" 이다.
+        if (uri.startsWith(ADMIN_PATH_PREFIX)) {
+            // 되돌릴 수 없거나 외부 비용이 드는 작업. 사람이 분당 세 번 넘게 누를 일이 없다.
+            for (String heavy : ADMIN_HEAVY_PATHS) {
+                if (uri.startsWith(heavy)) {
+                    return Bandwidth.classic(
+                            LIMIT_ADMIN_HEAVY_PER_MIN,
+                            Refill.intervally(LIMIT_ADMIN_HEAVY_PER_MIN, Duration.ofMinutes(1)));
+                }
+            }
+            // 나머지 관리자 API. 화면이 지표를 3초마다 폴링하므로(분당 20회) 넉넉히 잡는다 —
+            // 여기서 정상 사용이 막히면 관리자가 레이트리밋을 꺼 버리게 된다.
+            return Bandwidth.classic(
+                    LIMIT_ADMIN_PER_MIN,
+                    Refill.intervally(LIMIT_ADMIN_PER_MIN, Duration.ofMinutes(1)));
+        }
+
         if ("/api/game/start".equals(uri)) {
             return Bandwidth.classic(
                     LIMIT_GAME_START_PER_MIN,

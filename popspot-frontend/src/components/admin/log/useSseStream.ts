@@ -8,7 +8,9 @@ import { getAuthToken } from '@/lib/authStorage';
 /**
  * 인증된 SSE 스트림 구독 훅.
  *
- * - `EventSource` 는 헤더를 못 보내므로 토큰을 쿼리 파라미터로 첨부 (백엔드가 SSE 경로만 허용).
+ * - `EventSource` 가 아니라 `fetch()` 스트리밍이다. JWT 는 `Authorization` 헤더로 보낸다 —
+ *   EventSource 는 커스텀 헤더를 못 보내서 토큰을 URL 에 실어야 하는데, 그러면 프록시·서버 접근
+ *   로그에 관리자 토큰이 그대로 남는다. 백엔드도 `?token=` 을 받지 않는다(JwtAuthenticationFilter).
  * - 끊기면 exponential backoff (1s → 2s → 4s → 8s → 16s, max 30s).
  * - `paused === true` 면 새 이벤트 수신 즉시 onMessage 호출 안 함 (라이브 일시정지).
  * - 컴포넌트 unmount 시 자동 close.
