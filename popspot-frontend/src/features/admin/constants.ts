@@ -6,6 +6,7 @@ import {
   Globe,
   Inbox,
   MessageSquare,
+  ShieldAlert,
   Store,
   Users,
 } from 'lucide-react';
@@ -34,6 +35,7 @@ export const NAV: { id: string; label: string; icon: typeof Users; badge?: boole
   { id: 'VISITS', label: '방문 통계', icon: Globe },
   { id: 'VISITORS', label: '방문자', icon: Footprints },
   { id: 'FEEDBACK', label: '의견', icon: Inbox },
+  { id: 'AUDIT', label: '감사 로그', icon: ShieldAlert },
   { id: 'SYSTEM', label: '시스템', icon: Activity },
 ];
 
@@ -47,5 +49,6 @@ export const TAB_TITLE: Record<string, string> = {
   VISITS: '방문 통계',
   VISITORS: '방문자 목록',
   FEEDBACK: '의견',
+  AUDIT: '관리자 행위 기록',
   SYSTEM: '시스템',
 };
