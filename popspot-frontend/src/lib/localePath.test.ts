@@ -26,4 +26,3 @@ describe('언어별 주소', () => {
     expect(localeFromPath('/popup/1')).toBe('ko');
   });
 });
-
