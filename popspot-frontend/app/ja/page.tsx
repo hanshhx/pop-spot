@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 
 import HomeClient from '../HomeClient';
 import { REGIONS } from '@/lib/regions';
+import { CATEGORIES, BRANDS, getPeriods } from '@/lib/popupSlices';
 import { LOCALE_META, localeAlternates } from '@/lib/localeRoutes';
 
 /**
@@ -47,6 +48,50 @@ export default function JapaneseHome() {
           ポップアップの名称と説明は、出典元の韓国語表記のまま掲載しています。現地では看板もこの表記で、
           地図アプリにそのまま貼り付けて検索できるためです。
         </p>
+        {/*
+          v2.53 — 日本語ホームには内部リンクが一つもなかった。韓国語ホームには四つのリンク群がある。
+          サイトマップは「この住所がある」という届け出にすぎず、重要度はリンクで伝わる。
+        */}
+        <nav aria-label="日程別ポップアップストア">
+          <h2>日程で探す</h2>
+          <ul>
+            {getPeriods().map((p) => (
+              <li key={p.slug}>
+                <a href={`/ja/popups/${p.slug}`}>{p.labelJa}</a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+        <nav aria-label="エリア別ポップアップストア">
+          <h2>エリアで探す</h2>
+          <ul>
+            {REGIONS.map((r) => (
+              <li key={r.slug}>
+                <a href={`/ja/popups/${r.slug}`}>{r.labelJa}のポップアップストア</a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+        <nav aria-label="カテゴリー別ポップアップストア">
+          <h2>カテゴリーで探す</h2>
+          <ul>
+            {CATEGORIES.map((c) => (
+              <li key={c.slug}>
+                <a href={`/ja/popups/${c.slug}`}>{c.labelJa}のポップアップストア</a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+        <nav aria-label="ブランド別ポップアップストア">
+          <h2>ブランド・施設で探す</h2>
+          <ul>
+            {BRANDS.map((b) => (
+              <li key={b.slug}>
+                <a href={`/ja/popups/${b.slug}`}>{b.labelJa}のポップアップストア</a>
+              </li>
+            ))}
+          </ul>
+        </nav>
       </section>
 
       <Suspense fallback={null}>

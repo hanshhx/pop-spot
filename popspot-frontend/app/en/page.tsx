@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 
 import HomeClient from '../HomeClient';
 import { REGIONS } from '@/lib/regions';
+import { CATEGORIES, BRANDS, getPeriods } from '@/lib/popupSlices';
 import { LOCALE_META, localeAlternates } from '@/lib/localeRoutes';
 
 /**
@@ -50,6 +51,51 @@ export default function EnglishHome() {
           This is intentional: the Korean name is what you will see on the shop sign and what you
           can paste into a map app once you are in Seoul.
         </p>
+        {/*
+          v2.53 — 영어·일본어 홈에는 내부 링크가 <b>하나도 없었다.</b> 한국어 홈에는 지역·시점·
+          카테고리·브랜드 네 묶음이 있는데 이쪽은 본문만 있어서, 247개 영어 랜딩이 사이트맵으로만
+          발견됐다. 사이트맵은 "이런 주소가 있다" 는 신고일 뿐이고 링크가 있어야 중요도가 전달된다.
+        */}
+        <nav aria-label="Pop-up stores by date">
+          <h2>By date</h2>
+          <ul>
+            {getPeriods().map((p) => (
+              <li key={p.slug}>
+                <a href={`/en/popups/${p.slug}`}>{p.labelEn}</a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+        <nav aria-label="Pop-up stores by area">
+          <h2>By area</h2>
+          <ul>
+            {REGIONS.map((r) => (
+              <li key={r.slug}>
+                <a href={`/en/popups/${r.slug}`}>{r.labelEn} pop-up stores</a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+        <nav aria-label="Pop-up stores by category">
+          <h2>By category</h2>
+          <ul>
+            {CATEGORIES.map((c) => (
+              <li key={c.slug}>
+                <a href={`/en/popups/${c.slug}`}>{c.labelEn} pop-up stores</a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+        <nav aria-label="Pop-up stores by brand">
+          <h2>By brand and venue</h2>
+          <ul>
+            {BRANDS.map((b) => (
+              <li key={b.slug}>
+                <a href={`/en/popups/${b.slug}`}>{b.labelEn} pop-up store</a>
+              </li>
+            ))}
+          </ul>
+        </nav>
       </section>
 
       <Suspense fallback={null}>
