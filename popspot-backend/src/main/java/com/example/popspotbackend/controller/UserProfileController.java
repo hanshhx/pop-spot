@@ -5,6 +5,7 @@ import com.example.popspotbackend.exception.ResourceNotFoundException;
 import com.example.popspotbackend.repository.UserRepository;
 import com.example.popspotbackend.service.AccountDeletionService;
 import com.example.popspotbackend.service.media.ImageUploadGuard;
+import com.example.popspotbackend.service.media.UploadQuotaService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Size;
@@ -21,6 +22,7 @@ import java.util.regex.Pattern;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.transaction.annotation.Transactional;
@@ -85,6 +87,7 @@ public class UserProfileController {
     private final String avatarDir;
 
     private final ImageUploadGuard imageGuard;
+    private final UploadQuotaService uploadQuota;
 
     public UserProfileController(
             UserRepository userRepository,
@@ -92,13 +95,15 @@ public class UserProfileController {
             @Value("${" + ALLOWED_HOST_PATTERNS_PROP + ":}") String allowedHostPatternsCsv,
             @Value("${app.trust-proxy-headers:false}") boolean trustProxyHeaders,
             @Value("${app.upload.path}") String uploadPath,
-            ImageUploadGuard imageGuard) {
+            ImageUploadGuard imageGuard,
+            UploadQuotaService uploadQuota) {
         this.userRepository = userRepository;
         this.accountDeletionService = accountDeletionService;
         this.allowedHostPatterns = compilePatterns(allowedHostPatternsCsv);
         this.trustProxyHeaders = trustProxyHeaders;
         this.avatarDir = Paths.get(uploadPath, "avatar").toAbsolutePath().normalize().toString();
         this.imageGuard = imageGuard;
+        this.uploadQuota = uploadQuota;
     }
 
     /* ============================== 닉네임 중복 검사 ============================== */
@@ -150,9 +155,17 @@ public class UserProfileController {
             return ResponseEntity.badRequest().body(inspection.rejection());
         }
 
+        // 하루 한도는 검증 통과 뒤·저장 직전에 본다. 앞에서 보면 거부될 파일로도 한도가 깎이고,
+        // 뒤에서 보면 이미 디스크에 쓴 뒤라 막는 의미가 없다. 크기는 재인코딩된 저장 바이트 기준이다.
+        UploadQuotaService.Decision quota = uploadQuota.check(userId, inspection.bytes().length);
+        if (!quota.allowed()) {
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(quota.reason());
+        }
+
         try {
             File destination = prepareDestination(inspection.extension());
             Files.write(destination.toPath(), inspection.bytes());
+            uploadQuota.record(userId, inspection.bytes().length);
 
             String fileUrl = buildPublicUrl(request, destination.getName());
 
