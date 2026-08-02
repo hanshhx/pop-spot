@@ -7,6 +7,7 @@ import Swal from 'sweetalert2';
 
 import { apiFetch } from '../../src/lib/api';
 import { confirmAction, notifyError, notifySuccess } from '@/lib/notify';
+import { clearAuthToken } from '@/lib/authStorage';
 import type { PopupStore } from '@/types/popup';
 import {
   useDashboardMetrics,
@@ -257,6 +258,37 @@ export default function AdminPage() {
     else if (activeTab === 'VISITORS') loadVisitors();
     else setIsLoading(false); // SYSTEM / REWARDS / FEEDBACK 은 별도 fetch 없음
   }, [activeTab, authorized]);
+
+  /**
+   * 모든 기기에서 로그아웃 — 토큰이 샜다고 의심될 때 쓰는 비상 스위치.
+   *
+   * <p>누른 본인도 로그아웃된다. 내 토큰만 남겨 두면 그게 샜을 때 아무것도 막지 못한다.
+   *
+   * <p>서버가 성공을 돌려준 뒤에야 로컬 토큰을 지운다. 먼저 지우면 서버가 실패했을 때
+   * "로그아웃된 것처럼 보이는데 토큰은 살아 있는" 최악의 상태가 된다.
+   */
+  const handleRevokeAllSessions = async () => {
+    const confirmed = await confirmAction({
+      title: '모든 기기에서 로그아웃할까요?',
+      text: '지금 보고 있는 이 창을 포함해 전부 로그아웃됩니다. 이미 열려 있는 실시간 로그 연결은 끊길 때까지 유지됩니다.',
+      confirmText: '로그아웃',
+      destructive: true,
+    });
+    if (!confirmed) return;
+
+    try {
+      const res = await apiFetch('/api/admin/session/revoke-all', { method: 'POST' });
+      if (!res.ok) {
+        notifyError('처리하지 못했습니다. 다시 시도해 주세요.');
+        return;
+      }
+      clearAuthToken();
+      window.localStorage.removeItem('user');
+      router.replace('/login');
+    } catch {
+      notifyError('서버에 연결하지 못했습니다.');
+    }
+  };
 
   // ================= [API 기능 핸들러] =================
   const handleApprove = async (id: number) => {
@@ -722,6 +754,7 @@ export default function AdminPage() {
             {/* ===== 시스템 (서버 지표 + 로그) ===== */}
             {activeTab === 'SYSTEM' && (
               <SystemTab
+                onRevokeAllSessions={handleRevokeAllSessions}
                 serverResource={serverResource}
                 dashboard={dashboard}
                 realtimeMetrics={realtimeMetrics}
