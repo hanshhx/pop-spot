@@ -3,7 +3,7 @@ import type { Metadata } from 'next';
 
 import HomeClient from './HomeClient';
 import { REGIONS } from '@/lib/regions';
-import { CATEGORIES, BRANDS } from '@/lib/popupSlices';
+import { CATEGORIES, BRANDS, getPeriods } from '@/lib/popupSlices';
 import { CRAWL_REFRESH_SENTENCE } from '@/lib/siteCopy';
 import { localeAlternates } from '@/lib/localeRoutes';
 
@@ -51,6 +51,23 @@ export default function Page() {
             {REGIONS.map((r) => (
               <li key={r.slug}>
                 <a href={`/popups/${r.slug}`}>{r.label} 팝업스토어</a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+        {/*
+          v2.53 — 시점 링크가 여기만 빠져 있었다. /popups/today · this-week · this-weekend 는 이미
+          빌드되고 sitemap 에도 올라가는데 홈에서 거기로 가는 링크가 없어, "팝업스토어 일정" 류
+          검색어를 받을 페이지가 사실상 고아였다. 별도 페이지를 만들 필요가 없고 링크만 있으면 된다.
+
+          라벨은 getPeriods() 를 그 자리에서 부른다 — 상수로 굳히면 "이번 주 (7/20~7/26)" 가 박힌다.
+        */}
+        <nav aria-label="시점별 팝업스토어">
+          <h2>일정별 팝업스토어</h2>
+          <ul>
+            {getPeriods().map((p) => (
+              <li key={p.slug}>
+                <a href={`/popups/${p.slug}`}>{p.label} 여는 팝업스토어</a>
               </li>
             ))}
           </ul>
