@@ -2,6 +2,8 @@ package com.example.popspotbackend.config;
 
 import com.example.popspotbackend.entity.User;
 import com.example.popspotbackend.repository.UserRepository;
+import com.example.popspotbackend.entity.AdminAuditLog;
+import com.example.popspotbackend.service.admin.AdminAuditService;
 import com.example.popspotbackend.service.auth.TotpAuthService;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
@@ -55,6 +57,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
     private final UserRepository userRepository;
     private final StringRedisTemplate redisTemplate;
     private final TotpAuthService totpAuth;
+    private final AdminAuditService adminAudit;
 
     @Value("${app.oauth2.redirect-uri}")
     private String redirectUri;
@@ -100,10 +103,16 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
 
         // 2단계 인증이 켜져 있으면 토큰을 만들지 않는다. 교환 슬롯에는 "코드를 더 받아야 한다" 는
         // 표시와 단기 표만 넣는다 — 토큰을 먼저 만들어 두면 그것만 가로채도 로그인이 끝난다.
+        boolean totpPending = totpAuth.isRequiredFor(user);
         String slotValue =
-                totpAuth.isRequiredFor(user)
+                totpPending
                         ? TOTP_CHALLENGE_MARKER + totpAuth.issueChallenge(user.getUserId())
                         : issueJwt(user);
+
+        // 2단계 인증이 남았으면 아직 로그인이 아니다 — 그 기록은 코드까지 맞힌 뒤
+        // AuthService.completeTotpLogin 이 남긴다. 여기서 남기면 코드를 못 맞힌 시도까지
+        // "관리자 로그인 성공" 으로 기록된다.
+        if (!totpPending) recordAdminLogin(user);
 
         redisTemplate
                 .opsForValue()
@@ -145,6 +154,29 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         return userRepository
                 .findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
+    }
+
+    /**
+     * 관리자 세션이 <b>언제 어떻게</b> 만들어졌는지 감사 표에 남긴다.
+     *
+     * <p>이메일 로그인과 같은 표에 남겨야 한다. 소셜만 빠지면 "관리자가 언제 들어왔나" 를 물었을 때 절반만 나오는데, 이 서비스의 관리자는 주로 카카오로 들어온다 —
+     * 정작 중요한 쪽이 비는 셈이다.
+     *
+     * <p>{@code endsWith} 로 보는 이유는 role 칸에 {@code "ADMIN"} 과 {@code "ROLE_ADMIN"} 이 둘 다 들어 있을 수 있기
+     * 때문이다.
+     */
+    private void recordAdminLogin(User user) {
+        if (user == null) return;
+        String role = user.getRole();
+        if (role == null || !role.endsWith("ADMIN")) return;
+        adminAudit.record(
+                user.getUserId(),
+                "관리자 로그인",
+                AdminAuditLog.TARGET_ADMIN_SELF,
+                user.getUserId(),
+                true,
+                200,
+                "소셜");
     }
 
     private String issueJwt(User user) {

@@ -6,6 +6,8 @@ import com.example.popspotbackend.dto.SignupRequestDto;
 import com.example.popspotbackend.entity.User;
 import com.example.popspotbackend.exception.ResourceNotFoundException;
 import com.example.popspotbackend.repository.UserRepository;
+import com.example.popspotbackend.service.admin.AdminAuditService;
+import com.example.popspotbackend.entity.AdminAuditLog;
 import com.example.popspotbackend.service.auth.TotpAuthService;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
@@ -54,12 +56,23 @@ public class AuthService {
                     .build();
 
     private static final String ROLE_USER = "USER";
+
+    /**
+     * 관리자 역할 판정에 쓰는 꼬리말.
+     *
+     * <p>{@code endsWith} 로 보는 이유는 이 프로젝트의 role 칸에 {@code "ADMIN"} 과 {@code "ROLE_ADMIN"} 이 <b>둘
+     * 다</b> 들어 있을 수 있기 때문이다 — {@code JwtAuthenticationFilter} 가 접두사가 없으면 붙여서 정규화한다. 한쪽만 비교하면 다른 형태로
+     * 저장된 관리자의 로그인이 조용히 기록되지 않는다.
+     */
+    private static final String ROLE_ADMIN_SUFFIX = "ADMIN";
+
     private static final String PROVIDER_LOCAL = "LOCAL";
     private static final String SOCIAL_USER_ERROR_PREFIX = "SOCIAL_USER:";
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final TotpAuthService totpAuth;
+    private final AdminAuditService adminAudit;
 
     @Value("${jwt.secret:}")
     private String jwtSecret;
@@ -150,6 +163,7 @@ public class AuthService {
                     .build();
         }
 
+        recordAdminLogin(user, "이메일");
         return LoginResponseDto.builder()
                 .userId(user.getUserId())
                 .email(user.getEmail())
@@ -159,6 +173,28 @@ public class AuthService {
                 .megaphoneCount(user.getMegaphoneCount())
                 .token(issueJwt(user))
                 .build();
+    }
+
+    /**
+     * 관리자 세션이 <b>언제 어떻게 만들어졌는지</b>를 감사 표에 남긴다.
+     *
+     * <p>이것이 없으면 감사 로그가 "무엇을 했는지" 만 알려 주고 "누가 언제 들어왔는지" 는 답하지 못한다. 관리자 비밀번호가 샜을 때 가장 먼저 확인해야 할 것이
+     * 낯선 시각의 로그인인데, 그 기록이 통째로 없게 된다.
+     *
+     * <p>일반 회원 로그인은 남기지 않는다 — 이 표는 관리자 행위 기록이고, 전 회원의 로그인을 쌓으면 그 자체가 접속 이력 데이터베이스가 된다.
+     */
+    private void recordAdminLogin(User user, String method) {
+        if (user == null) return;
+        String role = user.getRole();
+        if (role == null || !role.endsWith(ROLE_ADMIN_SUFFIX)) return;
+        adminAudit.record(
+                user.getUserId(),
+                "관리자 로그인",
+                AdminAuditLog.TARGET_ADMIN_SELF,
+                user.getUserId(),
+                true,
+                200,
+                method);
     }
 
     /**
@@ -287,6 +323,7 @@ public class AuthService {
             throw new IllegalArgumentException("비활성화된 계정입니다.");
         }
 
+        recordAdminLogin(user, "2단계 인증");
         return LoginResponseDto.builder()
                 .userId(user.getUserId())
                 .email(user.getEmail())
