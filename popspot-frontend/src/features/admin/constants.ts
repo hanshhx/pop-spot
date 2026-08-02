@@ -3,7 +3,6 @@ import {
   AlertCircle,
   BarChart3,
   Footprints,
-  Gift,
   Globe,
   Inbox,
   MessageSquare,
@@ -34,7 +33,6 @@ export const NAV: { id: string; label: string; icon: typeof Users; badge?: boole
   { id: 'COMMENTS', label: '라이브 댓글', icon: MessageSquare },
   { id: 'VISITS', label: '방문 통계', icon: Globe },
   { id: 'VISITORS', label: '방문자', icon: Footprints },
-  { id: 'REWARDS', label: '보상 지급', icon: Gift },
   { id: 'FEEDBACK', label: '의견', icon: Inbox },
   { id: 'SYSTEM', label: '시스템', icon: Activity },
 ];
@@ -48,7 +46,6 @@ export const TAB_TITLE: Record<string, string> = {
   COMMENTS: '라이브 댓글 관리',
   VISITS: '방문 통계',
   VISITORS: '방문자 목록',
-  REWARDS: '보상 지급',
   FEEDBACK: '의견',
   SYSTEM: '시스템',
 };
