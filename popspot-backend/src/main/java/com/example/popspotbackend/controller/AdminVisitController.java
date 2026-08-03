@@ -40,10 +40,17 @@ public class AdminVisitController {
     }
 
     /** 방문자 목록 — visitorId 단위(방문수·경로·최근시각·게스트/회원). days 기본 7, 최대 30. */
+    /**
+     * 방문자 목록 — 기간·페이지 선택 가능.
+     *
+     * @param days 최근 며칠(기본 7, 최대 90). 화면은 7·30·90 을 버튼으로 제공한다
+     */
     @GetMapping("/visitors")
-    public ResponseEntity<List<Map<String, Object>>> getRecentVisitors(
-            @RequestParam(defaultValue = "7") int days) {
-        return ResponseEntity.ok(visitService.getRecentVisitors(days));
+    public ResponseEntity<Map<String, Object>> getRecentVisitors(
+            @RequestParam(defaultValue = "7") int days,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size) {
+        return ResponseEntity.ok(visitService.getRecentVisitors(days, page, size));
     }
 
     /**

@@ -41,7 +41,6 @@ import type {
   AdminTodayPath,
   AdminUser,
   AdminVisitStats,
-  AdminVisitor,
   MetricData,
   ServerResource,
 } from '@/features/admin/types';
@@ -99,7 +98,6 @@ export default function AdminPage() {
   const [visitStats, setVisitStats] = useState<AdminVisitStats | null>(null);
   const [todayPaths, setTodayPaths] = useState<AdminTodayPath[]>([]);
   const [referrers, setReferrers] = useState<AdminReferrer[]>([]);
-  const [visitors, setVisitors] = useState<AdminVisitor[]>([]);
 
   // v2.10 — 통합 메트릭 폴링. authorized 전엔 시작하지 않아 403 도배 차단.
   const dashboard = useDashboardMetrics(
@@ -229,18 +227,6 @@ export default function AdminPage() {
     }
   };
 
-  const loadVisitors = async () => {
-    setIsLoading(true);
-    try {
-      const res = await apiFetch('/api/admin/visits/visitors?days=7');
-      if (res.ok) setVisitors(await res.json());
-    } catch {
-      /* 백엔드 미배포 시 빈 목록 유지 */
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   // 탭 변경 시 데이터 로딩
   useEffect(() => {
     if (!authorized) return;
@@ -253,8 +239,7 @@ export default function AdminPage() {
     else if (activeTab === 'COMMENTS') loadComments();
     else if (activeTab === 'MEMBERS') loadUsers();
     else if (activeTab === 'VISITS') loadVisitStats();
-    else if (activeTab === 'VISITORS') loadVisitors();
-    else setIsLoading(false); // SYSTEM / FEEDBACK / AUDIT 은 각자 불러온다
+    else setIsLoading(false); // SYSTEM / FEEDBACK / AUDIT / VISITORS 는 각자 불러온다
   }, [activeTab, authorized]);
 
   /**
@@ -732,9 +717,8 @@ export default function AdminPage() {
             )}
 
             {/* ===== 방문자 목록 ===== */}
-            {!isLoading && activeTab === 'VISITORS' && (
-              <VisitorsTab visitors={visitors} loadVisitors={loadVisitors} />
-            )}
+            {/* 기간·페이지를 스스로 관리하므로 데이터도 스스로 불러온다. */}
+            {activeTab === 'VISITORS' && <VisitorsTab />}
 
             {/* ===== 의견 ===== */}
             {activeTab === 'FEEDBACK' && <FeedbackTab />}
