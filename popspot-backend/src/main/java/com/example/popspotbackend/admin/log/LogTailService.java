@@ -42,6 +42,16 @@ public class LogTailService {
     private String logFilePath;
 
     private final CopyOnWriteArrayList<SseEmitter> subscribers = new CopyOnWriteArrayList<>();
+
+    /**
+     * 구독자 → 주인(userId). "모든 기기에서 로그아웃" 이 <b>이미 열린</b> 로그 스트림까지 끊기 위해 필요하다.
+     *
+     * <p>토큰 검사는 스트림을 <b>열 때 한 번</b>만 돈다. 열린 뒤에는 아무도 토큰을 다시 보지 않으므로, 끊어 주지 않으면 철회된 토큰으로 연 스트림이 계속 서버
+     * 로그를 흘려보낸다. 서버 로그에는 무엇이 섞여 나갈지 통제할 수 없다.
+     */
+    private final java.util.Map<SseEmitter, String> subscriberOwners =
+            new java.util.concurrent.ConcurrentHashMap<>();
+
     private ScheduledExecutorService scheduler;
     private long lastReadPosition = 0;
 
@@ -77,7 +87,7 @@ public class LogTailService {
     }
 
     /** 새 SSE 연결 — 백필 후 구독자 등록. 상한 초과 시 즉시 거부. */
-    public SseEmitter subscribe() {
+    public SseEmitter subscribe(String ownerUserId) {
         if (subscribers.size() >= MAX_SUBSCRIBERS) {
             SseEmitter rejected = new SseEmitter(1L);
             rejected.completeWithError(
@@ -85,12 +95,39 @@ public class LogTailService {
             return rejected;
         }
         SseEmitter emitter = new SseEmitter(SSE_TIMEOUT_MS);
-        emitter.onCompletion(() -> subscribers.remove(emitter));
-        emitter.onTimeout(() -> subscribers.remove(emitter));
-        emitter.onError(t -> subscribers.remove(emitter));
+        emitter.onCompletion(() -> forget(emitter));
+        emitter.onTimeout(() -> forget(emitter));
+        emitter.onError(t -> forget(emitter));
         sendBackfill(emitter);
         subscribers.add(emitter);
+        if (ownerUserId != null) subscriberOwners.put(emitter, ownerUserId);
         return emitter;
+    }
+
+    private void forget(SseEmitter emitter) {
+        subscribers.remove(emitter);
+        subscriberOwners.remove(emitter);
+    }
+
+    /**
+     * 이 사용자가 열어 둔 로그 스트림을 전부 끊는다.
+     *
+     * @return 끊은 스트림 수
+     */
+    public int disconnectUser(String userId) {
+        if (userId == null) return 0;
+        int closed = 0;
+        for (java.util.Map.Entry<SseEmitter, String> e : subscriberOwners.entrySet()) {
+            if (!userId.equals(e.getValue())) continue;
+            try {
+                e.getKey().complete();
+                closed++;
+            } catch (RuntimeException ignored) {
+                // 이미 닫히는 중일 수 있다. 나머지는 계속 끊는다.
+            }
+            forget(e.getKey());
+        }
+        return closed;
     }
 
     private void sendBackfill(SseEmitter emitter) {

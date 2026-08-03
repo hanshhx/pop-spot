@@ -37,7 +37,10 @@ class WebSocketDestinationGuardTest {
     @BeforeEach
     void setUp() {
         WebSocketConfig config =
-                new WebSocketConfig(mock(MateService.class), mock(UserRepository.class));
+                new WebSocketConfig(
+                        mock(MateService.class),
+                        mock(UserRepository.class),
+                        new LiveConnectionRegistry());
 
         // 인터셉터는 private 내부 클래스라 등록 과정을 통해 꺼낸다.
         List<ChannelInterceptor> captured = new ArrayList<>();

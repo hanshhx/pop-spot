@@ -1,5 +1,7 @@
 package com.example.popspotbackend.controller;
 
+import com.example.popspotbackend.admin.log.LogTailService;
+import com.example.popspotbackend.config.LiveConnectionRegistry;
 import com.example.popspotbackend.repository.UserRepository;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
@@ -25,11 +27,11 @@ import org.springframework.web.bind.annotation.RestController;
  * <ul>
  *   <li>앞으로의 HTTP 요청 — <b>즉시 차단</b>
  *   <li>새 WebSocket 연결 — <b>즉시 차단</b>(CONNECT 때 대조한다)
- *   <li><b>이미 연결된 WebSocket·SSE — 끊기지 않는다.</b> 검사가 연결 시점에만 돌기 때문이다.
+ *   <li><b>이미 열린 WebSocket·SSE — 즉시 끊는다</b>(B-5). 연결 레지스트리가 세션을 들고 있다가 여기서 닫는다.
  * </ul>
  *
- * <p>세 번째가 이 기능의 한계다. "모든 연결이 즉시 끊긴다" 고 읽으면 안 된다 — 이미 열린 로그 스트림은 그 연결이 끝날 때까지 살아 있다. 기존 연결까지 끊는 것은
- * 연결 레지스트리를 따로 들고 있어야 해서 별도 작업이다.
+ * <p>세 번째가 왜 필요한가. 토큰 검사는 <b>연결할 때 한 번</b>만 돈다. 이미 열린 세션은 그 뒤로 아무도 토큰을 다시 보지 않으므로, 끊어 주지 않으면 철회된
+ * 토큰으로 연 연결이 계속 살아 있다 — 채팅을 계속 보내고, 서버 로그를 계속 받는다. "끊었다" 고 믿는 것과 실제가 어긋나는 것이 이 기능에서 가장 위험한 상태다.
  *
  * <p>실행하면 <b>누른 본인도 로그아웃된다.</b> 그게 정상이다 — 내 토큰만 남겨 두면 그 토큰이 샜을 때 아무것도 막지 못한다.
  */
@@ -41,6 +43,8 @@ import org.springframework.web.bind.annotation.RestController;
 public class AdminSessionController {
 
     private final UserRepository userRepository;
+    private final LiveConnectionRegistry connections;
+    private final LogTailService logTailService;
 
     @PostMapping("/revoke-all")
     @Transactional
@@ -55,14 +59,27 @@ public class AdminSessionController {
                     .body(Map.of("revoked", false, "message", "계정을 찾을 수 없습니다."));
         }
 
-        // 감사 로그가 아직 없어서 여기 남긴다(A단계 이후 감사 로그로 옮긴다).
-        log.info("[AdminSession] 관리자 전체 세션 무효화 — userId={}", userId);
+        // 이미 열린 연결을 실제로 끊는다. tokenVersion 만 올리면 앞으로의 요청과 새 연결만
+        // 막히고, 이미 붙어 있는 세션은 계속 산다.
+        int sockets = connections.disconnectUser(userId);
+        int streams = logTailService.disconnectUser(userId);
+
+        // 감사 표에도 남지만(인터셉터가 POST 를 전부 기록한다) 끊은 개수는 여기만 안다.
+        log.info(
+                "[AdminSession] 관리자 전체 세션 무효화 — userId={} 끊은 연결={} 스트림={}",
+                userId,
+                sockets,
+                streams);
 
         return ResponseEntity.ok(
                 Map.of(
                         "revoked",
                         true,
+                        "disconnectedSockets",
+                        sockets,
+                        "disconnectedStreams",
+                        streams,
                         "message",
-                        "모든 기기에서 로그아웃했습니다. 이미 열려 있는 실시간 연결은 끊길 때까지 유지됩니다."));
+                        "모든 기기에서 로그아웃했습니다. 열려 있던 실시간 연결 " + (sockets + streams) + "개도 끊었습니다."));
     }
 }
