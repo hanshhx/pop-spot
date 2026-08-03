@@ -38,6 +38,9 @@ public class WebConfig implements WebMvcConfigurer {
         "/api/admin/**",
         "/api/game/**",
         "/api/visits",
+        // 행동 비콘. "/api/visits" 는 그 경로 하나만 매칭하므로 따로 적어야 한다 —
+        // 빠뜨리면 인증 없이 부를 수 있는 경로가 무제한이 된다.
+        "/api/visits/events",
         "/api/planning/**",
         "/api/chat/**",
         "/api/mates",
@@ -136,6 +139,7 @@ public class WebConfig implements WebMvcConfigurer {
                         "/api/v1/auth/**",
                         "/api/v1/terms/**",
                         "/api/visits",
+                        "/api/visits/events",
                         "/api/client-errors",
                         // 계정 보호 장치는 정책 동의보다 뒤에 서면 안 된다. 토큰이 샜다고 의심되는
                         // 순간에 "먼저 약관에 동의하세요" 가 뜨면 비상 스위치가 비상용이 아니다.

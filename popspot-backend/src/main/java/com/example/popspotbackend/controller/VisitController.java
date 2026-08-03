@@ -160,6 +160,45 @@ public class VisitController {
         return ResponseEntity.noContent().build();
     }
 
+    /**
+     * 방문 안에서 일어난 행동 하나.
+     *
+     * <p>방문 비콘과 <b>같은 봇 필터</b>를 쓴다. 따로 두면 한쪽만 걸러져, 방문자 수는 봇을 뺀 값인데 클릭 수는 봇을 포함한 값이 되어 클릭률이 엉뚱해진다.
+     *
+     * <p>항상 204 로 답한다. 화면이 실패를 처리할 방법도 이유도 없다 — 통계가 한 건 빠지는 것보다 사용자 화면에 오류가 뜨는 쪽이 나쁘다.
+     */
+    @PostMapping("/events")
+    public ResponseEntity<Void> recordEvent(
+            @RequestBody(required = false) Map<String, Object> body,
+            @RequestHeader(value = "User-Agent", required = false) String userAgent) {
+        if (body != null && !isBot(userAgent)) {
+            visitService.recordEvent(
+                    str(body.get("visitorId")),
+                    str(body.get("sessionId")),
+                    str(body.get("type")),
+                    parseId(body.get("popupId")),
+                    str(body.get("path")),
+                    // guest 가 명시적으로 false 일 때만 회원. 방문 비콘과 같은 규칙이다.
+                    !Boolean.FALSE.equals(body.get("guest")));
+        }
+        return ResponseEntity.noContent().build();
+    }
+
+    private static String str(Object value) {
+        return value == null ? null : value.toString();
+    }
+
+    /** 팝업 id — 숫자로 못 읽으면 대상 없음으로 둔다. 비콘이라 오류를 돌려줄 이유가 없다. */
+    private static Long parseId(Object value) {
+        if (value instanceof Number n) return n.longValue();
+        if (value == null) return null;
+        try {
+            return Long.parseLong(value.toString().trim());
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
     private static boolean isBot(String ua) {
         if (ua == null || ua.isBlank()) return true; // UA 없음 = 스크립트/봇
         String low = ua.toLowerCase();

@@ -54,6 +54,15 @@ public class RateLimitInterceptor implements HandlerInterceptor {
     private static final String PATH_VISITS = "/api/visits";
 
     /**
+     * 행동 비콘. 방문 비콘보다 한도가 넉넉해야 한다 — 한 번 방문에 클릭이 여러 번 일어나기 때문이다.
+     *
+     * <p>그래도 한도는 반드시 있어야 한다. 인증 없이 부를 수 있는 경로라, 없으면 아무나 표를 무한히 채울 수 있다.
+     */
+    private static final String PATH_VISIT_EVENTS = "/api/visits/events";
+
+    private static final int LIMIT_VISIT_EVENTS_PER_MIN = 120;
+
+    /**
      * 자연어(AI) 팝업 검색.
      *
      * <p>{@code /api/search/**} 로 넓히지 않는다. 같은 프리픽스의 {@code /api/search/sync} 는 LLM 을 쓰지 않는 일반 검색이라
@@ -384,6 +393,11 @@ public class RateLimitInterceptor implements HandlerInterceptor {
         if (uri.startsWith(PREFIX_AI_COURSE) || PATH_AI_SEARCH.equals(uri)) {
             return Bandwidth.classic(
                     LIMIT_AI_PER_MIN, Refill.intervally(LIMIT_AI_PER_MIN, Duration.ofMinutes(1)));
+        }
+        if (PATH_VISIT_EVENTS.equals(uri)) {
+            return Bandwidth.classic(
+                    LIMIT_VISIT_EVENTS_PER_MIN,
+                    Refill.intervally(LIMIT_VISIT_EVENTS_PER_MIN, Duration.ofMinutes(1)));
         }
         if (PATH_VISITS.equals(uri)) {
             return Bandwidth.classic(

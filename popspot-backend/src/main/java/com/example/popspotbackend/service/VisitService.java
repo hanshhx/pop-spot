@@ -1,7 +1,9 @@
 package com.example.popspotbackend.service;
 
 import com.example.popspotbackend.dto.VisitStatsDto;
+import com.example.popspotbackend.entity.VisitEvent;
 import com.example.popspotbackend.entity.VisitLog;
+import com.example.popspotbackend.repository.VisitEventRepository;
 import com.example.popspotbackend.repository.VisitLogRepository;
 import java.net.URI;
 import java.time.LocalDate;
@@ -29,6 +31,7 @@ public class VisitService {
             Set.of("popspot.co.kr", "localhost", "127.0.0.1");
 
     private final VisitLogRepository visitLogRepository;
+    private final VisitEventRepository visitEventRepository;
 
     @Value("${popspot.visit-log.retention-days:90}")
     private int retentionDays;
@@ -49,6 +52,57 @@ public class VisitService {
                         .userAgent(safeUa)
                         .referrerHost(normalizeReferrerHost(referrer))
                         .build());
+    }
+
+    /**
+     * 방문 안에서 일어난 행동 하나를 남긴다.
+     *
+     * <p>종류가 목록에 없으면 <b>조용히 버린다.</b> 클라이언트가 보낸 값이라 무엇이든 올 수 있는데, 그대로 저장하면 오타가 새 종류로 쌓여 집계가 갈라지고 예상
+     * 못 한 값이 DB 에 들어간다. 400 으로 알려 주지 않는 이유는 이것이 비콘이기 때문이다 — 화면이 실패를 처리할 방법도, 처리할 이유도 없다.
+     */
+    @Transactional
+    public void recordEvent(
+            String visitorId,
+            String sessionId,
+            String eventType,
+            Long popupId,
+            String path,
+            boolean guest) {
+        if (visitorId == null || visitorId.isBlank()) return;
+        if (eventType == null || !VisitEvent.ALLOWED_TYPES.contains(eventType)) return;
+
+        visitEventRepository.save(
+                VisitEvent.builder()
+                        .visitorId(clamp(visitorId, 64))
+                        .sessionId(sessionId == null ? null : clamp(sessionId, 64))
+                        .eventType(eventType)
+                        .popupId(popupId)
+                        .path(path == null ? null : clamp(path, 255))
+                        .guest(guest)
+                        .build());
+    }
+
+    /** 많이 열린 팝업 — 누른 횟수와 누른 사람 수를 함께 준다. */
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> topOpenedPopups(int days, int limit) {
+        int safeDays = days <= 0 ? 7 : Math.min(days, MAX_LOOKBACK_DAYS);
+        int safeLimit = limit <= 0 ? 20 : Math.min(limit, 100);
+        LocalDateTime since = LocalDate.now().minusDays(safeDays - 1L).atStartOfDay();
+
+        return visitEventRepository.topPopups(since, VisitEvent.TYPE_POPUP_OPEN, safeLimit).stream()
+                .map(
+                        r -> {
+                            Map<String, Object> m = new LinkedHashMap<>();
+                            m.put("popupId", num(r[0]));
+                            // 지워진 팝업이면 이름이 없다. 화면이 id 만으로도 보여 준다.
+                            m.put("name", str(r[1]));
+                            m.put("opens", num(r[2]));
+                            // 같은 사람이 스무 번 들락거린 것과 스무 명이 한 번씩 본 것은
+                            // 전혀 다른 이야기다. 횟수만 세면 둘이 같아 보인다.
+                            m.put("visitors", num(r[3]));
+                            return m;
+                        })
+                .toList();
     }
 
     /**
@@ -178,13 +232,16 @@ public class VisitService {
     @Transactional
     public void deleteExpiredVisitLogs() {
         int safeRetentionDays = Math.max(1, retentionDays);
-        int deleted =
-                visitLogRepository.deleteByCreatedAtBefore(
-                        LocalDateTime.now().minusDays(safeRetentionDays));
-        if (deleted > 0) {
+        LocalDateTime cutoff = LocalDateTime.now().minusDays(safeRetentionDays);
+        int deleted = visitLogRepository.deleteByCreatedAtBefore(cutoff);
+        // 행동 기록도 같은 기준으로 지운다. 따로 두면 한쪽만 정리돼 방침의 90일 약속이
+        // 반만 지켜진다 — 그 어긋남은 아무 데도 드러나지 않는다.
+        int deletedEvents = visitEventRepository.deleteOlderThan(cutoff);
+        if (deleted > 0 || deletedEvents > 0) {
             log.info(
-                    "[VisitLog] 보관기간 초과 로그 삭제 count={} retentionDays={}",
+                    "[VisitLog] 보관기간 초과 삭제 방문={} 행동={} retentionDays={}",
                     deleted,
+                    deletedEvents,
                     safeRetentionDays);
         }
     }

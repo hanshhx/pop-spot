@@ -1,4 +1,5 @@
 import type { AdminReferrer, AdminTodayPath, AdminVisitStats } from '@/features/admin/types';
+import { PopupOpensPanel } from '@/features/admin/PopupOpensPanel';
 
 type VisitsTabProps = {
   visitStats: AdminVisitStats;
@@ -11,6 +12,9 @@ export function VisitsTab({ visitStats, todayPaths, referrers, loadVisitStats }:
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <p className="text-sm text-muted-foreground">익명 집계 · IP 미저장</p>
+
+      {/* 스스로 불러온다 — 기간을 자기가 관리하므로 부모를 거치면 상태가 두 곳에 나뉜다. */}
+      <PopupOpensPanel />
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         {[
           { label: '오늘 방문자', value: visitStats.todayVisitors, sub: '고유' },
