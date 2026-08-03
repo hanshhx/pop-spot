@@ -1,11 +1,50 @@
-import { Users } from 'lucide-react';
+'use client';
+
+import { useState } from 'react';
+import { Users, Eye } from 'lucide-react';
 import type { AdminUser } from '@/features/admin/types';
+
+import { apiFetch } from '@/lib/api';
+import { notifyError } from '@/lib/notify';
 
 type MembersTabProps = {
   users: AdminUser[];
 };
 
 export function MembersTab({ users }: MembersTabProps) {
+  /**
+   * 해제해서 받아 온 전체 주소. 화면을 벗어나면 사라진다 — 어디에도 저장하지 않는다.
+   *
+   * <p>해제는 한 건씩이고 서버에 감사 기록이 남는다. 그래서 "일단 다 열어 두고 보기" 가 안 되고,
+   * 정말 필요한 건만 열게 된다. 그게 이 버튼의 목적이다.
+   */
+  const [revealed, setRevealed] = useState<Record<string, string>>({});
+  const [busy, setBusy] = useState<string | null>(null);
+
+  const reveal = async (userId: string) => {
+    if (busy) return;
+    setBusy(userId);
+    try {
+      const res = await apiFetch(`/api/admin/reveal/users/${userId}/email`, { method: 'POST' });
+      if (!res.ok) {
+        notifyError({
+          title: '주소를 열지 못했습니다',
+          text:
+            res.status === 429
+              ? '너무 자주 열었습니다. 잠시 뒤 다시 시도해 주세요.'
+              : await res.text(),
+        });
+        return;
+      }
+      const data = (await res.json()) as { email: string };
+      setRevealed((prev) => ({ ...prev, [userId]: data.email }));
+    } catch {
+      notifyError({ title: '서버에 연결하지 못했습니다', text: '' });
+    } finally {
+      setBusy(null);
+    }
+  };
+
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
       <p className="text-sm font-bold text-muted-foreground mb-4 flex items-center gap-2">
@@ -42,7 +81,25 @@ export function MembersTab({ users }: MembersTabProps) {
                       )}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-muted-foreground">{u.email}</td>
+                  <td className="px-4 py-3 text-muted-foreground">
+                    {revealed[u.userId] ? (
+                      <span className="font-mono text-xs">{revealed[u.userId]}</span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5">
+                        <span className="font-mono text-xs">{u.emailMasked ?? '-'}</span>
+                        <button
+                          type="button"
+                          onClick={() => reveal(u.userId)}
+                          disabled={busy === u.userId}
+                          title="전체 주소 보기 (기록에 남습니다)"
+                          aria-label="전체 주소 보기"
+                          className="shrink-0 rounded p-0.5 transition-colors hover:text-foreground disabled:opacity-40"
+                        >
+                          <Eye size={13} aria-hidden />
+                        </button>
+                      </span>
+                    )}
+                  </td>
                   <td className="px-4 py-3">
                     <span className="text-[11px] px-2 py-0.5 rounded-full border border-[var(--color-border)]">
                       {u.provider || 'local'}

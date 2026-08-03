@@ -6,6 +6,7 @@ import com.example.popspotbackend.dto.SignupRequestDto;
 import com.example.popspotbackend.entity.AdminAuditLog;
 import com.example.popspotbackend.entity.User;
 import com.example.popspotbackend.exception.ResourceNotFoundException;
+import com.example.popspotbackend.config.PiiMask;
 import com.example.popspotbackend.repository.UserRepository;
 import com.example.popspotbackend.service.admin.AdminAuditService;
 import com.example.popspotbackend.service.auth.TotpAuthService;
@@ -253,7 +254,9 @@ public class AuthService {
                         .findByNicknameAndPhoneNumber(nickname, phoneNumber)
                         .orElseThrow(() -> new ResourceNotFoundException("일치하는 회원 정보가 없습니다."));
         Map<String, String> result = new HashMap<>();
-        result.put("email", maskEmail(user.getEmail()));
+        // 응답용 마스킹은 PiiMask 하나로 모은다. 전에는 이 클래스에만 규칙이 따로 있어서
+        // 아이디찾기 화면과 관리자 화면이 같은 주소를 다르게 가렸다(별표 개수까지 달랐다).
+        result.put("email", PiiMask.email(user.getEmail()));
         result.put("provider", user.getProvider() == null ? PROVIDER_LOCAL : user.getProvider());
         return result;
     }
@@ -344,13 +347,5 @@ public class AuthService {
                 .setExpiration(new Date(System.currentTimeMillis() + accessTokenValidityMs))
                 .signWith(signingKey, SignatureAlgorithm.HS256)
                 .compact();
-    }
-
-    private String maskEmail(String email) {
-        int at = email == null ? -1 : email.indexOf('@');
-        if (at <= 0) return "***";
-        String local = email.substring(0, at);
-        String visible = local.substring(0, Math.min(2, local.length()));
-        return visible + "***" + email.substring(at);
     }
 }

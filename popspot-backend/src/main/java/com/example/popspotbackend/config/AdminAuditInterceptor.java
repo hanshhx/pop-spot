@@ -69,6 +69,15 @@ public class AdminAuditInterceptor implements AsyncHandlerInterceptor {
 
     private final AdminAuditService auditService;
 
+    /**
+     * 컨트롤러가 직접 감사 기록을 남겼을 때 표시한다 — 인터셉터가 같은 요청을 또 남기지 않게 한다.
+     *
+     * <p>개인정보 해제처럼 <b>응답보다 먼저, 실패하면 거절</b>해야 하는 기록은 인터셉터에 맡길 수 없다. 인터셉터는 응답이 나간 뒤에 돌고 실패를 삼키기 때문이다.
+     */
+    public static void markRecorded(HttpServletRequest request) {
+        if (request != null) request.setAttribute(RECORDED, Boolean.TRUE);
+    }
+
     /** 일괄 처리 컨트롤러가 처리 건수를 남길 때 쓴다. 예: {@code addDetail(request, "삭제=12")} */
     public static void addDetail(HttpServletRequest request, String text) {
         if (request == null || text == null || text.isBlank()) return;

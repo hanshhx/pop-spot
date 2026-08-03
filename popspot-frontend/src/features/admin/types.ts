@@ -38,7 +38,13 @@ export interface AdminMatePost {
 
 export interface AdminUser {
   userId: string;
-  email: string;
+  /**
+   * 가려진 이메일 (`ho****@naver.com`).
+   *
+   * <p>이름이 `email` 이 아닌 이유 — 이 값은 진짜 주소가 아니다. `email` 로 두면 다음 사람이
+   * 그대로 메일 발송이나 대조에 쓴다. 전체 주소가 필요하면 해제 버튼을 눌러 받는다.
+   */
+  emailMasked: string | null;
   nickname: string;
   provider?: string | null;
   role: string;

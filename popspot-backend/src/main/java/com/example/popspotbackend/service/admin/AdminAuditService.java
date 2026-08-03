@@ -109,6 +109,33 @@ public class AdminAuditService {
         }
     }
 
+    /**
+     * 기록에 실패하면 <b>예외를 던진다.</b> 개인정보 해제처럼 "기록이 남는다는 것" 자체가 존재 이유인 동작에만 쓴다.
+     *
+     * <p>{@link #record} 는 실패를 삼킨다 — 감사 기록 때문에 팝업 승인이 실패하면 곁다리가 본체를 망치는 것이라 그 판단이 맞다. 하지만 해제는 다르다.
+     * 기록이 실패했는데 이메일은 나가는 조합이 <b>가장 나쁜 결과</b>다: 유출은 일어났고 흔적은 없다. 그럴 바에는 해제를 거절하는 편이 낫다.
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void recordOrThrow(
+            String actorId,
+            String action,
+            String targetType,
+            String targetId,
+            boolean success,
+            Integer statusCode,
+            String detail) {
+        repository.save(
+                AdminAuditLog.builder()
+                        .actorId(clamp(actorId, ACTOR_MAX))
+                        .action(clamp(action, ACTION_MAX))
+                        .targetType(clamp(targetType, TARGET_TYPE_MAX))
+                        .targetId(safeTargetId(targetId))
+                        .success(success)
+                        .statusCode(statusCode == null ? null : statusCode.shortValue())
+                        .detail(clamp(detail, DETAIL_MAX))
+                        .build());
+    }
+
     /** 권한 거부(403). 계정당 {@link #DENIED_INTERVAL_MS} 에 한 줄로 접고, 억제된 횟수는 다음 기록에 합산한다. */
     public void recordAccessDenied(String actorId, String action) {
         String key = actorId == null || actorId.isBlank() ? "(anonymous)" : actorId;
