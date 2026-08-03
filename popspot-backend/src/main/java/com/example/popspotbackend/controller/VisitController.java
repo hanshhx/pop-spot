@@ -122,8 +122,18 @@ public class VisitController {
         "faraday",
         "mechanize",
         "httpie",
-        "postman"
+        "postman",
+        // 데스크톱 앱 껍데기. 크롬 UA 를 그대로 쓰지만 사람의 웹 방문이 아니다.
+        "electron/"
     };
+
+    /**
+     * 실제 브라우저 UA 의 최소 길이.
+     *
+     * <p>사람이 쓰는 브라우저는 플랫폼·엔진·버전이 줄줄이 붙어 예외 없이 이보다 길다. {@code "Mozilla/5.0"} 만 흉내 낸 짧은 UA 는 목록에 없는
+     * 도구다 — 이름을 하나씩 추가하는 방식은 새 도구가 나올 때마다 뚫리므로, 구조로 거르는 검사를 함께 둔다.
+     */
+    private static final int MIN_REAL_BROWSER_UA_LENGTH = 40;
 
     private final VisitService visitService;
 
@@ -155,6 +165,24 @@ public class VisitController {
         String low = ua.toLowerCase();
         // 실제 브라우저는 예외 없이 "Mozilla/5.0" 으로 시작 → 없으면 스크립트/라이브러리로 간주.
         if (!low.contains("mozilla")) return true;
+
+        // 이름 목록만으로는 새 도구가 나올 때마다 뚫린다. 구조로도 거른다 —
+        // 진짜 브라우저 UA 는 플랫폼·엔진·버전이 줄줄이 붙어 반드시 길다.
+        if (low.length() < MIN_REAL_BROWSER_UA_LENGTH) return true;
+
+        // 브라우저 이름이 하나도 없으면 Mozilla 만 흉내 낸 것이다.
+        //
+        // naver·kakao 를 반드시 포함해야 한다. 네이버 앱의 아이폰 인앱 브라우저는
+        //   "... Mobile/15E148 NAVER(inapp; search; ...)"
+        // 처럼 safari·chrome 토큰이 <b>하나도 없다</b>. 빼면 네이버 앱으로 들어온 방문이 통째로
+        // 기록되지 않고, 그 사실이 아무 데도 드러나지 않는다 — 나중에 "유입이 줄었네" 하고
+        // 엉뚱한 곳을 의심하게 된다. (검사 순서상 여기를 통과해도 아래 마커 목록이 다시 보므로
+        // 네이버 크롤러 Yeti 같은 것은 그대로 걸린다.)
+        if (!low.matches(
+                ".*(chrome|crios|firefox|fxios|safari|edg|samsungbrowser|whale|opr|trident|msie|naver|kakao).*")) {
+            return true;
+        }
+
         for (String marker : BOT_UA_MARKERS) {
             if (low.contains(marker)) return true;
         }
