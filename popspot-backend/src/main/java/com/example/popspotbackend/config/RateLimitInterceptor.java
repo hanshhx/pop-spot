@@ -83,6 +83,18 @@ public class RateLimitInterceptor implements HandlerInterceptor {
     private static final String BUCKET_TAKEDOWN = "takedown";
 
     /**
+     * 개인정보 해제 — 관리자 <b>계정당</b> 시간당 한도.
+     *
+     * <p>버킷 이름을 고정하는 이유: 경로에 회원 id 가 들어가므로 URI 를 키로 쓰면 <b>회원 한 명당</b> 한도가 되어, 명부를 통째로 훑는 데 아무 제약이
+     * 없다. takedown 이 이미 같은 이유로 고정 버킷을 쓴다.
+     */
+    private static final String BUCKET_PII_REVEAL = "pii-reveal";
+
+    private static final String PII_REVEAL_PATH_PREFIX = "/api/admin/reveal/";
+
+    private static final int LIMIT_PII_REVEAL_PER_HOUR = 60;
+
+    /**
      * 음악 재생실패 신고 핸들러 메서드명 — {@link MusicController#markPlaybackFailed}.
      *
      * <p>takedown 과 똑같은 이유로 URI 문자열이 아니라 핸들러로 판정한다. {@code @PathVariable Long trackId} 는 {@code
@@ -234,6 +246,12 @@ public class RateLimitInterceptor implements HandlerInterceptor {
         } else if (isPlaybackFailed(handler)) {
             limit = playbackFailedBandwidth();
             bucketName = BUCKET_PLAYBACK_FAILED;
+        } else if (uri.startsWith(PII_REVEAL_PATH_PREFIX)) {
+            limit =
+                    Bandwidth.classic(
+                            LIMIT_PII_REVEAL_PER_HOUR,
+                            Refill.intervally(LIMIT_PII_REVEAL_PER_HOUR, Duration.ofHours(1)));
+            bucketName = BUCKET_PII_REVEAL;
         } else {
             limit = resolveLimit(uri);
             bucketName = uri;
@@ -245,7 +263,15 @@ public class RateLimitInterceptor implements HandlerInterceptor {
             limit = FALLBACK_LIMIT;
         }
 
-        String key = bucketName + "|" + rateLimitIdentity(request, uri);
+        // 개인정보 해제만 <b>계정 단독</b>으로 센다. 다른 관리자 경로는 계정+IP 인데, 그러면 IP 를
+        // 바꿀 때마다 새 버킷이 생겨 한도가 사실상 없어진다. 평소에는 IP 를 섞는 편이 나은데
+        // (같은 IP 의 여러 계정이 각자 한도를 갖는 것을 막는다), 이 경로만은 <b>공격자가 늘릴 수
+        // 있는 축</b>인 IP 를 키에서 빼야 "계정당 시간당 60건" 이 실제로 성립한다.
+        String identity =
+                BUCKET_PII_REVEAL.equals(bucketName)
+                        ? requireAccount()
+                        : rateLimitIdentity(request, uri);
+        String key = bucketName + "|" + identity;
         Bandwidth effectiveLimit = limit;
         Bucket bucket = buckets.get(key, k -> Bucket.builder().addLimit(effectiveLimit).build());
 
@@ -274,6 +300,17 @@ public class RateLimitInterceptor implements HandlerInterceptor {
 
         String account = currentAccountId();
         return account == null ? ip : account + "@" + ip;
+    }
+
+    /**
+     * 해제 경로의 버킷 키 — 계정만. 계정을 못 구하면 IP 로 물러서지 않고 고정 문자열을 쓴다.
+     *
+     * <p>물러서면 비인증 요청 전체가 각자 IP 버킷을 갖게 되어 한도가 무의미해진다. 이 경로는 {@code @PreAuthorize} 로 관리자만 오므로 실제로는 항상
+     * 계정이 있고, 없다면 그 자체가 비정상이라 전부 한 버킷으로 묶는 편이 안전하다.
+     */
+    private String requireAccount() {
+        String account = currentAccountId();
+        return account == null ? "(no-account)" : account;
     }
 
     /** 로그인한 사용자 id. 비로그인·익명이면 null — Spring 의 익명 인증은 이름이 anonymousUser 다. */

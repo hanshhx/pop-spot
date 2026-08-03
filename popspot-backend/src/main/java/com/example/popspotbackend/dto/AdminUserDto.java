@@ -1,5 +1,6 @@
 package com.example.popspotbackend.dto;
 
+import com.example.popspotbackend.config.PiiMask;
 import com.example.popspotbackend.entity.User;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.time.LocalDateTime;
@@ -19,6 +20,10 @@ import java.time.LocalDateTime;
  *   <li>{@code stampCount} · {@code likeCount} — 활동 카운터. 대응하는 운영 동작이 코드에 없다.
  * </ul>
  *
+ * <p>이메일은 가려서 내보낸다({@code emailMasked}). 필드 이름을 {@code email} 그대로 두지 않는 이유는, 그러면 다음 사람이 이 값을 진짜 주소로
+ * 알고 메일 발송에 쓰기 때문이다. 이름을 바꾸면 그런 코드가 <b>컴파일 단계에서 시끄럽게 깨진다</b> — 조용히 이상하게 도는 것보다 낫다. 전체 주소가 꼭 필요할 때는
+ * 해제 엔드포인트를 쓴다.
+ *
  * <p>반대로 {@code premiumExpiryDate} 는 <b>남긴다.</b> {@code isPremium} 이 계산값이 아니라 저장된 칸이고, 만료 처리는 회원이
  * 자기 마이페이지를 열 때만 돌기 때문이다({@code MyPageService.expirePremiumIfNeeded}). 즉 만료됐는데 그 뒤로 안 들어온 회원은
  * {@code isPremium} 이 참으로 남아 있다 — 결제 문의 때 이 값만 보면 틀린 답을 하게 된다. 만료일이 있어야 진짜 상태를 안다. 개인 식별에는 아무 기여도
@@ -26,7 +31,7 @@ import java.time.LocalDateTime;
  */
 public record AdminUserDto(
         String userId,
-        String email,
+        String emailMasked,
         String nickname,
         String provider,
         String role,
@@ -38,7 +43,7 @@ public record AdminUserDto(
     public static AdminUserDto from(User u) {
         return new AdminUserDto(
                 u.getUserId(),
-                u.getEmail(),
+                PiiMask.email(u.getEmail()),
                 u.getNickname(),
                 u.getProvider() == null ? "LOCAL" : u.getProvider(),
                 u.getRole(),
