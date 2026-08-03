@@ -23,6 +23,7 @@ import { MembersTab } from '@/features/admin/tabs/MembersTab';
 import { VisitsTab } from '@/features/admin/tabs/VisitsTab';
 import { VisitorsTab } from '@/features/admin/tabs/VisitorsTab';
 import { AuditTab } from '@/features/admin/tabs/AuditTab';
+import { ReauthGate } from '@/features/admin/ReauthGate';
 import { FeedbackTab } from '@/features/admin/tabs/FeedbackTab';
 import { SystemTab } from '@/features/admin/tabs/SystemTab';
 import {
@@ -444,10 +445,26 @@ export default function AdminPage() {
     }
   };
 
+  /**
+   * 재확인이 필요해 막힌 작업.
+   *
+   * <p>서버가 428 로 답하면 확인 창을 띄우고, 확인이 끝나면 <b>그 작업을 그대로 다시</b> 실행한다.
+   * 사용자가 무엇을 하려 했는지 기억해 주지 않으면 "확인했는데 왜 아무 일도 안 일어나지" 가 된다.
+   */
+  const [pendingAction, setPendingAction] = useState<(() => Promise<void>) | null>(null);
+
+  /** 428(재확인 필요)이면 확인 창을 띄우고 참을 돌려준다 — 호출부는 거기서 멈추면 된다. */
+  const needsReauth = (res: Response, retry: () => Promise<void>) => {
+    if (res.status !== 428) return false;
+    setPendingAction(() => retry);
+    return true;
+  };
+
   const handleDeleteMatePost = async (id: number) => {
     if (!(await confirmAction({ text: '삭제하시겠습니까?', destructive: true }))) return;
     try {
       const res = await apiFetch(`/api/admin/mate-posts/${id}`, { method: 'DELETE' });
+      if (needsReauth(res, () => handleDeleteMatePost(id))) return;
       if (res.ok) {
         notifySuccess('삭제 완료');
         loadMatePosts();
@@ -489,6 +506,7 @@ export default function AdminPage() {
     if (!(await confirmAction({ text: '이 댓글을 삭제할까요?', destructive: true }))) return;
     try {
       const res = await apiFetch(`/api/admin/chat/${id}`, { method: 'DELETE' });
+      if (needsReauth(res, () => handleDeleteComment(id))) return;
       if (res.ok) {
         notifySuccess('삭제 완료');
         setComments((prev) => prev.filter((c) => c.id !== id));
@@ -723,6 +741,17 @@ export default function AdminPage() {
 
             {/* ===== 감사 로그 (스스로 불러온다 — 위 loadX 분기에 넣지 않는 이유) ===== */}
             {activeTab === 'AUDIT' && <AuditTab />}
+
+            {/* 되돌릴 수 없는 작업이 428 로 막히면 뜬다. 확인이 끝나면 그 작업을 그대로 다시 실행한다. */}
+            <ReauthGate
+              open={pendingAction !== null}
+              onClose={() => setPendingAction(null)}
+              onConfirmed={() => {
+                const retry = pendingAction;
+                setPendingAction(null);
+                retry?.();
+              }}
+            />
 
             {/* ===== 시스템 (서버 지표 + 로그) ===== */}
             {activeTab === 'SYSTEM' && (
