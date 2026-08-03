@@ -60,6 +60,7 @@ public class AdminAuditService {
     private static final int ACTION_MAX = 120;
     private static final int TARGET_TYPE_MAX = 30;
     private static final int DETAIL_MAX = 200;
+    private static final int ACTOR_IP_MAX = 45;
 
     private final AdminAuditLogRepository repository;
 
@@ -74,6 +75,18 @@ public class AdminAuditService {
                     .expireAfterWrite(DENIED_CACHE_TTL)
                     .build();
 
+    /** 기록 한 건 — 접속지 없이(스케줄러 등 사람이 아닌 주체). */
+    public void record(
+            String actorId,
+            String action,
+            String targetType,
+            String targetId,
+            boolean success,
+            Integer statusCode,
+            String detail) {
+        record(actorId, action, targetType, targetId, success, statusCode, detail, null);
+    }
+
     /** 기록 한 건. 실패해도 예외를 밖으로 내보내지 않는다. */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void record(
@@ -83,7 +96,8 @@ public class AdminAuditService {
             String targetId,
             boolean success,
             Integer statusCode,
-            String detail) {
+            String detail,
+            String actorIp) {
         try {
             repository.save(
                     AdminAuditLog.builder()
@@ -94,6 +108,7 @@ public class AdminAuditService {
                             .success(success)
                             .statusCode(statusCode == null ? null : statusCode.shortValue())
                             .detail(clamp(detail, DETAIL_MAX))
+                            .actorIp(clamp(actorIp, ACTOR_IP_MAX))
                             .build());
         } catch (RuntimeException e) {
             // 여기서 '누가' 를 버리면 안 된다. 감사 로그가 답해야 할 첫 질문이 그것인데,

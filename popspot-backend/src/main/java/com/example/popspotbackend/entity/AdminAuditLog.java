@@ -110,6 +110,17 @@ public class AdminAuditLog {
     @Column(name = "detail", length = 200)
     private String detail;
 
+    /**
+     * 접속지 정보 — <b>정밀도를 한 단계 낮춘</b> IP.
+     *
+     * <p>개인정보처리시스템 접속기록에는 접속지가 필요하다. 그런데 이 서비스는 방문 로그에 IP를 저장하지 않는 것을 방침으로 삼아 왔다. 그 사이에서, 접속지를 알아볼
+     * 수 있을 만큼만 남기고 그 이상은 버린다({@code 119.194.113.214} → {@code 119.194.113.0}).
+     *
+     * <p>스케줄러가 남긴 기록에는 없다 — 사람의 접속이 아니다.
+     */
+    @Column(name = "actor_ip", length = 45)
+    private String actorIp;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
