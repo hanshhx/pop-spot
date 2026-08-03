@@ -15,6 +15,8 @@ import {
 import { apiFetch } from '@/lib/api';
 import { notify } from '@/lib/notify';
 import { useLocale } from '@/lib/i18n';
+import { localizedPath } from '@/lib/localePath';
+import { grantExternalMediaConsent, useExternalMediaConsent } from '@/lib/externalMediaConsent';
 import { useSpotifyAuth } from '@/features/music/useSpotifyAuth';
 import type { MatchResult, MusicTrack } from '@/types/music';
 import { useYouTubePlayer, describeYouTubeError } from './useYouTubePlayer';
@@ -43,11 +45,10 @@ type PlaybackEngine = 'spotify' | 'preview' | 'youtube';
 type Mode = 'hidden' | 'mini' | 'full';
 
 const AUTO_QUEUE_LIMIT = 8;
-
 const STAGE_FULL_CLASS =
-  'fixed left-1/2 top-[12vh] z-[110] aspect-video w-[92vw] max-w-[640px] -translate-x-1/2 overflow-hidden rounded-2xl shadow-2xl ring-1 ring-white/10';
+  'fixed left-1/2 top-[12vh] z-[110] aspect-video min-h-[200px] w-[92vw] max-w-[640px] -translate-x-1/2 overflow-hidden rounded-2xl shadow-2xl ring-1 ring-white/10';
 const STAGE_MINI_CLASS =
-  'fixed bottom-36 right-3 z-[95] aspect-video w-[140px] sm:bottom-40 sm:right-4 sm:w-[180px] overflow-hidden rounded-xl shadow-2xl ring-1 ring-white/15';
+  'fixed bottom-36 right-3 z-[95] h-[200px] w-[200px] overflow-hidden rounded-xl shadow-2xl ring-1 ring-white/15 sm:bottom-40 sm:right-4';
 const STAGE_HIDDEN_CLASS = 'fixed -left-[9999px] -top-[9999px] h-0 w-0 overflow-hidden';
 
 interface MusicPlayerState {
@@ -112,21 +113,33 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
 
   // 재생이 막혀 곡을 건너뛸 때 토스트로 이유를 알린다 — 그 문구만 언어를 탄다.
   const { t, locale } = useLocale();
+  const persistedExternalMediaConsent = useExternalMediaConsent();
+  const [sessionExternalMediaConsent, setSessionExternalMediaConsent] = useState(false);
+  const externalMediaConsent = persistedExternalMediaConsent || sessionExternalMediaConsent;
+
+  const acceptExternalMediaPolicy = useCallback(() => {
+    try {
+      grantExternalMediaConsent();
+    } catch {
+      // 저장이 막혀도 현재 탭에서는 사용자가 누른 선택을 존중한다.
+    }
+    setSessionExternalMediaConsent(true);
+  }, []);
 
   /**
    * v2.21-S13 — 재생 엔진 결정.
    *
    * <ul>
-   *   <li>spotify — Premium 연결 + 데스크탑 + spotify trackId (itunesTrackId 가 실제 Spotify ID)
+   *   <li>spotify — Premium 연결 + 데스크탑 + 검증된 Spotify trackId
    *   <li>preview — Spotify preview_url 있음 (Free / 미연결 / 모바일)
    *   <li>youtube — 위 둘 다 불가 (preview 없는 인디 곡 등)
    * </ul>
    *
    * <p>SDK 는 데스크탑 전용이라 모바일이면 spotify 엔진 제외.
    */
-  // v2.21-S13.1 — 실제 Spotify trackId 는 spotifyTrackId 필드. itunesTrackId 는 레거시(null).
-  // 둘 중 있는 값 사용 (옛 캐시 데이터 호환).
-  const spotifyTrackId = current?.spotifyTrackId || current?.itunesTrackId || null;
+  // Spotify와 Apple iTunes의 곡 번호는 서로 호환되지 않는다. 전용 필드가 없는 과거 데이터는
+  // Spotify 곡으로 추측하지 않고 preview 또는 YouTube 경로로 보낸다.
+  const spotifyTrackId = current?.spotifyTrackId || null;
 
   const engine: PlaybackEngine = useMemo(() => {
     if (!current) return 'youtube';
@@ -141,7 +154,8 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
   }, [current, spotifyTrackId, spotifyAuth.connected, spotifyAuth.isPremium]);
 
   const yt = useYouTubePlayer({
-    videoId: engine === 'youtube' ? (current?.youtubeVideoId ?? null) : null,
+    videoId:
+      engine === 'youtube' && externalMediaConsent ? (current?.youtubeVideoId ?? null) : null,
     onEnded: () => playNextFromQueue(),
     onError: (code) => {
       const failed = current;
@@ -374,6 +388,24 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
     ],
   );
 
+  const mediaConsentCopy = {
+    ko: {
+      title: '외부 영상 재생 동의',
+      body: 'YouTube에서 영상과 접속 정보를 불러옵니다. 개인정보 처리방침과 YouTube 이용약관을 확인한 뒤 재생해주세요.',
+      accept: '동의하고 재생',
+    },
+    en: {
+      title: 'External video consent',
+      body: 'YouTube will receive the video request and connection information. Review the privacy policy and YouTube Terms before playing.',
+      accept: 'Agree and play',
+    },
+    ja: {
+      title: '外部動画の再生に同意',
+      body: 'YouTubeに動画リクエストと接続情報が送信されます。プライバシーポリシーとYouTube利用規約を確認してから再生してください。',
+      accept: '同意して再生',
+    },
+  }[locale];
+
   return (
     <MusicPlayerContext.Provider value={value}>
       {children}
@@ -391,7 +423,41 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
         } transition-all duration-300 ease-out bg-black`}
         aria-hidden={mode === 'hidden' || engine !== 'youtube'}
       >
-        <div ref={player.containerRef} className="absolute inset-0" />
+        <div
+          ref={player.containerRef}
+          className={`absolute inset-0 ${externalMediaConsent ? '' : 'hidden'}`}
+        />
+        {engine === 'youtube' && current && !externalMediaConsent && mode !== 'hidden' && (
+          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 bg-ink-950 p-4 text-center text-cream-100">
+            <strong className="text-sm">{mediaConsentCopy.title}</strong>
+            <p className="text-[11px] leading-relaxed text-cream-100/70">{mediaConsentCopy.body}</p>
+            <div className="flex flex-wrap justify-center gap-2 text-[10px]">
+              <a
+                href={localizedPath('/privacy', locale)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline"
+              >
+                Privacy
+              </a>
+              <a
+                href="https://www.youtube.com/t/terms"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline"
+              >
+                YouTube Terms
+              </a>
+            </div>
+            <button
+              type="button"
+              onClick={acceptExternalMediaPolicy}
+              className="rounded-full bg-lime-300 px-3 py-1.5 text-xs font-bold text-ink-900"
+            >
+              {mediaConsentCopy.accept}
+            </button>
+          </div>
+        )}
       </div>
     </MusicPlayerContext.Provider>
   );

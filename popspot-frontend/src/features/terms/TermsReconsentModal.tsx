@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { FileText, LogOut } from 'lucide-react';
+import { Check, FileText, LogOut } from 'lucide-react';
 
 import { apiFetch } from '@/lib/api';
 import { useLocale } from '@/lib/i18n';
@@ -20,6 +20,11 @@ import {
 interface TermsStatus {
   currentVersion: string;
   agreedVersion: string | null;
+  currentTermsVersion: string;
+  currentPrivacyVersion: string;
+  agreedTermsVersion: string | null;
+  agreedPrivacyVersion: string | null;
+  age14OrOlderVerified: boolean;
   needsReConsent: boolean;
 }
 
@@ -44,6 +49,9 @@ export function TermsReconsentModal({ enabled, onDecline }: TermsReconsentModalP
   const [open, setOpen] = useState(false);
   const [status, setStatus] = useState<TermsStatus | null>(null);
   const [accepting, setAccepting] = useState(false);
+  const [declining, setDeclining] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [agreements, setAgreements] = useState({ age: false, terms: false, privacy: false });
 
   useEffect(() => {
     if (!enabled) return;
@@ -67,19 +75,55 @@ export function TermsReconsentModal({ enabled, onDecline }: TermsReconsentModalP
   const handleAccept = async () => {
     if (accepting) return;
     setAccepting(true);
+    setError(null);
     try {
-      const res = await apiFetch('/api/v1/terms/accept', { method: 'POST' });
+      const res = await apiFetch('/api/v1/terms/accept', {
+        method: 'POST',
+        body: JSON.stringify({
+          age14OrOlder: agreements.age,
+          termsAccepted: agreements.terms,
+          privacyAccepted: agreements.privacy,
+        }),
+      });
       // 아래 catch 가 바로 삼키는 개발자용 메시지라 화면에 뜨지 않는다 — 사전에 넣지 않는다.
       if (!res.ok) throw new Error('동의 처리에 실패했습니다.');
       setOpen(false);
     } catch {
-      /* 실패 — 모달 유지 */
+      setError(
+        locale === 'en'
+          ? 'Could not save your choice. Please try again.'
+          : locale === 'ja'
+            ? '選択を保存できませんでした。もう一度お試しください。'
+            : '선택을 저장하지 못했습니다. 다시 시도해주세요.',
+      );
     } finally {
       setAccepting(false);
     }
   };
 
+  const handleDecline = async () => {
+    if (declining) return;
+    setDeclining(true);
+    setError(null);
+    try {
+      const res = await apiFetch('/api/v1/terms/decline', { method: 'POST' });
+      if (!res.ok) throw new Error('DECLINE_FAILED');
+      onDecline();
+    } catch {
+      setError(
+        locale === 'en'
+          ? 'Could not process your choice. Please try again.'
+          : locale === 'ja'
+            ? '選択を処理できませんでした。もう一度お試しください。'
+            : '선택을 처리하지 못했습니다. 다시 시도해주세요.',
+      );
+    } finally {
+      setDeclining(false);
+    }
+  };
+
   if (!status?.needsReConsent) return null;
+  const allAgreed = agreements.age && agreements.terms && agreements.privacy;
 
   return (
     <Dialog
@@ -99,12 +143,9 @@ export function TermsReconsentModal({ enabled, onDecline }: TermsReconsentModalP
         </DialogHeader>
 
         <div className="py-2 text-sm text-foreground space-y-3">
-          <p>
-            {t('terms.currentVersion')}{' '}
-            <strong className="text-lime-500">v{status.currentVersion}</strong>
-          </p>
-          <p className="text-muted-foreground text-xs">
-            {t('terms.agreedVersion')} v{status.agreedVersion ?? t('terms.noneAgreed')}
+          <p className="text-xs text-muted-foreground">
+            {t('terms.viewTerms')} v{status.currentTermsVersion} · {t('terms.viewPrivacy')} v
+            {status.currentPrivacyVersion}
           </p>
 
           <div className="flex flex-col gap-1.5 text-xs">
@@ -125,6 +166,40 @@ export function TermsReconsentModal({ enabled, onDecline }: TermsReconsentModalP
               <FileText className="size-3" aria-hidden /> {t('terms.viewPrivacy')}
             </Link>
           </div>
+
+          <div className="space-y-2 rounded-md border border-border p-3">
+            {[
+              { key: 'age' as const, label: t('signup.ageNotice') },
+              { key: 'terms' as const, label: t('signup.termsRequired') },
+              { key: 'privacy' as const, label: t('signup.privacyRequired') },
+            ].map((item) => (
+              <label key={item.key} className="flex cursor-pointer items-center gap-2 text-xs">
+                <input
+                  type="checkbox"
+                  className="sr-only"
+                  checked={agreements[item.key]}
+                  onChange={() =>
+                    setAgreements((previous) => ({
+                      ...previous,
+                      [item.key]: !previous[item.key],
+                    }))
+                  }
+                />
+                <span
+                  aria-hidden
+                  className={`flex size-4 shrink-0 items-center justify-center rounded border ${
+                    agreements[item.key]
+                      ? 'border-lime-400 bg-lime-400 text-ink-900'
+                      : 'border-border'
+                  }`}
+                >
+                  {agreements[item.key] && <Check className="size-3" />}
+                </span>
+                {item.label}
+              </label>
+            ))}
+          </div>
+          {error && <p className="text-xs font-semibold text-red-500">{error}</p>}
         </div>
 
         <DialogFooter className="flex flex-row gap-2 justify-end">
@@ -133,7 +208,8 @@ export function TermsReconsentModal({ enabled, onDecline }: TermsReconsentModalP
             variant="outline"
             size="sm"
             iconLeft={<LogOut className="size-3.5" aria-hidden />}
-            onClick={onDecline}
+            loading={declining}
+            onClick={handleDecline}
           >
             {t('terms.decline')}
           </Button>
@@ -142,6 +218,7 @@ export function TermsReconsentModal({ enabled, onDecline }: TermsReconsentModalP
             variant="primary"
             size="sm"
             loading={accepting}
+            disabled={!allAgreed}
             onClick={handleAccept}
           >
             {t('terms.accept')}

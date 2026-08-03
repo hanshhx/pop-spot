@@ -1,13 +1,13 @@
 /**
  * 음악 → 팝업 매칭 기능 타입.
  *
- * <p>{@link MusicTrack} 의 {@code itunesTrackId} 는 레거시 호환 필드명 — 실제로는 Spotify trackId 가
- * 들어간다 (v1.3 에서 Spotify 로 마이그레이션됨). DB 컬럼명 변경 없이 의미만 바뀐 케이스.
+ * <p>{@link MusicTrack} 의 {@code itunesTrackId} 와 {@code spotifyTrackId} 는 서로 다른 서비스의
+ * 식별자다. 어느 한쪽이 비어 있어도 다른 쪽의 값으로 대신 쓰거나 추측하지 않는다.
  */
 
 export interface MusicTrack {
   id: number;
-  /** 레거시 itunes_track_id 컬럼 — 대부분 null (v1.3 Spotify 마이그레이션 이후). */
+  /** Apple iTunes 곡 식별자. Spotify 재생·출처 링크에는 사용하지 않는다. */
   itunesTrackId?: string;
   /**
    * v2.21-S13 — 실제 Spotify trackId. 검색으로 들어온 트랙은 이 필드에 채워진다.

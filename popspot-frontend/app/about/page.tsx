@@ -74,9 +74,9 @@ const SECURITY_CARDS_KO: SecurityCard[] = [
   {
     Icon: Timer,
     title: '24시간 신고 응답',
-    shortDesc: 'Takedown · 즉시 노출 차단',
+    shortDesc: 'Takedown · 관리자 검토',
     detail:
-      '저작권 · 정보 오류 신고는 접수 즉시 노출이 차단되고, 24시간 안에 운영자 검토를 진행합니다. 악의적 takedown 방어를 위해 영구 삭제는 검토 후 별도 처리.',
+      '저작권 · 정보 오류 신고는 관리자 검토 대기열에 등록하고 24시간 안에 확인합니다. 명백한 권리 침해나 긴급 피해가 확인된 경우에만 검토 중 숨기며, 영구 삭제는 권리 관계 확인 후 처리합니다.',
     accent: 'rose',
   },
   {

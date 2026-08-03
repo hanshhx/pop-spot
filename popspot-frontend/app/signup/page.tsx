@@ -11,58 +11,10 @@ import { Button } from '@/components/ui/button';
 import { Input, Field } from '@/components/ui/input';
 import { useLocale } from '@/lib/i18n';
 import { localizedPath } from '@/lib/localePath';
+import { fetchPolicyVersions } from '@/lib/policyVersions';
 
 // 이메일 인증번호 유효 시간 카운트다운의 틱 주기 (1초).
 const COUNTDOWN_TICK_MS = 1000;
-
-// 생년월일 select 옵션 — 만 14세 이상 가입 정책에 맞춰 현재 연도 - 14 까지만 노출.
-const CURRENT_YEAR = new Date().getFullYear();
-const MIN_BIRTH_YEAR = 1930;
-const MAX_BIRTH_YEAR = CURRENT_YEAR - 14;
-const BIRTH_YEAR_OPTIONS: number[] = Array.from(
-  { length: MAX_BIRTH_YEAR - MIN_BIRTH_YEAR + 1 },
-  (_, i) => MAX_BIRTH_YEAR - i,
-);
-const BIRTH_MONTH_OPTIONS: number[] = Array.from({ length: 12 }, (_, i) => i + 1);
-const BIRTH_DAY_OPTIONS: number[] = Array.from({ length: 31 }, (_, i) => i + 1);
-
-interface BirthSelectProps {
-  ariaLabel: string;
-  placeholder: string;
-  value: string;
-  onChange: (v: string) => void;
-  options: number[];
-  suffix: string;
-}
-
-/** 생년월일 연/월/일 공용 select — 다크 테마 + suffix 부착. */
-function BirthSelect({
-  ariaLabel,
-  placeholder,
-  value,
-  onChange,
-  options,
-  suffix,
-}: BirthSelectProps) {
-  return (
-    <select
-      aria-label={ariaLabel}
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className="h-11 w-full rounded-md px-2 bg-ink-800 border border-cream-200/15 text-cream-200 text-sm text-center focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-    >
-      <option value="" className="bg-ink-800 text-cream-200/60">
-        {placeholder}
-      </option>
-      {options.map((n) => (
-        <option key={n} value={n} className="bg-ink-800 text-cream-200">
-          {n}
-          {suffix}
-        </option>
-      ))}
-    </select>
-  );
-}
 
 export default function SignupPage() {
   const router = useRouter();
@@ -76,8 +28,6 @@ export default function SignupPage() {
     password: '',
     passwordConfirm: '',
     name: '',
-    birthdate: '',
-    gender: 'M',
     phoneNumber: '',
     authCode: '',
   });
@@ -95,27 +45,12 @@ export default function SignupPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showPasswordConfirm, setShowPasswordConfirm] = useState(false);
 
-  // 생년월일 — 세 개의 select 를 분리 보관했다가 제출 직전 ISO 문자열로 합친다.
-  const [birthYear, setBirthYear] = useState('');
-  const [birthMonth, setBirthMonth] = useState('');
-  const [birthDay, setBirthDay] = useState('');
-
-  // 셋 다 선택되면 YYYY-MM-DD 형태로 formData.birthdate 동기화.
-  useEffect(() => {
-    if (birthYear && birthMonth && birthDay) {
-      const mm = String(birthMonth).padStart(2, '0');
-      const dd = String(birthDay).padStart(2, '0');
-      setFormData((prev) => ({ ...prev, birthdate: `${birthYear}-${mm}-${dd}` }));
-    } else {
-      setFormData((prev) => ({ ...prev, birthdate: '' }));
-    }
-  }, [birthYear, birthMonth, birthDay]);
-
   const [isAuthSent, setIsAuthSent] = useState(false);
   const [isAuthVerified, setIsAuthVerified] = useState(false);
   const [timer, setTimer] = useState(180);
 
   const [agreements, setAgreements] = useState({
+    age: false,
     terms: false,
     privacy: false,
   });
@@ -131,15 +66,13 @@ export default function SignupPage() {
     formData.passwordConfirm !== '' && formData.password !== formData.passwordConfirm;
   const isValidName = /^[a-zA-Z0-9가-힣]{2,8}$/.test(formData.name);
   const isValidPhone = /^010\d{8}$/.test(formData.phoneNumber);
-  const isValidBirthdate = formData.birthdate !== '';
-  const isAllAgreed = agreements.terms && agreements.privacy;
+  const isAllAgreed = agreements.age && agreements.terms && agreements.privacy;
 
   const isFormValid =
     isAuthVerified &&
     isValidPassword &&
     isPasswordMatch &&
     isValidName &&
-    isValidBirthdate &&
     isValidPhone &&
     isAllAgreed;
 
@@ -171,10 +104,10 @@ export default function SignupPage() {
 
   const handleAgreeAll = () => {
     const v = !isAllAgreed;
-    setAgreements({ terms: v, privacy: v });
+    setAgreements({ age: v, terms: v, privacy: v });
   };
 
-  const handleAgreeItem = (name: 'terms' | 'privacy') => {
+  const handleAgreeItem = (name: 'age' | 'terms' | 'privacy') => {
     setAgreements({ ...agreements, [name]: !agreements[name] });
   };
 
@@ -264,6 +197,19 @@ export default function SignupPage() {
       });
       return;
     }
+    // 지금 공개된 정책 버전을 서버에 물어 그대로 되돌려 보낸다. 화면에 버전을 박아 두면
+    // 배포 순서가 어긋나는 순간 신규 가입이 전부 실패한다 — 서버가 자기 버전과 정확히
+    // 일치할 때만 통과시키기 때문이다.
+    const versions = await fetchPolicyVersions();
+    if (!versions) {
+      await Swal.fire({
+        icon: 'error',
+        title: t('signup.retry'),
+        text: '약관 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.',
+      });
+      return;
+    }
+
     try {
       const res = await apiFetch('/api/v1/auth/signup', {
         method: 'POST',
@@ -272,6 +218,11 @@ export default function SignupPage() {
           password: formData.password,
           nickname: formData.name,
           phoneNumber: formData.phoneNumber,
+          age14OrOlder: agreements.age,
+          termsAccepted: agreements.terms,
+          privacyAccepted: agreements.privacy,
+          termsVersion: versions.termsVersion,
+          privacyVersion: versions.privacyVersion,
         }),
       });
       if (res.ok) {
@@ -529,68 +480,6 @@ export default function SignupPage() {
           />
         </Field>
 
-        {/* 생년월일 — 연 / 월 / 일 모두 select 로 통일 (유효성 사전 차단 + 입력 일관성). */}
-        <Field label={<span className="text-cream-200/70">{t('signup.birthdate')}</span>}>
-          <div className="grid grid-cols-3 gap-2">
-            <BirthSelect
-              ariaLabel={t('signup.year')}
-              placeholder={t('signup.year')}
-              value={birthYear}
-              onChange={setBirthYear}
-              options={BIRTH_YEAR_OPTIONS}
-              suffix={t('signup.yearSuffix')}
-            />
-            <BirthSelect
-              ariaLabel={t('signup.month')}
-              placeholder={t('signup.month')}
-              value={birthMonth}
-              onChange={setBirthMonth}
-              options={BIRTH_MONTH_OPTIONS}
-              suffix={t('signup.monthSuffix')}
-            />
-            <BirthSelect
-              ariaLabel={t('signup.day')}
-              placeholder={t('signup.day')}
-              value={birthDay}
-              onChange={setBirthDay}
-              options={BIRTH_DAY_OPTIONS}
-              suffix={t('signup.daySuffix')}
-            />
-          </div>
-        </Field>
-
-        {/* 성별 — 토글 */}
-        <Field label={<span className="text-cream-200/70">{t('signup.gender')}</span>}>
-          <div
-            className="inline-flex w-full rounded-md overflow-hidden border border-cream-200/15 bg-ink-800"
-            role="radiogroup"
-            aria-label={t('signup.gender')}
-          >
-            {[
-              { v: 'M', label: t('signup.male') },
-              { v: 'F', label: t('signup.female') },
-            ].map((g) => {
-              const active = formData.gender === g.v;
-              return (
-                <button
-                  key={g.v}
-                  type="button"
-                  role="radio"
-                  aria-checked={active}
-                  onClick={() => setFormData({ ...formData, gender: g.v })}
-                  className={`flex-1 h-11 text-sm font-medium transition-colors ${
-                    active
-                      ? 'bg-lime-300 text-ink-900 font-semibold'
-                      : 'text-cream-200/60 hover:text-cream-200'
-                  }`}
-                >
-                  {g.label}
-                </button>
-              );
-            })}
-          </div>
-        </Field>
-
         {/* 휴대전화 */}
         <Field
           label={<span className="text-cream-200/70">{t('signup.phone')}</span>}
@@ -625,7 +514,6 @@ export default function SignupPage() {
 
         {/* 약관 동의 */}
         <div className="bg-ink-800 p-4 rounded-md border border-cream-200/15 space-y-3 mt-6">
-          <p className="text-xs text-cream-200/60 pb-2 leading-relaxed">{t('signup.ageNotice')}</p>
           <label className="flex items-center gap-3 cursor-pointer pb-3 border-b border-cream-200/10 select-none">
             <input
               type="checkbox"
@@ -642,6 +530,24 @@ export default function SignupPage() {
               {isAllAgreed && <Check className="size-3 text-ink-900" />}
             </span>
             <span className="font-bold text-sm text-cream-200">{t('signup.agreeAll')}</span>
+          </label>
+
+          <label className="flex items-center gap-3 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              className="sr-only"
+              checked={agreements.age}
+              onChange={() => handleAgreeItem('age')}
+            />
+            <span
+              aria-hidden
+              className={`size-4 rounded border flex items-center justify-center transition-colors shrink-0 ${
+                agreements.age ? 'bg-lime-300 border-lime-300' : 'border-cream-200/30'
+              }`}
+            >
+              {agreements.age && <Check className="size-2.5 text-ink-900" />}
+            </span>
+            <span className="text-xs text-cream-200/60">{t('signup.ageNotice')}</span>
           </label>
 
           {[

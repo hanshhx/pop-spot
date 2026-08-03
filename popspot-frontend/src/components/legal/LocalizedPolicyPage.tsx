@@ -11,11 +11,11 @@ const COPY = {
     original: 'Read the Korean original',
     privacy: {
       title: 'Privacy Policy',
-      updated: 'Effective August 2, 2026',
+      updated: 'Effective August 10, 2026',
       sections: [
         [
           'Information we collect',
-          'Email, encrypted password, nickname and Korean mobile number for email sign-up; profile details supplied by Google, Kakao or Naver for social login; service activity such as saved pop-ups, stamps and played tracks; anonymous visit ID, page path, browser/device details and visit time. Visitor analytics do not store an IP address or member profile.',
+          'Email, encrypted password, nickname and Korean mobile number for email sign-up; profile details supplied by Google, Kakao or Naver for social login; the accepted Terms and Privacy Policy versions, consent time and confirmation that the user is at least 14; service activity such as saved pop-ups, stamps and played tracks; anonymous visit ID, page path, browser/device details and visit time. POP-SPOT does not collect a birth date or gender, and visitor analytics do not store an IP address or member profile.',
         ],
         [
           'Why we use it',
@@ -27,18 +27,18 @@ const COPY = {
         ],
         [
           'Service providers and overseas processing',
-          'POP-SPOT uses Google, Kakao, Naver, PortOne, Vercel and Sentry for login, search, payment, hosting and error monitoring. Only the information required for each task is sent.',
+          'POP-SPOT uses Google, Kakao, Naver, SK Telecom TMAP, PortOne, Vercel, Sentry, Groq, Spotify, Pexels, Apple, GitHub and FOSSGIS for login, search, payment, hosting, monitoring, music, images, map labels and route calculation. Only the information required for each task is sent. TMAP and OSRM receive start and destination coordinates only when a route is requested. The backend, database and uploaded files are stored on a dedicated server in South Korea.',
         ],
         [
           'Your choices and rights',
-          'You may view, correct or delete your information, withdraw consent, close your account, or ask how your information is handled. Contact the address below.',
+          'You may view, correct or delete your information, withdraw consent, close your account, revoke optional external-video consent in this policy page, or ask how your information is handled. Contact the address below.',
         ],
         ['Contact', 'Privacy officer: Kim Donghyun · reo4321@naver.com'],
       ],
     },
     terms: {
       title: 'Terms of Service',
-      updated: 'Last revised July 22, 2026',
+      updated: 'Last revised August 3, 2026 · Effective August 10, 2026',
       sections: [
         [
           'Pop-up information',
@@ -46,15 +46,19 @@ const COPY = {
         ],
         [
           'Original sources and copyright',
-          'POP-SPOT does not reproduce source articles in bulk. Use the source link on a pop-up detail page to check the original. Rights holders may request a correction or removal.',
+          'POP-SPOT does not directly fetch or reproduce the body of source articles. It organizes only the title, summary, link and publication date supplied by the search APIs. Use the source link on a pop-up detail page to check the original. Rights holders may request a correction or removal.',
         ],
         [
           'Reports and removal',
-          'A report temporarily blocks the disputed listing from public display. The operator reviews the request and normally responds within 24 hours. Permanent deletion requires review to prevent abusive reports.',
+          'A report enters an administrator review queue and is normally reviewed within 24 hours. A listing may be hidden during review only when a clear rights violation or urgent harm is confirmed. Permanent deletion requires review to prevent abusive reports.',
         ],
         [
           'External websites and reservations',
           'Official and reservation buttons open a third-party website. POP-SPOT does not control that site, its inventory, purchases, refunds or privacy practices.',
+        ],
+        [
+          'External music and video',
+          'Music and video features may use Spotify, Apple iTunes and YouTube. Available tracks link back to their original service. YouTube content is connected only after consent, and the provider’s own terms and privacy policy apply.',
         ],
         [
           'Member content',
@@ -73,11 +77,11 @@ const COPY = {
     original: '韓国語の原文を見る',
     privacy: {
       title: 'プライバシーポリシー',
-      updated: '施行日：2026年8月2日',
+      updated: '施行日：2026年8月10日',
       sections: [
         [
           '収集する情報',
-          'メール登録ではメールアドレス、暗号化されたパスワード、ニックネーム、韓国の携帯電話番号を収集します。ソーシャルログインではGoogle・Kakao・Naverが提供するプロフィール情報を受け取ります。保存したポップアップ、スタンプ、再生した曲などの利用記録も含まれます。訪問統計にはIPアドレスや会員プロフィールを保存しません。',
+          'メール登録ではメールアドレス、暗号化されたパスワード、ニックネーム、韓国の携帯電話番号を収集します。ソーシャルログインではGoogle・Kakao・Naverが提供するプロフィール情報を受け取ります。利用規約・プライバシーポリシーの同意版、同意時刻、14歳以上の確認、保存したポップアップ、スタンプ、再生した曲などの利用記録も含まれます。生年月日と性別は収集せず、訪問統計にはIPアドレスや会員プロフィールを保存しません。',
         ],
         [
           '利用目的',
@@ -89,18 +93,18 @@ const COPY = {
         ],
         [
           '委託先と国外処理',
-          'ログイン、検索、決済、ホスティング、エラー確認のためGoogle、Kakao、Naver、PortOne、Vercel、Sentryを利用します。各業務に必要な情報だけを送信します。',
+          'ログイン、検索、決済、ホスティング、監視、音楽、画像、地図表示、経路計算のためGoogle、Kakao、Naver、SK Telecom TMAP、PortOne、Vercel、Sentry、Groq、Spotify、Pexels、Apple、GitHub、FOSSGISを利用します。必要な情報だけを送信し、TMAPとOSRMには経路を求めた時だけ出発・到着座標を送ります。バックエンド、データベース、アップロードされたファイルは韓国内の専用サーバーに保存します。',
         ],
         [
           '利用者の権利',
-          '情報の確認・訂正・削除、同意の撤回、退会、処理内容の問い合わせができます。下記の連絡先をご利用ください。',
+          '情報の確認・訂正・削除、同意の撤回、退会、このページでの任意の外部動画接続同意の撤回、処理内容の問い合わせができます。下記の連絡先をご利用ください。',
         ],
         ['連絡先', '個人情報保護責任者：Kim Donghyun · reo4321@naver.com'],
       ],
     },
     terms: {
       title: '利用規約',
-      updated: '最終改定日：2026年7月22日',
+      updated: '最終改定日：2026年8月3日 · 施行日：2026年8月10日',
       sections: [
         [
           'ポップアップ情報',
@@ -108,15 +112,19 @@ const COPY = {
         ],
         [
           '原文と著作権',
-          '出典記事の本文を大量に複製しません。詳細ページの出典リンクから原文をご確認ください。権利者は修正・削除を依頼できます。',
+          '出典記事の本文を直接取得・複製せず、検索APIが提供するタイトル、要約、リンク、掲載日だけを整理します。詳細ページの出典リンクから原文をご確認ください。権利者は修正・削除を依頼できます。',
         ],
         [
           '通報と削除',
-          '通報を受けた情報は一時的に非表示となり、運営者が確認します。通常24時間以内の対応を目標とします。悪用防止のため、完全削除は確認後に行います。',
+          '通報は管理者の確認待ちとして記録され、通常24時間以内に確認します。明白な権利侵害または緊急の被害が確認された場合に限り、確認中は一時的に非表示にします。悪用防止のため、完全削除は確認後に行います。',
         ],
         [
           '外部サイトと予約',
           '公式サイト・予約ボタンは外部サイトへ移動します。POP-SPOTは外部サイトの在庫、購入、返金、個人情報処理を管理しません。',
+        ],
+        [
+          '外部の音楽・動画',
+          '音楽・動画機能ではSpotify、Apple iTunes、YouTubeを利用する場合があります。利用できる曲には元サービスへのリンクを表示します。YouTubeは同意後にのみ接続され、各提供者の利用規約とプライバシーポリシーが適用されます。',
         ],
         [
           '会員が作成する内容',
