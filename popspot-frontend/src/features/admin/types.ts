@@ -74,13 +74,9 @@ export interface AdminReferrer {
 export interface AdminVisitor {
   visitorId: string;
   visits: number;
-  /**
-   * 다녀간 서로 다른 경로의 <b>개수</b>.
-   *
-   * <p>전에는 경로 전체 목록(`paths`)을 받았다. 그건 "이 한 사람이 무엇을 봤는지" 라서 이 화면이
-   * 답해야 할 두 질문(봇인가 / 어느 페이지가 인기인가) 어느 쪽도 아니다. 봇 판정에는 개수와
-   * 방문수의 비율이 오히려 더 나은 신호이고, 인기 페이지는 방문 통계 탭이 이미 답한다.
-   */
+  /** 다녀간 경로 목록(쉼표 구분). 봇 판정과 이탈 지점 파악에 실제로 쓰인다. */
+  paths: string | null;
+  /** 서로 다른 경로의 개수. 한눈에 보라고 함께 준다. */
   pathCount: number;
   lastSeen: string;
   guest: boolean;

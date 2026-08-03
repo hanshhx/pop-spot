@@ -25,7 +25,7 @@ public interface VisitLogRepository extends JpaRepository<VisitLog, Long> {
     @Query(
             value =
                     "SELECT COUNT(DISTINCT visitor_id) FROM visit_log WHERE created_at >= :since"
-                        + " AND guest = :guest",
+                            + " AND guest = :guest",
             nativeQuery = true)
     long countDistinctVisitorsByGuestSince(
             @Param("since") LocalDateTime since, @Param("guest") boolean guest);
@@ -33,14 +33,14 @@ public interface VisitLogRepository extends JpaRepository<VisitLog, Long> {
     @Query(
             value =
                     "SELECT to_char(created_at, 'MM-DD') AS d, COUNT(DISTINCT visitor_id) AS v FROM"
-                        + " visit_log WHERE created_at >= :since GROUP BY d ORDER BY d",
+                            + " visit_log WHERE created_at >= :since GROUP BY d ORDER BY d",
             nativeQuery = true)
     List<Object[]> dailyVisitorsSince(@Param("since") LocalDateTime since);
 
     @Query(
             value =
                     "SELECT path, COUNT(*) AS c FROM visit_log WHERE created_at >= :since AND path"
-                        + " IS NOT NULL GROUP BY path ORDER BY c DESC LIMIT 8",
+                            + " IS NOT NULL GROUP BY path ORDER BY c DESC LIMIT 8",
             nativeQuery = true)
     List<Object[]> topPathsSince(@Param("since") LocalDateTime since);
 
@@ -73,11 +73,22 @@ public interface VisitLogRepository extends JpaRepository<VisitLog, Long> {
      */
     @Query(
             value =
-                    "SELECT visitor_id, COUNT(*) AS visits, COUNT(DISTINCT path) AS path_count, "
+                    "SELECT visitor_id, COUNT(*) AS visits, "
+                            + "STRING_AGG(DISTINCT path, ', ') AS paths, "
                             + "MAX(created_at) AS last_seen, BOOL_AND(guest) AS all_guest, "
-                            + "MAX(user_agent) AS ua "
+                            + "MAX(user_agent) AS ua, COUNT(DISTINCT path) AS path_count "
                             + "FROM visit_log WHERE created_at >= :since "
-                            + "GROUP BY visitor_id ORDER BY MAX(created_at) DESC LIMIT 100",
+                            + "GROUP BY visitor_id ORDER BY MAX(created_at) DESC "
+                            + "LIMIT :size OFFSET :offset",
             nativeQuery = true)
-    List<Object[]> recentVisitors(@Param("since") LocalDateTime since);
+    List<Object[]> recentVisitors(
+            @Param("since") LocalDateTime since,
+            @Param("size") int size,
+            @Param("offset") int offset);
+
+    /** 페이지네이션용 총 방문자 수 — 목록과 <b>같은 조건</b>이어야 마지막 페이지가 어긋나지 않는다. */
+    @Query(
+            value = "SELECT COUNT(DISTINCT visitor_id) FROM visit_log WHERE created_at >= :since",
+            nativeQuery = true)
+    long countVisitors(@Param("since") LocalDateTime since);
 }

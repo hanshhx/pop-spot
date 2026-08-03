@@ -119,28 +119,58 @@ public class VisitService {
                 .toList();
     }
 
-    /** 방문자 목록 — 최근 days 일(기본 7, 최대 30) 내 visitorId 단위 집계. 게스트/회원 구분해 나열. */
+    /**
+     * 조회 가능한 최대 기간.
+     *
+     * <p>방문 기록 자체가 보관 기간(기본 90일)이 지나면 지워지므로, 그보다 길게 물어봐야 나올 것이 없다.
+     */
+    private static final int MAX_LOOKBACK_DAYS = 90;
+
+    /** 한 페이지에 담을 최대 인원. 화면이 감당 못 할 양을 요청해 서버를 붙잡지 못하게 한다. */
+    private static final int VISITORS_PAGE_MAX = 200;
+
+    private static final int VISITORS_PAGE_DEFAULT = 50;
+
+    /**
+     * 방문자 목록 — 최근 days 일 내 visitorId 단위 집계. 게스트/회원 구분해 나열.
+     *
+     * <p>총 인원과 함께 돌려준다. 목록만 주면 화면이 "다음 페이지가 있는지" 를 알 수 없어, 빈 페이지를 눌러 보고 나서야 끝을 안다.
+     */
     @Transactional(readOnly = true)
-    public List<Map<String, Object>> getRecentVisitors(int days) {
-        int safeDays = days <= 0 ? 7 : Math.min(days, 30);
+    public Map<String, Object> getRecentVisitors(int days, int page, int size) {
+        int safeDays = days <= 0 ? 7 : Math.min(days, MAX_LOOKBACK_DAYS);
+        int safeSize = size <= 0 ? VISITORS_PAGE_DEFAULT : Math.min(size, VISITORS_PAGE_MAX);
+        int safePage = Math.max(page, 0);
         LocalDateTime since = LocalDate.now().minusDays(safeDays - 1L).atStartOfDay();
-        return visitLogRepository.recentVisitors(since).stream()
-                .map(
-                        r -> {
-                            Map<String, Object> m = new LinkedHashMap<>();
-                            m.put("visitorId", str(r[0]));
-                            m.put("visits", num(r[1]));
-                            // 경로 '개수' 만 보낸다. 전체 목록은 <b>한 사람이 무엇을 봤는지</b>가 되어,
-                            // 이 화면이 답해야 할 두 질문(봇인가 / 어느 페이지가 인기인가) 어느 쪽도
-                            // 아니다. 봇 판정에는 개수와 방문수의 비율이 오히려 더 나은 신호이고,
-                            // 인기 페이지는 방문 통계 탭의 집계가 이미 답한다.
-                            m.put("pathCount", num(r[2]));
-                            m.put("lastSeen", str(r[3]));
-                            m.put("guest", bool(r[4])); // all_guest: true=순수 게스트, false=회원 이력
-                            m.put("userAgent", str(r[5])); // 봇 식별용(배포 후 방문부터 채워짐)
-                            return m;
-                        })
-                .toList();
+
+        List<Map<String, Object>> rows =
+                visitLogRepository.recentVisitors(since, safeSize, safePage * safeSize).stream()
+                        .map(
+                                r -> {
+                                    Map<String, Object> m = new LinkedHashMap<>();
+                                    m.put("visitorId", str(r[0]));
+                                    m.put("visits", num(r[1]));
+                                    // 다녀간 경로. 한때 개수만 보냈는데, 운영에서 실제로 쓰는 값이라
+                                    // 되돌렸다 — "이 방문자가 어디를 봤나" 는 봇 판정과 유입 진단 양쪽에
+                                    // 쓰인다. 개수(pathCount)는 한눈에 보라고 함께 준다.
+                                    m.put("paths", str(r[2]));
+                                    m.put("lastSeen", str(r[3]));
+                                    m.put(
+                                            "guest",
+                                            bool(r[4])); // all_guest: true=순수 게스트, false=회원 이력
+                                    m.put("userAgent", str(r[5])); // 봇 식별용(배포 후 방문부터 채워짐)
+                                    m.put("pathCount", num(r[6]));
+                                    return m;
+                                })
+                        .toList();
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("content", rows);
+        result.put("page", safePage);
+        result.put("size", safeSize);
+        result.put("totalElements", visitLogRepository.countVisitors(since));
+        result.put("days", safeDays);
+        return result;
     }
 
     /** 개인정보 처리방침의 3개월 보관 약속을 코드로 강제한다. 매일 04:40 KST에 만료 로그를 제거한다. */
