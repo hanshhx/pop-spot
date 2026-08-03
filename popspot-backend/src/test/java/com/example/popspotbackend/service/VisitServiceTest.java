@@ -47,7 +47,8 @@ class VisitServiceTest {
         service.deleteExpiredVisitLogs();
 
         verify(visitEventRepository)
-                .deleteOlderThan(argThat(cutoff -> cutoff.isAfter(before) && cutoff.isBefore(after)));
+                .deleteOlderThan(
+                        argThat(cutoff -> cutoff.isAfter(before) && cutoff.isBefore(after)));
     }
 
     @Test
@@ -72,6 +73,44 @@ class VisitServiceTest {
 
         verify(visitEventRepository, org.mockito.Mockito.never())
                 .save(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void UTM_은_허용_문자만_남기고_저장한다() {
+        // 이 값은 사용자가 주소창으로 보내는 것이다. 그대로 저장하면 집계 화면에 임의의
+        // 문자열이 뜨고, 같은 캠페인이 표기 차이로 여러 줄로 갈라진다.
+        VisitService service = new VisitService(visitLogRepository, visitEventRepository);
+
+        service.record(
+                "visitor-1",
+                "/",
+                true,
+                "Mozilla/5.0",
+                null,
+                "  InstaGram  ",
+                "post<script>",
+                "여름_팝업");
+
+        verify(visitLogRepository)
+                .save(
+                        argThat(
+                                v ->
+                                        "instagram".equals(v.getUtmSource())
+                                                && "postscript".equals(v.getUtmMedium())
+                                                // 한글은 허용 문자가 아니라 통째로 걸러지고,
+                                                // 남는 것이 없으면 '없음' 으로 둔다 —
+                                                // 빈 문자열을 저장하면 집계에 이름 없는 줄이 생긴다.
+                                                && v.getUtmCampaign() == null));
+    }
+
+    @Test
+    void UTM_이_없으면_비워_둔다() {
+        VisitService service = new VisitService(visitLogRepository, visitEventRepository);
+
+        service.record("visitor-1", "/", true, "Mozilla/5.0", null, null, null, null);
+
+        verify(visitLogRepository)
+                .save(argThat(v -> v.getUtmSource() == null && v.getUtmMedium() == null));
     }
 
     @Test

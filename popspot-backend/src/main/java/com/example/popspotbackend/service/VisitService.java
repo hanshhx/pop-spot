@@ -39,7 +39,14 @@ public class VisitService {
     /** 익명 방문 1건 기록. visitorId 가 비면 무시, 길이 초과 값은 컬럼 한도로 절단. UA 는 봇 식별용, referrer 는 출처 도메인만 저장. */
     @Transactional
     public void record(
-            String visitorId, String path, boolean guest, String userAgent, String referrer) {
+            String visitorId,
+            String path,
+            boolean guest,
+            String userAgent,
+            String referrer,
+            String utmSource,
+            String utmMedium,
+            String utmCampaign) {
         if (visitorId == null || visitorId.isBlank()) return;
         String safeVisitor = clamp(visitorId, 64);
         String safePath = path == null ? null : clamp(path, 255);
@@ -51,7 +58,30 @@ public class VisitService {
                         .guest(guest)
                         .userAgent(safeUa)
                         .referrerHost(normalizeReferrerHost(referrer))
+                        .utmSource(safeUtm(utmSource))
+                        .utmMedium(safeUtm(utmMedium))
+                        .utmCampaign(safeUtm(utmCampaign))
                         .build());
+    }
+
+    /**
+     * UTM 값 정리 — 허용 문자만 남기고 길이를 자른다.
+     *
+     * <p>이 값은 <b>사용자가 주소창으로 보내는 것</b>이라 무엇이든 올 수 있다. 그대로 저장하면 집계 화면에 임의의 문자열이 뜨고, 캠페인 이름이 제각각이 되어
+     * 같은 캠페인이 여러 줄로 갈라진다. 실제 UTM 은 영숫자와 몇 개의 구분자로 이뤄지므로 그 밖은 버린다.
+     *
+     * <p>거르고 나서 비면 없는 것으로 둔다 — 빈 문자열을 저장하면 집계에 이름 없는 줄이 생긴다.
+     */
+    private static String safeUtm(String raw) {
+        if (raw == null || raw.isBlank()) return null;
+        String cleaned = raw.trim().toLowerCase().replaceAll("[^a-z0-9._-]", "");
+        // 영숫자가 하나도 없으면 없는 것으로 둔다.
+        //
+        // 빈 문자열만 걸러서는 부족하다 — 한글로만 지은 캠페인명("여름_팝업")은 글자가 다 걸러지고
+        // 구분자만 남아 "_" 가 된다. 그러면 집계 화면에 이름 같지 않은 줄이 생기고, 서로 다른
+        // 한글 캠페인이 전부 같은 "_" 로 뭉쳐 한 줄이 된다.
+        if (!cleaned.matches(".*[a-z0-9].*")) return null;
+        return clamp(cleaned, 100);
     }
 
     /**
@@ -80,6 +110,26 @@ public class VisitService {
                         .path(path == null ? null : clamp(path, 255))
                         .guest(guest)
                         .build());
+    }
+
+    /** 유입 캠페인별 방문자 수 — 어떤 홍보가 실제로 데려왔나. */
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> campaigns(int days) {
+        int safeDays = days <= 0 ? 30 : Math.min(days, MAX_LOOKBACK_DAYS);
+        LocalDateTime since = LocalDate.now().minusDays(safeDays - 1L).atStartOfDay();
+
+        return visitLogRepository.campaignsSince(since).stream()
+                .map(
+                        r -> {
+                            Map<String, Object> m = new LinkedHashMap<>();
+                            m.put("source", str(r[0]));
+                            m.put("medium", str(r[1]));
+                            m.put("campaign", str(r[2]));
+                            // 횟수가 아니라 사람 수다. 캠페인이 데려온 것은 사람이지 클릭이 아니다.
+                            m.put("visitors", num(r[3]));
+                            return m;
+                        })
+                .toList();
     }
 
     /** 많이 열린 팝업 — 누른 횟수와 누른 사람 수를 함께 준다. */

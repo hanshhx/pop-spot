@@ -68,8 +68,12 @@ export default function VisitTracker() {
     // 집계 API 가 internal 을 제외하므로 순위에 영향이 없다. referrer 를 아예 빼면 백엔드가
     // 없음/빈 값을 "direct" 로 보기 때문에 직접 방문이 페이지뷰만큼 부풀려진다 — 그래서 생략 대신 origin.
     let referrer = '';
+    // 이 세션의 첫 진입인가 — referrer 와 UTM 이 같은 판정을 쓴다. 따로 두면 한쪽만 첫 진입으로
+    // 잡혀 유입 출처와 캠페인의 집계 기준이 어긋난다.
+    let firstEntryOfSession = true;
     try {
       if (sessionStorage.getItem(REFERRER_SENT_KEY)) {
+        firstEntryOfSession = false;
         referrer = window.location.origin;
       } else {
         sessionStorage.setItem(REFERRER_SENT_KEY, '1');
@@ -80,10 +84,39 @@ export default function VisitTracker() {
       referrer = document.referrer || '';
     }
 
+    // 유입 캠페인(UTM) — referrer 와 <b>같은 규칙</b>으로 세션 첫 진입에만 보낸다.
+    //
+    // 매 경로 변경마다 실으면 많이 돌아다닌 방문자 한 명이 캠페인 순위를 통째로 흔든다.
+    // 그리고 SPA 라 주소창의 utm 파라미터는 첫 진입 뒤 사라지므로, 어차피 그때만 읽을 수 있다.
+    //
+    // 값은 백엔드가 허용 문자만 남기고 자른다 — 주소창으로 오는 값이라 무엇이든 올 수 있다.
+    // 전체 쿼리스트링은 보내지 않는다(검색어·토큰이 실릴 수 있고, 방침에도 캠페인 식별자만 적었다).
+    let utm: Record<string, string> = {};
+    if (firstEntryOfSession) {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const source = params.get('utm_source');
+        if (source) {
+          utm = {
+            utmSource: source.slice(0, 100),
+            ...(params.get('utm_medium')
+              ? { utmMedium: params.get('utm_medium')!.slice(0, 100) }
+              : {}),
+            ...(params.get('utm_campaign')
+              ? { utmCampaign: params.get('utm_campaign')!.slice(0, 100) }
+              : {}),
+          };
+        }
+      } catch {
+        /* 주소를 못 읽어도 방문 기록은 남긴다 */
+      }
+    }
+
     const body = JSON.stringify({
       visitorId: getVisitorId(),
       path: pathname.slice(0, 255),
       guest,
+      ...utm,
       // 빈 문자열이면 생략 — 백엔드가 없음/빈 값을 모두 "direct" 로 분류한다.
       // 백엔드는 호스트만 저장하지만(쿼리스트링에 검색어가 실릴 수 있어서) 비콘 본문이
       // 무한정 커지지 않게 여기서도 잘라 보낸다.

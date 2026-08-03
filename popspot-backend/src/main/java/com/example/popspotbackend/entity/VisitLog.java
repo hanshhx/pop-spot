@@ -32,6 +32,23 @@ public class VisitLog {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    /**
+     * 유입 캠페인 식별자(UTM). 세션의 첫 진입에만 채워진다.
+     *
+     * <p>{@code referrerHost} 가 "어느 사이트에서 왔나" 라면 이쪽은 "어떤 홍보로 왔나" 다. 같은 인스타그램이라도 프로필 링크와 특정 게시물 광고는
+     * 전혀 다른 이야기인데, 출처만으로는 구분되지 않는다.
+     *
+     * <p>값은 사용자가 주소창으로 보내는 것이라 무엇이든 올 수 있다. 서비스 계층이 길이와 문자를 걸러 저장한다.
+     */
+    @Column(name = "utm_source", length = 100)
+    private String utmSource;
+
+    @Column(name = "utm_medium", length = 100)
+    private String utmMedium;
+
+    @Column(name = "utm_campaign", length = 100)
+    private String utmCampaign;
+
     @Column(name = "visitor_id", nullable = false, length = 64)
     private String visitorId;
 

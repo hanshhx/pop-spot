@@ -48,8 +48,8 @@ public interface VisitLogRepository extends JpaRepository<VisitLog, Long> {
     @Query(
             value =
                     "SELECT path, COUNT(*) AS total, SUM(CASE WHEN guest THEN 0 ELSE 1 END) AS"
-                            + " members FROM visit_log WHERE created_at >= :since AND path IS NOT NULL"
-                            + " GROUP BY path ORDER BY total DESC LIMIT 50",
+                        + " members FROM visit_log WHERE created_at >= :since AND path IS NOT NULL"
+                        + " GROUP BY path ORDER BY total DESC LIMIT 50",
             nativeQuery = true)
     List<Object[]> pathBreakdownSince(@Param("since") LocalDateTime since);
 
@@ -62,10 +62,28 @@ public interface VisitLogRepository extends JpaRepository<VisitLog, Long> {
     @Query(
             value =
                     "SELECT referrer_host, COUNT(*) AS c FROM visit_log WHERE created_at >= :since"
-                            + " AND referrer_host IS NOT NULL AND referrer_host <> 'internal' GROUP BY"
-                            + " referrer_host ORDER BY c DESC LIMIT 200",
+                        + " AND referrer_host IS NOT NULL AND referrer_host <> 'internal' GROUP BY"
+                        + " referrer_host ORDER BY c DESC LIMIT 200",
             nativeQuery = true)
     List<Object[]> referrerHostsSince(@Param("since") LocalDateTime since);
+
+    /**
+     * 유입 캠페인 집계 — 어떤 홍보가 사람을 데려왔나.
+     *
+     * <p>방문 <b>횟수</b>가 아니라 <b>사람 수</b>로 센다. 캠페인의 성과는 "몇 번 눌렸나" 가 아니라 "몇 명이 왔나" 이고, 한 사람이 여러 페이지를 봐도
+     * 데려온 것은 한 명이기 때문이다.
+     */
+    @Query(
+            value =
+                    "SELECT utm_source, COALESCE(utm_medium, '') AS medium,"
+                            + " COALESCE(utm_campaign, '') AS campaign,"
+                            + " COUNT(DISTINCT visitor_id) AS visitors"
+                            + " FROM visit_log"
+                            + " WHERE created_at >= :since AND utm_source IS NOT NULL"
+                            + " GROUP BY utm_source, utm_medium, utm_campaign"
+                            + " ORDER BY visitors DESC LIMIT 100",
+            nativeQuery = true)
+    List<Object[]> campaignsSince(@Param("since") LocalDateTime since);
 
     /**
      * 방문자 목록 — visitorId 단위 집계. 방문수 · 다녀간 경로들 · 최근 방문 시각 · 순수게스트 여부(all_guest). all_guest=true 면 한
