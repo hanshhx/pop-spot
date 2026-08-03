@@ -220,8 +220,12 @@ public class RateLimitInterceptor implements HandlerInterceptor {
     /** 프론트를 거쳤음을 증명하는 서명 검증기. 비밀키 미설정 시 비활성이며 기존 판별로 되돌아간다. */
     private final EdgeSignatureVerifier edgeSignature;
 
-    public RateLimitInterceptor(EdgeSignatureVerifier edgeSignature) {
+    private final ClientIpResolver clientIpResolver;
+
+    public RateLimitInterceptor(
+            EdgeSignatureVerifier edgeSignature, ClientIpResolver clientIpResolver) {
         this.edgeSignature = edgeSignature;
+        this.clientIpResolver = clientIpResolver;
     }
 
     @Override
@@ -453,22 +457,8 @@ public class RateLimitInterceptor implements HandlerInterceptor {
      * <p>아래 1~3번은 <b>비밀키를 설정하지 않았을 때의 기존 동작</b>으로 남는다. 켜고 끄는 것을 배포와 분리하기 위해서다.
      */
     private String clientIp(HttpServletRequest req) {
-        // 서명 검증이 켜져 있으면 증명된 IP만 쓴다. 증명이 없으면 헤더는 보지 않는다 — 위조 경로를 닫는 지점.
-        if (edgeSignature.isEnabled()) {
-            String verified = edgeSignature.verifiedIp(req);
-            return verified != null ? verified : req.getRemoteAddr();
-        }
-
-        if (!trustProxyHeaders) return req.getRemoteAddr();
-        String real = req.getHeader("X-Real-IP");
-        if (real != null && !real.isBlank()) return real.trim();
-
-        String xff = req.getHeader("X-Forwarded-For");
-        if (xff != null && !xff.isBlank()) {
-            String[] hops = xff.split(",");
-            String last = hops[hops.length - 1].trim();
-            if (!last.isEmpty()) return last;
-        }
-        return req.getRemoteAddr();
+        // 판정은 ClientIpResolver 한 곳에만 둔다. 감사 로그도 같은 값을 쓰는데, 두 곳이 각자
+        // 판정하면 언젠가 갈라져 "제한에 걸린 IP" 와 "기록된 IP" 가 달라진다.
+        return clientIpResolver.resolve(req);
     }
 }

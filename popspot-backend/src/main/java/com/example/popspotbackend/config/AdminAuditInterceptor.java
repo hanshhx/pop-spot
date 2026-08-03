@@ -68,6 +68,7 @@ public class AdminAuditInterceptor implements AsyncHandlerInterceptor {
                     "status", Pattern.compile("^[A-Za-z_]{1,20}$"));
 
     private final AdminAuditService auditService;
+    private final ClientIpResolver clientIp;
 
     /**
      * 컨트롤러가 직접 감사 기록을 남겼을 때 표시한다 — 인터셉터가 같은 요청을 또 남기지 않게 한다.
@@ -107,7 +108,8 @@ public class AdminAuditInterceptor implements AsyncHandlerInterceptor {
                 targetId(request),
                 !failed,
                 status,
-                detail(request));
+                detail(request),
+                clientIp.resolveCoarse(request));
     }
 
     /**
@@ -128,7 +130,8 @@ public class AdminAuditInterceptor implements AsyncHandlerInterceptor {
                 targetId(request),
                 status < 400 && !response.isCommitted(),
                 status,
-                "스트림 열림");
+                "스트림 열림",
+                clientIp.resolveCoarse(request));
     }
 
     /** 기록 대상인지 판단하고, 대상이면 '기록함' 표시를 남긴다(중복 방지). */
