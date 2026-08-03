@@ -60,6 +60,17 @@ public class RateLimitInterceptor implements HandlerInterceptor {
      */
     private static final String PATH_VISIT_EVENTS = "/api/visits/events";
 
+    /**
+     * 통계 내려받기 — 전 기간을 훑는 무거운 조회다.
+     *
+     * <p>관리자 기본 한도(분당 120)로는 반복 호출이 서버를 붙잡는다. 사람이 파일을 받아 여는 속도를 생각하면 시간당 20 이면 넉넉하다.
+     */
+    private static final String PATH_EXPORT_PREFIX = "/api/admin/export/";
+
+    private static final String BUCKET_EXPORT = "admin-export";
+
+    private static final int LIMIT_EXPORT_PER_HOUR = 20;
+
     private static final int LIMIT_VISIT_EVENTS_PER_MIN = 120;
 
     /**
@@ -259,6 +270,12 @@ public class RateLimitInterceptor implements HandlerInterceptor {
         } else if (isPlaybackFailed(handler)) {
             limit = playbackFailedBandwidth();
             bucketName = BUCKET_PLAYBACK_FAILED;
+        } else if (uri.startsWith(PATH_EXPORT_PREFIX)) {
+            limit =
+                    Bandwidth.classic(
+                            LIMIT_EXPORT_PER_HOUR,
+                            Refill.intervally(LIMIT_EXPORT_PER_HOUR, Duration.ofHours(1)));
+            bucketName = BUCKET_EXPORT;
         } else if (uri.startsWith(PII_REVEAL_PATH_PREFIX)) {
             limit =
                     Bandwidth.classic(

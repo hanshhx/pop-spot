@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Megaphone, RefreshCw } from 'lucide-react';
 
 import { apiFetch } from '@/lib/api';
+import { ExportButton } from '@/features/admin/ExportButton';
 
 /**
  * 유입 캠페인 — 어떤 홍보가 사람을 데려왔나.
@@ -71,6 +72,8 @@ export function CampaignsPanel() {
               </button>
             ))}
           </div>
+          <ExportButton dataset="campaigns" days={days} />
+
           <button
             type="button"
             onClick={load}

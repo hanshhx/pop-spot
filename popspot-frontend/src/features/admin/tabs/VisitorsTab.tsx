@@ -6,6 +6,7 @@ import { RefreshCw } from 'lucide-react';
 import { uaLooksBot } from '@/features/admin/helpers';
 import type { AdminVisitor } from '@/features/admin/types';
 import { apiFetch } from '@/lib/api';
+import { ExportButton } from '@/features/admin/ExportButton';
 
 /**
  * 방문자 목록.
@@ -108,6 +109,8 @@ export function VisitorsTab() {
               </button>
             ))}
           </div>
+
+          <ExportButton dataset="visitors" days={days} />
 
           <button
             type="button"
