@@ -8,6 +8,7 @@ import { PhotoDisclosure } from '@/components/popup/PhotoDisclosure';
 import { useLocale, type MessageKey } from '@/lib/i18n';
 import { bilingual } from '@/lib/bilingual';
 import type { PopupStore } from '@/types/popup';
+import { trackVisitEvent } from '@/lib/visitEvent';
 
 /**
  * 팝업 사진 카드 — 디자인 진단서 P0. 사진 + D-day + 지역 + 카테고리 + ♥ 를 한 장에.
@@ -83,6 +84,19 @@ export interface PopupCardProps {
 }
 
 export function PopupCard({ popup, onClick, onWish, wished, className }: PopupCardProps) {
+  /**
+   * 카드가 눌렸다 — 어떤 팝업이 실제로 관심을 받는지 남긴다.
+   *
+   * <p>세 화면(홈·전체보기·음악 탭)이 이 컴포넌트를 쓴다. 각 화면의 onClick 에 따로 붙이면
+   * 새 화면이 생길 때마다 빠뜨리므로 여기 한 곳에 둔다.
+   *
+   * <p>기록이 실패해도 화면 이동은 그대로 진행된다 — 통계 때문에 카드가 안 열리면 안 된다.
+   */
+  const handleOpen = () => {
+    trackVisitEvent('popup_open', { popupId: popup.id });
+    onClick?.();
+  };
+
   const { t, locale } = useLocale();
   const [imgError, setImgError] = useState(false);
   const dday = ddayBadge(popup.endDate);
@@ -106,11 +120,11 @@ export function PopupCard({ popup, onClick, onWish, wished, className }: PopupCa
     <div
       role="button"
       tabIndex={0}
-      onClick={onClick}
+      onClick={handleOpen}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
-          onClick?.();
+          handleOpen();
         }
       }}
       className={cn(
