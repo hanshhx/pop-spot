@@ -130,7 +130,11 @@ public class VisitService {
                             Map<String, Object> m = new LinkedHashMap<>();
                             m.put("visitorId", str(r[0]));
                             m.put("visits", num(r[1]));
-                            m.put("paths", str(r[2]));
+                            // 경로 '개수' 만 보낸다. 전체 목록은 <b>한 사람이 무엇을 봤는지</b>가 되어,
+                            // 이 화면이 답해야 할 두 질문(봇인가 / 어느 페이지가 인기인가) 어느 쪽도
+                            // 아니다. 봇 판정에는 개수와 방문수의 비율이 오히려 더 나은 신호이고,
+                            // 인기 페이지는 방문 통계 탭의 집계가 이미 답한다.
+                            m.put("pathCount", num(r[2]));
                             m.put("lastSeen", str(r[3]));
                             m.put("guest", bool(r[4])); // all_guest: true=순수 게스트, false=회원 이력
                             m.put("userAgent", str(r[5])); // 봇 식별용(배포 후 방문부터 채워짐)
