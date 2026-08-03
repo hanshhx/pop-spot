@@ -3,6 +3,7 @@ package com.example.popspotbackend.controller;
 import com.example.popspotbackend.admin.log.LogTailService;
 import com.example.popspotbackend.config.LiveConnectionRegistry;
 import com.example.popspotbackend.repository.UserRepository;
+import com.example.popspotbackend.service.admin.AdminReauthService;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -45,6 +46,7 @@ public class AdminSessionController {
     private final UserRepository userRepository;
     private final LiveConnectionRegistry connections;
     private final LogTailService logTailService;
+    private final AdminReauthService reauth;
 
     @PostMapping("/revoke-all")
     @Transactional
@@ -61,6 +63,9 @@ public class AdminSessionController {
 
         // 이미 열린 연결을 실제로 끊는다. tokenVersion 만 올리면 앞으로의 요청과 새 연결만
         // 막히고, 이미 붙어 있는 세션은 계속 산다.
+        // 세션을 끊었는데 재인증 표가 남으면, 다시 로그인한 사람이 확인 없이 민감 작업을 한다.
+        reauth.clear(userId);
+
         int sockets = connections.disconnectUser(userId);
         int streams = logTailService.disconnectUser(userId);
 
