@@ -4,7 +4,13 @@
  * env 모듈에서 검증·폴백 처리 후 받아온다. 호출부 (legacy) 호환을 위해 그대로 re-export.
  */
 import { env } from './env';
-import { clearAuthToken, getAuthToken } from './authStorage';
+import {
+  clearAuthToken,
+  getAuthToken,
+  getRefreshToken,
+  setAuthToken,
+  setRefreshToken,
+} from './authStorage';
 
 export const API_BASE_URL = env.apiUrl;
 export const SOCKET_BASE_URL = env.socketUrl;
@@ -104,6 +110,13 @@ export const apiFetch = async (endpoint: string, options: FetchOptions = {}): Pr
         readToken() === tokenAtRequest &&
         isSessionGone(response.status, endpoint, body)
       ) {
+        // 세션이 끝났다고 곧바로 내보내지 않는다. 리프레시 토큰이 있으면 한 번 갱신해 보고,
+        // 성공하면 원래 요청을 그대로 다시 보낸다. 관리자 접근 토큰은 30분짜리라 이 과정이
+        // 없으면 작업 중에 30분마다 튕긴다.
+        const renewed = await tryRefresh(endpoint);
+        if (renewed) {
+          return apiFetch(endpoint, options);
+        }
         clearStaleAuthentication();
       }
     }
@@ -115,6 +128,51 @@ export const apiFetch = async (endpoint: string, options: FetchOptions = {}): Pr
 };
 
 /* ============================== 내부 헬퍼 ============================== */
+
+/**
+ * 갱신이 동시에 여러 번 일어나지 않게 묶는다.
+ *
+ * <p>탭 하나에서 여러 API 가 동시에 401 을 맞으면 갱신 요청이 그 수만큼 나간다. 리프레시 토큰은
+ * <b>한 번 쓰면 새것으로 바뀌므로</b>(rotation), 동시에 여러 번 보내면 첫 요청만 성공하고 나머지는
+ * 이미 없어진 토큰으로 실패해 멀쩡한 세션이 끊긴다.
+ */
+let refreshInFlight: Promise<boolean> | null = null;
+
+/**
+ * 접근 토큰 갱신 시도.
+ *
+ * @returns 갱신에 성공해 원래 요청을 다시 보낼 수 있으면 true
+ */
+const tryRefresh = async (endpoint: string): Promise<boolean> => {
+  if (typeof window === 'undefined') return false;
+  // 갱신 요청 자체가 401 을 맞았다면 리프레시 토큰도 만료된 것이다. 재귀를 끊는다.
+  if (endpoint.includes('/auth/refresh')) return false;
+
+  const refreshToken = getRefreshToken();
+  if (!refreshToken) return false;
+
+  if (!refreshInFlight) {
+    refreshInFlight = (async () => {
+      try {
+        const res = await apiFetch('/api/v1/auth/refresh', {
+          method: 'POST',
+          body: JSON.stringify({ refreshToken }),
+        });
+        if (!res.ok) return false;
+        const data = (await res.json()) as { token?: string; refreshToken?: string };
+        if (!data.token) return false;
+        setAuthToken(data.token);
+        if (data.refreshToken) setRefreshToken(data.refreshToken);
+        return true;
+      } catch {
+        return false;
+      } finally {
+        refreshInFlight = null;
+      }
+    })();
+  }
+  return refreshInFlight;
+};
 
 /**
  * 브라우저에서도 절대 URL(백엔드 직접 호출)을 반드시 유지해야 하는 경로.
