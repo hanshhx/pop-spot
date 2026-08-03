@@ -155,7 +155,12 @@ public class VisitController {
                     path == null ? null : path.toString(),
                     guest,
                     userAgent,
-                    referrer == null ? null : referrer.toString());
+                    referrer == null ? null : referrer.toString(),
+                    // 유입 캠페인도 세션 첫 진입에만 온다(referrer 와 같은 규칙). 값은 서비스
+                    // 계층이 허용 문자만 남기고 자른다 — 주소창으로 오는 값이라 무엇이든 올 수 있다.
+                    str(body.get("utmSource")),
+                    str(body.get("utmMedium")),
+                    str(body.get("utmCampaign")));
         }
         return ResponseEntity.noContent().build();
     }

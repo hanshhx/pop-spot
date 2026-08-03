@@ -53,6 +53,13 @@ public class AdminVisitController {
         return ResponseEntity.ok(visitService.getRecentVisitors(days, page, size));
     }
 
+    /** 유입 캠페인 — 어떤 홍보가 몇 명을 데려왔나. */
+    @GetMapping("/campaigns")
+    public ResponseEntity<List<Map<String, Object>>> getCampaigns(
+            @RequestParam(defaultValue = "30") int days) {
+        return ResponseEntity.ok(visitService.campaigns(days));
+    }
+
     /**
      * 많이 열린 팝업 — 목록에서 카드를 눌러 상세를 연 횟수.
      *
