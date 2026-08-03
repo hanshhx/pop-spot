@@ -1,8 +1,8 @@
 package com.example.popspotbackend.config;
 
+import com.example.popspotbackend.entity.AdminAuditLog;
 import com.example.popspotbackend.entity.User;
 import com.example.popspotbackend.repository.UserRepository;
-import com.example.popspotbackend.entity.AdminAuditLog;
 import com.example.popspotbackend.service.admin.AdminAuditService;
 import com.example.popspotbackend.service.auth.TotpAuthService;
 import io.jsonwebtoken.Jwts;

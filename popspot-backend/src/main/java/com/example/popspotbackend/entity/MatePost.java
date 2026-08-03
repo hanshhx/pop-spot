@@ -88,11 +88,13 @@ public class MatePost {
     /** 콤마 구분 참가자 ID 명단 (조회 단순화를 위해 정규화하지 않는다). */
     @Column(name = "JOINED_USERS", length = 2000)
     @Builder.Default
+    @JsonIgnore
     private String joinedUsers = "";
 
     /** v2.22 — 콤마 구분 신고자 ID 명단. 1인 1신고 보장(같은 유저의 반복 신고로 인한 자동숨김 어뷰징 차단). */
     @Column(name = "REPORTED_BY", length = 2000)
     @Builder.Default
+    @JsonIgnore
     private String reportedBy = "";
 
     @PrePersist
