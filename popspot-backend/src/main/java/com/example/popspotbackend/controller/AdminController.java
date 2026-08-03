@@ -1,7 +1,6 @@
 package com.example.popspotbackend.controller;
 
 import com.example.popspotbackend.dto.AdminUserDto;
-import com.example.popspotbackend.entity.MatePost;
 import com.example.popspotbackend.entity.PopupStore;
 import com.example.popspotbackend.service.AdminService;
 import com.example.popspotbackend.service.ChatService;
@@ -15,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import com.example.popspotbackend.config.AdminAuditInterceptor;
+import com.example.popspotbackend.dto.AdminMatePostDto;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -179,9 +179,13 @@ public class AdminController {
 
     /* ============================== 보상 / 메이트 운영 ============================== */
 
+    /** 동행 게시글 목록 — 신고자·참가자 명단과 작성자 개인정보를 뺀 DTO 로 내보낸다. */
     @GetMapping("/mate-posts")
-    public ResponseEntity<List<MatePost>> getAllMatePosts() {
-        return ResponseEntity.ok(adminService.findAllMatePostsOrdered());
+    public ResponseEntity<List<AdminMatePostDto>> getAllMatePosts() {
+        return ResponseEntity.ok(
+                adminService.findAllMatePostsOrdered().stream()
+                        .map(AdminMatePostDto::from)
+                        .toList());
     }
 
     @DeleteMapping("/mate-posts/{id}")

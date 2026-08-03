@@ -49,11 +49,8 @@ export function VisitorsTab({ visitors, loadVisitors }: VisitorsTabProps) {
               >
                 {v.guest ? '게스트' : '회원'}
               </span>
-              <span
-                className="min-w-0 flex-1 truncate font-mono text-xs text-muted-foreground"
-                title={v.paths}
-              >
-                {v.paths}
+              <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
+                {v.pathCount}개 경로
               </span>
               <span className="shrink-0 text-xs font-bold">{v.visits}회</span>
               <span className="shrink-0 tabular-nums text-[11px] text-muted-foreground">
