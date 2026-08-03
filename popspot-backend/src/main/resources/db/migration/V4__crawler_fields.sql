@@ -8,7 +8,7 @@
 -- 정책:
 --   - 외부 공개 API (Naver/Kakao 검색) 결과만 수집. 인스타/네이버블로그 본문 직접 크롤링 X
 --   - 모든 수집 row 는 source_url 로 출처 링크 보유 (저작권법 인용/공정이용 방어)
---   - 권리자가 takedown 요청 시 review_status='TAKEDOWN' 으로 즉시 hide
+--   - 권리자 takedown 요청은 신고 필드에 기록하고, 관리자 검토 뒤 필요한 경우 review_status='TAKEDOWN' 으로 hide
 --   - 유효기간 지난 팝업은 status='EXPIRED' 로 soft delete (이력/랭킹 분석용 보존)
 -- =================================================================
 

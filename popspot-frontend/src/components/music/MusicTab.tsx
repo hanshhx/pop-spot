@@ -12,6 +12,7 @@ import { MatchResult, MusicTrack } from '@/types/music';
 import type { PopupStore } from '@/types/popup';
 import { PopupCard } from '@/components/main/PopupCard';
 import { useMusicPlayer } from './MusicPlayerProvider';
+import { SpotifyAttributionLink } from './SpotifyAttributionLink';
 
 /**
  * 검색 디바운스 — 입력이 멈추고 N ms 후 한 번만 호출.
@@ -593,35 +594,34 @@ export default function MusicTab({ popups, onOpenPopup }: MusicTabProps) {
 /** 강등된 배경음악 스트립의 가로 곡 칩. */
 function TrackChip({ track, onPlay }: { track: MusicTrack; onPlay: () => void }) {
   return (
-    <button
-      type="button"
-      onClick={onPlay}
-      className="group w-[120px] shrink-0 snap-start text-left sm:w-[132px]"
-    >
-      <div className="relative aspect-square overflow-hidden rounded-xl bg-foreground/5 ring-1 ring-[var(--color-border)] transition group-hover:ring-foreground/30">
-        {track.artworkUrlHires || track.artworkUrl ? (
-          // Spotify/iTunes CDN 이미지 — next/image 화이트리스트 대신 <img> 사용.
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={track.artworkUrlHires || track.artworkUrl}
-            alt={track.trackName}
-            loading="lazy"
-            className="h-full w-full object-cover transition duration-500 group-hover:scale-110"
-          />
-        ) : (
-          <div className="grid h-full place-items-center text-muted-foreground">
-            <Music2 className="h-7 w-7" />
+    <div className="group w-[120px] shrink-0 snap-start text-left sm:w-[132px]">
+      <button type="button" onClick={onPlay} className="block w-full text-left">
+        <div className="relative aspect-square overflow-hidden rounded-xl bg-foreground/5 ring-1 ring-[var(--color-border)] transition group-hover:ring-foreground/30">
+          {track.artworkUrlHires || track.artworkUrl ? (
+            // Spotify/iTunes CDN 이미지 — next/image 화이트리스트 대신 <img> 사용.
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={track.artworkUrlHires || track.artworkUrl}
+              alt={track.trackName}
+              loading="lazy"
+              className="h-full w-full object-cover transition duration-500 group-hover:scale-110"
+            />
+          ) : (
+            <div className="grid h-full place-items-center text-muted-foreground">
+              <Music2 className="h-7 w-7" />
+            </div>
+          )}
+          <div className="absolute inset-0 flex items-end justify-end bg-gradient-to-t from-black/70 to-transparent p-2 opacity-0 transition group-hover:opacity-100">
+            <span className="grid h-8 w-8 place-items-center rounded-full bg-lime-300 text-ink-900 shadow-lg">
+              <Play className="ml-0.5 h-3.5 w-3.5" fill="currentColor" />
+            </span>
           </div>
-        )}
-        <div className="absolute inset-0 flex items-end justify-end bg-gradient-to-t from-black/70 to-transparent p-2 opacity-0 transition group-hover:opacity-100">
-          <span className="grid h-8 w-8 place-items-center rounded-full bg-lime-300 text-ink-900 shadow-lg">
-            <Play className="ml-0.5 h-3.5 w-3.5" fill="currentColor" />
-          </span>
         </div>
-      </div>
-      <p className="mt-1.5 truncate text-xs font-bold text-foreground">{track.trackName}</p>
-      <p className="truncate text-[11px] text-muted-foreground">{track.artistName}</p>
-    </button>
+        <p className="mt-1.5 truncate text-xs font-bold text-foreground">{track.trackName}</p>
+        <p className="truncate text-[11px] text-muted-foreground">{track.artistName}</p>
+      </button>
+      <SpotifyAttributionLink trackId={track.spotifyTrackId} className="mt-1" />
+    </div>
   );
 }
 

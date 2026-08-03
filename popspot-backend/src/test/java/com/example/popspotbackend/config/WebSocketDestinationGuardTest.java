@@ -1,13 +1,23 @@
 package com.example.popspotbackend.config;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
+import com.example.popspotbackend.entity.User;
 import com.example.popspotbackend.repository.UserRepository;
 import com.example.popspotbackend.service.MateService;
+import com.example.popspotbackend.service.PolicyVersionService;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -18,6 +28,7 @@ import org.springframework.messaging.simp.stomp.StompCommand;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.messaging.support.ChannelInterceptor;
 import org.springframework.messaging.support.MessageBuilder;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 
 /**
  * 클라이언트가 브로커 주소로 직접 메시지를 보내지 못하게 막는지 검사한다.
@@ -33,14 +44,19 @@ class WebSocketDestinationGuardTest {
 
     private ChannelInterceptor interceptor;
     private MessageChannel channel;
+    private UserRepository userRepository;
+    private PolicyVersionService policyVersions;
 
     @BeforeEach
     void setUp() {
+        userRepository = mock(UserRepository.class);
+        policyVersions = mock(PolicyVersionService.class);
         WebSocketConfig config =
                 new WebSocketConfig(
                         mock(MateService.class),
-                        mock(UserRepository.class),
-                        new LiveConnectionRegistry());
+                        userRepository,
+                        new LiveConnectionRegistry(),
+                        policyVersions);
 
         // 인터셉터는 private 내부 클래스라 등록 과정을 통해 꺼낸다.
         List<ChannelInterceptor> captured = new ArrayList<>();
@@ -69,6 +85,27 @@ class WebSocketDestinationGuardTest {
         StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.SUBSCRIBE);
         accessor.setDestination(destination);
         accessor.setSessionId("test-session");
+        accessor.setLeaveMutable(true);
+        return MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());
+    }
+
+    private Message<byte[]> authenticatedSend(String destination, String userId) {
+        return authenticatedSend(destination, userId, true);
+    }
+
+    /**
+     * @param policyConsentOk 연결할 때 판정해 둔 정책 동의 여부. 실제 코드도 CONNECT 시점에 이 자리에 심는다 — 매 메시지마다 DB 를 치지
+     *     않기 위해서다.
+     */
+    private Message<byte[]> authenticatedSend(
+            String destination, String userId, boolean policyConsentOk) {
+        StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.SEND);
+        accessor.setDestination(destination);
+        accessor.setSessionId("test-session");
+        accessor.setUser(new UsernamePasswordAuthenticationToken(userId, null, List.of()));
+        Map<String, Object> attrs = new HashMap<>();
+        attrs.put(WebSocketConfig.ATTR_POLICY_OK, policyConsentOk);
+        accessor.setSessionAttributes(attrs);
         accessor.setLeaveMutable(true);
         return MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());
     }
@@ -147,5 +184,44 @@ class WebSocketDestinationGuardTest {
 
         assertThatCode(() -> interceptor.preSend(noDestination, channel))
                 .doesNotThrowAnyException();
+    }
+
+    @Test
+    @DisplayName("정책 동의가 오래된 회원의 메시지는 버리되, 연결은 끊지 않는다")
+    void dropsAuthenticatedSendWithoutCurrentPolicyConsent() {
+        // 예외를 던지면 STOMP 가 ERROR 프레임을 보낸 뒤 소켓을 닫는다. 위조 목적지 같은 '공격'
+        // 이면 맞는 대응이지만, 여기는 "아직 약관에 동의 안 함" 이라는 정상 상태다. 끊으면
+        // 화면이 재연결과 끊김을 반복하고 사용자는 이유도 모른 채 채팅이 죽은 것처럼 본다.
+        Message<?> result =
+                interceptor.preSend(
+                        authenticatedSend("/app/plan/room-abc/action", "stale-user", false),
+                        channel);
+
+        assertThat(result).describedAs("이 메시지 하나만 버린다").isNull();
+    }
+
+    @Test
+    @DisplayName("정책 검사는 세션 속성만 본다 — 메시지마다 DB 를 치지 않는다")
+    void policyCheckDoesNotHitDatabase() {
+        interceptor.preSend(
+                authenticatedSend("/app/plan/room-abc/action", "any-user", true), channel);
+
+        verify(userRepository, never()).findById(anyString());
+    }
+
+    @Test
+    @DisplayName("최신 정책과 만 14세 확인을 마친 회원은 WebSocket 메시지를 보낼 수 있다")
+    void allowsAuthenticatedSendWithCurrentPolicyConsent() {
+        User current = User.builder().userId("current-user").build();
+        current.recordPolicyConsent("1.2", "1.2");
+        when(userRepository.findById("current-user")).thenReturn(Optional.of(current));
+        when(policyVersions.hasRequiredConsent(current)).thenReturn(true);
+
+        Message<?> result =
+                interceptor.preSend(
+                        authenticatedSend("/app/plan/room-abc/action", "current-user", true),
+                        channel);
+
+        assertThat(result).describedAs("동의를 마쳤으면 그대로 전달된다").isNotNull();
     }
 }

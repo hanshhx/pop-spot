@@ -1,5 +1,6 @@
 package com.example.popspotbackend.dto;
 
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
@@ -36,4 +37,19 @@ public class SignupRequestDto {
     @NotBlank(message = "전화번호를 입력해주세요.")
     @Pattern(regexp = PHONE_REGEX, message = "전화번호 형식이 올바르지 않습니다. (예: 01012345678)")
     private String phoneNumber;
+
+    @AssertTrue(message = "만 14세 이상만 가입할 수 있습니다.")
+    private boolean age14OrOlder;
+
+    @AssertTrue(message = "이용약관 동의가 필요합니다.")
+    private boolean termsAccepted;
+
+    @AssertTrue(message = "개인정보 처리방침 동의가 필요합니다.")
+    private boolean privacyAccepted;
+
+    @NotBlank(message = "이용약관 버전이 누락되었습니다.")
+    private String termsVersion;
+
+    @NotBlank(message = "개인정보 처리방침 버전이 누락되었습니다.")
+    private String privacyVersion;
 }

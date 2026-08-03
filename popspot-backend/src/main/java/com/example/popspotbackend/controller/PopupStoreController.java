@@ -171,9 +171,9 @@ public class PopupStoreController {
     private void applyTakedown(PopupStore popup, PopupTakedownRequestDto dto) {
         if (popup.getTakedownRequestedAt() != null
                 || REVIEW_STATUS_TAKEDOWN.equals(popup.getReviewStatus())) {
-            // 이미 차단된 건이면 최초 신고 기록(시각·사유·신고자)을 그대로 보존한다.
+            // 이미 접수됐거나 관리자가 임시 차단한 건이면 최초 신고 기록(시각·사유·신고자)을 그대로 보존한다.
             // 재신고마다 시각을 갱신하면 SLA cutoff 가 계속 뒤로 밀려 admin 알림이 울리지 않고,
-            // 주기적으로 재신고하는 것만으로 영구 은폐가 가능해진다.
+            // 주기적으로 재신고하는 것만으로 검토 기한을 무한히 미룰 수 있다.
             return;
         }
         popup.setTakedownRequestedAt(LocalDateTime.now());

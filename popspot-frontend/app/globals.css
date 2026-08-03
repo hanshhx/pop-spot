@@ -1,3 +1,10 @@
+/* 브랜드 폰트. 외부 요청을 없애려고 이 세 줄을 지운 적이 있는데, 자체 호스팅으로 옮기지 않아
+   폰트를 불러오는 경로가 하나도 남지 않았다 — 아래 --font-sans 선언은 그대로인데 실제 파일이
+   없어서 사이트 전체가 시스템 폰트로 떨어졌다. 되돌린다.
+
+   제대로 된 끝 모습은 woff2 를 public/fonts/ 에 두고 @font-face 로 self-host 하는 것이다.
+   그러면 브랜드도 지키고 외부 접속 기록도 안 남는다. 폰트 파일을 받아 넣는 작업이 선행돼야 해서
+   별건으로 남긴다. 그때까지는 개인정보 처리방침에 이 두 곳을 밝혀 둔다. */
 @import url('https://cdn.jsdelivr.net/gh/wanteddev/wanted-sans@v1.0.3/packages/wanted-sans/fonts/webfonts/variable/split/WantedSansVariable.min.css');
 @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css');
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap');

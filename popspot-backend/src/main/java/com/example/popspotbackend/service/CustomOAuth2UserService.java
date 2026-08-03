@@ -82,6 +82,10 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
                 .role(DEFAULT_ROLE)
                 .provider(attributes.getProvider())
                 .password(UUID.randomUUID().toString())
+                // OAuth 제공자의 로그인 동의는 POP-SPOT 이용약관 동의가 아니다. 첫 로그인 뒤
+                // 재동의 모달을 반드시 거치도록 명시적인 대기 표식을 저장한다.
+                .agreedTermsVersion(PolicyVersionService.PENDING_CONSENT_VERSION)
+                .agreedPrivacyVersion(PolicyVersionService.PENDING_CONSENT_VERSION)
                 .build();
     }
 

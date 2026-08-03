@@ -112,7 +112,6 @@ import { AddPlaceModal } from '@/features/popup/AddPlaceModal';
 import { GlobalSearchModal, useGlobalSearchHotkey } from '@/features/popup/GlobalSearchModal';
 import { OnboardingModal } from '@/features/onboarding/OnboardingModal';
 import { NotificationCenter } from '@/features/notifications/NotificationCenter';
-import { TermsReconsentModal } from '@/features/terms/TermsReconsentModal';
 import { MyFeedbackList } from '@/features/feedback/MyFeedbackList';
 import { FeedbackForm } from '@/features/feedback/FeedbackForm';
 import { ProfileEditModal } from '@/features/profile/ProfileEditModal';
@@ -2357,7 +2356,6 @@ export default function Home() {
       />
       <OnboardingModal />
       <NotificationCenter open={isNotificationsOpen} onOpenChange={setIsNotificationsOpen} />
-      <TermsReconsentModal enabled={!!user} onDecline={handleLogout} />
       {user && (
         <ProfileEditModal
           open={isProfileEditOpen}

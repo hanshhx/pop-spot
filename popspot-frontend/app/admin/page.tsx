@@ -438,9 +438,31 @@ export default function AdminPage() {
    */
   const [pendingAction, setPendingAction] = useState<(() => Promise<void>) | null>(null);
 
-  /** 428(재확인 필요)이면 확인 창을 띄우고 참을 돌려준다 — 호출부는 거기서 멈추면 된다. */
-  const needsReauth = (res: Response, retry: () => Promise<void>) => {
+  /**
+   * 428(재확인 필요)이면 확인 창을 띄우고 참을 돌려준다 — 호출부는 거기서 멈추면 된다.
+   *
+   * <p><b>428 을 쓰는 곳이 둘이다.</b> 관리자 재인증(B-2)과 정책 재동의가 같은 코드를 쓴다.
+   * 상태코드만 보고 재인증 창을 띄우면, 정책 미동의로 막힌 요청에 6자리를 물어보게 되고 —
+   * 확인에 성공해도 다시 정책 때문에 428 이라 <b>무한히 반복</b>된다. 그래서 본문의 error 를
+   * 함께 본다. 정책 쪽은 이 함수가 관여하지 않고 재동의 모달(AuthGuard)이 처리한다.
+   */
+  const needsReauth = async (res: Response, retry: () => Promise<void>) => {
     if (res.status !== 428) return false;
+
+    let body = '';
+    try {
+      body = await res.clone().text();
+    } catch {
+      /* 본문을 못 읽으면 재인증으로 본다 — 그쪽이 화면에 안내가 있는 경로다 */
+    }
+    if (body.includes('POLICY_CONSENT_REQUIRED')) {
+      notifyError({
+        title: '동의가 필요합니다',
+        text: '최신 약관과 개인정보 처리방침에 동의한 뒤 다시 시도해 주세요.',
+      });
+      return true;
+    }
+
     setPendingAction(() => retry);
     return true;
   };
@@ -449,7 +471,7 @@ export default function AdminPage() {
     if (!(await confirmAction({ text: '삭제하시겠습니까?', destructive: true }))) return;
     try {
       const res = await apiFetch(`/api/admin/mate-posts/${id}`, { method: 'DELETE' });
-      if (needsReauth(res, () => handleDeleteMatePost(id))) return;
+      if (await needsReauth(res, () => handleDeleteMatePost(id))) return;
       if (res.ok) {
         notifySuccess('삭제 완료');
         loadMatePosts();
@@ -491,7 +513,7 @@ export default function AdminPage() {
     if (!(await confirmAction({ text: '이 댓글을 삭제할까요?', destructive: true }))) return;
     try {
       const res = await apiFetch(`/api/admin/chat/${id}`, { method: 'DELETE' });
-      if (needsReauth(res, () => handleDeleteComment(id))) return;
+      if (await needsReauth(res, () => handleDeleteComment(id))) return;
       if (res.ok) {
         notifySuccess('삭제 완료');
         setComments((prev) => prev.filter((c) => c.id !== id));

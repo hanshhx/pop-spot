@@ -20,6 +20,7 @@ import { isPexelsPhoto, popupCoverUrl } from '@/lib/popupCover';
 import { useMusicPlayer } from './MusicPlayerProvider';
 import { useLocale } from '@/lib/i18n';
 import { localizedPath } from '@/lib/localePath';
+import { SpotifyAttributionLink } from './SpotifyAttributionLink';
 
 function formatSeconds(sec: number) {
   if (!Number.isFinite(sec) || sec <= 0) return '0:00';
@@ -250,6 +251,10 @@ function FullScreenPlayer() {
           <h1 className="text-2xl font-black tracking-tight sm:text-3xl">{current.trackName}</h1>
           <p className="mt-1 text-base text-white/70">{current.artistName}</p>
           {current.albumName && <p className="mt-0.5 text-sm text-white/40">{current.albumName}</p>}
+          <SpotifyAttributionLink
+            trackId={current.spotifyTrackId}
+            className="mt-2 justify-center"
+          />
         </div>
 
         <div className="mt-8 flex w-full max-w-md flex-col gap-2">

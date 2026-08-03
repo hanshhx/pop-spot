@@ -72,7 +72,8 @@
 - [ ] `APP_ALLOWED_ORIGINS=https://popspot.co.kr,https://popspot.vercel.app,...` ← Vercel 모든 도메인 (preview 포함)
 - [ ] `SPRING_PROFILES_ACTIVE=prod`
 - [ ] `JPA_DDL_AUTO=validate` (`update/create` 운영 사용 금지, 변경은 Flyway SQL로만 적용)
-- [ ] `POPSPOT_TERMS_VERSION=1.1` (takedown 검증 절차 개정에 따른 기존 회원 재동의)
+- [ ] `POPSPOT_TERMS_VERSION=1.2`, `POPSPOT_PRIVACY_VERSION=1.2`, `POPSPOT_POLICY_CONSENT_EFFECTIVE_DATE=2026-08-10` (정책별 동의 증적·시행일·만 14세 이상 확인)
+- [ ] Flyway `V30__policy_consent_evidence.sql` 적용 확인 (`ddl-auto=validate` 기동 전 필수)
 
 #### Vercel 측 — Settings > Environment Variables
 - [ ] `NEXT_PUBLIC_API_URL=https://api.popspot.co.kr`
