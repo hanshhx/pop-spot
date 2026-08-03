@@ -35,6 +35,12 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
+import org.springframework.web.socket.config.annotation.WebSocketTransportRegistration;
+import org.springframework.web.socket.handler.WebSocketHandlerDecorator;
+import org.springframework.web.socket.handler.WebSocketHandlerDecoratorFactory;
+import org.springframework.web.socket.CloseStatus;
+import org.springframework.web.socket.WebSocketHandler;
+import org.springframework.web.socket.WebSocketSession;
 
 /**
  * STOMP WebSocket 엔드포인트 설정.
@@ -85,6 +91,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     private final MateService mateService;
     private final UserRepository userRepository;
+    private final LiveConnectionRegistry connections;
 
     private final Cache<String, AtomicInteger> sendCounters =
             Caffeine.newBuilder()
@@ -124,6 +131,43 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     public void configureClientInboundChannel(ChannelRegistration registration) {
         registration.interceptors(new AuthenticatedStompInterceptor());
     }
+
+    /**
+     * 열린 연결을 레지스트리에 등록한다 — "모든 기기에서 로그아웃" 이 <b>이미 열린</b> 연결까지 끊기 위해서다.
+     *
+     * <p>토큰 검사는 연결할 때 한 번만 돈다. 세션 객체를 들고 있지 않으면 그 뒤에는 끊을 방법이 없다.
+     */
+    @Override
+    public void configureWebSocketTransport(WebSocketTransportRegistration registration) {
+        registration.addDecoratorFactory(
+                new WebSocketHandlerDecoratorFactory() {
+                    @Override
+                    public WebSocketHandler decorate(WebSocketHandler handler) {
+                        return new WebSocketHandlerDecorator(handler) {
+                            @Override
+                            public void afterConnectionEstablished(WebSocketSession session)
+                                    throws Exception {
+                                connections.register(session);
+                                // STOMP CONNECT 인터셉터가 이 id 로 주인을 이어 붙인다.
+                                // 인증은 핸드셰이크가 아니라 CONNECT 에서 끝나므로 여기서는
+                                // 아직 누구인지 모른다.
+                                session.getAttributes().put(WS_SESSION_ID_ATTR, session.getId());
+                                super.afterConnectionEstablished(session);
+                            }
+
+                            @Override
+                            public void afterConnectionClosed(
+                                    WebSocketSession session, CloseStatus status) throws Exception {
+                                connections.unregister(session.getId());
+                                super.afterConnectionClosed(session, status);
+                            }
+                        };
+                    }
+                });
+    }
+
+    /** 핸드셰이크 속성에 심어 두는 WebSocket 세션 id. STOMP 단계에서 세션을 되찾는 유일한 연결고리다. */
+    static final String WS_SESSION_ID_ATTR = "wsSessionId";
 
     private String[] parseOrigins() {
         Set<String> set = new LinkedHashSet<>();
@@ -220,6 +264,9 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                 if (attrs != null) {
                     attrs.put("userId", userId);
                     attrs.put("role", authority);
+                    // 이제 이 연결의 주인을 안다. 비상 스위치가 끊을 수 있도록 이어 붙인다.
+                    Object wsId = attrs.get(WS_SESSION_ID_ATTR);
+                    if (wsId != null) connections.bind(userId, wsId.toString());
                 }
             } catch (RuntimeException e) {
                 log.debug("STOMP JWT 검증 실패: {}", e.getClass().getSimpleName());
