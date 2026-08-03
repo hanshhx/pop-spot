@@ -39,7 +39,16 @@ public class AdminAuditInterceptor implements AsyncHandlerInterceptor {
      * <p>무엇을 봤는지가 아니라 <b>'봤다'는 사실</b>만 남는다. 조회한 회원 목록을 그대로 기록하면 감사 로그가 회원 명부 사본이 된다.
      */
     private static final Set<String> AUDITED_READS =
-            Set.of("/api/admin/users", "/api/admin/visits/visitors", "/api/admin/logs/stream");
+            Set.of(
+                    "/api/admin/users",
+                    "/api/admin/visits/visitors",
+                    "/api/admin/logs/stream",
+                    // 파일로 꺼내는 것은 화면에서 보는 것과 다르다. 내려받은 파일은 우리 통제
+                    // 밖으로 나가 메일에 첨부되고 다른 컴퓨터에 남는다. 조회는 원래 기록하지
+                    // 않지만 이것만은 예외다.
+                    "/api/admin/export/visitors",
+                    "/api/admin/export/popup-opens",
+                    "/api/admin/export/campaigns");
 
     /**
      * 이미 기록했음을 표시하는 요청 속성.
@@ -176,6 +185,8 @@ public class AdminAuditInterceptor implements AsyncHandlerInterceptor {
         if (path.contains("/totp") || path.contains("/session")) {
             return AdminAuditLog.TARGET_ADMIN_SELF;
         }
+        // 내려받기는 무엇을 받든 "대량으로 꺼냈다" 는 사실이 중요하다.
+        if (path.contains("/export/visitors")) return AdminAuditLog.TARGET_MEMBER_DATA;
         if (path.contains("/users") || path.contains("/visitors")) {
             return AdminAuditLog.TARGET_MEMBER_DATA;
         }
