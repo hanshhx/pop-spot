@@ -7,6 +7,7 @@ import com.example.popspotbackend.entity.AdminAuditLog;
 import com.example.popspotbackend.entity.User;
 import com.example.popspotbackend.exception.ResourceNotFoundException;
 import com.example.popspotbackend.config.PiiMask;
+import com.example.popspotbackend.service.auth.RefreshTokenService;
 import com.example.popspotbackend.repository.UserRepository;
 import com.example.popspotbackend.service.admin.AdminAuditService;
 import com.example.popspotbackend.service.auth.TotpAuthService;
@@ -74,12 +75,16 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final TotpAuthService totpAuth;
     private final AdminAuditService adminAudit;
+    private final RefreshTokenService refreshTokens;
 
     @Value("${jwt.secret:}")
     private String jwtSecret;
 
     @Value("${jwt.access-token-validity-ms:3600000}")
     private long accessTokenValidityMs;
+
+    @Value("${jwt.admin-access-token-validity-ms:1800000}")
+    private long adminAccessTokenValidityMs;
 
     private Key signingKey;
 
@@ -165,6 +170,11 @@ public class AuthService {
         }
 
         recordAdminLogin(user, "이메일");
+        return withRefreshToken(user);
+    }
+
+    /** 로그인 성공 응답 — 접근 토큰과 리프레시 토큰을 함께 준다. */
+    private LoginResponseDto withRefreshToken(User user) {
         return LoginResponseDto.builder()
                 .userId(user.getUserId())
                 .email(user.getEmail())
@@ -173,6 +183,7 @@ public class AuthService {
                 .isPremium(user.isPremium())
                 .megaphoneCount(user.getMegaphoneCount())
                 .token(issueJwt(user))
+                .refreshToken(refreshTokens.issue(user.getUserId()).token())
                 .build();
     }
 
@@ -327,15 +338,32 @@ public class AuthService {
         }
 
         recordAdminLogin(user, "2단계 인증");
-        return LoginResponseDto.builder()
-                .userId(user.getUserId())
-                .email(user.getEmail())
-                .nickname(user.getNickname())
-                .role(user.getRole())
-                .isPremium(user.isPremium())
-                .megaphoneCount(user.getMegaphoneCount())
-                .token(issueJwt(user))
-                .build();
+        return withRefreshToken(user);
+    }
+
+    /**
+     * 리프레시 토큰으로 새 접근 토큰을 받는다. 쓴 리프레시 토큰은 즉시 버리고 새것을 준다(rotation).
+     *
+     * <p>같은 토큰을 계속 쓰게 두면 그것이 곧 장수 토큰이라, 접근 토큰을 짧게 만든 의미가 사라진다.
+     *
+     * <p>{@code tokenVersion} 도 다시 본다. 전체 로그아웃을 누른 뒤에도 리프레시 토큰이 살아 있으면 비상 스위치에 구멍이 생긴다.
+     */
+    @Transactional(readOnly = true)
+    public LoginResponseDto refresh(String refreshToken) {
+        String userId = refreshTokens.consume(refreshToken);
+        if (userId == null) {
+            throw new IllegalArgumentException("로그인이 만료되었습니다. 다시 로그인해 주세요.");
+        }
+
+        User user =
+                userRepository
+                        .findById(userId)
+                        .orElseThrow(() -> ResourceNotFoundException.user(userId));
+        if (!user.isAccountActive()) {
+            throw new IllegalArgumentException("비활성화된 계정입니다.");
+        }
+
+        return withRefreshToken(user);
     }
 
     private String issueJwt(User user) {
@@ -344,8 +372,24 @@ public class AuthService {
                 .claim("role", user.getRole())
                 .claim("ver", user.getTokenVersion())
                 .setIssuedAt(new Date())
-                .setExpiration(new Date(System.currentTimeMillis() + accessTokenValidityMs))
+                .setExpiration(new Date(System.currentTimeMillis() + validityFor(user)))
                 .signWith(signingKey, SignatureAlgorithm.HS256)
                 .compact();
+    }
+
+    /**
+     * 토큰 수명 — <b>관리자만 짧게</b>.
+     *
+     * <p>토큰이 한 번 새면 만료될 때까지 아무도 못 막는다. 관리자 토큰은 서비스 전체를 건드릴 수 있으므로 그 창이 짧아야 한다. 일반 회원까지 줄이면 앱을 쓰는
+     * 도중에 자꾸 끊겨 체감이 나빠지는데, 그쪽은 잃을 것이 자기 계정 하나다.
+     *
+     * <p>짧게 만드는 것만으로는 관리자가 30분마다 재로그인하게 된다. 그래서 {@link
+     * com.example.popspotbackend.service.auth.RefreshTokenService} 를 <b>먼저</b> 만들었다 — 순서를 뒤집으면 쓸 수
+     * 없는 화면이 된다.
+     */
+    private long validityFor(User user) {
+        String role = user.getRole();
+        boolean admin = role != null && role.endsWith(ROLE_ADMIN_SUFFIX);
+        return admin ? adminAccessTokenValidityMs : accessTokenValidityMs;
     }
 }

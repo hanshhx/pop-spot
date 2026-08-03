@@ -8,7 +8,7 @@ import { useState } from 'react';
 import { ShieldCheck, KeyRound } from 'lucide-react';
 
 import { apiFetch } from '@/lib/api';
-import { setAuthToken } from '@/lib/authStorage';
+import { setAuthToken, setRefreshToken } from '@/lib/authStorage';
 import { Button } from '@/components/ui/button';
 import { Input, Field } from '@/components/ui/input';
 
@@ -58,9 +58,10 @@ export function TotpChallenge({
         return;
       }
       const data = await res.json();
-      const { token, ...profile } = data;
+      const { token, refreshToken, ...profile } = data;
       // 토큰은 sessionStorage 로만 — 로그인 화면과 같은 규칙이다.
       if (token) setAuthToken(token);
+      if (refreshToken) setRefreshToken(refreshToken);
       onSuccess(profile);
     } catch {
       setError('서버에 연결하지 못했습니다.');

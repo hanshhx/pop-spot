@@ -100,6 +100,18 @@ public class AuthController {
                 authService.completeTotpLogin(body.get("challengeToken"), body.get("code")));
     }
 
+    /**
+     * 접근 토큰 갱신 — 리프레시 토큰을 새 접근 토큰과 <b>새 리프레시 토큰</b>으로 바꾼다.
+     *
+     * <p>관리자 접근 토큰은 30분짜리다. 이 경로가 없으면 30분마다 재로그인해야 한다.
+     *
+     * <p>쓴 리프레시 토큰은 즉시 버린다. 같은 토큰을 계속 쓰게 두면 그것이 곧 장수 토큰이 되어, 접근 토큰을 짧게 만든 의미가 사라진다.
+     */
+    @PostMapping("/refresh")
+    public ResponseEntity<LoginResponseDto> refresh(@RequestBody Map<String, String> body) {
+        return ResponseEntity.ok(authService.refresh(body.get("refreshToken")));
+    }
+
     @PostMapping("/oauth/exchange")
     public ResponseEntity<?> exchangeOAuthCode(@RequestBody Map<String, String> body) {
         String code = body.get("code");
@@ -121,7 +133,12 @@ public class AuthController {
                             "challengeToken",
                             value.substring(OAuth2SuccessHandler.TOTP_CHALLENGE_MARKER.length())));
         }
-        return ResponseEntity.ok(Map.of("token", value));
+        // 슬롯에는 접근 토큰과 리프레시 토큰이 줄바꿈으로 묶여 있다.
+        String[] parts = value.split(OAuth2SuccessHandler.TOKEN_SEPARATOR, 2);
+        Map<String, String> tokens = new java.util.LinkedHashMap<>();
+        tokens.put("token", parts[0]);
+        if (parts.length > 1) tokens.put("refreshToken", parts[1]);
+        return ResponseEntity.ok(tokens);
     }
 
     @GetMapping("/check-email")
