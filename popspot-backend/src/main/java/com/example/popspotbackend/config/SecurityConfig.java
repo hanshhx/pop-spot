@@ -82,8 +82,15 @@ public class SecurityConfig {
                     "X-Requested-With",
                     "Cache-Control",
                     "X-XSRF-TOKEN");
+
+    /**
+     * 브라우저가 <b>읽게 허용할</b> 응답 헤더.
+     *
+     * <p>여기 없는 헤더는 서버가 보내도 자바스크립트에서 {@code null} 로 보인다. 요청은 성공하고 헤더도 실제로 오는데 읽기만 막히는 것이라, 빠뜨리면 오류
+     * 없이 조용히 동작만 사라진다. 같은 출처로 개발할 때는 멀쩡하고 배포한 뒤에야 드러난다.
+     */
     private static final List<String> EXPOSED_HEADERS =
-            List.of("Authorization", "Content-Disposition");
+            List.of("Authorization", "Content-Disposition", "X-Popspot-Truncated");
 
     private static final String[] PUBLIC_PATHS = {
         "/",

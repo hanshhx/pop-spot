@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { MousePointerClick, RefreshCw } from 'lucide-react';
 
 import { apiFetch } from '@/lib/api';
+import { ExportButton } from '@/features/admin/ExportButton';
 
 /**
  * 많이 열린 팝업 — 목록에서 카드를 눌러 상세를 연 횟수.
@@ -71,6 +72,8 @@ export function PopupOpensPanel() {
               </button>
             ))}
           </div>
+          <ExportButton dataset="popup-opens" days={days} />
+
           <button
             type="button"
             onClick={load}
