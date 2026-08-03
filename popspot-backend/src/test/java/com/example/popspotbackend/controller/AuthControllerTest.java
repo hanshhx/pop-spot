@@ -49,6 +49,11 @@ class AuthControllerTest {
         request.setPassword("Password1!");
         request.setNickname("신규회원");
         request.setPhoneNumber("01012345678");
+        request.setAge14OrOlder(true);
+        request.setTermsAccepted(true);
+        request.setPrivacyAccepted(true);
+        request.setTermsVersion("1.2");
+        request.setPrivacyVersion("1.2");
     }
 
     /** 인증키 소비 결과를 흉내낸다. null = 키 없음(미인증), "TRUE" = 인증 완료. */

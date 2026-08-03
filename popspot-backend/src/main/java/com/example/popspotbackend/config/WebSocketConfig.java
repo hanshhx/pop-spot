@@ -3,6 +3,7 @@ package com.example.popspotbackend.config;
 import com.example.popspotbackend.entity.User;
 import com.example.popspotbackend.repository.UserRepository;
 import com.example.popspotbackend.service.MateService;
+import com.example.popspotbackend.service.PolicyVersionService;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import io.jsonwebtoken.Claims;
@@ -92,6 +93,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     private final MateService mateService;
     private final UserRepository userRepository;
     private final LiveConnectionRegistry connections;
+    private final PolicyVersionService policyVersions;
 
     private final Cache<String, AtomicInteger> sendCounters =
             Caffeine.newBuilder()
@@ -166,6 +168,14 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                 });
     }
 
+    /**
+     * 이 연결이 최신 정책에 동의한 사용자의 것인가 — CONNECT 때 한 번 판정해 둔다.
+     *
+     * <p>연결 중에 동의를 마치면 이 값은 낡는다. 그때는 다시 연결하면 갱신된다 — 동의 화면이 어차피 페이지를 새로 그리므로 실무상 문제가 되지 않는다. 매 메시지마다
+     * DB 를 치는 비용이 그보다 크다.
+     */
+    static final String ATTR_POLICY_OK = "policyConsentOk";
+
     /** 핸드셰이크 속성에 심어 두는 WebSocket 세션 id. STOMP 단계에서 세션을 되찾는 유일한 연결고리다. */
     static final String WS_SESSION_ID_ATTR = "wsSessionId";
 
@@ -194,7 +204,15 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                 // 순서가 중요하다 — 목적지 검사를 레이트리밋보다 먼저 한다. 뒤에 두면 위조 시도가
                 // 정상 요청과 같은 한도를 갉아먹어, 공격자가 남의 전송을 막는 수단이 된다.
                 rejectBrokerDestination(accessor);
+                // 정책 동의 검사를 레이트리밋 <b>뒤</b>에 둔다. 앞에 두면 한도로 걸러질 폭주
+                // 메시지까지 전부 사용자 조회를 만든다. 위조 목적지 검사와 달리 이건 공격이
+                // 아니라 정상 상태(아직 동의 안 함)라, 한도를 갉아먹는 문제도 없다.
                 enforceSendRate(accessor);
+                // 동의 전이면 이 메시지 하나만 버린다(null 반환). 예외를 던지면 STOMP 가 ERROR
+                // 프레임을 보낸 뒤 <b>소켓을 닫아 버린다</b> — 위조 목적지 같은 공격이면 맞는
+                // 대응이지만, 여기는 "아직 약관에 동의 안 함" 이라는 정상 상태다. 끊으면 화면이
+                // 재연결과 끊김을 반복하고 사용자는 이유도 모른 채 채팅이 죽은 것처럼 본다.
+                if (!hasPolicyConsent(accessor)) return null;
             }
             if (StompCommand.SEND.equals(accessor.getCommand())
                     || StompCommand.SUBSCRIBE.equals(accessor.getCommand())) {
@@ -267,6 +285,8 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                     // 이제 이 연결의 주인을 안다. 비상 스위치가 끊을 수 있도록 이어 붙인다.
                     Object wsId = attrs.get(WS_SESSION_ID_ATTR);
                     if (wsId != null) connections.bind(userId, wsId.toString());
+                    // 동의 여부도 여기서 한 번만 판정한다. 위에서 이미 조회한 user 를 그대로 쓴다.
+                    attrs.put(ATTR_POLICY_OK, policyVersions.hasRequiredConsent(user));
                 }
             } catch (RuntimeException e) {
                 log.debug("STOMP JWT 검증 실패: {}", e.getClass().getSimpleName());
@@ -284,6 +304,22 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
             if (!mateService.isParticipant(postId, userId)) {
                 throw new SecurityException("동행 참여자만 채팅 채널에 접근할 수 있습니다.");
             }
+        }
+
+        /**
+         * HTTP 변경 요청과 같은 기준을 WebSocket 전송에도 적용한다. 연결과 구독은 열어 두되, 최신 약관·개인정보 처리방침 및 만 14세 확인이 끝나기
+         * 전에는 새 메시지를 보낼 수 없다.
+         */
+        /**
+         * 이 전송을 허용할 것인가 — 최신 약관·개인정보 처리방침과 만 14세 확인을 마쳤는가.
+         *
+         * <p>연결할 때 이미 판정해 둔 값을 본다. 여기서 매번 조회하면 메시지 한 통마다 DB 왕복이 생긴다 — 채팅은 이 서비스에서 가장 자주 오가는 요청이다.
+         */
+        private boolean hasPolicyConsent(StompHeaderAccessor accessor) {
+            if (accessor.getUser() == null) return true;
+            Map<String, Object> attrs = accessor.getSessionAttributes();
+            if (attrs == null) return true;
+            return Boolean.TRUE.equals(attrs.get(ATTR_POLICY_OK));
         }
 
         private void enforceSendRate(StompHeaderAccessor accessor) {

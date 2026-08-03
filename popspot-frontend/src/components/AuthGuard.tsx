@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useEffect } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 
@@ -9,6 +9,7 @@ import { clearAuthToken, getAuthToken } from '@/lib/authStorage';
 import { notifyWarning } from '@/lib/notify';
 import { useLocale } from '@/lib/i18n';
 import { localizedPath } from '@/lib/localePath';
+import { TermsReconsentModal } from '@/features/terms/TermsReconsentModal';
 
 // 인증 불필요 공개 경로 — 정확 일치. (sitemap 포함 페이지 + 인증 흐름 페이지)
 const PUBLIC_PATHS = [
@@ -123,6 +124,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { locale } = useLocale();
   const expiredCopy = EXPIRED_COPY[locale];
+  const [authenticated, setAuthenticated] = useState(false);
 
   useEffect(() => {
     // 공개 경로에서 생략하는 것은 '강제 이동'뿐이다. 검증과 이벤트 수신은 아래에서 그대로 수행한다.
@@ -138,6 +140,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     const handleExpired = () => {
       clearAuthToken();
       localStorage.removeItem(USER_KEY);
+      setAuthenticated(false);
       void notifyWarning({ title: expiredCopy.title, text: expiredCopy.text });
       if (!publicPath) router.replace(localizedPath('/login', locale));
     };
@@ -145,6 +148,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     const verify = async () => {
       const token = getAuthToken();
       if (!token) {
+        setAuthenticated(false);
         // 비로그인 상태. 공개 경로는 그대로 두고, 보호 경로만 로그인으로 보낸다.
         if (!publicPath) router.replace(localizedPath('/login', locale));
         return;
@@ -157,6 +161,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
         if (!res.ok) return; // 5xx / 네트워크 일시 장애 — stale 캐시 유지(UX 보호).
         const serverUser = await res.json();
         localStorage.setItem(USER_KEY, JSON.stringify(serverUser));
+        setAuthenticated(true);
       } catch {
         // 네트워크 실패 → stale 캐시 fallback.
       }
@@ -171,5 +176,17 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     };
   }, [pathname, router, locale, expiredCopy]);
 
-  return <Suspense fallback={<GuardFallback />}>{children}</Suspense>;
+  const declinePolicy = () => {
+    clearAuthToken();
+    localStorage.removeItem(USER_KEY);
+    setAuthenticated(false);
+    router.replace(localizedPath('/login', locale));
+  };
+
+  return (
+    <>
+      <Suspense fallback={<GuardFallback />}>{children}</Suspense>
+      <TermsReconsentModal enabled={authenticated} onDecline={declinePolicy} />
+    </>
+  );
 }

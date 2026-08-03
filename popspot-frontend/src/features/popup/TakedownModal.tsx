@@ -35,7 +35,7 @@ const COPY = {
   ko: {
     title: '정보 삭제·수정 요청',
     description:
-      '이 정보가 부정확하거나 저작권을 침해한다면 알려주세요. 접수된 정보는 즉시 숨겨지며 24시간 안에 검토합니다.',
+      '이 정보가 부정확하거나 권리를 침해한다면 알려주세요. 접수 내용을 24시간 안에 검토하고, 명백하거나 긴급한 피해가 확인된 경우 검토 중 임시로 숨깁니다.',
     policy: '이용약관 §11 권리자 정보 삭제 요청 절차',
     target: '대상 팝업',
     email: '신고자 이메일 (회신용)',
@@ -45,7 +45,7 @@ const COPY = {
     warning: '허위·악성 신고로 정상 콘텐츠의 노출을 방해하면 손해배상 책임이 발생할 수 있습니다.',
     submit: '신고 제출',
     successTitle: '신고가 접수되었습니다',
-    successText: '24시간 안에 검토합니다. 해당 정보는 즉시 숨겨집니다.',
+    successText: '관리자 검증 대기 상태로 접수했습니다. 24시간 안에 내용을 검토합니다.',
     failed: '신고 처리에 실패했습니다. 잠시 후 다시 시도해주세요.',
     network: '서버와 연결할 수 없습니다.',
     reasons: [
@@ -58,7 +58,7 @@ const COPY = {
   en: {
     title: 'Request a correction or removal',
     description:
-      'Tell us if this listing is inaccurate or infringes your rights. It will be hidden immediately and reviewed within 24 hours.',
+      'Tell us if this listing is inaccurate or infringes your rights. We will review the report within 24 hours. A listing is hidden during review only when a clear or urgent risk is confirmed.',
     policy: 'Terms §11: rights-holder correction and removal process',
     target: 'Listing',
     email: 'Your email (for our reply)',
@@ -69,7 +69,8 @@ const COPY = {
       'A false or malicious report that disrupts a legitimate listing may result in legal liability.',
     submit: 'Submit report',
     successTitle: 'Report received',
-    successText: 'We will review it within 24 hours. The listing has been hidden.',
+    successText:
+      'The report is waiting for administrator review. We will review it within 24 hours.',
     failed: 'Could not submit the report. Please try again shortly.',
     network: 'Could not connect to the server.',
     reasons: [
@@ -82,7 +83,7 @@ const COPY = {
   ja: {
     title: '情報の修正・削除を申請',
     description:
-      '情報の誤りや権利侵害がある場合はお知らせください。受付後すぐに非表示にし、24時間以内に確認します。',
+      '情報の誤りや権利侵害がある場合はお知らせください。24時間以内に内容を確認し、明白または緊急の被害が確認された場合に限り、確認中は一時的に非表示にします。',
     policy: '利用規約 第11条：権利者による修正・削除申請',
     target: '対象のポップアップ',
     email: '申請者のメール（返信用）',
@@ -92,7 +93,7 @@ const COPY = {
     warning: '虚偽または悪意ある申請で正当な掲載を妨害した場合、法的責任が生じることがあります。',
     submit: '申請を送信',
     successTitle: '申請を受け付けました',
-    successText: '24時間以内に確認します。対象情報はすぐに非表示になります。',
+    successText: '管理者の確認待ちとして受け付けました。24時間以内に内容を確認します。',
     failed: '申請を送信できませんでした。しばらくしてからもう一度お試しください。',
     network: 'サーバーに接続できませんでした。',
     reasons: [
@@ -109,7 +110,7 @@ const COPY = {
  * 정보 삭제·수정을 요청하는 폼.
  *
  * 백엔드: POST /api/popups/{id}/takedown
- * → 즉시 reviewStatus='TAKEDOWN' 으로 변경, 24시간 내 admin 검토 (이용약관 §11).
+ * → 관리자 검증 대기 상태로 기록하고 24시간 내 검토. 명백하거나 긴급한 피해만 검토 중 임시 차단한다(이용약관 §11).
  */
 export function TakedownModal({ open, onOpenChange, popupId, popupName }: TakedownModalProps) {
   const { locale } = useLocale();

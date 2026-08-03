@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
+import { ExternalMediaConsentControl } from '@/components/legal/ExternalMediaConsentControl';
 
 export const metadata: Metadata = {
   title: '개인정보 처리방침 | POP-SPOT',
@@ -13,9 +14,9 @@ const CONTACT_EMAIL = 'reo4321@naver.com';
 // 개인정보 보호책임자의 '성명' 은 개인정보 보호법 시행령 제31조가 요구하는 법정 필수 기재사항이라
 // 직책·연락처만으로는 방침이 성립하지 않는다. 담당자 교체 시 이 상수만 고치면 되도록 분리한다.
 const DPO_NAME = '김동현';
-const POLICY_REVISION_DATE = '2026-07-26';
+const POLICY_REVISION_DATE = '2026-08-03';
 // 제13조가 '시행일 7일 전 고지' 를 약속하므로 개정일 + 7일을 시행일로 둔다 (방침이 스스로를 어기지 않도록).
-const POLICY_EFFECTIVE_DATE = '2026-08-02';
+const POLICY_EFFECTIVE_DATE = '2026-08-10';
 
 const DISPUTE_AGENCIES = [
   { name: '개인정보분쟁조정위원회', url: 'https://kopico.go.kr', phone: '1833-6972' },
@@ -37,6 +38,13 @@ const COLLECTION_TABLE: PolicyTable = {
   rows: [
     {
       cells: ['필수 (이메일 가입)', '이메일, 비밀번호(해시), 닉네임, 휴대전화번호', '회원가입 시'],
+    },
+    {
+      cells: [
+        '필수 동의 증적',
+        '이용약관 버전, 개인정보 처리방침 버전, 동의 일시, 만 14세 이상 확인 일시 — 생년월일과 성별은 수집하지 않음',
+        '회원가입·소셜 첫 로그인 및 정책 재동의 시',
+      ],
     },
     {
       cells: [
@@ -77,29 +85,51 @@ const COLLECTION_TABLE: PolicyTable = {
 // Algolia 는 자체 AI 검색으로 대체돼 이용자 개인정보를 다루는 경로가 남아 있지 않으므로 목록에서 제외한다.
 // (팝업 정보 색인은 개인정보 처리 위탁이 아니다.)
 const PROCESSOR_TABLE: PolicyTable = {
-  headers: ['위탁 업체', '위탁 업무'],
+  headers: ['외부 사업자', '이용 목적'],
   rows: [
-    { cells: ['Google LLC', '소셜 로그인 인증, YouTube 영상 재생'] },
-    { cells: ['Kakao Corp.', '소셜 로그인 인증, 거리뷰(로드뷰) 표시'] },
+    {
+      cells: [
+        'Google LLC',
+        '소셜 로그인 인증, 음악 검색어 자동완성, YouTube 영상 재생, Gmail을 통한 인증·안내 메일 발송',
+      ],
+    },
+    { cells: ['Kakao Corp.', '소셜 로그인 인증, 공개 검색 결과 제공'] },
     { cells: ['NAVER Cloud Corp.', '소셜 로그인 인증, 검색 결과 제공'] },
+    {
+      cells: [
+        'SK텔레콤 주식회사 (TMAP)',
+        '사용자가 보행 경로를 요청한 경우 출발·도착 좌표를 이용한 경로 계산',
+      ],
+    },
     {
       cells: ['(주)코리아포트원 (PortOne · 구 아임포트)', '결제 승인 · 결제 내역 검증 · 결제 취소'],
     },
     { cells: ['Vercel Inc.', '프론트엔드 호스팅, 익명 접속·성능 통계 수집'] },
-    { cells: ['Sentry, Inc.', '오류 모니터링 (개인정보 전송 옵션 비활성화)'] },
+    {
+      cells: ['Functional Software, Inc. (Sentry)', '오류 모니터링 (개인정보 전송 옵션 비활성화)'],
+    },
     {
       cells: ['Groq, Inc.', 'LLM 기반 음악 무드 분석 · 자동수집 정규화 (개인정보 미포함)'],
     },
     {
       cells: ['Spotify AB', '음악 메타데이터 조회 · 재생 제어 (계정 연동 시에 한함)'],
     },
+    {
+      cells: [
+        'Canva Germany GmbH (Pexels)',
+        '스톡 이미지 제공 (이미지 요청 시 접속 정보가 전달될 수 있음)',
+      ],
+    },
+    { cells: ['Apple Inc.', 'iTunes 음악 메타데이터 · 앨범 표지 · 미리듣기 제공'] },
+    { cells: ['GitHub, Inc.', '지도에 필요한 공개 글꼴 데이터 제공'] },
+    { cells: ['FOSSGIS e.V. (OSRM 공개 서버)', '사용자가 선택한 출발·도착 좌표의 경로 계산'] },
   ],
 };
 
 /**
  * 국외 이전 고지 (개인정보 보호법 제28조의8).
  *
- * <p>위 수탁사 중 국내 사업자(Kakao · NAVER · 코리아포트원) 를 뺀 나머지는 전부 국외 사업자라, 위탁 조항만으로는 고지 의무가 채워지지 않는다.
+ * <p>위 외부 사업자 중 국내 사업자(Kakao · NAVER · SK텔레콤 · 코리아포트원) 를 뺀 나머지는 전부 국외 사업자라, 외부 서비스 표만으로는 고지 의무가 채워지지 않는다.
  * 법이 요구하는 5개 항목(이전받는 자·국가·항목·목적·기간·방법) 을 업체별로 적는다.
  */
 const OVERSEAS_TRANSFER_TABLE: PolicyTable = {
@@ -125,6 +155,15 @@ const OVERSEAS_TRANSFER_TABLE: PolicyTable = {
     },
     {
       cells: [
+        'Google LLC — 검색어 자동완성 (미국)',
+        '이용자가 입력 중인 음악 검색어',
+        '음악 검색어 자동완성 후보 제공',
+        '음악 검색란에 입력한 시점에 서버를 거쳐 HTTPS로 전송',
+        '서비스 제공자의 로그 보관 정책에 따름',
+      ],
+    },
+    {
+      cells: [
         'Vercel Inc. (미국)',
         '접속 IP, 브라우저 정보, 요청한 페이지 경로, 페이지 성능 지표',
         '웹사이트 호스팅 및 익명 접속·성능 통계 집계',
@@ -134,7 +173,7 @@ const OVERSEAS_TRANSFER_TABLE: PolicyTable = {
     },
     {
       cells: [
-        'Sentry, Inc. (미국)',
+        'Functional Software, Inc. — Sentry (미국)',
         '오류 발생 일시, 요청 경로, 오류 스택트레이스, 브라우저·서버 환경 정보',
         '서비스 오류 원인 분석 및 장애 대응',
         '오류가 발생한 시점에 HTTPS 로 전송',
@@ -157,6 +196,51 @@ const OVERSEAS_TRANSFER_TABLE: PolicyTable = {
         '음악 메타데이터 조회 및 재생 제어',
         '계정 연동 · 재생 요청 시점에 HTTPS 로 전송',
         '연동 해제 또는 회원 탈퇴 시까지',
+      ],
+    },
+    {
+      cells: [
+        'Google LLC — Gmail (미국)',
+        '수신 이메일 주소, 인증번호·서비스 안내 등 메일 내용',
+        '회원 인증, 계정 복구 및 사용자가 신청한 알림 메일 발송',
+        '메일 발송 시점에 TLS로 전송',
+        '메일 제공자의 정책 및 발송 기록 보관 기간에 따름',
+      ],
+    },
+    {
+      cells: [
+        'Canva Germany GmbH — Pexels (독일; 미국·호주·싱가포르·EU·영국·필리핀·뉴질랜드 등에서 처리 가능)',
+        '접속 IP, 브라우저 정보, 요청한 이미지 주소',
+        '팝업 상세·목록의 스톡 이미지 제공',
+        '이미지가 표시되는 시점에 HTTPS로 전송',
+        '이미지 제공자의 로그 보관 정책에 따름',
+      ],
+    },
+    {
+      cells: [
+        'Apple Inc. — iTunes (미국)',
+        '접속 IP, 브라우저 정보, 음악 검색·미리듣기 요청 정보',
+        '음악 메타데이터, 앨범 표지 및 미리듣기 제공',
+        '음악 기능을 이용하는 시점에 HTTPS로 전송',
+        '서비스 제공자의 로그 보관 정책에 따름',
+      ],
+    },
+    {
+      cells: [
+        'GitHub, Inc. — GitHub Pages (미국)',
+        '접속 IP, 브라우저 정보, 지도 글꼴 요청 정보',
+        '지도 라벨 표시에 필요한 공개 글꼴 제공',
+        '지도를 표시하는 시점에 HTTPS로 전송',
+        '서비스 제공자의 로그 보관 정책에 따름',
+      ],
+    },
+    {
+      cells: [
+        'FOSSGIS e.V. — OSRM 공개 서버 (독일)',
+        '접속 IP, 브라우저 정보, 사용자가 선택한 출발·도착 좌표',
+        '작전지도 도보 경로 계산',
+        '경로 계산을 요청한 시점에 HTTPS로 전송',
+        '서비스 제공자의 로그 보관 정책에 따름',
       ],
     },
   ],
@@ -255,12 +339,22 @@ export default function PrivacyPage() {
             </p>
           </Section>
 
-          <Section title="제5조 (개인정보 처리의 위탁)">
-            <p className="mb-3">기능 제공을 위해 다음 외부 사업자에게 일부 처리를 위탁합니다.</p>
+          <Section title="제5조 (외부 서비스 제공자 및 처리 위탁)">
+            <p className="mb-3">
+              기능 제공을 위해 다음 외부 사업자의 API·호스팅·콘텐츠를 이용합니다. 사업자에 따라
+              POP-SPOT의 지시에 따라 처리하는 수탁자이거나, 이용자가 선택한 외부 기능을 독립적으로
+              제공하는 사업자일 수 있습니다.
+            </p>
             <DataTable table={PROCESSOR_TABLE} />
             <Note>
-              위탁 시 개인정보 보호법 제26조에 따라 위탁업무 수행 목적 외 개인정보 처리 금지, 안전성
-              확보 조치, 재위탁 제한 등을 계약에 반영합니다.
+              백엔드, 데이터베이스와 회원이 올린 파일은 대한민국 내 전용 서버에서 운영·보관합니다.
+              서버의 물리적 운영자 등 제3자가 개인정보에 접근할 수 있는 구조로 바뀌는 경우, 회사는
+              해당 운영자를 수탁자로 공개하고 필요한 계약과 접근 통제를 먼저 적용합니다.
+            </Note>
+            <Note>
+              개인정보 처리 위탁 관계에 해당하는 사업자와는 개인정보 보호법 제26조에 따라 목적 외
+              처리 금지, 안전성 확보 조치, 재위탁 관리 등을 계약과 설정에 반영합니다. 외부 사업자가
+              독립적으로 처리하는 기능은 해당 사업자의 약관·개인정보 처리방침이 함께 적용됩니다.
             </Note>
           </Section>
 
@@ -272,8 +366,8 @@ export default function PrivacyPage() {
             </p>
             <DataTable table={OVERSEAS_TRANSFER_TABLE} />
             <Note>
-              Kakao Corp. · NAVER Cloud Corp. · (주)코리아포트원은 국내 사업자로, 이들에게 제공되는
-              개인정보는 국외로 이전되지 않습니다.
+              Kakao Corp. · NAVER Cloud Corp. · SK텔레콤 · (주)코리아포트원은 국내 사업자로,
+              이들에게 제공되는 개인정보는 국외로 이전되지 않습니다.
             </Note>
             <Note>
               이용자는 개인정보의 국외 이전을 거부할 수 있습니다. 다만 이전은 해당 기능을 제공하기
@@ -341,12 +435,43 @@ export default function PrivacyPage() {
 
           <Section title="제11조 (쿠키 및 분석 도구)">
             <p>
-              로그인 유지를 위한 필수 쿠키와 서비스 품질 개선용 분석 도구 (Vercel Web Analytics,
-              Vercel Speed Insights, Sentry) 를 사용합니다. 광고용 추적 쿠키는 사용하지 않습니다.
-              Vercel Web Analytics 와 Speed Insights 는 쿠키를 사용하지 않으며, 개인을 식별할 수
-              없는 형태의 접속 통계와 페이지 성능 지표(로딩 속도 등) 만 수집합니다. 이들 도구는 국외
-              사업자가 운영하므로 제6조의 국외 이전 고지가 함께 적용됩니다.
+              로그인 토큰은 브라우저 탭을 닫으면 사라지는 <code>sessionStorage</code>에 저장합니다.
+              화면 언어·최근 본 팝업·온보딩 여부 같은 기기 설정과 익명 방문자 ID는
+              <code>localStorage</code>에 저장합니다. 외부 영상 연결 동의를 한 경우 그 동의 버전도
+              같은 저장소에 기록합니다. 익명 방문자 ID는 90일이 지나면 새 값으로 교체되며, 사용자가
+              브라우저 사이트 데이터를 지우면 즉시 삭제됩니다. 광고용 추적 쿠키는 사용하지 않습니다.
+              Vercel Web Analytics와 Speed Insights는 쿠키를 사용하지 않으며, 개인을 직접 식별하지
+              않는 접속 통계와 페이지 성능 지표를 수집합니다. Sentry는 오류 진단에 사용하며 개인정보
+              자동 전송 옵션을 비활성화합니다. 국외 사업자에 대한 내용은 제6조가 함께 적용됩니다.
             </p>
+            <Note>
+              YouTube 영상은 이용자가 재생에 동의한 뒤에만 연결합니다. 재생 시 Google이 접속 정보와
+              영상 요청 정보를 처리할 수 있으며,{' '}
+              <a
+                href="https://policies.google.com/privacy"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline text-lime-500"
+              >
+                Google 개인정보 처리방침
+              </a>{' '}
+              및{' '}
+              <a
+                href="https://myaccount.google.com/data-and-privacy"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline text-lime-500"
+              >
+                Google 개인정보 관리 화면
+              </a>
+              에서 처리 내용과 설정을 확인할 수 있습니다.
+            </Note>
+            <Note>
+              Google 캘린더 또는 Kakao 지도 버튼을 누르면 이용자가 선택한 팝업의 이름·일정·장소나
+              좌표가 해당 외부 서비스 주소에 포함되어 전송됩니다. iOS용 캘린더 파일은 브라우저에서
+              직접 만들어 내려받으며 POP-SPOT 서버나 외부 캘린더로 자동 전송하지 않습니다.
+            </Note>
+            <ExternalMediaConsentControl />
           </Section>
 
           <Section title="제12조 (개인정보 보호책임자)">

@@ -86,6 +86,8 @@ public class AuthService {
     @Value("${jwt.admin-access-token-validity-ms:1800000}")
     private long adminAccessTokenValidityMs;
 
+    private final PolicyVersionService policyVersions;
+
     private Key signingKey;
 
     @PostConstruct
@@ -103,6 +105,7 @@ public class AuthService {
 
     @Transactional
     public String signup(SignupRequestDto requestDto) {
+        validatePolicyConsent(requestDto);
         if (userRepository.existsByEmail(requestDto.getEmail())) {
             // 같은 이메일로 두 번 가입을 시도하는 정상 사용자 케이스 → 입력 오류 (400).
             throw new IllegalArgumentException("이미 존재하는 이메일입니다.");
@@ -126,8 +129,26 @@ public class AuthService {
                         .phoneNumber(requestDto.getPhoneNumber())
                         .role(ROLE_USER)
                         .provider(PROVIDER_LOCAL)
+                        .agreedTermsVersion(policyVersions.publishedTermsVersion())
+                        .agreedPrivacyVersion(policyVersions.publishedPrivacyVersion())
+                        .policyConsentAt(LocalDateTime.now())
+                        .age14VerifiedAt(LocalDateTime.now())
                         .build();
         return userRepository.save(user).getUserId();
+    }
+
+    private void validatePolicyConsent(SignupRequestDto requestDto) {
+        if (!requestDto.isAge14OrOlder()
+                || !requestDto.isTermsAccepted()
+                || !requestDto.isPrivacyAccepted()) {
+            throw new IllegalArgumentException("필수 동의와 만 14세 이상 확인이 필요합니다.");
+        }
+        if (!policyVersions.publishedTermsVersion().equals(requestDto.getTermsVersion())
+                || !policyVersions
+                        .publishedPrivacyVersion()
+                        .equals(requestDto.getPrivacyVersion())) {
+            throw new IllegalArgumentException("정책이 변경되었습니다. 최신 내용을 확인한 뒤 다시 동의해주세요.");
+        }
     }
 
     @Transactional(readOnly = true)

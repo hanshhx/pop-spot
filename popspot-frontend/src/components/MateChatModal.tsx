@@ -26,6 +26,26 @@ import { notify, notifyError, confirmAction } from '@/lib/notify';
 import { addPromiseToCalendar } from '@/lib/calendar';
 import { useLocale } from '@/lib/i18n';
 
+/** 외부 음원 서버에 접속 기록을 남기지 않고 브라우저 안에서 짧은 알림음을 만든다. */
+function playMessageTone() {
+  try {
+    const context = new AudioContext();
+    const oscillator = context.createOscillator();
+    const gain = context.createGain();
+    oscillator.type = 'sine';
+    oscillator.frequency.setValueAtTime(660, context.currentTime);
+    gain.gain.setValueAtTime(0.04, context.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, context.currentTime + 0.16);
+    oscillator.connect(gain);
+    gain.connect(context.destination);
+    oscillator.addEventListener('ended', () => void context.close(), { once: true });
+    oscillator.start();
+    oscillator.stop(context.currentTime + 0.16);
+  } catch {
+    // 자동재생이 제한된 브라우저에서는 소리 없이 읽지 않은 메시지 수만 표시한다.
+  }
+}
+
 const COPY = {
   ko: {
     unread: (n: number) => `새 메시지 ${n}개`,
@@ -244,9 +264,7 @@ export default function MateChatModal({
       // 내가 보낸 게 아니고, 창이 닫혀 있을 때
       if (lastMsg.sender !== nickname && isMinimized) {
         setUnreadCount((prev) => prev + 1);
-        // 브라우저 기본 알림음 (선택사항)
-        const audio = new Audio('https://t1.daumcdn.net/mesng/resource/sound/new_msg.mp3');
-        audio.play().catch(() => {}); // 브라우저 정책상 차단될 수 있음
+        playMessageTone();
       }
     }
   }, [messages]);

@@ -149,7 +149,7 @@ KAKAO_REST_API_KEY=...
 - [x] 본문 직접 크롤링 없음
 - [x] 모든 row 에 `source_url` 저장 → 프론트에 출처 링크 노출
 - [x] 신뢰도 < 0.8 은 admin 검수 큐로 → 자동 노출 안 함
-- [x] 권리자 takedown 신고 → 즉시 노출 차단 (`POST /api/popups/{id}/takedown`)
+- [x] 권리자 takedown 신고 → 관리자 검토 대기열 등록, 명백한 권리 침해·긴급 피해만 검토 중 임시 차단 (`POST /api/popups/{id}/takedown`)
 - [x] 약관에 자동수집 + takedown 절차 명시 (TERMS_OF_SERVICE_CLAUSE.md)
 - [x] User-Agent 명시 (`popspot-crawler/1.0`)
 - [x] API 호출 사이 800ms 딜레이 (rate limit 방어)

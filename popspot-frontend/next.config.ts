@@ -74,7 +74,7 @@ const nextConfig: NextConfig = {
   /**
    * v2.17 — 보안 헤더 (CSP / X-Frame-Options / Referrer-Policy / Permissions-Policy).
    *
-   * <p>CSP 는 외부 OAuth (구글/카카오/네이버) + Spotify embed + YouTube IFrame 등 운영 중인
+   * <p>CSP 는 외부 OAuth (구글/카카오/네이버) + Spotify SDK + YouTube IFrame 등 운영 중인
    * 외부 리소스를 화이트리스트로 둔다. Next.js + React 의 inline script 호환을 위해
    * 'unsafe-inline' 은 남기되, 'unsafe-eval' 은 개발 환경에서만 허용한다.
    * 운영 nonce 적용은 Next.js 동적 렌더링 전환과 함께 별도 진행한다.
@@ -83,14 +83,8 @@ const nextConfig: NextConfig = {
     /**
      * v2.17.3 — CSP 화이트리스트 보강.
      *
-     * <p>v2.17 의 초기 CSP 가 너무 strict 해서 운영에서 실제 사용 중인 두 호스트가 차단됐다:
-     *
-     * <ul>
-     *   <li>{@code cdn.jsdelivr.net} — Pretendard 폰트 (style-src + font-src)
-     *   <li>{@code *.ts.net} — Tailscale Funnel 운영 백엔드 도메인 (connect-src)
-     * </ul>
-     *
-     * <p>그 외 외부 OAuth / YouTube / Spotify embed 는 v2.17 그대로.
+     * <p>외부 폰트 요청은 제거했고, 실제 기능이 사용하는 OAuth / YouTube / Spotify / Tailscale
+     * 호스트만 허용한다.
      */
     const csp = [
       "default-src 'self'",
@@ -99,12 +93,14 @@ const nextConfig: NextConfig = {
       // 막혀서 useYouTubePlayer 가 player 인스턴스를 생성 못함 → 검은 화면. 음악 재생
       // "수두룩한 실패" 의 진짜 원인. v2.17 CSP 도입 시 누락된 도메인.
       // v2.21-S14 — script-src 에 Spotify Web Playback SDK (sdk.scdn.co) 추가.
-      // v2.41 — 실사용 0건이던 잔재 4개 제거. dapi.kakao.com / t1.daumcdn.net 은 app/layout.tsx
-      // 가 로드하던 Kakao Map SDK 전용이었는데 지도는 v2.36 에 MapLibre 로 교체돼 로더째 제거했다.
-      // (t1.daumcdn.net 은 MateChatModal 알림음이 쓰지만 그건 media-src 소관이라 무관.)
+      // v2.41 — 실사용 0건이던 잔재 4개 제거. dapi.kakao.com 은 app/layout.tsx 가 로드하던
+      // Kakao Map SDK 전용이었는데 지도는 v2.36 에 MapLibre 로 교체돼 로더째 제거했다.
+      // 채팅 알림음도 외부 파일 대신 브라우저 안에서 생성하므로 t1.daumcdn.net 허용이 필요 없다.
       // www.googletagmanager.com 은 gtag 참조 0건, *.algolia* 는 AI 검색으로 대체돼 클라이언트 0건.
       `script-src 'self' 'unsafe-inline'${process.env.NODE_ENV === 'production' ? '' : " 'unsafe-eval'"} https://www.youtube.com https://s.ytimg.com https://sdk.scdn.co`,
-      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net",
+      // 브랜드 폰트 CSS 를 두 CDN 에서 받는다(globals.css 상단 주석 참고). self-host 로 옮기면
+      // 이 두 줄과 font-src 의 예외를 함께 지울 수 있다.
+      "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com",
       // *.scdn.co / *.mzstatic.com — 음악 앨범아트. next/image 화이트리스트 대신 raw <img> 로
       // 렌더하므로(GlobalMusicPlayer·MusicForPopup·MusicTab) img-src 에 반드시 있어야 한다.
       // 빠뜨리면 음악 화면 커버가 전부 깨진다(실측: /api/music/popular 이미지 전건이 i.scdn.co).
@@ -112,7 +108,7 @@ const nextConfig: NextConfig = {
       // v2.21-S14/S15 — media-src 에 Spotify(p.scdn.co) + iTunes preview CDN.
       // iTunes preview 는 audio-ssl.itunes.apple.com / *.mzstatic.com 에서 m4a 제공.
       "media-src 'self' blob: https: https://p.scdn.co https://*.scdn.co https://audio-ssl.itunes.apple.com https://*.mzstatic.com",
-      "font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net",
+      "font-src 'self' https://cdn.jsdelivr.net https://fonts.gstatic.com",
       // v2.21-S8/S14 — connect-src 에 YouTube + Spotify API / SDK / CDN 추가.
       // api.spotify.com (Web API play call), *.spotify.com (SDK websocket), *.scdn.co (CDN).
       // v2.32 — MapLibre 지도용: protomaps.github.io(라틴/숫자 글리프 fetch). 타일은 same-origin

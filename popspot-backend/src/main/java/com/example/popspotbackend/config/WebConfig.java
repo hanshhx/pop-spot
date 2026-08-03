@@ -91,6 +91,7 @@ public class WebConfig implements WebMvcConfigurer {
     private final RateLimitInterceptor rateLimitInterceptor;
     private final AdminAuditInterceptor adminAuditInterceptor;
     private final AdminReauthInterceptor adminReauthInterceptor;
+    private final PolicyConsentInterceptor policyConsentInterceptor;
 
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
@@ -129,6 +130,21 @@ public class WebConfig implements WebMvcConfigurer {
         registry.addInterceptor(rateLimitInterceptor)
                 .addPathPatterns(AUTH_PATH_PATTERN, TAKEDOWN_PATH_PATTERN)
                 .addPathPatterns(RATE_LIMITED_API_PATTERNS);
+        registry.addInterceptor(policyConsentInterceptor)
+                .addPathPatterns("/api/**")
+                .excludePathPatterns(
+                        "/api/v1/auth/**",
+                        "/api/v1/terms/**",
+                        "/api/visits",
+                        "/api/client-errors",
+                        // 계정 보호 장치는 정책 동의보다 뒤에 서면 안 된다. 토큰이 샜다고 의심되는
+                        // 순간에 "먼저 약관에 동의하세요" 가 뜨면 비상 스위치가 비상용이 아니다.
+                        // 이 경로들은 이미 관리자 권한 + 재인증 + 감사 로그로 보호된다.
+                        "/api/admin/session/**",
+                        "/api/admin/reauth",
+                        "/api/admin/reauth/**",
+                        "/api/admin/totp/**",
+                        TAKEDOWN_PATH_PATTERN);
         // 보안(v2.22): 업로드 파일 응답에 nosniff — 이미지로 위장한 HTML/SVG 가 브라우저 MIME
         // 스니핑으로 실행되는 것을 차단. inline 이미지 표시는 유지(Content-Disposition 미설정).
         registry.addInterceptor(new NoSniffInterceptor()).addPathPatterns(UPLOAD_URL_PATTERN);
@@ -137,12 +153,13 @@ public class WebConfig implements WebMvcConfigurer {
                 .addPathPatterns(MEMBER_CONTENT_PATTERNS);
     }
 
-    /** {@code /uploads/**} 응답에 {@code X-Content-Type-Options: nosniff} 부착. */
+    /** {@code /uploads/**} 응답에 실행 방지와 검색 색인 차단 헤더를 함께 부착. */
     static class NoSniffInterceptor implements HandlerInterceptor {
         @Override
         public boolean preHandle(
                 HttpServletRequest request, HttpServletResponse response, Object handler) {
             response.setHeader("X-Content-Type-Options", "nosniff");
+            response.setHeader("X-Robots-Tag", "noindex, nofollow, noarchive");
             return true;
         }
     }

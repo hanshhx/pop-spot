@@ -321,7 +321,7 @@ flowchart TB
 - 🎵 **F. 음악 → 팝업 역추천** (재생 중 추천 표시)
 - 🎵 **G. YouTube IFrame 영상 노출** (약관 III.E.4.b 준수)
 - 🕷️ **자동수집 V4** — Naver/Kakao + LLM 정규화 + confidence 분기
-- 🕷️ takedown 신고 + 출처 표시 (저작권법 §35의5)
+- 🕷️ takedown 신고 + 원문 출처 표시
 - 🏆 **등급 시스템** (BEGINNER / HUNTER / MASTER) + 아바타 테두리
 - 🌙 다크모드 텍스트 가독성 (라임/크림 배경)
 
@@ -417,7 +417,7 @@ flowchart TB
 **저작권 회피 전략**:
 - 본문 스크래핑 X — 검색 API 가 주는 title/description/link 만 사용
 - 출처 URL + 출처명 필수 표시 (저작권법 §35의5 공정이용)
-- Takedown 요청 시 24시간 내 노출 차단
+- Takedown 요청은 24시간 안에 관리자 검토·결정하며, 명백한 권리 침해나 긴급 피해가 확인된 경우에만 임시 차단
 
 ---
 

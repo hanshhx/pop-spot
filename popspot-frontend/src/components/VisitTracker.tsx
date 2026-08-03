@@ -3,27 +3,10 @@
 import { useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { getAuthToken } from '@/lib/authStorage';
+import { getVisitorId } from '@/lib/visitorId';
 
-const VISITOR_KEY = 'popspot:visitorId';
 /** 이 세션에서 유입 경로(referrer)를 이미 보냈는지. sessionStorage 라 탭 단위·닫으면 초기화. */
 const REFERRER_SENT_KEY = 'popspot:referrerSent';
-
-/** 익명 방문자 ID(랜덤 UUID). PII 아님 — 개인 식별 불가, 단순 중복 방문 구분용. */
-function getVisitorId(): string {
-  try {
-    let id = localStorage.getItem(VISITOR_KEY);
-    if (!id) {
-      id =
-        typeof crypto !== 'undefined' && crypto.randomUUID
-          ? crypto.randomUUID()
-          : `${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
-      localStorage.setItem(VISITOR_KEY, id);
-    }
-    return id;
-  } catch {
-    return 'anon';
-  }
-}
 
 /**
  * 익명 방문 비콘.

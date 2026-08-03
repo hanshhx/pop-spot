@@ -147,6 +147,20 @@ public class User {
     @Column(name = "AGREED_TERMS_VERSION", length = 10)
     private String agreedTermsVersion;
 
+    /** 마지막으로 동의한 개인정보 처리방침 버전. 약관 버전과 독립적으로 관리한다. */
+    @Column(name = "AGREED_PRIVACY_VERSION", length = 10)
+    private String agreedPrivacyVersion;
+
+    /** 약관과 개인정보 처리방침 동의를 서버가 확정한 시각. */
+    @Column(name = "POLICY_CONSENT_AT")
+    @JsonIgnore
+    private LocalDateTime policyConsentAt;
+
+    /** 만 14세 이상임을 본인이 확인한 시각. 생년월일 자체는 불필요하게 수집하지 않는다. */
+    @Column(name = "AGE_14_VERIFIED_AT")
+    @JsonIgnore
+    private LocalDateTime age14VerifiedAt;
+
     @Column(name = "STAMP_COUNT", nullable = false, columnDefinition = "integer default 0")
     @Builder.Default
     private int stampCount = 0;
@@ -183,6 +197,14 @@ public class User {
 
     public void changePassword(String newPassword) {
         this.password = newPassword;
+    }
+
+    public void recordPolicyConsent(String termsVersion, String privacyVersion) {
+        LocalDateTime now = LocalDateTime.now();
+        this.agreedTermsVersion = termsVersion;
+        this.agreedPrivacyVersion = privacyVersion;
+        this.policyConsentAt = now;
+        this.age14VerifiedAt = now;
     }
 
     public void upgradeToPremium() {
