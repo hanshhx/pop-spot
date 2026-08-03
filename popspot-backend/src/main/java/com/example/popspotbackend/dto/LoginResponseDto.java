@@ -39,6 +39,13 @@ public class LoginResponseDto {
     private String role;
     private String token;
 
+    /**
+     * 접근 토큰이 만료됐을 때 조용히 갱신하는 데 쓰는 토큰.
+     *
+     * <p>관리자 토큰은 30분짜리라 이것이 없으면 30분마다 재로그인해야 한다. 원문은 발급 시점에 한 번만 존재하고 서버에는 해시만 남는다.
+     */
+    private String refreshToken;
+
     @JsonProperty("isPremium")
     private boolean isPremium;
 

@@ -4,6 +4,7 @@ import com.example.popspotbackend.entity.AdminAuditLog;
 import com.example.popspotbackend.entity.User;
 import com.example.popspotbackend.repository.UserRepository;
 import com.example.popspotbackend.service.admin.AdminAuditService;
+import com.example.popspotbackend.service.auth.RefreshTokenService;
 import com.example.popspotbackend.service.auth.TotpAuthService;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
@@ -52,12 +53,20 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
      */
     public static final String TOTP_CHALLENGE_MARKER = "TOTP:";
 
+    /**
+     * 교환 슬롯 안에서 접근 토큰과 리프레시 토큰을 가르는 구분자.
+     *
+     * <p>JWT 는 {@code .} 셋으로 이뤄지고 리프레시 토큰은 URL-safe Base64 라, 둘 다 줄바꿈을 포함하지 않는다.
+     */
+    public static final String TOKEN_SEPARATOR = "\n";
+
     private static final String REDIRECT_NO_EMAIL_QUERY = "?error=no_email";
 
     private final UserRepository userRepository;
     private final StringRedisTemplate redisTemplate;
     private final TotpAuthService totpAuth;
     private final AdminAuditService adminAudit;
+    private final RefreshTokenService refreshTokens;
 
     @Value("${app.oauth2.redirect-uri}")
     private String redirectUri;
@@ -104,10 +113,14 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         // 2단계 인증이 켜져 있으면 토큰을 만들지 않는다. 교환 슬롯에는 "코드를 더 받아야 한다" 는
         // 표시와 단기 표만 넣는다 — 토큰을 먼저 만들어 두면 그것만 가로채도 로그인이 끝난다.
         boolean totpPending = totpAuth.isRequiredFor(user);
+        // 관리자 접근 토큰은 30분짜리다. 소셜 경로에도 리프레시 토큰을 함께 주지 않으면
+        // 이 서비스의 주 관리자(카카오 로그인)가 30분마다 재로그인하게 된다.
         String slotValue =
                 totpPending
                         ? TOTP_CHALLENGE_MARKER + totpAuth.issueChallenge(user.getUserId())
-                        : issueJwt(user);
+                        : issueJwt(user)
+                                + TOKEN_SEPARATOR
+                                + refreshTokens.issue(user.getUserId()).token();
 
         // 2단계 인증이 남았으면 아직 로그인이 아니다 — 그 기록은 코드까지 맞힌 뒤
         // AuthService.completeTotpLogin 이 남긴다. 여기서 남기면 코드를 못 맞힌 시도까지

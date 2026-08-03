@@ -4,7 +4,7 @@ import { useEffect, useState, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import { apiFetch } from '../../../src/lib/api';
-import { setAuthToken } from '../../../src/lib/authStorage';
+import { setAuthToken, setRefreshToken } from '../../../src/lib/authStorage';
 import { useLocale } from '@/lib/i18n';
 import { localizedPath } from '@/lib/localePath';
 import { TotpChallenge } from '@/features/auth/TotpChallenge';
@@ -90,6 +90,7 @@ function CallbackContent() {
           }
           const exchangeBody = (await exchangeResponse.json()) as {
             token?: string;
+            refreshToken?: string;
             totpRequired?: string | boolean;
             challengeToken?: string;
           };
@@ -102,6 +103,7 @@ function CallbackContent() {
           }
           if (!exchangeBody.token) throw new Error(copy.noToken);
           setAuthToken(exchangeBody.token);
+          if (exchangeBody.refreshToken) setRefreshToken(exchangeBody.refreshToken);
           setStatus(copy.saving);
         } else {
           // 교환코드가 없으면 정상 진입이 아니다.
