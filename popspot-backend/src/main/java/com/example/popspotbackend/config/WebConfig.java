@@ -90,6 +90,7 @@ public class WebConfig implements WebMvcConfigurer {
 
     private final RateLimitInterceptor rateLimitInterceptor;
     private final AdminAuditInterceptor adminAuditInterceptor;
+    private final AdminReauthInterceptor adminReauthInterceptor;
 
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
@@ -120,6 +121,10 @@ public class WebConfig implements WebMvcConfigurer {
         // 인터셉터의 afterCompletion 은 호출되지 않기 때문이다. 관리자 계정이 갑자기 제한에
         // 걸리기 시작하는 것 자체가 봐야 할 신호라, 그게 사라지면 안 된다.
         registry.addInterceptor(adminAuditInterceptor).addPathPatterns(ADMIN_PATH_PATTERN);
+
+        // 감사 <b>뒤</b>, 요청 제한 <b>앞</b>이다. 재확인이 없어 428 로 막힌 요청도 감사 표에는
+        // 남아야 하고(누가 무엇을 하려 했는지가 신호다), 한도는 소모하지 않는 편이 맞다.
+        registry.addInterceptor(adminReauthInterceptor).addPathPatterns(ADMIN_PATH_PATTERN);
 
         registry.addInterceptor(rateLimitInterceptor)
                 .addPathPatterns(AUTH_PATH_PATTERN, TAKEDOWN_PATH_PATTERN)
