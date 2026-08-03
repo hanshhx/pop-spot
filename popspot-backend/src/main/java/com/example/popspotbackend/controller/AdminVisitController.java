@@ -54,6 +54,19 @@ public class AdminVisitController {
     }
 
     /**
+     * 많이 열린 팝업 — 목록에서 카드를 눌러 상세를 연 횟수.
+     *
+     * <p>페이지뷰(방문 통계)와 다르다. 페이지뷰는 "상세 화면이 몇 번 열렸나" 라 링크를 직접 받아 들어온 것도 포함되는데, 이 값은 <b>우리 목록에서 눌린</b>
+     * 것만 센다. 어떤 팝업을 앞에 놓을지 판단하는 데 쓰인다.
+     */
+    @GetMapping("/popup-opens")
+    public ResponseEntity<List<Map<String, Object>>> getTopOpenedPopups(
+            @RequestParam(defaultValue = "7") int days,
+            @RequestParam(defaultValue = "20") int limit) {
+        return ResponseEntity.ok(visitService.topOpenedPopups(days, limit));
+    }
+
+    /**
      * 유입 경로 집계 — 어디서 들어왔는지(네이버·구글·직접 방문 등)를 방문수 내림차순으로. days 기본 7, 최대 30(다른 엔드포인트와 동일). 사이트 내
      * 이동(internal)은 유입이 아니라 빠진다.
      */
