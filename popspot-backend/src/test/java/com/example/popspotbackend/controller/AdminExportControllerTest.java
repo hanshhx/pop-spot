@@ -127,6 +127,78 @@ class AdminExportControllerTest {
     }
 
     @Test
+    @DisplayName("게스트/회원을 화면과 같은 낱말로 적는다 — 참/거짓은 뒤집어 읽힌다")
+    void writesGuestAsWordsNotBoolean() {
+        // guest=true 는 "순수 게스트" 다. 이걸 그대로 내보내면 파일을 받은 사람이
+        // "회원=true" 로 읽어 회원 수를 정반대로 센다. 실제로 그런 파일이 나갔었다.
+        Map<String, Object> guest = new LinkedHashMap<>();
+        guest.put("visitorId", "g1");
+        guest.put("guest", Boolean.TRUE);
+        Map<String, Object> member = new LinkedHashMap<>();
+        member.put("visitorId", "m1");
+        member.put("guest", Boolean.FALSE);
+
+        Map<String, Object> page = new LinkedHashMap<>();
+        page.put("content", List.of(guest, member));
+        page.put("totalElements", 2L);
+        when(visitService.getRecentVisitors(anyInt(), eq(0), anyInt())).thenReturn(page);
+        when(visitService.getRecentVisitors(anyInt(), eq(1), anyInt()))
+                .thenReturn(visitorPage(0, 2));
+
+        String csv = bodyOf(controller.export("visitors", 7, "csv"));
+
+        assertThat(csv).contains("\"게스트\"").contains("\"회원\"");
+        assertThat(csv)
+                .describedAs("참/거짓이 그대로 나가면 칸 이름을 어떻게 달든 뒤집어 읽힌다")
+                .doesNotContain("\"true\"")
+                .doesNotContain("\"false\"");
+    }
+
+    @Test
+    @DisplayName("칸 이름이 그 안의 값과 같은 뜻이어야 한다")
+    void headerNamesMatchTheirValues() {
+        when(visitService.getRecentVisitors(anyInt(), eq(0), anyInt()))
+                .thenReturn(visitorPage(1, 1));
+
+        String header =
+                bodyOf(controller.export("visitors", 7, "csv")).lines().findFirst().orElse("");
+
+        // "회원여부" 는 guest 값과 정반대의 뜻이다. 다시 붙는 순간 파일이 거짓말을 한다.
+        assertThat(header).describedAs("guest 값에 '회원여부' 라는 이름을 달면 뜻이 뒤집힌다").doesNotContain("회원여부");
+        // visits 는 COUNT(*) — 방문 횟수지 세션 수가 아니다. visit_log 에 세션 개념이 없다.
+        assertThat(header).describedAs("visits 는 세션이 아니라 조회 수다").doesNotContain("세션");
+    }
+
+    @Test
+    @DisplayName("첨부파일로 선언한다 — form-data 는 올릴 때 쓰는 형식이다")
+    void declaresAttachment() {
+        when(visitService.getRecentVisitors(anyInt(), eq(0), anyInt()))
+                .thenReturn(visitorPage(1, 1));
+
+        ResponseEntity<byte[]> res = controller.export("visitors", 7, "csv");
+
+        String disposition = res.getHeaders().getFirst("Content-Disposition");
+        assertThat(disposition).startsWith("attachment;");
+        assertThat(disposition).contains("popspot-visitors-7d-");
+    }
+
+    @Test
+    @DisplayName("JSON 은 값을 그대로 둔다 — 키 이름이 남아 뜻이 흐려지지 않는다")
+    void jsonKeepsRawValues() {
+        Map<String, Object> guest = new LinkedHashMap<>();
+        guest.put("visitorId", "g1");
+        guest.put("guest", Boolean.TRUE);
+        Map<String, Object> page = new LinkedHashMap<>();
+        page.put("content", List.of(guest));
+        page.put("totalElements", 1L);
+        when(visitService.getRecentVisitors(anyInt(), eq(0), anyInt())).thenReturn(page);
+
+        String json = bodyOf(controller.export("visitors", 7, "json"));
+
+        assertThat(json).contains("\"guest\":true");
+    }
+
+    @Test
     @DisplayName("모르는 항목은 거절한다")
     void rejectsUnknownDataset() {
         assertThat(
