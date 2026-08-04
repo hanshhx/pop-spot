@@ -29,14 +29,23 @@ export function PopupOpensPanel() {
   const [rows, setRows] = useState<PopupOpen[]>([]);
   const [days, setDays] = useState<number>(7);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const res = await apiFetch(`/api/admin/visits/popup-opens?days=${days}&limit=20`);
-      if (res.ok) setRows((await res.json()) as PopupOpen[]);
+      // 실패를 삼키면 안 된다. 예전엔 여기서 아무것도 안 해서, 서버가 오류를 뱉는
+      // 동안에도 화면에는 "아직 기록이 없어요" 가 떴다 — 고장이 '데이터 없음' 으로
+      // 위장돼 몇 주간 아무도 몰랐다.
+      if (!res.ok) {
+        setError('통계를 불러오지 못했습니다.');
+        return;
+      }
+      setRows((await res.json()) as PopupOpen[]);
     } catch {
-      /* 통계를 못 불러와도 화면은 떠 있어야 한다 */
+      setError('서버에 연결하지 못했습니다.');
     } finally {
       setLoading(false);
     }
@@ -90,7 +99,13 @@ export function PopupOpensPanel() {
         목록에서 카드를 눌러 상세를 연 횟수입니다. 링크를 직접 받아 들어온 것은 포함되지 않습니다.
       </p>
 
-      {rows.length === 0 ? (
+      {/* 오류와 '데이터 없음' 을 절대 같은 자리에 같은 모양으로 두지 않는다.
+          둘이 섞이면 고장난 화면과 한산한 화면을 구분할 수 없다. */}
+      {error ? (
+        <p className="rounded-xl bg-red-500/10 p-3 text-center text-sm text-red-600 dark:text-red-400">
+          {error}
+        </p>
+      ) : rows.length === 0 ? (
         <p className="py-8 text-center text-sm text-muted-foreground">
           {loading ? '불러오는 중…' : '아직 기록이 없어요. (배포 후 클릭부터 쌓입니다)'}
         </p>

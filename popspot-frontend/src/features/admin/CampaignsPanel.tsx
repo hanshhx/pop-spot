@@ -31,14 +31,22 @@ export function CampaignsPanel() {
   const [rows, setRows] = useState<Campaign[]>([]);
   const [days, setDays] = useState<number>(30);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const res = await apiFetch(`/api/admin/visits/campaigns?days=${days}`);
-      if (res.ok) setRows((await res.json()) as Campaign[]);
+      // 실패는 실패라고 말한다. 삼키면 "아직 캠페인 유입이 없어요" 가 떠서,
+      // 고장난 화면과 홍보가 안 먹힌 화면이 똑같아 보인다.
+      if (!res.ok) {
+        setError('통계를 불러오지 못했습니다.');
+        return;
+      }
+      setRows((await res.json()) as Campaign[]);
     } catch {
-      /* 못 불러와도 화면은 떠 있어야 한다 */
+      setError('서버에 연결하지 못했습니다.');
     } finally {
       setLoading(false);
     }
@@ -86,7 +94,11 @@ export function CampaignsPanel() {
         </div>
       </div>
 
-      {rows.length === 0 ? (
+      {error ? (
+        <p className="rounded-xl bg-red-500/10 p-3 text-center text-sm text-red-600 dark:text-red-400">
+          {error}
+        </p>
+      ) : rows.length === 0 ? (
         <div className="py-6 text-center text-sm text-muted-foreground">
           {loading ? (
             '불러오는 중…'
