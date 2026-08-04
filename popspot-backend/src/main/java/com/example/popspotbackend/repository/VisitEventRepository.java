@@ -25,7 +25,12 @@ public interface VisitEventRepository extends JpaRepository<VisitEvent, Long> {
                             // LEFT JOIN 이다. 팝업이 지워져도 그 클릭 기록은 남아야 한다 —
                             // INNER 로 두면 삭제된 팝업의 인기가 통계에서 조용히 사라져,
                             // "왜 합계가 안 맞지" 가 된다.
-                            + " LEFT JOIN popup_store p ON p.id = e.popup_id"
+                            //
+                            // popup_store 의 기본키 칼럼은 popup_id 다. id 가 아니다
+                            // (PopupStore 엔티티의 필드 이름은 id 지만 @Column(name="popup_id")).
+                            // p.id 로 적었다가 이 조회가 통째로 죽었다 — 네이티브 쿼리라
+                            // 컴파일도 통과하고 테스트도 통과하고, 운영에서만 터진다.
+                            + " LEFT JOIN popup_store p ON p.popup_id = e.popup_id"
                             + " WHERE e.created_at >= :since AND e.event_type = :eventType"
                             + " AND e.popup_id IS NOT NULL"
                             + " GROUP BY e.popup_id ORDER BY opens DESC LIMIT :limit",
