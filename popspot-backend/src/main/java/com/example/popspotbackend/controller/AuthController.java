@@ -1,5 +1,6 @@
 package com.example.popspotbackend.controller;
 
+import com.example.popspotbackend.exception.ResourceNotFoundException;
 import com.example.popspotbackend.config.OAuth2SuccessHandler;
 import com.example.popspotbackend.dto.LoginRequestDto;
 import com.example.popspotbackend.dto.LoginResponseDto;
@@ -284,7 +285,14 @@ public class AuthController {
         if (message != null && message.startsWith(SOCIAL_USER_ERROR_PREFIX)) {
             return ResponseEntity.status(400).body(message);
         }
-        return ResponseEntity.status(404).body(message);
+        // 우리가 문구를 쓴 예외만 그대로 전달한다. 예전엔 모든 RuntimeException 을 404 +
+        // 원문 메시지로 내보냈는데, 그러면 Redis·DB 장애의 내부 구조가 응답에 실리고
+        // 게다가 "그런 계정 없음" 이라는 거짓 정보까지 같이 나간다. 인프라 예외는
+        // 그대로 올려보내 전역 처리기가 5xx 로 다루게 한다.
+        if (e instanceof IllegalArgumentException || e instanceof ResourceNotFoundException) {
+            return ResponseEntity.status(404).body(message);
+        }
+        throw e;
     }
 
     private User loadUser(String userId) {

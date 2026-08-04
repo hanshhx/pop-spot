@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -39,10 +40,14 @@ public class AdminTotpController {
      * 등록 시작 — QR 내용을 돌려준다.
      *
      * <p>{@code manualKey} 는 QR 을 못 찍을 때 앱에 손으로 넣는 값이다. QR 만 주면 카메라가 안 되는 환경에서 등록할 방법이 없다.
+     *
+     * @param replace 이미 등록된 계정에서 <b>기존 인증기를 버리겠다</b>는 명시적 의사. 없으면 409 로 거절한다 — 화면이 확인창을 못 띄운 채로
+     *     들어와도 멀쩡한 등록이 지워지지 않게 하는 마지막 제동장치다.
      */
     @PostMapping("/setup")
-    public ResponseEntity<TotpAuthService.SetupInfo> setup(Authentication authentication) {
-        return ResponseEntity.ok(totpAuth.beginSetup(authentication.getName()));
+    public ResponseEntity<TotpAuthService.SetupInfo> setup(
+            @RequestParam(defaultValue = "false") boolean replace, Authentication authentication) {
+        return ResponseEntity.ok(totpAuth.beginSetup(authentication.getName(), replace));
     }
 
     /**

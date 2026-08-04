@@ -90,6 +90,10 @@ export function SearchZone({ onAiFilter, onSelectPopup, popups }: SearchZoneProp
     setErred(false);
     try {
       const res = await apiFetch(`/api/search/ai?q=${encodeURIComponent(text)}`);
+      // fetch 는 500 에도 reject 하지 않는다. res.ok 를 안 보면 오류 본문이 결과 없음으로
+      // 해석돼 "맞는 팝업을 못 찾았어요" 가 뜨고, 지도 핀까지 0개로 걸러진다 —
+      // 검색이 고장난 것을 '결과가 없는 것' 으로 보여 주는 셈이다.
+      if (!res.ok) throw new Error(`ai search ${res.status}`);
       const data = await res.json().catch(() => ({}));
       const list: AiResult[] = Array.isArray(data?.results)
         ? data.results.map((r: { id: unknown; name?: string; location?: string }) => {
