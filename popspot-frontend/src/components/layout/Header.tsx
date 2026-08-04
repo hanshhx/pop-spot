@@ -184,15 +184,32 @@ export function Header({
         {user ? (
           <UserChip user={user} onLogout={onLogout} onProfileClick={onProfileClick} />
         ) : (
-          <div className="hidden md:flex items-center gap-2">
-            <Button asChild variant="ghost" size="md" className="text-sm md:text-[15px] font-bold">
+          /* 로그인은 <b>모든 화면 폭</b>에서 보인다. 회원가입만 넓은 화면 전용이다.
+           *
+           * 예전엔 둘 다 `hidden md:flex` 안에 있어서 좁은 화면에서 통째로 사라졌다. 그런데
+           * 회원가입은 상단 배너("지금 가입하기")와 히어로에 따로 있어서 보였고, <b>로그인만
+           * 갈 곳이 없었다.</b> 이미 가입한 사람이 폰에서 돌아올 입구가 없다는 뜻이다.
+           *
+           * 이게 오래 안 드러난 이유는 게스트가 7일 동안 모든 탭을 쓸 수 있어서다(canAccessTab).
+           * 재방문율이 0.76% 라 만료를 겪는 사람이 사실상 없었고, 그래서 로그인이 필요해지는
+           * 순간 자체가 오지 않았다.
+           *
+           * 좁은 화면에는 로그인만 낸다. 테마 토글·알림이 이미 있어서 둘 다 꺼내면 헤더가
+           * 넘치고, 없던 것은 로그인 하나뿐이다. */
+          <div className="flex items-center gap-1 md:gap-2">
+            <Button
+              asChild
+              variant="ghost"
+              size="md"
+              className="text-[13px] md:text-[15px] font-bold"
+            >
               <Link href={localizedPath('/login', locale)}>{t('nav.login')}</Link>
             </Button>
             <Button
               asChild
               variant="primary"
               size="md"
-              className="text-sm md:text-[15px] font-bold"
+              className="hidden md:inline-flex text-sm md:text-[15px] font-bold"
             >
               <Link href={localizedPath('/signup', locale)}>{t('auth.signup')}</Link>
             </Button>
