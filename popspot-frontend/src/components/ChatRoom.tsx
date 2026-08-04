@@ -114,7 +114,14 @@ export default function ChatRoom({ roomId, nickname }: Props) {
   };
 
   return (
-    <div className="flex flex-col h-[450px] md:h-[600px] bg-[#bacee0] dark:bg-[#1e1e1e] rounded-2xl md:rounded-3xl overflow-hidden border border-gray-200 dark:border-white/10 shadow-xl">
+    // 아직 아무도 안 남겼으면 높이를 고정하지 않는다. 방문자의 77% 가 모바일인데,
+    // 페이지 끝 직전에 화면 한 장 분량(450px) 빈 상자가 놓이면 버려진 페이지로 읽힌다.
+    // 감추지는 않는다 — 입력줄은 그대로 두어 첫 줄을 남길 경로는 남긴다.
+    <div
+      className={`flex flex-col bg-[#bacee0] dark:bg-[#1e1e1e] rounded-2xl md:rounded-3xl overflow-hidden border border-gray-200 dark:border-white/10 shadow-xl ${
+        messages.length === 0 ? '' : 'h-[450px] md:h-[600px]'
+      }`}
+    >
       <div className="bg-[#a9bdce] dark:bg-[#2a2a2a] p-3 md:p-4 flex items-center justify-between shadow-sm z-10">
         {/* '실시간 톡방'은 동시 접속자가 있어야 말이 되는 이름이라, 아무도 없을 때 빈 방처럼 보였다.
             남긴 글이 그대로 쌓여 다음 방문자가 보는 '방문 팁'으로 성격을 바꾼다. */}
@@ -132,7 +139,8 @@ export default function ChatRoom({ roomId, nickname }: Props) {
       >
         {/* 빈 방은 스스로 빈 방을 유지한다 — 뭘 남기면 되는지 알려줘야 첫 줄이 달린다. */}
         {messages.length === 0 && (
-          <div className="flex h-full flex-col items-center justify-center gap-2 px-6 text-center">
+          // h-full 이 아니다 — 바깥 높이가 더는 고정이 아니라서, h-full 이면 높이가 0 이 된다.
+          <div className="flex flex-col items-center justify-center gap-2 px-6 py-8 text-center">
             <span className="text-3xl">✍️</span>
             <p className="text-sm font-bold text-gray-700 dark:text-gray-100">{copy.empty}</p>
             <p className="text-xs leading-relaxed text-gray-600 dark:text-gray-300">{copy.hint}</p>

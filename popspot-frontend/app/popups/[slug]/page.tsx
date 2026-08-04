@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation';
 import { ArrowLeft, MapPin, Calendar, Tag, Clock, Flame, MessageSquare } from 'lucide-react';
 
 import { REGIONS, classifyRegion, regionBySlug } from '@/lib/regions';
-import { LANDING_COPY, type LandingCopy } from '@/lib/landingCopy';
+import { LANDING_COPY, type LandingCopy, type MetaPick, type PickReason } from '@/lib/landingCopy';
 import { localizedLabel } from '@/lib/localeLabel';
 import { bilingual } from '@/lib/bilingual';
 import type { Locale } from '@/lib/i18n';
@@ -366,6 +366,117 @@ function nearestDeadline(markers: Marker[], locale: Locale): string | null {
   return copy.deadlineFormat(copy.shortDate(best), copy.ddayValue(dday));
 }
 
+/** 이름·지역을 검색 결과 길이에 맞게 줄인다. 잘릴 바에는 우리가 줄이는 편이 낫다. */
+function clip(text: string | null | undefined, max: number): string {
+  const t = (text ?? '').trim();
+  if (!t) return '';
+  return t.length <= max ? t : `${t.slice(0, max - 1)}…`;
+}
+
+/**
+ * 언어에 맞는 짧은 지역명. "서울 성수" 처럼 앞에 붙는 시(市)는 뺀다 — 어차피 전부 서울이라 자리만
+ * 차지한다.
+ *
+ * <p>이름과 <b>같은 언어</b>를 쓴다. 이름만 번역본을 쓰면 영어 설명에 "North Face Kids Popup
+ * (until Aug 4, 대전신세계)" 처럼 한 문장 안에서 언어가 섞인다.
+ */
+function shortLocation(m: Marker, locale: Locale): string {
+  const translated = locale === 'en' ? m.locationEn : locale === 'ja' ? m.locationJa : null;
+  const text = translated || m.location || '';
+  return clip(text.replace(/^(서울|Seoul)\s*(특별시)?\s*[,·]?\s*/i, ''), widthFor(locale, 14));
+}
+
+/** 언어에 맞는 표시 이름. 번역이 없으면 원문. */
+function displayName(m: Marker, locale: Locale): string {
+  const translated = locale === 'en' ? m.nameEn : locale === 'ja' ? m.nameJa : null;
+  return clip(translated || m.name, widthFor(locale, 22));
+}
+
+/**
+ * 자를 길이 — 영어는 넉넉하게.
+ *
+ * <p>검색 결과 설명이 잘리는 기준은 글자 수가 아니라 픽셀 폭이라, 한 글자가 넓은 한글·일본어는 80자
+ * 안팎에서 잘리고 영어는 그 두 배쯤 들어간다. 같은 숫자로 자르면 영어만 쓸데없이 뭉텅 날아간다.
+ */
+function widthFor(locale: Locale, base: number): number {
+  return locale === 'en' ? Math.round(base * 1.6) : base;
+}
+
+/**
+ * 검색 결과 설명에 넣을 상위 몇 곳 — <b>목록과 같은 순서</b>(마감 임박순)로 고른다.
+ *
+ * <p>순서를 따로 두면 설명에 적힌 팝업이 정작 목록 맨 위에 없어서, 눌러 들어온 사람이 못 찾는다.
+ */
+function metaPicks(markers: Marker[], locale: Locale, n: number): MetaPick[] {
+  const today = kstTodayStart();
+  const copy = LANDING_COPY[locale];
+  return markers
+    .map((m) => {
+      const end = parseDate(m.endDate);
+      const valid = end && startOfDay(end).getTime() >= today.getTime();
+      return { m, end: valid ? end : null };
+    })
+    .sort((a, b) => (a.end?.getTime() ?? Infinity) - (b.end?.getTime() ?? Infinity))
+    .slice(0, n)
+    .map(({ m, end }) => ({
+      name: displayName(m, locale),
+      deadline: end ? copy.shortDate(end) : '',
+      location: shortLocation(m, locale),
+    }));
+}
+
+/**
+ * "지금 고른다면" 세 장 — <b>규칙만으로</b> 고른다. LLM 도 손으로 쓴 글도 쓰지 않는다.
+ *
+ * <p>153곳을 마감임박순으로 늘어놓는 것은 정렬이지 고를 근거가 아니다. 세 장은 서로 다른 이유로
+ * 고르고, 그 이유를 카드에 적는다 — 이유를 안 적으면 그냥 또 하나의 목록이 된다.
+ *
+ * <ul>
+ *   <li>곧 끝나요 — 마감이 가장 임박한 곳
+ *   <li>막 시작했어요 — 최근 7일 안에 문을 연 곳 중 가장 최근
+ *   <li>여유 있게 — 마감까지 14일 넘게 남은 곳 중 가장 최근에 연 곳
+ * </ul>
+ *
+ * <p>규칙에 맞는 것이 없으면 그 자리는 <b>비운다.</b> 억지로 채우면 이유가 거짓이 된다.
+ */
+function nowPicks(
+  markers: Marker[],
+  today: Date,
+): { m: Marker; reason: PickReason; dday: number | null }[] {
+  const picked: { m: Marker; reason: PickReason; dday: number | null }[] = [];
+  const used = new Set<number>();
+  const take = (m: Marker | undefined, reason: PickReason) => {
+    if (!m || used.has(m.id)) return;
+    used.add(m.id);
+    picked.push({ m, reason, dday: ddayOf(m.endDate, today) });
+  };
+
+  const live = markers
+    .map((m) => ({ m, end: parseDate(m.endDate), start: parseDate(m.startDate) }))
+    .filter((x) => !x.end || startOfDay(x.end).getTime() >= today.getTime());
+
+  const byDeadline = [...live]
+    .filter((x) => x.end)
+    .sort((a, b) => a.end!.getTime() - b.end!.getTime());
+  take(byDeadline[0]?.m, 'closing');
+
+  const weekAgo = new Date(today);
+  weekAgo.setDate(weekAgo.getDate() - 7);
+  const justOpened = live
+    .filter((x) => x.start && startOfDay(x.start) >= weekAgo && startOfDay(x.start) <= today)
+    .sort((a, b) => b.start!.getTime() - a.start!.getTime());
+  take(justOpened.find((x) => !used.has(x.m.id))?.m, 'opened');
+
+  const roomyFrom = new Date(today);
+  roomyFrom.setDate(roomyFrom.getDate() + 14);
+  const roomy = live
+    .filter((x) => x.end && startOfDay(x.end) >= roomyFrom)
+    .sort((a, b) => (b.start?.getTime() ?? 0) - (a.start?.getTime() ?? 0));
+  take(roomy.find((x) => !used.has(x.m.id))?.m, 'roomy');
+
+  return picked;
+}
+
 /**
  * JSON-LD 를 {@code <script>} 안에 넣을 때 쓰는 직렬화.
  *
@@ -511,12 +622,13 @@ export async function sliceMetadata(slug: string, locale: Locale): Promise<Metad
   // 기존 설명문을 그대로 뒤에 붙이면 "코엑스 팝업스토어 12곳 진행 중. … 코엑스 팝업스토어 일정과
   // 위치를 …" 처럼 이름이 두 번 나오고 100자를 넘는다. 구글은 한글 기준 80자 안팎에서 자르므로
   // 뒤가 통째로 날아간다. 그래서 짧은 꼬리를 따로 두고, 구체적인 값을 앞에 놓는다.
-  const soonest = nearestDeadline(matched, locale);
+  // 건수가 아니라 <b>실제 이름</b>으로 시작한다. "153곳 진행 중" 은 눌러 봐야 뭐가 있는지 알 수
+  // 있어서 굳이 안 누른다 — 실측에서 대상이 특정된 질의만 눌렸다(40% vs 1.64%).
+  // 첫 항목이 곧 최단 마감이므로 metaSoonest 는 겹친다. 설명은 80자 안팎에서 잘리니 뺀다.
+  const picks = metaPicks(matched, locale, 2);
   const description =
     count > 0
-      ? copy.metaWithCount(slice.label, count, slice.kind) +
-        (soonest ? copy.metaSoonest(soonest) : '') +
-        ` ${copy.tails[slice.kind]}`
+      ? copy.metaWithNames(picks, Math.max(0, count - picks.length)) + ` ${copy.tails[slice.kind]}`
       : copy.descriptions[slice.kind](slice.label);
 
   // 한국 검색 성과에서 실제로 확인된 표현만 사용한다. 별도 얇은 페이지를 대량 생성하지 않고, 같은
@@ -599,6 +711,21 @@ export async function SliceLandingPage({ slug, locale }: { slug: string; locale:
   // 정렬했으므로 맨 앞이 곧 최소값. (Infinity = 유효한 마감일이 하나도 없음)
   const soonest = sorted.length > 0 ? rank(sorted[0].dday) : Infinity;
   const minDday = Number.isFinite(soonest) ? soonest : null;
+
+  const topPicks = nowPicks(filtered, todayStart);
+
+  // 0곳일 때 대신 보여 줄 것 — 지금 열려 있는 아무 팝업이나 마감 임박순으로.
+  //
+  // 진행 중인 곳이 없는 슬러그에도 검색으로 사람이 들어온다(원신 11명 등). 그 사람에게
+  // "없습니다" 만 주고 돌려보낼 이유가 없다. 같은 분류에서 못 찾으면 서울 전체에서 고른다.
+  const alternatives =
+    count === 0
+      ? [...(await liveMarkers())]
+          .map((m) => ({ m, dday: ddayOf(m.endDate, todayStart) }))
+          .filter((x) => x.dday !== null && x.dday >= 0)
+          .sort((a, b) => (a.dday ?? Infinity) - (b.dday ?? Infinity))
+          .slice(0, 3)
+      : [];
 
   const heading = copy.h1[slice.kind](slice.label, count);
   const intro = copy.lead[slice.kind](slice.label, refresh);
@@ -696,6 +823,57 @@ export async function SliceLandingPage({ slug, locale }: { slug: string; locale:
                 ))}
               </div>
             </section>
+
+            {/* 지금 고른다면 — 전체 목록 '위'. 목록을 대체하지 않고 앞에 놓기만 한다.
+                한 장만 보고 나간 322명 중 293명(91%)이 이 화면에서 나갔다. 이름·지역·날짜만
+                153줄 늘어놓으면 고를 수가 없어서다. 목록 길이 자체는 전환과 무관했다(상관 -0.15). */}
+            {topPicks.length > 0 && (
+              <section className="rounded-2xl border border-gray-200 dark:border-white/10 bg-white dark:bg-[#111] shadow-lg shadow-black/5 dark:shadow-black/30 p-6 md:p-8 mb-6">
+                <h2 className="mb-4 flex items-center gap-2 text-lg font-bold md:text-xl">
+                  <Flame size={16} className="text-lime-500" /> {copy.pickHeading}
+                </h2>
+                <ul className="grid gap-3 sm:grid-cols-3">
+                  {topPicks.map(({ m, reason, dday }) => {
+                    const badge = ddayBadge(dday, copy);
+                    const shownName = bilingual(
+                      m.name,
+                      locale === 'en' ? m.nameEn : locale === 'ja' ? m.nameJa : null,
+                    );
+                    const shownPlace = bilingual(
+                      m.location,
+                      locale === 'en' ? m.locationEn : locale === 'ja' ? m.locationJa : null,
+                    );
+                    return (
+                      <li
+                        key={m.id}
+                        className="relative rounded-xl border border-gray-200 p-4 transition-colors hover:bg-black/[0.02] dark:border-white/10 dark:hover:bg-white/[0.03]"
+                      >
+                        <Link
+                          href={localizedPath(`/popup/${m.id}`, locale)}
+                          aria-label={copy.detailAria(shownName.display ?? m.name)}
+                          className="absolute inset-0 z-10 rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lime-500"
+                        />
+                        {/* 왜 이걸 골랐는지 먼저 적는다. 이유가 없으면 그냥 또 하나의 목록이다. */}
+                        <p className="text-[11px] font-black text-lime-600 dark:text-lime-300">
+                          {copy.pickReasons[reason]}
+                        </p>
+                        <h3 className="mt-1 line-clamp-2 text-sm font-bold">{shownName.display}</h3>
+                        <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
+                          {badge && (
+                            <span className={`rounded-pill px-2 py-0.5 font-black ${badge.cls}`}>
+                              {badge.text}
+                            </span>
+                          )}
+                          <span className="truncate">{shownPlace.display || copy.noLocation}</span>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+                {/* 무엇을 기준으로 골랐는지 밝힌다. 안 밝히면 광고로 읽힌다. */}
+                <p className="mt-3 text-xs text-muted-foreground">{copy.pickNote}</p>
+              </section>
+            )}
 
             {/* 목록 — 마감임박순 + D-day 배지 (기존 기간 재포맷) */}
             <section className="rounded-2xl border border-gray-200 dark:border-white/10 bg-white dark:bg-[#111] shadow-lg shadow-black/5 dark:shadow-black/30 p-6 md:p-8 mb-6">
@@ -799,6 +977,51 @@ export async function SliceLandingPage({ slug, locale }: { slug: string; locale:
                   그것만 남긴다. */}
               {copy.emptyNote}
             </p>
+
+            {/* 빈손으로 돌려보내지 않는다. 검색해서 들어온 사람에게 "없습니다" 만 주면
+                그 사람은 다시 검색창으로 돌아간다. */}
+            {alternatives.length > 0 && (
+              <div className="mt-6 border-t border-gray-200 pt-5 dark:border-white/10">
+                <h3 className="text-sm font-bold">{copy.altHeading(slice.label)}</h3>
+                <p className="mt-1 text-xs text-muted-foreground">{copy.altNote}</p>
+                <ul className="mt-3 space-y-2">
+                  {alternatives.map(({ m, dday }) => {
+                    const badge = ddayBadge(dday, copy);
+                    const shownName = bilingual(
+                      m.name,
+                      locale === 'en' ? m.nameEn : locale === 'ja' ? m.nameJa : null,
+                    );
+                    const shownPlace = bilingual(
+                      m.location,
+                      locale === 'en' ? m.locationEn : locale === 'ja' ? m.locationJa : null,
+                    );
+                    return (
+                      <li key={m.id} className="relative flex items-center gap-2 text-sm">
+                        <Link
+                          href={localizedPath(`/popup/${m.id}`, locale)}
+                          aria-label={copy.detailAria(shownName.display ?? m.name)}
+                          className="absolute inset-0 z-10 rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lime-500"
+                        />
+                        <MapPin size={13} className="shrink-0 text-lime-500" />
+                        <span className="min-w-0 flex-1 truncate font-bold">
+                          {shownName.display}
+                        </span>
+                        {badge && (
+                          <span
+                            className={`shrink-0 rounded-pill px-2 py-0.5 text-[11px] font-black ${badge.cls}`}
+                          >
+                            {badge.text}
+                          </span>
+                        )}
+                        <span className="hidden shrink-0 text-[11px] text-muted-foreground sm:block">
+                          {shownPlace.display || copy.noLocation}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            )}
           </section>
         )}
 
