@@ -142,7 +142,18 @@ const INITIAL_MY_COURSE: CourseItem[] = [];
 /*  - 비로그인+비게스트 : MAP / PASSPORT / MY / FEEDBACK 만 통과                  */
 /* -------------------------------------------------------------------------- */
 const DEFAULT_TAB = 'MAP';
-const USER_ONLY_TABS = new Set<string>(['COURSE', 'MUSIC', 'MATE']);
+/**
+ * 게스트 모드를 시작하지 않았거나 로그인하지 않았으면 잠기는 탭.
+ *
+ * <p>지도(MAP)만 빠져 있다. 검색·SNS 로 들어온 사람이 <b>메인 화면은 그대로 보게</b> 하되, 그
+ * 밖의 기능은 "게스트로 둘러보기" 를 누르거나 로그인해야 열린다.
+ *
+ * <p>예전엔 여권·MY 가 이 목록에 없어서 아무나 열 수 있었고, 게다가 홈에 들어오기만 하면 게스트
+ * 7일이 <b>자동으로</b> 시작돼 사실상 모든 탭이 처음부터 열려 있었다. 사용자가 자기가 무엇을
+ * 시작했는지 모르는 채 카운터가 돌았다는 뜻이다 — {@code guestMode.ts} 의 설계 문서는 원래
+ * "명시적으로 눌러야 시작" 이라고 적어 두었는데 구현이 그것과 어긋나 있었다.
+ */
+const USER_ONLY_TABS = new Set<string>(['COURSE', 'MUSIC', 'MATE', 'PASSPORT', 'MY']);
 
 /**
  * 검색엔진과 사용자가 함께 쓰는 랜딩 디렉터리.
@@ -585,13 +596,40 @@ export default function Home() {
   };
 
   /**
-   * USER_ONLY 탭을 게스트 만료 / 비로그인 사용자가 누르면 안내. v2.13.1 부터 게스트 활성 상태는
-   * 모든 탭이 통과하므로 이 핸들러에 도달하지 않는다 (canAccessTab 단계에서 컷). 만료된 게스트는
-   * 회원가입, 처음 보는 사용자는 로그인 유도.
+   * 잠긴 탭(USER_ONLY_TABS)을 눌렀을 때의 안내. 게스트가 <b>활성</b>이면 canAccessTab 단계에서
+   * 이미 통과하므로 여기 오지 않는다. 도달하는 경우는 셋뿐이고, 각각 갈 곳이 다르다.
+   *
+   * <ol>
+   *   <li><b>아직 게스트를 시작하지 않음</b>({@code guestRemainingDays == null}) — 여기서 바로
+   *       게스트를 시작하고 <b>누른 탭으로 보낸다.</b>
+   *   <li><b>게스트 7일 만료</b>({@code === 0}) — 이미 다 써 봤으니 가입.
+   *   <li><b>로그인은 했는데 못 쓰는 탭</b> — 로그인 유도(현재 도달 경로 없음, 방어).
+   * </ol>
+   *
+   * <p>1번을 가입으로 보내면 안 된다. 게스트 시작 버튼은 홈 상단에만 있어서, 그것을 지나쳐 탭부터
+   * 누른 사람에게 가입 창을 띄우면 <b>둘러볼 방법이 없는 것처럼</b> 보인다. 그냥 구경하러 온
+   * 사람에게 가입은 막다른 길이다.
+   *
+   * @return 이제 그 탭을 열어도 되면 {@code true} (게스트를 방금 시작한 경우).
    */
-  const promptUpgradeOrLogin = async (tab: string) => {
-    const guestExpiredOrInactive = !user; // canAccessTab 에서 hasUser=false 인 경우만 도달
-    if (guestExpiredOrInactive) {
+  const promptUpgradeOrLogin = async (tab: string): Promise<boolean> => {
+    if (!user && guestRemainingDays == null) {
+      if (
+        await confirmAction({
+          title: t('home.guestLockedTitle'),
+          // 여기서 userOnlyTabHintKey 를 쓰면 안 된다 — 그 문구는 전부 "가입 후 이용해주세요" 다.
+          // 버튼은 "게스트로 둘러보기" 인데 본문이 가입을 말하면 서로 어긋난다.
+          text: t('home.guestStartHint'),
+          confirmText: t('home.guestStart'),
+        })
+      ) {
+        startGuestMode();
+        setGuestRemainingDays(getRemainingGuestDays());
+        return true;
+      }
+      return false;
+    }
+    if (!user) {
       if (
         await confirmAction({
           title: t('home.memberOnlyTitle'),
@@ -601,7 +639,7 @@ export default function Home() {
       ) {
         router.push(localizedPath('/signup', locale));
       }
-      return;
+      return false;
     }
     if (
       await confirmAction({
@@ -611,12 +649,12 @@ export default function Home() {
     ) {
       router.push(localizedPath('/login', locale));
     }
+    return false;
   };
 
   const handleTabChange = async (tab: string) => {
     const isGuestActive = guestRemainingDays != null && guestRemainingDays > 0;
-    if (!canAccessTab(tab, !!user, isGuestActive)) {
-      await promptUpgradeOrLogin(tab);
+    if (!canAccessTab(tab, !!user, isGuestActive) && !(await promptUpgradeOrLogin(tab))) {
       return;
     }
     setCurrentTab(tab);
@@ -861,13 +899,16 @@ export default function Home() {
     if (!storedUser) {
       const firstVisit = getGuestFirstVisit();
       if (firstVisit == null) {
-        // 첫 방문자도 로그인 없이 홈을 바로 보게 게스트 세션을 자동 시작한다.
+        // 게스트 세션을 <b>자동으로 시작하지 않는다.</b>
         //
-        // 이전엔 여기서 /login 으로 튕겼는데, 그 결과 검색·SEO 로 들어온 방문자가 서비스를
-        // 구경도 못 하고 이탈했다(방문 로그에 `/` → `/login` 2회만 찍힌 세션이 다수).
-        // 로그인은 저장·찜·채팅처럼 계정이 꼭 필요한 순간에 각 기능에서 유도한다.
-        startGuestMode();
-        setGuestRemainingDays(getRemainingGuestDays());
+        // 예전엔 홈에 들어오기만 하면 startGuestMode() 가 돌아 7일 카운터가 시작됐다. 사용자는
+        // 자기가 무엇을 시작했는지 모르는 채였고, guestMode.ts 의 설계 문서가 적어 둔
+        // "명시적으로 눌러야 시작" 과도 어긋났다.
+        //
+        // 그렇다고 /login 으로 튕기지도 않는다. 예전에 그랬다가 검색·SEO 로 들어온 방문자가
+        // 서비스를 구경도 못 하고 이탈했다(방문 로그에 `/` → `/login` 2회만 찍힌 세션이 다수).
+        // 지도는 그대로 열어 두고, 나머지 탭만 잠근다(USER_ONLY_TABS).
+        setGuestRemainingDays(null);
         return;
       }
       // 만료돼도 홈은 계속 열람 가능 — 강제 회원가입 리다이렉트 제거.
@@ -996,6 +1037,25 @@ export default function Home() {
          * 유예 중(D-N)엔 잔여일을, 만료(0) 후엔 하드월 대신 "가입하면 계속" 소프트 유도만 띄운다.
          * 실제 가입 강제는 찜·코스·메이트 같은 참여형 액션(canAccessTab)에서만.
          */}
+        {/* 게스트 시작 안내 — 아직 게스트도 회원도 아닌 사람에게만.
+            잠그기만 하고 여는 버튼이 없으면 막다른 길이 된다. 로그인 페이지에도 같은 버튼이
+            있지만, 거기까지 가려면 이 화면을 떠나야 한다. */}
+        {!user && guestRemainingDays == null && (
+          <div className="mb-4 md:mb-6 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-[var(--color-border)] bg-surface px-4 py-3 shadow-sm">
+            <span className="text-xs font-bold md:text-sm">{t('home.guestLockedTitle')}</span>
+            <button
+              type="button"
+              onClick={() => {
+                startGuestMode();
+                setGuestRemainingDays(getRemainingGuestDays());
+              }}
+              className="shrink-0 rounded-pill bg-lime-300 px-4 py-1.5 text-xs font-black text-ink-900 transition-colors hover:bg-lime-400 md:text-sm"
+            >
+              {t('home.guestStart')}
+            </button>
+          </div>
+        )}
+
         {guestRemainingDays != null && (
           <div className="mb-4 md:mb-6 flex items-center justify-between gap-3 rounded-pill bg-lime-300/85 px-4 py-2 text-ink-900 ring-1 ring-ink-900/10 shadow-sm dark:bg-lime-400/95">
             <span className="inline-flex items-center gap-1.5 text-xs md:text-sm font-bold">
@@ -1022,6 +1082,17 @@ export default function Home() {
             viewport={{ once: true }}
             variants={sectionVariants}
           >
+            {/* 언어 전환 — 히어로 <b>밖</b>, 자기 줄에 둔다.
+                예전엔 히어로 카드 안에 absolute right-4 top-4 로 띄웠는데 두 가지가 깨졌다.
+                (1) 좁은 화면에서 "오늘의 서울 팝업" 배지와 겹쳤다. 카드 폭이 줄어도 배지는
+                    왼쪽에서 자라고 언어 칩은 오른쪽에 고정이라 가운데서 만난다.
+                (2) 그 카드는 비로그인일 때만 그려진다. 로그인하면 언어 전환이 통째로 사라져,
+                    외국인 회원은 한 번 로그인한 뒤 언어를 못 바꿨다.
+                흐름 안에 두면 겹칠 수가 없고, 로그인 여부와 무관하게 늘 같은 자리에 있다. */}
+            <div className="mb-3 flex justify-end md:mb-4">
+              <LocaleSwitcher locale={locale} />
+            </div>
+
             {/* User Greeting Section */}
             <section aria-label="Welcome Banner" className="mb-6">
               {user ? (
@@ -1055,10 +1126,6 @@ export default function Home() {
                     aria-hidden
                     className="pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full bg-lime-300/35 blur-3xl dark:bg-lime-400/20"
                   />
-                  {/* 언어 전환 — 외국인이 처음 보는 화면의 우상단. 메뉴 안에 숨기면 찾다가 이탈한다. */}
-                  <div className="absolute right-4 top-4 z-20 md:right-6 md:top-6">
-                    <LocaleSwitcher locale={locale} />
-                  </div>
                   <div className="relative z-10 flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
                     <div className="text-center md:text-left">
                       <span className="inline-block mb-3 rounded-pill bg-lime-300 px-3 py-1 text-[10px] md:text-xs font-black tracking-[0.2em] uppercase text-ink-900">
