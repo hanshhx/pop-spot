@@ -11,6 +11,7 @@ import type { Locale } from '@/lib/i18n';
 import { LOCALE_PATH, slugAlternates } from '@/lib/localeRoutes';
 import { localizedPath } from '@/lib/localePath';
 import { CRAWL_REFRESH_BY_LOCALE } from '@/lib/siteCopy';
+import { groupSameEvent } from '@/lib/groupSameEvent';
 import {
   getPeriods,
   CATEGORIES,
@@ -590,7 +591,9 @@ export async function sliceMetadata(slug: string, locale: Locale): Promise<Metad
   // 보여주는 것이 그 질의에 대한 직접적인 답이기도 하다.
   //
   // 0곳이면 숫자를 빼고 기존 문장을 그대로 쓴다("0곳" 은 클릭을 부르지 않는다).
-  const matched = filterBySlice(await liveMarkers(), slice);
+  // 같은 행사가 여러 줄로 들어온 것을 묶는다. 건수·제목·설명이 목록과 같은 수를 말해야 한다 —
+  // 목록은 2줄인데 제목이 8곳이라고 하면 그 자체가 또 하나의 거짓말이다.
+  const matched = groupSameEvent(filterBySlice(await liveMarkers(), slice)).map((g) => g.lead);
   const count = matched.length;
 
   // 결과 0곳이면 thin content 방지 위해 noindex (페이지 접근·내부링크는 유지).
@@ -683,8 +686,13 @@ export async function SliceLandingPage({ slug, locale }: { slug: string; locale:
   // 보이지 않아야 한다("성수 팝업" 으로 들어왔는데 닫힌 곳이 나오는 신뢰 문제). 이 페이지는
   // revalidate=3600 SSG 라 백엔드만 고치면 최대 1시간 지연이 생기므로 렌더 시점에도 한 겹 더 거른다.
   const todayStart = kstTodayStart();
-  const filtered = filterBySlice(await liveMarkers(), slice);
+  // generateMetadata 와 같은 순서로 묶는다. 두 곳이 어긋나면 검색 결과의 건수와 화면의 건수가
+  // 달라져, 눌러 들어온 사람이 "다른 페이지인가?" 하고 되돌아간다.
+  const groups = groupSameEvent(filterBySlice(await liveMarkers(), slice));
+  const filtered = groups.map((g) => g.lead);
   const count = filtered.length;
+  /** 대표 id → 같은 행사로 묶인 다른 줄 수. 배지에 쓴다. */
+  const mergedCount = new Map(groups.map((g) => [g.lead.id, g.duplicates.length]));
   const deepLink = deepLinkQuery(slice);
   const home = LOCALE_PATH[locale];
   const mapHref = `${home === '/' ? '' : home}/?tab=MAP${deepLink ? `&${deepLink}` : ''}`;
@@ -917,6 +925,13 @@ export async function SliceLandingPage({ slug, locale }: { slug: string; locale:
                               className={`shrink-0 rounded-pill px-2 py-0.5 text-xs font-black ${badge.cls}`}
                             >
                               {badge.text}
+                            </span>
+                          )}
+                          {/* 묶었다는 사실을 밝힌다. 조용히 줄이면 "왜 빠졌지" 가 되고,
+                              밝히면 "여러 곳에서 확인된 행사" 라는 신뢰 신호가 된다. */}
+                          {(mergedCount.get(m.id) ?? 0) > 0 && (
+                            <span className="shrink-0 rounded-pill bg-black/5 px-2 py-0.5 text-[11px] font-bold text-muted-foreground dark:bg-white/10">
+                              {copy.mergedBadge((mergedCount.get(m.id) ?? 0) + 1)}
                             </span>
                           )}
                         </div>
