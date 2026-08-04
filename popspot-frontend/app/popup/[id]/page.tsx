@@ -50,8 +50,6 @@ interface PopupDetail {
   status?: string;
   openDate?: string;
   closeDate?: string;
-  openTime?: string;
-  closeTime?: string;
   latitude?: string;
   longitude?: string;
   imageUrl?: string;
@@ -177,8 +175,6 @@ export default function PopupDetail() {
           status: data.status,
           openDate: data.startDate || data.openDate,
           closeDate: data.endDate || data.closeDate,
-          openTime: data.openTime,
-          closeTime: data.closeTime,
           latitude: data.latitude,
           longitude: data.longitude,
           imageUrl: data.imageUrl || data.image,
@@ -228,8 +224,6 @@ export default function PopupDetail() {
                 category: m.category || 'ETC',
                 status: m.status || '운영중',
                 closeDate: m.endDate,
-                openTime: '11:00',
-                closeTime: '20:00',
                 latitude: m.latitude,
                 longitude: m.longitude,
                 imageUrl: m.imageUrl,
@@ -438,18 +432,18 @@ export default function PopupDetail() {
       </div>
 
       <div className="mx-auto max-w-3xl px-4 md:px-6">
-        {/* 정보 바 — 기간 · 운영 · 마감 D-day (상단 고정, 숨기지 않음) */}
-        <div className="relative z-10 -mt-6 grid grid-cols-3 divide-x divide-gray-200 rounded-2xl border border-gray-200 bg-white shadow-lg dark:divide-white/10 dark:border-white/10 dark:bg-[#111]">
+        {/* 정보 바 — 우리가 <b>실제로 아는 것</b>만 둔다.
+            예전엔 '운영 11:00~20:00' 칸이 있었는데, openTime/closeTime 은 백엔드에 존재하지도
+            않는 필드라 폴백이 그대로 찍혔다. 즉 팝업 3,225곳 전부가 같은 영업시간을 내걸고
+            있었다. 시간 맞춰 갔다가 닫혀 있으면 그 사람은 다시 오지 않는다.
+            빈 칸을 만드느니 칸을 없애고, 남은 자리는 진짜 값(시작일)에 쓴다. */}
+        <div className="relative z-10 -mt-6 grid grid-cols-2 divide-x divide-gray-200 rounded-2xl border border-gray-200 bg-white shadow-lg dark:divide-white/10 dark:border-white/10 dark:bg-[#111]">
           <div className="px-3 py-4 text-center">
             <p className="text-[10px] font-bold text-muted-foreground">{t('detail.period')}</p>
             <p className="mt-1 text-sm font-bold">
-              {popup.closeDate ? `~${popup.closeDate.slice(5)}` : '-'}
-            </p>
-          </div>
-          <div className="px-3 py-4 text-center">
-            <p className="text-[10px] font-bold text-muted-foreground">{t('detail.hours')}</p>
-            <p className="mt-1 text-sm font-bold">
-              {popup.openTime || '11:00'}~{popup.closeTime || '20:00'}
+              {popup.closeDate
+                ? `${popup.openDate ? `${popup.openDate.slice(5)} ~ ` : '~'}${popup.closeDate.slice(5)}`
+                : '-'}
             </p>
           </div>
           <div className="px-3 py-4 text-center">

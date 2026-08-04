@@ -23,6 +23,18 @@ export type SliceKind =
 
 type ByKind<T> = Record<SliceKind, T>;
 
+/** 검색 결과 설명과 추천 카드에 쓰는 한 팝업의 최소 정보. */
+export type MetaPick = {
+  name: string;
+  /** "8/9" 처럼 짧게. 마감일이 없으면 빈 문자열. */
+  deadline: string;
+  /** "신세계 강남" 처럼 짧게. 없으면 빈 문자열. */
+  location: string;
+};
+
+/** "지금 고른다면" 카드가 그 팝업을 고른 이유. 이유를 안 적으면 그냥 또 하나의 목록이 된다. */
+export type PickReason = 'closing' | 'opened' | 'roomy';
+
 export type LandingCopy = {
   /** 없는 슬러그로 들어왔을 때의 제목. */
   notFound: string;
@@ -41,6 +53,17 @@ export type LandingCopy = {
    * 종류와 무관하게 자연스러워서 눈에 띄지 않았다.
    */
   metaWithCount: (label: string, count: number, kind: SliceKind) => string;
+  /**
+   * 검색 결과 설명 — <b>건수 대신 실제 팝업 이름으로 시작한다.</b>
+   *
+   * <p>"153곳 진행 중" 은 숫자일 뿐이라 뭐가 있는지 하나도 알려주지 않는다. 실측에서 대상이 특정된
+   * 질의는 잘 눌리고("스트릿 레스토랑 파이터 팝업" 40%, "니케 팝업 위치" 15.2%) 두루뭉술한 쪽은
+   * 안 눌린다("일정" 계열 1.64%, 7.6배 차이). 10위 안에 드는데 클릭 0인 질의가 295개다 — 순위가
+   * 아니라 여기 적힌 말이 문제라는 뜻이다.
+   *
+   * <p>덤으로 160여 개 랜딩이 낱말 하나만 바뀐 같은 문장을 쓰던 중복도 해소된다.
+   */
+  metaWithNames: (items: MetaPick[], rest: number) => string;
   metaSoonest: (deadline: string) => string;
   /** 마감일 표기 — 영어권은 월 이름을, 한·일은 7/30 형태를 쓴다. */
   shortDate: (d: Date) => string;
@@ -48,6 +71,23 @@ export type LandingCopy = {
   deadlineFormat: (date: string, dday: string) => string;
   /** 제목 안에 건수를 끼워 넣는다. 앞머리 키워드를 건드리지 않는 위치에. */
   withCount: (title: string, count: number) => string;
+
+  /* ── 고를 근거 ── */
+  /**
+   * "지금 고른다면" — 전체 목록 <b>위에</b> 놓는 세 장.
+   *
+   * <p>목록을 없애지 않는다. 목록 길이와 상세 전환율의 상관은 -0.15 로 사실상 무관했다(성수 161곳
+   * 38.6% vs 흑백요리사 9곳 38.6%). 길이가 아니라 <b>고를 근거가 없는 것</b>이 문제다. 한 장만 보고
+   * 나간 322명 중 293명(91%)이 바로 이 화면에서 나갔다.
+   */
+  pickHeading: string;
+  pickReasons: Record<PickReason, string>;
+  /** 무엇을 기준으로 골랐는지 밝힌다. 안 밝히면 광고로 읽힌다. */
+  pickNote: string;
+
+  /** 진행 중인 곳이 0곳일 때 대신 보여 주는 것. 빈 화면을 주는 것보다 낫다. */
+  altHeading: (label: string) => string;
+  altNote: string;
 
   /* ── 본문 ── */
   h1: ByKind<(label: string, count: number) => string>;
@@ -111,6 +151,15 @@ const ko: LandingCopy = {
   emptyBody: (r) =>
     `서울 전체는 지금도 열려 있어요. 새 팝업은 ${r}에 자동 수집됩니다 — 지금 진행 중인 팝업부터 지도에서 둘러보세요.`,
   emptyNote: '무료 · 로그인 없이 · 메인에서 위시 등록 가능',
+  pickHeading: '지금 고른다면',
+  pickReasons: {
+    closing: '곧 끝나요',
+    opened: '막 시작했어요',
+    roomy: '여유 있게 볼 수 있어요',
+  },
+  pickNote: '마감 임박 · 신규 오픈 · 기간 여유를 기준으로 자동으로 고릅니다.',
+  altHeading: (l) => `${l} 팝업은 지금 진행 중인 곳이 없어요`,
+  altNote: '대신 지금 열려 있는 곳을 마감 임박순으로 보여드려요.',
   ddayValue: (d) => (d === 0 ? '오늘' : `D-${d}`),
   notFound: '찾을 수 없음',
   titles: {
@@ -147,6 +196,16 @@ const ko: LandingCopy = {
     'category-period': '위치·운영 기간·마감일까지 한눈에.',
   },
   metaWithCount: (l, c) => `${l} 팝업스토어 ${c}곳 진행 중.`,
+  metaWithNames: (items, rest) =>
+    `${items
+      .map(
+        (i) =>
+          i.name +
+          (i.deadline || i.location
+            ? `(${[i.deadline && `~${i.deadline}`, i.location].filter(Boolean).join(' ')})`
+            : ''),
+      )
+      .join(' · ')}${rest > 0 ? ` 외 ${rest}곳` : ''}.`,
   shortDate: (d) => `${d.getMonth() + 1}/${d.getDate()}`,
   deadlineFormat: (date, dday) => `${date}(${dday})`,
   metaSoonest: (d) => ` 가장 빠른 마감 ${d}.`,
@@ -250,6 +309,15 @@ const en: LandingCopy = {
   emptyBody: (r) =>
     `The rest of Seoul is still open. New pop-ups are collected ${r} — start with what's running now on the map.`,
   emptyNote: 'Free · no sign-up · save from the main map',
+  pickHeading: 'If you had to pick',
+  pickReasons: {
+    closing: 'Ending soon',
+    opened: 'Just opened',
+    roomy: 'Plenty of time',
+  },
+  pickNote: 'Picked automatically by closing date, opening date and time left.',
+  altHeading: (l) => `No ${l} pop-ups are running right now`,
+  altNote: 'Here is what is open today instead, closing soonest first.',
   ddayValue: (d) => (d === 0 ? 'Today' : `${d}d`),
   notFound: 'Not found',
   titles: {
@@ -295,6 +363,16 @@ const en: LandingCopy = {
         : kind === 'category-period'
           ? `${c} ${l} pop-up stores open in Seoul.`
           : `${c} ${l} pop-up stores open in Seoul.`,
+  metaWithNames: (items, rest) =>
+    `${items
+      .map(
+        (i) =>
+          i.name +
+          (i.deadline || i.location
+            ? ` (${[i.deadline && `until ${i.deadline}`, i.location].filter(Boolean).join(', ')})`
+            : ''),
+      )
+      .join(' · ')}${rest > 0 ? ` and ${rest} more` : ''}.`,
   shortDate: (d) =>
     `${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][d.getMonth()]} ${d.getDate()}`,
   deadlineFormat: (date, dday) => `${date} (${dday})`,
@@ -399,6 +477,15 @@ const ja: LandingCopy = {
   emptyBody: (r) =>
     `ソウル全体では今も開催中です。新しいポップアップは${r}に自動収集されます — まずは開催中のものをマップでご覧ください。`,
   emptyNote: '無料・登録不要・メインから保存できます',
+  pickHeading: '今選ぶなら',
+  pickReasons: {
+    closing: 'まもなく終了',
+    opened: '始まったばかり',
+    roomy: 'ゆっくり見られます',
+  },
+  pickNote: '終了間近・新規オープン・期間の余裕を基準に自動で選びます。',
+  altHeading: (l) => `${l}のポップアップは現在開催中のものがありません`,
+  altNote: '代わりに、今開催中のものを終了が近い順にご案内します。',
   ddayValue: (d) => (d === 0 ? '本日' : `あと${d}日`),
   notFound: '見つかりませんでした',
   titles: {
@@ -434,6 +521,16 @@ const ja: LandingCopy = {
     'category-period': '場所・開催期間・終了日まで一目で。',
   },
   metaWithCount: (l, c) => `${l}のポップアップストア${c}件が開催中。`,
+  metaWithNames: (items, rest) =>
+    `${items
+      .map(
+        (i) =>
+          i.name +
+          (i.deadline || i.location
+            ? `（${[i.deadline && `${i.deadline}まで`, i.location].filter(Boolean).join(' ')}）`
+            : ''),
+      )
+      .join(' · ')}${rest > 0 ? `ほか${rest}件` : ''}。`,
   shortDate: (d) => `${d.getMonth() + 1}/${d.getDate()}`,
   deadlineFormat: (date, dday) => `${date}（${dday}）`,
   metaSoonest: (d) => ` 最短の終了は${d}。`,
