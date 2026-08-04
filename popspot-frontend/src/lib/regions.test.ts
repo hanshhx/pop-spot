@@ -145,3 +145,32 @@ describe('정의 자체의 불변식', () => {
     }
   });
 });
+
+describe('다른 도시가 서울 동네로 분류되지 않는다', () => {
+  it("'부산광역시 중구' 가 명동이 되지 않는다 — 같은 이름의 구가 여러 도시에 있다", () => {
+    // 수집 단계가 앞에 "서울" 을 기계적으로 붙이는 바람에 이런 값이 실제로 들어온다.
+    // '중구' 는 명동의 broadKeywords 라, 가드가 없으면 부산 중구가 명동 팝업이 된다.
+    expect(classifyRegion('서울 부산광역시 중구 광복로')).toBe('other');
+    expect(classifyRegion('서울 대구광역시 중구')).toBe('other');
+    expect(classifyRegion('서울 인천광역시 서구')).toBe('other');
+  });
+
+  it('경기도·강원도가 적혀 있으면 서울로 분류하지 않는다', () => {
+    expect(classifyRegion('서울 경기도 성남시 판교역로146번길 20 현대백화점 판교점 B층')).toBe(
+      'other',
+    );
+    expect(classifyRegion('서울 강원도 원주시')).toBe('other');
+  });
+
+  it('건물 이름에 섞인 지명은 걸러내지 않는다 — 창원빌딩은 성북구에 있다', () => {
+    // 도시 이름이 행정 단위와 함께 적힌 경우만 본다. 맨 지명까지 보면 멀쩡한 서울 팝업이 사라진다.
+    expect(classifyRegion('서울 성북구 성북로 108 창원빌딩 3층')).toBe('seongbuk');
+    // '대구' 가 들어 있어도 버려지지 않는다. 어느 마포 슬라이스로 가든 상관없고, other 가 아니면 된다.
+    expect(classifyRegion('서울 마포구 대구탕골목')).not.toBe('other');
+  });
+
+  it('평범한 서울 주소는 그대로 분류된다', () => {
+    expect(classifyRegion('서울 성동구 성수동')).toBe('seongsu');
+    expect(classifyRegion('서울 중구 명동길')).toBe('myeongdong');
+  });
+});
