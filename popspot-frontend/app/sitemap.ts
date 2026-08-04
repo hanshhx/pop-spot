@@ -1,6 +1,8 @@
 import type { MetadataRoute } from 'next';
 
 import { REGIONS, classifyRegion } from '@/lib/regions';
+import { isIndexableDetail } from '@/lib/indexableDetail';
+import { TERMS_EFFECTIVE_DATE, kstToday } from './popup/[id]/serverData';
 import {
   getPeriods,
   CATEGORIES,
@@ -22,11 +24,12 @@ import {
  * 이 long-tail 키워드 ("성수동 팝업 추천" 등) 로 잡을 수 있게 한다.
  *
  * <ul>
- *   <li>팝업 상세 ({@code /popup/[id]}) 는 sitemap 에 넣지 않는다 — app/popup/[id]/layout.tsx 에서
- *       noindex 이기 때문이다(회원 채팅이 같은 URL 에 살아 약관 §14 를 지키려면 색인할 수 없다).
- *       noindex 페이지를 sitemap 에 올리면 크롤러에게 "와서 보라"와 "색인하지 마라"를 동시에
- *       말하는 셈이라 크롤 예산만 쓴다. 예전 주석은 이 배제를 §10-2 "검색 결과 재현" 조항으로
- *       설명했는데, 개별 팝업 URL 목록은 검색 결과 페이지의 재현이 아니라 근거가 맞지 않았다.
+ *   <li>팝업 상세 ({@code /popup/[id]}) 는 <b>자격을 갖춘 것만</b> 넣는다(2026-08-11 시행).
+ *       판정은 layout.tsx 와 같은 함수({@code judgeIndexable})를 쓴다 — 사이트맵과 noindex 가
+ *       어긋나면 크롤러에게 "와서 보라"와 "색인하지 마라"를 동시에 말하는 셈이라 크롤 예산만 쓴다.
+ *       예전에는 전부 뺐고, 그 이유를 주석이 "회원 채팅이 같은 URL 에 살아서" 라고 적었는데
+ *       <b>틀렸다</b> — 실제 근거는 §14-4 가 자동수집 상세 전체를 막고 있던 것이고, 회원 콘텐츠
+ *       조항(§14-5)은 그와 별개다. §14-4 를 개정해 조건부 허용으로 바꿨고 §14-5 는 그대로다.
  *   <li>슬라이스 랜딩 페이지는 운영자가 직접 큐레이션한 분류 (지역 / 시점 / 카테고리) 라
  *       약관 §10-2 의 "검색 결과 재현" 에 해당하지 않음 (집계 / 분류만).
  *   <li>사용자 게시판 (동행 / 의견) 도 PII 보호를 위해 미포함.
@@ -41,6 +44,8 @@ const SITE_URL = 'https://popspot.co.kr';
 
 /** 건수 판정에 필요한 최소 필드. app/popups/[slug]/page.tsx 의 Marker 와 같은 응답. */
 type Marker = {
+  /** 상세 URL(/popup/{id}) 을 만들 때 쓴다. */
+  id: number;
   name: string;
   location: string | null;
   category: string | null;
@@ -353,5 +358,37 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     })),
   );
 
-  return [...staticPages, ...localizedStatic, ...sliceLandings, ...localized];
+  /**
+   * 자격을 갖춘 팝업 상세.
+   *
+   * <p>약관 §14-4 개정(2026-08-11 시행)이 "운영 종료일과 찾아갈 수 있는 위치가 모두 확인된
+   * 경우에 한해 색인을 허용" 한다고 공표했다. 시행 전에는 한 건도 넣지 않는다 — 그 전에 넣으면
+   * 공표한 것보다 넓게 여는 것이다.
+   *
+   * <p>판정은 {@code app/popup/[id]/layout.tsx} 와 <b>같은 함수</b>({@code judgeIndexable})를
+   * 쓴다. 사이트맵과 noindex 가 어긋나면 크롤러에게 "와서 보라" 와 "색인하지 마라" 를 동시에
+   * 말하는 셈이라 크롤 예산만 쓴다 — v2.42 에 실제로 겪은 사고다.
+   *
+   * <p>실측으로 1,002건 중 448건(44.7%)이 통과한다. 나머지는 주소가 "서울" 한 줄뿐이거나
+   * 종료일을 모르는 것들이라, 검색한 사람의 질문에 답할 수 없다.
+   *
+   * <p>en/ja 판은 넣지 않는다. 팝업 이름의 대부분이 한국어 원문 그대로라 같은 내용이 세 벌
+   * 올라갈 뿐이다.
+   */
+  const today = kstToday();
+  const detailPages: MetadataRoute.Sitemap =
+    today < TERMS_EFFECTIVE_DATE
+      ? []
+      : live
+          .filter((m) => isIndexableDetail(m, today))
+          .map((m) => ({
+            url: `${SITE_URL}/popup/${m.id}`,
+            lastModified: latestModified([m], now),
+            // 팝업은 기간이 끝나면 자격을 잃고 목록에서 빠진다. 매일 확인할 값어치가 있다.
+            changeFrequency: 'daily' as const,
+            // 랜딩(0.5~0.8)보다 낮게 둔다. 크롤 예산이 한정되면 목록을 먼저 도는 편이 낫다.
+            priority: 0.4,
+          }));
+
+  return [...staticPages, ...localizedStatic, ...sliceLandings, ...localized, ...detailPages];
 }
