@@ -303,6 +303,8 @@ export default function Home() {
   const [congestionData, setCongestionData] = useState<CongestionData | null>(null);
   /** 게스트 모드 활성 시 남은 일수. null = 비활성 (로그인 사용자거나 게스트 미시작). */
   const [guestRemainingDays, setGuestRemainingDays] = useState<number | null>(null);
+  /** {@code ?tab=} 이 잠긴 탭을 지목했을 때 그 이름. 안내창을 띄우고 나면 다시 null 로 돌린다. */
+  const [pendingLockedTab, setPendingLockedTab] = useState<string | null>(null);
   /** 서치존에서 팝업 선택 시 지도를 그 위치로 이동시킬 좌표. */
   // setter 는 쓰지 않는다 — 지도 이동은 좌표를 직접 넘기는 fitReq 가 전담한다(mapFit).
   // center 는 지도 초기 진입점으로만 남겨 둔다.
@@ -600,9 +602,8 @@ export default function Home() {
    * 이미 통과하므로 여기 오지 않는다. 도달하는 경우는 셋뿐이고, 각각 갈 곳이 다르다.
    *
    * <ol>
-   *   <li><b>아직 게스트를 시작하지 않음</b>({@code guestRemainingDays == null}) — 여기서 바로
-   *       게스트를 시작하고 <b>누른 탭으로 보낸다.</b>
-   *   <li><b>게스트 7일 만료</b>({@code === 0}) — 이미 다 써 봤으니 가입.
+   *   <li><b>아직 게스트를 시작하지 않음</b> — 여기서 바로 게스트를 시작하고 <b>누른 탭으로 보낸다.</b>
+   *   <li><b>게스트 7일 만료</b> — 이미 다 써 봤으니 가입.
    *   <li><b>로그인은 했는데 못 쓰는 탭</b> — 로그인 유도(현재 도달 경로 없음, 방어).
    * </ol>
    *
@@ -610,10 +611,16 @@ export default function Home() {
    * 누른 사람에게 가입 창을 띄우면 <b>둘러볼 방법이 없는 것처럼</b> 보인다. 그냥 구경하러 온
    * 사람에게 가입은 막다른 길이다.
    *
+   * <p><b>1번과 2번을 {@code guestRemainingDays} 로 가르지 않는다.</b> 그 state 는 마운트 뒤
+   * effect 에서 채워지는데, {@code ?tab=} 처리는 그보다 먼저 돌 수 있다. 아직 초기값 {@code null}
+   * 인 순간에 판정하면 <b>만료된 게스트가 "게스트로 둘러보기" 를 다시 제안받아</b> 7일이 무한히
+   * 갱신된다. localStorage 원본을 직접 읽으면 렌더 타이밍과 무관해진다.
+   *
    * @return 이제 그 탭을 열어도 되면 {@code true} (게스트를 방금 시작한 경우).
    */
   const promptUpgradeOrLogin = async (tab: string): Promise<boolean> => {
-    if (!user && guestRemainingDays == null) {
+    const guestNeverStarted = getGuestFirstVisit() == null;
+    if (!user && guestNeverStarted) {
       if (
         await confirmAction({
           title: t('home.guestLockedTitle'),
@@ -970,7 +977,21 @@ export default function Home() {
     const tabParam = searchParams.get('tab');
     if (tabParam) {
       const requested = tabParam.toUpperCase();
-      setCurrentTab(canAccessTab(requested, hasUser, isGuestActive) ? requested : DEFAULT_TAB);
+      if (canAccessTab(requested, hasUser, isGuestActive)) {
+        setCurrentTab(requested);
+        return;
+      }
+      /*
+       * 잠긴 탭을 지목한 딥링크는 <b>조용히 지도로 떨어뜨리지 않는다.</b>
+       *
+       * <p>{@code /music} 은 8줄짜리 리다이렉트 파일이라 {@code /?tab=music} 으로 오고,
+       * 여기서 MUSIC 이 잠긴 탭이라 DEFAULT_TAB 으로 대체됐다. 북마크를 눌렀는데 아무 말 없이
+       * 다른 화면이 뜨는 것은 <b>고장으로 읽힌다</b> — 사용자는 자기가 뭘 잘못 눌렀는지 모른다.
+       *
+       * <p>화면은 지도로 두되, 무엇이 막혔는지 알리고 게스트를 시작하면 그 탭으로 보낸다.
+       */
+      setCurrentTab(DEFAULT_TAB);
+      setPendingLockedTab(requested);
       return;
     }
     const lastTab = sessionStorage.getItem('lastTab');
@@ -978,6 +999,31 @@ export default function Home() {
       setCurrentTab(canAccessTab(lastTab, hasUser, isGuestActive) ? lastTab : DEFAULT_TAB);
     }
   }, [searchParams]);
+
+  /*
+   * 잠긴 탭 딥링크 안내. 위 effect 와 나눠 둔 이유는 confirmAction 이 await 를 요구해서다 —
+   * effect 콜백 자체를 async 로 만들면 정리 함수를 돌려줄 수 없다.
+   *
+   * cancelled 플래그: 안내창이 떠 있는 동안 사용자가 다른 곳으로 가면 setState 를 하지 않는다.
+   */
+  useEffect(() => {
+    if (!pendingLockedTab) return;
+    let cancelled = false;
+    void (async () => {
+      const opened = await promptUpgradeOrLogin(pendingLockedTab);
+      if (cancelled) return;
+      if (opened) {
+        setCurrentTab(pendingLockedTab);
+        sessionStorage.setItem('lastTab', pendingLockedTab);
+      }
+      setPendingLockedTab(null);
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // promptUpgradeOrLogin 은 매 렌더 새로 만들어지므로 deps 에 넣으면 안내창이 무한히 다시 뜬다.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingLockedTab]);
 
   /* Utilities */
   const sectionVariants: Variants = {
