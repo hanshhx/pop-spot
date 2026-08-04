@@ -5,9 +5,11 @@ import com.example.popspotbackend.service.VisitService;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -71,11 +73,18 @@ public class AdminExportController {
     /** 모은 결과와 "이게 전부가 아니다" 는 표시. */
     private record Rows(List<Map<String, Object>> rows, boolean truncated) {}
 
-    /** 내려받을 수 있는 것 — 이름과 칸 구성을 한곳에 모은다. */
+    /**
+     * 내려받을 수 있는 것 — 이름과 칸 구성을 한곳에 모은다.
+     *
+     * <p><b>칸 이름은 화면에 쓰는 말과 같아야 한다.</b> 파일을 받은 사람은 화면을 볼 수 없으므로 칸 이름 하나로만 값을 해석한다. 이름이 조금이라도 다른 뜻을
+     * 풍기면 그 자리에서 오해가 굳고, 바로잡아 줄 사람이 없다.
+     */
     private enum Dataset {
+        // "구분" 칸의 키는 guest 다. 이름을 "회원여부" 로 달면 true 가 회원으로 읽히는데
+        // 실제 값은 정반대(true=게스트)다. 이름을 값에 맞추고, 값도 화면과 같은 낱말로 내보낸다.
         VISITORS(
                 "visitors",
-                List.of("방문자ID", "세션수", "경로수", "다녀간 경로", "회원여부", "마지막 방문", "브라우저"),
+                List.of("방문자ID", "조회수", "경로수", "다녀간 경로", "구분", "마지막 방문", "브라우저"),
                 List.of(
                         "visitorId",
                         "visits",
@@ -129,8 +138,10 @@ public class AdminExportController {
         boolean json = "json".equalsIgnoreCase(format);
         byte[] body =
                 json
+                        // JSON 은 키 이름이 그대로 남는다({"guest": true}) 뜻이 흐려질 일이 없으므로
+                        // 값을 손대지 않는다. 뜻을 잃는 것은 키가 한글 칸 이름으로 바뀌는 CSV 쪽이다.
                         ? toJson(rows).getBytes(StandardCharsets.UTF_8)
-                        : CsvWriter.write(target.headers, target.keys, rows)
+                        : CsvWriter.write(target.headers, target.keys, forCsv(target, rows))
                                 .getBytes(StandardCharsets.UTF_8);
 
         // 파일 이름에 기간을 넣는다. 여러 번 받아 두면 어느 것이 무엇인지 파일명으로만 구분된다.
@@ -146,7 +157,9 @@ public class AdminExportController {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(
                 json ? MediaType.APPLICATION_JSON : MediaType.parseMediaType("text/csv"));
-        headers.setContentDispositionFormData("attachment", filename);
+        // attachment 로 선언한다. setContentDispositionFormData 를 쓰면 form-data 로 나가는데,
+        // 그건 파일을 <b>올릴 때</b> 쓰는 형식이라 내려받기 응답에는 맞지 않는다.
+        headers.setContentDisposition(ContentDisposition.attachment().filename(filename).build());
         // 잘렸으면 헤더로 알린다. 조용히 자르면 전체를 받았다고 믿는다.
         // 상한이 아니라 실제로 담은 줄 수를 보낸다 — 받는 쪽이 알아야 할 건 "몇 줄까지 왔나" 다.
         if (truncated) headers.add("X-Popspot-Truncated", String.valueOf(rows.size()));
@@ -190,6 +203,26 @@ public class AdminExportController {
         }
 
         return new Rows(all, total > all.size());
+    }
+
+    /**
+     * CSV 에 적을 값으로 다듬는다 — 화면이 쓰는 낱말 그대로.
+     *
+     * <p>{@code guest} 는 참/거짓으로 내보내면 안 된다. 이 값은 "게스트인가" 이지 "회원인가" 가 아니라서, 칸 이름을 어떻게 달든 받는 쪽이 뒤집어 읽을
+     * 여지가 남는다. 화면(VisitorsTab)이 이미 "게스트" / "회원" 이라는 낱말로 보여 주므로 파일에도 같은 낱말을 적는다.
+     */
+    private List<Map<String, Object>> forCsv(Dataset target, List<Map<String, Object>> rows) {
+        if (target != Dataset.VISITORS) return rows;
+
+        List<Map<String, Object>> out = new ArrayList<>(rows.size());
+        for (Map<String, Object> row : rows) {
+            Map<String, Object> copy = new LinkedHashMap<>(row);
+            if (copy.get("guest") instanceof Boolean guest) {
+                copy.put("guest", guest ? "게스트" : "회원");
+            }
+            out.add(copy);
+        }
+        return out;
     }
 
     /** 상한을 넘으면 자르고 잘랐다고 표시한다. */
