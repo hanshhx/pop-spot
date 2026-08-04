@@ -1,37 +1,113 @@
 import type { Metadata } from 'next';
 
 /**
- * 팝업 상세 — 검색엔진 색인 차단.
+ * 팝업 상세 — 제목·설명·공유카드는 채우되, 검색 색인은 <b>계속 막는다.</b>
  *
- * <p><b>왜 막는가.</b> 이 URL 에는 팝업 정보만 있는 게 아니라 회원이 남긴 글이 같이 산다
- * (page.tsx 의 "다녀온 사람들의 한 줄" → ChatRoom). 이용약관 §14 는 회원 콘텐츠(동행·의견·채팅)를
- * 검색엔진에 색인하지 않겠다고 공표했다. 약속을 지키는 방법은 둘뿐인데 — 채팅을 이 URL 에서 떼거나,
- * 이 URL 을 색인하지 않거나 — 후자가 지금 당장 가능한 쪽이다.
+ * <p><b>왜 색인을 막는가.</b> 이용약관 <b>§14-4</b> 가 "자동수집된 개별 팝업스토어 상세 페이지는
+ * 사이트맵에 포함하지 않으며 {@code noindex} 메타 태그로 검색엔진 색인을 명시적으로 차단합니다"
+ * 라고 공표해 뒀다.
  *
- * <p><b>왜 데이터를 보고 판단하지 않는가.</b> "크롤 원문 기반 팝업만 막고 나머지는 색인" 같은 조건부
- * 정책을 검토했지만, 채팅이 같은 URL 에 있는 한 어떤 데이터 조건에서도 index 를 켤 수 없다. 도달하지
- * 못하는 분기를 위해 상세 요청마다 백엔드를 한 번 더 부르고 그 호출이 실패하면 상세가 500 이 되는
- * 위험까지 떠안게 된다. 결론이 하나면 조건도 하나여야 한다.
+ * <p>예전 주석은 원인을 채팅(ChatRoom)이라고 적었는데 <b>틀렸다.</b> 회원 콘텐츠 조항은 그 다음
+ * 항목(§14-5)이고, §14-4 는 그와 별개로 <b>자동수집 상세 전체</b>를 막는다. 즉 채팅을 이 URL 에서
+ * 떼어도 색인은 못 연다. 열려면 약관 개정과 7일 사전 공지(§15-1)가 먼저이고, <b>코드가 그 상태가
+ * 된 뒤에</b> 약관을 고쳐야 한다 — 지키지 못할 문장을 먼저 공표할 수는 없다.
  *
- * <p><b>되돌리려면.</b> ChatRoom 을 별도 URL 로 옮기거나 로그인 사용자에게만 마운트하는 것이 선행이다.
- * 그 전에 여기만 풀면 약관 위반이 된다. 팝업 상세는 이 서비스에서 유기적 유입이 가장 클 수 있는 면이라
- * 채팅 분리는 별도 과제로 남겨둘 값어치가 있다.
+ * <p><b>그런데 왜 제목·설명은 채우는가.</b> {@code noindex} 는 <b>검색 결과에 안 나오게</b> 하는
+ * 것이지, 페이지가 자기를 설명하지 말라는 뜻이 아니다. 지금은 상세 URL 을 카톡·X 에 붙여넣으면
+ * 루트 레이아웃이 물려준 <b>홈페이지 카드</b>가 뜬다 — 제목이 "POP-SPOT — 서울 팝업스토어
+ * 인텔리전스" 이고 {@code og:url} 도 홈이다. 어느 팝업을 공유했는지 받는 사람이 알 수 없다.
+ *
+ * <p>이 서비스는 착지의 69% 가 딥링크이고 직접 방문이 23% 다. 그 대부분이 누가 링크를 건네준
+ * 것이라, 공유 카드는 <b>검색 색인과 무관하게</b> 지금 당장 값이 나오는 자리다.
  *
  * <p><b>robots.txt 로 막지 않는 이유.</b> Disallow 를 걸면 크롤러가 이 meta 를 읽지 못해 URL 만 색인된
  * 채로 남는다. 색인을 지우려면 크롤러가 페이지에 들어와 noindex 를 읽어야 한다.
  */
+
+const SITE = 'https://popspot.co.kr';
+
+/** 공유 카드에 쓸 최소 정보. 지도 마커 API 가 이미 내려주는 값만 쓴다. */
+type Marker = {
+  id: number;
+  name: string;
+  location: string | null;
+  startDate: string | null;
+  endDate: string | null;
+};
+
+/**
+ * 팝업 하나를 찾는다.
+ *
+ * <p>{@code sitemap.ts} 와 <b>같은 요청·같은 옵션</b>을 쓴다. Next 가 fetch 캐시를 공유하므로 백엔드
+ * 호출이 늘지 않는다. 실패하면 null — 공유 카드가 예전처럼 홈 값으로 떨어질 뿐, 상세가 깨지지 않는다.
+ * 메타데이터 하나 때문에 페이지를 500 으로 만들지 않는다.
+ */
+async function findMarker(id: string): Promise<Marker | null> {
+  const apiBase = process.env.NEXT_PUBLIC_API_URL;
+  if (!apiBase || !/^https?:\/\//.test(apiBase)) return null;
+
+  try {
+    const res = await fetch(`${apiBase}/api/map/markers`, { next: { revalidate: 3600 } });
+    if (!res.ok) return null;
+    const markers = (await res.json()) as Marker[];
+    return markers.find((m) => String(m.id) === id) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** "07-24 ~ 08-06" · 끝만 알면 "~08-06" · 둘 다 없으면 빈 문자열. 없는 값은 지어내지 않는다. */
+function period(m: Marker): string {
+  const from = m.startDate ? m.startDate.slice(5) : '';
+  const to = m.endDate ? m.endDate.slice(5) : '';
+  if (from && to) return `${from} ~ ${to}`;
+  if (to) return `~${to}`;
+  return from ? `${from} ~` : '';
+}
+
 export async function generateMetadata({
   params,
 }: {
   params: Promise<{ id: string }>;
 }): Promise<Metadata> {
   const { id } = await params;
+  const isNumeric = /^\d+$/.test(id);
+  // 루트 layout 이 모든 페이지에 홈 canonical 을 물려준다. noindex 여도 자기 URL 을 가리키는 편이
+  // 정확하고, 홈을 가리키는 canonical 이 남으면 홈 평가에까지 잡음이 섞인다.
+  const canonical = isNumeric ? `${SITE}/popup/${id}` : undefined;
+
+  const base: Metadata = {
+    robots: { index: false, follow: false },
+    alternates: canonical ? { canonical } : undefined,
+  };
+  if (!isNumeric) return base;
+
+  const marker = await findMarker(id);
+  if (!marker) return base;
+
+  const when = period(marker);
+  const where = marker.location?.trim() ?? '';
+  // 루트 layout 의 title.template 이 "· POP-SPOT" 을 붙인다. 여기서 또 붙이면
+  // "짱구는못말려 대축제 | POP-SPOT · POP-SPOT" 이 된다. 이름만 넘긴다.
+  const title = marker.name;
+  // og:title 은 템플릿이 적용되지 않으므로 브랜드를 직접 붙인다.
+  const ogTitle = `${marker.name} · POP-SPOT`;
+  // 링크를 받은 사람이 갈지 말지 정하는 데 필요한 것 — 언제, 어디서.
+  const description =
+    [when, where].filter(Boolean).join(' · ') || '서울 팝업스토어 정보를 지도로 한눈에 — POP-SPOT';
 
   return {
-    robots: { index: false, follow: false },
-    // 루트 layout 이 모든 페이지에 홈 canonical 을 물려준다. noindex 여도 자기 URL 을 가리키는 편이
-    // 정확하고, 홈을 가리키는 canonical 이 남으면 홈 평가에까지 잡음이 섞인다.
-    alternates: /^\d+$/.test(id) ? { canonical: `https://popspot.co.kr/popup/${id}` } : undefined,
+    ...base,
+    title,
+    description,
+    openGraph: {
+      title: ogTitle,
+      description,
+      url: canonical,
+      siteName: 'POP-SPOT',
+      type: 'website',
+    },
+    twitter: { card: 'summary_large_image', title: ogTitle, description },
   };
 }
 
