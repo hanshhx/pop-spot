@@ -85,6 +85,12 @@ export type LandingCopy = {
   /** 무엇을 기준으로 골랐는지 밝힌다. 안 밝히면 광고로 읽힌다. */
   pickNote: string;
 
+  /**
+   * 같은 행사가 여러 줄로 들어온 것을 묶었을 때의 배지.
+   *
+   * <p>조용히 줄이면 "왜 빠졌지" 가 되고, 밝히면 "여러 곳에서 확인된 행사" 라는 신뢰 신호가 된다.
+   */
+  mergedBadge: (sources: number) => string;
   /** 진행 중인 곳이 0곳일 때 대신 보여 주는 것. 빈 화면을 주는 것보다 낫다. */
   altHeading: (label: string) => string;
   altNote: string;
@@ -160,6 +166,7 @@ const ko: LandingCopy = {
   pickNote: '마감 임박 · 신규 오픈 · 기간 여유를 기준으로 자동으로 고릅니다.',
   altHeading: (l) => `${l} 팝업은 지금 진행 중인 곳이 없어요`,
   altNote: '대신 지금 열려 있는 곳을 마감 임박순으로 보여드려요.',
+  mergedBadge: (n) => `제보 ${n}곳 묶음`,
   ddayValue: (d) => (d === 0 ? '오늘' : `D-${d}`),
   notFound: '찾을 수 없음',
   titles: {
@@ -318,6 +325,7 @@ const en: LandingCopy = {
   pickNote: 'Picked automatically by closing date, opening date and time left.',
   altHeading: (l) => `No ${l} pop-ups are running right now`,
   altNote: 'Here is what is open today instead, closing soonest first.',
+  mergedBadge: (n) => `${n} sources merged`,
   ddayValue: (d) => (d === 0 ? 'Today' : `${d}d`),
   notFound: 'Not found',
   titles: {
@@ -486,6 +494,7 @@ const ja: LandingCopy = {
   pickNote: '終了間近・新規オープン・期間の余裕を基準に自動で選びます。',
   altHeading: (l) => `${l}のポップアップは現在開催中のものがありません`,
   altNote: '代わりに、今開催中のものを終了が近い順にご案内します。',
+  mergedBadge: (n) => `${n}件の情報をまとめ`,
   ddayValue: (d) => (d === 0 ? '本日' : `あと${d}日`),
   notFound: '見つかりませんでした',
   titles: {
