@@ -116,7 +116,9 @@ export default function BrowseSection() {
   useEffect(() => {
     let cancelled = false;
     apiFetch('/api/map/markers')
-      .then((res) => (res.ok ? res.json() : []))
+      // HTTP 실패를 빈 배열로 흘려보내면 아래 setMarkers([]) 가 걸려 error 상태에 못 간다.
+      // 그러면 '지역별 둘러보기' 가 오류 표시 없이 통째로 사라진다 — 섹션이 원래 없는 것처럼.
+      .then((res) => (res.ok ? res.json() : Promise.reject(new Error(`markers ${res.status}`))))
       .then((data: Marker[]) => {
         if (!cancelled) setMarkers(data);
       })

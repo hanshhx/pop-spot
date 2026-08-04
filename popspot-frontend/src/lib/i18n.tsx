@@ -417,6 +417,8 @@ const DICT = {
     'misc.notifUnread': '안 읽음',
     'misc.passportStamps': '내 스탬프',
     'misc.passportDesc': '방문 인증할 때마다 그 팝업이 그대로 도장으로 남아요.',
+    'misc.passportLoadError':
+      '도장을 불러오지 못했어요. 실제로 모은 도장이 사라진 것은 아닙니다 — 잠시 후 새로고침해 주세요.',
     'misc.passportNext': '다음 팝업',
     'misc.passportLocked': '방문하면 열림',
     'misc.tickerSubtitle': '성수동 실시간 현황',
@@ -1176,6 +1178,8 @@ const DICT = {
     'misc.notifUnread': 'Unread',
     'misc.passportStamps': 'My stamps',
     'misc.passportDesc': 'Check in at a pop-up and it becomes a stamp you keep.',
+    'misc.passportLoadError':
+      'Could not load your stamps. Nothing has been lost — please refresh in a moment.',
     'misc.passportNext': 'Next pop-up',
     'misc.passportLocked': 'Unlocks on visit',
     'misc.tickerSubtitle': 'Seongsu, right now',
@@ -1943,6 +1947,8 @@ const DICT = {
     'misc.notifUnread': '未読',
     'misc.passportStamps': 'マイスタンプ',
     'misc.passportDesc': '訪問を認証するたびに、そのポップアップがスタンプとして残ります。',
+    'misc.passportLoadError':
+      'スタンプを読み込めませんでした。集めたスタンプが消えたわけではありません — 少し後に再読み込みしてください。',
     'misc.passportNext': '次のポップアップ',
     'misc.passportLocked': '訪問すると解放',
     'misc.tickerSubtitle': 'ソンスのリアルタイム状況',

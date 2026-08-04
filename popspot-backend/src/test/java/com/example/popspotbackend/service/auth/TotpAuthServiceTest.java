@@ -1,6 +1,7 @@
 package com.example.popspotbackend.service.auth;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
@@ -60,7 +61,7 @@ class TotpAuthServiceTest {
 
     /** 등록을 끝낸 상태로 만든다. 반환값은 그 시점의 유효한 코드. */
     private String enroll() {
-        auth.beginSetup(USER_ID);
+        auth.beginSetup(USER_ID, false);
         byte[] secret = new TotpSecretCipher(KEY).decrypt(user.getTotpSecret());
         String code = totp.generate(secret, Instant.now().getEpochSecond() / 30);
         auth.confirmSetup(USER_ID, code);
@@ -83,7 +84,7 @@ class TotpAuthServiceTest {
     @Test
     @DisplayName("등록을 시작만 하고 확인을 안 하면 아직 안 켜진다 — 중간에 멈춘 사람이 잠기면 안 된다")
     void setupWithoutConfirmDoesNotEnable() {
-        auth.beginSetup(USER_ID);
+        auth.beginSetup(USER_ID, false);
 
         assertThat(user.isTotpEnabled()).isFalse();
         assertThat(auth.isRequiredFor(user)).isFalse();
@@ -92,7 +93,7 @@ class TotpAuthServiceTest {
     @Test
     @DisplayName("확인까지 끝나야 켜지고, 그때 복구 코드가 나온다")
     void confirmEnablesAndIssuesRecoveryCodes() {
-        auth.beginSetup(USER_ID);
+        auth.beginSetup(USER_ID, false);
         byte[] secret = new TotpSecretCipher(KEY).decrypt(user.getTotpSecret());
         String code = totp.generate(secret, Instant.now().getEpochSecond() / 30);
 
@@ -105,7 +106,7 @@ class TotpAuthServiceTest {
     @Test
     @DisplayName("틀린 코드로는 확인이 안 된다")
     void confirmRejectsWrongCode() {
-        auth.beginSetup(USER_ID);
+        auth.beginSetup(USER_ID, false);
 
         assertThatThrownBy(() -> auth.confirmSetup(USER_ID, "000000"))
                 .isInstanceOf(IllegalArgumentException.class);
@@ -124,7 +125,7 @@ class TotpAuthServiceTest {
     @Test
     @DisplayName("복구 코드로도 통과하고, 쓴 코드는 사라진다")
     void recoveryCodeWorksOnce() {
-        auth.beginSetup(USER_ID);
+        auth.beginSetup(USER_ID, false);
         byte[] secret = new TotpSecretCipher(KEY).decrypt(user.getTotpSecret());
         String setupCode = totp.generate(secret, Instant.now().getEpochSecond() / 30);
         String recovery = auth.confirmSetup(USER_ID, setupCode).recoveryCodes().get(0);
@@ -146,7 +147,7 @@ class TotpAuthServiceTest {
     @Test
     @DisplayName("해제하면 비밀키와 복구 코드가 함께 지워진다")
     void disableClearsEverything() {
-        auth.beginSetup(USER_ID);
+        auth.beginSetup(USER_ID, false);
         byte[] secret = new TotpSecretCipher(KEY).decrypt(user.getTotpSecret());
         String recovery =
                 auth.confirmSetup(
@@ -169,7 +170,7 @@ class TotpAuthServiceTest {
                         users, totp, new TotpSecretCipher(""), new RecoveryCodeService(), redis);
         ReflectionTestUtils.setField(noKey, "featureEnabled", true);
 
-        assertThatThrownBy(() -> noKey.beginSetup(USER_ID))
+        assertThatThrownBy(() -> noKey.beginSetup(USER_ID, false))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("encryption-key");
     }
@@ -180,9 +181,34 @@ class TotpAuthServiceTest {
         enroll();
         String firstSecret = user.getTotpSecret();
 
-        auth.beginSetup(USER_ID);
+        auth.beginSetup(USER_ID, true);
 
         assertThat(user.getTotpSecret()).isNotEqualTo(firstSecret);
         assertThat(user.isTotpEnabled()).describedAs("확인 전까지는 꺼짐").isFalse();
+    }
+
+    @Test
+    @DisplayName("이미 등록됐는데 의사표시 없이 다시 부르면 거절한다 — 화면이 확인창을 못 띄웠을 수 있다")
+    void refusesSilentReEnroll() {
+        enroll();
+        String enrolledSecret = user.getTotpSecret();
+
+        // 실제 사고 경로: 상태 조회가 실패하면 화면이 '미등록' 으로 보이면서 확인창을 건너뛰고
+        // 곧장 등록을 시작한다. 그때 이 방어선이 없으면 멀쩡한 2단계 인증이 소리 없이 꺼진다.
+        assertThatThrownBy(() -> auth.beginSetup(USER_ID, false))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("이미 2단계 인증이 등록");
+
+        assertThat(user.getTotpSecret()).describedAs("비밀키가 그대로여야 한다").isEqualTo(enrolledSecret);
+        assertThat(user.isTotpEnabled()).describedAs("켜진 상태가 유지돼야 한다").isTrue();
+    }
+
+    @Test
+    @DisplayName("중단된 등록은 의사표시 없이도 다시 시작할 수 있다 — 잃을 것이 없다")
+    void allowsRestartOfAbandonedSetup() {
+        auth.beginSetup(USER_ID, false); // 비밀키만 생기고 확인은 안 함
+
+        assertThatCode(() -> auth.beginSetup(USER_ID, false)).doesNotThrowAnyException();
+        assertThat(user.isTotpEnabled()).isFalse();
     }
 }

@@ -1,5 +1,7 @@
 package com.example.popspotbackend.service;
 
+import org.springframework.web.server.ResponseStatusException;
+import org.springframework.http.HttpStatus;
 import com.example.popspotbackend.service.ai.UserLlmInvoker;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.Collections;
@@ -47,9 +49,12 @@ public class AiCourseService {
             return parseResponse(response);
         } catch (Exception e) {
             log.error("[AiCourse] LLM 호출 실패", e);
-            // 외부 서비스(LLM) 장애 → 5xx 가 의미상 맞지만 GlobalExceptionHandler 가 IllegalStateException
-            // 을 409 로 잡고 있어, 클라이언트는 동일한 에러 메시지를 받음. 메시지에 원인을 담아 디버깅 가능.
-            throw new IllegalStateException("AI 서버 연결 실패: " + e.getMessage());
+            // 원인은 로그에만 남긴다. e.getMessage() 에는 우리 LLM 서버의 내부 주소와 포트가
+            // 그대로 담기는데, 예전엔 그것을 응답 본문에 붙여 내보내고 있었다.
+            //
+            // 상태코드는 502 다 — 우리 코드가 잘못된 것도 사용자가 잘못 보낸 것도 아니고,
+            // 우리가 부른 외부 서비스가 실패한 것이다. 전역 처리기가 이 코드를 존중한다.
+            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "AI 추천을 불러오지 못했습니다.");
         }
     }
 

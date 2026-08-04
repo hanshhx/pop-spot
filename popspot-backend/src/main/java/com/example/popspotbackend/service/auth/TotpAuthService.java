@@ -74,12 +74,23 @@ public class TotpAuthService {
      * <p>이 시점에는 <b>아직 켜지 않는다</b>({@code totpEnabled=false}). 6자리 확인까지 끝나야 켠다. 그러지 않으면 QR 만 받고 앱 등록에
      * 실패한 사람이 그대로 잠긴다.
      *
-     * <p>이미 등록된 상태에서 다시 부르면 <b>새 비밀키로 덮어쓴다.</b> 폰을 바꿨을 때 쓰는 경로다. 기존 앱의 코드는 그 순간부터 안 맞으므로, 화면이 이를
-     * 분명히 알려야 한다.
+     * <p>이미 등록된 상태에서 다시 부르면 <b>새 비밀키로 덮어쓴다.</b> 폰을 바꿨을 때 쓰는 경로다. 기존 앱의 코드는 그 순간부터 안 맞는다.
+     *
+     * <p>그래서 이미 등록된 계정은 {@code replaceExisting=true} 를 명시해야만 진행한다. 예전엔 화면의 확인창 한 줄이 유일한 제동장치였는데, 그
+     * 확인창은 <b>상태 조회가 성공했을 때만</b> 떴다. 상태 조회가 실패하면 화면이 "미등록" 으로 보이면서 확인창을 건너뛰고 곧장 이 메서드를 불러, 멀쩡히 등록돼
+     * 있던 2단계 인증이 소리 없이 꺼졌다. 읽기 실패가 파괴적 동작의 유일한 가드를 없애는 구조였다 — 모르면 진행하지 않는 쪽으로 뒤집는다.
+     *
+     * @param replaceExisting 이미 등록된 인증기를 <b>버리겠다는 명시적 의사</b>. 화면이 사용자에게 확인받은 뒤에만 true 로 보낸다.
      */
     @Transactional
-    public SetupInfo beginSetup(String userId) {
+    public SetupInfo beginSetup(String userId, boolean replaceExisting) {
         User user = findUser(userId);
+
+        // 등록을 마친 계정만 해당한다. 비밀키만 있고 아직 확인 전이면 중단된 등록이라 덮어써도 잃을 것이 없다.
+        if (user.isTotpEnabled() && !replaceExisting) {
+            throw new IllegalStateException(
+                    "이미 2단계 인증이 등록돼 있습니다. 다시 등록하면 지금 쓰는 인증 앱의 코드는 더 이상 맞지 않습니다.");
+        }
 
         byte[] secret = totp.generateSecret();
         user.setTotpSecret(cipher.encrypt(secret));
