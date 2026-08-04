@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
 
+import { fetchPopupForServer, shouldIndexDetail } from './serverData';
+
 /**
  * 팝업 상세 — 제목·설명·공유카드는 채우되, 검색 색인은 <b>계속 막는다.</b>
  *
@@ -26,40 +28,10 @@ import type { Metadata } from 'next';
 
 const SITE = 'https://popspot.co.kr';
 
-/** 공유 카드에 쓸 최소 정보. 지도 마커 API 가 이미 내려주는 값만 쓴다. */
-type Marker = {
-  id: number;
-  name: string;
-  location: string | null;
-  startDate: string | null;
-  endDate: string | null;
-};
-
-/**
- * 팝업 하나를 찾는다.
- *
- * <p>{@code sitemap.ts} 와 <b>같은 요청·같은 옵션</b>을 쓴다. Next 가 fetch 캐시를 공유하므로 백엔드
- * 호출이 늘지 않는다. 실패하면 null — 공유 카드가 예전처럼 홈 값으로 떨어질 뿐, 상세가 깨지지 않는다.
- * 메타데이터 하나 때문에 페이지를 500 으로 만들지 않는다.
- */
-async function findMarker(id: string): Promise<Marker | null> {
-  const apiBase = process.env.NEXT_PUBLIC_API_URL;
-  if (!apiBase || !/^https?:\/\//.test(apiBase)) return null;
-
-  try {
-    const res = await fetch(`${apiBase}/api/map/markers`, { next: { revalidate: 3600 } });
-    if (!res.ok) return null;
-    const markers = (await res.json()) as Marker[];
-    return markers.find((m) => String(m.id) === id) ?? null;
-  } catch {
-    return null;
-  }
-}
-
 /** "07-24 ~ 08-06" · 끝만 알면 "~08-06" · 둘 다 없으면 빈 문자열. 없는 값은 지어내지 않는다. */
-function period(m: Marker): string {
-  const from = m.startDate ? m.startDate.slice(5) : '';
-  const to = m.endDate ? m.endDate.slice(5) : '';
+function period(m: { openDate?: string; closeDate?: string }): string {
+  const from = m.openDate ? m.openDate.slice(5) : '';
+  const to = m.closeDate ? m.closeDate.slice(5) : '';
   if (from && to) return `${from} ~ ${to}`;
   if (to) return `~${to}`;
   return from ? `${from} ~` : '';
@@ -82,11 +54,19 @@ export async function generateMetadata({
   };
   if (!isNumeric) return base;
 
-  const marker = await findMarker(id);
+  // page.tsx 와 <b>같은 함수</b>를 쓴다. 서로 다른 경로로 가져오면 언젠가 한쪽만 고쳐져서
+  // 공유 카드에 적힌 것과 페이지에 보이는 것이 달라진다. fetch 캐시도 함께 쓴다.
+  const marker = await fetchPopupForServer(id);
   if (!marker) return base;
 
+  // 색인 여부는 자격 판정이 정한다. 지금은 약관 §14-4 때문에 항상 false 이고,
+  // 약관이 바뀌면 serverData.ts 의 스위치 하나로 448건이 열린다.
+  const robots = shouldIndexDetail(marker)
+    ? { index: true, follow: true }
+    : { index: false, follow: false };
+
   const when = period(marker);
-  const where = marker.location?.trim() ?? '';
+  const where = marker.address?.trim() ?? '';
   // 루트 layout 의 title.template 이 "· POP-SPOT" 을 붙인다. 여기서 또 붙이면
   // "짱구는못말려 대축제 | POP-SPOT · POP-SPOT" 이 된다. 이름만 넘긴다.
   const title = marker.name;
@@ -98,6 +78,7 @@ export async function generateMetadata({
 
   return {
     ...base,
+    robots,
     title,
     description,
     openGraph: {
