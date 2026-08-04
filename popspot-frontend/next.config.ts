@@ -68,6 +68,15 @@ const nextConfig: NextConfig = {
         destination: '/about',
         permanent: true,
       },
+      {
+        // www 를 apex 로 영구 이전한다. 지금은 www.popspot.co.kr 도 301 이 아니라 200 으로
+        // 응답해서, 같은 내용이 두 주소에 산다. 검색엔진은 이걸 서로 다른 사이트로 볼 수 있고
+        // 그러면 쌓은 신호가 둘로 쪼개진다 — 실제로 네이버가 아는 URL 14개 중 하나가 www 다.
+        source: '/:path*',
+        has: [{ type: 'host', value: 'www.popspot.co.kr' }],
+        destination: 'https://popspot.co.kr/:path*',
+        permanent: true,
+      },
     ];
   },
 

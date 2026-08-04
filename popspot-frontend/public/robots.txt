@@ -19,3 +19,8 @@ Disallow: /music/passport/
 
 Sitemap: https://popspot.co.kr/sitemap.xml
 
+# RSS 도 함께 선언한다. /feed.xml 은 예전부터 200 으로 살아 있었는데 어디서도 링크되지 않아
+# 크롤러가 존재를 몰랐다. 네이버는 RSS 제출을 별도 수집 경로로 쓰므로, 색인 URL 이 14개에
+# 머물러 있는 지금 상황에서 한 줄로 얻을 수 있는 것이 있다.
+Sitemap: https://popspot.co.kr/feed.xml
+
