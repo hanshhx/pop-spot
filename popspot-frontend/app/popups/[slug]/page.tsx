@@ -13,6 +13,7 @@ import { localizedPath } from '@/lib/localePath';
 import { CRAWL_REFRESH_BY_LOCALE } from '@/lib/siteCopy';
 import { groupSameEvent } from '@/lib/groupSameEvent';
 import { isProvenOutsideSeoul } from '@/lib/seoulGuard';
+import { CalendarButton } from '@/features/landing/CalendarButton';
 import {
   getPeriods,
   CATEGORIES,
@@ -354,27 +355,9 @@ function ddayBadge(dday: number | null, copy: LandingCopy): { text: string; cls:
   return { text: copy.ddayOngoing, cls: 'bg-lime-300 text-ink-900' };
 }
 
-/**
- * 아직 안 끝난 것 중 가장 빨리 마감하는 날 — "7/30(D-3)". 종료일 있는 팝업이 없으면 null.
- *
- * <p>검색 결과 설명에 쓴다. "포켓몬 팝업스토어 일정" 같은 질의에 실제 날짜로 답하기 위한 것으로,
- * 이 부류가 실측 CTR 2.31% 로 가장 낮았다(노출 216 · 클릭 5).
- */
-function nearestDeadline(markers: Marker[], locale: Locale): string | null {
-  const today = kstTodayStart();
-  let best: Date | null = null;
-  for (const m of markers) {
-    const end = parseDate(m.endDate);
-    if (!end) continue;
-    if (startOfDay(end).getTime() < today.getTime()) continue; // 이미 지난 건 제외
-    if (!best || end.getTime() < best.getTime()) best = end;
-  }
-  if (!best) return null;
-  const copy = LANDING_COPY[locale];
-  const dday = Math.round((startOfDay(best).getTime() - today.getTime()) / 86400000);
-  // "D-2" 는 한국에서만 통하는 표기다. 언어별 표현을 쓴다(영어 "2d", 일본어 "あと2日").
-  return copy.deadlineFormat(copy.shortDate(best), copy.ddayValue(dday));
-}
+// nearestDeadline 은 지웠다. 검색 결과 설명이 건수+최단마감("156곳 진행 중. 가장 빠른 마감 8/4")
+// 에서 실제 이름("무기와라 팝업스토어(~8/4 잠실 롯데월드몰) 외 148곳")으로 바뀌면서, 첫 항목이 곧
+// 최단 마감이라 문구가 겹쳤다. 설명은 80자쯤에서 잘리므로 겹치는 문장에 자리를 쓰지 않는다.
 
 /** 이름·지역을 검색 결과 길이에 맞게 줄인다. 잘릴 바에는 우리가 줄이는 편이 낫다. */
 function clip(text: string | null | undefined, max: number): string {
@@ -901,6 +884,18 @@ export async function SliceLandingPage({ slug, locale }: { slug: string; locale:
                           )}
                           <span className="truncate">{shownPlace.display || copy.noLocation}</span>
                         </div>
+                        {/* 사람을 다시 부르는 유일한 장치. 알림을 우리가 아니라 사용자 폰이
+                            쏘므로 운영 부담이 0 이다. 날짜가 온전하지 않으면 안 그린다. */}
+                        <CalendarButton
+                          input={{
+                            id: m.id,
+                            name: m.name,
+                            address: m.location,
+                            startDate: m.startDate,
+                            endDate: m.endDate,
+                          }}
+                          label={copy.calendarCta}
+                        />
                       </li>
                     );
                   })}

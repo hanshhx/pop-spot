@@ -100,6 +100,14 @@ export type LandingCopy = {
    * 정보다. 대신 적힌 주소를 그대로 믿지 않게 표시한다.
    */
   outsideSeoulBadge: string;
+
+  /**
+   * "지금 고른다면" 카드의 캘린더 담기.
+   *
+   * <p>주 920명이 오는데 다시 오는 사람은 7명(0.76%)이다. 알림도 구독도 없어 사람을 다시 부르는
+   * 장치가 코드에 하나도 없다. 캘린더는 알림을 사용자 폰이 대신 쏘므로 운영 부담이 0 이다.
+   */
+  calendarCta: string;
   /** 진행 중인 곳이 0곳일 때 대신 보여 주는 것. 빈 화면을 주는 것보다 낫다. */
   altHeading: (label: string) => string;
   altNote: string;
@@ -177,6 +185,7 @@ const ko: LandingCopy = {
   altNote: '대신 지금 열려 있는 곳을 마감 임박순으로 보여드려요.',
   mergedBadge: (n) => `제보 ${n}곳 묶음`,
   outsideSeoulBadge: '서울 밖',
+  calendarCta: '캘린더에 담기',
   ddayValue: (d) => (d === 0 ? '오늘' : `D-${d}`),
   notFound: '찾을 수 없음',
   titles: {
@@ -337,6 +346,7 @@ const en: LandingCopy = {
   altNote: 'Here is what is open today instead, closing soonest first.',
   mergedBadge: (n) => `${n} sources merged`,
   outsideSeoulBadge: 'Outside Seoul',
+  calendarCta: 'Add to calendar',
   ddayValue: (d) => (d === 0 ? 'Today' : `${d}d`),
   notFound: 'Not found',
   titles: {
@@ -507,6 +517,7 @@ const ja: LandingCopy = {
   altNote: '代わりに、今開催中のものを終了が近い順にご案内します。',
   mergedBadge: (n) => `${n}件の情報をまとめ`,
   outsideSeoulBadge: 'ソウル外',
+  calendarCta: 'カレンダーに追加',
   ddayValue: (d) => (d === 0 ? '本日' : `あと${d}日`),
   notFound: '見つかりませんでした',
   titles: {
