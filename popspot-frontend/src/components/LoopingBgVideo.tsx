@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, type SyntheticEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type SyntheticEvent } from 'react';
 
 const CROSSFADE_MS = 1200;
 
@@ -14,6 +14,36 @@ const CROSSFADE_MS = 1200;
  * <p>opacity 는 CSS transition 이 아니라 requestAnimationFrame 으로 매 프레임 직접 쓴다. (GPU 레이어 +
  * opacity transition 조합이 일부 환경에서 진행되지 않는 문제가 있어, rAF 로 결정적으로 애니메이션한다.)
  */
+/**
+ * 이 배경을 <b>그릴 만한 환경인가.</b>
+ *
+ * <p>이 컴포넌트는 {@code <video>} 를 두 개 만들고 둘 다 {@code preload="auto"} 다(크로스페이드
+ * 하려면 다음 편이 미리 준비돼 있어야 한다). 그런데 <b>미디어 쿼리가 없어서</b> 좁은 화면에서도
+ * 그대로 받았다. 다크 배경은 2.8MB 다.
+ *
+ * <p>홈은 이 사이트에서 가장 많이 열리는 화면이고(주 255회) 방문자의 <b>75.7% 가 모바일</b>이다.
+ * 스크림 두 겹 뒤에 깔리는 장식이라 작은 화면에서는 거의 보이지도 않는데, 첫 방문의 전송량 대부분을
+ * 이게 차지한다. 안 그리면 부모의 브랜드 단색(cream/ink)이 그대로 보인다 — 빈 화면이 아니다.
+ *
+ * <p>움직임을 줄이도록 설정한 사람에게도 그리지 않는다.
+ */
+function useShouldRender(): boolean {
+  const [ok, setOk] = useState(false);
+  useEffect(() => {
+    const wide = window.matchMedia('(min-width: 768px)');
+    const calm = window.matchMedia('(prefers-reduced-motion: no-preference)');
+    const update = () => setOk(wide.matches && calm.matches);
+    update();
+    wide.addEventListener('change', update);
+    calm.addEventListener('change', update);
+    return () => {
+      wide.removeEventListener('change', update);
+      calm.removeEventListener('change', update);
+    };
+  }, []);
+  return ok;
+}
+
 export default function LoopingBgVideo({
   src,
   rate = 1,
@@ -23,6 +53,7 @@ export default function LoopingBgVideo({
   rate?: number;
   className?: string;
 }) {
+  const shouldRender = useShouldRender();
   const aRef = useRef<HTMLVideoElement>(null);
   const bRef = useRef<HTMLVideoElement>(null);
   const activeIsA = useRef(true);
@@ -129,6 +160,9 @@ export default function LoopingBgVideo({
   );
 
   const base = 'absolute inset-0 h-full w-full object-cover';
+
+  // 훅을 전부 부른 뒤에 판단한다. 위에서 일찍 반환하면 훅 호출 순서가 렌더마다 달라진다.
+  if (!shouldRender) return null;
 
   return (
     <>
