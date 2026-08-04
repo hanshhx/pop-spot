@@ -56,19 +56,36 @@ export function TermsReconsentModal({ enabled, onDecline }: TermsReconsentModalP
   useEffect(() => {
     if (!enabled) return;
     let cancelled = false;
-    apiFetch('/api/v1/terms/status')
-      .then(async (res) => {
-        if (!res.ok || cancelled) return;
-        const data = (await res.json()) as TermsStatus;
-        if (cancelled) return;
-        setStatus(data);
-        if (data.needsReConsent) setOpen(true);
-      })
-      .catch(() => {
-        /* 백엔드 일시 장애 — 다음에 다시 시도 */
-      });
+    let timer: ReturnType<typeof setTimeout> | undefined;
+
+    /**
+     * 재동의 여부는 <b>물어보지 못하면 그냥 넘어가서는 안 되는</b> 값이다. 예전엔 조회가 실패하면
+     * 조용히 포기했는데, 그러면 재동의가 필요한 사용자에게 모달이 이번 세션 내내 뜨지 않는다 —
+     * 화면상으로는 아무 문제가 없어 보이지만 동의를 못 받은 채로 서비스가 계속된다.
+     *
+     * 그래서 실패하면 물러나며 다시 시도한다(5초 → 15초 → 45초, 3회). 그래도 안 되면 다음
+     * 세션에 다시 확인된다.
+     */
+    const check = (attempt: number) => {
+      apiFetch('/api/v1/terms/status')
+        .then(async (res) => {
+          if (cancelled) return;
+          if (!res.ok) throw new Error(`terms status ${res.status}`);
+          const data = (await res.json()) as TermsStatus;
+          if (cancelled) return;
+          setStatus(data);
+          if (data.needsReConsent) setOpen(true);
+        })
+        .catch(() => {
+          if (cancelled || attempt >= 3) return;
+          timer = setTimeout(() => check(attempt + 1), 5000 * 3 ** (attempt - 1));
+        });
+    };
+    check(1);
+
     return () => {
       cancelled = true;
+      if (timer) clearTimeout(timer);
     };
   }, [enabled]);
 

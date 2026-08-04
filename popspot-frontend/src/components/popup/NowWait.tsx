@@ -34,6 +34,7 @@ const COPY = {
     first: '첫 제보',
     emptyTail: '를 남겨주시면 다음 방문자에게 큰 도움이 돼요!',
     thanks: '고마워요! 다음 방문자에게 바로 보여요 🙌',
+    failed: '제보를 보내지 못했어요. 잠시 후 다시 눌러 주세요.',
     prompt: '버튼만 누르면 끝 · 로그인 없이도 참여할 수 있어요',
     levels: [
       ['바로 입장', '바로 입장 가능'],
@@ -52,6 +53,7 @@ const COPY = {
     first: 'Be the first',
     emptyTail: ' to help the next visitor.',
     thanks: 'Thank you! The next visitor can see it now 🙌',
+    failed: 'Could not send your report. Please try again in a moment.',
     prompt: 'One tap · no login required',
     levels: [
       ['Walk right in', 'No wait'],
@@ -70,6 +72,7 @@ const COPY = {
     first: '最初の報告',
     emptyTail: 'を残すと、次の訪問者の助けになります。',
     thanks: 'ありがとうございます！次の訪問者にすぐ表示されます 🙌',
+    failed: '報告を送信できませんでした。少し後にもう一度お試しください。',
     prompt: 'ボタンを押すだけ・ログイン不要',
     levels: [
       ['すぐ入れる', '待ち時間なし'],
@@ -112,6 +115,7 @@ export default function NowWait({ popupId }: { popupId: number }) {
   const [status, setStatus] = useState<WaitStatus | null>(null);
   const [sending, setSending] = useState(false);
   const [thanks, setThanks] = useState(false);
+  const [failed, setFailed] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -133,18 +137,25 @@ export default function NowWait({ popupId }: { popupId: number }) {
   const report = async (level: number) => {
     if (sending) return;
     setSending(true);
+    setFailed(false);
     try {
       const res = await apiFetch(`/api/popups/${popupId}/wait`, {
         method: 'POST',
         body: JSON.stringify({ level, visitorId: getVisitorId() }),
       });
-      if (res.ok) {
-        setStatus((await res.json()) as WaitStatus);
-        setThanks(true);
-        setTimeout(() => setThanks(false), 3000);
+      // 버튼을 눌렀는데 아무 일도 안 일어나는 것이 가장 나쁘다. 누른 사람은 자기가
+      // 잘못 눌렀다고 생각하고 다시 누르거나, 보냈다고 믿고 떠난다.
+      if (!res.ok) {
+        setFailed(true);
+        setTimeout(() => setFailed(false), 4000);
+        return;
       }
+      setStatus((await res.json()) as WaitStatus);
+      setThanks(true);
+      setTimeout(() => setThanks(false), 3000);
     } catch {
-      /* 실패해도 화면은 유지 */
+      setFailed(true);
+      setTimeout(() => setFailed(false), 4000);
     } finally {
       setSending(false);
     }
@@ -205,6 +216,8 @@ export default function NowWait({ popupId }: { popupId: number }) {
         <p className="mt-2.5 text-center text-[11px] text-muted-foreground">
           {thanks ? (
             <span className="font-bold text-lime-600 dark:text-lime-300">{copy.thanks}</span>
+          ) : failed ? (
+            <span className="font-bold text-red-600 dark:text-red-400">{copy.failed}</span>
           ) : (
             copy.prompt
           )}

@@ -46,13 +46,22 @@ export function TotpSetupPanel() {
   const [recovery, setRecovery] = useState<string[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [statusError, setStatusError] = useState<string | null>(null);
 
   const loadStatus = useCallback(async () => {
+    setStatusError(null);
     try {
       const res = await apiFetch('/api/admin/totp/status');
-      if (res.ok) setStatus(await res.json());
+      // 실패를 삼키면 status 가 null 로 남는데, 아래 화면은 null 을 '미등록' 으로 그린다.
+      // 이미 등록을 마친 관리자에게 "미등록" 이 뜨면 등록 버튼을 누르는 게 자연스러운
+      // 반응이고, 그 순간 기존 인증기가 지워진다. 모르는 것과 없는 것은 다르다.
+      if (!res.ok) {
+        setStatusError('2단계 인증 상태를 읽지 못했습니다.');
+        return;
+      }
+      setStatus(await res.json());
     } catch {
-      /* 상태를 못 읽어도 화면은 떠 있어야 한다 */
+      setStatusError('서버에 연결하지 못했습니다.');
     }
   }, []);
 
@@ -62,18 +71,28 @@ export function TotpSetupPanel() {
 
   const startSetup = async () => {
     if (busy) return;
-    if (status?.enrolled) {
+
+    // 상태를 모르면 물어본다. 예전엔 `status?.enrolled` 라서, 상태 조회가 실패했을 때
+    // 확인창이 통째로 건너뛰어지고 곧장 등록이 시작됐다 — 읽기 실패가 파괴적 동작의
+    // 유일한 가드를 없애는 구조였다.
+    const mayReplace = !status || status.enrolled;
+    if (mayReplace) {
       const ok = await confirmAction({
-        title: '다시 등록할까요?',
-        text: '지금 쓰는 인증 앱의 코드는 그 순간부터 맞지 않게 됩니다. 폰을 바꿨을 때만 쓰세요.',
+        title: status ? '다시 등록할까요?' : '이미 등록돼 있을 수 있습니다',
+        text: status
+          ? '지금 쓰는 인증 앱의 코드는 그 순간부터 맞지 않게 됩니다. 폰을 바꿨을 때만 쓰세요.'
+          : '현재 등록 상태를 확인하지 못했습니다. 이미 등록돼 있다면 지금 쓰는 인증 앱의 코드가 맞지 않게 됩니다.',
         confirmText: '다시 등록',
         destructive: true,
       });
       if (!ok) return;
     }
+
     setBusy(true);
     try {
-      const res = await apiFetch('/api/admin/totp/setup', { method: 'POST' });
+      // 기존 등록을 버리겠다는 의사를 서버에도 명시한다. 서버는 이 표시가 없으면
+      // 이미 등록된 계정의 재등록을 거절한다 — 화면 한 줄이 유일한 제동장치가 아니게.
+      const res = await apiFetch(`/api/admin/totp/setup?replace=${mayReplace}`, { method: 'POST' });
       if (!res.ok) {
         notifyError({ title: '등록을 시작하지 못했습니다', text: await res.text() });
         return;
@@ -143,16 +162,24 @@ export function TotpSetupPanel() {
         <ShieldCheck size={16} className="text-lime-500" /> 2단계 인증
       </h3>
 
-      {/* 상태 요약 */}
+      {/* 상태 요약 — '모름' 을 '미등록' 으로 그리지 않는다. 둘은 완전히 다른 상태다. */}
       <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
         <span
           className={`rounded-full px-2.5 py-1 font-bold ${
-            status?.enrolled
-              ? 'bg-lime-300/20 text-lime-700 dark:text-lime-300'
-              : 'bg-gray-200 text-muted-foreground dark:bg-white/10'
+            !status
+              ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/25 dark:text-amber-400'
+              : status.enrolled
+                ? 'bg-lime-300/20 text-lime-700 dark:text-lime-300'
+                : 'bg-gray-200 text-muted-foreground dark:bg-white/10'
           }`}
         >
-          {status?.enrolled ? '등록됨' : '미등록'}
+          {!status
+            ? statusError
+              ? '상태 확인 실패'
+              : '확인 중…'
+            : status.enrolled
+              ? '등록됨'
+              : '미등록'}
         </span>
         {status?.enrolled && (
           <span className="text-muted-foreground">복구 코드 {status.recoveryRemaining}개 남음</span>
@@ -163,6 +190,19 @@ export function TotpSetupPanel() {
           </span>
         )}
       </div>
+
+      {statusError && (
+        <p className="mt-3 rounded-xl bg-red-500/10 p-3 text-sm text-red-600 dark:text-red-400">
+          {statusError} 지금 등록 여부를 알 수 없으니, 새로고침해 확인한 뒤에 진행해 주세요.{' '}
+          <button
+            type="button"
+            onClick={loadStatus}
+            className="font-bold underline underline-offset-2"
+          >
+            다시 확인
+          </button>
+        </p>
+      )}
 
       {status && !status.keyReady && (
         <p className="mt-3 rounded-xl bg-red-500/10 p-3 text-sm text-red-600 dark:text-red-400">
@@ -250,12 +290,14 @@ export function TotpSetupPanel() {
       {/* 동작 버튼 */}
       {!setup && (
         <div className="mt-4 flex flex-wrap gap-2">
+          {/* status 가 null 이면 `status?.keyReady === false` 가 false 라 버튼이 살아 있었다.
+              옵셔널 체이닝이 '모름' 을 '정상' 으로 둔갑시키던 자리다. */}
           <button
             onClick={startSetup}
-            disabled={busy || status?.keyReady === false}
+            disabled={busy || !status || status.keyReady === false}
             className="rounded-xl bg-foreground px-4 py-2 text-sm font-bold text-[var(--color-surface)] disabled:opacity-40"
           >
-            {status?.enrolled ? '다시 등록 (폰 교체)' : '등록 시작'}
+            {!status ? '상태 확인 필요' : status.enrolled ? '다시 등록 (폰 교체)' : '등록 시작'}
           </button>
           {status?.enrolled && (
             <button

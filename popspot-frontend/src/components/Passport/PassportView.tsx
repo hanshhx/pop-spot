@@ -53,6 +53,7 @@ const TOTAL_COUNT = 12;
 export default function PassportView() {
   const { t, locale } = useLocale();
   const [stamps, setStamps] = useState<StampData[]>([]);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
@@ -93,8 +94,16 @@ export default function PassportView() {
       // "map is not a function" 으로 앱 전체를 죽인다(토큰 만료 시 재현). ok 검사 + 배열 가드로 막는다.
       apiFetch(`/api/stamps/my?userId=${user.userId}`)
         .then((res) => (res.ok ? res.json() : Promise.reject(new Error(`stamps ${res.status}`))))
-        .then((data) => setStamps(normalizeStampResponse(data)))
-        .catch(loadDevStamps);
+        .then((data) => {
+          setLoadFailed(false);
+          setStamps(normalizeStampResponse(data));
+        })
+        // 실패했는데 빈 여권(0/12)을 보여 주면, 스탬프를 모은 사람에게 '다 사라졌다' 로 읽힌다.
+        // 못 불러온 것과 아직 없는 것은 다르다.
+        .catch(() => {
+          setLoadFailed(true);
+          loadDevStamps();
+        });
     } else {
       // 비로그인/게스트: 실서비스는 빈 여권(0/12), 로컬 개발은 미리보기 목업.
       loadDevStamps();
@@ -116,6 +125,11 @@ export default function PassportView() {
           <span className="font-bold text-muted-foreground"> / {TOTAL_COUNT}</span>
         </h2>
         <p className="mt-1 text-sm text-muted-foreground">{t('misc.passportDesc')}</p>
+        {loadFailed && (
+          <p className="mt-2 rounded-xl bg-red-500/10 p-3 text-sm text-red-600 dark:text-red-400">
+            {t('misc.passportLoadError')}
+          </p>
+        )}
       </header>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">

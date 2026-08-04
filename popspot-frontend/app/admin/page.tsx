@@ -49,6 +49,9 @@ export default function AdminPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState('DASHBOARD');
   const [isLoading, setIsLoading] = useState(true);
+  // 불러오기 실패를 '데이터 없음' 으로 보여 주지 않기 위한 상태. 예전엔 회원 목록 조회가
+  // 실패해도 '회원 0명 / 아직 가입한 회원이 없습니다' 가 떴다.
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   /*
    * v2.13.3 — role 게이트. 일반 유저가 /admin 에 오면 polling/SSE 가 403 도배를 일으켜
@@ -195,10 +198,16 @@ export default function AdminPage() {
   // 4. 회원 목록 로딩
   const loadUsers = async () => {
     setIsLoading(true);
+    setLoadError(null);
     try {
       const res = await apiFetch('/api/admin/users');
-      if (res.ok) setUsers(await res.json());
-    } catch (e) {
+      if (!res.ok) {
+        setLoadError('회원 목록을 불러오지 못했습니다.');
+        return;
+      }
+      setUsers(await res.json());
+    } catch {
+      setLoadError('서버에 연결하지 못했습니다.');
     } finally {
       setIsLoading(false);
     }
@@ -207,9 +216,14 @@ export default function AdminPage() {
   // 5. 방문 통계 로딩 (익명 집계)
   const loadVisitStats = async () => {
     setIsLoading(true);
+    setLoadError(null);
     try {
       const res = await apiFetch('/api/admin/visits/stats');
-      if (res.ok) setVisitStats(await res.json());
+      if (!res.ok) {
+        setLoadError('방문 통계를 불러오지 못했습니다.');
+        return;
+      }
+      setVisitStats(await res.json());
       const tp = await apiFetch('/api/admin/visits/today-paths');
       if (tp.ok) setTodayPaths(await tp.json());
       // 유입 경로는 백엔드 배포 후에야 생기는 엔드포인트 — 별도 try 로 감싸 위 두 집계까지
@@ -218,7 +232,7 @@ export default function AdminPage() {
         const rf = await apiFetch('/api/admin/visits/referrers?days=7');
         if (rf.ok) setReferrers(await rf.json());
       } catch {
-        /* 미배포·네트워크 오류 시 빈 목록 유지 */
+        /* 네트워크 오류 시 빈 목록 유지 — 위 두 집계까지 같이 죽이지는 않는다 */
       }
     } catch (e) {
       if (isPreviewEnv()) setVisitStats(devVisitStats);
@@ -664,6 +678,14 @@ export default function AdminPage() {
             {isLoading && (
               <div className="flex justify-center py-20">
                 <div className="animate-spin w-10 h-10 border-4 border-lime-300 border-t-transparent rounded-full"></div>
+              </div>
+            )}
+
+            {/* 불러오기 실패는 실패라고 말한다. 아래 탭들이 빈 목록을 '아직 없음' 으로
+                그리기 때문에, 이 줄이 없으면 고장과 한산함이 똑같아 보인다. */}
+            {!isLoading && loadError && (
+              <div className="mb-4 rounded-xl bg-red-500/10 p-3 text-sm text-red-600 dark:text-red-400">
+                {loadError} 아래 내용은 실제와 다를 수 있습니다.
               </div>
             )}
 
