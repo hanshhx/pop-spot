@@ -12,6 +12,7 @@ import { LOCALE_PATH, slugAlternates } from '@/lib/localeRoutes';
 import { localizedPath } from '@/lib/localePath';
 import { CRAWL_REFRESH_BY_LOCALE } from '@/lib/siteCopy';
 import { groupSameEvent } from '@/lib/groupSameEvent';
+import { isProvenOutsideSeoul } from '@/lib/seoulGuard';
 import {
   getPeriods,
   CATEGORIES,
@@ -79,6 +80,14 @@ type Marker = {
   nameJa?: string | null;
   locationEn?: string | null;
   locationJa?: string | null;
+  /**
+   * 지오코딩 결과. API 는 계속 내려주고 있었는데 이 타입이 안 받아서 안 쓰고 있었다.
+   *
+   * <p>주소 문자열보다 믿을 만한 유일한 값이다 — location 은 수집 단계가 앞에 "서울" 을 붙여
+   * 놓아서, 대전·판교인 것도 "서울 ○○" 로 적혀 있다.
+   */
+  latitude?: string | null;
+  longitude?: string | null;
 };
 
 type Slice =
@@ -382,8 +391,13 @@ function clip(text: string | null | undefined, max: number): string {
  * (until Aug 4, 대전신세계)" 처럼 한 문장 안에서 언어가 섞인다.
  */
 function shortLocation(m: Marker, locale: Locale): string {
-  const translated = locale === 'en' ? m.locationEn : locale === 'ja' ? m.locationJa : null;
-  const text = translated || m.location || '';
+  // <b>지명은 번역본을 쓰지 않는다.</b> 이름과 언어가 섞여 보기 싫지만, 틀린 곳을 알려주는 것보다는
+  // 낫다 — "대전신세계" 가 "Daegwallyeong"(강원 대관령) 으로 저장된 건이 운영에 실제로 있고,
+  // 저장된 지명 번역 273건 중 절반가량이 지금 코드로는 만들 수 없는 값이다.
+  //
+  // 게다가 이 값이 들어가는 곳은 검색 결과 설명이다. 외국인이 그걸 보고 택시에서 보여줄 값이라면
+  // 원문이라야 통한다. 번역된 지명은 지도 앱에도 안 나오고 직원에게 말해도 안 통한다.
+  const text = m.location || '';
   return clip(text.replace(/^(서울|Seoul)\s*(특별시)?\s*[,·]?\s*/i, ''), widthFor(locale, 14));
 }
 
@@ -533,6 +547,11 @@ function eventListElements(markers: Marker[], locale: Locale) {
       locale === 'en' ? m.locationEn : locale === 'ja' ? m.locationJa : null,
     );
 
+    // 좌표로 서울 밖임이 확실한 것은 구조화 데이터에서 뺀다. 화면에는 배지를 달아 그대로
+    // 보여 주지만(숨기지 않는다), 검색엔진·AI 는 여기 적힌 것을 사실로 받아들이므로 "서울
+    // 팝업 목록" 이라고 선언한 문서에 서울 밖 행사를 넣어서는 안 된다.
+    if (isProvenOutsideSeoul(m)) continue;
+
     items.push({
       '@type': 'ListItem',
       position: items.length + 1,
@@ -548,8 +567,16 @@ function eventListElements(markers: Marker[], locale: Locale) {
         eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode',
         location: {
           '@type': 'Place',
+          // 보이는 이름은 번역본을 써도 되지만, <b>주소는 원문이어야 한다.</b>
+          //
+          // 검색엔진과 AI 답변은 address 를 "이 행사가 실제로 있는 곳" 으로 받아들인다. 그런데
+          // 지명 번역은 실제로 틀린다 — "대전신세계" 가 "Daegwallyeong"(강원 대관령) 으로
+          // 저장된 건이 운영에 있다. 그 값을 주소로 선언하면 우리가 틀린 위치를 기계에게
+          // 사실로 알려주는 셈이고, 한번 퍼지면 되돌릴 방법이 없다.
+          //
+          // 원문 주소는 지도 앱에도 들어가고 현장에서 물어볼 때도 통한다. 번역본은 둘 다 안 된다.
           name: place.display,
-          address: place.display,
+          address: m.location ?? place.display,
           ...(place.original ? { alternateName: place.original } : {}),
         },
       },
@@ -932,6 +959,14 @@ export async function SliceLandingPage({ slug, locale }: { slug: string; locale:
                           {(mergedCount.get(m.id) ?? 0) > 0 && (
                             <span className="shrink-0 rounded-pill bg-black/5 px-2 py-0.5 text-[11px] font-bold text-muted-foreground dark:bg-white/10">
                               {copy.mergedBadge((mergedCount.get(m.id) ?? 0) + 1)}
+                            </span>
+                          )}
+                          {/* 좌표가 서울 밖이면 밝힌다. 목록에서 빼지 않는 이유는, 찾아온
+                              사람에게는 그 팝업이 존재한다는 사실 자체가 정보이기 때문이다.
+                              대신 "서울" 이라고 적힌 주소를 그대로 믿지 않게 표시한다. */}
+                          {isProvenOutsideSeoul(m) && (
+                            <span className="shrink-0 rounded-pill bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-700 dark:bg-amber-900/25 dark:text-amber-400">
+                              {copy.outsideSeoulBadge}
                             </span>
                           )}
                         </div>

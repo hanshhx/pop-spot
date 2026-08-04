@@ -91,6 +91,15 @@ export type LandingCopy = {
    * <p>조용히 줄이면 "왜 빠졌지" 가 되고, 밝히면 "여러 곳에서 확인된 행사" 라는 신뢰 신호가 된다.
    */
   mergedBadge: (sources: number) => string;
+
+  /**
+   * 좌표가 서울 밖으로 확인된 팝업에 다는 배지.
+   *
+   * <p>수집 단계가 주소 앞에 "서울" 을 기계적으로 붙여, 실제로는 대전·판교·수원인 것이 "서울 ○○"
+   * 로 저장돼 있다. 목록에서 빼지는 않는다 — 찾아온 사람에게는 그 팝업이 존재한다는 사실 자체가
+   * 정보다. 대신 적힌 주소를 그대로 믿지 않게 표시한다.
+   */
+  outsideSeoulBadge: string;
   /** 진행 중인 곳이 0곳일 때 대신 보여 주는 것. 빈 화면을 주는 것보다 낫다. */
   altHeading: (label: string) => string;
   altNote: string;
@@ -167,6 +176,7 @@ const ko: LandingCopy = {
   altHeading: (l) => `${l} 팝업은 지금 진행 중인 곳이 없어요`,
   altNote: '대신 지금 열려 있는 곳을 마감 임박순으로 보여드려요.',
   mergedBadge: (n) => `제보 ${n}곳 묶음`,
+  outsideSeoulBadge: '서울 밖',
   ddayValue: (d) => (d === 0 ? '오늘' : `D-${d}`),
   notFound: '찾을 수 없음',
   titles: {
@@ -326,6 +336,7 @@ const en: LandingCopy = {
   altHeading: (l) => `No ${l} pop-ups are running right now`,
   altNote: 'Here is what is open today instead, closing soonest first.',
   mergedBadge: (n) => `${n} sources merged`,
+  outsideSeoulBadge: 'Outside Seoul',
   ddayValue: (d) => (d === 0 ? 'Today' : `${d}d`),
   notFound: 'Not found',
   titles: {
@@ -495,6 +506,7 @@ const ja: LandingCopy = {
   altHeading: (l) => `${l}のポップアップは現在開催中のものがありません`,
   altNote: '代わりに、今開催中のものを終了が近い順にご案内します。',
   mergedBadge: (n) => `${n}件の情報をまとめ`,
+  outsideSeoulBadge: 'ソウル外',
   ddayValue: (d) => (d === 0 ? '本日' : `あと${d}日`),
   notFound: '見つかりませんでした',
   titles: {

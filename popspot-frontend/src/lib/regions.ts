@@ -296,6 +296,15 @@ export const REGIONS: RegionDef[] = [
 ];
 
 /**
+ * 서울이 아님이 <b>주소 표기로 확정되는</b> 경우.
+ *
+ * <p>"광역시"·"특별자치시/도"·"○○도" 처럼 행정 단위가 붙었을 때만 본다. 맨 지명("판교")은 넣지
+ * 않는다 — 건물·상호에 지명이 섞이면 멀쩡한 서울 팝업을 걸러내기 때문이다.
+ */
+const OTHER_CITY =
+  /(부산|대구|인천|광주|대전|울산)\s*광역시|세종\s*특별자치시|제주\s*특별자치도|강원\s*특별자치도|(경기|강원|충청북|충청남|전라북|전라남|경상북|경상남|충북|충남|전북|전남|경북|경남)\s*도(?![시심])/;
+
+/**
  * 주소 문자열에서 가장 적합한 region 1개 반환.
  * 매칭 못 하면 "other" (UI 에서는 카운트만 노출, 슬라이스 카드는 만들지 않음).
  */
@@ -303,6 +312,16 @@ export function classifyRegion(location: string | null | undefined): RegionCode 
   if (!location) return 'other';
   const text = location.trim();
   if (!text) return 'other';
+
+  // 다른 광역시·도가 적혀 있으면 서울 동네로 분류하지 않는다.
+  //
+  // 수집 단계에서 "서울" 을 무조건 앞에 붙이는 바람에 "서울 부산광역시 중구 광복로" 같은 값이
+  // 들어온다. 그런데 '중구' 는 명동의 broadKeywords 라, 이걸 그대로 두면 <b>부산 중구가 명동
+  // 팝업으로 분류된다.</b> 같은 이름의 구가 여러 도시에 있는 것이 함정이다(중구·서구·남구·동구).
+  //
+  // 도시 이름이 명시된 경우만 본다. 지명이 건물 이름에 섞인 경우("성북구 창원빌딩")는 여기
+  // 걸리지 않는다 — 광역시·도 단위 표기만 대상으로 한다.
+  if (OTHER_CITY.test(text)) return 'other';
 
   let best: { code: RegionCode; priority: number; keywordLen: number } | null = null;
 

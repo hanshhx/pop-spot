@@ -337,8 +337,14 @@ export default function PopupDetail() {
     );
   if (!popup) return null;
 
-  const lat = parseFloat(popup.latitude || '37.5445');
-  const lng = parseFloat(popup.longitude || '127.0560');
+  // 좌표가 없으면 없는 것이다. 예전엔 성수동(37.5445,127.0560)을 끼워 넣었는데, 그러면
+  // 위치를 모르는 팝업의 핀이 <b>성수동에 정확히 찍힌다.</b> 지도는 그걸 사실로 보여 주고,
+  // 길찾기를 누른 사람은 엉뚱한 데로 간다.
+  //
+  // DetailMap 은 좌표가 없을 때 "위치 정보가 없습니다" 를 보여 주는 분기를 이미 갖고 있는데,
+  // 이 폴백 때문에 그 분기를 영원히 못 탔다. 없음을 성수동으로 위장하던 코드다.
+  const lat = popup.latitude ? parseFloat(popup.latitude) : NaN;
+  const lng = popup.longitude ? parseFloat(popup.longitude) : NaN;
 
   const catKey = popup.category?.toUpperCase() ?? 'ETC';
   const category = CATEGORY_KEY[catKey] ? t(CATEGORY_KEY[catKey]) : popup.category;
@@ -358,7 +364,13 @@ export default function PopupDetail() {
     popup.status === '영업중' || popup.status === '운영중' || popup.status === 'OPEN'
       ? t('status.open')
       : popup.status || t('status.open');
-  const directionsUrl = `https://map.kakao.com/link/to/${encodeURIComponent(popup.name)},${lat},${lng}`;
+  // 좌표를 모르면 <b>길안내가 아니라 검색</b>으로 보낸다. 예전 폴백(성수동)을 없앤 뒤 이 링크를
+  // 그대로 두면 ".../to/이름,NaN,NaN" 이 되어 지도 앱이 엉뚱한 데를 열거나 아무 데도 안 간다.
+  // 이름으로 찾게 하면 적어도 사용자가 직접 고를 수 있다.
+  const hasCoords = Number.isFinite(lat) && Number.isFinite(lng);
+  const directionsUrl = hasCoords
+    ? `https://map.kakao.com/link/to/${encodeURIComponent(popup.name)},${lat},${lng}`
+    : `https://map.kakao.com/link/search/${encodeURIComponent(popup.address || popup.name)}`;
   const coverUrl = popupCoverUrl(popup, 1200);
 
   return (
