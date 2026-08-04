@@ -37,8 +37,33 @@ export default function TermsPage() {
             POP-SPOT 이용약관
           </h1>
           <p className="text-sm text-muted-foreground mt-2">
-            최종 개정일: 2026-08-03 · 시행일: 2026-08-10
+            최종 개정일: 2026-08-04 · 시행일: 2026-08-11
           </p>
+
+          {/* 제15조 제1항이 요구하는 사전 공지. 시행일까지 이 자리에 둔다.
+              이번 변경은 회사가 정리한 공개 팝업 정보의 검색 노출 범위에 관한 것이라
+              이용자에게 불리하거나 개인정보 처리에 영향을 주는 변경이 아니다. 그래서
+              7일 공지 대상이고, 30일 공지나 재동의 대상이 아니다. */}
+          <div className="mt-5 rounded-xl border border-lime-400/40 bg-lime-300/10 p-4">
+            <p className="text-sm font-bold text-foreground">약관 변경 안내 (2026-08-11 시행)</p>
+            <p className="mt-2 text-sm leading-relaxed text-foreground/90">
+              제14조 제4항을 바꿉니다. 지금까지는 자동수집된 개별 팝업스토어 상세 페이지를 모두
+              검색엔진 색인에서 제외했습니다. 앞으로는{' '}
+              <strong>운영 종료일과 찾아갈 수 있는 위치가 모두 확인된 팝업</strong>에 한해 색인을
+              허용합니다.
+            </p>
+            <p className="mt-2 text-sm leading-relaxed text-foreground/90">
+              <strong>변경 이유</strong> — 팝업 정보를 찾는 분들이 실제로 검색하는 것은 &ldquo;○○
+              팝업 위치&rdquo;, &ldquo;○○ 팝업 기간&rdquo; 처럼 개별 팝업입니다. 그 질문에 답할 수
+              있는 페이지가 검색 결과에 나오지 않아, 정보를 찾는 분들이 우리 페이지에 닿지 못하고
+              있었습니다.
+            </p>
+            <p className="mt-2 text-sm leading-relaxed text-foreground/90">
+              <strong>바뀌지 않는 것</strong> — 회원이 작성한 동행 모집글 · 의견 · 채팅은 제14조
+              제5항에 따라 <strong>계속 검색엔진에서 차단</strong>합니다. 수집한 원문을 그대로
+              재현하지 않는 원칙도 그대로입니다. 이번 변경은 개인정보 처리 방식과 무관합니다.
+            </p>
+          </div>
         </header>
 
         <article className="prose prose-sm dark:prose-invert max-w-none space-y-10 leading-relaxed">
@@ -495,10 +520,14 @@ export default function TermsPage() {
                 </ul>
               </li>
               <li>
-                <strong>자동수집된 개별 팝업스토어 상세 페이지</strong>는 사이트맵에 포함하지
-                않으며, 페이지 응답의 <code>noindex</code> 메타 태그로 검색엔진 색인을 명시적으로
-                차단합니다. 지역·시점·분류별 안내 페이지는 개별 원문 검색 결과를 재현하지 않고 공개
-                정보의 분류와 집계만 제공합니다.
+                <strong>자동수집된 개별 팝업스토어 상세 페이지</strong>는{' '}
+                <strong>운영 종료일과 찾아갈 수 있는 위치가 모두 확인된 경우에 한해</strong>{' '}
+                검색엔진 색인을 허용합니다. 그 밖의 경우 — 이미 종료된 팝업, 종료일을 확인하지 못한
+                팝업, 위치가 구체적이지 않은 팝업 — 는 사이트맵에서 제외하고 페이지 응답의{' '}
+                <code>noindex</code> 메타 태그로 색인을 차단합니다. 색인이 허용된 경우에도 회사가
+                정리한 사실 정보(이름 · 운영 기간 · 위치 · 분류)만 제공하며{' '}
+                <strong>수집한 원문을 그대로 재현하지 않습니다</strong>. 지역 · 시점 · 분류별 안내
+                페이지는 공개 정보의 분류와 집계만 제공합니다.
               </li>
               <li>
                 회원이 작성한 동행 모집글 · 의견 · 채팅 등의 게시물은 페이지 메타 태그와 API 응답의

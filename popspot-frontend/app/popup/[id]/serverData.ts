@@ -95,22 +95,36 @@ export async function fetchPopupForServer(id: string): Promise<ServerPopup | nul
 }
 
 /**
+ * 개정 약관 §14-4 의 <b>시행일</b>. 이 날부터 자격을 갖춘 상세가 색인된다.
+ *
+ * <p>{@code app/terms/page.tsx} 헤더에 적힌 시행일과 <b>같아야 한다.</b> 약관은 2026-08-04 에
+ * 공지했고, 제15조 제1항이 요구하는 7일이 지난 2026-08-11 에 시행된다.
+ *
+ * <p><b>사람이 스위치를 켜지 않는다.</b> 손으로 켜는 방식이면 두 가지가 어긋난다 — 잊어서 안
+ * 켜지거나, 공지 기간이 끝나기 전에 켜진다. 후자는 <b>공표한 것과 다르게 동작하는</b> 것이라
+ * 약관 위반이다. 날짜를 코드에 두면 둘 다 일어나지 않는다.
+ *
+ * <p>되돌리려면 이 날짜를 먼 미래로 미루면 된다. 배포 한 번으로 전체가 다시 noindex 가 된다.
+ */
+export const TERMS_EFFECTIVE_DATE = '2026-08-11';
+
+/**
  * 이 팝업을 검색에 열어도 되는가.
  *
- * <p><b>지금은 항상 false 다.</b> 이용약관 §14-4 가 "자동수집된 개별 팝업스토어 상세 페이지는
- * 사이트맵에 포함하지 않으며 {@code noindex} 로 차단합니다" 라고 공표해 뒀기 때문이다. 코드가
- * 준비돼도 그 문장이 살아 있는 한 열 수 없다 — 약관 개정과 7일 사전 공지(§15-1)가 먼저다.
+ * <p>두 조건을 모두 만족해야 한다 — 약관 시행일이 지났고, 그 팝업이 자격을 갖췄을 것.
+ * 자격 판정은 실측으로 1,002건 중 <b>448건(44.7%)</b> 이 통과한다.
  *
- * <p>순서를 이렇게 두는 이유: 약관을 먼저 고치면 <b>지키지 못할 문장을 공표</b>하는 것이 된다.
- * 코드가 그 상태가 된 뒤에 약관을 따라가야 한다.
- *
- * <p>약관이 바뀌면 {@code TERMS_ALLOW_DETAIL_INDEX} 를 true 로 바꾸는 것만으로 열린다. 자격
- * 판정은 이미 돌고 있고, 실측으로 1,002건 중 <b>448건(44.7%)</b> 이 통과한다.
+ * <p>약관을 코드보다 먼저 고치지 않은 이유: 그러면 <b>지키지 못할 문장을 공표</b>하는 것이 된다.
+ * 코드가 그 상태가 된 뒤에 약관이 따라갔고, 시행일까지는 코드가 옛 약관대로 동작한다.
  */
-const TERMS_ALLOW_DETAIL_INDEX = false;
-
 export function shouldIndexDetail(popup: ServerPopup | null): boolean {
-  if (!TERMS_ALLOW_DETAIL_INDEX || !popup) return false;
+  return shouldIndexDetailOn(popup, kstToday());
+}
+
+/** 날짜를 받는 형태 — 시행일 경계를 테스트로 못박기 위해 나눠 뒀다. */
+export function shouldIndexDetailOn(popup: ServerPopup | null, today: string): boolean {
+  if (!popup) return false;
+  if (today < TERMS_EFFECTIVE_DATE) return false;
   return judgeIndexable(
     {
       name: popup.name,
@@ -118,6 +132,6 @@ export function shouldIndexDetail(popup: ServerPopup | null): boolean {
       startDate: popup.openDate,
       endDate: popup.closeDate,
     },
-    kstToday(),
+    today,
   ).ok;
 }
