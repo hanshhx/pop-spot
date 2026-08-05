@@ -8,6 +8,7 @@ import com.example.popspotbackend.dto.PopupReportRequestDto;
 import com.example.popspotbackend.dto.PopupTakedownRequestDto;
 import com.example.popspotbackend.entity.PopupStore;
 import com.example.popspotbackend.service.PopupStoreService;
+import com.example.popspotbackend.service.sla.TakedownNotifier;
 import jakarta.validation.Valid;
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -66,6 +67,7 @@ public class PopupStoreController {
 
     private final PopupStoreService popupStoreService;
     private final YouTubeService youTubeService;
+    private final TakedownNotifier takedownNotifier;
 
     @GetMapping
     public ResponseEntity<List<PopupPublicListDto>> getAllPopups(
@@ -128,8 +130,12 @@ public class PopupStoreController {
     public ResponseEntity<Map<String, Object>> requestTakedown(
             @PathVariable Long id, @Valid @RequestBody PopupTakedownRequestDto dto) {
         PopupStore popup = popupStoreService.findOrThrow(id);
-        applyTakedown(popup, dto);
+        boolean newlyFiled = applyTakedown(popup, dto);
         popupStoreService.save(popup);
+
+        // 저장이 끝난 뒤에 알린다 — 메일이 먼저 나가고 저장이 실패하면 어드민에 없는 건을 찾게 된다.
+        // 발송은 전용 스레드로 넘어가므로 SMTP 가 느려도 이 응답이 늦어지지 않는다.
+        if (newlyFiled) takedownNotifier.notifyFiled(popup);
 
         // 요청자 이메일은 마스킹하고 사유는 로그에 남기지 않는다. 둘 다 이미 DB(takedown 필드)에
         // 저장돼 관리자 화면에서 볼 수 있으므로, 로그에 또 남기면 보존 기간만 길어지고 얻는 게 없다.
@@ -168,17 +174,22 @@ public class PopupStoreController {
         return popups.stream().map(PopupPublicListDto::fromEntity).toList();
     }
 
-    private void applyTakedown(PopupStore popup, PopupTakedownRequestDto dto) {
+    /**
+     * @return 이번 요청으로 <b>새로 접수됐으면</b> true. 재신고면 false — 호출부가 이 값으로 접수 알림 발송 여부를 정한다. 재신고마다 메일이 나가면
+     *     알림이 소음이 되고, 최초 기록만 보존하는 아래 정책과도 어긋난다.
+     */
+    private boolean applyTakedown(PopupStore popup, PopupTakedownRequestDto dto) {
         if (popup.getTakedownRequestedAt() != null
                 || REVIEW_STATUS_TAKEDOWN.equals(popup.getReviewStatus())) {
             // 이미 접수됐거나 관리자가 임시 차단한 건이면 최초 신고 기록(시각·사유·신고자)을 그대로 보존한다.
             // 재신고마다 시각을 갱신하면 SLA cutoff 가 계속 뒤로 밀려 admin 알림이 울리지 않고,
             // 주기적으로 재신고하는 것만으로 검토 기한을 무한히 미룰 수 있다.
-            return;
+            return false;
         }
         popup.setTakedownRequestedAt(LocalDateTime.now());
         popup.setTakedownReason(dto.getReason());
         popup.setTakedownRequester(dto.getRequesterEmail());
+        return true;
     }
 
     private Map<String, Object> buildTakedownResponse(Long id) {
