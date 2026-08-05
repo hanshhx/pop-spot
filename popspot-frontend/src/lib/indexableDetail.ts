@@ -40,10 +40,23 @@ const HAS_VENUE =
 function hasUsefulLocation(location: string | null | undefined): boolean {
   const text = (location ?? '').trim();
   if (!text) return false;
-  // "서울" 만 있거나 "서울 " 뒤가 두 글자 이하면 동네 이름조차 아니다.
+
+  // 알려진 상권·건물 이름이면 길이를 따지지 않는다.
+  //
+  // <p>예전엔 길이 검사가 먼저였는데, {@link HAS_VENUE} 에 등록된 26개 중 <b>9개가 두 글자다</b>
+  // (홍대·연남·한남·청담·명동·잠실·건대·신촌·목동). "서울 명동" 은 "서울" 을 떼면 두 글자라,
+  // 명동을 유효 지명으로 <b>직접 등록해 뒀는데도</b> 그 앞의 길이 검사에서 잘렸다.
+  //
+  // <p>길이 검사의 목적은 "동네 이름조차 아닌 것" 을 걸러내는 것이었다. 그런데 실제 동네
+  // 이름 상당수가 두 글자라, 걸러내려던 것보다 지키려던 것을 더 많이 잘랐다 — 2026-08-05
+  // 실측으로 25건(명동 11·홍대 7·잠실 3·목동 2·신촌 2)이 이 순서 때문에 색인에서 빠져 있었다.
+  if (HAS_VENUE.test(text)) return true;
+
+  // 그 밖에는 "서울" 을 뗀 나머지가 세 글자는 돼야 한다. 목록에 없는 두 글자는 동네인지
+  // 오타인지 구분할 방법이 없다.
   const rest = text.replace(/^서울\s*(특별시)?\s*/, '').trim();
   if (rest.length < 3) return false;
-  return HAS_NUMBER.test(rest) || HAS_GU.test(text) || HAS_VENUE.test(text);
+  return HAS_NUMBER.test(rest) || HAS_GU.test(text);
 }
 
 /**
