@@ -249,7 +249,17 @@ function userOnlyTabHintKey(tab: string): MessageKey {
 /* -------------------------------------------------------------------------- */
 /* Main Page Component                                                        */
 /* -------------------------------------------------------------------------- */
-export default function Home() {
+interface HomeProps {
+  /**
+   * 서버가 미리 받아 둔 팝업 목록. 실패했거나 아직 없으면 빈 배열이 온다.
+   *
+   * <p>이 값이 있으면 첫 렌더부터 목록이 보인다 — 예전처럼 빈 화면을 그린 뒤 마운트해서
+   * 백엔드를 기다리지 않는다. 자세한 배경은 {@code app/homeData.ts} 주석에 있다.
+   */
+  initialPopups?: PopupStore[];
+}
+
+export default function Home({ initialPopups = [] }: HomeProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -272,7 +282,14 @@ export default function Home() {
   const defaultCourseName =
     locale === 'en' ? 'My route' : locale === 'ja' ? 'マイコース' : '나만의 코스';
 
-  const [allPopups, setAllPopups] = useState<PopupStore[]>([]);
+  /*
+   * 서버가 준 목록으로 시작한다. 비어 있으면 예전과 같이 빈 배열에서 출발하고 아래 effect 가
+   * 로컬 캐시 → 네트워크 순으로 채운다.
+   *
+   * keepOpenNow 를 여기서 한 번 걸어 준다 — 서버 응답에는 이미 끝난 팝업이 섞여 있을 수 있고,
+   * 그것을 거르는 책임은 이 화면에 있다(클라이언트 경로도 같은 함수를 통과한다).
+   */
+  const [allPopups, setAllPopups] = useState<PopupStore[]>(() => keepOpenNow(initialPopups));
   // "지금 뜨는 팝업" 레일 정렬/필터. 전체(allPopups)에서 파생한다.
   const [railSort, setRailSort] = useState<'popular' | 'deadline' | 'latest'>('popular');
   const [railCat, setRailCat] = useState<CategoryCode | 'all'>('all');
@@ -849,7 +866,13 @@ export default function Home() {
    */
 
   useEffect(() => {
-    const cachedPopups = localStorage.getItem('cached_popups');
+    /*
+     * 로컬 캐시는 서버가 아무것도 못 준 경우에만 쓴다.
+     *
+     * 예전엔 무조건 덮어썼는데, 이제는 서버가 ISR 로 받아 둔 더 새 목록을 갖고 시작할 수 있다.
+     * 그것을 지난 방문의 localStorage 로 덮으면 <b>새 데이터를 헌 데이터로 바꾸는</b> 셈이다.
+     */
+    const cachedPopups = initialPopups.length === 0 ? localStorage.getItem('cached_popups') : null;
     if (cachedPopups) {
       const data = keepOpenNow(JSON.parse(cachedPopups));
       setAllPopups(data);

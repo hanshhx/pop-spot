@@ -87,7 +87,30 @@ export default function LoginPage() {
     }
   };
 
-  const handleSocialLogin = (provider: string) => {
+  /**
+   * 소셜 로그인 시작.
+   *
+   * <p><b>왜 먼저 두드려 보는가.</b> 이 흐름은 {@code window.location.href} 로 <b>브라우저를 통째로
+   * 백엔드에 넘긴다.</b> 그래서 백엔드가 안 떠 있으면 사용자는 우리 화면이 아니라 게이트웨이가 뱉는
+   * 날것의 <b>502 Bad Gateway</b> 페이지에 착지한다 — 무엇이 잘못됐는지도, 어디로 돌아가야 할지도
+   * 알 수 없고 우리 쪽엔 기록도 남지 않는다.
+   *
+   * <p>{@link apiFetch} 는 게이트웨이 오류를 두 번까지 다시 보내므로, 순간 장애면 여기서 조용히
+   * 흡수되고 그대로 진행된다. 진짜로 내려가 있으면 우리 화면에서 한국어로 알린다.
+   *
+   * <p>확인에 쓰는 것은 <b>공개 엔드포인트</b>다. 인증이 필요한 곳을 두드리면 401 이 정상 응답이라
+   * "살아 있음" 과 구분되지 않는다.
+   */
+  const handleSocialLogin = async (provider: string) => {
+    setSubmitting(true);
+    try {
+      const res = await apiFetch('/api/popups/trending');
+      if (!res.ok && res.status >= 500) throw new Error(`backend ${res.status}`);
+    } catch {
+      setSubmitting(false);
+      notifyError({ title: t('login.serverTitle'), text: t('login.serverText') });
+      return;
+    }
     localStorage.setItem('popspot:oauth-locale', locale);
     window.location.href = `${API_BASE_URL}/oauth2/authorization/${provider}`;
   };
