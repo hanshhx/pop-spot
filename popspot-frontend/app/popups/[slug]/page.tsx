@@ -496,6 +496,25 @@ function ymdOf(d: Date): string {
 const MAX_JSONLD_EVENTS = 20;
 
 /**
+ * 목록에 실제로 그릴 최대 개수.
+ *
+ * <p><b>왜 30 에서 60 으로 올렸나.</b> 2026-08-05 실측 — 60개 페이지가 제목에 적은 수보다 적게
+ * 보여 주고 있었고, 가려진 자리가 합계 5,848개였다. {@code /popups/the-hyundai} 는 "50곳" 이라
+ * 적고 32개만 그렸다.
+ *
+ * <p>가려진 팝업의 이름은 <b>HTML 에 아예 없다.</b> 그러면 "더현대 스파이더맨 팝업" 같은 긴 검색어를
+ * 이 페이지가 받을 수 없고, 찾던 것이 안 보인 사람은 되돌아 나간다.
+ *
+ * <p><b>왜 전부는 아닌가.</b> 항목 하나가 마크업 약 549바이트다. {@code /popups/this-month} 는
+ * 610곳이라 다 그리면 RSC 페이로드까지 670KB 가 넘는다. 60이면 the-hyundai(50)·브랜드 페이지
+ * 대부분을 덮으면서 무게는 13% 만 는다.
+ *
+ * <p>이 값은 <b>세 곳이 함께 본다</b> — 잘라내는 곳, "N곳 더 있어요" 를 계산하는 곳, 그 문구를
+ * 띄울지 정하는 곳. 예전엔 30 이 세 군데 흩어져 있어 한 곳만 고치면 숫자가 어긋났다.
+ */
+const LIST_LIMIT = 60;
+
+/**
  * ItemList 에 담을 실제 팝업들 — schema.org Event.
  *
  * <p>v2.43 — 그 전까지 ItemList 는 {@code numberOfItems} 만 있는 껍데기였다. "15개가 있다" 고만
@@ -925,7 +944,7 @@ export async function SliceLandingPage({ slug, locale }: { slug: string; locale:
                 <Clock size={16} className="text-orange-500" /> {copy.listHeading}
               </h2>
               <ul className="space-y-3">
-                {sorted.slice(0, 30).map(({ m, dday }) => {
+                {sorted.slice(0, LIST_LIMIT).map(({ m, dday }) => {
                   const badge = ddayBadge(dday, copy);
                   const shownName = bilingual(
                     m.name,
@@ -1005,9 +1024,9 @@ export async function SliceLandingPage({ slug, locale }: { slug: string; locale:
                   );
                 })}
               </ul>
-              {filtered.length > 30 && (
+              {filtered.length > LIST_LIMIT && (
                 <p className="text-xs text-muted-foreground mt-3">
-                  {copy.moreCount(filtered.length - 30)}
+                  {copy.moreCount(filtered.length - LIST_LIMIT)}
                 </p>
               )}
             </section>
