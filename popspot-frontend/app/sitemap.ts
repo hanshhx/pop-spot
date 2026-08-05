@@ -129,15 +129,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const live = await liveMarkers();
   const liveLastModified = latestModified(live, now);
 
-  // 지역×카테고리 건수는 마커를 한 번만 순회해 집계한다(조합 77개 × 전체 마커 재순회를 피한다).
-  // 키를 classify* 의 반환값(코드)으로 만들고 조회는 slug 로 하는 것은 page.tsx 의 filterBySlice 와
-  // 같은 비교다 — 한쪽만 code/slug 로 바꾸면 판정이 어긋난다.
-  const comboCounts = new Map<string, number>();
-  for (const m of live) {
-    const key = `${classifyRegion(m.location)}-${classifyCategory(m.category)}`;
-    comboCounts.set(key, (comboCounts.get(key) ?? 0) + 1);
-  }
-
   // v2.43 — 지역×시점 조합. 시점은 카테고리와 달리 마커당 하나로 정해지지 않으므로(한 팝업이 오늘·이번
   // 주·이번 달에 동시에 걸린다) 시점별로 따로 센다.
   const periodComboCounts = new Map<string, number>();
@@ -274,21 +265,20 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         priority: 0.6,
       };
     }),
-    // v2.29 — 지역×카테고리 조합 롱테일 랜딩 ("성수 패션" 등, 큐레이션 집계라 §10-2 준수).
-    // 브랜드와 같은 이유로 0곳 조합은 제외(/popups/mapo-tech 처럼 대부분이 여기서 나왔다).
-    ...REGIONS.flatMap((r) =>
-      CATEGORIES.filter((c) => (comboCounts.get(`${r.slug}-${c.slug}`) ?? 0) > 0).map((c) => {
-        const matched = live.filter(
-          (m) => classifyRegion(m.location) === r.code && classifyCategory(m.category) === c.code,
-        );
-        return {
-          url: `${SITE_URL}/popups/${r.slug}-${c.slug}`,
-          lastModified: latestModified(matched, now),
-          changeFrequency: 'weekly' as const,
-          priority: 0.5,
-        };
-      }),
-    ),
+    // v2.29 에서 넣었던 지역×카테고리 조합("성수 패션" 등)은 v2.54 에서 <b>뺐다.</b>
+    //
+    // GSC 2026-05-21~07-31 실측 — 07-06 에 넣었으니 26일간 노출 기회가 있었는데
+    // 60장 중 58장이 노출 0 이었다. 살아남은 2장을 합쳐도 노출 7 · 클릭 1 이다.
+    // 같은 기간 지역 단독 12장은 노출 339, 카테고리 단독 6장은 노출 166 을 냈다.
+    //
+    // 담긴 팝업이 적어서가 아니다 — 6곳 이상 담긴 22장 중에도 20장이 노출 0 이다.
+    // 그래서 "최소 N곳" 문턱으로는 고쳐지지 않고, 형태 자체를 뺀다.
+    //
+    // 지역×시점(07-27)·카테고리×시점(08-02)은 그대로 둔다. 위 데이터 기간에 5일·0일밖에
+    // 안 걸쳐 있어 노출 0 이 죽음인지 아직 안 자란 것인지 구분되지 않는다.
+    //
+    // page.tsx 의 robots 판정도 같이 고쳤다. 한쪽만 고치면 v2.42 사고가 재발한다.
+    // comboCounts 는 지역×카테고리 전용이었으므로 함께 지웠다.
     // 카테고리×시점 조합. 영어·일본어의 "K-beauty pop-ups this weekend"처럼 구매·방문 의도가
     // 분명한 검색을 받는다. 실제 결과가 있는 조합만 공개해 키워드만 바꾼 빈 페이지를 만들지 않는다.
     ...CATEGORIES.flatMap((c) =>
