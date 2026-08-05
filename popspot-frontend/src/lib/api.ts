@@ -44,6 +44,31 @@ const SESSION_GONE_BODY_PATTERN = /만료|인증이 필요|expired|unauthorized|
  */
 let authExpiryHandled = false;
 
+/**
+ * 게이트웨이가 잠깐 백엔드를 못 잡을 때 나오는 상태코드.
+ *
+ * <p>백엔드는 집 VM 이고 Tailscale Funnel 을 거쳐 나간다. 터널이 순간적으로 원본을 못 잡으면
+ * <b>수십 ms 만에</b> 502 가 돌아온다 — 백엔드가 느린 게 아니라 연결 자체가 안 된 것이라 응답이
+ * 빠르다. 이건 애플리케이션 오류가 아니라 경로 문제라서, 잠깐 뒤 다시 보내면 대개 붙는다.
+ */
+const GATEWAY_STATUSES = new Set([502, 503, 504]);
+
+/** 재시도 간격. 두 번까지만 — 진짜로 백엔드가 죽은 상황에서 사용자를 오래 붙잡아 두지 않는다. */
+const RETRY_DELAYS_MS = [300, 900] as const;
+
+/** 응답이 없어도 안전하게 다시 보낼 수 있는 메서드. */
+const IDEMPOTENT_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
+
+/**
+ * 요청 하나가 끝나기를 기다리는 최대 시간.
+ *
+ * <p>이게 없으면 터널이 붙잡고 놓지 않을 때 화면이 <b>영원히 로딩</b>이다. 사용자는 무엇이
+ * 잘못됐는지 알 수 없고 새로고침만 반복한다. 끊어서 catch 로 보내면 최소한 오류 처리가 돈다.
+ */
+const REQUEST_TIMEOUT_MS = 12_000;
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
 type FetchOptions = RequestInit & { headers?: HeadersInit };
 
 /**
@@ -88,11 +113,7 @@ export const apiFetch = async (endpoint: string, options: FetchOptions = {}): Pr
   if (tokenAtRequest) authExpiryHandled = false;
 
   try {
-    const response = await fetch(url, {
-      ...options,
-      headers,
-      credentials: 'include',
-    });
+    const response = await fetchWithRetry(url, options, headers);
 
     if (!response.ok) {
       console.error(`API Error (${response.status}): ${url}`);
@@ -128,6 +149,56 @@ export const apiFetch = async (endpoint: string, options: FetchOptions = {}): Pr
 };
 
 /* ============================== 내부 헬퍼 ============================== */
+
+/**
+ * 게이트웨이 순간 장애를 흡수하는 fetch.
+ *
+ * <p><b>왜 필요한가.</b> 로그인·목록이 가끔 502 로 실패한다는 신고가 있었고, 실측해 보니
+ * {@code /api/map/markers} 가 <b>12ms 만에</b> 502 를 돌려줬다. 그 속도는 백엔드가 느린 게 아니라
+ * Funnel 이 원본에 연결조차 못 했다는 뜻이다. 잠깐 뒤 다시 보내면 붙는 종류의 실패다.
+ *
+ * <p><b>GET 계열만 다시 보낸다.</b> POST 를 재시도하면 "서버는 처리했는데 응답만 못 돌아온" 502
+ * 에서 같은 것이 두 번 만들어진다. 찜·코스·제보가 중복되는 편이 502 한 번보다 나쁘다.
+ *
+ * <p><b>타임아웃을 함께 건다.</b> 재시도만 넣고 타임아웃이 없으면, 터널이 연결을 붙잡고 놓지 않는
+ * 경우 첫 시도에서 영원히 멈춰 재시도까지 가지도 못한다. 호출부가 자기 signal 을 넘겼으면 그것을
+ * 존중하고 타임아웃을 걸지 않는다 — 취소 주체가 둘이 되면 원인을 구분할 수 없다.
+ */
+const fetchWithRetry = async (
+  url: string,
+  options: FetchOptions,
+  headers: HeadersInit,
+): Promise<Response> => {
+  const method = (options.method ?? 'GET').toUpperCase();
+  const canRetry = IDEMPOTENT_METHODS.has(method);
+
+  let lastError: unknown;
+  for (let attempt = 0; ; attempt++) {
+    try {
+      const response = await fetch(url, {
+        ...options,
+        headers,
+        credentials: 'include',
+        signal: options.signal ?? AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      });
+      if (!canRetry || !GATEWAY_STATUSES.has(response.status)) return response;
+      if (attempt >= RETRY_DELAYS_MS.length) return response;
+      console.warn(
+        `게이트웨이 ${response.status} — ${RETRY_DELAYS_MS[attempt]}ms 뒤 재시도 (${attempt + 1}/${RETRY_DELAYS_MS.length}): ${url}`,
+      );
+    } catch (error) {
+      // 네트워크 끊김·타임아웃도 같은 취급. 다만 호출부가 명시적으로 취소한 것은 재시도하지 않는다.
+      if (options.signal?.aborted) throw error;
+      lastError = error;
+      if (!canRetry || attempt >= RETRY_DELAYS_MS.length) throw error;
+      console.warn(
+        `요청 실패 — ${RETRY_DELAYS_MS[attempt]}ms 뒤 재시도 (${attempt + 1}/${RETRY_DELAYS_MS.length}): ${url}`,
+      );
+    }
+    await sleep(RETRY_DELAYS_MS[attempt]);
+    void lastError;
+  }
+};
 
 /**
  * 갱신이 동시에 여러 번 일어나지 않게 묶는다.

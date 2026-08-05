@@ -2,6 +2,7 @@ import { Suspense } from 'react';
 import type { Metadata } from 'next';
 
 import HomeClient from '../HomeClient';
+import { fetchHomePopups } from '../homeData';
 import { REGIONS } from '@/lib/regions';
 import { CATEGORIES, BRANDS, getPeriods } from '@/lib/popupSlices';
 import { LOCALE_META, localeAlternates } from '@/lib/localeRoutes';
@@ -40,7 +41,9 @@ export const metadata: Metadata = {
   },
 };
 
-export default function JapaneseHome() {
+// 한국어 홈과 같은 이유로 목록을 서버에서 받아 넘긴다 — app/homeData.ts 주석 참고.
+export default async function JapaneseHome() {
+  const initialPopups = await fetchHomePopups();
   const areas = REGIONS.map((r) => r.labelJa).join('・');
 
   return (
@@ -109,7 +112,7 @@ export default function JapaneseHome() {
       </section>
 
       <Suspense fallback={null}>
-        <HomeClient />
+        <HomeClient initialPopups={initialPopups} />
       </Suspense>
     </>
   );
