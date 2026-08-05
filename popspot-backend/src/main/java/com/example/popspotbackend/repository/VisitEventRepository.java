@@ -49,6 +49,51 @@ public interface VisitEventRepository extends JpaRepository<VisitEvent, Long> {
             nativeQuery = true)
     List<Object[]> countByType(@Param("since") LocalDateTime since);
 
+    /**
+     * 기간 안의 세션 규모 — 세션 수 · 방문자 수 · 행동 수를 한 번에 센다.
+     *
+     * <p>{@code session_id} 가 비어 있는 행은 세션 계산에서 빼되(옛 기록·비콘 실패), 방문자와 행동
+     * 수에는 그대로 넣는다. 여기서 통째로 걸러내면 세션만 없는 방문이 <b>없었던 방문</b>이 돼
+     * 방문자 수가 다른 표와 어긋난다.
+     *
+     * <p>돌아오는 값 순서: 세션수, 방문자수, 행동수.
+     *
+     * <p><b>별칭 {@code e.} 를 반드시 붙인다.</b> 컬럼명 검사 테스트({@code NativeQueryColumnsTest})가
+     * {@code 별칭.컬럼} 형태만 훑기 때문에, 별칭 없이 쓰면 오타가 있어도 검사에 걸리지 않는다.
+     * 실제로 실험해 보니 {@code session_id} 를 {@code sessionid} 로 바꿔도 테스트가 통과했다.
+     * 네이티브 쿼리 오타는 컴파일도 테스트도 통과하고 <b>운영에서만 터진다</b> — 이 저장소의
+     * {@code topPopups} 가 {@code p.id} 로 몇 주간 죽어 있었던 것이 같은 이유였다.
+     */
+    @Query(
+            value =
+                    "SELECT COUNT(DISTINCT e.session_id), COUNT(DISTINCT e.visitor_id), COUNT(*)"
+                            + " FROM visit_event e"
+                            + " WHERE e.created_at >= :since AND e.created_at < :until",
+            nativeQuery = true)
+    Object[] sessionTotals(@Param("since") LocalDateTime since, @Param("until") LocalDateTime until);
+
+    /**
+     * 기간 안에 온 사람 중 <b>그 전에도 왔던</b> 사람 수 = 재방문자.
+     *
+     * <p>나머지는 신규다. 신규를 따로 세지 않고 빼는 이유는, 두 쿼리의 기준이 달라지면 합이 전체와
+     * 안 맞는 일이 실제로 생기기 때문이다.
+     *
+     * <p><b>한계를 알고 써야 한다.</b> "그 전" 은 보관기간(방침상 90일) 안에서만 볼 수 있다. 91일 전에
+     * 왔던 사람은 기록이 지워져 신규로 잡힌다. 즉 이 값은 <b>재방문율의 하한</b>이다 — 실제보다 낮게
+     * 나올 수는 있어도 높게 나오지는 않는다.
+     */
+    @Query(
+            value =
+                    "SELECT COUNT(*) FROM ("
+                            + "  SELECT n.visitor_id FROM visit_event n"
+                            + "  WHERE n.created_at >= :since AND n.created_at < :until"
+                            + "  INTERSECT"
+                            + "  SELECT o.visitor_id FROM visit_event o WHERE o.created_at < :since"
+                            + ") AS returning_visitors",
+            nativeQuery = true)
+    long countReturningVisitors(
+            @Param("since") LocalDateTime since, @Param("until") LocalDateTime until);
+
     /** 개인정보 처리방침의 90일 보관 약속을 코드로 강제한다. {@code VisitService} 의 정리 작업이 함께 부른다. */
     @Modifying
     @Query("DELETE FROM VisitEvent e WHERE e.createdAt < :cutoff")

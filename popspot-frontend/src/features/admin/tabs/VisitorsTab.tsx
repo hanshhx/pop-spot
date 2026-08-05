@@ -7,6 +7,7 @@ import { uaLooksBot } from '@/features/admin/helpers';
 import type { AdminVisitor } from '@/features/admin/types';
 import { apiFetch } from '@/lib/api';
 import { ExportButton } from '@/features/admin/ExportButton';
+import { SessionSummary } from '@/features/admin/SessionSummary';
 
 /**
  * 방문자 목록.
@@ -76,6 +77,13 @@ export function VisitorsTab() {
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 space-y-4 duration-500">
+      {/*
+        표보다 위에 둔다. 목록은 "누가 왔나" 를 보여 주는데, 먼저 답해야 하는 질문은
+        "온 사람이 다시 오나" 다. 기간은 아래 버튼이 고른 것을 그대로 받는다 — 따로 두면
+        같은 화면에서 표와 요약이 다른 기간을 보여 준다.
+      */}
+      <SessionSummary days={days} />
+
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-sm text-muted-foreground">

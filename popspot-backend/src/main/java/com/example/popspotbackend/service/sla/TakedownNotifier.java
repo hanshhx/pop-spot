@@ -40,12 +40,11 @@ public class TakedownNotifier {
     private final ExecutorService sender;
 
     /**
-     * <b>{@code @Autowired} 를 지우지 마라.</b> 이 클래스에는 생성자가 둘이다(운영용·테스트용).
-     * Spring 은 생성자가 여럿인데 어느 것도 표시돼 있지 않으면 <b>기본 생성자를 찾고</b>, 그것이
-     * 없으므로 {@code NoSuchMethodException: <init>()} 로 기동 자체가 실패한다.
+     * <b>{@code @Autowired} 를 지우지 마라.</b> 이 클래스에는 생성자가 둘이다(운영용·테스트용). Spring 은 생성자가 여럿인데 어느 것도 표시돼
+     * 있지 않으면 <b>기본 생성자를 찾고</b>, 그것이 없으므로 {@code NoSuchMethodException: <init>()} 로 기동 자체가 실패한다.
      *
-     * <p>2026-08-05 에 실제로 이걸로 서비스가 죽었다. 단위 테스트는 생성자를 직접 부르기 때문에
-     * 전부 통과했고 — 컨텍스트를 띄우지 않으면 잡히지 않는 종류의 실패다.
+     * <p>2026-08-05 에 실제로 이걸로 서비스가 죽었다. 단위 테스트는 생성자를 직접 부르기 때문에 전부 통과했고 — 컨텍스트를 띄우지 않으면 잡히지 않는 종류의
+     * 실패다.
      */
     @Autowired
     public TakedownNotifier(

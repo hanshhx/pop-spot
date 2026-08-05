@@ -1,5 +1,6 @@
 package com.example.popspotbackend.controller;
 
+import com.example.popspotbackend.dto.SessionStatsDto;
 import com.example.popspotbackend.dto.VisitReferrerDto;
 import com.example.popspotbackend.dto.VisitStatsDto;
 import com.example.popspotbackend.repository.VisitLogRepository;
@@ -31,6 +32,21 @@ public class AdminVisitController {
     @GetMapping("/stats")
     public ResponseEntity<VisitStatsDto> getStats() {
         return ResponseEntity.ok(visitService.getStats());
+    }
+
+    /**
+     * C-3 — 세션 기준 요약. 세션 수 · 신규/재방문 · 재방문율 · 세션당 행동 수.
+     *
+     * <p>수집은 이미 되고 있었고({@code visit_event.session_id}) 읽는 곳만 없었다. 새로 쌓는 것 없이
+     * 집계만 한다.
+     *
+     * @param days 최근 며칠. 화면은 7·30·90 을 준다. 보관기간을 넘겨 물으면 응답의 {@code truncated}
+     *     가 {@code true} 로 와서 "그만큼 재방문이 덜 잡혔다" 를 알린다
+     */
+    @GetMapping("/sessions")
+    public ResponseEntity<SessionStatsDto> getSessionStats(
+            @RequestParam(defaultValue = "7") int days) {
+        return ResponseEntity.ok(visitService.getSessionStats(days));
     }
 
     /** 오늘 방문 경로별 집계(경로·총·회원·게스트) — 유입이 어디서/누구인지 진단용. */

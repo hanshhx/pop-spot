@@ -1,5 +1,6 @@
 package com.example.popspotbackend.service;
 
+import com.example.popspotbackend.dto.SessionStatsDto;
 import com.example.popspotbackend.dto.VisitStatsDto;
 import com.example.popspotbackend.entity.VisitEvent;
 import com.example.popspotbackend.entity.VisitLog;
@@ -278,6 +279,51 @@ public class VisitService {
     }
 
     /** 개인정보 처리방침의 3개월 보관 약속을 코드로 강제한다. 매일 04:40 KST에 만료 로그를 제거한다. */
+    /**
+     * C-3 — 세션 기준 방문 요약. "몇 명 왔나" 옆에 "다시 오나" 를 놓는다.
+     *
+     * <p>수집은 이미 되고 있었다({@code visit_event.session_id}). 읽는 곳이 없었을 뿐이라 새로
+     * 쌓을 것은 없고 집계만 한다.
+     *
+     * <p><b>{@code truncated} 를 함께 돌려주는 이유.</b> 재방문 판정은 보관기간 안에서만 가능하다.
+     * 90일 보관인데 120일 구간을 물으면 앞쪽 30일은 비교할 과거가 없어 그 사람들이 전부 신규로
+     * 잡힌다. 그 사실을 값에 담지 않으면 <b>화면은 멀쩡해 보이는데 숫자만 틀린다</b> — 보는 사람이
+     * 알 방법이 없다. 그래서 "이 구간은 잘렸다" 를 같이 내보낸다.
+     *
+     * @param days 조회할 최근 일수. 1 미만이면 1 로 올린다
+     */
+    @Transactional(readOnly = true)
+    public SessionStatsDto getSessionStats(int days) {
+        int safeDays = Math.max(1, days);
+        LocalDateTime to = LocalDateTime.now();
+        LocalDateTime from = to.minusDays(safeDays);
+
+        Object[] totals = visitEventRepository.sessionTotals(from, to);
+        long sessions = asLong(totals, 0);
+        long visitors = asLong(totals, 1);
+        long events = asLong(totals, 2);
+        long returning = visitEventRepository.countReturningVisitors(from, to);
+
+        int safeRetentionDays = Math.max(1, retentionDays);
+        return SessionStatsDto.of(
+                sessions, visitors, events, returning, safeRetentionDays,
+                safeDays >= safeRetentionDays);
+    }
+
+    /**
+     * 네이티브 집계 한 줄에서 값을 꺼낸다.
+     *
+     * <p>드라이버·하이버네이트 조합에 따라 결과가 {@code Object[]} 한 줄로 오기도 하고 그것을 감싼
+     * {@code Object[][]} 로 오기도 한다. 둘 다 받아 준다 — 여기서 ClassCastException 이 나면 관리자
+     * 화면 전체가 500 이 된다.
+     */
+    private static long asLong(Object[] row, int index) {
+        if (row == null) return 0;
+        Object[] cells = (row.length == 1 && row[0] instanceof Object[] inner) ? inner : row;
+        if (index >= cells.length || cells[index] == null) return 0;
+        return ((Number) cells[index]).longValue();
+    }
+
     @Scheduled(cron = "${popspot.visit-log.cleanup-cron:0 40 4 * * *}", zone = "Asia/Seoul")
     @Transactional
     public void deleteExpiredVisitLogs() {
