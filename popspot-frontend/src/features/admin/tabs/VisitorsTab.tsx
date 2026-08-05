@@ -7,6 +7,7 @@ import { uaLooksBot } from '@/features/admin/helpers';
 import type { AdminVisitor } from '@/features/admin/types';
 import { apiFetch } from '@/lib/api';
 import { ExportButton } from '@/features/admin/ExportButton';
+import { FunnelPanel } from '@/features/admin/FunnelPanel';
 import { SessionSummary } from '@/features/admin/SessionSummary';
 
 /**
@@ -83,6 +84,7 @@ export function VisitorsTab() {
         같은 화면에서 표와 요약이 다른 기간을 보여 준다.
       */}
       <SessionSummary days={days} />
+      <FunnelPanel days={days} />
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
