@@ -586,7 +586,13 @@ export default function PopupDetailClient({
         {/* 위치 */}
         <section className="mt-8">
           <h2 className="mb-3 text-lg font-black">{t('detail.location')}</h2>
-          <div className="relative h-[250px] overflow-hidden rounded-2xl border border-gray-200 dark:border-white/10 md:h-[320px]">
+          {/*
+            높이를 DetailMap 이 요구하는 값과 맞춘다. 이 칸은 md 에서 320 이었는데 안의 지도는
+            {@code md:min-h-[350px]} 라, 넓은 화면에서 지도 아래 30px 이 잘려 나갔다.
+            거기에 MapLibre 의 저작자 표시(attributionControl)가 들어간다 — 지도 데이터는
+            출처를 보이게 두어야 하므로 화면 문제만이 아니다.
+          */}
+          <div className="relative h-[250px] overflow-hidden rounded-2xl border border-gray-200 dark:border-white/10 md:h-[350px]">
             <DetailMap latitude={lat} longitude={lng} />
             <div className="absolute bottom-4 left-1/2 z-40 flex w-[90%] -translate-x-1/2 items-center gap-1.5 overflow-hidden whitespace-nowrap rounded-full border border-white/20 bg-black/85 px-4 py-2 text-[11px] font-bold text-white backdrop-blur-xl md:w-auto md:bottom-6">
               <MapPin size={12} className="shrink-0 animate-bounce text-lime-400" />
