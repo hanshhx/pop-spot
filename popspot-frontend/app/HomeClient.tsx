@@ -90,6 +90,7 @@ import {
   parseDate,
   type CategoryCode,
 } from '../src/lib/popupSlices';
+import { groupSameEvent } from '@/lib/groupSameEvent';
 import { Header } from '../src/components/layout/Header';
 import { Footer } from '../src/components/layout/Footer';
 import { BottomDock, type DockTab } from '../src/components/layout/BottomDock';
@@ -154,6 +155,28 @@ const DEFAULT_TAB = 'MAP';
  * "명시적으로 눌러야 시작" 이라고 적어 두었는데 구현이 그것과 어긋나 있었다.
  */
 const USER_ONLY_TABS = new Set<string>(['COURSE', 'MUSIC', 'MATE', 'PASSPORT', 'MY']);
+
+/**
+ * 홈이 한 번에 보여 주는 팝업 수.
+ *
+ * <p><b>왜 늘렸나.</b> 2026-08-05 실측 — 수집된 팝업이 1,040개인데 인기 자리에 노출되는 것은
+ * 다섯이었다. 정렬을 어떻게 고치든 <b>칸이 다섯이면 다섯만 보인다.</b> 조회수 0 인 팝업이 28.4%,
+ * 2회 이하가 63.5% 인 상태라 순위 알고리즘보다 노출 폭이 먼저 병목이었다.
+ *
+ * <p>무한정 늘리지는 않는다. 카드가 많아지면 첫 화면이 무거워지고, 아래로 갈수록 아무도 안 본다 —
+ * 노출은 늘었는데 실제로 보이지는 않는 상태가 된다. 목록(RAIL)이 그 아래를 받는다.
+ *
+ * <p>여기서 정한 수가 <b>실제 노출 폭이 되려면 렌더 쪽에서 또 자르지 않아야 한다.</b> 예전에는 이
+ * 목록을 5로 만들어 놓고 화면에서 다시 {@code slice(0, 4)} · {@code slice(1, 4)} 해서, 정작 보이는
+ * 것은 넷이었다 — 목록 크기를 늘려도 화면은 그대로였을 것이다.
+ *
+ * <p>다만 게스트 히어로 안의 미리보기 격자만은 넷으로 남긴다. 280px 카드 안의 2×2 배치라 늘리면
+ * 그 카드가 무너진다. 그 자리는 "이런 게 있다" 를 보여 주는 곳이고, 폭은 아래 추천 목록과 레일이 낸다.
+ */
+const HOT_POPUP_COUNT = 8;
+
+/** 목록 레일이 보여 주는 수. 카테고리·정렬을 바꿔 가며 훑는 자리라 인기 자리보다 넉넉하게. */
+const RAIL_POPUP_COUNT = 30;
 
 /**
  * 검색엔진과 사용자가 함께 쓰는 랜딩 디렉터리.
@@ -338,11 +361,40 @@ export default function Home({ initialPopups = [] }: HomeProps) {
    * "지금 뜨는 팝업" 레일에 실제로 렌더할 목록 — 전체(allPopups)에 카테고리 필터 + 정렬 적용.
    * POP-LOOK 랭킹은 아래에서 지도 노출 가능 팝업만 다시 거르므로, 이 레일과 목록 범위가 다를 수 있다.
    */
+  /**
+   * 같은 행사가 여러 줄로 쪼개진 것을 한 줄로 묶는다.
+   *
+   * <p><b>왜 필요했나.</b> 2026-08-05 실측에서 조회수 상위 12칸 중 8칸이 사실상 3개 행사였다 —
+   * "스트릿 레스토랑 파이터" 가 이름만 조금씩 다른 4줄로 상위를 차지했고, 짱구·미니브도 2줄씩이었다.
+   * 노출 칸이 몇 개든 <b>같은 행사가 그 칸을 나눠 먹으면</b> 사용자가 보는 다양성은 거기서 끝난다.
+   *
+   * <p>랜딩({@code /popups/[slug]})은 이미 같은 함수로 묶고 있었는데 홈만 빠져 있었다.
+   *
+   * <p><b>조회수는 합산한다.</b> 대표 하나만 남기고 나머지를 버리면, 4줄로 쪼개졌던 행사가 67 로만
+   * 평가돼 오히려 손해를 본다. 실제로는 그 행사를 224번 본 것이므로 합쳐야 사실에 가깝다.
+   */
+  const dedupedPopups = useMemo(
+    () =>
+      groupSameEvent(allPopups).map((g) => {
+        if (g.duplicates.length === 0) return g.lead;
+        const merged = g.duplicates.reduce(
+          (sum, d) => sum + (d.viewCount || 0),
+          g.lead.viewCount || 0,
+        );
+        return { ...g.lead, viewCount: merged };
+      }),
+    [allPopups],
+  );
+
   const railPopups = useMemo(() => {
+    /*
+     * 병합본을 쓴다. 같은 행사가 이름만 다른 여러 줄로 들어와 목록을 채우면, 스크롤을 내려도
+     * 새로운 것이 안 나온다 — 실측에서 상위 12칸 중 8칸이 3개 행사였다.
+     */
     const base =
       railCat === 'all'
-        ? allPopups
-        : allPopups.filter((p) => classifyCategory(p.category) === railCat);
+        ? dedupedPopups
+        : dedupedPopups.filter((p) => classifyCategory(p.category) === railCat);
     const list = [...base];
     if (railSort === 'deadline') {
       // 마감임박순 — endDate 없는 건 뒤로(Infinity). parseDate 로 달력 실재성까지 검증(이월 방지).
@@ -362,8 +414,8 @@ export default function Home({ initialPopups = [] }: HomeProps) {
       // 인기순 — viewCount desc, 동점은 id desc 로 안정화(크롤 팝업 다수가 viewCount=0).
       list.sort((a, b) => (b.viewCount || 0) - (a.viewCount || 0) || b.id - a.id);
     }
-    return list.slice(0, 15);
-  }, [allPopups, railSort, railCat]);
+    return list.slice(0, RAIL_POPUP_COUNT);
+  }, [dedupedPopups, railSort, railCat]);
 
   /** 필터 칩 노출 대상 — 전체 목록에 실제로 존재하는 카테고리만(카운트 0 은 숨김). */
   const railCategories = useMemo(() => {
@@ -418,15 +470,21 @@ export default function Home({ initialPopups = [] }: HomeProps) {
    */
   const hotPopups = useMemo(
     () =>
-      [...mappablePopups]
+      dedupedPopups
+        .filter(hasRealMapLocation)
         .sort((a, b) => (b.viewCount || 0) - (a.viewCount || 0) || b.id - a.id)
-        .slice(0, 5),
-    [mappablePopups],
+        .slice(0, HOT_POPUP_COUNT),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [dedupedPopups, fallbackCoordKeys],
   );
 
   // pop-look → "오늘의 추천 팝업": 실제 인기순 상위(랜덤 아님). hotPopups 가 이미 viewCount desc 정렬.
   const featuredPopup = hotPopups[0];
-  const featuredRunnerUps = hotPopups.slice(1, 4);
+  /*
+   * 1위를 뺀 나머지 전부. 예전에는 여기서 다시 3개로 잘라, 목록을 늘려도 화면은 그대로였다.
+   * 세로로 쌓이는 행 목록이라 늘어나도 배치가 무너지지 않는다.
+   */
+  const featuredRunnerUps = hotPopups.slice(1);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
