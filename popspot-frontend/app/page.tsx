@@ -2,6 +2,7 @@ import { Suspense } from 'react';
 import type { Metadata } from 'next';
 
 import HomeClient from './HomeClient';
+import { fetchHomePopups } from './homeData';
 import { localeAlternates } from '@/lib/localeRoutes';
 
 /**
@@ -51,7 +52,17 @@ export const metadata: Metadata = {
   alternates: localeAlternates('ko'),
 };
 
-export default function Page() {
+/**
+ * 목록을 <b>서버에서 먼저 받아</b> HomeClient 에 넘긴다.
+ *
+ * <p>그전에는 홈이 빈 상태로 그려진 뒤 마운트 후 백엔드를 두드렸다. 백엔드가 집 VM + Funnel 이라
+ * 첫 화면이 그 왕복을 기다렸고, 백엔드가 죽으면 홈이 통째로 비었다. 자세한 근거는
+ * {@link fetchHomePopups} 주석에 적어 두었다.
+ *
+ * <p>실패해도 빈 배열이 넘어갈 뿐이라, 그 경우 예전과 똑같이 클라이언트가 받아온다.
+ */
+export default async function Page() {
+  const initialPopups = await fetchHomePopups();
   return (
     <Suspense
       fallback={
@@ -60,7 +71,7 @@ export default function Page() {
         </div>
       }
     >
-      <HomeClient />
+      <HomeClient initialPopups={initialPopups} />
     </Suspense>
   );
 }
