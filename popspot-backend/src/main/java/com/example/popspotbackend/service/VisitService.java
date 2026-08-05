@@ -1,5 +1,6 @@
 package com.example.popspotbackend.service;
 
+import com.example.popspotbackend.dto.FunnelDto;
 import com.example.popspotbackend.dto.SessionStatsDto;
 import com.example.popspotbackend.dto.VisitStatsDto;
 import com.example.popspotbackend.entity.VisitEvent;
@@ -308,6 +309,79 @@ public class VisitService {
         return SessionStatsDto.of(
                 sessions, visitors, events, returning, safeRetentionDays,
                 safeDays >= safeRetentionDays);
+    }
+
+    /**
+     * C-4 퍼널 — 들어온 사람이 어디까지 가고 어디서 멈추나.
+     *
+     * <p>단계는 다섯이다. 방문 → 상세 열기 → 찜 → 공식/예약 링크로 나가기 → 다시 오기.
+     *
+     * <p><b>첫 칸만 다른 표에서 온다.</b> "방문" 은 행동 기록이 아니라 방문 기록({@code visit_log})의
+     * 사람 수다. 페이지를 열기만 하고 아무것도 안 누른 사람이 행동 기록에는 남지 않기 때문인데,
+     * 퍼널의 분모는 <b>그 사람들까지 포함</b>해야 "몇 명이 아무것도 안 하고 갔나" 를 볼 수 있다.
+     *
+     * <p><b>수집 시작일을 칸마다 붙인다.</b> 찜·외부이동은 C-4 에서 새로 수집하기 시작해서 그 전
+     * 기간에는 0 이다. 이 사실을 화면에 알리지 않으면 퍼널이 그 칸에서 뚝 끊긴 것으로 읽힌다 —
+     * 실제로는 데이터가 없는 것뿐인데 "아무도 안 누른다" 로 오해하게 된다.
+     *
+     * @param days 조회할 최근 일수
+     */
+    @Transactional(readOnly = true)
+    public FunnelDto getFunnel(int days) {
+        int safeDays = days <= 0 ? 30 : Math.min(days, MAX_LOOKBACK_DAYS);
+        LocalDateTime since = LocalDate.now().minusDays(safeDays - 1L).atStartOfDay();
+
+        Map<String, Long> byType = new LinkedHashMap<>();
+        for (Object[] r : visitEventRepository.visitorsByType(since)) {
+            byType.put(str(r[0]), num(r[1]));
+        }
+
+        List<FunnelDto.Raw> raws =
+                List.of(
+                        new FunnelDto.Raw(
+                                "visit",
+                                "방문",
+                                visitLogRepository.countDistinctVisitorsSince(since),
+                                ""),
+                        step("open", "상세 열기", VisitEvent.TYPE_POPUP_OPEN, byType),
+                        step("wishlist", "찜", VisitEvent.TYPE_WISHLIST_ADD, byType),
+                        step("outbound", "예약·공식 링크", VisitEvent.TYPE_OUTBOUND_CLICK, byType),
+                        new FunnelDto.Raw(
+                                "return",
+                                "다시 방문",
+                                visitEventRepository.countReturnedAfterOpen(
+                                        since, VisitEvent.TYPE_POPUP_OPEN),
+                                ""));
+
+        return FunnelDto.of(raws, since.toString(), funnelNote(raws));
+    }
+
+    /** 한 칸을 만든다. 수집 시작일은 전체 기록에서 물어 온다 — 조회 구간과 무관한 사실이다. */
+    private FunnelDto.Raw step(
+            String key, String label, String eventType, Map<String, Long> byType) {
+        LocalDateTime firstAt = visitEventRepository.firstRecordedAt(eventType);
+        return new FunnelDto.Raw(
+                key,
+                label,
+                byType.getOrDefault(eventType, 0L),
+                firstAt == null ? "" : firstAt.toLocalDate().toString());
+    }
+
+    /**
+     * 화면이 그대로 보여 줄 한 줄 경고. 없으면 빈 문자열.
+     *
+     * <p>"이 칸은 최근에야 모으기 시작했다" 를 <b>숫자 옆이 아니라 표 아래</b>에 한 번만 적는다.
+     * 칸마다 붙이면 읽는 사람이 경고에 익숙해져 아무도 안 본다.
+     */
+    private static String funnelNote(List<FunnelDto.Raw> raws) {
+        List<String> late =
+                raws.stream()
+                        .filter(r -> !r.collectedSince().isBlank())
+                        .map(r -> r.label() + "(" + r.collectedSince() + "부터)")
+                        .toList();
+        if (late.isEmpty()) return "";
+        return "다음 단계는 최근에 수집을 시작해, 그 전 기간은 0 으로 보입니다 — "
+                + String.join(" · ", late);
     }
 
     /**

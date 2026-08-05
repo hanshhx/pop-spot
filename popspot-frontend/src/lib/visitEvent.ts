@@ -18,8 +18,15 @@ const SESSION_TOUCHED_KEY = 'popspot:sessionTouchedAt';
 /** 이만큼 활동이 없으면 새 방문으로 본다. 방침에 "30분" 으로 고지했다. */
 const SESSION_IDLE_MS = 30 * 60 * 1000;
 
-/** 서버가 받아들이는 행동 종류. 여기 없는 값은 서버가 버린다 — 양쪽 목록을 함께 고쳐야 한다. */
-export type VisitEventType = 'popup_open' | 'map_search' | 'popup_share';
+/**
+ * 서버가 받아들이는 행동 종류. 여기 없는 값은 서버가 버린다 — 양쪽 목록을 함께 고쳐야 한다.
+ * (백엔드는 {@code VisitEvent.ALLOWED_TYPES})
+ *
+ * <p>{@code wishlist_add} · {@code outbound_click} 은 C-4 퍼널의 뒤쪽 두 단계다. 그전에는
+ * 수집하지 않아서 "목록 → 상세" 까지밖에 그릴 수 없었다.
+ */
+export type VisitEventType =
+  'popup_open' | 'map_search' | 'popup_share' | 'wishlist_add' | 'outbound_click';
 
 /**
  * 이번 방문의 세션 ID.

@@ -23,6 +23,7 @@ import NowWait from '@/components/popup/NowWait';
 import MusicForPopup from '../../../src/components/music/MusicForPopup';
 import { apiFetch } from '../../../src/lib/api';
 import { notify, notifyError } from '@/lib/notify';
+import { trackVisitEvent } from '@/lib/visitEvent';
 import { popupCoverUrl } from '@/lib/popupCover';
 import { PhotoDisclosure } from '@/components/popup/PhotoDisclosure';
 import { addToCalendar, toCalendarEvent } from '@/lib/calendar';
@@ -346,6 +347,15 @@ export default function PopupDetailClient({
         method: 'POST',
       });
       if (!res.ok) throw new Error();
+      /*
+       * C-4 퍼널의 "저장" 단계. <b>담을 때만</b> 남긴다 — 이 버튼은 토글이라 해제도 같은 곳을
+       * 지나는데, 퍼널이 묻는 것은 "관심을 표시한 적이 있나" 이고 나중에 마음이 바뀐 것은 그
+       * 단계를 통과했다는 사실을 지우지 않는다.
+       *
+       * 서버 응답을 받은 뒤에 남긴다. 낙관적 UI 라 화면은 먼저 바뀌는데, 저장이 실패한 것까지
+       * 퍼널에 세면 통과 수가 실제보다 부풀려진다.
+       */
+      if (!prevStatus) trackVisitEvent('wishlist_add', { popupId: popup.id });
     } catch (e) {
       setIsLiked(prevStatus);
       notifyError(t('detail.wishFailed'));
@@ -606,6 +616,14 @@ export default function PopupDetailClient({
                 href={popup.reservationUrl}
                 target="_blank"
                 rel="noopener noreferrer"
+                /*
+                 * C-4 퍼널의 마지막 단계. 이 서비스가 사용자를 위해 할 수 있는 가장 끝이라,
+                 * 여기까지 온 사람은 그 팝업에 실제로 갈 마음이 있다는 뜻이다.
+                 *
+                 * onClick 을 써도 이동을 막지 않는다 — trackVisitEvent 는 await 하지 않고
+                 * keepalive 로 보내므로, 새 탭이 열리는 동안에도 전송이 끊기지 않는다.
+                 */
+                onClick={() => trackVisitEvent('outbound_click', { popupId: popup.id })}
                 className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-lime-500 px-4 py-3 text-sm font-bold text-ink-900 transition hover:bg-lime-400"
               >
                 {t('detail.reserve')} <ExternalLink size={14} className="shrink-0" />
@@ -616,6 +634,7 @@ export default function PopupDetailClient({
                 href={popup.officialUrl}
                 target="_blank"
                 rel="noopener noreferrer"
+                onClick={() => trackVisitEvent('outbound_click', { popupId: popup.id })}
                 className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-gray-300 px-4 py-3 text-sm font-bold text-foreground transition hover:bg-black/[0.03] dark:border-white/15 dark:hover:bg-white/[0.05]"
               >
                 {t('detail.official')} <ExternalLink size={14} className="shrink-0" />
