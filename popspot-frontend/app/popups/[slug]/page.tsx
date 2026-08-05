@@ -801,7 +801,11 @@ export async function SliceLandingPage({ slug, locale }: { slug: string; locale:
       <div className="max-w-3xl mx-auto px-5 md:px-8 py-8 md:py-14">
         <Link
           href={home}
-          className="inline-flex items-center gap-1.5 text-xs md:text-sm text-muted-foreground hover:text-foreground transition mb-6"
+          /*
+           * 페이지 맨 위 되돌아가기. 글자 높이(16px)만큼밖에 안 돼 손가락으로 누르기 어려웠다.
+           * 글자 크기는 두고 위아래 여백으로 누를 면적만 넓힌다.
+           */
+          className="mb-4 inline-flex min-h-11 items-center gap-1.5 py-2 text-xs text-muted-foreground transition hover:text-foreground md:text-sm"
         >
           <ArrowLeft size={14} /> {copy.backHome}
         </Link>

@@ -140,7 +140,7 @@ export function Header({
             onClick={onBellClick}
             aria-label={unread > 0 ? `${t('nav.notifications')} ${unread}` : t('nav.notifications')}
             className={cn(
-              'relative inline-flex items-center justify-center h-10 w-10 rounded-pill',
+              'relative inline-flex items-center justify-center h-11 w-11 rounded-pill',
               'text-foreground hover:bg-foreground/5 transition-colors',
             )}
           >

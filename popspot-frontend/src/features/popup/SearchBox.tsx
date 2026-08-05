@@ -179,7 +179,16 @@ export function SearchZone({ onAiFilter, onSelectPopup, popups }: SearchZoneProp
           placeholder={t('search.placeholder')}
           aria-label={t('search.aria')}
           autoComplete="off"
-          className="h-14 w-full rounded-pill border-2 border-lime-300/40 bg-surface py-3.5 pl-12 pr-24 text-sm text-foreground transition-all placeholder:text-muted-foreground focus:border-lime-400 focus:outline-none focus:ring-4 focus:ring-lime-300/20 md:text-base"
+          /*
+           * 글자 크기를 16px 미만으로 두지 않는다.
+           *
+           * iOS 사파리는 글자가 16px 보다 작은 입력칸을 탭하면 <b>화면을 통째로 확대한다.</b>
+           * 사용자는 글을 치고 나서 손으로 다시 줄여야 하고, 그동안 레이아웃이 어긋나 보인다.
+           * 이 서비스는 방문자의 75% 가 모바일이라 그 대가가 크다.
+           *
+           * 예전엔 text-sm(14px) 이었다. md 부터는 원래대로 16px 이므로 데스크톱 모양은 그대로다.
+           */
+          className="h-14 w-full rounded-pill border-2 border-lime-300/40 bg-surface py-3.5 pl-12 pr-24 text-base text-foreground transition-all placeholder:text-muted-foreground focus:border-lime-400 focus:outline-none focus:ring-4 focus:ring-lime-300/20"
         />
         <button
           type="button"
