@@ -20,6 +20,7 @@ import java.time.format.ResolverStyle;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Matcher;
@@ -81,6 +82,28 @@ public class PopupNormalizationService {
     private static final int MAX_CONTENT_LEN = 2000;
 
     private static final String ERROR_EMPTY_NAME = "EMPTY_NAME";
+
+    /** 히라가나·가타카나. 한자는 뺀다 — 한국어 이름에도 정당하게 쓰여 오탐이 된다. */
+    private static final Pattern KANA = Pattern.compile("[\\u3040-\\u30ff]");
+
+    private static final Pattern HANGUL = Pattern.compile("[가-힣]");
+
+    /**
+     * LLM 이 한글 자리에 잘못 뱉는 가타카나 → 한글.
+     *
+     * <p><b>실제로 관측된 글자만 담는다.</b> 가타카나 전체를 옮기는 표를 만들면 <b>일본어가
+     * 정당하게 들어간 이름</b>까지 건드리고, 근거 없이 넣은 항목이 조용히 오작동한다. 모르는 글자는
+     * 그대로 두고 경고만 남기므로, 새 글자가 나오면 로그를 보고 여기 추가하면 된다.
+     *
+     * <p><b>키가 두 글자인 것이 있다.</b> {@code ニュ} 는 두 글자가 합쳐 한 음절(뉴)이다. 한 글자씩
+     * 바꾸면 "니유발란스" 가 되어 오히려 더 틀린다. 그래서 긴 키를 먼저 맞춘다.
+     *
+     * <p><b>{@code ン} 이나 홀로 남은 작은 가나({@code ァ ィ ゥ ェ ォ ャ ュ ョ})는 넣지 않는다.</b>
+     * 앞 음절에 붙는 글자라 한 음절로 대응되지 않는다 — {@code ン} 을 "ㄴ" 으로 바꾸면 "런ㄴ" 이
+     * 된다. 이런 것은 그대로 두고 경고를 남긴다.
+     */
+    private static final Map<String, String> KANA_TO_HANGUL =
+            Map.of("ニュ", "뉴", "ザ", "자", "ス", "스");
     private static final String ERROR_NOT_IN_SEOUL = "NOT_IN_SEOUL";
     private static final String ERROR_NO_DATE = "NO_DATE";
 
@@ -99,6 +122,9 @@ public class PopupNormalizationService {
             2) 배열의 각 원소 = 서로 다른 팝업스토어 1개. 같은 팝업을 두 번 넣지 마. 팝업이 하나도 없으면 빈 배열 [].
             3) 각 원소 필드:
                - name (string, 필수): 팝업 정식 이름. 명확하지 않으면 그 팝업은 배열에서 빼.
+                 ※ 한국어 이름은 한글로만 적어. 히라가나·가타카나를 섞지 마.
+                   예) "AK 플라ザ"(X) → "AK 플라자"(O),  "ニュ발란ス"(X) → "뉴발란스"(O)
+                   원래 이름이 통째로 일본어인 브랜드는 그대로 둬도 된다 — 섞는 것만 금지다.
                - location (string): 서울 내 주소. 모르면 "서울"만.
                - category (string): FASHION / FOOD / CULTURE / CHARACTER / BEAUTY / TECH / ETC 중 하나.
                - startDate (string): YYYY-MM-DD. 모르면 null.
@@ -557,6 +583,7 @@ public class PopupNormalizationService {
         if (isNameMissing(result)) {
             forceRejection(result, ERROR_EMPTY_NAME);
         }
+        fixKanaInKoreanName(result);
         if (isLocationOutsideSeoul(result)) {
             forceRejection(result, ERROR_NOT_IN_SEOUL);
         }
@@ -573,6 +600,70 @@ public class PopupNormalizationService {
      * <p>정규화된 날짜는 ISO({@code 2026-05-01}) 라 사전순 비교가 곧 시간순이다. 뒤집힌 구간은 LLM 이 잘못 뽑은 것이므로 어느 쪽도 믿을 수 없다
      * — 한쪽만 살리면 오히려 잘못된 만료 판정을 낳는다. 추측으로 바로잡지 않고 둘 다 null 로 둔다(날짜 없는 팝업으로 처리).
      */
+    /**
+     * 한글 이름에 섞여 들어온 <b>가나 한두 글자</b>를 한글로 되돌린다.
+     *
+     * <p><b>왜 생기나.</b> LLM 이 한글로 적어야 할 자리에 음이 비슷한 가타카나를 뱉는다.
+     * 2026-08-05 실측 — 1,012건 중 3건이었다.
+     *
+     * <pre>
+     *   ニュ발란ス 런유어웨이 10k        → 뉴발란스 …
+     *   AK 플라ザ 귀멸의 칼날 팝업스토어  → AK 플라자 …
+     * </pre>
+     *
+     * <p><b>왜 버리지 않고 고치나.</b> 이름 한 글자 때문에 팝업을 통째로 버리면 손해가 더 크다.
+     * 게다가 이 이름은 <b>메타 설명에 그대로 실려</b> 검색 결과에 나간다 — 거기 "플라ザ" 가 찍히면
+     * 사람이 눌러 볼 이유가 줄어든다.
+     *
+     * <p><b>왜 표 하나로 끝내나.</b> 가타카나 전체를 한글로 옮기는 일반 변환은 표가 백 줄이 넘고,
+     * 정작 일본어가 <b>정당하게</b> 들어간 이름(일본 브랜드)까지 건드린다. 그래서 <b>한글이 이미
+     * 섞여 있는 이름</b>에서, 실제로 관측된 오염 글자만 되돌린다. 모르는 글자는 손대지 않고
+     * 로그만 남긴다 — 조용히 지우면 이름이 더 망가진다.
+     */
+    private void fixKanaInKoreanName(NormalizedPopup result) {
+        String name = result.getName();
+        if (name == null || !KANA.matcher(name).find()) return;
+        // 한글이 없으면 일본어 이름일 수 있다. 그건 정상이므로 건드리지 않는다.
+        if (!HANGUL.matcher(name).find()) return;
+
+        StringBuilder sb = new StringBuilder(name.length());
+        boolean unknown = false;
+        for (int i = 0; i < name.length(); ) {
+            // 두 글자 키를 먼저 맞춘다 — ニュ 를 ニ + ュ 로 나누면 "니유" 가 되어 더 틀린다.
+            String two = i + 1 < name.length() ? name.substring(i, i + 2) : null;
+            String mapped = two != null ? KANA_TO_HANGUL.get(two) : null;
+            if (mapped != null) {
+                sb.append(mapped);
+                i += 2;
+                continue;
+            }
+            String one = name.substring(i, i + 1);
+            mapped = KANA_TO_HANGUL.get(one);
+            if (mapped != null) {
+                sb.append(mapped);
+            } else {
+                sb.append(one);
+                if (isKana(name.charAt(i))) unknown = true;
+            }
+            i++;
+        }
+        String fixed = sb.toString();
+        if (!fixed.equals(name)) {
+            log.info("[PopupNormalization] 이름의 가나를 한글로 되돌림: '{}' → '{}'", name, fixed);
+            result.setName(fixed);
+        }
+        if (unknown) {
+            log.warn(
+                    "[PopupNormalization] 표에 없는 가나가 이름에 남아 있다(그대로 둠): '{}'"
+                            + " — 자주 보이면 KANA_TO_HANGUL 에 추가할 것",
+                    fixed);
+        }
+    }
+
+    private static boolean isKana(char c) {
+        return (c >= '぀' && c <= 'ゟ') || (c >= '゠' && c <= 'ヿ');
+    }
+
     private void rejectInvertedDateRange(NormalizedPopup result) {
         String start = result.getStartDate();
         String end = result.getEndDate();
