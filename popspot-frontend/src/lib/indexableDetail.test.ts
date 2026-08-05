@@ -116,4 +116,24 @@ describe('경계', () => {
     expect(isIndexableDetail(m, '2026-08-04')).toBe(true);
     expect(isIndexableDetail(m, '2026-08-05')).toBe(false);
   });
+
+  /**
+   * 길이 검사가 지명 목록보다 먼저 돌던 버그. HAS_VENUE 26개 중 9개가 두 글자라, 등록해 둔
+   * 지명이 그 앞의 {@code rest.length < 3} 에서 잘렸다. 2026-08-05 실측 25건이 여기 걸려 있었다.
+   *
+   * <p>이 테스트가 없으면 "두 글자는 동네인지 오타인지 모른다" 는 이유로 길이 검사를 다시 앞으로
+   * 옮기는 변경이 조용히 통과한다.
+   */
+  it.each(['서울 명동', '서울 홍대', '서울 잠실', '서울 목동', '서울 신촌', '서울 한남'])(
+    '두 글자라도 등록된 지명이면 통과한다 — %s',
+    (location) => {
+      expect(isIndexableDetail({ name: 'x', location, endDate: '2026-09-01' }, TODAY)).toBe(true);
+    },
+  );
+
+  it('등록 안 된 두 글자는 여전히 떨어진다 — 오타와 구분할 방법이 없다', () => {
+    for (const location of ['서울 성수', '서울 판교', '서울 방배']) {
+      expect(isIndexableDetail({ name: 'x', location, endDate: '2026-09-01' }, TODAY)).toBe(false);
+    }
+  });
 });
