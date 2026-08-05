@@ -28,7 +28,12 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class SlaNotificationScheduler {
 
-    private static final int SLA_HOURS = 24;
+    /**
+     * 약관 §11 이 약속한 처리 기한. {@link TakedownNotifier} 가 접수 메일에 적는 조치 기한과 <b>같은 값이어야 한다</b> — 한쪽만 바꾸면
+     * "24시간 안에 조치" 라고 보내 놓고 다른 기준으로 감사하게 된다. 그래서 상수를 나누지 않고 이 하나를 같은 패키지에서 공유한다.
+     */
+    static final int SLA_HOURS = 24;
+
     private static final String FEEDBACK_PENDING = "PENDING";
 
     private final FeedbackRepository feedbackRepository;
