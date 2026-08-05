@@ -206,7 +206,7 @@ export default function NowWait({ popupId }: { popupId: number }) {
               type="button"
               disabled={sending}
               onClick={() => report(l.value)}
-              className={`rounded-xl border border-[var(--color-border)] bg-cream-100 px-2 py-3 text-xs font-bold text-foreground transition active:scale-95 disabled:opacity-50 dark:bg-ink-800 ${TONE_CLASS[l.tone].btn}`}
+              className={`rounded-xl border border-[var(--color-border)] bg-cream-100 px-2 py-3 min-h-11 text-xs font-bold text-foreground transition active:scale-95 disabled:opacity-50 dark:bg-ink-800 ${TONE_CLASS[l.tone].btn}`}
             >
               {copy.levels[l.value][0]}
             </button>

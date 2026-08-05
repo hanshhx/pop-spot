@@ -256,12 +256,17 @@ export default function ChatRoom({ roomId, nickname }: Props) {
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
           placeholder={copy.placeholder}
-          className="flex-1 bg-gray-100 dark:bg-black/20 rounded-full px-3 py-2 md:px-4 md:py-3 text-xs md:text-sm focus:outline-none dark:text-white"
+          /*
+           * 16px 미만이면 iOS 사파리가 탭할 때 화면을 확대한다. 채팅은 말 그대로 타이핑하는
+           * 자리라 그 확대가 매번 일어난다 — 예전엔 text-xs(12px) 였다.
+           * 높이는 py 로 맞춰 두어 글자만 커지고 칸이 과하게 굵어지지는 않는다.
+           */
+          className="min-h-11 flex-1 rounded-full bg-gray-100 px-3 py-2 text-base focus:outline-none md:px-4 md:py-3 dark:bg-black/20 dark:text-white"
         />
         <button
           onClick={sendMessage}
           aria-label={copy.send}
-          className="p-2 md:p-3 bg-[#ffeb33] hover:bg-[#ffe600] rounded-full text-black shadow-sm shrink-0"
+          className="grid min-h-11 min-w-11 place-items-center p-2 md:p-3 bg-[#ffeb33] hover:bg-[#ffe600] rounded-full text-black shadow-sm shrink-0"
         >
           <Send
             size={16}

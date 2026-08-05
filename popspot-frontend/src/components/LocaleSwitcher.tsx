@@ -45,7 +45,12 @@ export default function LocaleSwitcher({
             hrefLang={code}
             onClick={() => setLocale(code)}
             aria-current={active ? 'true' : undefined}
-            className={`rounded-pill px-2.5 py-1 text-[11px] font-bold transition ${
+            /*
+             * 세 칸이 나란히 붙어 있어 하나가 작으면 <b>옆 언어를 잘못 누른다.</b> 실측에서
+             * 48x25 였다. 알약 모양은 그대로 두고 최소 높이와 좌우 여백만 키워, 잘못 눌러
+             * 페이지가 통째로 다른 언어로 바뀌는 일을 줄인다.
+             */
+            className={`inline-flex min-h-11 min-w-11 items-center justify-center rounded-pill px-3 py-2 text-[11px] font-bold transition ${
               active
                 ? 'bg-lime-300 text-ink-900'
                 : 'text-muted-foreground hover:bg-black/5 dark:hover:bg-white/10'

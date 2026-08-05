@@ -447,7 +447,7 @@ export default function PopupDetailClient({
           <button
             onClick={() => router.back()}
             aria-label={t('common.back')}
-            className="grid h-10 w-10 place-items-center rounded-full bg-black/40 text-white backdrop-blur-md transition hover:bg-black/60"
+            className="grid h-11 w-11 place-items-center rounded-full bg-black/40 text-white backdrop-blur-md transition hover:bg-black/60"
           >
             <ArrowLeft size={20} />
           </button>
@@ -455,14 +455,14 @@ export default function PopupDetailClient({
             <button
               onClick={handleShare}
               aria-label={t('common.share')}
-              className="grid h-10 w-10 place-items-center rounded-full bg-black/40 text-white backdrop-blur-md transition hover:bg-black/60"
+              className="grid h-11 w-11 place-items-center rounded-full bg-black/40 text-white backdrop-blur-md transition hover:bg-black/60"
             >
               <Share2 size={18} />
             </button>
             <button
               onClick={handleToggleLike}
               aria-label={t('common.wishlist')}
-              className={`grid h-10 w-10 place-items-center rounded-full backdrop-blur-md transition ${
+              className={`grid h-11 w-11 place-items-center rounded-full backdrop-blur-md transition ${
                 isLiked ? 'bg-hot-400 text-white' : 'bg-black/40 text-white hover:bg-black/60'
               }`}
             >
@@ -669,7 +669,12 @@ export default function PopupDetailClient({
                     href={popup.sourceUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-lime-600 underline dark:text-lime-400 md:text-sm"
+                    /*
+                     * 글자만 있는 링크는 높이가 글자 높이(16px)라 손가락으로 정확히 누르기 어렵다.
+                     * 글자 크기는 그대로 두고 위아래 여백으로 누를 면적만 44px 로 넓힌다 —
+                     * 겉모습을 키우면 본문 흐름이 흐트러진다.
+                     */
+                    className="mt-1 inline-flex min-h-11 items-center gap-1.5 py-2 text-xs font-semibold text-lime-600 underline dark:text-lime-400 md:text-sm"
                   >
                     {t('detail.viewSource')} <ExternalLink size={12} className="shrink-0" />
                   </a>
@@ -692,7 +697,7 @@ export default function PopupDetailClient({
               </p>
               <button
                 onClick={() => setTakedownOpen(true)}
-                className="inline-flex items-center gap-1.5 text-xs font-semibold text-red-500 underline hover:text-red-400 md:text-sm"
+                className="inline-flex min-h-11 items-center gap-1.5 py-2 text-xs font-semibold text-red-500 underline hover:text-red-400 md:text-sm"
               >
                 {t('detail.reportAction')} <ShieldAlert size={12} />
               </button>
