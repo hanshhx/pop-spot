@@ -1,5 +1,6 @@
 package com.example.popspotbackend.controller;
 
+import com.example.popspotbackend.dto.FunnelDto;
 import com.example.popspotbackend.dto.SessionStatsDto;
 import com.example.popspotbackend.dto.VisitReferrerDto;
 import com.example.popspotbackend.dto.VisitStatsDto;
@@ -47,6 +48,20 @@ public class AdminVisitController {
     public ResponseEntity<SessionStatsDto> getSessionStats(
             @RequestParam(defaultValue = "7") int days) {
         return ResponseEntity.ok(visitService.getSessionStats(days));
+    }
+
+    /**
+     * C-4 퍼널 — 방문 → 상세 열기 → 찜 → 예약·공식 링크 → 다시 방문.
+     *
+     * <p>각 칸은 <b>사람 수</b>다. 한 사람이 팝업 스무 개를 연 것과 스무 명이 하나씩 연 것이 같아
+     * 보이면 안 되기 때문이다.
+     *
+     * <p>응답의 {@code note} 는 화면이 그대로 보여 줄 한 줄이다 — 찜·외부이동은 최근에야 수집을
+     * 시작해서 그 전 기간은 0 으로 보인다는 사실을 담는다.
+     */
+    @GetMapping("/funnel")
+    public ResponseEntity<FunnelDto> getFunnel(@RequestParam(defaultValue = "30") int days) {
+        return ResponseEntity.ok(visitService.getFunnel(days));
     }
 
     /** 오늘 방문 경로별 집계(경로·총·회원·게스트) — 유입이 어디서/누구인지 진단용. */

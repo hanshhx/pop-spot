@@ -50,13 +50,37 @@ public class VisitEvent {
     public static final String TYPE_POPUP_SHARE = "popup_share";
 
     /**
+     * 팝업을 찜했다 — C-4 퍼널의 "저장" 단계.
+     *
+     * <p>찜 해제는 남기지 않는다. 퍼널이 묻는 것은 "관심을 표시한 적이 있나" 이고, 나중에 마음이
+     * 바뀐 것은 그 단계를 통과했다는 사실을 지우지 않는다.
+     */
+    public static final String TYPE_WISHLIST_ADD = "wishlist_add";
+
+    /**
+     * 공식 사이트·예약 링크로 나갔다 — C-4 퍼널의 마지막 단계.
+     *
+     * <p>이 서비스가 사용자를 위해 할 수 있는 <b>가장 끝</b>이다. 여기까지 왔으면 그 팝업에 실제로
+     * 갈 마음이 있다는 뜻이라, 어떤 팝업이 "보기만 하고 마는" 것과 "움직이게 하는" 것인지 가른다.
+     *
+     * <p>나간 주소는 남기지 않는다. 어떤 팝업에서 나갔는지({@code popup_id})면 충분하고, 외부 URL 을
+     * 쌓아 두면 수집 항목이 방침에 적힌 목록보다 넓어진다.
+     */
+    public static final String TYPE_OUTBOUND_CLICK = "outbound_click";
+
+    /**
      * 받아들이는 행동 종류.
      *
      * <p>목록에 없는 값은 <b>저장하지 않는다.</b> 자유 문자열로 두면 오타가 새 종류로 쌓여 집계가 갈라지고, 클라이언트가 보낸 아무 값이나 DB 에 들어간다.
      * 종류를 늘릴 때는 여기에 먼저 추가한다 — 그때 개인정보 처리방침의 "정해진 목록" 서술도 함께 본다.
      */
     public static final Set<String> ALLOWED_TYPES =
-            Set.of(TYPE_POPUP_OPEN, TYPE_MAP_SEARCH, TYPE_POPUP_SHARE);
+            Set.of(
+                    TYPE_POPUP_OPEN,
+                    TYPE_MAP_SEARCH,
+                    TYPE_POPUP_SHARE,
+                    TYPE_WISHLIST_ADD,
+                    TYPE_OUTBOUND_CLICK);
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
