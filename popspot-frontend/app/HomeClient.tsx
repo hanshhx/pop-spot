@@ -1631,7 +1631,15 @@ export default function Home({ initialPopups = [] }: HomeProps) {
                     </button>
                   </div>
                 </header>
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 lg:gap-6 h-auto lg:h-[440px]">
+                {/*
+                  높이를 고정하지 않고 <b>최소값</b>으로 둔다.
+                  예전엔 lg:h-[440px] 였는데, 그 값은 순위 목록이 3행이던 시절에 맞춘 것이다.
+                  행을 7개로 늘리자 내용이 674px 이 되어 234px 이 카드 밖으로 튀어나왔고,
+                  아래 섹션 글자와 겹쳐 보였다. 고정 높이는 내용이 늘면 <b>잘리는 게 아니라
+                  넘쳐서</b> 다른 것을 덮는다 — overflow 가 visible 이라 잘림 경고도 안 뜬다.
+                  1위 카드의 이미지는 object-cover 라 높이가 늘어도 비율이 깨지지 않는다.
+                */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 lg:gap-6 h-auto lg:min-h-[440px]">
                   {/* 1위 히어로 */}
                   <article
                     role="button"
