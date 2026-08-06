@@ -49,11 +49,11 @@ public interface PopupImageRepository extends JpaRepository<PopupImage, Long> {
     @Query(
             value =
                     "INSERT INTO popup_image (image_url, main_yn, popup_id, photo_origin,"
-                        + " pexels_photo_id, photo_source_url, photo_credit_name, photo_credit_url)"
-                        + " SELECT :imageUrl, 'Y', :popupId, 'PEXELS', :photoId, :sourceUrl,"
-                        + " :creditName, :creditUrl WHERE NOT EXISTS (SELECT 1 FROM popup_image"
-                        + " WHERE popup_id = :popupId) AND NOT EXISTS (SELECT 1 FROM popup_image"
-                        + " WHERE image_url = :imageUrl) ON CONFLICT DO NOTHING",
+                            + " pexels_photo_id, photo_source_url, photo_credit_name, photo_credit_url)"
+                            + " SELECT :imageUrl, 'Y', :popupId, 'PEXELS', :photoId, :sourceUrl,"
+                            + " :creditName, :creditUrl WHERE NOT EXISTS (SELECT 1 FROM popup_image"
+                            + " WHERE popup_id = :popupId) AND NOT EXISTS (SELECT 1 FROM popup_image"
+                            + " WHERE image_url = :imageUrl) ON CONFLICT DO NOTHING",
             nativeQuery = true)
     int insertMainPexelsImageIfUnused(
             @Param("popupId") Long popupId,

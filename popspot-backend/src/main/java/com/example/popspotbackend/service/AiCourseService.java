@@ -1,7 +1,5 @@
 package com.example.popspotbackend.service;
 
-import org.springframework.web.server.ResponseStatusException;
-import org.springframework.http.HttpStatus;
 import com.example.popspotbackend.service.ai.UserLlmInvoker;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.Collections;
@@ -9,7 +7,9 @@ import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 /**
  * LLM 으로 성수동 코스를 동적으로 추천한다.
