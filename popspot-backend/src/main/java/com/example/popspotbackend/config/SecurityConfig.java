@@ -165,6 +165,27 @@ public class SecurityConfig {
                                         .permitAll()
                                         .requestMatchers("/actuator/health", "/actuator/health/**")
                                         .permitAll()
+                                        // D-4 — 역할을 나눈 두 구역. 아래 "/api/admin/**"
+                                        // 보다 먼저 와야 한다(앞선 규칙이 이긴다).
+                                        //
+                                        // 나누지 않은 경로는 아래 규칙에 걸려 ADMIN 전용으로
+                                        // 남는다. 새로 생기는 관리자 화면이 <b>기본적으로
+                                        // 닫혀 있는</b> 쪽이라, 여기를 넓히는 것보다 안전하다.
+                                        //
+                                        // 정확 경로와 "/**" 를 함께 적는다 — 목록 조회는
+                                        // 하위 경로가 아니라 이 경로 그대로 부른다.
+                                        .requestMatchers(
+                                                "/api/admin/audit",
+                                                "/api/admin/audit/**",
+                                                "/api/admin/security",
+                                                "/api/admin/security/**")
+                                        .hasAnyRole("ADMIN", "SECURITY")
+                                        .requestMatchers(
+                                                "/api/admin/visits",
+                                                "/api/admin/visits/**",
+                                                "/api/admin/metrics",
+                                                "/api/admin/metrics/**")
+                                        .hasAnyRole("ADMIN", "ANALYTICS")
                                         .requestMatchers("/api/admin/**")
                                         .hasRole("ADMIN")
                                         .requestMatchers("/actuator/**")
