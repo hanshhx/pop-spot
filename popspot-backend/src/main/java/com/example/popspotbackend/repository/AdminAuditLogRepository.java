@@ -95,7 +95,7 @@ public interface AdminAuditLogRepository extends JpaRepository<AdminAuditLog, Lo
      */
     @Query(
             "SELECT DISTINCT a.actorIp FROM AdminAuditLog a WHERE a.createdAt >= :since AND"
-                + " a.createdAt < :until AND a.actorIp IS NOT NULL")
+                    + " a.createdAt < :until AND a.actorIp IS NOT NULL")
     List<String> distinctIpsBetween(
             @Param("since") LocalDateTime since, @Param("until") LocalDateTime until);
 }

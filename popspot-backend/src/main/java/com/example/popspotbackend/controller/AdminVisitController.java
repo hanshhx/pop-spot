@@ -38,11 +38,10 @@ public class AdminVisitController {
     /**
      * C-3 — 세션 기준 요약. 세션 수 · 신규/재방문 · 재방문율 · 세션당 행동 수.
      *
-     * <p>수집은 이미 되고 있었고({@code visit_event.session_id}) 읽는 곳만 없었다. 새로 쌓는 것 없이
-     * 집계만 한다.
+     * <p>수집은 이미 되고 있었고({@code visit_event.session_id}) 읽는 곳만 없었다. 새로 쌓는 것 없이 집계만 한다.
      *
-     * @param days 최근 며칠. 화면은 7·30·90 을 준다. 보관기간을 넘겨 물으면 응답의 {@code truncated}
-     *     가 {@code true} 로 와서 "그만큼 재방문이 덜 잡혔다" 를 알린다
+     * @param days 최근 며칠. 화면은 7·30·90 을 준다. 보관기간을 넘겨 물으면 응답의 {@code truncated} 가 {@code true} 로 와서
+     *     "그만큼 재방문이 덜 잡혔다" 를 알린다
      */
     @GetMapping("/sessions")
     public ResponseEntity<SessionStatsDto> getSessionStats(
@@ -53,11 +52,9 @@ public class AdminVisitController {
     /**
      * C-4 퍼널 — 방문 → 상세 열기 → 찜 → 예약·공식 링크 → 다시 방문.
      *
-     * <p>각 칸은 <b>사람 수</b>다. 한 사람이 팝업 스무 개를 연 것과 스무 명이 하나씩 연 것이 같아
-     * 보이면 안 되기 때문이다.
+     * <p>각 칸은 <b>사람 수</b>다. 한 사람이 팝업 스무 개를 연 것과 스무 명이 하나씩 연 것이 같아 보이면 안 되기 때문이다.
      *
-     * <p>응답의 {@code note} 는 화면이 그대로 보여 줄 한 줄이다 — 찜·외부이동은 최근에야 수집을
-     * 시작해서 그 전 기간은 0 으로 보인다는 사실을 담는다.
+     * <p>응답의 {@code note} 는 화면이 그대로 보여 줄 한 줄이다 — 찜·외부이동은 최근에야 수집을 시작해서 그 전 기간은 0 으로 보인다는 사실을 담는다.
      */
     @GetMapping("/funnel")
     public ResponseEntity<FunnelDto> getFunnel(@RequestParam(defaultValue = "30") int days) {
