@@ -24,7 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/admin/audit")
 @RequiredArgsConstructor
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("hasAnyRole('ADMIN','SECURITY')")
 public class AdminAuditController {
 
     /** 한 번에 가져올 수 있는 최대치. 화면이 감당하지 못할 양을 요청해 서버를 붙잡지 못하게 한다. */

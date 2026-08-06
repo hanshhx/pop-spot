@@ -63,7 +63,22 @@ public class User {
     @JsonIgnore
     private String phoneNumber;
 
-    /** ROLE_USER / ROLE_ADMIN. Spring Security 접두사 규칙을 따른다. */
+    /**
+     * Spring Security 접두사 규칙을 따른다. <b>한 사람에 하나</b>다(칼럼이 하나라서).
+     *
+     * <ul>
+     *   <li>{@code ROLE_USER} — 기본
+     *   <li>{@code ROLE_ADMIN} — 전권. 아래 둘이 보는 것을 모두 본다
+     *   <li>{@code ROLE_SECURITY} — 감사 로그·보안 현황판·IP 차단만
+     *   <li>{@code ROLE_ANALYTICS} — 방문 통계·서버 지표만
+     * </ul>
+     *
+     * <p>D-4 에서 뒤의 둘을 추가했다. 지금 관리자는 {@code ROLE_ADMIN} 하나뿐이라 <b>동작이 달라지지 않는다</b> — 두 번째 사람에게 방문 통계만
+     * 열어 줄 수 있도록 자리를 만들어 둔 것이다.
+     *
+     * <p>계층을 쓰지 않고 권한식에 역할을 그대로 나열한다. 계층이 메서드 보안까지 연결되는지는 Spring 버전마다 다른데, 연결이 안 되면 증상이 "관리자가 자기
+     * 화면에서 403" 이라 대가가 너무 크다.
+     */
     @Column(nullable = false)
     @JsonIgnore
     private String role;
