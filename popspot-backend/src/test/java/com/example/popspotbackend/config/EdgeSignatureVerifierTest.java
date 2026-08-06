@@ -170,6 +170,52 @@ class EdgeSignatureVerifierTest {
         }
     }
 
+    /*
+     * ---------------------------------------------------------------------
+     * 시각 어긋남 경고 — 원인을 구분할 수 있게 적는가.
+     *
+     * 운영에서 이 경고가 사흘에 걸쳐 네 번 떴는데, "얼마나" 어긋났는지가 없어서
+     * 연결 지연인지 오래된 서명 재사용인지 가릴 수 없었다. 완전히 다른 사건이
+     * 똑같은 문장으로 나오면 로그를 봐도 할 수 있는 일이 없다.
+     * ---------------------------------------------------------------------
+     */
+
+    @Test
+    @DisplayName("얼마나 어긋났는지 숫자로 적는다 — 이게 없으면 원인을 못 가린다")
+    void skewMessageSaysHowFarOff() {
+        String message = EdgeSignatureVerifier.describeSkew(Duration.ofMinutes(12).toMillis());
+
+        assertThat(message).contains("12분");
+    }
+
+    @Test
+    @DisplayName("한참 지난 서명은 재사용 의심으로 적는다 — 몇 분 지연과 다른 사건이다")
+    void skewMessageFlagsLikelyReplay() {
+        String message = EdgeSignatureVerifier.describeSkew(Duration.ofHours(3).toMillis());
+
+        assertThat(message).contains("재사용");
+        assertThat(message).describedAs("몇 분짜리 지연과 뭉뚱그리면 안 된다").doesNotContain("연결");
+    }
+
+    @Test
+    @DisplayName("몇 분짜리 지연은 재사용으로 몰지 않는다 — 잘못된 경보는 곧 무시된다")
+    void skewMessageDoesNotCryReplayForShortDelay() {
+        String message = EdgeSignatureVerifier.describeSkew(Duration.ofMinutes(12).toMillis());
+
+        assertThat(message).doesNotContain("재사용");
+    }
+
+    @Test
+    @DisplayName("서명 시각이 미래면 시계 문제로 적는다 — 재사용으로는 설명이 안 된다")
+    void skewMessageHandlesFutureSignature() {
+        // 아직 오지 않은 시각의 서명은 주워서 쓸 수가 없다. 남는 설명은 시계뿐이다.
+        String message = EdgeSignatureVerifier.describeSkew(-Duration.ofMinutes(20).toMillis());
+
+        assertThat(message).contains("20분");
+        assertThat(message).contains("시계");
+        assertThat(message).doesNotContain("재사용");
+    }
+
     @Test
     @DisplayName("대문자 16진수도 받아들인다 — 표기 차이로 전면 실패하지 않게")
     void acceptsUppercaseHex() throws Exception {
