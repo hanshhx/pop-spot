@@ -35,7 +35,7 @@ const RANGES = [
   { days: 30, label: '한 달' },
 ] as const;
 
-export function SecurityOverview() {
+export function SecurityOverview({ onReauthRequired }: { onReauthRequired?: () => void }) {
   const [days, setDays] = useState<number>(7);
   const [data, setData] = useState<Overview | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -45,14 +45,20 @@ export function SecurityOverview() {
     setError(null);
     apiFetch(`/api/admin/audit/overview?days=${days}`)
       .then((res) => {
+        // D-3 — 428 은 "권한 없음" 이 아니라 "본인 확인 한 번 더" 다. 위에서 확인창을 띄운다.
+        if (res.status === 428) {
+          if (!cancelled) onReauthRequired?.();
+          throw new Error('428');
+        }
         if (!res.ok) throw new Error(String(res.status));
         return res.json();
       })
       .then((d: Overview) => {
         if (!cancelled) setData(d);
       })
-      .catch(() => {
-        if (!cancelled) setError('보안 현황을 불러오지 못했습니다.');
+      .catch((e: Error) => {
+        // 428 은 고장이 아니라 확인 대기다. 오류 문구를 띄우면 확인창 뒤에 빨간 글씨가 남는다.
+        if (!cancelled && e.message !== '428') setError('보안 현황을 불러오지 못했습니다.');
       });
     return () => {
       cancelled = true;
@@ -112,9 +118,9 @@ export function SecurityOverview() {
             <p className="mt-3 flex items-start gap-1.5 text-[11px] leading-relaxed text-muted-foreground">
               <EyeOff size={13} className="mt-0.5 shrink-0" aria-hidden />
               <span>
-                이 중 <b>{data.unknownOrigin}건</b>은 접속지를 알 수 없습니다 — 업로드·사진 백필·중복
-                정리·로그 스트림은 Vercel 을 거치지 않아 접속자를 증명할 수 없습니다. 위 &ldquo;처음 보는
-                접속지&rdquo;는 이 건들을 보지 못합니다.
+                이 중 <b>{data.unknownOrigin}건</b>은 접속지를 알 수 없습니다 — 업로드·사진
+                백필·중복 정리·로그 스트림은 Vercel 을 거치지 않아 접속자를 증명할 수 없습니다. 위
+                &ldquo;처음 보는 접속지&rdquo;는 이 건들을 보지 못합니다.
               </span>
             </p>
           )}

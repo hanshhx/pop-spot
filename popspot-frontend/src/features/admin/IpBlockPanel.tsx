@@ -39,7 +39,7 @@ function remainingText(seconds: number): string {
   return `${Math.floor(minutes / 60)}시간 ${minutes % 60}분 남음`;
 }
 
-export function IpBlockPanel() {
+export function IpBlockPanel({ onReauthRequired }: { onReauthRequired?: () => void }) {
   const [blocks, setBlocks] = useState<Block[] | null>(null);
   const [ip, setIp] = useState('');
   const [reason, setReason] = useState('');
@@ -50,13 +50,18 @@ export function IpBlockPanel() {
   const load = useCallback(async () => {
     try {
       const res = await apiFetch(ENDPOINT);
+      // D-3 — 428 은 고장이 아니라 "본인 확인 한 번 더" 다. 위에서 확인창을 띄운다.
+      if (res.status === 428) {
+        onReauthRequired?.();
+        return;
+      }
       if (!res.ok) throw new Error(String(res.status));
       setBlocks(await res.json());
     } catch {
       setBlocks([]);
       setMessage('차단 목록을 불러오지 못했습니다.');
     }
-  }, []);
+  }, [onReauthRequired]);
 
   useEffect(() => {
     void load();
@@ -70,6 +75,10 @@ export function IpBlockPanel() {
         method: 'POST',
         body: JSON.stringify({ ip: ip.trim(), reason: reason.trim(), minutes }),
       });
+      if (res.status === 428) {
+        onReauthRequired?.();
+        return;
+      }
       const data = await res.json();
 
       // 거절 사유는 서버가 사람 말로 보내 준다. 그냥 "실패" 로 뭉개면 뭘 고쳐야 할지 모른다.
