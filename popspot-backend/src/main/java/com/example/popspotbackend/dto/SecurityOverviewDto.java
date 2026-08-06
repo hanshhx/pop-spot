@@ -14,9 +14,8 @@ import java.util.List;
  *   <li>회원 개인정보를 언제 꺼냈나
  * </ol>
  *
- * <p><b>알림이 아니라 현황판이다.</b> 임계값을 정해 자동으로 경보를 울리려면 "평소" 가 무엇인지
- * 알아야 하는데, 아직 그 기준선이 없다. 먼저 보이게 만들고, 평소 모양이 쌓인 뒤에 경보를 얹는
- * 편이 순서가 맞다 — 기준 없이 울리는 경보는 곧 무시된다.
+ * <p><b>알림이 아니라 현황판이다.</b> 임계값을 정해 자동으로 경보를 울리려면 "평소" 가 무엇인지 알아야 하는데, 아직 그 기준선이 없다. 먼저 보이게 만들고, 평소
+ * 모양이 쌓인 뒤에 경보를 얹는 편이 순서가 맞다 — 기준 없이 울리는 경보는 곧 무시된다.
  *
  * @param days 집계 구간
  * @param total 기간 안의 관리자 작업 수
@@ -25,6 +24,8 @@ import java.util.List;
  * @param byTarget 대상 종류별 건수
  * @param newIps 직전 같은 길이의 구간에는 없던 IP — 처음 보는 접속지
  * @param knownIpCount 직전 구간에도 있었던 IP 수
+ * @param unknownOrigin 접속지를 <b>알 수 없는</b> 작업 수 — 위 2번의 사각지대 크기다. Vercel 을 거치지 않는 경로(업로드·사진 백필·중복
+ *     정리·로그 스트림)는 접속자 IP 를 증명할 수 없어 아무것도 남기지 않는다. 이 값을 안 보여 주면 그 작업들은 현황판에서 <b>없었던 일</b>처럼 보인다
  * @param destructive 삭제 작업 최근 목록
  * @param memberDataAccess 회원 개인정보를 만진 최근 목록
  */
@@ -36,6 +37,7 @@ public record SecurityOverviewDto(
         List<TargetCount> byTarget,
         List<String> newIps,
         int knownIpCount,
+        long unknownOrigin,
         List<Entry> destructive,
         List<Entry> memberDataAccess) {
 
@@ -44,8 +46,8 @@ public record SecurityOverviewDto(
     /**
      * 한 줄.
      *
-     * @param ip <b>가려서 넣는다.</b> 현황판은 "낯선 곳인가" 만 알면 되고, 온전한 주소는
-     *     감사 로그 원본에 있다 — 요약 화면까지 평문으로 복제할 이유가 없다
+     * @param ip <b>가려서 넣는다.</b> 현황판은 "낯선 곳인가" 만 알면 되고, 온전한 주소는 감사 로그 원본에 있다 — 요약 화면까지 평문으로 복제할 이유가
+     *     없다
      */
     public record Entry(String at, String actor, String action, String target, String ip) {}
 
