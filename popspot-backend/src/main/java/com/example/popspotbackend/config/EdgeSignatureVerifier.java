@@ -72,12 +72,23 @@ public class EdgeSignatureVerifier {
     /** 검증 실패 경고는 분당 한 번만. 공격받는 동안 로그가 디스크를 채우면 안 된다. */
     private static final long WARN_INTERVAL_MS = Duration.ofMinutes(1).toMillis();
 
+    /**
+     * 이만큼 지난 서명은 <b>지연으로 설명하지 않는다.</b>
+     *
+     * <p>{@link #MAX_SKEW_MS}(10분)를 조금 넘긴 것은 회선이 잠깐 멎어도 생긴다. 하지만 한 시간이 지나도록 살아 있는 요청은 없다 — 그 정도면
+     * 누군가 서명을 따로 보관했다가 다시 보낸 쪽이 더 그럴듯하다. 둘을 같은 문장으로 적으면 진짜 재사용이 지연 속에 묻힌다.
+     */
+    private static final long REPLAY_SUSPECT_MS = Duration.ofHours(1).toMillis();
+
     /** 지문 길이(16진수 글자 수). 셸에서 {@code sha256sum | cut -c1-12} 로 낸 값과 같아야 한다. */
     private static final int FINGERPRINT_LENGTH = 12;
 
     private final byte[] secret;
     private final String keyFingerprint;
     private final AtomicLong lastWarnAt = new AtomicLong(0);
+
+    /** 분당 1회 제한에 걸려 안 남긴 경고 수. 남길 때 함께 적고 0 으로 되돌린다. */
+    private final AtomicLong suppressedWarns = new AtomicLong(0);
 
     /**
      * 첫 성공을 한 번만 알리기 위한 표시.
@@ -159,9 +170,9 @@ public class EdgeSignatureVerifier {
             return null;
         }
 
-        if (Math.abs(System.currentTimeMillis() - signedAt) > MAX_SKEW_MS) {
-            // 정상 트래픽에서 이게 뜨면 십중팔구 양쪽 시계가 어긋난 것이다(NTP 확인).
-            warnThrottled("[EdgeSig] 서명 시각이 허용 범위를 벗어남 — 서버 시계를 확인할 것");
+        long drift = System.currentTimeMillis() - signedAt;
+        if (Math.abs(drift) > MAX_SKEW_MS) {
+            warnThrottled(describeSkew(drift));
             return null;
         }
 
@@ -231,12 +242,50 @@ public class EdgeSignatureVerifier {
         return hex.toString();
     }
 
+    /**
+     * 서명 시각이 어긋났을 때 <b>원인을 가릴 수 있게</b> 적는다.
+     *
+     * <p>예전에는 "허용 범위를 벗어남 — 서버 시계를 확인할 것" 한 줄뿐이었다. 그 문장으로는 <b>완전히 다른 세 사건</b>이 똑같이 보인다 — 회선이 잠깐 멎은
+     * 것, 오래된 서명을 주워 쓴 것, 시계가 진짜로 틀어진 것. 운영에서 사흘에 걸쳐 네 번 떴을 때 셋 중 무엇인지 가릴 수가 없었다.
+     *
+     * <p>가르는 기준은 <b>방향과 크기</b>다. 아직 오지 않은 시각의 서명은 주워서 쓸 수가 없으므로 미래 쪽은 시계 문제로만 설명된다. 과거 쪽은 몇 분이면 지연이
+     * 그럴듯하지만, 한 시간을 넘으면 그 요청이 그동안 살아 있었다고 보기 어렵다.
+     *
+     * <p>IP 는 넣지 않는다. 경고 한 줄 때문에 접속자 주소가 로그에 평문으로 쌓이면, 이 검증이 지키려던 것을 스스로 흘리는 셈이다.
+     *
+     * @param driftMs {@code 지금 - 서명시각}. 양수면 서명이 과거, 음수면 미래
+     */
+    static String describeSkew(long driftMs) {
+        long minutes = Math.abs(driftMs) / 60_000;
+
+        if (driftMs < 0) {
+            return "[EdgeSig] 서명 시각이 " + minutes + "분 앞서 있다 — 서버 시계를 확인할 것(NTP)";
+        }
+        if (driftMs >= REPLAY_SUSPECT_MS) {
+            return "[EdgeSig] 서명이 " + minutes + "분 지난 것 — 오래된 서명을 재사용한 요청으로 의심된다";
+        }
+        return "[EdgeSig] 서명이 " + minutes + "분 지난 것 — 회선이 잠깐 멎었을 수 있다. 잦으면 서버 시계와 회선을 확인할 것";
+    }
+
+    /**
+     * 분당 한 번만 남기되, <b>그 사이 몇 건을 삼켰는지 함께 적는다.</b>
+     *
+     * <p>세지 않으면 "4건" 이 진짜 네 번인지 4분간의 폭주인지 알 수 없다. 실제로 운영 로그를 보고 그 구분을 못 해서, 무시해도 되는 일인지 판단하는 데 시간을
+     * 썼다. 한 줄에 숫자 하나만 더 있으면 되는 일이었다.
+     */
     private void warnThrottled(String message) {
         long now = System.currentTimeMillis();
         long previous = lastWarnAt.get();
         if (now - previous >= WARN_INTERVAL_MS && lastWarnAt.compareAndSet(previous, now)) {
-            log.warn("{} (이 경고는 분당 한 번만 남는다)", message);
+            long swallowed = suppressedWarns.getAndSet(0);
+            if (swallowed > 0) {
+                log.warn("{} (분당 한 번만 남긴다 · 직전 구간에서 {}건 생략)", message, swallowed);
+            } else {
+                log.warn("{} (이 경고는 분당 한 번만 남는다)", message);
+            }
+            return;
         }
+        suppressedWarns.incrementAndGet();
     }
 
     private static boolean isBlank(String value) {
