@@ -1334,7 +1334,7 @@ function CrossSell({
             <Link
               key={c.href}
               href={c.href}
-              className="inline-flex items-center gap-1.5 rounded-pill border border-lime-300/60 bg-lime-50 px-3 py-1.5 text-xs font-bold text-lime-700 transition hover:bg-lime-100 dark:bg-lime-300/10 dark:text-lime-300 dark:hover:bg-lime-300/20"
+              className="inline-flex items-center gap-1.5 rounded-pill border border-lime-300/60 bg-lime-50 min-h-9 px-3 py-2 text-xs font-bold text-lime-700 transition hover:bg-lime-100 dark:bg-lime-300/10 dark:text-lime-300 dark:hover:bg-lime-300/20"
             >
               {c.icon === 'flame' ? <Flame size={13} /> : <Clock size={13} />}
               {c.label}
@@ -1344,7 +1344,7 @@ function CrossSell({
             <Link
               key={r.slug}
               href={`${home}/popups/${r.slug}`}
-              className="inline-flex items-center gap-1.5 rounded-pill border border-lime-300/60 bg-lime-50 px-3 py-1.5 text-xs font-bold text-lime-700 transition hover:bg-lime-100 dark:bg-lime-300/10 dark:text-lime-300 dark:hover:bg-lime-300/20"
+              className="inline-flex items-center gap-1.5 rounded-pill border border-lime-300/60 bg-lime-50 min-h-9 px-3 py-2 text-xs font-bold text-lime-700 transition hover:bg-lime-100 dark:bg-lime-300/10 dark:text-lime-300 dark:hover:bg-lime-300/20"
             >
               <MapPin size={13} />
               {L(r)} {current.label}
@@ -1358,7 +1358,7 @@ function CrossSell({
           <li key={`${s.kind}-${s.slug}`}>
             <Link
               href={`${home}/popups/${s.slug}`}
-              className="inline-flex items-center px-3 py-1.5 rounded-pill text-xs font-medium border bg-white text-gray-900 border-gray-200 hover:border-lime-300 hover:bg-lime-50 dark:bg-white/5 dark:text-white dark:border-white/10 dark:hover:bg-lime-300/10 dark:hover:border-lime-300/40 transition"
+              className="inline-flex items-center min-h-9 px-3 py-2 rounded-pill text-xs font-medium border bg-white text-gray-900 border-gray-200 hover:border-lime-300 hover:bg-lime-50 dark:bg-white/5 dark:text-white dark:border-white/10 dark:hover:bg-lime-300/10 dark:hover:border-lime-300/40 transition"
             >
               {s.label}
             </Link>
