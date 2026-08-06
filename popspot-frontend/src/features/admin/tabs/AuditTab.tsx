@@ -5,6 +5,7 @@ import { ShieldAlert, RefreshCw, Check, X } from 'lucide-react';
 
 import { apiFetch } from '@/lib/api';
 import { IpBlockPanel } from '@/features/admin/IpBlockPanel';
+import { ReauthGate } from '@/features/admin/ReauthGate';
 import { SecurityOverview } from '@/features/admin/SecurityOverview';
 
 /**
@@ -65,6 +66,22 @@ export function AuditTab() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  /**
+   * D-3 — 이 탭의 세 화면(현황판·차단·목록)이 전부 보안 기록이라 문턱을 하나로 둔다.
+   *
+   * <p>확인이 끝나면 {@code reloadKey} 를 올려 자식들을 다시 마운트한다. 각자 재시도 함수를
+   * 위로 넘기게 하는 것보다 단순하고, 세 화면이 같은 문턱을 쓰므로 따로 놀 이유가 없다.
+   */
+  const [needsReauth, setNeedsReauth] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
+
+  /*
+   * 참조를 고정한다. 인라인 화살표로 넘기면 이 탭이 다시 그려질 때마다 새 함수가 되고,
+   * 자식의 useCallback → useEffect 가 그 변화를 따라 다시 조회한다. 아래 load 하나가
+   * setLoading·setRows 로 여러 번 그리므로 그때마다 자식이 서버를 다시 부른다.
+   */
+  const requireReauth = useCallback(() => setNeedsReauth(true), []);
+
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -73,6 +90,12 @@ export function AuditTab() {
       if (failedOnly) params.set('failedOnly', 'true');
 
       const res = await apiFetch(`/api/admin/audit?${params}`);
+      // D-3 — 보안 기록은 본인 확인 뒤에 열린다. 428 은 "권한 없음" 이 아니라 "한 번 더 확인" 이라
+      // 로그인으로 보내면 안 된다. 확인창을 띄우고, 끝나면 이 탭을 통째로 다시 불러온다.
+      if (res.status === 428) {
+        setNeedsReauth(true);
+        return;
+      }
       if (!res.ok) {
         setError('감사 로그를 불러오지 못했습니다.');
         return;
@@ -94,11 +117,21 @@ export function AuditTab() {
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 space-y-4 duration-500">
+      <ReauthGate
+        open={needsReauth}
+        onClose={() => setNeedsReauth(false)}
+        onConfirmed={() => {
+          setNeedsReauth(false);
+          setReloadKey((k) => k + 1);
+          void load();
+        }}
+      />
+
       {/* 목록보다 위에 둔다 — 무엇을 찾을지 모를 때 먼저 보는 화면이다. */}
-      <SecurityOverview />
+      <SecurityOverview key={`overview-${reloadKey}`} onReauthRequired={requireReauth} />
 
       {/* 현황판 바로 아래다. 이상한 것을 본 다음 할 수 있는 일이 여기 있어야 한다. */}
-      <IpBlockPanel />
+      <IpBlockPanel key={`blocks-${reloadKey}`} onReauthRequired={requireReauth} />
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">

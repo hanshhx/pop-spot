@@ -45,6 +45,28 @@ public class AdminReauthInterceptor implements HandlerInterceptor {
                     // 2단계 인증 해제 — 이걸 막지 않으면 토큰을 훔친 사람이 자물쇠를 스스로 연다.
                     "POST /api/admin/totp/disable");
 
+    /**
+     * D-3 — 재확인이 필요한 <b>영역</b>. 위 {@link #SENSITIVE} 와 달리 메서드를 가리지 않는다.
+     *
+     * <p>보안 기록과 분석 기록을 서로 다른 문턱 뒤에 두기 위한 목록이다. 관리자가 한 명이라 역할을 쪼개는 것은 아직 의미가 없지만(그건 두 번째 관리자가 생길 때),
+     * 같은 계정이라도 <b>무엇을 보느냐에 따라 요구하는 증명을 다르게</b> 할 수는 있다. 그러면 세션이 탈취돼도 공격자가 얻는 것이 방문 통계까지로 줄어든다.
+     *
+     * <p><b>감사 로그는 읽기까지 막는다.</b> 거기에 관리자가 어디서 접속하는지가 적혀 있고, 그 IP 를 읽어 차단하면 진짜 관리자를 밀어낼 수 있다 — 두 화면이
+     * 이어져 하나의 공격이 된다.
+     *
+     * <p>여기에 <b>방문 통계를 넣지 않는다.</b> 자주 보는 화면에 6자리를 물으면 관리자는 이 화면을 안 쓰고 DB 콘솔로 간다. 마찰이 과하면 보안 장치가 우회를
+     * 만든다.
+     *
+     * <p><b>비상 스위치(전체 로그아웃)도 넣지 않는다.</b> 토큰이 샜다고 의심되는 순간에 쓰는 것이라 앞에 문을 하나 더 두면 비상용이 아니게 된다. 눌려 봐야
+     * 전원 로그아웃이라 파괴적이지도 않다.
+     */
+    private static final Set<String> SENSITIVE_AREAS =
+            Set.of(
+                    // 감사 로그 + 보안 현황판.
+                    "/api/admin/audit",
+                    // IP 임시 차단 — 진짜 관리자를 잠그거나 자기를 풀 수 있다.
+                    "/api/admin/security");
+
     private static final String BODY =
             "{\"error\":\"ReauthRequired\",\"message\":\"되돌릴 수 없는 작업입니다. 본인 확인을 한 번 더 해주세요.\"}";
 
@@ -68,9 +90,19 @@ public class AdminReauthInterceptor implements HandlerInterceptor {
         return false;
     }
 
+    /**
+     * 이 요청에 재확인이 필요한가.
+     *
+     * <p>인터셉터 밖으로 꺼내 둔 이유는 <b>이 목록이 조용히 틀리기 때문</b>이다. 너무 넓으면 비상 스위치까지 문 뒤로 들어가고, 너무 좁으면 막으려던 것이 그냥
+     * 지나간다. 둘 다 평소에는 아무 증상이 없다.
+     */
+    static boolean needsReauth(String method, String uri) {
+        if (SENSITIVE_AREAS.stream().anyMatch(uri::startsWith)) return true;
+        return SENSITIVE.stream().anyMatch((method + " " + uri)::startsWith);
+    }
+
     private boolean isSensitive(HttpServletRequest request) {
-        String target = request.getMethod() + " " + request.getRequestURI();
-        return SENSITIVE.stream().anyMatch(target::startsWith);
+        return needsReauth(request.getMethod(), request.getRequestURI());
     }
 
     private static String currentUserId() {
