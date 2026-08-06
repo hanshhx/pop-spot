@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { ShieldAlert, RefreshCw, Check, X } from 'lucide-react';
 
 import { apiFetch } from '@/lib/api';
+import { SecurityOverview } from '@/features/admin/SecurityOverview';
 
 /**
  * 감사 로그 — 관리자가 무엇을 했는지.
@@ -92,6 +93,9 @@ export function AuditTab() {
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 space-y-4 duration-500">
+      {/* 목록보다 위에 둔다 — 무엇을 찾을지 모를 때 먼저 보는 화면이다. */}
+      <SecurityOverview />
+
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <ShieldAlert size={18} className="text-lime-500" aria-hidden />
