@@ -70,14 +70,12 @@ class NativeQueryColumnsTest {
     /**
      * {@code FROM visit_event e} · {@code JOIN popup_store p} — 별칭이 어느 테이블을 가리키는지.
      *
-     * <p><b>{@code (?<![:\w])} 가 핵심이다.</b> 이게 없으면 명명 파라미터 {@code :from} 이 키워드
-     * {@code FROM} 으로 읽힌다. {@code WHERE e.created_at >= :from AND e.created_at < :to} 에서
-     * "{@code from} 다음 낱말 = 테이블, 그다음 = 별칭" 으로 잡혀 <b>{@code e → and}</b> 라는 엉뚱한
-     * 짝이 만들어지고, 그것이 진짜 짝({@code e → visit_event})을 덮어써서 그 쿼리가 검사에서 통째로
-     * 빠졌다. 테스트는 초록불인데 아무것도 안 보고 있는 상태다.
+     * <p><b>{@code (?<![:\w])} 가 핵심이다.</b> 이게 없으면 명명 파라미터 {@code :from} 이 키워드 {@code FROM} 으로 읽힌다.
+     * {@code WHERE e.created_at >= :from AND e.created_at < :to} 에서 "{@code from} 다음 낱말 = 테이블, 그다음
+     * = 별칭" 으로 잡혀 <b>{@code e → and}</b> 라는 엉뚱한 짝이 만들어지고, 그것이 진짜 짝({@code e → visit_event})을 덮어써서 그
+     * 쿼리가 검사에서 통째로 빠졌다. 테스트는 초록불인데 아무것도 안 보고 있는 상태다.
      *
-     * <p>2026-08-05 에 실제로 그렇게 새어 나갔다 — 새로 넣은 세션 집계 쿼리에 오타를 심어도
-     * 이 테스트가 통과했다.
+     * <p>2026-08-05 에 실제로 그렇게 새어 나갔다 — 새로 넣은 세션 집계 쿼리에 오타를 심어도 이 테스트가 통과했다.
      */
     private static final Pattern ALIAS =
             Pattern.compile(

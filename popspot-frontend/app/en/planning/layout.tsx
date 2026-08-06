@@ -1,6 +1,9 @@
 import type { Metadata } from 'next';
 
-export const metadata: Metadata = { title: 'Planning room', robots: { index: false, follow: false } };
+export const metadata: Metadata = {
+  title: 'Planning room',
+  robots: { index: false, follow: false },
+};
 
 export default function PrivateRouteLayout({ children }: { children: React.ReactNode }) {
   return children;

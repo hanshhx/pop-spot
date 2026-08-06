@@ -283,13 +283,11 @@ public class VisitService {
     /**
      * C-3 — 세션 기준 방문 요약. "몇 명 왔나" 옆에 "다시 오나" 를 놓는다.
      *
-     * <p>수집은 이미 되고 있었다({@code visit_event.session_id}). 읽는 곳이 없었을 뿐이라 새로
-     * 쌓을 것은 없고 집계만 한다.
+     * <p>수집은 이미 되고 있었다({@code visit_event.session_id}). 읽는 곳이 없었을 뿐이라 새로 쌓을 것은 없고 집계만 한다.
      *
-     * <p><b>{@code truncated} 를 함께 돌려주는 이유.</b> 재방문 판정은 보관기간 안에서만 가능하다.
-     * 90일 보관인데 120일 구간을 물으면 앞쪽 30일은 비교할 과거가 없어 그 사람들이 전부 신규로
-     * 잡힌다. 그 사실을 값에 담지 않으면 <b>화면은 멀쩡해 보이는데 숫자만 틀린다</b> — 보는 사람이
-     * 알 방법이 없다. 그래서 "이 구간은 잘렸다" 를 같이 내보낸다.
+     * <p><b>{@code truncated} 를 함께 돌려주는 이유.</b> 재방문 판정은 보관기간 안에서만 가능하다. 90일 보관인데 120일 구간을 물으면 앞쪽
+     * 30일은 비교할 과거가 없어 그 사람들이 전부 신규로 잡힌다. 그 사실을 값에 담지 않으면 <b>화면은 멀쩡해 보이는데 숫자만 틀린다</b> — 보는 사람이 알 방법이
+     * 없다. 그래서 "이 구간은 잘렸다" 를 같이 내보낸다.
      *
      * @param days 조회할 최근 일수. 1 미만이면 1 로 올린다
      */
@@ -307,7 +305,11 @@ public class VisitService {
 
         int safeRetentionDays = Math.max(1, retentionDays);
         return SessionStatsDto.of(
-                sessions, visitors, events, returning, safeRetentionDays,
+                sessions,
+                visitors,
+                events,
+                returning,
+                safeRetentionDays,
                 safeDays >= safeRetentionDays);
     }
 
@@ -316,13 +318,11 @@ public class VisitService {
      *
      * <p>단계는 다섯이다. 방문 → 상세 열기 → 찜 → 공식/예약 링크로 나가기 → 다시 오기.
      *
-     * <p><b>첫 칸만 다른 표에서 온다.</b> "방문" 은 행동 기록이 아니라 방문 기록({@code visit_log})의
-     * 사람 수다. 페이지를 열기만 하고 아무것도 안 누른 사람이 행동 기록에는 남지 않기 때문인데,
-     * 퍼널의 분모는 <b>그 사람들까지 포함</b>해야 "몇 명이 아무것도 안 하고 갔나" 를 볼 수 있다.
+     * <p><b>첫 칸만 다른 표에서 온다.</b> "방문" 은 행동 기록이 아니라 방문 기록({@code visit_log})의 사람 수다. 페이지를 열기만 하고 아무것도
+     * 안 누른 사람이 행동 기록에는 남지 않기 때문인데, 퍼널의 분모는 <b>그 사람들까지 포함</b>해야 "몇 명이 아무것도 안 하고 갔나" 를 볼 수 있다.
      *
-     * <p><b>수집 시작일을 칸마다 붙인다.</b> 찜·외부이동은 C-4 에서 새로 수집하기 시작해서 그 전
-     * 기간에는 0 이다. 이 사실을 화면에 알리지 않으면 퍼널이 그 칸에서 뚝 끊긴 것으로 읽힌다 —
-     * 실제로는 데이터가 없는 것뿐인데 "아무도 안 누른다" 로 오해하게 된다.
+     * <p><b>수집 시작일을 칸마다 붙인다.</b> 찜·외부이동은 C-4 에서 새로 수집하기 시작해서 그 전 기간에는 0 이다. 이 사실을 화면에 알리지 않으면 퍼널이 그
+     * 칸에서 뚝 끊긴 것으로 읽힌다 — 실제로는 데이터가 없는 것뿐인데 "아무도 안 누른다" 로 오해하게 된다.
      *
      * @param days 조회할 최근 일수
      */
@@ -370,8 +370,7 @@ public class VisitService {
     /**
      * 화면이 그대로 보여 줄 한 줄 경고. 없으면 빈 문자열.
      *
-     * <p>"이 칸은 최근에야 모으기 시작했다" 를 <b>숫자 옆이 아니라 표 아래</b>에 한 번만 적는다.
-     * 칸마다 붙이면 읽는 사람이 경고에 익숙해져 아무도 안 본다.
+     * <p>"이 칸은 최근에야 모으기 시작했다" 를 <b>숫자 옆이 아니라 표 아래</b>에 한 번만 적는다. 칸마다 붙이면 읽는 사람이 경고에 익숙해져 아무도 안 본다.
      */
     private static String funnelNote(List<FunnelDto.Raw> raws) {
         List<String> late =
@@ -380,16 +379,14 @@ public class VisitService {
                         .map(r -> r.label() + "(" + r.collectedSince() + "부터)")
                         .toList();
         if (late.isEmpty()) return "";
-        return "다음 단계는 최근에 수집을 시작해, 그 전 기간은 0 으로 보입니다 — "
-                + String.join(" · ", late);
+        return "다음 단계는 최근에 수집을 시작해, 그 전 기간은 0 으로 보입니다 — " + String.join(" · ", late);
     }
 
     /**
      * 네이티브 집계 한 줄에서 값을 꺼낸다.
      *
-     * <p>드라이버·하이버네이트 조합에 따라 결과가 {@code Object[]} 한 줄로 오기도 하고 그것을 감싼
-     * {@code Object[][]} 로 오기도 한다. 둘 다 받아 준다 — 여기서 ClassCastException 이 나면 관리자
-     * 화면 전체가 500 이 된다.
+     * <p>드라이버·하이버네이트 조합에 따라 결과가 {@code Object[]} 한 줄로 오기도 하고 그것을 감싼 {@code Object[][]} 로 오기도 한다. 둘
+     * 다 받아 준다 — 여기서 ClassCastException 이 나면 관리자 화면 전체가 500 이 된다.
      */
     private static long asLong(Object[] row, int index) {
         if (row == null) return 0;
