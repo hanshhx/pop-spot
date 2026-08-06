@@ -15,8 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * D-1 — 감사 로그를 보안 현황판 한 장으로 요약한다.
  *
- * <p>새로 쌓는 것은 없다. B-4 에서 이미 남기고 있던 것을 <b>읽는 창구가 없어서</b> 목록을 한 줄씩
- * 넘겨보는 것 말고는 볼 방법이 없었다.
+ * <p>새로 쌓는 것은 없다. B-4 에서 이미 남기고 있던 것을 <b>읽는 창구가 없어서</b> 목록을 한 줄씩 넘겨보는 것 말고는 볼 방법이 없었다.
  */
 @Service
 @RequiredArgsConstructor
@@ -28,8 +27,7 @@ public class SecurityOverviewService {
     private final AdminAuditLogRepository auditRepository;
 
     /**
-     * @param days 최근 며칠. 1 미만이면 1, 90 을 넘기면 90 으로 자른다 — 감사 로그도 보관 한도가
-     *     있어 그 밖을 물어봐야 나올 것이 없다
+     * @param days 최근 며칠. 1 미만이면 1, 90 을 넘기면 90 으로 자른다 — 감사 로그도 보관 한도가 있어 그 밖을 물어봐야 나올 것이 없다
      */
     @Transactional(readOnly = true)
     public SecurityOverviewDto get(int days) {
@@ -56,8 +54,7 @@ public class SecurityOverviewService {
          * 두면 "요즘 안 쓰던 곳" 이라는 뜻이 된다.
          */
         Set<String> before =
-                new HashSet<>(
-                        auditRepository.distinctIpsBetween(since.minusDays(safeDays), since));
+                new HashSet<>(auditRepository.distinctIpsBetween(since.minusDays(safeDays), since));
         List<String> newIps =
                 auditRepository.distinctIpsBetween(since, now).stream()
                         .filter(ip -> !before.contains(ip))
@@ -74,6 +71,7 @@ public class SecurityOverviewService {
                 byTarget,
                 newIps,
                 knownIpCount,
+                auditRepository.countByActorIpIsNullAndCreatedAtGreaterThanEqual(since),
                 auditRepository.destructiveSince(since, page).stream()
                         .map(SecurityOverviewService::toEntry)
                         .toList(),
@@ -96,12 +94,11 @@ public class SecurityOverviewService {
     /**
      * IP 를 가린다 — {@code 1.2.3.4 → 1.2.3.*}.
      *
-     * <p>현황판이 답해야 하는 것은 "낯선 곳인가" 이지 "어느 집인가" 가 아니다. 온전한 주소는 감사
-     * 로그 원본에 있으므로, 요약 화면까지 평문으로 복제하면 <b>같은 개인정보를 보관하는 자리만
-     * 하나 더 늘어난다.</b>
+     * <p>현황판이 답해야 하는 것은 "낯선 곳인가" 이지 "어느 집인가" 가 아니다. 온전한 주소는 감사 로그 원본에 있으므로, 요약 화면까지 평문으로 복제하면 <b>같은
+     * 개인정보를 보관하는 자리만 하나 더 늘어난다.</b>
      *
-     * <p>앞 세 덩이를 남기는 이유는 그래야 "처음 보는 IP" 판정이 사람 눈에도 이어지기 때문이다 —
-     * 전부 가리면 새 IP 가 몇 개든 다 똑같아 보인다. 판정 자체는 가리기 <b>전</b> 값으로 한다.
+     * <p>앞 세 덩이를 남기는 이유는 그래야 "처음 보는 IP" 판정이 사람 눈에도 이어지기 때문이다 — 전부 가리면 새 IP 가 몇 개든 다 똑같아 보인다. 판정 자체는
+     * 가리기 <b>전</b> 값으로 한다.
      */
     static String maskIp(String ip) {
         if (ip == null || ip.isBlank()) return "";

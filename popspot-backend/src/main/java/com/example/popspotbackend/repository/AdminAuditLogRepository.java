@@ -45,6 +45,18 @@ public interface AdminAuditLogRepository extends JpaRepository<AdminAuditLog, Lo
     /** 그중 실패한 것. 갑자기 늘면 공격 시도이거나 무언가 고장난 것이다. */
     long countBySuccessFalseAndCreatedAtGreaterThanEqual(LocalDateTime since);
 
+    /**
+     * 접속지를 모르는 작업 수.
+     *
+     * <p>Vercel 을 거치지 않는 경로(업로드·사진 백필·중복 정리·로그 스트림)는 엣지 서명이 붙지 않아 접속자 IP 를 증명할 수 없다. {@code
+     * ClientIpResolver} 는 그럴 때 <b>일부러 아무것도 남기지 않는다</b> — Funnel 내부 주소를 남기면 진짜 접속지처럼 생긴 값이 표에 쌓여 아래
+     * {@code distinctIpsBetween} 의 "처음 보는 곳" 판정을 무디게 만들기 때문이다.
+     *
+     * <p>다만 <b>비어 있는 것과 비어 있는 줄 모르는 것은 다르다.</b> 세지 않으면 현황판은 그 작업들이 애초에 없었던 것처럼 보인다. 그래서 건수만 따로 세어
+     * "여기는 못 본다" 를 드러낸다.
+     */
+    long countByActorIpIsNullAndCreatedAtGreaterThanEqual(LocalDateTime since);
+
     /** 대상 종류별 건수 — 무엇을 주로 만졌나. */
     @Query(
             "SELECT a.targetType, COUNT(a) FROM AdminAuditLog a"
@@ -65,8 +77,7 @@ public interface AdminAuditLogRepository extends JpaRepository<AdminAuditLog, Lo
     /**
      * 회원 개인정보를 만진 기록.
      *
-     * <p>가장 민감한 축이다 — 방문자 내보내기·회원 목록이 여기 잡힌다. 개인정보 처리방침이
-     * 약속한 접속기록 보관의 실질이기도 하다.
+     * <p>가장 민감한 축이다 — 방문자 내보내기·회원 목록이 여기 잡힌다. 개인정보 처리방침이 약속한 접속기록 보관의 실질이기도 하다.
      */
     @Query(
             "SELECT a FROM AdminAuditLog a"
@@ -80,12 +91,11 @@ public interface AdminAuditLogRepository extends JpaRepository<AdminAuditLog, Lo
     /**
      * 기간 안에 관리자 작업이 나온 IP 들.
      *
-     * <p>두 기간을 각각 뽑아 비교하면 "이번에 처음 보는 IP" 를 알 수 있다. 관리자가 한 명인
-     * 서비스에서 낯선 IP 는 그 자체로 확인할 이유가 된다.
+     * <p>두 기간을 각각 뽑아 비교하면 "이번에 처음 보는 IP" 를 알 수 있다. 관리자가 한 명인 서비스에서 낯선 IP 는 그 자체로 확인할 이유가 된다.
      */
     @Query(
-            "SELECT DISTINCT a.actorIp FROM AdminAuditLog a"
-                    + " WHERE a.createdAt >= :since AND a.createdAt < :until AND a.actorIp IS NOT NULL")
+            "SELECT DISTINCT a.actorIp FROM AdminAuditLog a WHERE a.createdAt >= :since AND"
+                + " a.createdAt < :until AND a.actorIp IS NOT NULL")
     List<String> distinctIpsBetween(
             @Param("since") LocalDateTime since, @Param("until") LocalDateTime until);
 }

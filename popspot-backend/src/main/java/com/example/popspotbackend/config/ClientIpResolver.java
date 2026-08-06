@@ -26,14 +26,56 @@ public class ClientIpResolver {
     @Value("${app.trust-proxy-headers:false}")
     private boolean trustProxyHeaders;
 
-    /** 접속 IP 전체. */
-    public String resolve(HttpServletRequest req) {
+    /**
+     * 이 IP 값을 <b>어디까지 믿을 수 있는가</b>.
+     *
+     * <p>세 상태를 구분하는 이유는 {@link #UNCHECKED} 와 {@link #DEGRADED} 가 전혀 다른 사건이기 때문이다. 뭉뚱그리면 비밀키를 안 넣은 채
+     * 배포했을 때 기존 기록이 통째로 사라지는데, 그건 이 변경이 고치려는 문제보다 나쁘다.
+     */
+    public enum Trust {
+        /** 엣지 서명이 확인됐다. <b>차단에 써도 되는 유일한 상태.</b> */
+        VERIFIED,
+
+        /**
+         * 서명 체계는 켜져 있는데 이 요청에는 증명이 없었다.
+         *
+         * <p>값은 접속자 주소가 아니라 Funnel 내부 주소다 — <b>서명 없는 모든 요청이 같은 값을 갖는다.</b> 업로드·백필·방문 이벤트처럼 Vercel 을
+         * 거치지 않는 경로가 전부 여기 해당한다.
+         */
+        DEGRADED,
+
+        /** 서명 체계 자체가 꺼져 있다(비밀키 미설정). 증명 수단이 없었을 뿐이라 강등과 다르다. */
+        UNCHECKED;
+    }
+
+    /**
+     * 접속 IP와 그 값의 출처.
+     *
+     * <p>둘을 <b>한 값으로 묶어</b> 돌려주는 것이 요점이다. 예전에는 {@code String} 만 돌려줘서, 받는 쪽이 이게 증명된 값인지 Funnel 내부
+     * 주소인지 알 방법이 없었다. 차단처럼 되돌리기 어려운 판단을 하려면 값만으로는 부족하다.
+     */
+    public record ClientIp(String value, Trust trust) {
+
+        /** 차단·잠금처럼 <b>되돌리기 어려운 판단</b>에 써도 되는 값인가. */
+        public boolean verified() {
+            return trust == Trust.VERIFIED;
+        }
+    }
+
+    /** 접속 IP 전체 — 값과 함께 그 값을 믿을 수 있는지도 돌려준다. */
+    public ClientIp resolve(HttpServletRequest req) {
         if (edgeSignature.isEnabled()) {
             // 증명된 IP만 쓴다. 증명이 없으면 헤더는 보지 않는다 — 위조 경로를 닫는 지점.
             String verified = edgeSignature.verifiedIp(req);
-            return verified != null ? verified : req.getRemoteAddr();
+            return verified != null
+                    ? new ClientIp(verified, Trust.VERIFIED)
+                    : new ClientIp(req.getRemoteAddr(), Trust.DEGRADED);
         }
+        return new ClientIp(legacyIp(req), Trust.UNCHECKED);
+    }
 
+    /** 비밀키를 설정하지 않았을 때의 기존 동작. 켜고 끄는 것을 배포와 분리하기 위해 남겨 둔다. */
+    private String legacyIp(HttpServletRequest req) {
         if (!trustProxyHeaders) return req.getRemoteAddr();
 
         String real = req.getHeader("X-Real-IP");
@@ -65,7 +107,14 @@ public class ClientIpResolver {
      * 들어왔는가" 를 판단하는 것이라, 위치가 남아야 쓸모가 있다.
      */
     public String resolveCoarse(HttpServletRequest req) {
-        return coarsen(resolve(req));
+        ClientIp ip = resolve(req);
+
+        // 강등된 값은 접속지가 아니라 Funnel 내부 주소다. 그걸 흐려서 남기면 "119.194.113.0" 과
+        // 똑같이 생긴 값이 표에 쌓여, 사람도 D-1 의 '처음 보는 접속지' 도 진짜 위치로 착각한다.
+        // 없는 것보다 틀린 기록이 나쁘다 — 모른다고 적는다.
+        if (ip.trust() == Trust.DEGRADED) return null;
+
+        return coarsen(ip.value());
     }
 
     /** 정밀도 낮추기. 형식을 못 알아보면 통째로 버린다 — 모르는 값을 그대로 남기지 않는다. */

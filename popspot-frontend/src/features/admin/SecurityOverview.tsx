@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { AlertTriangle, Trash2, UserCog } from 'lucide-react';
+import { AlertTriangle, EyeOff, Trash2, UserCog } from 'lucide-react';
 
 import { apiFetch } from '@/lib/api';
 
@@ -24,6 +24,7 @@ type Overview = {
   byTarget: { target: string; count: number }[];
   newIps: string[];
   knownIpCount: number;
+  unknownOrigin: number;
   destructive: Entry[];
   memberDataAccess: Entry[];
 };
@@ -101,6 +102,22 @@ export function SecurityOverview() {
             />
             <Cell label="삭제 작업" value={String(data.destructive.length)} />
           </div>
+
+          {/*
+            사각지대를 <b>숫자로</b> 적는다. 이 줄이 없으면 접속지를 못 남긴 작업들은 위 '처음 보는
+            접속지' 에서 조용히 빠져, 현황판이 "낯선 곳 없음" 이라고 말하는 것처럼 보인다.
+            못 본 것을 못 봤다고 적는 편이 정직하다.
+          */}
+          {data.unknownOrigin > 0 && (
+            <p className="mt-3 flex items-start gap-1.5 text-[11px] leading-relaxed text-muted-foreground">
+              <EyeOff size={13} className="mt-0.5 shrink-0" aria-hidden />
+              <span>
+                이 중 <b>{data.unknownOrigin}건</b>은 접속지를 알 수 없습니다 — 업로드·사진 백필·중복
+                정리·로그 스트림은 Vercel 을 거치지 않아 접속자를 증명할 수 없습니다. 위 &ldquo;처음 보는
+                접속지&rdquo;는 이 건들을 보지 못합니다.
+              </span>
+            </p>
+          )}
 
           {data.newIps.length > 0 && (
             <p className="mt-3 flex items-start gap-1.5 rounded-xl bg-amber-500/10 p-2.5 text-[11px] leading-relaxed text-amber-700 dark:text-amber-300">
