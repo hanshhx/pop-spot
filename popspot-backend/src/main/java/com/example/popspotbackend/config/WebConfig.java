@@ -74,6 +74,14 @@ public class WebConfig implements WebMvcConfigurer {
     private static final String ADMIN_PATH_PATTERN = "/api/admin/**";
 
     /**
+     * 차단 관리 경로 — 차단 검사에서 <b>제외</b>한다.
+     *
+     * <p>{@code AdminIpBlockController} 의 매핑과 같아야 한다. 여기만 고치고 저기를 안 고치면 탈출구가 조용히 사라지고, 그 사실은 <b>실제로
+     * 잠긴 뒤에야</b> 알게 된다.
+     */
+    static final String IP_BLOCK_ADMIN_PATTERN = "/api/admin/security/ip-blocks/**";
+
+    /**
      * 회원 콘텐츠 경로 — 약관 §14 비색인 대상(동행·의견·채팅).
      *
      * <p>{@code /api/mates} 처럼 하위 세그먼트가 없는 경로와 {@code /api/mates/{id}/chat} 같은 하위 경로를 모두 덮기 위해 정확
@@ -91,6 +99,7 @@ public class WebConfig implements WebMvcConfigurer {
     @Value("${app.upload.path}")
     private String uploadPath;
 
+    private final IpBlockInterceptor ipBlockInterceptor;
     private final RateLimitInterceptor rateLimitInterceptor;
     private final AdminAuditInterceptor adminAuditInterceptor;
     private final AdminReauthInterceptor adminReauthInterceptor;
@@ -120,6 +129,18 @@ public class WebConfig implements WebMvcConfigurer {
 
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
+        /*
+         * D-2 차단은 <b>가장 앞</b>이다. 차단된 요청은 아무 비용도 쓰면 안 되고, 감사 표를
+         * 공격자의 시도로 채우지도 않아야 한다 — 차단 자체가 이미 기록이다.
+         *
+         * 차단 관리 경로만 빼 둔다. <b>잠금 탈출구</b>다. 관리자의 IP 는 바뀌고, 예전에 걸어 둔
+         * 주소를 나중에 다시 배정받는 일이 실제로 있다. 그때 이 경로까지 막히면 스스로 풀 방법이
+         * 없어져 서버에 직접 들어가야 한다. 인증(ADMIN)은 그대로라 열어 둬도 위험하지 않다.
+         */
+        registry.addInterceptor(ipBlockInterceptor)
+                .addPathPatterns("/api/**")
+                .excludePathPatterns(IP_BLOCK_ADMIN_PATTERN);
+
         // 감사 로그를 <b>요청 제한보다 먼저</b> 등록한다. 순서가 반대면 제한에 걸려 429 로 끝난
         // 관리자 요청이 한 줄도 남지 않는다 — 앞선 인터셉터가 요청을 막으면 뒤에 등록된
         // 인터셉터의 afterCompletion 은 호출되지 않기 때문이다. 관리자 계정이 갑자기 제한에

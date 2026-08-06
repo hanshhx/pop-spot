@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { ShieldAlert, RefreshCw, Check, X } from 'lucide-react';
 
 import { apiFetch } from '@/lib/api';
+import { IpBlockPanel } from '@/features/admin/IpBlockPanel';
 import { SecurityOverview } from '@/features/admin/SecurityOverview';
 
 /**
@@ -95,6 +96,9 @@ export function AuditTab() {
     <div className="animate-in fade-in slide-in-from-bottom-4 space-y-4 duration-500">
       {/* 목록보다 위에 둔다 — 무엇을 찾을지 모를 때 먼저 보는 화면이다. */}
       <SecurityOverview />
+
+      {/* 현황판 바로 아래다. 이상한 것을 본 다음 할 수 있는 일이 여기 있어야 한다. */}
+      <IpBlockPanel />
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
