@@ -1,12 +1,12 @@
 package com.example.popspotbackend.controller;
 
-import com.example.popspotbackend.exception.ResourceNotFoundException;
 import com.example.popspotbackend.config.OAuth2SuccessHandler;
 import com.example.popspotbackend.dto.LoginRequestDto;
 import com.example.popspotbackend.dto.LoginResponseDto;
 import com.example.popspotbackend.dto.ResetPasswordRequestDto;
 import com.example.popspotbackend.dto.SignupRequestDto;
 import com.example.popspotbackend.entity.User;
+import com.example.popspotbackend.exception.ResourceNotFoundException;
 import com.example.popspotbackend.service.AuthService;
 import com.example.popspotbackend.service.EmailService;
 import jakarta.validation.Valid;
