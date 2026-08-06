@@ -490,6 +490,8 @@ public class RateLimitInterceptor implements HandlerInterceptor {
     private String clientIp(HttpServletRequest req) {
         // 판정은 ClientIpResolver 한 곳에만 둔다. 감사 로그도 같은 값을 쓰는데, 두 곳이 각자
         // 판정하면 언젠가 갈라져 "제한에 걸린 IP" 와 "기록된 IP" 가 달라진다.
-        return clientIpResolver.resolve(req);
+        // 횟수 제한은 강등된 값도 그대로 쓴다. 증명이 없으면 한 바구니를 나눠 쓰게 되지만,
+        // 그건 "잠시 느려짐" 이지 "못 들어옴" 이 아니다. 차단(D-2)은 이 판단을 따라오면 안 된다.
+        return clientIpResolver.resolve(req).value();
     }
 }
