@@ -48,8 +48,8 @@ public interface VisitLogRepository extends JpaRepository<VisitLog, Long> {
     @Query(
             value =
                     "SELECT path, COUNT(*) AS total, SUM(CASE WHEN guest THEN 0 ELSE 1 END) AS"
-                            + " members FROM visit_log WHERE created_at >= :since AND path IS NOT NULL"
-                            + " GROUP BY path ORDER BY total DESC LIMIT 50",
+                        + " members FROM visit_log WHERE created_at >= :since AND path IS NOT NULL"
+                        + " GROUP BY path ORDER BY total DESC LIMIT 50",
             nativeQuery = true)
     List<Object[]> pathBreakdownSince(@Param("since") LocalDateTime since);
 
@@ -62,8 +62,8 @@ public interface VisitLogRepository extends JpaRepository<VisitLog, Long> {
     @Query(
             value =
                     "SELECT referrer_host, COUNT(*) AS c FROM visit_log WHERE created_at >= :since"
-                            + " AND referrer_host IS NOT NULL AND referrer_host <> 'internal' GROUP BY"
-                            + " referrer_host ORDER BY c DESC LIMIT 200",
+                        + " AND referrer_host IS NOT NULL AND referrer_host <> 'internal' GROUP BY"
+                        + " referrer_host ORDER BY c DESC LIMIT 200",
             nativeQuery = true)
     List<Object[]> referrerHostsSince(@Param("since") LocalDateTime since);
 

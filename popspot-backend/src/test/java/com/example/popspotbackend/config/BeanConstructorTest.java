@@ -129,8 +129,7 @@ class BeanConstructorTest {
     /**
      * 블록 주석과 줄 주석을 지운다. 줄 수는 보존해야 {@code (?m)^} 기반 패턴들이 그대로 동작한다.
      *
-     * <p>문자열 리터럴 안의 {@code //} 까지 완벽히 가리지는 않는다 — 여기서 찾는 것은 애너테이션과
-     * 생성자 선언이라 그 정도 정밀도면 충분하다.
+     * <p>문자열 리터럴 안의 {@code //} 까지 완벽히 가리지는 않는다 — 여기서 찾는 것은 애너테이션과 생성자 선언이라 그 정도 정밀도면 충분하다.
      */
     private static String stripComments(String src) {
         String noBlock =
