@@ -141,6 +141,45 @@ public class PopupTranslationGlossary {
         add(values, true, "K League", "Kリーグ", "K리그");
         add(values, true, "PEACEMINUSONE", "PEACEMINUSONE", "피스마이너스원", "PEACEMINUSONE");
 
+        /*
+         * 2026-08-06 — 운영 데이터를 훑어 보고 추가한 것들.
+         *
+         * 지도 984곳 중 일본어 이름이 있는 170곳을 눈으로 확인했더니, 여기 없던 이름이
+         * 하나같이 틀려 있었다. 명탐정 코난은 "コナン・ハイウェイへの天国の扉", 마이멜로디
+         * 하모니는 "ヒーメナ", 남대문잡채호떡은 아예 중국어("南山拌菜熱米糕")로 나왔다.
+         * 남대문을 南山으로 옮긴 것은 지명이 틀린 것이라 관광객을 다른 동네로 보낸다.
+         *
+         * 별칭을 짧게 잡을수록 위험하다 — 매칭이 단순 부분 문자열이라 "마리오" 를 넣으면
+         * 서울에 실재하는 마리오아울렛까지 삼킨다. 그래서 슈퍼마리오는 "슈퍼마리오" 로만 잠근다.
+         */
+        add(values, true, "Detective Conan", "名探偵コナン", "명탐정 코난", "명탐정코난");
+        add(values, true, "Haikyu!!", "ハイキュー!!", "하이큐!!", "하이큐");
+        add(values, true, "SPY×FAMILY", "SPY×FAMILY", "스파이패밀리", "스파이 패밀리");
+        add(values, true, "Doraemon", "ドラえもん", "도라에몽");
+        add(values, true, "Sailor Moon", "美少女戦士セーラームーン", "세일러문", "세일러 문");
+        add(values, true, "Anpanman", "アンパンマン", "앙팡맨", "호빵맨");
+        add(values, true, "Keroro", "ケロロ軍曹", "케로로");
+        add(values, true, "Studio Ghibli", "スタジオジブリ", "스튜디오 지브리", "지브리");
+        add(values, true, "My Melody", "マイメロディ", "마이멜로디", "마이 멜로디");
+        add(values, true, "Kuromi", "クロミ", "쿠로미");
+        add(values, true, "Cinnamoroll", "シナモロール", "시나모롤");
+        add(values, true, "Hello Kitty", "ハローキティ", "헬로키티", "헬로 키티");
+        add(values, true, "Rilakkuma", "リラックマ", "리락쿠마");
+        add(values, true, "Moomin", "ムーミン", "무민");
+        add(values, true, "Snoopy", "スヌーピー", "스누피");
+        // "마리오" 단독은 넣지 않는다 — 마리오아울렛(서울 실재 쇼핑몰)이 걸린다.
+        add(values, true, "Super Mario", "スーパーマリオ", "슈퍼마리오", "슈퍼 마리오");
+        add(values, true, "Arc System Works", "アークシステムワークス", "아크시스템웍스", "아크 시스템 웍스");
+        add(values, true, "NAVER WEBTOON", "ネイバーウェブトゥーン", "네이버웹툰", "네이버 웹툰");
+
+        // 한국 화장품·생활 브랜드 — 공식 표기가 따로 있는데 음역되고 있었다.
+        add(values, true, "LANEIGE", "ラネージュ", "라네즈");
+        add(values, true, "Sulwhasoo", "雪花秀", "설화수");
+        add(values, true, "TONYMOLY", "トニーモリー", "토니모리");
+        add(values, true, "MEDIHEAL", "メディヒール", "메디힐");
+        add(values, true, "innisfree", "イニスフリー", "이니스프리");
+        add(values, true, "OLIVE YOUNG", "オリーブヤング", "올리브영", "올리브 영");
+
         // 행사 이름에 자주 붙는 말. 확인된 고유명사와 조합할 때만 자동 저장한다.
         add(values, false, "Anakt", "アナクト", "아낙트");
         add(values, false, "Arts High School", "芸術高等学校", "예술고등학교");
@@ -169,6 +208,10 @@ public class PopupTranslationGlossary {
         add(values, true, "Lotte Department Store", "ロッテ百貨店", "롯데백화점");
         add(values, true, "AK PLAZA", "AKプラザ", "AK플라자", "AK 플라자");
         add(values, true, "COEX", "コエックス", "코엑스");
+        // 남대문이 "南山"(남산)으로 나온 적이 있다 — 지명 자체가 달라 다른 동네로 안내된다.
+        add(values, true, "Namdaemun Market", "南大門市場", "남대문시장", "남대문 시장");
+        add(values, true, "Namdaemun", "南大門", "남대문");
+        add(values, true, "Dongdaemun", "東大門", "동대문");
         add(values, true, "Starfield", "スターフィールド", "스타필드");
         add(values, false, "Seongsu-dong", "ソンスドン", "성수동");
         add(values, false, "Seongsu", "ソンス", "성수");
