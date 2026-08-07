@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Map as MapLibreMap } from 'maplibre-gl';
+import { bilingual } from '@/lib/bilingual';
 import { notify } from '@/lib/notify';
 import { REGIONS, classifyRegion, regionBySlug, regionLabel, type RegionCode } from '@/lib/regions';
 import { localizedLabel, useLocale, type Locale, type MessageKey } from '@/lib/i18n';
@@ -64,6 +65,15 @@ interface InteractiveMapProps {
 interface MapMarkerData {
   popupId: number;
   name: string;
+  /**
+   * 표시용 번역명. 마커 API 가 예전부터 내려주고 있었는데 지도만 쓰지 않아, 화면 언어를 일본어로
+   * 바꿔도 핀 이름은 한국어 그대로였다. 카드·검색·여권은 이미 쓰고 있던 값이다.
+   *
+   * <p>비어 있을 수 있다 — 번역 백필이 아직 안 닿은 팝업이 많다. 그때는 {@link bilingual} 이
+   * 한국어 원문으로 물러선다. <b>지어내지 않는다.</b>
+   */
+  nameEn?: string | null;
+  nameJa?: string | null;
   address: string;
   latitude: string;
   longitude: string;
@@ -76,6 +86,19 @@ interface MapMarkerData {
 
 // DB 의 실제 카테고리 값과 일치 (자동수집 팝업까지 모두 매칭되도록)
 const CATEGORIES = ['ALL', 'CHARACTER', 'FASHION', 'BEAUTY', 'FOOD', 'CULTURE', 'ETC'];
+
+/**
+ * 핀 라벨 자르기 — 글자 수가 아니라 <b>보이는 폭</b>에 맞춘다.
+ *
+ * <p>한글·일본어는 글자 하나가 라틴 문자 두 개쯤의 폭을 차지한다. 예전엔 이 자리가 한국어
+ * 전용이라 10자 하나로 충분했는데, 번역명을 쓰기 시작하면 같은 기준에서 영어 이름만 유난히
+ * 일찍 끊긴다 — "Medicube F…" 처럼 무엇인지 알 수 없는 라벨이 된다.
+ */
+function truncateForPin(name: string | null, locale: Locale): string {
+  const text = name ?? '';
+  const limit = locale === 'en' ? 18 : 10;
+  return text.length > limit ? text.slice(0, limit) + '…' : text;
+}
 
 /**
  * 카테고리 단일 출처 — 표시명 키 · 핀 아이콘색 · 핀 테두리색 · 범례 스와치를 여기서만 정의한다.
@@ -258,8 +281,22 @@ export default function InteractiveMap({
   filterIds,
   fitReq,
 }: InteractiveMapProps) {
-  // 컨트롤·배지 문구에 쓴다. 팝업 이름·주소는 크롤링한 원문이라 그대로 둔다(간판·지도앱 대조용).
   const { t, locale } = useLocale();
+
+  /**
+   * 핀·목록에 보여 줄 이름.
+   *
+   * <p>예전엔 여기서 한국어 원문을 그대로 썼다. 간판·지도앱과 대조하려면 원문이 필요하다는
+   * 이유였는데, 그 대가로 <b>화면 언어를 일본어로 바꿔도 핀 이름만 한국어</b>였다. 카드·검색·
+   * 여권은 이미 번역명을 쓰고 있어서 한 화면 안에서도 서로 달랐다.
+   *
+   * <p>{@link bilingual} 을 쓰면 둘 다 된다 — 번역명을 앞에 세우고 원문을 함께 들고 다니다가,
+   * <b>자리가 있는 곳에서만</b> 원문을 작게 덧붙인다. 핀 라벨처럼 좁은 곳은 번역명만 쓴다.
+   *
+   * <p>번역이 없으면 원문으로 물러선다. 아직 백필이 안 닿은 팝업이 많다 — 지어내지 않는다.
+   */
+  const shownName = (m: MapMarkerData) =>
+    bilingual(m.name, locale === 'en' ? m.nameEn : locale === 'ja' ? m.nameJa : null);
   const [allMarkers, setAllMarkers] = useState<MapMarkerData[]>([]);
   const [selectedMarker, setSelectedMarker] = useState<MapMarkerData | null>(null);
   const [activeCategory, setActiveCategory] = useState('ALL');
@@ -353,6 +390,8 @@ export default function InteractiveMap({
             category: string | null;
             startDate: string | null;
             endDate: string | null;
+            nameEn: string | null;
+            nameJa: string | null;
           }>,
         ) => {
           // v2.44 — 지금 열려 있는 것만 핀으로 찍는다. 홈 목록·랭킹과 같은 판정을 쓴다
@@ -365,6 +404,8 @@ export default function InteractiveMap({
             .map((m) => ({
               popupId: m.id,
               name: m.name,
+              nameEn: m.nameEn,
+              nameJa: m.nameJa,
               address: m.location ?? '',
               latitude: m.latitude,
               longitude: m.longitude,
@@ -696,35 +737,43 @@ export default function InteractiveMap({
 
                 <div className="flex-1 overflow-y-auto custom-scrollbar p-2 md:p-3 space-y-1.5 md:space-y-2">
                   {markers.length > 0 ? (
-                    markers.map((marker, index) => (
-                      <div
-                        key={`sidebar-item-${marker.popupId || index}`}
-                        onClick={() => moveToMarker(marker)}
-                        role="button"
-                        tabIndex={0}
-                        aria-label={`${marker.name}${t('map.markerAria')}`}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault();
-                            moveToMarker(marker);
-                          }
-                        }}
-                        className={`p-2.5 md:p-3 rounded-xl border cursor-pointer transition-all hover:translate-x-1 focus:outline-none focus:ring-2 focus:ring-primary/60 ${
-                          selectedMarker?.popupId === marker.popupId
-                            ? 'bg-white/10 border-primary/50 shadow-[0_0_10px_rgba(var(--primary-rgb),0.2)]'
-                            : 'bg-transparent border-white/5 hover:bg-white/5 hover:border-white/20'
-                        }`}
-                      >
-                        <h4
-                          className={`font-bold text-xs md:text-sm mb-1 ${selectedMarker?.popupId === marker.popupId ? 'text-primary' : 'text-white'}`}
+                    markers.map((marker, index) => {
+                      const shown = shownName(marker);
+                      return (
+                        <div
+                          key={`sidebar-item-${marker.popupId || index}`}
+                          onClick={() => moveToMarker(marker)}
+                          role="button"
+                          tabIndex={0}
+                          aria-label={`${shown.display}${t('map.markerAria')}`}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              moveToMarker(marker);
+                            }
+                          }}
+                          className={`p-2.5 md:p-3 rounded-xl border cursor-pointer transition-all hover:translate-x-1 focus:outline-none focus:ring-2 focus:ring-primary/60 ${
+                            selectedMarker?.popupId === marker.popupId
+                              ? 'bg-white/10 border-primary/50 shadow-[0_0_10px_rgba(var(--primary-rgb),0.2)]'
+                              : 'bg-transparent border-white/5 hover:bg-white/5 hover:border-white/20'
+                          }`}
                         >
-                          {marker.name}
-                        </h4>
-                        <p className="text-[10px] md:text-xs text-muted flex items-center gap-1 truncate">
-                          <MapPin size={10} className="shrink-0" /> {marker.address}
-                        </p>
-                      </div>
-                    ))
+                          {/* 목록은 자리가 있다 — 번역명 아래에 한국어 원문을 작게 붙여
+                            간판·지도앱과 대조할 수 있게 남긴다. 번역이 없으면 원문만 나온다. */}
+                          <h4
+                            className={`font-bold text-xs md:text-sm ${shown.original ? '' : 'mb-1'} ${selectedMarker?.popupId === marker.popupId ? 'text-primary' : 'text-white'}`}
+                          >
+                            {shown.display}
+                          </h4>
+                          {shown.original && (
+                            <p className="mb-1 truncate text-[10px] text-muted">{shown.original}</p>
+                          )}
+                          <p className="text-[10px] md:text-xs text-muted flex items-center gap-1 truncate">
+                            <MapPin size={10} className="shrink-0" /> {marker.address}
+                          </p>
+                        </div>
+                      );
+                    })
                   ) : (
                     <div className="text-center text-muted text-[10px] md:text-xs py-8 md:py-10">
                       {t('map.emptyLine1')}
@@ -872,8 +921,9 @@ export default function InteractiveMap({
                           {index + 1}
                         </span>
                         <span className="w-px h-2.5 md:h-3 bg-gray-200"></span>
+                        {/* 핀 라벨은 좁다 — 원문 병기는 목록에서 한다. */}
                         <span className="font-bold text-[10px] md:text-xs text-gray-800 whitespace-nowrap">
-                          {marker.name}
+                          {shownName(marker).display}
                         </span>
                         <span className={`${style.color}`}>{style.icon}</span>
                       </div>
@@ -911,7 +961,7 @@ export default function InteractiveMap({
                           {style.icon}
                         </span>
                         <span className="font-bold text-[10px] md:text-xs">
-                          {marker.name.length > 10 ? marker.name.slice(0, 10) + '…' : marker.name}
+                          {truncateForPin(shownName(marker).display, locale)}
                         </span>
                       </div>
 
@@ -971,7 +1021,7 @@ export default function InteractiveMap({
                     {visibleSelected.category || 'POPUP'}
                   </span>
                   <h3 className="text-white font-bold text-xs md:text-base truncate pr-4 group-hover:text-primary transition-colors">
-                    {visibleSelected.name}
+                    {shownName(visibleSelected).display}
                   </h3>
                 </div>
 
