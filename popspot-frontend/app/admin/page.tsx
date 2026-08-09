@@ -31,6 +31,8 @@ import {
   SERVER_METRICS_BUFFER_SIZE,
   SERVER_METRICS_POLL_INTERVAL_MS,
   TAB_TITLE,
+  TRANSLATION_MAX_POLLS,
+  TRANSLATION_POLL_MS,
 } from '@/features/admin/constants';
 import { devAdminStats, devPending, devVisitStats } from '@/features/admin/devData';
 import { isPreviewEnv, toLinePoint, uaLooksBot } from '@/features/admin/helpers';
@@ -343,6 +345,8 @@ export default function AdminPage() {
   const [isBackfilling, setIsBackfilling] = useState(false);
   const [isDeduping, setIsDeduping] = useState(false);
   const [isTranslating, setIsTranslating] = useState(false);
+  // 번역은 몇 분씩 걸린다. 버튼만 비활성으로 두면 멈춘 건지 도는 건지 알 수 없어 숫자를 보여준다.
+  const [translationProgress, setTranslationProgress] = useState<string | null>(null);
   // 수동 수집(지금 수집하기) 진행 중 — PC 켤 때마다 도는 자동 수집 대신, 원할 때만 누르는 용도.
   const [isCrawling, setIsCrawling] = useState(false);
   const [comments, setComments] = useState<
@@ -404,31 +408,74 @@ export default function AdminPage() {
   };
 
   /**
+   * 번역 백필을 시작하고 끝날 때까지 진행 상황을 따라간다.
+   *
+   * <p>번역은 <b>동기로 기다릴 수 없다.</b> 100건이면 LLM 호출이 다섯 번이고 로컬 Ollama 는 한 번에
+   * 수십 초가 걸린다. apiFetch 의 제한은 12초라 예전 방식(동기 호출)은 언제나 시간초과였다 —
+   * 처음 눌렀을 때 결과가 돌아온 건 Ollama 가 꺼져 있어 아무 일도 안 하고 즉시 반환했기 때문이다.
+   *
+   * <p>그래서 시작만 알리고(202) 서버가 백그라운드로 돈다. 이 함수는 상태만 물어본다. 창을 닫아도
+   * 작업은 계속된다.
+   *
+   * @param maxBatches 0 이면 대상이 마를 때까지, 1 이상이면 그 횟수만.
+   */
+  const runTranslationJob = async (maxBatches: number) => {
+    setIsTranslating(true);
+    setTranslationProgress('시작하는 중…');
+    try {
+      const res = await apiFetch(
+        `/api/admin/popups/backfill-translations/bulk?retryMissing=true&maxBatches=${maxBatches}`,
+        { method: 'POST' },
+      );
+      if (!res.ok) {
+        notifyError('번역 시작 실패');
+        return;
+      }
+      const start = await res.json();
+      if (!start.started && start.running) {
+        notifyError('이미 번역 작업이 돌고 있습니다. 끝난 뒤에 다시 눌러 주세요.');
+        return;
+      }
+
+      for (let i = 0; i < TRANSLATION_MAX_POLLS; i++) {
+        await new Promise((r) => setTimeout(r, TRANSLATION_POLL_MS));
+        const statusRes = await apiFetch('/api/admin/popups/backfill-translations/status');
+        if (!statusRes.ok) continue;
+        const s = await statusRes.json();
+        setTranslationProgress(`번역 ${s.translated ?? 0} · 비움 ${s.skipped ?? 0}`);
+        if (s.state === 'RUNNING') continue;
+
+        // 확신이 없어 비운 건수까지 보여준다 — "몇 건이 안 됐나" 가 다음 판단의 근거다.
+        const counts = `번역 ${s.translated ?? 0} · 확신없어 비움 ${s.skipped ?? 0}`;
+        if (s.state === 'COMPLETED')
+          notifySuccess(`${counts}${s.message ? ` — ${s.message}` : ''}`);
+        else notifyError(`${s.state} — ${s.message ?? '알 수 없는 이유로 멈췄습니다'} (${counts})`);
+        loadAllPopups();
+        return;
+      }
+      notifySuccess('아직 돌고 있습니다. 서버에서 계속 진행되니 잠시 뒤 다시 확인해 주세요.');
+    } catch {
+      notifyError('번역 중 오류가 발생했습니다.');
+    } finally {
+      setIsTranslating(false);
+      setTranslationProgress(null);
+    }
+  };
+
+  /**
    * 번역 시험 — 한 배치(최대 100건)만 돌린다.
    *
    * <p>결과를 보고 전체를 돌릴지 정하기 위한 것이다. 틀린 이름은 빈칸보다 나쁘고(빈칸이면
    * 한국어 원문이 나와 최소한 틀리지는 않는다), 되돌리려면 DB 를 직접 손봐야 한다.
    */
   const handleTranslateOnce = async () => {
-    if (!(await confirmAction({ text: '번역을 한 배치(최대 100건)만 돌려볼까요?' }))) return;
-    setIsTranslating(true);
-    try {
-      const res = await apiFetch('/api/admin/popups/backfill-translations', { method: 'POST' });
-      if (!res.ok) {
-        notifyError('번역 실행 실패');
-        return;
-      }
-      const d = await res.json();
-      // 확신이 없어 비운 건수까지 보여준다 — "몇 건이 안 됐나" 가 다음 판단의 근거다.
-      notifySuccess(
-        `대상 ${d.targets ?? 0} · 번역 ${d.translated ?? 0} · 확신없어 비움 ${d.skipped ?? 0} · 재시도 ${d.deferred ?? 0}`,
-      );
-      loadAllPopups();
-    } catch {
-      notifyError('번역 실행 중 오류가 발생했습니다.');
-    } finally {
-      setIsTranslating(false);
-    }
+    if (
+      !(await confirmAction({
+        text: 'PC 의 Ollama 를 켜 두셨나요? 번역을 한 배치(최대 100건)만 돌려봅니다.',
+      }))
+    )
+      return;
+    await runTranslationJob(1);
   };
 
   /**
@@ -444,21 +491,7 @@ export default function AdminPage() {
       }))
     )
       return;
-    setIsTranslating(true);
-    try {
-      const res = await apiFetch('/api/admin/popups/backfill-translations/bulk?retryMissing=true', {
-        method: 'POST',
-      });
-      if (!res.ok) {
-        notifyError('전체 번역 시작 실패');
-        return;
-      }
-      notifySuccess('전체 번역을 시작했습니다. 서버에서 계속 진행되며 몇 분 걸립니다.');
-    } catch {
-      notifyError('전체 번역 시작 중 오류가 발생했습니다.');
-    } finally {
-      setIsTranslating(false);
-    }
+    await runTranslationJob(0);
   };
 
   // 이름이 완전히 같은 중복 팝업 정리 — 먼저 미리보기로 몇 건인지 보여주고 확인받은 뒤 적용.
@@ -786,6 +819,7 @@ export default function AdminPage() {
                 handleDedupe={handleDedupe}
                 handleChangeStatus={handleChangeStatus}
                 isTranslating={isTranslating}
+                translationProgress={translationProgress}
                 handleTranslateOnce={handleTranslateOnce}
                 handleTranslateAll={handleTranslateAll}
               />

@@ -10,6 +10,8 @@ type PopupsTabProps = {
   handleDedupe: () => void;
   handleChangeStatus: (id: number, currentStatus: string) => void;
   isTranslating: boolean;
+  /** 도는 동안의 누계("번역 12 · 비움 3"). 몇 분씩 걸려서 멈춘 건지 도는 건지 보여야 한다. */
+  translationProgress: string | null;
   /** 한 배치(최대 100건)만. 결과를 확인한 뒤 전체를 돌리기 위한 것이다. */
   handleTranslateOnce: () => void;
   /** 남은 것 전부. 되돌리려면 DB 를 손봐야 하므로 시험 배치를 본 뒤에만 쓴다. */
@@ -26,6 +28,7 @@ export function PopupsTab({
   handleDedupe,
   handleChangeStatus,
   isTranslating,
+  translationProgress,
   handleTranslateOnce,
   handleTranslateAll,
 }: PopupsTabProps) {
@@ -62,22 +65,25 @@ export function PopupsTab({
           {/*
             번역은 시험과 전체를 <b>다른 버튼</b>으로 나눈다. 틀린 이름은 빈칸보다 나쁘고,
             되돌리려면 DB 를 직접 손봐야 한다 — 한 번에 다 돌리는 실수를 구조로 막는다.
+
+            도는 동안에는 누계를 버튼에 띄운다. 몇 분씩 걸리는데 '번역 중…' 만 있으면
+            멈춘 건지 도는 건지 알 수 없다.
           */}
           <button
             onClick={handleTranslateOnce}
             disabled={isTranslating}
-            title="최대 100건만 번역합니다. 결과를 확인한 뒤 전체를 돌리세요."
+            title="PC 의 Ollama 가 켜져 있어야 합니다. 최대 100건만 번역하고 멈춥니다."
             className="rounded-pill border border-[var(--color-border)] px-4 py-2 text-sm font-bold text-muted-foreground transition-colors hover:text-foreground disabled:opacity-60"
           >
-            {isTranslating ? '번역 중…' : '번역 시험 (100건)'}
+            {isTranslating ? (translationProgress ?? '번역 중…') : '번역 시험 (100건)'}
           </button>
           <button
             onClick={handleTranslateAll}
             disabled={isTranslating}
-            title="남은 것을 전부 번역합니다. 시험 배치를 확인한 뒤에 누르세요."
+            title="PC 의 Ollama 가 켜져 있어야 합니다. 남은 것을 전부 번역합니다 — 시험 배치를 확인한 뒤에 누르세요."
             className="rounded-pill border border-lime-400/60 bg-lime-400/10 px-4 py-2 text-sm font-bold text-lime-600 transition-colors hover:bg-lime-400/20 disabled:opacity-60"
           >
-            {isTranslating ? '번역 중…' : '번역 전체'}
+            {isTranslating ? (translationProgress ?? '번역 중…') : '번역 전체'}
           </button>
         </div>
       </div>
