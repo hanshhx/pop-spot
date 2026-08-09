@@ -51,8 +51,20 @@ public class PopupTranslationService {
     private final PopupTranslationGlossary glossary;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    /** 번역 백필은 로컬 PC가 꺼졌다고 유료·쿼터 제한 Groq로 넘어가지 않는다. */
-    @Value("${popspot.crawler.translation-local-only:true}")
+    /**
+     * 켜면 번역을 로컬 Ollama 로만 돌린다. <b>기본값은 꺼짐이다.</b>
+     *
+     * <p>원래는 켜져 있었다. "번역은 있으면 좋은 것이니 유료·쿼터 제한 Groq 를 쓰면서까지 할 일은 아니다" 는 판단이었다. 그런데 로컬 Ollama 는 운영자
+     * PC 에서 돈다. PC 가 꺼져 있으면 번역이 <b>실패</b>하는 게 아니라 조용히 보류되고, 그래서 백필을 눌러도 아무 일이 안 일어난다 — 실제로
+     * 2026-08-09 에 100건을 걸었더니 100건 전부 보류로 돌아왔다.
+     *
+     * <p>넘겨도 수집이 굶지 않는다. {@code translateBatch} 가 클라우드를 고르기 전에 {@link
+     * LlmUsageTracker#isDailyQuotaExhausted} 를 보고, 한도가 소진됐으면 번역 쪽이 먼저 물러난다. 한 배치가 {@value
+     * #BATCH_SIZE} 건이라 남은 600여 건도 서른 번 남짓이다.
+     *
+     * <p>PC 를 켜 두는 운영이라면 {@code POPSPOT_TRANSLATION_LOCAL_ONLY=true} 로 되돌리면 된다.
+     */
+    @Value("${popspot.crawler.translation-local-only:false}")
     private boolean localOnly;
 
     /** 번역 한 벌. 확신이 없으면 해당 칸이 null 이다. */
