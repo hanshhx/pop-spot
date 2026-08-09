@@ -283,7 +283,7 @@ public class RateLimitInterceptor implements HandlerInterceptor {
                             Refill.intervally(LIMIT_PII_REVEAL_PER_HOUR, Duration.ofHours(1)));
             bucketName = BUCKET_PII_REVEAL;
         } else {
-            limit = resolveLimit(uri);
+            limit = resolveLimit(uri, request.getMethod());
             bucketName = uri;
         }
 
@@ -377,16 +377,44 @@ public class RateLimitInterceptor implements HandlerInterceptor {
                 Refill.intervally(LIMIT_PLAYBACK_FAILED_PER_MIN, Duration.ofMinutes(1)));
     }
 
-    private Bandwidth resolveLimit(String uri) {
+    /**
+     * 무거운 관리자 작업인지. <b>경로만으로는 부족하고 메서드까지 봐야 한다.</b>
+     *
+     * <p>{@link #ADMIN_HEAVY_PATHS} 는 접두사로 맞춰 본다. 하위 경로를 일일이 적지 않아도 되지만, 그 아래 <b>읽기 엔드포인트까지 같이
+     * 묶인다</b>. 실제로 두 군데가 걸려 있었다.
+     *
+     * <ul>
+     *   <li>{@code GET /api/admin/popups/crawl/pending} — 제보 검토 목록. 관리자가 네 번 새로고침하면 막혔다.
+     *   <li>{@code GET /api/admin/popups/backfill-translations/status} — 번역 진행 상태. 5초마다 물어보므로 분당
+     *       12회다. 시작하자마자 429 로 도배됐다.
+     * </ul>
+     *
+     * <p>무겁다고 본 이유는 전부 <b>누르면 벌어지는 일</b> 때문이다 — 외부 API 를 수백 번 부르거나, 되돌릴 수 없거나. 읽기는 그중 무엇도 하지 않는다.
+     * Spring 이 메서드까지 맞춰 매핑하므로 GET 으로는 POST 핸들러가 실행되지 않는다. 즉 여기서 GET 을 빼도 무거운 작업이 열리지 않는다.
+     *
+     * <p>빠져도 무제한이 아니라 일반 관리자 한도({@value #LIMIT_ADMIN_PER_MIN}/분)를 받는다. 나중에 이 접두사 아래에 <b>비싼 GET</b>
+     * 을 만든다면 그건 따로 잡아야 한다.
+     */
+    static boolean isHeavyAdminAction(String uri, String method) {
+        if ("GET".equals(method) || "HEAD".equals(method)) {
+            return false;
+        }
+        for (String heavy : ADMIN_HEAVY_PATHS) {
+            if (uri.startsWith(heavy)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private Bandwidth resolveLimit(String uri, String method) {
         // v2.53 — 관리자 경로. 버킷 키에 계정이 섞이므로 아래 숫자는 "관리자 한 명당" 이다.
         if (uri.startsWith(ADMIN_PATH_PREFIX)) {
             // 되돌릴 수 없거나 외부 비용이 드는 작업. 사람이 분당 세 번 넘게 누를 일이 없다.
-            for (String heavy : ADMIN_HEAVY_PATHS) {
-                if (uri.startsWith(heavy)) {
-                    return Bandwidth.classic(
-                            LIMIT_ADMIN_HEAVY_PER_MIN,
-                            Refill.intervally(LIMIT_ADMIN_HEAVY_PER_MIN, Duration.ofMinutes(1)));
-                }
+            if (isHeavyAdminAction(uri, method)) {
+                return Bandwidth.classic(
+                        LIMIT_ADMIN_HEAVY_PER_MIN,
+                        Refill.intervally(LIMIT_ADMIN_HEAVY_PER_MIN, Duration.ofMinutes(1)));
             }
             // 나머지 관리자 API. 화면이 지표를 3초마다 폴링하므로(분당 20회) 넉넉히 잡는다 —
             // 여기서 정상 사용이 막히면 관리자가 레이트리밋을 꺼 버리게 된다.

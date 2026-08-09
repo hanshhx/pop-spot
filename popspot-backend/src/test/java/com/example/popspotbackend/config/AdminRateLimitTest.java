@@ -118,6 +118,61 @@ class AdminRateLimitTest {
                 .contains("/api/admin/session/revoke-all");
     }
 
+    /**
+     * 무거운 경로를 접두사로 맞추다 보니 그 아래 <b>읽기 엔드포인트까지 분당 3회</b>에 묶여 있었다. 위의 검사들은 경로 이름만 대조하므로 이걸 못 잡는다 — 목록에
+     * 적힌 이름은 전부 진짜였고, 문제는 그 이름이 <b>너무 많이 덮은</b> 것이었다.
+     *
+     * <p>실제 증상 두 가지.
+     *
+     * <ul>
+     *   <li>번역 진행 상태를 5초마다 물으니(분당 12회) 시작하자마자 429 로 도배됐다.
+     *   <li>제보 검토 목록을 네 번 새로고침하면 막혔다. 이건 한참 전부터 그랬는데 아무도 몰랐다.
+     * </ul>
+     */
+    @Test
+    @DisplayName("무거운 경로 아래의 읽기는 무겁지 않다 — 상태 조회가 분당 3회에 묶여 있었다")
+    void readsUnderHeavyPathsAreNotHeavy() {
+        assertThat(
+                        RateLimitInterceptor.isHeavyAdminAction(
+                                "/api/admin/popups/backfill-translations/status", "GET"))
+                .describedAs("진행 상태를 5초마다 물으면 분당 12회다 — 3회 한도면 바로 429 다")
+                .isFalse();
+
+        assertThat(
+                        RateLimitInterceptor.isHeavyAdminAction(
+                                "/api/admin/popups/crawl/pending", "GET"))
+                .describedAs("제보 검토 목록이다. 네 번 새로고침하면 막혔다")
+                .isFalse();
+    }
+
+    @Test
+    @DisplayName("실제로 일을 벌이는 쓰기는 여전히 무겁다 — 이 방어를 열면 안 된다")
+    void writesToHeavyPathsStayHeavy() {
+        assertThat(
+                        RateLimitInterceptor.isHeavyAdminAction(
+                                "/api/admin/popups/backfill-translations", "POST"))
+                .isTrue();
+        assertThat(
+                        RateLimitInterceptor.isHeavyAdminAction(
+                                "/api/admin/popups/backfill-translations/bulk", "POST"))
+                .describedAs("하위 경로도 접두사로 잡혀야 한다 — bulk 가 진짜 비싼 쪽이다")
+                .isTrue();
+        assertThat(RateLimitInterceptor.isHeavyAdminAction("/api/admin/popups/dedupe", "POST"))
+                .describedAs("되돌릴 수 없다")
+                .isTrue();
+        assertThat(RateLimitInterceptor.isHeavyAdminAction("/api/admin/session/revoke-all", "POST"))
+                .describedAs("보안 조치라 반복될 이유가 없다")
+                .isTrue();
+    }
+
+    @Test
+    @DisplayName("무거운 목록 밖의 경로는 메서드와 무관하게 일반 한도다")
+    void unlistedPathsAreNeverHeavy() {
+        assertThat(RateLimitInterceptor.isHeavyAdminAction("/api/admin/stats", "GET")).isFalse();
+        assertThat(RateLimitInterceptor.isHeavyAdminAction("/api/admin/popups/123", "POST"))
+                .isFalse();
+    }
+
     @Test
     @DisplayName("관리자 버킷은 계정을 섞는다 — IP 만 쓰면 직접 호출 경로에서 전원이 한 바구니가 된다")
     void adminBucketIncludesAccount() throws Exception {
