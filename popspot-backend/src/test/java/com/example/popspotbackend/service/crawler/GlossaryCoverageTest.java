@@ -54,6 +54,43 @@ class GlossaryCoverageTest {
     }
 
     /**
+     * 지명은 이름 안에 들어 있을 때가 많다. location 칸만 잠그고 name 을 음역으로 열어 둔 탓에 여기가 뚫려 있었고, 2026-08-09 시험 배치에서 실제로
+     * 사고가 났다.
+     *
+     * <ul>
+     *   <li>"…타임스퀘어 영등포" → {@code 江東区} — <b>서울 반대편이다.</b> 이대로면 관광객이 헛걸음한다.
+     *   <li>"…서촌 팝업" → {@code seocheon} — 로마자가 그대로 샜다.
+     *   <li>"…시흥 프리미엄 아울렛" → {@code シヘウン} — 읽기가 틀렸다.
+     * </ul>
+     *
+     * <p>한남동은 더 고약했다. "한남" 만 잡히고 남은 "동" 을 모델이 방위로 읽어 {@code ハンナム東} 이 됐다. 그래서 "동" 이 붙은 형태도 따로 넣는다.
+     */
+    @Test
+    @DisplayName("지명이 이름 안에 있어도 잠긴다 — 영등포가 강동구로 나온 적이 있다")
+    void placeNamesInsideNamesAreLocked() {
+        // 모르는 브랜드가 섞여 이름 전체는 못 덮는다. 그래도 지명만은 모델에게 넘어가면 안 된다 —
+        // 브랜드가 어색한 건 읽는 사람이 알아채지만, 동네가 틀리면 그 사람이 헛걸음한다.
+        locksPlace("베이시스 마운틴 베어 샌들 서촌 팝업", "서촌");
+        locksPlace("널디 시흥 프리미엄 아울렛 팝업스토어", "시흥");
+        locksPlace("라미블랑제리 한남동 카페", "한남동");
+
+        // 이건 전부 아는 말이라 통째로 잠긴다.
+        covers("지드래곤 팝업 타임스퀘어 영등포");
+    }
+
+    /**
+     * 한남동은 <b>"한남" 만 잡히면 안 된다.</b> 남은 "동" 을 모델이 방위로 읽어 {@code ハンナム東} 이 됐다. 그래서 지명이 통째로 사라졌는지 본다 —
+     * 조각이 남으면 이 검사가 걸린다.
+     */
+    private void locksPlace(String name, String place) {
+        PopupTranslationGlossary.ProtectedText text = glossary.protect(name);
+
+        assertThat(text.masked())
+                .describedAs("'%s' 의 '%s' 가 모델에게 그대로 넘어간다 — 추측하면 다른 동네가 된다", name, place)
+                .doesNotContain(place);
+    }
+
+    /**
      * 잠근다고 다 되는 것은 아니다 — <b>모르는 이름은 여전히 남아야 한다.</b>
      *
      * <p>여기서 억지로 통과시키면 LLM 이 추측하게 되고, 그게 "남대문 → 南山" 을 만든 경로다. 커버리지를 올리려고 이 방어선을 무너뜨리면 안 된다.
