@@ -66,11 +66,36 @@ public class PopupAdminReviewController {
         return ResponseEntity.ok(Map.of("status", "REJECTED_REQUEST", "id", id));
     }
 
+    /**
+     * 승인 — 그리고 좌표가 없으면 그 자리에서 채운다.
+     *
+     * <p>제보로 들어온 팝업은 구조적으로 좌표가 없다(제보 폼에 위도·경도 칸이 없다). 예전에는 승인이 상태만 바꿨기 때문에, 승인해도 목록·검색에만 나오고
+     * <b>지도에는 안 떴다</b> — 정작 "빠졌다" 고 느끼는 곳이 지도인데도 그랬다. 고치려면 매번 사람이 SQL 을 쳐야 했다.
+     *
+     * <p><b>좌표를 못 채워도 승인은 유지한다.</b> 승인은 이미 저장됐고, 카카오가 잠깐 흔들렸다고 해서 관리자의 승인 동작이 실패로 보이면 같은 팝업을 두 번
+     * 승인하게 된다. 대신 응답에 {@code onMap} 을 담아 <b>지도에 뜨는지 아닌지를 화면이 바로 알 수 있게</b> 한다 — 조용히 실패하면 목록에만 있는
+     * 팝업이 다시 쌓인다.
+     */
     @PostMapping("/{id}/approve")
     public ResponseEntity<Map<String, Object>> approve(@PathVariable Long id) {
         PopupStore popup = popupStoreService.updateReviewStatus(id, REVIEW_APPROVED);
-        log.info("[CrawlReview] APPROVED id={} name={}", id, popup.getName());
-        return ResponseEntity.ok(Map.of("status", REVIEW_APPROVED, "id", id));
+
+        boolean geocoded = false;
+        try {
+            geocoded = orchestrator.fillCoordinatesIfMissing(popup);
+        } catch (RuntimeException e) {
+            log.warn("[CrawlReview] 승인 후 좌표 채우기 실패 id={} — 승인은 그대로 둔다 ({})", id, e.toString());
+        }
+
+        boolean onMap = PopupCrawlOrchestrator.hasMapCoordinates(popup);
+        log.info(
+                "[CrawlReview] APPROVED id={} name={} geocoded={} onMap={}",
+                id,
+                popup.getName(),
+                geocoded,
+                onMap);
+        return ResponseEntity.ok(
+                Map.of("status", REVIEW_APPROVED, "id", id, "geocoded", geocoded, "onMap", onMap));
     }
 
     @PostMapping("/{id}/reject")
