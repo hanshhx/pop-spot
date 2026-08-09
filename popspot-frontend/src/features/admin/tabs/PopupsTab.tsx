@@ -9,6 +9,11 @@ type PopupsTabProps = {
   handleBackfillPhotos: () => void;
   handleDedupe: () => void;
   handleChangeStatus: (id: number, currentStatus: string) => void;
+  isTranslating: boolean;
+  /** 한 배치(최대 100건)만. 결과를 확인한 뒤 전체를 돌리기 위한 것이다. */
+  handleTranslateOnce: () => void;
+  /** 남은 것 전부. 되돌리려면 DB 를 손봐야 하므로 시험 배치를 본 뒤에만 쓴다. */
+  handleTranslateAll: () => void;
 };
 
 export function PopupsTab({
@@ -20,6 +25,9 @@ export function PopupsTab({
   handleBackfillPhotos,
   handleDedupe,
   handleChangeStatus,
+  isTranslating,
+  handleTranslateOnce,
+  handleTranslateAll,
 }: PopupsTabProps) {
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -49,6 +57,27 @@ export function PopupsTab({
             className="rounded-pill bg-lime-300 px-4 py-2 text-sm font-bold text-ink-900 transition-colors hover:bg-lime-400 disabled:opacity-60"
           >
             {isBackfilling ? '배정 중…' : '팝업 사진 채우기'}
+          </button>
+
+          {/*
+            번역은 시험과 전체를 <b>다른 버튼</b>으로 나눈다. 틀린 이름은 빈칸보다 나쁘고,
+            되돌리려면 DB 를 직접 손봐야 한다 — 한 번에 다 돌리는 실수를 구조로 막는다.
+          */}
+          <button
+            onClick={handleTranslateOnce}
+            disabled={isTranslating}
+            title="최대 100건만 번역합니다. 결과를 확인한 뒤 전체를 돌리세요."
+            className="rounded-pill border border-[var(--color-border)] px-4 py-2 text-sm font-bold text-muted-foreground transition-colors hover:text-foreground disabled:opacity-60"
+          >
+            {isTranslating ? '번역 중…' : '번역 시험 (100건)'}
+          </button>
+          <button
+            onClick={handleTranslateAll}
+            disabled={isTranslating}
+            title="남은 것을 전부 번역합니다. 시험 배치를 확인한 뒤에 누르세요."
+            className="rounded-pill border border-lime-400/60 bg-lime-400/10 px-4 py-2 text-sm font-bold text-lime-600 transition-colors hover:bg-lime-400/20 disabled:opacity-60"
+          >
+            {isTranslating ? '번역 중…' : '번역 전체'}
           </button>
         </div>
       </div>
