@@ -52,19 +52,18 @@ public class PopupTranslationService {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     /**
-     * 켜면 번역을 로컬 Ollama 로만 돌린다. <b>기본값은 꺼짐이다.</b>
+     * PC 의 번역용 Ollama 가 없을 때 <b>클라우드로 넘어갈지</b>를 정한다. 켜면 넘어가지 않고 보류한다. <b>기본값은 켜짐이다.</b>
      *
-     * <p>원래는 켜져 있었다. "번역은 있으면 좋은 것이니 유료·쿼터 제한 Groq 를 쓰면서까지 할 일은 아니다" 는 판단이었다. 그런데 로컬 Ollama 는 운영자
-     * PC 에서 돈다. PC 가 꺼져 있으면 번역이 <b>실패</b>하는 게 아니라 조용히 보류되고, 그래서 백필을 눌러도 아무 일이 안 일어난다 — 실제로
-     * 2026-08-09 에 100건을 걸었더니 100건 전부 보류로 돌아왔다.
+     * <p>이 값과 무관하게 Ollama 가 살아 있으면 언제나 그쪽을 먼저 쓴다. 이 값이 정하는 것은 "Ollama 가 없을 때 어떻게 할까" 뿐이다.
      *
-     * <p>넘겨도 수집이 굶지 않는다. {@code translateBatch} 가 클라우드를 고르기 전에 {@link
-     * LlmUsageTracker#isDailyQuotaExhausted} 를 보고, 한도가 소진됐으면 번역 쪽이 먼저 물러난다. 한 배치가 {@value
-     * #BATCH_SIZE} 건이라 남은 600여 건도 서른 번 남짓이다.
+     * <p>2026-08-09 에 잠깐 꺼 봤다가 되돌렸다. PC 가 꺼져 있어도 돌게 하려던 것이었는데, 운영 방식이 <b>Ollama 를 켜고 버튼을 누르는
+     * 것</b>이라 클라우드로 새는 길이 필요 없다. 번역은 이름 하나가 서비스에 오래 남는 값이고, 유료·쿼터 제한 경로를 백필처럼 큰 작업에 쓸 이유도 없다.
      *
-     * <p>PC 를 켜 두는 운영이라면 {@code POPSPOT_TRANSLATION_LOCAL_ONLY=true} 로 되돌리면 된다.
+     * <p>대신 <b>안 되는 이유가 보여야 한다.</b> 예전엔 보류가 조용해서 백필을 눌러도 아무 일이 안 일어나는 것처럼만 보였다 — 실제로 100건을 걸었더니
+     * 100건 전부 보류로 돌아왔고 화면에는 숫자만 떴다. 지금은 {@code PopupTranslationBulkJobService} 가 {@code PAUSED} 와
+     * 함께 Ollama 를 켜라고 적어 준다.
      */
-    @Value("${popspot.crawler.translation-local-only:false}")
+    @Value("${popspot.crawler.translation-local-only:true}")
     private boolean localOnly;
 
     /** 번역 한 벌. 확신이 없으면 해당 칸이 null 이다. */
@@ -107,8 +106,15 @@ public class PopupTranslationService {
         List<ProtectedPopup> protectedBatch = protect(batch);
         String prompt = buildPrompt(protectedBatch);
 
-        if (localOnly) {
+        // 번역용 Ollama가 살아 있으면 무조건 그쪽이 먼저다. crawlerLlm 도 로컬을 고를 수 있지만 그건
+        // OpenAI 호환 주소라, Qwen3 의 생각 과정이 출력 한도를 다 써서 번역이 잘려 나온다. 전용
+        // 클라이언트는 /api/chat 으로 think=false 를 명시한다 — 같은 모델이라도 다른 문이다.
+        if (ollamaTranslationClient.isAvailable()) {
             return translateLocally(prompt, protectedBatch);
+        }
+        if (localOnly) {
+            log.info("[PopupTranslation] 번역용 Ollama를 사용할 수 없어 이번 배치를 보류합니다");
+            return Map.of();
         }
 
         CrawlerLlm.Selection selection = crawlerLlm.select();

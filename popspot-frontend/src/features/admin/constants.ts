@@ -22,6 +22,15 @@ export const SERVER_METRICS_POLL_INTERVAL_MS = 3000;
 export const SERVER_METRICS_BUFFER_SIZE = 15;
 
 /**
+ * 번역 백필 진행 확인 — 5초 주기로 최대 20분.
+ *
+ * 지표 폴링(3초)보다 느슨한 이유는 한 배치가 수십 초 단위라 더 자주 물어도 같은 숫자만
+ * 돌아오기 때문이다. 20분을 넘겨도 작업은 서버에서 계속된다 — 화면만 그만 따라간다.
+ */
+export const TRANSLATION_POLL_MS = 5000;
+export const TRANSLATION_MAX_POLLS = 240;
+
+/**
  * 좌측 사이드바 네비게이션 — 개선안 #7: 상단 가로 탭 + "MASTER ADMIN" 해커 터미널 톤 대신
  * 소비자 앱과 같은 디자인 시스템의 밝은 사이드바. 서비스 운영 항목이 위, 시스템은 맨 아래.
  */

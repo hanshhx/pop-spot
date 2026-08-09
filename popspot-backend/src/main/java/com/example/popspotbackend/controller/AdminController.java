@@ -107,11 +107,20 @@ public class AdminController {
         return ResponseEntity.ok(Map.copyOf(popupTranslationBackfillService.runOnce()));
     }
 
-    /** 누락된 과거 행을 재대기시킨 뒤 Ollama로 여러 배치를 백그라운드 처리한다. */
+    /**
+     * 누락된 과거 행을 재대기시킨 뒤 여러 배치를 백그라운드로 처리한다.
+     *
+     * <p>진행 상황은 {@code /status} 로 본다. <b>관리자 화면의 시험·전체 버튼이 모두 이 길을 쓴다</b> — 차이는 {@code maxBatches}
+     * 뿐이다. 위의 동기 백필은 배치 하나짜리 수동 점검용으로 남겨 둔다.
+     *
+     * @param maxBatches 0이면 대상이 마를 때까지, 1 이상이면 그 횟수만 돌고 멈춘다.
+     */
     @PostMapping("/popups/backfill-translations/bulk")
     public ResponseEntity<Map<String, Object>> startTranslationBulkBackfill(
-            @RequestParam(defaultValue = "true") boolean retryMissing) {
-        return ResponseEntity.accepted().body(popupTranslationBulkJobService.start(retryMissing));
+            @RequestParam(defaultValue = "true") boolean retryMissing,
+            @RequestParam(defaultValue = "0") int maxBatches) {
+        return ResponseEntity.accepted()
+                .body(popupTranslationBulkJobService.start(retryMissing, Math.max(0, maxBatches)));
     }
 
     /** 대량 번역 작업 진행 상태. 서버 재시작 시 작업은 중단되며 다시 시작할 수 있다. */

@@ -21,7 +21,20 @@ public class PopupTranslationBulkJobService {
     private final AtomicBoolean running = new AtomicBoolean(false);
     private final AtomicReference<JobStatus> status = new AtomicReference<>(JobStatus.idle());
 
+    /** 배치 수를 제한하지 않는다 — 대상이 마를 때까지 돈다. */
+    public static final int UNLIMITED_BATCHES = 0;
+
     public Map<String, Object> start(boolean retryMissing) {
+        return start(retryMissing, UNLIMITED_BATCHES);
+    }
+
+    /**
+     * @param maxBatches 이 횟수만큼 {@link PopupTranslationBackfillService#runOnce()} 를 돌고 멈춘다. {@link
+     *     #UNLIMITED_BATCHES} 면 끝까지 간다.
+     *     <p>시험 실행이 있는 이유다. 번역은 되돌리려면 DB 를 직접 손봐야 해서, 한 배치를 눈으로 확인한 뒤 전체를 돌리고 싶다. 그 한 배치도 LLM 호출이
+     *     여러 번이라 <b>동기로는 못 기다린다</b> — 그래서 시험도 전체와 같은 백그라운드 길을 쓰고 횟수만 다르게 준다.
+     */
+    public Map<String, Object> start(boolean retryMissing, int maxBatches) {
         if (!running.compareAndSet(false, true)) {
             return response(false, status.get());
         }
@@ -30,7 +43,7 @@ public class PopupTranslationBulkJobService {
         status.set(JobStatus.running(startedAt));
         Thread.ofVirtual()
                 .name("popup-translation-backfill")
-                .start(() -> run(retryMissing, startedAt));
+                .start(() -> run(retryMissing, startedAt, maxBatches));
         return response(true, status.get());
     }
 
@@ -38,17 +51,31 @@ public class PopupTranslationBulkJobService {
         return response(false, status.get());
     }
 
-    private void run(boolean retryMissing, OffsetDateTime startedAt) {
+    private void run(boolean retryMissing, OffsetDateTime startedAt, int maxBatches) {
         int requeued = 0;
         int attempted = 0;
         int translated = 0;
         int skipped = 0;
+        int rounds = 0;
         try {
             if (retryMissing) {
                 requeued = popupStoreRepository.requeueMissingTranslations();
             }
 
             while (!Thread.currentThread().isInterrupted()) {
+                if (maxBatches > UNLIMITED_BATCHES && rounds >= maxBatches) {
+                    status.set(
+                            JobStatus.finished(
+                                    "COMPLETED",
+                                    startedAt,
+                                    requeued,
+                                    attempted,
+                                    translated,
+                                    skipped,
+                                    "시험 " + maxBatches + "배치를 끝냈습니다 — 결과를 확인한 뒤 전체를 돌리세요"));
+                    return;
+                }
+                rounds++;
                 Map<String, Integer> batch = backfillService.runOnce();
                 int targets = batch.getOrDefault("targets", 0);
                 int batchAttempted = batch.getOrDefault("attempted", 0);
@@ -77,7 +104,7 @@ public class PopupTranslationBulkJobService {
                                     attempted,
                                     translated,
                                     skipped,
-                                    "Ollama를 사용할 수 없거나 배치 응답이 모두 실패했습니다"));
+                                    "PC의 Ollama를 켠 뒤 다시 눌러 주세요 — 한 건도 응답을 못 받았습니다"));
                     return;
                 }
                 status.set(
