@@ -196,10 +196,19 @@ public class PopupTranslationService {
         - 뜻만 있는 서술어구: 의미를 옮긴다("산지 직송 감자 마켓" -> "Farm-Direct Potato Market").
         - 일반명사는 그 언어의 말로: 팝업스토어 -> pop-up store / ポップアップストア
 
+        # 이름(name)과 장소(location)는 규칙이 다르다
+        - name: 모르는 브랜드라도 <b>소리 나는 대로</b> 옮겨라. 영어는 로마자, 일본어는 가타카나.
+            와릿이즌 -> Whatitisnt / ワリットイズン
+            메디큐브 -> medicube / メディキューブ
+          뜻을 옮기려 하지 마라. "글로우 서울" 은 Glow Seoul / グロウソウル 이지 光る首都가 아니다.
+        - location: <b>확신이 없으면 null.</b> 장소를 잘못 적으면 사람이 다른 동네로 간다.
+          실제로 "남대문" 이 "南山"(남산)으로 나온 적이 있다. 모르면 비워라.
+
         # 반드시 지킬 것
-        1. 확신이 없으면 그 칸을 null 로 둬라. 빈 값은 한국어 원문으로 표시되므로 안전하다.
-           틀린 이름을 자신 있게 쓰면 관광객이 엉뚱한 곳으로 간다.
-        2. 지어내지 마라. 모르는 소상공인 브랜드는 로마자 표기로 두되, 그것도 애매하면 null.
+        1. location 은 확신이 없으면 그 칸을 null 로 둬라. 빈 값은 한국어 원문으로 표시되므로 안전하다.
+        2. 없는 정보를 덧붙이지 마라. 원문에 없는 층수·번지·연도를 만들지 마라.
+           실제로 "…더현대 서울" 에 없던 "1F" 가 붙어 나온 적이 있다.
+        3. 일본어 칸에 중국어를 쓰지 마라. 한자만 늘어놓지 말고 가나를 섞어 일본어로 적어라.
         3. 고유명사를 업종 일반명사로 풀지 마라.
            "한복상점" -> "Hanbok Shop" (X) — 서울에 수백 개 있는 업태명이 되어 특정이 안 된다.
         4. 공식 행사명이 따로 있으면 그것을 써라. 단어를 임의로 조합하지 마라.
@@ -251,10 +260,12 @@ public class PopupTranslationService {
                             restoreName(
                                     clean(node, "nameEn", source.getName()),
                                     protectedPopup.name(),
+                                    source.getName(),
                                     true),
                             restoreName(
                                     clean(node, "nameJa", source.getName()),
                                     protectedPopup.name(),
+                                    source.getName(),
                                     false),
                             restoreLocation(
                                     clean(node, "locationEn", source.getLocation()),
@@ -274,14 +285,27 @@ public class PopupTranslationService {
     private String restoreName(
             String translated,
             PopupTranslationGlossary.ProtectedText protectedText,
+            String originalName,
             boolean english) {
         if (translated == null) return null;
 
-        // 한글 이름을 자동 저장하려면 최소 하나의 검증된 IP·브랜드·시설명이 있어야 하고,
-        // 사전으로 잠근 뒤 해석되지 않은 한글이 남아 있으면 안 된다.
-        if (protectedText.sourceHadHangul()
-                && (!protectedText.properNameFound() || protectedText.hasUnprotectedHangul()))
-            return null;
+        /*
+         * 이름은 <b>모르는 낱말이 남아 있어도</b> 내보낸다.
+         *
+         * 예전에는 "잠근 뒤 한글이 하나라도 남으면 통째로 포기" 였다. 정확했지만 1047곳 중
+         * 177곳만 번역되는 원인이었다 — 와릿이즌·메디큐브처럼 공식 일본어 표기가 없는 개별
+         * 브랜드가 수백 개인데, 그건 용어집으로 도달할 수 없다.
+         *
+         * 브랜드 이름을 가타카나로 옮기는 것은 일본에서 외국 브랜드를 다루는 표준이라, 뜻을
+         * 지어내는 것과는 종류가 다른 위험이다. 대신 나가는 값을 기계로 검사한다
+         * ({@link #looksUnsafeJapanese}) — 중국어로 나오거나 없는 숫자를 지어내면 버린다.
+         *
+         * <b>장소는 이 완화를 적용하지 않는다.</b> 아래 restoreLocation 이 여전히 "한글이 남으면
+         * 버린다" 를 지킨다. 이름이 어색한 것은 읽는 사람이 알아채지만, 장소가 틀리면 그 사람을
+         * 다른 동네로 보낸다 — 실제로 남대문이 남산(南山)으로 나온 적이 있다.
+         */
+        if (!english && looksUnsafeJapanese(translated, originalName)) return null;
+
         return english
                 ? protectedText.restoreEnglish(translated)
                 : protectedText.restoreJapanese(translated);
@@ -314,6 +338,68 @@ public class PopupTranslationService {
     }
 
     private static final java.util.regex.Pattern HANGUL = java.util.regex.Pattern.compile("[가-힣]");
+
+    private static final java.util.regex.Pattern KANA =
+            java.util.regex.Pattern.compile("[ぁ-んァ-ヶー]");
+
+    private static final java.util.regex.Pattern KANJI = java.util.regex.Pattern.compile("[一-龯]");
+
+    private static final java.util.regex.Pattern DIGITS = java.util.regex.Pattern.compile("\\d+");
+
+    /** 용어집이 씌운 보호 토큰. {@code PopupTranslationGlossary} 와 같은 모양이어야 한다. */
+    private static final java.util.regex.Pattern PROTECTION_TOKEN =
+            java.util.regex.Pattern.compile(
+                    "ZXQTERM\\d+QXZ", java.util.regex.Pattern.CASE_INSENSITIVE);
+
+    /** 한자만 이 길이 이상 이어지면 일본어 문장으로 보기 어렵다. 짧은 것(銀魂·原神)은 정상이다. */
+    private static final int CHINESE_SUSPICION_LENGTH = 4;
+
+    /**
+     * 일본어 결과를 <b>내보내면 안 되는지</b> 기계로 판정한다.
+     *
+     * <p>모르는 브랜드를 가타카나로 옮기게 열면서 함께 넣은 방어선이다. 음역 실패와 뜻 지어내기는 다른 종류다 — 브랜드를 가타카나로 옮기는 것은 일본에서 외국 브랜드를
+     * 다루는 표준이지만, 없는 뜻이나 없는 정보를 만드는 것은 막아야 한다.
+     *
+     * <p><b>모델이 스스로 쓴 부분만 본다.</b> 용어집이 복원할 자리는 보호 토큰이라 여기서 지운다 — 그 자리는 이미 검증된 공식 표기이므로 검사할 이유가 없다.
+     * 이 구분이 없으면 {@code 外見至上主義}(외모지상주의의 정답)처럼 <b>맞는 번역이 중국어로 오인</b>된다. 한글 원문에는 한자가 없으니 "원문에 한자가 있었나"
+     * 로는 가릴 수 없다.
+     *
+     * <p>거르는 것은 둘이다.
+     *
+     * <ul>
+     *   <li><b>모델이 쓴 부분이 가나 없는 한자 덩어리</b> — 중국어일 수 있다. 운영에서 남대문잡채호떡이 {@code 南山拌菜熱米糕} 로 나왔다.
+     *   <li><b>원문에 없던 숫자</b> — 없는 층수("1F")를 지어낸 적이 있다. 사람이 그 층으로 간다.
+     * </ul>
+     *
+     * <p>여기서 못 잡는 것도 있다. 그럴듯하게 생긴 오역은 사람이 봐야 한다({@code scripts/review-translations.mjs}). 이 검사는
+     * <b>확실히 이상한 것</b>만 막는다.
+     *
+     * @param translated 모델 응답 원문(보호 토큰이 아직 들어 있는 상태)
+     */
+    static boolean looksUnsafeJapanese(String translated, String source) {
+        if (translated == null || translated.isBlank()) return false;
+        String original = source == null ? "" : source;
+
+        // 보호 토큰 자리는 검증된 공식 표기가 들어올 곳이다. 모델이 쓴 부분만 남긴다.
+        String modelWords = PROTECTION_TOKEN.matcher(translated).replaceAll(" ").trim();
+        if (modelWords.isBlank()) return false;
+
+        boolean kanjiOnly =
+                KANJI.matcher(modelWords).find()
+                        && !KANA.matcher(modelWords).find()
+                        && modelWords.length() >= CHINESE_SUSPICION_LENGTH;
+        if (kanjiOnly) return true;
+
+        java.util.Set<String> sourceNumbers = new java.util.HashSet<>();
+        java.util.regex.Matcher inSource = DIGITS.matcher(original);
+        while (inSource.find()) sourceNumbers.add(inSource.group());
+
+        java.util.regex.Matcher inResult = DIGITS.matcher(modelWords);
+        while (inResult.find()) {
+            if (!sourceNumbers.contains(inResult.group())) return true;
+        }
+        return false;
+    }
 
     private void recordTokens(TokenUsage tokens) {
         if (tokens == null) {
