@@ -165,6 +165,8 @@ const DICT = {
     'map.areaAll': '서울 전체',
     'map.legendTitle': '범례',
     'map.markerAria': ' 지도에서 보기',
+    // 주소가 동네까지만 있는 팝업. 핀은 그 동네 한복판이라 정확한 지점이 아니다.
+    'map.approxLocation': '대략 위치예요 — 주소가 동네까지만 있어서 정확한 지점은 확인이 필요해요.',
     'map.emptyLine1': '해당 카테고리의',
     'map.emptyLine2': '팝업스토어가 없습니다.',
     'map.listAria': '팝업 목록',
@@ -929,6 +931,8 @@ const DICT = {
     'map.areaAll': 'All Seoul',
     'map.legendTitle': 'Legend',
     'map.markerAria': ' — view on map',
+    'map.approxLocation':
+      'Approximate location — the address only names the neighborhood, so check the exact spot.',
     'map.emptyLine1': 'No pop-ups in',
     'map.emptyLine2': 'this category.',
     'map.listAria': 'Pop-up list',
@@ -1698,6 +1702,8 @@ const DICT = {
     'map.areaAll': 'ソウル全体',
     'map.legendTitle': '凡例',
     'map.markerAria': 'を地図で見る',
+    'map.approxLocation':
+      'おおよその位置です — 住所が地域名までのため、正確な場所はご確認ください。',
     'map.emptyLine1': 'このカテゴリの',
     'map.emptyLine2': 'ポップアップはありません。',
     'map.listAria': 'ポップアップ一覧',

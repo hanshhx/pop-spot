@@ -60,6 +60,10 @@ public class PopupCrawlOrchestrator {
      */
     private static final int MAX_POPUPS_PER_COORD = 40;
 
+    /** 이것들만으로 이루어진 주소는 위치를 하나도 좁혀 주지 못한다. {@link #isUnusableLocation} 참고. */
+    private static final Set<String> CITY_WORDS =
+            Set.of("서울", "서울시", "서울특별시", "대한민국", "한국", "korea", "seoul");
+
     private static final String SOURCE_TYPE_CRAWLED = "CRAWLED";
     private static final String REVIEW_STATUS_AUTO_PUBLISHED = "AUTO_PUBLISHED";
     private static final String DEFAULT_CATEGORY = "ETC";
@@ -1134,7 +1138,38 @@ public class PopupCrawlOrchestrator {
         return latitude == null || latitude.isBlank() || longitude == null || longitude.isBlank();
     }
 
+    /**
+     * 시·도 이름뿐이거나 비어 있는 주소 — <b>좌표를 만들면 안 된다.</b>
+     *
+     * <p>운영에서 한 좌표에 98곳이 뭉쳐 있었는데 전부 주소가 {@code "서울"} 한 단어였다. 지오코더는 성실하게 서울 중심 좌표를 돌려주지만, 그 핀은 "서울
+     * 어딘가" 라는 뜻이다. 서울 팝업 지도에서는 아무것도 좁혀 주지 못하면서 정확한 핀처럼 보인다.
+     *
+     * <p><b>동네 이름("성수동")은 막지 않는다.</b> 그건 정보가 있다 — 그 동네까지는 맞다. 화면이 점선 핀으로 "대략 위치" 라고 알려 주므로 쓸모가 있다.
+     * 여기서 걸러 버리면 화면이 보여 줄 것 자체가 없어져 지도가 절반으로 줄어든다.
+     */
+    static boolean isUnusableLocation(String location) {
+        if (location == null) return true;
+        String text = location.replace(",", " ").trim();
+        if (text.isEmpty()) return true;
+
+        for (String word : text.split("\\s+")) {
+            if (!CITY_WORDS.contains(word)) return false;
+        }
+        return true;
+    }
+
     private boolean fillCoordinates(PopupStore popup) {
+        // 갯수(MAX_POPUPS_PER_COORD)보다 이 검사가 먼저다. 갯수는 증상이고 주소가 원인이다 —
+        // 갯수만 보면 명동 18곳은 통과시키고, 반대로 더현대 서울처럼 팝업이 많이 열리는
+        // 진짜 건물까지 막게 된다.
+        if (isUnusableLocation(popup.getLocation())) {
+            log.debug(
+                    "[Geocode] 주소가 시·도뿐이라 좌표를 만들지 않는다 id={} location={}",
+                    popup.getId(),
+                    popup.getLocation());
+            return false;
+        }
+
         Optional<Coordinates> coords;
         try {
             coords =
