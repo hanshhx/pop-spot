@@ -1104,6 +1104,36 @@ public class PopupCrawlOrchestrator {
 
     /* =========================== Geocoding backfill =========================== */
 
+    /**
+     * 좌표가 없으면 채운다. <b>있으면 건드리지 않는다.</b>
+     *
+     * <p>제보로 들어온 팝업은 구조적으로 좌표가 없다 — 제보 폼에 위도·경도 칸이 없기 때문이다. 그래서 승인해도 목록·검색에만 나오고 지도에는 안 떴다. 정작
+     * "빠졌다" 고 느끼는 곳이 지도인데도 그랬다.
+     *
+     * <p>이미 좌표가 있는 것을 다시 조회하지 않는 이유는 둘이다 — 카카오 쿼터를 태우고, 멀쩡한 좌표가 '지역 중심점' 같은 뭉뚱그린 값으로 덮일 수 있다.
+     *
+     * @return 이번 호출로 채웠으면 {@code true}
+     */
+    public boolean fillCoordinatesIfMissing(PopupStore popup) {
+        return needsCoordinates(popup) && fillCoordinates(popup);
+    }
+
+    /**
+     * 지도에 찍을 수 있는 좌표를 갖췄는가.
+     *
+     * <p>승인 응답이 이 값을 담는다 — 좌표를 못 채웠다면 화면이 그 자리에서 알아야 한다. 조용히 넘어가면 "목록엔 있는데 지도엔 없는" 팝업이 다시 쌓인다.
+     */
+    public static boolean hasMapCoordinates(PopupStore popup) {
+        return !needsCoordinates(popup);
+    }
+
+    /** 지도에 찍을 수 있는 좌표가 아직 없는가. 한쪽만 있어도 찍을 수 없으므로 '없음' 으로 본다. */
+    static boolean needsCoordinates(PopupStore popup) {
+        String latitude = popup.getLatitude();
+        String longitude = popup.getLongitude();
+        return latitude == null || latitude.isBlank() || longitude == null || longitude.isBlank();
+    }
+
     private boolean fillCoordinates(PopupStore popup) {
         Optional<Coordinates> coords;
         try {
