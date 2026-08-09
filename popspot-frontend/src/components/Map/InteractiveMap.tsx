@@ -22,6 +22,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Map as MapLibreMap } from 'maplibre-gl';
 import { bilingual } from '@/lib/bilingual';
+import { isApproximateLocation } from '@/lib/locationPrecision';
 import { notify } from '@/lib/notify';
 import { REGIONS, classifyRegion, regionBySlug, regionLabel, type RegionCode } from '@/lib/regions';
 import { localizedLabel, useLocale, type Locale, type MessageKey } from '@/lib/i18n';
@@ -893,6 +894,7 @@ export default function InteractiveMap({
           {markers.map((marker, index) => {
             // PLAN 모드용 스타일 계산
             const style = getCategoryStyle(marker.category);
+            const approximate = isApproximateLocation(marker.address);
 
             return (
               <MapMarker
@@ -947,7 +949,18 @@ export default function InteractiveMap({
                         // ⚠️ 성능: 이 카드는 화면에 140개 넘게 동시에 뜬다. backdrop-blur 를 쓰면
                         // 마커마다 컴포지팅 레이어가 생겨 팬·줌 매 프레임 배경을 다시 블러해 지도가 버벅인다.
                         // 배경이 이미 불투명이라 시각 차이는 거의 없으므로 블러를 뺀다(transition 도 transform 만).
-                        className={`flex items-center gap-1 px-2 py-1 rounded-lg shadow-lg border-2 whitespace-nowrap transform transition-transform group-hover/marker:scale-110 ${
+                        /*
+                          주소가 동네까지만 있는 팝업은 <b>테두리를 점선으로</b> 그린다. 좌표는
+                          그 동네 한복판이라 건물 주소로 찍은 핀과 정확도가 전혀 다른데, 예전엔
+                          똑같이 생겨서 구분할 방법이 없었다 — 919곳 중 440곳이 여기 해당한다.
+
+                          지우지 않는 이유는 그 440곳도 실재하는 팝업이기 때문이다. 없애면 지도가
+                          절반이 되고, 그대로 두면 "찾아갔는데 없는 곳" 이 된다. 그래서 남기되
+                          다르게 그린다.
+                        */
+                        className={`flex items-center gap-1 px-2 py-1 rounded-lg shadow-lg whitespace-nowrap transform transition-transform group-hover/marker:scale-110 ${
+                          approximate ? 'border-2 border-dashed opacity-75' : 'border-2'
+                        } ${
                           selectedMarker?.popupId === marker.popupId
                             ? `bg-primary text-black ${style.border}`
                             : `bg-white text-gray-800 dark:bg-black/90 dark:text-white ${style.border}`
@@ -963,6 +976,7 @@ export default function InteractiveMap({
                         <span className="font-bold text-[10px] md:text-xs">
                           {truncateForPin(shownName(marker).display, locale)}
                         </span>
+                        {approximate && <span className="text-[9px] opacity-70">≈</span>}
                       </div>
 
                       {/* 카드 아래 작은 점 (위치 표시) */}
@@ -1025,10 +1039,22 @@ export default function InteractiveMap({
                   </h3>
                 </div>
 
-                <p className="text-muted text-[9px] md:text-xs flex items-center gap-1 mb-2 md:mb-3">
+                <p className="text-muted text-[9px] md:text-xs flex items-center gap-1">
                   <MapPin size={8} className="md:w-2.5 md:h-2.5 shrink-0" />{' '}
                   <span className="truncate">{visibleSelected.address}</span>
                 </p>
+
+                {/*
+                  점선 테두리만으로는 "왜 다르게 생겼는지" 를 알 수 없다. 카드를 연 사람에게는
+                  말로 알려 준다 — 그래야 동네까지 가서 찾아볼 준비를 하고 움직인다.
+                */}
+                {isApproximateLocation(visibleSelected.address) && (
+                  <p className="mt-1 text-[9px] md:text-[11px] leading-snug text-amber-300/90">
+                    {t('map.approxLocation')}
+                  </p>
+                )}
+
+                <div className="mb-2 md:mb-3" />
 
                 {/* 상세 보기 — 명시적 버튼으로 이동(클릭이 아래 마커/지도로 흘러 재선택만 되던 버그 수정). */}
                 <button
