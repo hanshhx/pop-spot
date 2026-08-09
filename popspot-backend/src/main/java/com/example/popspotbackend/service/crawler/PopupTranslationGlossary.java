@@ -180,6 +180,69 @@ public class PopupTranslationGlossary {
         add(values, true, "innisfree", "イニスフリー", "이니스프리");
         add(values, true, "OLIVE YOUNG", "オリーブヤング", "올리브영", "올리브 영");
 
+        /*
+         * 2026-08-09 — 커버리지를 막고 있던 이름들.
+         *
+         * 1047곳 중 번역된 것이 177곳뿐이라 원인을 셌더니, 이름 전체가 버려지는 이유의 상위가
+         * 스토어(40회)·서울(29)·카페(21)·전시(16) 같은 <b>일반명사</b>였다. 번역 서비스는 잠근 뒤
+         * 한글이 남으면 통째로 포기하므로, 포켓몬을 알아도 "굿즈" 를 모르면 "포켓몬 굿즈 팝업" 이
+         * 스킵된다.
+         *
+         * 일반명사는 옮겨도 틀릴 여지가 없다 — 정확도를 안 깎고 커버리지만 올리는 자리다.
+         */
+        add(values, false, "Store", "ストア", "스토어");
+        add(values, false, "Seoul", "ソウル", "서울");
+        add(values, false, "Cafe", "カフェ", "카페");
+        add(values, false, "Special Exhibition", "特別展", "특별전");
+        add(values, false, "Exhibition", "展示", "전시회", "전시");
+        add(values, false, "House", "ハウス", "하우스");
+        add(values, false, "Bakery", "ベーカリー", "베이커리");
+        add(values, false, "Goods", "グッズ", "굿즈");
+        add(values, false, "Flagship", "フラッグシップ", "플래그십");
+        add(values, false, "Brand", "ブランド", "브랜드");
+        add(values, false, "Summer", "サマー", "썸머", "서머");
+        add(values, false, "Stage", "ステージ", "스테이지");
+        add(values, false, "Burger", "バーガー", "버거");
+        add(values, false, "Sushi", "寿司", "스시");
+        add(values, false, "Edition", "エディション", "에디션");
+        add(values, false, "Beauty", "ビューティー", "뷰티");
+        add(values, false, "Factory", "ファクトリー", "팩토리");
+        add(values, false, "Honey", "はちみつ", "벌꿀");
+        add(values, false, "Cinema", "シネマ", "시네마");
+        add(values, false, "Project", "プロジェクト", "프로젝트");
+        add(values, false, "Art", "アート", "아트");
+        add(values, false, "Acrylic Stand", "アクリルスタンド", "아크릴 스탠드", "아크릴스탠드");
+        add(values, false, "Acrylic", "アクリル", "아크릴");
+        add(values, false, "Limited", "限定", "한정");
+        add(values, false, "Anniversary", "記念", "기념");
+        add(values, false, "Open", "オープン", "오픈");
+        add(values, false, "Room", "ルーム", "룸");
+        add(values, false, "Edit", "エディット", "에디트");
+        add(values, false, "Great", "偉大な", "위대한");
+        add(values, false, "Legacy", "遺産", "유산");
+        add(values, false, "Kingdom of", "王国の", "왕국의");
+
+        /*
+         * 같은 조사에서 나온 고유명사들. 공식 표기가 확실한 것만 넣는다 — 애매한 소상공인 이름은
+         * 일부러 뺐다. 여기 잘못 적으면 그게 그대로 화면에 나가고, 빼면 한국어 원문이 나올 뿐이다.
+         */
+        add(values, true, "Disney", "ディズニー", "디즈니");
+        add(values, true, "Winnie the Pooh", "くまのプーさん", "곰돌이 푸", "곰돌이푸");
+        add(values, true, "Cookie Run: Kingdom", "クッキーラン：キングダム", "쿠키런: 킹덤", "쿠키런:킹덤");
+        add(values, true, "Cookie Run", "クッキーラン", "쿠키런");
+        add(values, true, "No Brand", "ノーブランド", "노브랜드");
+        add(values, true, "NIKKE: Goddess of Victory", "勝利の女神：NIKKE", "승리의 여신: 니케", "승리의 여신 니케");
+        // "더티니핑" 은 앞의 "더" 한 글자가 남아 이름 전체가 버려진다. 별칭을 길게 잡아 통째로 잠근다.
+        add(values, true, "Catch! Teenieping", "キャッチ！ティニピン", "더티니핑", "더 티니핑", "티니핑");
+        add(values, true, "GUCCI", "グッチ", "구찌");
+        add(values, true, "G-DRAGON", "G-DRAGON", "지드래곤");
+        add(values, true, "Shinsegae Department Store", "新世界百貨店", "신세계백화점", "신세계 백화점");
+        add(values, true, "Spider-Man", "スパイダーマン", "스파이더맨");
+        add(values, true, "Honkai: Star Rail", "崩壊：スターレイル", "붕괴:스타레일", "붕괴: 스타레일", "스타레일");
+        add(values, true, "Pompompurin", "ポムポムプリン", "폼폼푸린");
+        add(values, true, "Outback Steakhouse", "アウトバックステーキハウス", "아웃백");
+        add(values, true, "Alien Stage", "エイリアンステージ", "에일리언 스테이지");
+
         // 행사 이름에 자주 붙는 말. 확인된 고유명사와 조합할 때만 자동 저장한다.
         add(values, false, "Anakt", "アナクト", "아낙트");
         add(values, false, "Arts High School", "芸術高等学校", "예술고등학교");
