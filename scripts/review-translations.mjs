@@ -13,6 +13,7 @@
  *   ... 관리자 화면에서 번역 백필 실행 ...
  *   node scripts/review-translations.mjs diff              # 새로 채워진 것만 검수
  *   node scripts/review-translations.mjs audit             # 지금 값 전체를 훑는다
+ *   node scripts/review-translations.mjs revert-sql        # 이번 배치를 통째로 되돌리는 SQL
  */
 
 import fs from 'node:fs';
@@ -106,6 +107,39 @@ if (mode === 'snapshot') {
   const before = JSON.parse(fs.readFileSync(SNAPSHOT, 'utf8'));
   const changed = rows.filter((r) => filled(r.nameJa) && before[r.id] !== r.nameJa);
   show(changed, `이번 백필로 새로 채워지거나 바뀐 이름`);
+} else if (mode === 'revert-sql') {
+  /*
+   * 이번 배치를 통째로 되돌린다. 골라내지 않는 이유가 있다.
+   *
+   * 2026-08-09 배치는 표본 110건 중 30건가량이 틀렸다(약 27%). 그런데 틀린 유형이
+   * "클리오 → クレ・ド・ペール(시세이도 브랜드)" 처럼 일본어로는 멀쩡해 보이는 것들이라,
+   * 사람이 245건을 눈으로 훑어 빠짐없이 골라낼 수 있다고 보기 어렵다. 하나 놓치면 그게
+   * 그대로 서비스에 남는다.
+   *
+   * 되돌리는 비용은 낮다 — 비우면 화면이 한국어 원문을 보여준다. 즉 최악이 "백필 전"이다.
+   * 맞았던 것까지 날아가지만 용어집이 보강됐으니 다시 돌리면 대부분 같은 값이 나오고,
+   * 그때는 지명·로마자 검사를 통과한 값이다.
+   */
+  if (!fs.existsSync(SNAPSHOT)) {
+    console.error(`먼저 'snapshot' 을 실행하세요 — 되돌릴 범위를 알 수 없습니다.`);
+    process.exit(1);
+  }
+  const before = JSON.parse(fs.readFileSync(SNAPSHOT, 'utf8'));
+  const changed = rows.filter((r) => filled(r.nameJa) && before[r.id] !== r.nameJa);
+
+  if (changed.length === 0) {
+    console.log('이번 배치로 바뀐 행이 없습니다 — 되돌릴 것이 없습니다.');
+  } else {
+    const ids = changed.map((r) => r.id).sort((a, b) => a - b);
+    console.log(`-- 2026-08-09 배치 되돌리기 — ${ids.length}건`);
+    console.log(`-- translated_at 을 NULL 로 되돌려야 대량 백필이 다시 집는다.`);
+    console.log(`-- WHERE 절이 반드시 붙어 있는지 확인하고 실행하세요.`);
+    console.log(`UPDATE popup_store`);
+    console.log(`   SET name_ja = NULL, name_en = NULL,`);
+    console.log(`       location_ja = NULL, location_en = NULL,`);
+    console.log(`       translated_at = NULL`);
+    console.log(` WHERE id IN (${ids.join(', ')});`);
+  }
 } else {
   show(
     rows.filter((r) => filled(r.nameJa)),

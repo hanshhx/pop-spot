@@ -292,6 +292,82 @@ public class PopupTranslationGlossary {
         add(values, false, "Jung-gu", "中区", "중구");
         add(values, false, "Seoul", "ソウル", "서울");
 
+        /*
+         * 2026-08-09 시험 배치에서 드러난 구멍을 메운다.
+         *
+         * 지명은 이름 안에 들어 있을 때가 많다("지드래곤 팝업 타임스퀘어 영등포"). location 칸만 잠그고
+         * name 을 음역으로 열어 둔 탓에, 위에 없는 동네가 전부 모델의 추측으로 넘어갔다. 결과가 나빴다.
+         *
+         *   영등포 → 江東区   서울 반대편이다. 이대로면 관광객이 헛걸음한다.
+         *   서촌   → seocheon 로마자가 그대로 샜다.
+         *   시흥   → シヘウン  읽기가 틀렸다(시헤운).
+         *
+         * 한남동은 더 고약했다. "한남"만 잡히고 남은 "동"을 모델이 방위로 읽어 ハンナム東 이 됐다.
+         * 그래서 아래는 "동" 이 붙은 형태를 같이 넣는다 — 성수동·잠실동이 이미 그렇게 돼 있었다.
+         *
+         * 표기 규칙은 위와 같다. 동네는 가타카나(일본 여행 매체 관례), 구·시는 한자.
+         */
+        add(values, false, "Hannam-dong", "ハンナムドン", "한남동");
+        add(values, false, "Yeongdeungpo", "ヨンドンポ", "영등포");
+        add(values, false, "Seochon", "ソチョン", "서촌");
+        add(values, false, "Bukchon", "プクチョン", "북촌");
+        add(values, false, "Sinchon", "シンチョン", "신촌");
+        add(values, false, "Apgujeong", "アックジョン", "압구정");
+        add(values, false, "Cheongdam", "チョンダム", "청담");
+        add(values, false, "Itaewon", "イテウォン", "이태원");
+        add(values, false, "Yeonnam-dong", "ヨンナムドン", "연남동");
+        add(values, false, "Yeonnam", "ヨンナム", "연남");
+        add(values, false, "Hapjeong", "ハプチョン", "합정");
+        add(values, false, "Mangwon", "マンウォン", "망원");
+        add(values, false, "Jongno", "チョンノ", "종로");
+        add(values, false, "Euljiro", "ウルチロ", "을지로");
+        add(values, false, "Ttukseom", "トゥクソム", "뚝섬");
+        add(values, false, "Munrae", "ムンレ", "문래");
+        add(values, false, "Konkuk University", "コンデ", "건대");
+        add(values, false, "Wangsimni", "ワンシムニ", "왕십리");
+        add(values, false, "Samseong-dong", "サムソンドン", "삼성동");
+        add(values, false, "Garosu-gil", "カロスキル", "가로수길");
+        add(values, false, "Seoul Forest", "ソウルの森", "서울숲");
+        // 일본 매체가 한자를 그대로 쓰는 곳들.
+        add(values, false, "Gwanghwamun", "光化門", "광화문");
+        add(values, false, "Insa-dong", "仁寺洞", "인사동");
+        add(values, false, "Dosan Park", "島山公園", "도산공원");
+        add(values, false, "Yeongdeungpo-gu", "永登浦区", "영등포구");
+        add(values, false, "Mapo-gu", "麻浦区", "마포구");
+        add(values, false, "Yongsan-gu", "龍山区", "용산구");
+        add(values, false, "Seocho-gu", "瑞草区", "서초구");
+        add(values, false, "Jongno-gu", "鍾路区", "종로구");
+        // 수도권·지방. 팝업이 서울 밖에서 열릴 때 이름에 지역이 붙는다.
+        add(values, false, "Pangyo", "パンギョ", "판교");
+        add(values, false, "Siheung", "シフン", "시흥");
+        add(values, false, "Hanam", "ハナム", "하남");
+        add(values, false, "Suwon", "水原", "수원");
+        add(values, false, "Incheon", "仁川", "인천");
+        add(values, false, "Busan", "釜山", "부산");
+        add(values, false, "Haeundae", "海雲台", "해운대");
+        add(values, false, "Daegu", "大邱", "대구");
+        add(values, false, "Ulsan", "蔚山", "울산");
+        add(values, false, "Daejeon", "大田", "대전");
+        add(values, false, "Gwangju", "光州", "광주");
+        add(values, false, "Jeju", "済州", "제주");
+        add(values, false, "Gyeonggi-do", "京畿道", "경기도");
+
+        /*
+         * 장소 이름은 지명 하나만 잠가서는 부족하다. "지드래곤 팝업 타임스퀘어 영등포" 처럼 건물 이름이 같이
+         * 붙는데, 그중 하나라도 모르면 이름 전체가 버려지거나(커버리지 손실) 모델이 추측한다(오역).
+         *
+         * 아래는 시험 배치에서 실제로 막고 있던 것들이다.
+         */
+        add(values, true, "Times Square", "タイムズスクエア", "타임스퀘어", "타임 스퀘어");
+        add(values, true, "Galleria", "ギャラリア", "갤러리아");
+        add(values, true, "Lotte World", "ロッテワールド", "롯데월드");
+        add(values, false, "Mokdong", "モクドン", "목동");
+        // 띄어 쓴 형태만 잠근다. 맨 "아울렛" 을 넣었더니 마리오아울렛(영등포의 실제 상가)을
+        // "마리오" + 아울렛으로 쪼갰다 — 상가 이름이 사라져 다른 곳으로 안내된다.
+        add(values, false, "Premium Outlet", "プレミアムアウトレット", "프리미엄 아울렛", "프리미엄 아웃렛");
+        add(values, false, "showroom", "ショールーム", "쇼룸");
+        add(values, false, "department store", "百貨店", "백화점");
+
         values.sort(Comparator.comparingInt((Alias alias) -> alias.source().length()).reversed());
         aliases = List.copyOf(values);
     }

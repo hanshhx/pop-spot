@@ -364,6 +364,10 @@ public class PopupTranslationService {
 
     private static final java.util.regex.Pattern DIGITS = java.util.regex.Pattern.compile("\\d+");
 
+    /** 로마자 덩어리. 두 글자부터 본다 — 콜라보의 {@code X} 나 {@code G-DRAGON} 의 {@code G} 처럼 한 글자는 정상인 경우가 있다. */
+    private static final java.util.regex.Pattern LATIN_RUN =
+            java.util.regex.Pattern.compile("[A-Za-z]{2,}");
+
     /** 용어집이 씌운 보호 토큰. {@code PopupTranslationGlossary} 와 같은 모양이어야 한다. */
     private static final java.util.regex.Pattern PROTECTION_TOKEN =
             java.util.regex.Pattern.compile(
@@ -408,6 +412,8 @@ public class PopupTranslationService {
                         && modelWords.length() >= CHINESE_SUSPICION_LENGTH;
         if (kanjiOnly) return true;
 
+        if (hasInventedLatin(modelWords, original)) return true;
+
         java.util.Set<String> sourceNumbers = new java.util.HashSet<>();
         java.util.regex.Matcher inSource = DIGITS.matcher(original);
         while (inSource.find()) sourceNumbers.add(inSource.group());
@@ -415,6 +421,33 @@ public class PopupTranslationService {
         java.util.regex.Matcher inResult = DIGITS.matcher(modelWords);
         while (inResult.find()) {
             if (!sourceNumbers.contains(inResult.group())) return true;
+        }
+        return false;
+    }
+
+    /**
+     * 원문에 없던 로마자가 결과에 생겼는지.
+     *
+     * <p>일본어 칸에 로마자가 있는 것 자체는 정상이다 — 원문이 이미 {@code IVE 팝업스토어} 처럼 영문을 갖고 있거나, 용어집이 {@code
+     * SPY×FAMILY} 를 넣어 준다. 문제는 <b>원문 어디에도 없던 로마자</b>다. 그건 모델이 옮기다 말고 발음을 그대로 적어 버렸다는 뜻이다.
+     *
+     * <p>운영에서 나온 두 건이 정확히 그랬다.
+     *
+     * <ul>
+     *   <li>귀멸의 칼날 무한성 → {@code 鬼滅の刃 モuhanseong ポップアップストア} — 무한성이 반쯤 로마자다.
+     *   <li>… 서촌 팝업 → {@code … seocheon ポップアップ}
+     * </ul>
+     *
+     * <p>기존 검사가 이걸 통과시킨 이유는 "일본 문자가 있나" 만 봤기 때문이다. 가나가 멀쩡히 있으니 일본어로 보였다.
+     *
+     * <p>용어집 토큰은 이미 지운 뒤라 공식 표기는 검사 대상이 아니다. 대소문자는 무시하고, 한 글자짜리는 넘어간다 — 콜라보의 {@code X} 나 {@code
+     * G-DRAGON} 의 {@code G} 처럼 정상인 경우가 있다.
+     */
+    private static boolean hasInventedLatin(String modelWords, String source) {
+        String lowerSource = source.toLowerCase(java.util.Locale.ROOT);
+        java.util.regex.Matcher runs = LATIN_RUN.matcher(modelWords);
+        while (runs.find()) {
+            if (!lowerSource.contains(runs.group().toLowerCase(java.util.Locale.ROOT))) return true;
         }
         return false;
     }
