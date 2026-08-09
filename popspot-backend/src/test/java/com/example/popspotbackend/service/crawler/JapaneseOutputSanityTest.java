@@ -72,6 +72,54 @@ class JapaneseOutputSanityTest {
                 .isFalse();
     }
 
+    /**
+     * 2026-08-09 시험 배치(100건 중 82건 번역)에서 나온 것들이다.
+     *
+     * <p>기존 검사가 통과시킨 이유는 <b>"일본 문자가 있나" 만 봤기</b> 때문이다. 가나가 멀쩡히 붙어 있으니 일본어로 보였다. 정작 모델은 옮기다 말고 발음을
+     * 로마자로 적어 버린 것이었다.
+     */
+    @Test
+    @DisplayName("원문에 없던 로마자가 생기면 버린다 — 옮기다 만 것이다")
+    void rejectsInventedLatin() {
+        // 용어집이 '귀멸의 칼날' 을 잡아 토큰이 되고, 남은 '무한성' 이 반쯤 로마자로 나왔다.
+        assertThat(
+                        PopupTranslationService.looksUnsafeJapanese(
+                                "ZXQTERM0QXZ モuhanseong ポップアップストア", "귀멸의 칼날 무한성 팝업스토어"))
+                .isTrue();
+        assertThat(
+                        PopupTranslationService.looksUnsafeJapanese(
+                                "ベイシスマウンテンベアサンダル seocheon ポップアップ", "베이시스 마운틴 베어 샌들 서촌 팝업"))
+                .isTrue();
+    }
+
+    /** 로마자가 있다고 다 버리면 안 된다. 원문이 이미 영문을 갖고 있는 팝업이 흔하다 — 여기서 과하게 막으면 정상 번역까지 날아가 커버리지가 도로 내려간다. */
+    @Test
+    @DisplayName("원문에 있던 로마자는 그대로 써도 된다")
+    void allowsLatinThatExistsInSource() {
+        assertThat(PopupTranslationService.looksUnsafeJapanese("IVE ポップアップストア", "IVE 팝업스토어"))
+                .isFalse();
+        assertThat(
+                        PopupTranslationService.looksUnsafeJapanese(
+                                "ZXQTERM0QXZ G: A BOY'S JOURNEY ポップアップ",
+                                "지드래곤 G: A BOY'S JOURNEY POP UP"))
+                .isFalse();
+        // 대소문자가 달라도 원문에 있던 말이다.
+        assertThat(
+                        PopupTranslationService.looksUnsafeJapanese(
+                                "ビオレ olive young ポップアップストア", "비오레 OLIVE YOUNG 팝업스토어"))
+                .isFalse();
+    }
+
+    @Test
+    @DisplayName("용어집이 넣어 준 공식 표기는 검사하지 않는다 — 토큰을 지운 뒤에 본다")
+    void ignoresLatinFromGlossary() {
+        // '에일리언 스테이지' 는 용어집에서 ALIEN STAGE 로 복원된다. 원문엔 로마자가 없다.
+        assertThat(
+                        PopupTranslationService.looksUnsafeJapanese(
+                                "ZXQTERM0QXZ アクリルスタンド", "에일리언 스테이지 아크릴 스탠드"))
+                .isFalse();
+    }
+
     @Test
     @DisplayName("빈 값·null 은 검사 대상이 아니다")
     void blankIsNotUnsafe() {
