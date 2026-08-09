@@ -342,6 +342,7 @@ export default function AdminPage() {
   // 이미지 없는 공개 팝업에 Pexels 커버를 배정(수동 백필). 백엔드 pexels.api-key 설정 필요.
   const [isBackfilling, setIsBackfilling] = useState(false);
   const [isDeduping, setIsDeduping] = useState(false);
+  const [isTranslating, setIsTranslating] = useState(false);
   // 수동 수집(지금 수집하기) 진행 중 — PC 켤 때마다 도는 자동 수집 대신, 원할 때만 누르는 용도.
   const [isCrawling, setIsCrawling] = useState(false);
   const [comments, setComments] = useState<
@@ -399,6 +400,64 @@ export default function AdminPage() {
       notifyError('커버 배정 중 오류가 발생했습니다.');
     } finally {
       setIsBackfilling(false);
+    }
+  };
+
+  /**
+   * 번역 시험 — 한 배치(최대 100건)만 돌린다.
+   *
+   * <p>결과를 보고 전체를 돌릴지 정하기 위한 것이다. 틀린 이름은 빈칸보다 나쁘고(빈칸이면
+   * 한국어 원문이 나와 최소한 틀리지는 않는다), 되돌리려면 DB 를 직접 손봐야 한다.
+   */
+  const handleTranslateOnce = async () => {
+    if (!(await confirmAction({ text: '번역을 한 배치(최대 100건)만 돌려볼까요?' }))) return;
+    setIsTranslating(true);
+    try {
+      const res = await apiFetch('/api/admin/popups/backfill-translations', { method: 'POST' });
+      if (!res.ok) {
+        notifyError('번역 실행 실패');
+        return;
+      }
+      const d = await res.json();
+      // 확신이 없어 비운 건수까지 보여준다 — "몇 건이 안 됐나" 가 다음 판단의 근거다.
+      notifySuccess(
+        `대상 ${d.targets ?? 0} · 번역 ${d.translated ?? 0} · 확신없어 비움 ${d.skipped ?? 0} · 재시도 ${d.deferred ?? 0}`,
+      );
+      loadAllPopups();
+    } catch {
+      notifyError('번역 실행 중 오류가 발생했습니다.');
+    } finally {
+      setIsTranslating(false);
+    }
+  };
+
+  /**
+   * 번역 전체 — 남은 것을 배치로 계속 돌린다.
+   *
+   * <p>{@code retryMissing=true} 가 핵심이다. 예전에 "확신 없어 비움" 으로 끝난 행에도 시도 표시가
+   * 찍혀 있어, 이걸 빼면 <b>한 건도 다시 시도되지 않는다.</b>
+   */
+  const handleTranslateAll = async () => {
+    if (
+      !(await confirmAction({
+        text: '남은 팝업을 전부 번역합니다. 시험 배치 결과를 확인하셨나요? 되돌리려면 DB 를 직접 손봐야 합니다.',
+      }))
+    )
+      return;
+    setIsTranslating(true);
+    try {
+      const res = await apiFetch('/api/admin/popups/backfill-translations/bulk?retryMissing=true', {
+        method: 'POST',
+      });
+      if (!res.ok) {
+        notifyError('전체 번역 시작 실패');
+        return;
+      }
+      notifySuccess('전체 번역을 시작했습니다. 서버에서 계속 진행되며 몇 분 걸립니다.');
+    } catch {
+      notifyError('전체 번역 시작 중 오류가 발생했습니다.');
+    } finally {
+      setIsTranslating(false);
     }
   };
 
@@ -726,6 +785,9 @@ export default function AdminPage() {
                 handleBackfillPhotos={handleBackfillPhotos}
                 handleDedupe={handleDedupe}
                 handleChangeStatus={handleChangeStatus}
+                isTranslating={isTranslating}
+                handleTranslateOnce={handleTranslateOnce}
+                handleTranslateAll={handleTranslateAll}
               />
             )}
 
