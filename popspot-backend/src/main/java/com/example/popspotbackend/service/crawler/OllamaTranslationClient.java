@@ -18,6 +18,19 @@ public class OllamaTranslationClient {
 
     private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(4);
     private static final Duration REQUEST_TIMEOUT = Duration.ofMinutes(3);
+
+    /**
+     * 한 응답으로 받을 최대 토큰.
+     *
+     * <p>3000 이었다가 올렸다. 한 배치가 20건이고 한 건이 {@code
+     * {"id":…,"nameEn":…,"nameJa":…,"locationEn":…,"locationJa":…}} 라 200자 안팎인데, 일본어·한국어는 글자당 토큰이
+     * 거의 1:1 이라 20건이면 3000 을 넘긴다. 넘기면 응답이 <b>문자열 중간에서 잘리고</b> 배치 20건이 통째로 버려진다.
+     *
+     * <p>2026-08-10 운영 로그에 그대로 남아 있다 — {@code Unexpected end-of-input: was expecting closing
+     * quote}, 그리고 다른 회차에서는 {@code line: 1, column: 3155}. 3155 라는 위치가 곧 한도였다.
+     */
+    private static final int MAX_OUTPUT_TOKENS = 8000;
+
     private static final long HEALTH_CACHE_MS = 30_000L;
 
     @Value("${ai.translation.local.enabled:false}")
@@ -92,7 +105,7 @@ public class OllamaTranslationClient {
                                     "keep_alive",
                                     "10m",
                                     "options",
-                                    Map.of("temperature", 0.1, "num_predict", 3000),
+                                    Map.of("temperature", 0.1, "num_predict", MAX_OUTPUT_TOKENS),
                                     "messages",
                                     java.util.List.of(Map.of("role", "user", "content", prompt))));
             HttpRequest request =
@@ -114,6 +127,20 @@ public class OllamaTranslationClient {
             String content = root.path("message").path("content").asText("").trim();
             if (content.isEmpty()) {
                 throw new IllegalStateException("Ollama 응답에 번역 내용이 없습니다");
+            }
+
+            /*
+             * 잘렸으면 잘렸다고 말한다.
+             *
+             * 예전에는 잘린 JSON 이 그대로 파서로 넘어가 "Unexpected end-of-input" 같은 Jackson
+             * 메시지만 남았다. 그걸 보고는 모델이 이상한 답을 했다고 읽게 되지, 한도를 올리면
+             * 된다는 생각에 이르지 못한다. 실제로 운영 로그를 두 번 보고서야 알아냈다.
+             */
+            if ("length".equals(root.path("done_reason").asText())) {
+                throw new IllegalStateException(
+                        "응답이 출력 한도("
+                                + MAX_OUTPUT_TOKENS
+                                + " 토큰)에서 잘렸습니다 — 한도를 올리거나 배치 크기를 줄여야 합니다");
             }
             return new TranslationResponse(
                     content,
