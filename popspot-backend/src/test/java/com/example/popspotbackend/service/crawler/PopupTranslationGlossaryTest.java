@@ -118,6 +118,27 @@ class PopupTranslationGlossaryTest {
         assertThat(withBranch.restoreJapanese(withBranch.masked())).contains("ザ・ヒョンデ・ソウル");
     }
 
+    /**
+     * 시리즈 이름이 앞에 붙으면 <b>같은 말이 두 번 나오면 안 된다.</b>
+     *
+     * <p>{@code 명일방주: 엔드필드} 는 명일방주(→{@code アークナイツ})와 엔드필드(→{@code アークナイツ：エンドフィールド})가 따로 맞아 {@code
+     * アークナイツ: アークナイツ：エンドフィールド} 가 됐다. 틀린 정보는 아니지만 읽는 사람에게는 고장 난 화면으로 보인다.
+     *
+     * <p>{@link #doesNotInventBranchLocation} 과 같은 부류다 — 용어집을 늘리면 항목끼리 겹치기 시작하고, 그건 기계 검사로는 안 걸린다.
+     * 문법도 문자도 멀쩡하기 때문이다.
+     */
+    @Test
+    @DisplayName("시리즈 이름이 겹쳐 두 번 나오지 않는다")
+    void doesNotRepeatSeriesName() {
+        PopupTranslationGlossary.ProtectedText text = glossary.protect("명일방주: 엔드필드 팝업");
+        String japanese = text.restoreJapanese(text.masked());
+
+        assertThat(japanese).contains("アークナイツ：エンドフィールド");
+        assertThat(japanese.split("アークナイツ", -1).length - 1)
+                .describedAs("'%s' 에서 아크나이츠가 두 번 나온다", japanese)
+                .isEqualTo(1);
+    }
+
     @Test
     void exposesUnknownKoreanProperNounForConservativeSkip() {
         PopupTranslationGlossary.ProtectedText text = glossary.protect("레고트 x 포켓몬 콜라보 팝업스토어");
