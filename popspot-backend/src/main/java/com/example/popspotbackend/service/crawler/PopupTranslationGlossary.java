@@ -194,7 +194,9 @@ public class PopupTranslationGlossary {
         add(values, false, "Seoul", "ソウル", "서울");
         add(values, false, "Cafe", "カフェ", "카페");
         add(values, false, "Special Exhibition", "特別展", "특별전");
-        add(values, false, "Exhibition", "展示", "전시회", "전시");
+        // 전시회는 展示会 다. 한 항목으로 묶으면 "회" 가 조용히 사라진다.
+        add(values, false, "Exhibition", "展示会", "전시회");
+        add(values, false, "Exhibition", "展示", "전시");
         add(values, false, "House", "ハウス", "하우스");
         add(values, false, "Bakery", "ベーカリー", "베이커리");
         add(values, false, "Goods", "グッズ", "굿즈");
@@ -263,7 +265,16 @@ public class PopupTranslationGlossary {
         add(values, false, "Pop-up", "ポップアップ", "팝업");
 
         // 장소·건물 — 같은 한글 이름을 다른 시설로 바꾸는 오역을 막는다.
-        add(values, true, "The Hyundai Seoul", "ザ・ヒョンデ・ソウル", "더현대 서울", "더현대서울", "더현대");
+        /*
+         * "더현대" 를 "더현대 서울" 의 별칭으로 묶어 뒀더니, "더현대 팝업스토어" 가
+         * ザ・ヒョンデ・ソウル ポップアップストア 로 나왔다 — 원문에 없는 "서울" 이 붙는다. 더현대는
+         * 서울 말고도 있다(대구·판교). 지점을 지어내면 사람을 다른 도시로 보낸다.
+         *
+         * 그래서 지점이 붙은 형태와 아닌 형태를 나눈다. 긴 별칭이 먼저 맞으므로 "더현대 서울" 은
+         * 여전히 통째로 잡힌다.
+         */
+        add(values, true, "The Hyundai Seoul", "ザ・ヒョンデ・ソウル", "더현대 서울", "더 현대 서울", "더현대서울");
+        add(values, true, "The Hyundai", "ザ・ヒョンデ", "더현대", "더 현대");
         add(values, true, "Hyundai Department Store", "現代百貨店", "현대백화점", "현대 백화점");
         add(values, true, "IPARK Mall Yongsan", "アイパークモール龍山店", "용산 아이파크몰", "용산아이파크몰");
         add(values, true, "IPARK Mall", "アイパークモール", "아이파크몰");
@@ -423,6 +434,71 @@ public class PopupTranslationGlossary {
         add(values, true, "Ray-Ban", "レイバン", "레이벤", "레이밴");
         add(values, true, "Sportage", "スポーテージ", "스포티지");
         add(values, true, "wharrytzn", "ワリットイズン", "와릿이즌");
+
+        /*
+         * 2 라운드(2026-08-10). 1 라운드 뒤 다시 세어 상위를 훑는다.
+         *
+         * 이번엔 3회짜리로 평평해졌다 — 남은 것이 긴 꼬리라는 뜻이다. 그래서 빈도만 보고 넣지 않고,
+         * "옮겨도 틀릴 여지가 없는가" 를 기준으로 고른다.
+         */
+        add(values, false, "special", "特別", "특별");
+        add(values, false, "game", "ゲーム", "게임");
+        add(values, false, "mystery game", "推理ゲーム", "추리게임");
+        add(values, false, "market", "マーケット", "마켓");
+        add(values, false, "festival", "フェスティバル", "페스티벌");
+        add(values, false, "space", "空間", "공간");
+        add(values, false, "ice cream", "アイスクリーム", "아이스크림");
+        add(values, false, "street", "ストリート", "스트릿", "스트리트");
+        add(values, false, "survival", "サバイバル", "서바이벌");
+        add(values, false, "zero", "ゼロ", "제로");
+        add(values, false, "blush", "ブラッシュ", "블러쉬");
+        add(values, false, "mega", "メガ", "메가");
+        add(values, false, "bunsik", "粉食", "분식");
+        // 명탐정 코난 극장판 제목이 タチャンサ 로 음역됐다. 堕天使 가 정답이다.
+        add(values, false, "fallen angel", "堕天使", "타천사");
+        add(values, false, "highway", "ハイウェイ", "하이웨이");
+
+        add(values, true, "Louis Vuitton", "ルイ・ヴィトン", "루이비통");
+        add(values, true, "medicube", "メディキューブ", "메디큐브");
+        add(values, true, "Marvel", "マーベル", "마블");
+        add(values, true, "GENTLE MONSTER", "ジェントルモンスター", "젠틀몬스터");
+        add(values, true, "emart", "イーマート", "이마트");
+        add(values, true, "NERDY", "NERDY", "널디");
+        add(values, true, "Crow Canyon", "クロウキャニオン", "크로우캐년");
+        add(values, true, "Hachooping", "ハチュピン", "하츄핑");
+        add(values, true, "Uncommon", "アンコモン", "언커먼");
+        add(values, true, "Mintraon", "ミントラオン", "민트라온");
+        add(values, true, "Mokoko", "モココ", "모코코");
+        add(values, true, "Yoshiwara", "吉原", "요시와라");
+        add(values, true, "Dotori Forest", "どんぐりの森", "도토리숲");
+        add(values, true, "Zenshuchu Exhibition", "全集中展", "전집중전");
+
+        /*
+         * 한 글자짜리. 여기가 위험한 자리다.
+         *
+         * 매칭이 단순 부분 문자열이라 다른 낱말 안을 파고든다. 그런데 상위 세 개가 전부 한 글자다
+         * — 더(17) 점(14) 의(9). 합치면 40회로 남은 것 중 가장 큰 덩어리라 그냥 두기 아깝다.
+         *
+         * 두 가지 이유로 넣어도 된다고 봤다.
+         *
+         * 첫째, 긴 별칭이 먼저 맞는다(길이 내림차순 정렬). 그래서 아래처럼 <b>충돌할 낱말을 먼저
+         * 넣어 두면</b> 그쪽이 통째로 잡힌다 — 점프·더블·뉴욕이 그것이다.
+         *
+         * 둘째, 설령 모르는 낱말 안을 파고들어도 <b>사고로 이어지지 않는다.</b> "의류" 가 "[の]류" 가
+         * 되면 '류' 가 한글로 남아 이름 전체가 그대로 버려진다. 안전 모드에서 부분 잠금은 통과가
+         * 아니라 여전히 차단이다.
+         *
+         * 그래도 넣지 않은 것들이 있다 — 한(5) 별(4) 선(3). 뜻이 갈려서(韓/하나/한국, 星/別)
+         * 어느 쪽으로 옮겨도 틀릴 자리가 있다.
+         */
+        add(values, true, "Jump", "ジャンプ", "점프");
+        add(values, false, "double", "ダブル", "더블");
+        add(values, true, "New York", "ニューヨーク", "뉴욕");
+        add(values, false, "the", "ザ", "더");
+        add(values, false, "store", "店", "점");
+        add(values, false, "of", "の", "의");
+        add(values, false, "new", "ニュー", "뉴");
+        add(values, false, "pop", "ポップ", "팝");
         add(values, false, "department store", "百貨店", "백화점");
 
         values.sort(Comparator.comparingInt((Alias alias) -> alias.source().length()).reversed());
