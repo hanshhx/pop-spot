@@ -96,6 +96,54 @@ class PopupTranslationServiceTest {
         assertThat(out.get(3L).nameJa()).isNull();
     }
 
+    /**
+     * 2026-08-10 에 내린 결정을 고정한다.
+     *
+     * <p>한동안 모르는 브랜드도 가타카나로 옮기게 열어 뒀다. 커버리지가 21.7% 에서 61% 로 올랐지만 나가는 값을 세어 보니 <b>넷 중 하나가 틀렸다.</b>
+     * 클리오가 {@code クレ・ド・ペール}(시세이도 브랜드)로, 이솝이 {@code イゾッド}로 나왔다 — 일본어로는 멀쩡해 보여서 읽는 사람도 기계 검사도 못 잡는다.
+     *
+     * <p>그래서 다시 잠갔다. <b>빈칸은 오타가 아니다</b> — 번역이 없으면 화면이 한국어 원문을 보여주고, 그건 덜 친절할 뿐 틀리지는 않는다.
+     */
+    @Test
+    @DisplayName("모르는 브랜드가 남아 있으면 이름을 비운다 — 추측한 이름보다 빈칸이 낫다")
+    void dropsNameWhenBrandIsUnknown() {
+        /*
+         * 토큰을 하나만 만드는 이름을 고른다. restore 는 응답에 토큰이 하나라도 빠지면 null 을
+         * 돌려주므로, 토큰이 여럿인 이름으로 시험하면 "잠금 규칙 때문에 비었는지" 와 "토큰이 모자라
+         * 비었는지" 를 구별할 수 없다 — 처음에 그렇게 써서 규칙을 지워도 통과하는 테스트가 됐다.
+         */
+        PopupStore p = popup(11L, "레고트 팝업", null);
+        // 모델은 '레고트' 를 그럴듯한 가타카나로 옮겨 온다. 그럴듯한 것이 문제다.
+        PopupTranslationService service =
+                serviceReturning(
+                        """
+                        [{"id":11,"nameEn":"Legot ZXQTERM0QXZ","nameJa":"レゴット ZXQTERM0QXZ"}]
+                        """);
+
+        Map<Long, PopupTranslationService.Translated> out = service.translate(List.of(p));
+
+        assertThat(out).containsKey(11L);
+        assertThat(out.get(11L).nameJa())
+                .describedAs("'레고트' 를 아무도 검증하지 않았다. 옮기면 그럴듯하게 틀린다")
+                .isNull();
+        assertThat(out.get(11L).nameEn()).isNull();
+    }
+
+    @Test
+    @DisplayName("용어집이 이름을 다 덮으면 그대로 내보낸다 — 잠근 것은 커버리지가 아니라 추측이다")
+    void keepsNameWhenGlossaryCoversEverything() {
+        PopupStore p = popup(12L, "포켓몬 팝업스토어", null);
+        PopupTranslationService service =
+                serviceReturning(
+                        """
+                        [{"id":12,"nameEn":"ZXQTERM0QXZ ZXQTERM1QXZ","nameJa":"ZXQTERM0QXZ ZXQTERM1QXZ"}]
+                        """);
+
+        Map<Long, PopupTranslationService.Translated> out = service.translate(List.of(p));
+
+        assertThat(out.get(12L).nameJa()).isNotNull().contains("ポケモン");
+    }
+
     @Test
     @DisplayName("입력에 없던 id 를 지어내면 무시한다")
     void ignoresHallucinatedIds() {
