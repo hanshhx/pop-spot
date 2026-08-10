@@ -77,11 +77,18 @@ class PopupTranslationGlossaryTest {
      */
     @Test
     void shortAliasesDoNotSwallowUnrelatedNames() {
-        // 잠긴 자리는 토큰으로 바뀐다. 그러니 원문이 그대로 남아 있으면 안 걸린 것이다.
-        // (restore 로는 볼 수 없다 — 토큰이 하나도 없으면 null 을 돌려주기 때문이다)
-        assertThat(glossary.protect("마리오아울렛 팝업").masked())
-                .describedAs("마리오아울렛은 서울에 실재하는 쇼핑몰이다. 슈퍼마리오로 바꾸면 없는 곳을 안내한다")
-                .contains("마리오아울렛");
+        /*
+         * 마리오아울렛은 이제 용어집에 제 이름으로 들어가 있다. 그래서 masked 에는 원문이 아니라 토큰이
+         * 남는다 — "원문이 그대로 있나" 로는 더 이상 볼 수 없다.
+         *
+         * 확인해야 할 것은 처음부터 하나였다. 슈퍼마리오로 바뀌지 않는가.
+         */
+        PopupTranslationGlossary.ProtectedText mall = glossary.protect("마리오아울렛 팝업");
+
+        assertThat(mall.restoreJapanese(mall.masked()))
+                .describedAs("마리오아울렛은 영등포에 실재하는 쇼핑몰이다. 슈퍼마리오로 바꾸면 없는 곳을 안내한다")
+                .contains("マリオアウトレット")
+                .doesNotContain("スーパーマリオ");
 
         assertThat(glossary.protect("코난도일 북페어").masked())
                 .describedAs("코난 도일(작가)은 명탐정 코난이 아니다")

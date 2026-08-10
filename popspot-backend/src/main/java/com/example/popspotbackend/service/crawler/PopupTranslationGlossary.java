@@ -366,6 +366,63 @@ public class PopupTranslationGlossary {
         // "마리오" + 아울렛으로 쪼갰다 — 상가 이름이 사라져 다른 곳으로 안내된다.
         add(values, false, "Premium Outlet", "プレミアムアウトレット", "프리미엄 아울렛", "프리미엄 아웃렛");
         add(values, false, "showroom", "ショールーム", "쇼룸");
+
+        /*
+         * 운영 이름 963건을 훑어 "막고 있는 낱말" 을 세어 넣는다(2026-08-10).
+         *
+         * 안전 모드 — 모르는 한글이 하나라도 남으면 통째로 포기 — 로 두면 오타가 0이 되는 대신 209건
+         * (21.7%)만 번역된다. 나머지를 여는 길은 둘뿐이다. 모델이 추측하게 두거나(오타 27%), 여기를
+         * 채우거나. 아래는 후자다.
+         *
+         * 한 글자짜리는 넣지 않는다. 상위에 '더'(15) '점'(14) '의'(9) 가 있지만, 매칭이 단순 부분
+         * 문자열이라 다른 낱말 안을 파고든다 — 맨 "아울렛" 이 마리오아울렛을 쪼갠 것과 같은 사고다.
+         */
+        add(values, false, "anniversary", "周年", "주년");
+        add(values, false, "lounge", "ラウンジ", "라운지");
+        add(values, false, "day", "デー", "데이");
+        add(values, false, "flagship store", "本店", "본점");
+        add(values, false, "first", "ファースト", "퍼스트");
+        add(values, false, "coffee", "コーヒー", "커피");
+        // 지드래곤 "팬" 팝업이 パン(빵)으로 나왔다.
+        add(values, false, "fan", "ファン", "팬");
+        add(values, false, "official", "公式", "공식");
+        add(values, false, "kids", "キッズ", "키즈");
+        add(values, false, "experience", "体験型", "체험형");
+        add(values, false, "cosmetics", "化粧品", "화장품");
+        add(values, false, "square", "スクエア", "스퀘어");
+        add(values, false, "gallery", "ギャラリー", "갤러리");
+        add(values, false, "cheesecake", "チーズケーキ", "치즈케이크");
+        add(values, false, "Asia", "アジア", "아시아");
+        add(values, false, "hotel", "ホテル", "호텔");
+        add(values, false, "festa", "フェスタ", "페스타");
+        add(values, false, "salt bread", "塩パン", "소금빵");
+        add(values, false, "amazing", "アメイジング", "어메이징");
+        add(values, false, "memoir", "回顧録", "회고록");
+        add(values, false, "liquid", "リキッド", "리퀴드");
+        add(values, false, "cruise", "遊覧", "유람");
+        add(values, false, "world", "世界", "세계");
+        add(values, false, "grandmother's", "おばあちゃんの", "할머니의");
+
+        // 자주 나오는 브랜드. 모델이 틀리게 옮긴 것을 확인한 것만 넣는다.
+        add(values, true, "LOEWE", "ロエベ", "로에베");
+        add(values, true, "Bioré", "ビオレ", "비오레");
+        add(values, true, "Aesop", "イソップ", "이솝");
+        add(values, true, "New Balance", "ニューバランス", "뉴발란스");
+        add(values, true, "Knotted", "ノッテッド", "노티드");
+        add(values, true, "TAMBURINS", "タンバリンズ", "탬버린즈");
+        add(values, true, "Mardi Mercredi", "マルディメクルディ", "마르디 메크르디");
+        add(values, true, "SPAO", "SPAO", "스파오");
+        add(values, true, "Cass", "カス", "카스");
+        add(values, true, "Mallang Festa", "マランフェスタ", "말랑페스타");
+        add(values, true, "Mario Outlet", "マリオアウトレット", "마리오아울렛");
+        add(values, true, "Amorepacific Foundation", "アモレパシフィック財団", "아모레퍼시픽재단");
+        add(values, true, "Hyundai", "現代", "현대");
+        add(values, true, "Shinsegae", "新世界", "신세계");
+        add(values, true, "The Summer Hikaru Died", "ヒカルが死んだ夏", "히카루가 죽은 여름");
+        add(values, true, "Hazbin Hotel", "ハズビンホテル", "해즈빈 호텔");
+        add(values, true, "Ray-Ban", "レイバン", "레이벤", "레이밴");
+        add(values, true, "Sportage", "スポーテージ", "스포티지");
+        add(values, true, "wharrytzn", "ワリットイズン", "와릿이즌");
         add(values, false, "department store", "百貨店", "백화점");
 
         values.sort(Comparator.comparingInt((Alias alias) -> alias.source().length()).reversed());
