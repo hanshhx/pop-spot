@@ -66,6 +66,17 @@ public class PopupTranslationService {
     @Value("${popspot.crawler.translation-local-only:true}")
     private boolean localOnly;
 
+    /**
+     * 켜면 <b>모르는 낱말도 가타카나로 옮기게</b> 둔다. 기본값은 꺼짐 — 모르면 이름 전체를 비운다.
+     *
+     * <p>2026-08-10 에 켠 채로 한 배치를 돌려 값을 세어 봤다. 커버리지는 21.7% → 61% 로 올랐지만 <b>넷 중 하나가 틀렸다.</b> 게다가 틀린
+     * 것들이 클리오 → {@code クレ・ド・ペール}(시세이도 브랜드)처럼 일본어로는 멀쩡해 보여서, 읽는 사람도 기계 검사도 잡지 못한다.
+     *
+     * <p>그래서 껐다. 자세한 판단 근거는 {@code restoreName} 에 적어 뒀다.
+     */
+    @Value("${popspot.crawler.translation-allow-transliteration:false}")
+    private boolean allowTransliteration;
+
     /** 번역 한 벌. 확신이 없으면 해당 칸이 null 이다. */
     public record Translated(String nameEn, String nameJa, String locationEn, String locationJa) {
 
@@ -308,20 +319,30 @@ public class PopupTranslationService {
         if (translated == null) return null;
 
         /*
-         * 이름은 <b>모르는 낱말이 남아 있어도</b> 내보낸다.
+         * 모르는 낱말이 하나라도 남았으면 이름 전체를 버린다.
          *
-         * 예전에는 "잠근 뒤 한글이 하나라도 남으면 통째로 포기" 였다. 정확했지만 1047곳 중
-         * 177곳만 번역되는 원인이었다 — 와릿이즌·메디큐브처럼 공식 일본어 표기가 없는 개별
-         * 브랜드가 수백 개인데, 그건 용어집으로 도달할 수 없다.
+         * 한동안 이걸 풀어 뒀다. 모르는 브랜드도 가타카나로 옮기게 두면 커버리지가 크게 오르고,
+         * 브랜드 음역은 일본에서 외국 이름을 다루는 표준이라 안전하다고 봤다. 커버리지는 실제로
+         * 올랐다 — 21.7% 에서 61% 로. 그런데 나가는 값을 세어 보니 넷 중 하나가 틀렸다.
          *
-         * 브랜드 이름을 가타카나로 옮기는 것은 일본에서 외국 브랜드를 다루는 표준이라, 뜻을
-         * 지어내는 것과는 종류가 다른 위험이다. 대신 나가는 값을 기계로 검사한다
-         * ({@link #looksUnsafeJapanese}) — 중국어로 나오거나 없는 숫자를 지어내면 버린다.
+         * 틀린 방식이 문제였다. 클리오가 クレ・ド・ペール(시세이도 브랜드)로, 이솝이 イゾッド로,
+         * 에반게리온이 進撃の…로 나왔다. 전부 일본어로는 멀쩡해 보여서 읽는 사람이 알아챌 수 없다.
+         * 기계 검사도 못 잡는다 — 문법도 문자도 정상이기 때문이다.
          *
-         * <b>장소는 이 완화를 적용하지 않는다.</b> 아래 restoreLocation 이 여전히 "한글이 남으면
-         * 버린다" 를 지킨다. 이름이 어색한 것은 읽는 사람이 알아채지만, 장소가 틀리면 그 사람을
-         * 다른 동네로 보낸다 — 실제로 남대문이 남산(南山)으로 나온 적이 있다.
+         * 그래서 되돌린다. 판단 기준은 이렇다.
+         *
+         *   빈칸은 오타가 아니다. 번역이 없으면 화면이 한국어 원문을 보여주고, 그건 틀린 정보가
+         *   아니라 덜 친절한 것뿐이다. 반면 틀린 이름은 틀린 정보를 자신 있게 보여준다.
+         *
+         * 대가는 실측했다(운영 이름 963건 기준). 안전 모드에서 251건(26.1%)이 번역된다. 여기서
+         * 더 올리는 길은 용어집뿐이고, 막고 있는 낱말이 886종이라 브랜드를 손으로 채워야 한다.
+         *
+         * 그 대가가 아깝다면 이 값을 켜면 된다 — 다만 커버리지를 두 배로 얻는 대신 넷 중 하나가
+         * 틀린다는 뜻이고, 그건 실측치다.
          */
+        if (!allowTransliteration && protectedText.hasUnprotectedHangul()) return null;
+
+        // 용어집이 다 덮은 이름이라도 모델이 이상하게 뱉을 수 있다. 두 번째 그물은 남긴다.
         if (!english && looksUnsafeJapanese(translated, originalName)) return null;
 
         return english
