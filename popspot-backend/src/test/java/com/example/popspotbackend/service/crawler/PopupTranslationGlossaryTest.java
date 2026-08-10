@@ -2,6 +2,7 @@ package com.example.popspotbackend.service.crawler;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 class PopupTranslationGlossaryTest {
@@ -93,6 +94,28 @@ class PopupTranslationGlossaryTest {
         assertThat(glossary.protect("코난도일 북페어").masked())
                 .describedAs("코난 도일(작가)은 명탐정 코난이 아니다")
                 .contains("코난도일");
+    }
+
+    /**
+     * 별칭을 묶을 때 <b>지점까지 딸려 오면 안 된다.</b>
+     *
+     * <p>"더현대" 를 "더현대 서울" 의 별칭으로 넣어 뒀더니 {@code 더현대 팝업스토어} 가 {@code ザ・ヒョンデ・ソウル ポップアップストア} 로 나왔다. 원문에
+     * 없는 "서울" 이 붙는다. 더현대는 서울 말고도 있어서(대구·판교) 사람을 다른 도시로 보내는 셈이다.
+     *
+     * <p>용어집은 모르는 것을 막는 장치지, <b>아는 것을 덧붙이는 장치가 아니다.</b>
+     */
+    @Test
+    @DisplayName("지점이 없는 이름에 지점을 붙이지 않는다 — 더현대는 서울에만 있지 않다")
+    void doesNotInventBranchLocation() {
+        PopupTranslationGlossary.ProtectedText plain = glossary.protect("더현대 팝업스토어");
+        assertThat(plain.restoreJapanese(plain.masked()))
+                .describedAs("원문에 없는 지점을 지어내면 안 된다")
+                .contains("ザ・ヒョンデ")
+                .doesNotContain("ソウル");
+
+        // 지점이 적혀 있으면 그대로 살린다 — 긴 별칭이 먼저 맞아야 한다.
+        PopupTranslationGlossary.ProtectedText withBranch = glossary.protect("더현대 서울 팝업");
+        assertThat(withBranch.restoreJapanese(withBranch.masked())).contains("ザ・ヒョンデ・ソウル");
     }
 
     @Test
