@@ -131,7 +131,23 @@ public class PopupTranslationGlossary {
                 "짱구");
         add(values, true, "Cookie Run", "クッキーラン", "쿠키런");
         add(values, true, "Shin Ramyun", "辛ラーメン", "신라면", "辛라면");
-        add(values, true, "Arknights: Endfield", "アークナイツ：エンドフィールド", "엔드필드", "엔드 필드");
+        /*
+         * 시리즈 이름이 앞에 붙은 형태를 먼저 잡는다.
+         *
+         * "명일방주: 엔드필드" 를 그냥 두면 명일방주(→アークナイツ)와 엔드필드(→アークナイツ：エンドフィールド)가
+         * 따로 맞아 "アークナイツ: アークナイツ：エンドフィールド" 가 된다. 긴 별칭이 먼저 맞으므로 붙여 쓴
+         * 형태를 넣어 두면 통째로 잡힌다.
+         */
+        add(
+                values,
+                true,
+                "Arknights: Endfield",
+                "アークナイツ：エンドフィールド",
+                "명일방주: 엔드필드",
+                "명일방주 엔드필드",
+                "명일방주:엔드필드",
+                "엔드필드",
+                "엔드 필드");
         add(values, true, "CASETiFY", "CASETiFY", "케이스티파이", "케이스 티파이");
         add(values, true, "Tom and Jerry", "トムとジェリー", "톰과 제리", "톰과제리", "톰앤제리", "톰 앤 제리");
         add(values, true, "HYBE BRIDZ", "HYBE BRIDZ", "하이브 브릿즈", "브릿즈");
@@ -499,6 +515,67 @@ public class PopupTranslationGlossary {
         add(values, false, "of", "の", "의");
         add(values, false, "new", "ニュー", "뉴");
         add(values, false, "pop", "ポップ", "팝");
+
+        /*
+         * 3 라운드(2026-08-10). 이번엔 고르는 방법을 바꿨다.
+         *
+         * 2 라운드까지는 빈도순으로 넣었는데, 꼬리가 평평해져 상위가 전부 2~3회짜리가 됐다. 그런데
+         * 빈도가 높아도 그 이름에 모르는 낱말이 또 있으면 넣어 봐야 커버리지가 안 오른다.
+         *
+         * 그래서 <b>"이 낱말 하나만 넣으면 이름이 완성되는가"</b> 로 줄을 세웠다. 미번역 651건 중
+         * 387건이 딱 하나 차이였다 — 낱말 종류로는 331개라 대부분 이름 하나당 낱말 하나지만,
+         * 그래도 한 개를 넣으면 한 개가 확실히 열린다.
+         *
+         * 뜻을 확신할 수 있는 것만 넣는다. 피마원(4)·포카아이(3)·꾸미버스(2)처럼 무엇인지 알 수
+         * 없는 것은 건수가 많아도 건너뛴다 — 여기서 추측하면 안전 모드를 켠 이유가 사라진다.
+         */
+        add(values, true, "TOMORROW X TOGETHER", "TOMORROW X TOGETHER", "투모로우바이투게더");
+        add(values, true, "Tokyo Revengers", "東京リベンジャーズ", "도쿄리벤저스", "도쿄 리벤저스");
+        add(values, true, "Banksy", "バンクシー", "뱅크시");
+        add(values, true, "Converse", "コンバース", "컨버스");
+        add(values, true, "Louvre", "ルーブル", "루브르");
+        add(values, true, "National Geographic", "ナショナルジオグラフィック", "내셔널지오그래픽");
+        add(values, true, "ARKET", "アルケット", "아르켓");
+        add(values, true, "Coway", "コーウェイ", "코웨이");
+        add(values, true, "Frieze", "フリーズ", "프리즈");
+        add(values, true, "Hofmann", "ホフマン", "호프만");
+        add(values, true, "Avec Chéri", "アベックシェリー", "아벡쉐리");
+        add(values, true, "La Mie Boulangerie", "ラミブランジェリー", "라미블랑제리");
+        add(values, true, "CODES COMBINE", "コーデスコンバイン", "코데즈컴바인");
+        add(values, true, "Original Beer Company", "オリジナルビアカンパニー", "오리지널비어컴퍼니");
+        add(values, true, "Sunset Rollercoaster", "サンセットローラーコースター", "선셋롤러코스터");
+        add(values, true, "NOWHERE", "ノーウェア", "노웨어");
+        // 남대문잡채호떡이 통째로 중국어(南山拌菜熱米糕)가 된 적이 있다. 남대문은 이미 잠겨 있다.
+        add(values, true, "Japchae Hotteok", "チャプチェホットク", "잡채호떡");
+
+        add(values, false, "Zenshuchu", "全集中", "전집중");
+        add(values, false, "kingdom", "キングダム", "킹덤");
+        add(values, false, "world", "ワールド", "월드");
+        add(values, false, "camp", "キャンプ", "캠프");
+        add(values, false, "arcade", "アーケード", "아케이드");
+        add(values, false, "moment", "モーメント", "모먼트");
+        add(values, false, "founding", "創立", "창립");
+        add(values, false, "heritage", "ヘリテージ", "헤리티지");
+        add(values, false, "wild", "ワイルド", "와일드");
+        add(values, false, "fest", "フェスト", "페스트");
+        add(values, false, "jelly shop", "ゼリーショップ", "젤리샵");
+        add(values, false, "atelier", "アトリエ", "아틀리에");
+        add(values, false, "forever", "フォーエバー", "포에버");
+        add(values, false, "cherry", "チェリー", "체리");
+        add(values, false, "food", "フード", "푸드");
+        add(values, false, "PR", "広報", "홍보");
+        add(values, false, "health", "健康", "건강");
+        add(values, false, "tour", "ツアー", "투어");
+        add(values, false, "pretty", "プリティ", "프리티");
+        add(values, false, "sunset", "サンセット", "선셋");
+        add(values, false, "rollercoaster", "ローラーコースター", "롤러코스터");
+        add(values, false, "yakitori", "焼き鳥", "야키토리");
+        add(values, false, "Frank", "フランク", "프랭크");
+        add(values, false, "hey", "ヘイ", "헤이");
+        add(values, false, "Bundang", "盆唐", "분당");
+        add(values, false, "Seomyeon", "西面", "서면");
+        add(values, false, "floor", "階", "층");
+        add(values, false, "station", "駅", "역");
         add(values, false, "department store", "百貨店", "백화점");
 
         values.sort(Comparator.comparingInt((Alias alias) -> alias.source().length()).reversed());
