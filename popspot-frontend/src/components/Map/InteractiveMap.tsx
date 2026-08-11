@@ -23,6 +23,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import type { Map as MapLibreMap } from 'maplibre-gl';
 import { bilingual } from '@/lib/bilingual';
 import { isApproximateLocation } from '@/lib/locationPrecision';
+import { loadMapMarkers, type PublicMapMarker } from '@/lib/mapMarkers';
 import { notify } from '@/lib/notify';
 import { REGIONS, classifyRegion, regionBySlug, regionLabel, type RegionCode } from '@/lib/regions';
 import { localizedLabel, useLocale, type Locale, type MessageKey } from '@/lib/i18n';
@@ -38,6 +39,8 @@ import {
 } from '@/lib/popupSlices';
 
 interface InteractiveMapProps {
+  /** 서버가 첫 HTML과 함께 준비한 마커. 있으면 브라우저가 같은 목록을 다시 요청하지 않는다. */
+  initialMarkers?: PublicMapMarker[];
   places?: {
     id: string | number;
     name: string;
@@ -83,6 +86,13 @@ interface MapMarkerData {
   // v2.21-S2 — BROWSE 슬라이스 필터링용
   startDate?: string;
   endDate?: string;
+}
+
+interface ViewportBounds {
+  west: number;
+  east: number;
+  south: number;
+  north: number;
 }
 
 // DB 의 실제 카테고리 값과 일치 (자동수집 팝업까지 모두 매칭되도록)
@@ -271,7 +281,62 @@ function spreadOverlappingMarkers(markers: MapMarkerData[]): MapMarkerData[] {
   return result;
 }
 
+/**
+ * 현재 화면보다 사방 20% 넓은 범위. 지도를 조금 움직이는 동안 가장자리 핀이 늦게 나타나는 느낌을
+ * 막되, 서울 전역의 핀을 전부 DOM 으로 만드는 일은 피한다.
+ */
+function paddedViewport(map: MapLibreMap): ViewportBounds {
+  const bounds = map.getBounds();
+  const lngPadding = (bounds.getEast() - bounds.getWest()) * 0.2;
+  const latPadding = (bounds.getNorth() - bounds.getSouth()) * 0.2;
+  return {
+    west: bounds.getWest() - lngPadding,
+    east: bounds.getEast() + lngPadding,
+    south: bounds.getSouth() - latPadding,
+    north: bounds.getNorth() + latPadding,
+  };
+}
+
+function isInsideViewport(marker: MapMarkerData, bounds: ViewportBounds): boolean {
+  const lat = Number.parseFloat(marker.latitude);
+  const lng = Number.parseFloat(marker.longitude);
+  return (
+    Number.isFinite(lat) &&
+    Number.isFinite(lng) &&
+    lng >= bounds.west &&
+    lng <= bounds.east &&
+    lat >= bounds.south &&
+    lat <= bounds.north
+  );
+}
+
+function toOpenMapMarkers(data: PublicMapMarker[]): MapMarkerData[] {
+  const today = kstTodayStart();
+  return data
+    .filter(
+      (m): m is PublicMapMarker & { latitude: string; longitude: string } =>
+        isOpenNow(m.startDate, m.endDate, today) &&
+        typeof m.latitude === 'string' &&
+        typeof m.longitude === 'string' &&
+        Number.isFinite(Number.parseFloat(m.latitude)) &&
+        Number.isFinite(Number.parseFloat(m.longitude)),
+    )
+    .map((m) => ({
+      popupId: m.id,
+      name: m.name,
+      nameEn: m.nameEn,
+      nameJa: m.nameJa,
+      address: m.location ?? '',
+      latitude: m.latitude,
+      longitude: m.longitude,
+      category: m.category ?? undefined,
+      startDate: m.startDate ?? undefined,
+      endDate: m.endDate ?? undefined,
+    }));
+}
+
 export default function InteractiveMap({
+  initialMarkers,
   places,
   showPath = false,
   center,
@@ -303,6 +368,7 @@ export default function InteractiveMap({
   const [activeCategory, setActiveCategory] = useState('ALL');
   // 원본 maplibre Map 인스턴스 (패닝/줌 제어용). 카카오 map 객체 자리.
   const [map, setMap] = useState<MapLibreMap | null>(null);
+  const [viewportBounds, setViewportBounds] = useState<ViewportBounds | null>(null);
   const [isListOpen, setIsListOpen] = useState(false);
   // 동네 바로가기 + 범례 패널 열림 상태.
   const [isExploreOpen, setIsExploreOpen] = useState(false);
@@ -355,6 +421,7 @@ export default function InteractiveMap({
   // 데이터 fetch — places (코스 모드) 가 있으면 그대로, 아니면 visible markers 전부.
   // v2.21-S2 — 전 (이전 /api/popups?category=…) 클라이언트 사이드 통합 필터로 변경.
   useEffect(() => {
+    let cancelled = false;
     if (places && places.length > 0) {
       // (A) 코스 모드 / 작전 모드
       const convertedMarkers: MapMarkerData[] = places.map((p) => {
@@ -370,55 +437,40 @@ export default function InteractiveMap({
           category: p.category || 'COURSE',
         };
       });
-      setAllMarkers(convertedMarkers);
-      return;
+      queueMicrotask(() => {
+        if (!cancelled) setAllMarkers(convertedMarkers);
+      });
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    // 홈과 /map 서버 페이지가 이미 받은 목록을 우선 쓴다. 이 경로는 네트워크 요청이 0번이라,
+    // Vercel→백엔드 전달 구간이 순간적으로 끊겨도 첫 진입의 핀이 사라지지 않는다.
+    if (initialMarkers && initialMarkers.length > 0) {
+      queueMicrotask(() => {
+        if (!cancelled) setAllMarkers(toOpenMapMarkers(initialMarkers));
+      });
+      return () => {
+        cancelled = true;
+      };
     }
 
     // (B) 일반 모드 — v2.21-S2 /api/map/markers 로 통일. category/startDate/endDate 포함.
-    fetch('/api/map/markers')
-      .then((res) => {
-        if (!res.ok) throw new Error('네트워크 응답 실패');
-        return res.json();
+    loadMapMarkers()
+      .then((data: PublicMapMarker[]) => {
+        if (cancelled) return;
+        // v2.44 — 지금 열려 있는 것만 핀으로 찍는다. 홈 목록·랭킹과 같은 판정을 쓴다
+        // (경위는 isOpenNow 주석). 예전엔 지도만 날짜를 안 보고 좌표만 걸러, 홈은 659곳인데
+        // 지도엔 623곳이 뜨는 식으로 화면끼리 숫자가 갈렸다. 특히 날짜를 못 뽑은 수집 잔여물이
+        // 핀으로 남아, 찾아갔는데 없는 곳으로 안내할 수 있었다.
+        setAllMarkers(toOpenMapMarkers(data ?? []));
       })
-      .then(
-        (
-          data: Array<{
-            id: number;
-            name: string;
-            location: string | null;
-            latitude: string;
-            longitude: string;
-            category: string | null;
-            startDate: string | null;
-            endDate: string | null;
-            nameEn: string | null;
-            nameJa: string | null;
-          }>,
-        ) => {
-          // v2.44 — 지금 열려 있는 것만 핀으로 찍는다. 홈 목록·랭킹과 같은 판정을 쓴다
-          // (경위는 isOpenNow 주석). 예전엔 지도만 날짜를 안 보고 좌표만 걸러, 홈은 659곳인데
-          // 지도엔 623곳이 뜨는 식으로 화면끼리 숫자가 갈렸다. 특히 날짜를 못 뽑은 수집 잔여물이
-          // 핀으로 남아, 찾아갔는데 없는 곳으로 안내할 수 있었다.
-          const today = kstTodayStart();
-          const mapped: MapMarkerData[] = (data ?? [])
-            .filter((m) => isOpenNow(m.startDate, m.endDate, today))
-            .map((m) => ({
-              popupId: m.id,
-              name: m.name,
-              nameEn: m.nameEn,
-              nameJa: m.nameJa,
-              address: m.location ?? '',
-              latitude: m.latitude,
-              longitude: m.longitude,
-              category: m.category ?? undefined,
-              startDate: m.startDate ?? undefined,
-              endDate: m.endDate ?? undefined,
-            }));
-          setAllMarkers(mapped);
-        },
-      )
       .catch((err) => console.error('❌ API 호출 에러:', err));
-  }, [places]);
+    return () => {
+      cancelled = true;
+    };
+  }, [initialMarkers, places]);
 
   // v2.21-S2 — 모든 필터를 클라이언트 사이드에서 적용.
   // 우선순위: category (지도 상단 칩) > BROWSE deep link 카테고리 (없을 때 fallback)
@@ -448,6 +500,31 @@ export default function InteractiveMap({
 
     return spreadOverlappingMarkers(filtered);
   }, [allMarkers, activeCategory, activeBrowseCategory, activeRegion, activePeriod, filterIds]);
+
+  // HTML 핀 하나는 React portal + MapLibre Marker 객체 하나다. 예전엔 서울 전역 600여 개를 화면 밖까지
+  // 전부 만들어 첫 렌더와 팬·줌이 무거웠다. 현재 화면(+20% 여유)에 들어오는 것만 실제 DOM 으로 만든다.
+  // 목록·필터·개수는 전체 markers 를 그대로 사용하므로 기능이나 집계는 바뀌지 않는다.
+  const renderedMarkers = useMemo(() => {
+    if (showPath || mode === 'PLAN') return markers;
+    if (!viewportBounds) return [];
+    return markers.filter(
+      (marker) =>
+        marker.popupId === selectedMarker?.popupId || isInsideViewport(marker, viewportBounds),
+    );
+  }, [markers, mode, selectedMarker?.popupId, showPath, viewportBounds]);
+
+  useEffect(() => {
+    if (!map) return;
+    const sync = () => setViewportBounds(paddedViewport(map));
+    const frame = requestAnimationFrame(sync);
+    map.on('moveend', sync);
+    map.on('resize', sync);
+    return () => {
+      cancelAnimationFrame(frame);
+      map.off('moveend', sync);
+      map.off('resize', sync);
+    };
+  }, [map]);
 
   // center prop 변경 시 지도 이동
   useEffect(() => {
@@ -891,7 +968,7 @@ export default function InteractiveMap({
             </MapMarker>
           )}
 
-          {markers.map((marker, index) => {
+          {renderedMarkers.map((marker, index) => {
             // PLAN 모드용 스타일 계산
             const style = getCategoryStyle(marker.category);
             const approximate = isApproximateLocation(marker.address);

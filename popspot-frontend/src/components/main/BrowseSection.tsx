@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-import { apiFetch } from '@/lib/api';
+import { loadMapMarkers, type PublicMapMarker } from '@/lib/mapMarkers';
 import { localizedPath } from '@/lib/localePath';
 import { REGIONS, classifyRegion, type RegionCode } from '@/lib/regions';
 import {
@@ -49,22 +49,8 @@ import { bilingual } from '@/lib/bilingual';
  * </ul>
  */
 
-type Marker = {
-  id: number;
-  /** 한국어 원문. 지역·카테고리 분류가 이 값을 쓰므로 번역본으로 바꾸면 안 된다. */
-  name: string;
-  location: string | null;
-  latitude: string | null;
-  longitude: string | null;
-  category: string | null;
-  startDate: string | null;
-  endDate: string | null;
-  /** v2.51 — 외국어 표시용. 백엔드가 확신 없으면 비워 두고, 그때는 원문을 보여준다. */
-  nameEn?: string | null;
-  nameJa?: string | null;
-  locationEn?: string | null;
-  locationJa?: string | null;
-};
+/** 한국어 원문은 분류에, 번역본은 화면 표시에 쓴다. */
+type Marker = PublicMapMarker;
 
 type SliceKind = 'region' | 'period' | 'category';
 
@@ -88,9 +74,11 @@ type SliceItem = {
 
 const EXPAND_STORAGE_KEY = 'popspot:browse:expanded';
 
-export default function BrowseSection() {
+export default function BrowseSection({ initialMarkers }: { initialMarkers?: Marker[] }) {
   const { t, locale } = useLocale();
-  const [markers, setMarkers] = useState<Marker[] | null>(null);
+  const [markers, setMarkers] = useState<Marker[] | null>(() =>
+    initialMarkers && initialMarkers.length > 0 ? initialMarkers : null,
+  );
   const [error, setError] = useState(false);
   const [activeSlice, setActiveSlice] = useState<ActiveSlice | null>(null);
   const [isExpanded, setIsExpanded] = useState(true);
@@ -114,12 +102,10 @@ export default function BrowseSection() {
   }
 
   useEffect(() => {
+    if (initialMarkers && initialMarkers.length > 0) return;
     let cancelled = false;
-    apiFetch('/api/map/markers')
-      // HTTP 실패를 빈 배열로 흘려보내면 아래 setMarkers([]) 가 걸려 error 상태에 못 간다.
-      // 그러면 '지역별 둘러보기' 가 오류 표시 없이 통째로 사라진다 — 섹션이 원래 없는 것처럼.
-      .then((res) => (res.ok ? res.json() : Promise.reject(new Error(`markers ${res.status}`))))
-      .then((data: Marker[]) => {
+    loadMapMarkers()
+      .then((data) => {
         if (!cancelled) setMarkers(data);
       })
       .catch(() => {
@@ -128,7 +114,7 @@ export default function BrowseSection() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [initialMarkers]);
 
   const regionSlices = useMemo<SliceItem[]>(() => {
     if (!markers) return [];

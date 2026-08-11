@@ -7,13 +7,27 @@ const REFRESH_KEY = 'refreshToken';
  */
 export function getAuthToken(): string | null {
   if (typeof window === 'undefined') return null;
-  const current = window.sessionStorage.getItem(TOKEN_KEY);
+  let current: string | null = null;
+  try {
+    current = window.sessionStorage.getItem(TOKEN_KEY);
+  } catch {
+    // 저장소 접근이 막혀도 비로그인 공개 API 요청까지 중단시키지 않는다.
+  }
   if (current) return current;
 
-  const legacy = window.localStorage.getItem(TOKEN_KEY);
+  let legacy: string | null = null;
+  try {
+    legacy = window.localStorage.getItem(TOKEN_KEY);
+  } catch {
+    return null;
+  }
   if (!legacy) return null;
-  window.sessionStorage.setItem(TOKEN_KEY, legacy);
-  window.localStorage.removeItem(TOKEN_KEY);
+  try {
+    window.sessionStorage.setItem(TOKEN_KEY, legacy);
+    window.localStorage.removeItem(TOKEN_KEY);
+  } catch {
+    // 이전 토큰은 그대로 읽어 이번 요청에 사용하되, 안전한 저장소로의 이동은 다음 기회에 다시 한다.
+  }
   return legacy;
 }
 
