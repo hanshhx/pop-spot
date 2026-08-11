@@ -53,8 +53,34 @@ let authExpiryHandled = false;
  */
 const GATEWAY_STATUSES = new Set([502, 503, 504]);
 
-/** 재시도 간격. 두 번까지만 — 진짜로 백엔드가 죽은 상황에서 사용자를 오래 붙잡아 두지 않는다. */
-const RETRY_DELAYS_MS = [300, 900] as const;
+/**
+ * 재시도 간격.
+ *
+ * <p>두 번이었다가 늘렸다. 2026-08-10 에 실측하니 <b>세 번에 한 번</b>이 502 였다 —
+ * popspot.co.kr 을 통해 20번 불러 7번 실패. 같은 시각에 백엔드 공개 주소를 직접 20번 불렀을
+ * 때는 전부 200 이었으니, 죽는 곳은 백엔드가 아니라 Vercel 이 백엔드로 넘기는 구간이다
+ * (X-Vercel-Error: DNS_HOSTNAME_EMPTY / DNS_HOSTNAME_NOT_FOUND).
+ *
+ * <p>세 번 시도로는 0.35³ ≈ 4%가 그대로 실패한다. 화면 하나가 API 를 여덟 개쯤 부르니 사실상
+ * 매번 어딘가는 비어 보인다. 실제로 "새로고침을 해야 지도가 보인다" 는 신고가 그것이었다 —
+ * 캐시 문제가 아니라 다시 보내니까 붙은 것이었다.
+ *
+ * <p>다섯 번이면 0.35⁵ ≈ 0.5% 다. 게이트웨이 502 는 수십 ms 만에 돌아오므로 늘려도 기다림은
+ * 거의 늘지 않는다. 진짜로 백엔드가 죽었을 때만 5초 남짓 붙잡히는데, 그 경우는 빈 화면보다
+ * 오류 표시가 낫다.
+ *
+ * <p><b>근본 해결은 아니다.</b> 넘기는 구간을 고쳐야 하고, 이건 그때까지의 가림막이다.
+ */
+const RETRY_DELAYS_MS = [200, 600, 1500, 3000] as const;
+
+/**
+ * 재시도 시각을 흩뜨린다.
+ *
+ * <p>화면 하나가 지도·목록·혼잡도·찜·티커를 <b>동시에</b> 부른다. 다 같이 502 를 받고 다 같이
+ * 300ms 뒤에 다시 보내면, 같은 순간에 같은 구간을 다시 때려 또 같이 실패하기 쉽다. 조금씩
+ * 어긋나게 해서 그 한 덩어리를 푼다.
+ */
+const jittered = (ms: number) => ms + Math.floor(Math.random() * ms * 0.4);
 
 /** 응답이 없어도 안전하게 다시 보낼 수 있는 메서드. */
 const IDEMPOTENT_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
@@ -66,6 +92,15 @@ const IDEMPOTENT_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
  * 잘못됐는지 알 수 없고 새로고침만 반복한다. 끊어서 catch 로 보내면 최소한 오류 처리가 돈다.
  */
 const REQUEST_TIMEOUT_MS = 12_000;
+
+/**
+ * 재시도를 포함한 전체 마감.
+ *
+ * <p>한 번의 타임아웃(12초)보다는 넉넉하되, 사람이 "고장 났나" 싶어지기 전에는 끝나야 한다.
+ * 게이트웨이 502 는 수십 ms 만에 돌아오므로 실제로는 이 한도에 닿지 않는다 — 터널이 연결을
+ * 붙잡는 드문 경우에만 걸린다.
+ */
+const TOTAL_RETRY_BUDGET_MS = 20_000;
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -172,6 +207,18 @@ const fetchWithRetry = async (
   const method = (options.method ?? 'GET').toUpperCase();
   const canRetry = IDEMPOTENT_METHODS.has(method);
 
+  /*
+   * 전체 마감 시각.
+   *
+   * 시도 횟수를 늘리면서 필요해졌다. 게이트웨이 502 는 수십 ms 만에 돌아오니 다섯 번을 돌아도
+   * 순식간이지만, 터널이 연결을 붙잡는 경우에는 시도마다 타임아웃(12초)을 다 쓴다. 그러면
+   * 최악이 12×5 + 대기 5.3 ≈ 65초다. 그렇게 오래 도는 화면은 고장 난 것과 같다.
+   *
+   * 그래서 횟수와 별개로 전체 시간을 묶는다. 남은 시간이 없으면 마지막 응답을 그대로 돌려준다.
+   */
+  const deadline = Date.now() + TOTAL_RETRY_BUDGET_MS;
+  const outOfTime = () => Date.now() >= deadline;
+
   let lastError: unknown;
   for (let attempt = 0; ; attempt++) {
     try {
@@ -182,7 +229,7 @@ const fetchWithRetry = async (
         signal: options.signal ?? AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       });
       if (!canRetry || !GATEWAY_STATUSES.has(response.status)) return response;
-      if (attempt >= RETRY_DELAYS_MS.length) return response;
+      if (attempt >= RETRY_DELAYS_MS.length || outOfTime()) return response;
       console.warn(
         `게이트웨이 ${response.status} — ${RETRY_DELAYS_MS[attempt]}ms 뒤 재시도 (${attempt + 1}/${RETRY_DELAYS_MS.length}): ${url}`,
       );
@@ -190,12 +237,12 @@ const fetchWithRetry = async (
       // 네트워크 끊김·타임아웃도 같은 취급. 다만 호출부가 명시적으로 취소한 것은 재시도하지 않는다.
       if (options.signal?.aborted) throw error;
       lastError = error;
-      if (!canRetry || attempt >= RETRY_DELAYS_MS.length) throw error;
+      if (!canRetry || attempt >= RETRY_DELAYS_MS.length || outOfTime()) throw error;
       console.warn(
         `요청 실패 — ${RETRY_DELAYS_MS[attempt]}ms 뒤 재시도 (${attempt + 1}/${RETRY_DELAYS_MS.length}): ${url}`,
       );
     }
-    await sleep(RETRY_DELAYS_MS[attempt]);
+    await sleep(jittered(RETRY_DELAYS_MS[attempt]));
     void lastError;
   }
 };
