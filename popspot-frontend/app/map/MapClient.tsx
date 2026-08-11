@@ -1,6 +1,7 @@
 'use client';
 
 import InteractiveMap from '@/components/Map/InteractiveMap';
+import type { PublicMapMarker } from '@/lib/mapMarkers';
 
 /**
  * /map 의 지도 부분만 클라이언트로 분리.
@@ -12,10 +13,10 @@ import InteractiveMap from '@/components/Map/InteractiveMap';
  * <p>InteractiveMap 은 props 가 전부 선택값이고 지역·기간 필터는 자기가 URL 에서 직접 읽으므로
  * (/map?region=seongsu 처럼) 여기서 넘겨줄 것이 없다.
  */
-export default function MapClient() {
+export default function MapClient({ initialMarkers }: { initialMarkers: PublicMapMarker[] }) {
   return (
     <div className="relative h-[70vh] min-h-[460px] w-full overflow-hidden rounded-[2rem] border border-gray-200 bg-white shadow-lg shadow-black/5 dark:border-white/10 dark:bg-[#111] dark:shadow-black/30">
-      <InteractiveMap />
+      <InteractiveMap initialMarkers={initialMarkers} />
     </div>
   );
 }

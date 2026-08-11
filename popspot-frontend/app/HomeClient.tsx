@@ -119,6 +119,7 @@ import { ProfileEditModal } from '@/features/profile/ProfileEditModal';
 import BrowseSection from '@/components/main/BrowseSection';
 import { PopupCard } from '@/components/main/PopupCard';
 import { devMockPopups } from '@/lib/devMockPopups';
+import type { PublicMapMarker } from '@/lib/mapMarkers';
 import FeatureSections from '@/components/main/FeatureSections';
 import HomeBento1a from '@/components/main/HomeBento1a';
 import type {
@@ -132,6 +133,24 @@ import type {
 } from '@/types/popup';
 
 const INITIAL_MY_COURSE: CourseItem[] = [];
+const EMPTY_POPUPS: PopupStore[] = [];
+
+function popupToMapMarker(popup: PopupStore): PublicMapMarker {
+  return {
+    id: popup.id,
+    name: popup.name,
+    nameEn: popup.nameEn,
+    nameJa: popup.nameJa,
+    location: popup.location ?? null,
+    locationEn: popup.locationEn,
+    locationJa: popup.locationJa,
+    latitude: popup.latitude ?? null,
+    longitude: popup.longitude ?? null,
+    category: popup.category ?? null,
+    startDate: popup.startDate ?? null,
+    endDate: popup.endDate ?? null,
+  };
+}
 
 /* -------------------------------------------------------------------------- */
 /* 탭 접근 정책 — 한 곳에서 관리해 게이트 / sessionStorage 복원 / ?tab= 쿼리 어디서든   */
@@ -282,7 +301,7 @@ interface HomeProps {
   initialPopups?: PopupStore[];
 }
 
-export default function Home({ initialPopups = [] }: HomeProps) {
+export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -313,6 +332,7 @@ export default function Home({ initialPopups = [] }: HomeProps) {
    * 그것을 거르는 책임은 이 화면에 있다(클라이언트 경로도 같은 함수를 통과한다).
    */
   const [allPopups, setAllPopups] = useState<PopupStore[]>(() => keepOpenNow(initialPopups));
+  const initialMapMarkers = useMemo(() => initialPopups.map(popupToMapMarker), [initialPopups]);
   // "지금 뜨는 팝업" 레일 정렬/필터. 전체(allPopups)에서 파생한다.
   const [railSort, setRailSort] = useState<'popular' | 'deadline' | 'latest'>('popular');
   const [railCat, setRailCat] = useState<CategoryCode | 'all'>('all');
@@ -930,31 +950,69 @@ export default function Home({ initialPopups = [] }: HomeProps) {
      * 예전엔 무조건 덮어썼는데, 이제는 서버가 ISR 로 받아 둔 더 새 목록을 갖고 시작할 수 있다.
      * 그것을 지난 방문의 localStorage 로 덮으면 <b>새 데이터를 헌 데이터로 바꾸는</b> 셈이다.
      */
-    const cachedPopups = initialPopups.length === 0 ? localStorage.getItem('cached_popups') : null;
-    if (cachedPopups) {
-      const data = keepOpenNow(JSON.parse(cachedPopups));
-      setAllPopups(data);
+    if (initialPopups.length > 0) {
+      /*
+       * 서버가 2분 ISR 캐시로 이미 받은 800여 건을 마운트 직후 다시 받지 않는다. 예전 코드는 같은
+       * 600KB 안팎 JSON을 연달아 두 번 받고, 파싱·필터·정렬·카드 렌더까지 두 번 돌렸다. 서버 목록은
+       * 이미 첫 렌더에 들어왔으므로 캐시만 최신화하면 충분하다.
+       */
+      try {
+        localStorage.setItem('cached_popups', JSON.stringify(keepOpenNow(initialPopups)));
+      } catch {
+        // 저장공간이 막혀도 서버 목록으로 화면은 이미 정상이다.
+      }
+    } else {
+      let cachedPopups: string | null = null;
+      try {
+        cachedPopups = localStorage.getItem('cached_popups');
+      } catch {
+        // 저장소가 차단된 브라우저도 아래 네트워크 경로로 계속 진행한다.
+      }
+      if (cachedPopups) {
+        try {
+          const data = keepOpenNow(JSON.parse(cachedPopups));
+          setAllPopups(data);
+        } catch {
+          localStorage.removeItem('cached_popups');
+        }
+      }
+
+      apiFetch('/api/popups')
+        .then((res) => {
+          if (!res.ok) throw new Error(`popups ${res.status}`);
+          return res.json();
+        })
+        .then((raw) => {
+          const data = keepOpenNow(raw);
+          setAllPopups(data);
+          try {
+            localStorage.setItem('cached_popups', JSON.stringify(data));
+          } catch {
+            // 캐시 저장 실패가 화면 데이터 로딩 실패로 바뀌면 안 된다.
+          }
+        })
+        .catch((err) => {
+          console.error('팝업 데이터 로딩 실패:', err);
+          // [redesign/test 전용] 로컬(백엔드 없음)에서 재설계 홈을 채우는 개발용 목업.
+          if (process.env.NODE_ENV === 'development') {
+            const mock = devMockPopups();
+            setAllPopups(mock);
+          }
+        });
     }
 
-    apiFetch('/api/popups')
-      .then((res) => res.json())
-      .then((raw) => {
-        const data = keepOpenNow(raw);
-        setAllPopups(data);
-        localStorage.setItem('cached_popups', JSON.stringify(data));
-      })
-      .catch((err) => {
-        console.error('팝업 데이터 로딩 실패:', err);
-        // [redesign/test 전용] 로컬(백엔드 없음)에서 재설계 홈을 채우는 개발용 목업.
-        if (process.env.NODE_ENV === 'development') {
-          const mock = devMockPopups();
-          setAllPopups(mock);
-        }
-      });
-
-    const cachedCongestion = localStorage.getItem('cached_congestion');
+    let cachedCongestion: string | null = null;
+    try {
+      cachedCongestion = localStorage.getItem('cached_congestion');
+    } catch {
+      // 저장소 없이도 혼잡도 API를 요청한다.
+    }
     if (cachedCongestion) {
-      setCongestionData(JSON.parse(cachedCongestion));
+      try {
+        setCongestionData(JSON.parse(cachedCongestion));
+      } catch {
+        localStorage.removeItem('cached_congestion');
+      }
     }
 
     apiFetch('/api/congestion')
@@ -962,11 +1020,15 @@ export default function Home({ initialPopups = [] }: HomeProps) {
       .then((data) => {
         if (data && data.level) {
           setCongestionData(data);
-          localStorage.setItem('cached_congestion', JSON.stringify(data));
+          try {
+            localStorage.setItem('cached_congestion', JSON.stringify(data));
+          } catch {
+            // 혼잡도 표시는 성공했으므로 캐시 실패는 무시한다.
+          }
         }
       })
       .catch((err) => console.error('혼잡도 데이터 실패:', err));
-  }, []);
+  }, [initialPopups]);
 
   /*
    * 메인 진입 게이트 (v2.7 재설계 → v2.13.1 mount-once 분리):
@@ -1332,7 +1394,7 @@ export default function Home({ initialPopups = [] }: HomeProps) {
             </section>
 
             {/* 지역 / 시점 / 카테고리 빠른 필터 (지도 위 진입점) */}
-            <BrowseSection />
+            <BrowseSection initialMarkers={initialMapMarkers} />
 
             {/* 서울 팝업 지도 — 홈의 주인공 (디자인 진단서 P0). 지도 전체폭·크게, 보조 정보는 아래 3열. */}
             <section
@@ -1393,6 +1455,7 @@ export default function Home({ initialPopups = [] }: HomeProps) {
               {/* Map Zone — 배경 분리를 위해 solid 배경 + shadow 로 카드 블록 강화. */}
               <div className="col-span-1 lg:col-span-12 rounded-[2rem] relative overflow-hidden border border-gray-200 dark:border-white/10 group bg-white dark:bg-[#111] shadow-lg shadow-black/5 dark:shadow-black/30 h-[58vh] min-h-[420px] order-2 lg:order-none">
                 <InteractiveMap
+                  initialMarkers={initialMapMarkers}
                   center={mapCenter}
                   focusReq={searchFocus}
                   onMarkerClick={handleMarkerClickToDetail}

@@ -7,6 +7,7 @@ import { REGIONS, classifyRegion } from '@/lib/regions';
 import { getPeriods, matchesPeriod, isOpenNow, kstTodayStart } from '@/lib/popupSlices';
 import type { Locale } from '@/lib/i18n';
 import { localizedPath } from '@/lib/localePath';
+import type { PublicMapMarker } from '@/lib/mapMarkers';
 
 /**
  * /map — 서울 팝업스토어 지도.
@@ -47,12 +48,6 @@ export const metadata: Metadata = {
   twitter: { card: 'summary_large_image', title: TITLE, description: DESCRIPTION },
 };
 
-type Marker = {
-  location: string | null;
-  startDate: string | null;
-  endDate: string | null;
-};
-
 /**
  * 진행 중인 마커.
  *
@@ -62,7 +57,7 @@ type Marker = {
  * 서버에서 쓰는 건 지역별 건수뿐이라 없으면 숫자만 빠진다. 랜딩({@code /popups/[slug]})과 달리
  * 데이터가 없다고 빈 페이지가 되지는 않는다.
  */
-async function liveMarkers(): Promise<Marker[]> {
+async function liveMarkers(): Promise<PublicMapMarker[]> {
   const apiBase = process.env.NEXT_PUBLIC_API_URL;
   if (!apiBase || !/^https?:\/\//.test(apiBase)) {
     console.error(`[map] NEXT_PUBLIC_API_URL 이 없거나 형식이 잘못되었습니다 — 건수 없이 렌더.`);
@@ -71,7 +66,15 @@ async function liveMarkers(): Promise<Marker[]> {
   try {
     const res = await fetch(`${apiBase}/api/map/markers`, { next: { revalidate: 3600 } });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const markers = (await res.json()) as Marker[];
+    const body: unknown = await res.json();
+    if (!Array.isArray(body)) throw new Error('invalid marker response');
+    const markers = body.filter(
+      (value): value is PublicMapMarker =>
+        !!value &&
+        typeof value === 'object' &&
+        typeof (value as Partial<PublicMapMarker>).id === 'number' &&
+        typeof (value as Partial<PublicMapMarker>).name === 'string',
+    );
     // v2.44 — 지도에 실제로 찍히는 핀과 같은 기준(isOpenNow). 이 페이지가 "N곳" 이라고 써 놓고
     // 아래 지도에는 다른 수가 찍히면 안 된다.
     const today = kstTodayStart();
@@ -170,7 +173,7 @@ export async function MapPageForLocale({ locale = 'ko' }: { locale?: Locale }) {
           {openToday > 0 && ` ${copy.openToday(openToday)}`}
         </p>
 
-        <MapClient />
+        <MapClient initialMarkers={live} />
 
         {regionLinks.length > 0 && (
           <section className="mt-10 border-t border-gray-200 pt-6 dark:border-white/10">
