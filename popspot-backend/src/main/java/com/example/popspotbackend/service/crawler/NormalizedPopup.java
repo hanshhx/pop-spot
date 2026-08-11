@@ -34,4 +34,11 @@ public class NormalizedPopup {
      * snippet 으로 매핑하는 데만 쓰는 임시 힌트로, DB 에는 저장되지 않는다. 범위를 벗어나거나 null 이면 첫 snippet 으로 대체.
      */
     private Integer sourceIndex;
+
+    /**
+     * v2.54 — 그 snippet 이 <b>이 팝업에 대해</b> 어떤 글인지({@link SourceKind}).
+     *
+     * <p>DB 에는 저장하지 않는다. 채택 여부를 정하고 통계를 남기는 데만 쓴다.
+     */
+    private String sourceKind;
 }
