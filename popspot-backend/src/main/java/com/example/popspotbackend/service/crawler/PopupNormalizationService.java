@@ -146,6 +146,12 @@ public class PopupNormalizationService {
                - confidence (number 0.0 ~ 1.0): name 명확 +0.3, location 구 단위 이상 +0.2,
                  startDate/endDate 둘 다 명확 +0.3, 출처 2개 이상에서 같은 정보 +0.1, 카테고리 명확 +0.1.
                - sourceIndex (number): 이 팝업의 근거가 된 snippet 의 번호(위 목록의 번호). 여러 개면 가장 대표적인 1개.
+               - sourceKind (string): 그 snippet 이 <이 팝업에 대해> 어떤 글인지. 셋 중 하나.
+                 · "ANNOUNCEMENT" — 이 팝업을 알리거나 소개하는 글. 기간·장소를 안내한다.
+                 · "REVIEW" — 다녀온 후기·방문기. 팝업이 주제이긴 하다.
+                 · "MENTION" — 글의 주제는 딴것이고 이 팝업은 스쳐 지나간다.
+                   예) 육아일기에 "포켓몬 팝업 다녀왔다" 한 줄, 뉴스 모음글의 한 항목.
+                 ※ 판단 기준은 "이 글이 이 팝업을 다루는가" 다. 글이 길고 짧고는 상관없다.
                - error (string|null): 보통 null.
             4) 서울이 아닌 팝업은 배열에서 제외. 팝업 이름·존재가 확실하지 않으면 넣지 마 — 물량보다 정확도 우선(애매하면 버려).
             5) 개인정보 보호 — description/content 에 다음 절대 포함 금지:
@@ -157,7 +163,7 @@ public class PopupNormalizationService {
                다른 팝업에 섞지 마(교차오염 금지). 같은 팝업이 이름만 조금 다르게 여러 번 나오면 하나로 합쳐.
 
             예시 출력:
-            [{"name":"○○ 팝업스토어","location":"서울 성동구 성수동","category":"FASHION","startDate":"2026-05-01","endDate":"2026-05-31","description":"○○ 브랜드 신상 컬렉션 팝업","content":"...","confidence":0.85,"sourceIndex":3,"error":null}]
+            [{"name":"○○ 팝업스토어","location":"서울 성동구 성수동","category":"FASHION","startDate":"2026-05-01","endDate":"2026-05-31","description":"○○ 브랜드 신상 컬렉션 팝업","content":"...","confidence":0.85,"sourceIndex":3,"sourceKind":"ANNOUNCEMENT","error":null}]
             """;
 
     /**
@@ -558,6 +564,7 @@ public class PopupNormalizationService {
                 .content(sanitize(node.path("content").asText(""), MAX_CONTENT_LEN))
                 .confidence(node.path("confidence").asDouble(0.0))
                 .sourceIndex(nullableInt(node, "sourceIndex"))
+                .sourceKind(nullableText(node, "sourceKind"))
                 .error(nullableText(node, "error"))
                 .build();
     }
