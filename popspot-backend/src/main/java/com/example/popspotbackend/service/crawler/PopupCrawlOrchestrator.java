@@ -879,6 +879,24 @@ public class PopupCrawlOrchestrator {
             return;
         }
 
+        /*
+         * 그 글이 이 팝업을 다룬 글인가.
+         *
+         * 신뢰도는 "이 팝업이 실재하는가" 를 잰다. 그래서 육아일기에 한 줄 적힌 포켓몬 팝업도
+         * 통과했다 — 글쓴이가 진짜 다녀왔으니 팝업은 실재한다. 우리가 묻지 않은 질문이 있었을
+         * 뿐이다. 셋 중 하나만 막는다. 자세한 근거는 SourceKind 주석에 있다.
+         */
+        SourceKind kind = SourceKind.parse(result.getSourceKind());
+        stats.countSourceKind(kind);
+        if (!kind.acceptable()) {
+            stats.rejected++;
+            log.debug(
+                    "[PopupCrawlOrchestrator] 스쳐 지나간 언급이라 폐기: {} (sourceKind={})",
+                    result.getName(),
+                    kind);
+            return;
+        }
+
         String externalId =
                 computeExternalId(result.getName(), result.getLocation(), result.getStartDate());
 
@@ -1274,6 +1292,19 @@ public class PopupCrawlOrchestrator {
          */
         int quotaExhausted;
 
+        /**
+         * 글의 성격별 건수.
+         *
+         * <p><b>세는 것이 목적이다.</b> 지금 막는 것은 MENTION 하나뿐인데, 나머지를 어떻게 다룰지는 아직 근거가 없다. 후기가 전체의 몇 할인지, 모델이
+         * 이 필드를 얼마나 자주 빠뜨리는지(UNKNOWN) 를 알아야 다음을 정할 수 있다. 그 숫자를 지금부터 쌓아 둔다.
+         */
+        final java.util.EnumMap<SourceKind, Integer> sourceKinds =
+                new java.util.EnumMap<>(SourceKind.class);
+
+        void countSourceKind(SourceKind kind) {
+            sourceKinds.merge(kind, 1, Integer::sum);
+        }
+
         /** 대장에 이미 있어 LLM 에 안 넘긴 스니펫 수. 선중복제거가 실제로 얼마를 아꼈는지 보여준다. */
         int skippedKnown;
 
@@ -1308,6 +1339,14 @@ public class PopupCrawlOrchestrator {
             map.put("duplicates", duplicates);
             map.put("datesBackfilled", datesBackfilled);
             map.put("dateSourcesQueued", dateSourcesQueued);
+            // 글의 성격별 건수. 0 인 항목도 넣어야 "안 세는 것" 과 "0 건" 이 구별된다.
+            for (SourceKind kind : SourceKind.values()) {
+                map.put(
+                        "source"
+                                + kind.name().charAt(0)
+                                + kind.name().substring(1).toLowerCase(java.util.Locale.ROOT),
+                        sourceKinds.getOrDefault(kind, 0));
+            }
             map.put("rejected", rejected);
             map.put("keywordCursorStart", keywordCursorStart);
             map.put("keywordsCovered", keywordsCovered);
