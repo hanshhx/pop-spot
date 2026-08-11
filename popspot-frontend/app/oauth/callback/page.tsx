@@ -86,7 +86,10 @@ function CallbackContent() {
             body: JSON.stringify({ code: exchangeCode }),
           });
           if (!exchangeResponse.ok) {
-            throw new Error(copy.expired);
+            if ([400, 404, 410].includes(exchangeResponse.status)) {
+              throw new Error(copy.expired);
+            }
+            throw new Error(copy.denied(exchangeResponse.status));
           }
           const exchangeBody = (await exchangeResponse.json()) as {
             token?: string;
