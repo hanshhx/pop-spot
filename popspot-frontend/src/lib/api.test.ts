@@ -68,4 +68,13 @@ describe('apiFetch 인증 만료 처리', () => {
     expect(response.status).toBe(502);
     expect(getServiceAvailability()).toBe('unavailable');
   });
+
+  it('일반 500 응답이 health의 장애 판정을 정상으로 덮지 않는다', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: 500 }));
+
+    const response = await apiFetch('/api/failing-feature', { method: 'POST' });
+
+    expect(response.status).toBe(500);
+    expect(getServiceAvailability()).toBe('checking');
+  });
 });

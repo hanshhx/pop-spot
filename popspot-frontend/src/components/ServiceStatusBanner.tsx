@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useSyncExternalStore } from 'react';
-import { AlertTriangle, RefreshCw } from 'lucide-react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
+import { AlertTriangle, ChevronDown, ChevronUp, RefreshCw } from 'lucide-react';
 
 import { useLocale } from '@/lib/i18n';
 import {
@@ -13,21 +13,28 @@ import {
 
 const CHECK_WHEN_DOWN_MS = 15_000;
 const CHECK_WHEN_UP_MS = 60_000;
+const COLLAPSED_SESSION_KEY = 'popspot:service-banner-collapsed';
 
 const COPY = {
   ko: {
     title: '현재 서버 연결이 일시적으로 중단됨',
     detail:
       '공개 페이지는 계속 볼 수 있음. 서버가 복구되면 안내가 자동으로 사라지고 회원 기능도 다시 연결됨.',
+    collapse: '접기',
+    expand: '펼치기',
   },
   en: {
     title: 'Member features are temporarily unavailable due to a server outage',
     detail: 'Public pages remain available. Login, saves and chat will reconnect automatically.',
+    collapse: 'Collapse',
+    expand: 'Expand',
   },
   ja: {
     title: 'サーバー停止のため会員機能を一時的に利用できません',
     detail:
       '公開ページは閲覧できます。復旧後、ログイン・お気に入り・チャットは自動で再接続します。',
+    collapse: '折りたたむ',
+    expand: '開く',
   },
 } as const;
 
@@ -42,6 +49,11 @@ export function useServiceAvailability() {
 export default function ServiceStatusBanner() {
   const { locale } = useLocale();
   const status = useServiceAvailability();
+  const [collapsed, setCollapsed] = useState(
+    () =>
+      typeof window !== 'undefined' &&
+      window.sessionStorage.getItem(COLLAPSED_SESSION_KEY) === 'true',
+  );
 
   useEffect(() => {
     let stopped = false;
@@ -97,6 +109,36 @@ export default function ServiceStatusBanner() {
   if (status !== 'unavailable') return null;
   const copy = COPY[locale];
 
+  const toggleCollapsed = () => {
+    setCollapsed((current) => {
+      const next = !current;
+      window.sessionStorage.setItem(COLLAPSED_SESSION_KEY, String(next));
+      return next;
+    });
+  };
+
+  if (collapsed) {
+    return (
+      <aside
+        role="status"
+        aria-live="polite"
+        className="fixed right-3 top-3 z-[10000] max-w-[calc(100vw-1.5rem)]"
+      >
+        <button
+          type="button"
+          onClick={toggleCollapsed}
+          aria-expanded="false"
+          className="flex min-h-11 items-center gap-2 rounded-full border border-amber-400/40 bg-amber-950/95 px-3.5 py-2 text-left text-xs font-bold text-amber-50 shadow-lg backdrop-blur transition hover:bg-amber-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 focus-visible:ring-offset-2"
+        >
+          <AlertTriangle className="size-4 shrink-0 text-amber-300" aria-hidden />
+          <span className="truncate">{copy.title}</span>
+          <ChevronDown className="size-4 shrink-0 text-amber-200" aria-hidden />
+          <span className="sr-only">{copy.expand}</span>
+        </button>
+      </aside>
+    );
+  }
+
   return (
     <aside
       role="status"
@@ -110,6 +152,15 @@ export default function ServiceStatusBanner() {
           <p className="mt-0.5 text-xs text-amber-100/80">{copy.detail}</p>
         </div>
         <RefreshCw className="mt-0.5 size-4 shrink-0 animate-spin text-amber-300" aria-hidden />
+        <button
+          type="button"
+          onClick={toggleCollapsed}
+          aria-expanded="true"
+          className="-mr-1 inline-flex min-h-8 shrink-0 items-center gap-1 rounded-md px-2 text-xs font-bold text-amber-100 transition hover:bg-amber-100/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
+        >
+          <ChevronUp className="size-4" aria-hidden />
+          <span className="hidden sm:inline">{copy.collapse}</span>
+        </button>
       </div>
     </aside>
   );
