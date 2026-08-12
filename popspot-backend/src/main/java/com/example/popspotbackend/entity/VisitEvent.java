@@ -43,6 +43,9 @@ public class VisitEvent {
     /** 팝업 카드를 눌러 상세를 열었다. */
     public static final String TYPE_POPUP_OPEN = "popup_open";
 
+    /** 검색·공유·목록 경로와 무관하게 팝업 상세 화면이 실제로 열렸다. */
+    public static final String TYPE_DETAIL_VIEW = "detail_view";
+
     /** 지도에서 검색했다. */
     public static final String TYPE_MAP_SEARCH = "map_search";
 
@@ -76,6 +79,7 @@ public class VisitEvent {
     public static final Set<String> ALLOWED_TYPES =
             Set.of(
                     TYPE_POPUP_OPEN,
+                    TYPE_DETAIL_VIEW,
                     TYPE_MAP_SEARCH,
                     TYPE_POPUP_SHARE,
                     TYPE_WISHLIST_ADD,

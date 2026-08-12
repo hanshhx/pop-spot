@@ -343,14 +343,14 @@ public class VisitService {
                                 "방문",
                                 visitLogRepository.countDistinctVisitorsSince(since),
                                 ""),
-                        step("open", "상세 열기", VisitEvent.TYPE_POPUP_OPEN, byType),
+                        step("open", "상세 방문", VisitEvent.TYPE_DETAIL_VIEW, byType),
                         step("wishlist", "찜", VisitEvent.TYPE_WISHLIST_ADD, byType),
                         step("outbound", "예약·공식 링크", VisitEvent.TYPE_OUTBOUND_CLICK, byType),
                         new FunnelDto.Raw(
                                 "return",
                                 "다시 방문",
-                                visitEventRepository.countReturnedAfterOpen(
-                                        since, VisitEvent.TYPE_POPUP_OPEN),
+                                visitEventRepository.countReturnedAfterDetail(
+                                        since, VisitEvent.TYPE_DETAIL_VIEW),
                                 ""));
 
         return FunnelDto.of(raws, since.toString(), funnelNote(raws));
