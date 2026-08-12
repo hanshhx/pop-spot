@@ -162,7 +162,13 @@ export const apiFetch = async (endpoint: string, options: FetchOptions = {}): Pr
     const response = await fetchWithRetry(url, options, headers);
 
     if (typeof window !== 'undefined') {
-      setServiceAvailability(GATEWAY_STATUSES.has(response.status) ? 'unavailable' : 'available');
+      if (GATEWAY_STATUSES.has(response.status)) {
+        setServiceAvailability('unavailable');
+      } else if (response.status < 500) {
+        // 2xx·4xx는 백엔드까지 연결됐다는 증거다. 500은 Vercel 프록시가
+        // 만들 수도 있으므로, 전용 health 확인이 내린 장애 판정을 덮지 않는다.
+        setServiceAvailability('available');
+      }
     }
 
     if (!response.ok) {
