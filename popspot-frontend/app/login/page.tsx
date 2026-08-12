@@ -2,7 +2,17 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Mail, Lock, MessageCircle, Eye, EyeOff, Check, Clock } from 'lucide-react';
+import {
+  AlertTriangle,
+  ArrowLeft,
+  Mail,
+  Lock,
+  MessageCircle,
+  Eye,
+  EyeOff,
+  Check,
+  Clock,
+} from 'lucide-react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { Logo } from '@/components/layout/Logo';
@@ -16,10 +26,29 @@ import { GUEST_GRACE_PERIOD_DAYS, startGuestMode } from '@/lib/guestMode';
 import { useLocale } from '@/lib/i18n';
 import { localizedPath } from '@/lib/localePath';
 import { TotpChallenge } from '@/features/auth/TotpChallenge';
+import { useServiceAvailability } from '@/components/ServiceStatusBanner';
+
+const OUTAGE_COPY = {
+  ko: {
+    title: '서버 연결 중단',
+    text: '현재 로그인을 진행할 수 없음. 서버가 복구되면 버튼이 자동으로 다시 활성화됨.',
+  },
+  en: {
+    title: 'Server connection unavailable',
+    text: 'Login is temporarily unavailable. The buttons will be enabled automatically after recovery.',
+  },
+  ja: {
+    title: 'サーバーに接続できません',
+    text: '現在ログインできません。復旧後、ボタンは自動的に再び有効になります。',
+  },
+} as const;
 
 export default function LoginPage() {
   const router = useRouter();
   const { t, locale } = useLocale();
+  const serviceStatus = useServiceAvailability();
+  const serviceUnavailable = serviceStatus === 'unavailable';
+  const outageCopy = OUTAGE_COPY[locale];
 
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [showPassword, setShowPassword] = useState(false);
@@ -47,7 +76,10 @@ export default function LoginPage() {
   };
 
   const handleLogin = async () => {
-    if (submitting) return;
+    if (submitting || serviceUnavailable) {
+      if (serviceUnavailable) notifyError(outageCopy);
+      return;
+    }
     setSubmitting(true);
     try {
       const res = await apiFetch('/api/v1/auth/login', {
@@ -102,6 +134,10 @@ export default function LoginPage() {
    * "살아 있음" 과 구분되지 않는다.
    */
   const handleSocialLogin = async (provider: string) => {
+    if (serviceUnavailable) {
+      notifyError(outageCopy);
+      return;
+    }
     setSubmitting(true);
     try {
       const res = await apiFetch('/api/popups/trending');
@@ -180,6 +216,19 @@ export default function LoginPage() {
           <Logo className="h-7 md:h-8 text-cream-200" />
         </h1>
         <p className="text-center text-cream-200/60 text-sm mb-8">{t('login.welcome')}</p>
+
+        {serviceUnavailable && (
+          <div
+            role="status"
+            className="mb-5 flex items-start gap-2.5 rounded-lg border border-amber-400/35 bg-amber-400/10 p-3 text-amber-100"
+          >
+            <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-300" aria-hidden />
+            <div>
+              <p className="text-sm font-bold">{outageCopy.title}</p>
+              <p className="mt-1 text-xs leading-relaxed text-amber-100/75">{outageCopy.text}</p>
+            </div>
+          </div>
+        )}
 
         {/* 2단계 인증이 남았으면 카드 안을 6자리 화면으로 바꾼다 — 페이지를 옮기지 않는 이유는
             표가 5분짜리라 뒤로가기·새로고침으로 잃기 쉽기 때문이다. */}
@@ -271,7 +320,14 @@ export default function LoginPage() {
               </Link>
             </div>
 
-            <Button variant="primary" size="lg" block onClick={handleLogin} loading={submitting}>
+            <Button
+              variant="primary"
+              size="lg"
+              block
+              onClick={handleLogin}
+              loading={submitting}
+              disabled={serviceUnavailable}
+            >
               {t('login.submit')}
             </Button>
 
@@ -287,7 +343,8 @@ export default function LoginPage() {
               <button
                 type="button"
                 onClick={() => handleSocialLogin('kakao')}
-                className="w-full h-11 rounded-pill font-semibold bg-[#FEE500] text-ink-900 hover:bg-[#FDD835] transition-colors flex items-center justify-center gap-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FEE500] focus-visible:ring-offset-2 focus-visible:ring-offset-ink-800"
+                disabled={serviceUnavailable}
+                className="w-full h-11 rounded-pill font-semibold bg-[#FEE500] text-ink-900 hover:bg-[#FDD835] transition-colors flex items-center justify-center gap-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FEE500] focus-visible:ring-offset-2 focus-visible:ring-offset-ink-800 disabled:cursor-not-allowed disabled:opacity-45"
               >
                 <MessageCircle className="size-4" fill="currentColor" aria-hidden />
                 <span>{t('login.kakao')}</span>
@@ -296,7 +353,8 @@ export default function LoginPage() {
               <button
                 type="button"
                 onClick={() => handleSocialLogin('naver')}
-                className="w-full h-11 rounded-pill font-semibold bg-[#03C75A] text-white hover:bg-[#02b351] transition-colors flex items-center justify-center gap-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#03C75A] focus-visible:ring-offset-2 focus-visible:ring-offset-ink-800"
+                disabled={serviceUnavailable}
+                className="w-full h-11 rounded-pill font-semibold bg-[#03C75A] text-white hover:bg-[#02b351] transition-colors flex items-center justify-center gap-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#03C75A] focus-visible:ring-offset-2 focus-visible:ring-offset-ink-800 disabled:cursor-not-allowed disabled:opacity-45"
               >
                 <span className="font-extrabold text-lg" aria-hidden>
                   N
@@ -307,7 +365,8 @@ export default function LoginPage() {
               <button
                 type="button"
                 onClick={() => handleSocialLogin('google')}
-                className="w-full h-11 rounded-pill font-semibold bg-white text-ink-900 hover:bg-cream-300 transition-colors flex items-center justify-center gap-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cream-200 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-800"
+                disabled={serviceUnavailable}
+                className="w-full h-11 rounded-pill font-semibold bg-white text-ink-900 hover:bg-cream-300 transition-colors flex items-center justify-center gap-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cream-200 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-800 disabled:cursor-not-allowed disabled:opacity-45"
               >
                 <svg className="size-4" viewBox="0 0 24 24" aria-hidden>
                   <path

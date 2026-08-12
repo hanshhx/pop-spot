@@ -11,6 +11,7 @@ import AuthGuard from '@/components/AuthGuard';
 import GlobalChatManager from '@/components/GlobalChatManager';
 import { MusicPlayerProvider } from '@/components/music/MusicPlayerProvider';
 import { GlobalMusicPlayer } from '@/components/music/GlobalMusicPlayer';
+import ServiceStatusBanner from '@/components/ServiceStatusBanner';
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://popspot.co.kr'),
@@ -119,6 +120,7 @@ export default async function RootLayout({
           {/* 언어는 앱 전체가 하나를 공유해야 한다 — 컴포넌트마다 훅을 따로 부르면 상태가 갈려
               홈에서 바꿔도 일부 영역만 그대로 남는다(경위는 i18n.tsx 주석). */}
           <LocaleProvider initialLocale={locale}>
+            <ServiceStatusBanner />
             <AuthGuard>
               <MusicPlayerProvider>
                 {children}
