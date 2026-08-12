@@ -3,12 +3,18 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { apiFetch, AUTH_EXPIRED_EVENT } from './api';
+import {
+  getServiceAvailability,
+  resetServiceAvailabilityForTest,
+  setServiceAvailability,
+} from './serviceAvailability';
 
 describe('apiFetch 인증 만료 처리', () => {
   afterEach(() => {
     vi.restoreAllMocks();
     localStorage.clear();
     sessionStorage.clear();
+    resetServiceAvailabilityForTest();
   });
 
   it('토큰이 있는 요청의 401에서 캐시를 지우고 만료 이벤트를 한 번 보낸다', async () => {
@@ -39,5 +45,27 @@ describe('apiFetch 인증 만료 처리', () => {
     await apiFetch('/api/mates/1/chat');
 
     expect(sessionStorage.getItem('token')).toBe('valid-token');
+  });
+
+  it('서버 장애가 확인된 동안은 실제 API를 다시 호출하지 않는다', async () => {
+    sessionStorage.setItem('token', 'still-valid-token');
+    setServiceAvailability('unavailable');
+    const fetchMock = vi.spyOn(globalThis, 'fetch');
+
+    const response = await apiFetch('/api/wishlist/user-1');
+
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toMatchObject({ error: 'Service Unavailable' });
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(sessionStorage.getItem('token')).toBe('still-valid-token');
+  });
+
+  it('게이트웨이 장애 응답을 받으면 공유 상태를 장애로 바꾼다', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: 502 }));
+
+    const response = await apiFetch('/api/protected', { method: 'POST' });
+
+    expect(response.status).toBe(502);
+    expect(getServiceAvailability()).toBe('unavailable');
   });
 });
