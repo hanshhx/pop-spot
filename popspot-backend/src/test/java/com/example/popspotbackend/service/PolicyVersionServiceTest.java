@@ -5,11 +5,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.example.popspotbackend.entity.User;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
 class PolicyVersionServiceTest {
+
+    private static final ZoneId SERVICE_ZONE = ZoneId.of("Asia/Seoul");
 
     private PolicyVersionService service;
 
@@ -22,7 +25,8 @@ class PolicyVersionServiceTest {
 
     @Test
     void 시행일_전에는_기존_회원에게_재동의를_강제하지_않는다() {
-        ReflectionTestUtils.setField(service, "consentEffectiveDate", LocalDate.now().plusDays(1));
+        ReflectionTestUtils.setField(
+                service, "consentEffectiveDate", LocalDate.now(SERVICE_ZONE).plusDays(1));
         User oldConsent = User.builder().userId("user-1").agreedTermsVersion("1.1").build();
 
         assertThat(service.hasRequiredConsent(oldConsent)).isTrue();
@@ -30,7 +34,8 @@ class PolicyVersionServiceTest {
 
     @Test
     void 시행일_전이라도_신규_소셜_계정은_동의_전까지_변경_요청을_막는다() {
-        ReflectionTestUtils.setField(service, "consentEffectiveDate", LocalDate.now().plusDays(1));
+        ReflectionTestUtils.setField(
+                service, "consentEffectiveDate", LocalDate.now(SERVICE_ZONE).plusDays(1));
         User pending =
                 User.builder()
                         .userId("oauth-user")
@@ -43,7 +48,7 @@ class PolicyVersionServiceTest {
 
     @Test
     void 시행일부터는_새_약관_개인정보_나이확인을_모두_요구한다() {
-        ReflectionTestUtils.setField(service, "consentEffectiveDate", LocalDate.now());
+        ReflectionTestUtils.setField(service, "consentEffectiveDate", LocalDate.now(SERVICE_ZONE));
         User oldConsent = User.builder().userId("user-1").agreedTermsVersion("1.1").build();
         User currentConsent = User.builder().userId("user-2").build();
         currentConsent.recordPolicyConsent("1.2", "1.2");
@@ -54,7 +59,7 @@ class PolicyVersionServiceTest {
 
     @Test
     void 버전과_나이확인이_있어도_동의시각이_없으면_완료로_보지_않는다() {
-        ReflectionTestUtils.setField(service, "consentEffectiveDate", LocalDate.now());
+        ReflectionTestUtils.setField(service, "consentEffectiveDate", LocalDate.now(SERVICE_ZONE));
         User missingConsentTime =
                 User.builder()
                         .userId("user-3")
