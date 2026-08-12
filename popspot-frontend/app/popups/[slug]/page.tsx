@@ -49,9 +49,9 @@ import {
  * 요건을 지키기 위해서고, D-day 는 새 정보가 아니라 기존 endDate 의 재포맷이라 허용된다.
  *
  * <p>각 행은 /popup/[id] 로 링크한다. 같은 /api/map/markers 데이터의 같은 최소 목록을 홈
- * (BrowseSection) 이 이미 상세로 링크하고 있어서, 랜딩만 막아둘 이유가 없었다. 다만 상세는
- * app/popup/[id]/layout.tsx 에서 noindex 다 — §10-2 때문이 아니라 §14(회원 채팅이 같은 URL 에
- * 산다) 때문이다. 이유를 잘못 귀속시키면 다음 사람이 엉뚱한 걸 되돌린다.
+ * (BrowseSection) 이 이미 상세로 링크하고 있어서, 랜딩만 막아둘 이유가 없었다. 상세 색인은 §14-4에
+ * 따라 종료일과 찾을 수 있는 장소가 검증된 진행 중 팝업에만 허용한다. 불확실한 상세는 계속 noindex다.
+ * 회원 채팅·후기 같은 회원 콘텐츠는 상세의 검색용 본문과 분리해 색인 근거로 사용하지 않는다.
  *
  * <p>SSG(generateStaticParams) + ISR(revalidate=3600). 실시간 데이터는 메인 지도로 유도.
  */
@@ -487,14 +487,6 @@ function jsonLd(obj: unknown): string {
   return JSON.stringify(obj).replace(/</g, '\\u003c');
 }
 
-/** JSON-LD 날짜(YYYY-MM-DD). parseDate 가 현지 자정으로 만들므로 toISOString 을 쓰면 하루 밀린다. */
-function ymdOf(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
-/** 구조화 데이터에 담을 최대 개수. 성수처럼 193곳인 슬라이스도 있어 상한을 둔다(마감 임박순 앞에서부터). */
-const MAX_JSONLD_EVENTS = 20;
-
 /**
  * 목록에 실제로 그릴 최대 개수.
  *
@@ -515,76 +507,25 @@ const MAX_JSONLD_EVENTS = 20;
 const LIST_LIMIT = 60;
 
 /**
- * ItemList 에 담을 실제 팝업들 — schema.org Event.
+ * ItemList 에 담을 실제 팝업 이름.
  *
- * <p>v2.43 — 그 전까지 ItemList 는 {@code numberOfItems} 만 있는 껍데기였다. "15개가 있다" 고만
- * 말하고 그 15개가 뭔지는 안 알려주니 검색엔진이 얻을 게 없었다.
- *
- * <p>팝업은 이름·시작일·종료일·장소가 있는 전형적인 행사라 Event 가 그대로 들어맞는다. 구글은 행사
- * 정보를 받으면 검색 결과에 날짜를 직접 띄우는데, 실측에서 "일정" 이 들어간 검색어가 CTR 2.31% 로
- * 가장 낮았다(노출 216 · 클릭 5). 날짜를 보여주는 것이 그 질문에 대한 직접적인 답이다.
- *
- * <p>이름·시작일·장소가 없는 항목은 <b>건너뛴다.</b> Event 의 필수 항목이라 빠진 채로 내보내면 구글이
- * 오류로 처리하고, 하나만 잘못돼도 블록 전체가 무시될 수 있다. 실제로 수집 마커의 36% 는 시작일이
- * 없다 — 목록 화면에는 그대로 보이지만 구조화 데이터에는 넣지 않는다.
- *
- * <p>개별 팝업 주소({@code /popup/[id]})는 넣지 않는다 — noindex 라(약관 §14) 색인하지 말라고 해 둔
- * 곳으로 검색 결과를 보낼 수는 없다. 팝업 정보가 이 페이지 안에 다 있으므로 링크 없는 형태가 맞다.
+ * <p>Google Event 는 행사마다 고유한 상세 URL에서 그 행사 하나만 다뤄야 한다. 목록 페이지에서 여러
+ * Event 를 선언하면 유효성 검사를 통과해도 안내 원칙과 맞지 않는다. 이 페이지는 목록이라는 사실만
+ * ItemList 로 알리고, Event 는 날짜·장소가 검증되어 색인되는 {@code /popup/[id]} 에서만 선언한다.
  */
-function eventListElements(markers: Marker[], locale: Locale) {
-  const items: unknown[] = [];
-  for (const m of markers) {
-    if (items.length >= MAX_JSONLD_EVENTS) break;
-    if (!m.name || !m.location) continue;
-    const start = parseDate(m.startDate);
-    if (!start) continue;
-    const end = parseDate(m.endDate);
-
-    // 이 블록을 읽는 것은 사람이 아니라 검색엔진과 AI 도우미다. 영어 페이지인데 이름이 한글이면
-    // 그대로 인용돼 영어 답변에 한글이 섞인다 — 실제로 ChatGPT·Perplexity 유입이 잡히고 있어
-    // 여기 언어를 맞추는 것이 화면 문구만큼 중요하다.
+function itemListElements(markers: Marker[], locale: Locale) {
+  return markers.slice(0, LIST_LIMIT).map((m, index) => {
     const name = bilingual(m.name, locale === 'en' ? m.nameEn : locale === 'ja' ? m.nameJa : null);
-    const place = bilingual(
-      m.location,
-      locale === 'en' ? m.locationEn : locale === 'ja' ? m.locationJa : null,
-    );
-
-    // 좌표로 서울 밖임이 확실한 것은 구조화 데이터에서 뺀다. 화면에는 배지를 달아 그대로
-    // 보여 주지만(숨기지 않는다), 검색엔진·AI 는 여기 적힌 것을 사실로 받아들이므로 "서울
-    // 팝업 목록" 이라고 선언한 문서에 서울 밖 행사를 넣어서는 안 된다.
-    if (isProvenOutsideSeoul(m)) continue;
-
-    items.push({
+    return {
       '@type': 'ListItem',
-      position: items.length + 1,
+      position: index + 1,
       item: {
-        '@type': 'Event',
+        '@type': 'Thing',
         name: name.display,
-        // 원문은 버리지 않고 alternateName 으로 남긴다. 현지 표기를 함께 아는 편이 지도·현장에서
-        // 쓸모 있고, 같은 행사를 다른 언어 판과 잇는 단서도 된다.
         ...(name.original ? { alternateName: name.original } : {}),
-        startDate: ymdOf(start),
-        ...(end ? { endDate: ymdOf(end) } : {}),
-        eventStatus: 'https://schema.org/EventScheduled',
-        eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode',
-        location: {
-          '@type': 'Place',
-          // 보이는 이름은 번역본을 써도 되지만, <b>주소는 원문이어야 한다.</b>
-          //
-          // 검색엔진과 AI 답변은 address 를 "이 행사가 실제로 있는 곳" 으로 받아들인다. 그런데
-          // 지명 번역은 실제로 틀린다 — "대전신세계" 가 "Daegwallyeong"(강원 대관령) 으로
-          // 저장된 건이 운영에 있다. 그 값을 주소로 선언하면 우리가 틀린 위치를 기계에게
-          // 사실로 알려주는 셈이고, 한번 퍼지면 되돌릴 방법이 없다.
-          //
-          // 원문 주소는 지도 앱에도 들어가고 현장에서 물어볼 때도 통한다. 번역본은 둘 다 안 된다.
-          name: place.display,
-          address: m.location ?? place.display,
-          ...(place.original ? { alternateName: place.original } : {}),
-        },
       },
-    });
-  }
-  return items;
+    };
+  });
 }
 
 /** 매칭 팝업들이 몰린 상위 지역 slug (브랜드 랜딩 크로스셀용 — 지도에서 바로 좁히게). */
@@ -1114,7 +1055,7 @@ export async function SliceLandingPage({ slug, locale }: { slug: string; locale:
         <FaqSection slice={slice} count={count} copy={copy} refresh={refresh} />
       </div>
 
-      {/* JSON-LD ItemList — 목록에 실제 팝업(행사)을 담는다. 경위는 eventListElements 주석. */}
+      {/* 목록은 ItemList, 개별 행사의 Event는 검증된 상세 URL에서만 선언한다. */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
@@ -1125,7 +1066,7 @@ export async function SliceLandingPage({ slug, locale }: { slug: string; locale:
             description: intro,
             url: mainHref,
             numberOfItems: count,
-            itemListElement: eventListElements(
+            itemListElement: itemListElements(
               sorted.map((s) => s.m),
               locale,
             ),

@@ -145,7 +145,7 @@ public interface VisitEventRepository extends JpaRepository<VisitEvent, Long> {
                             + " AND a.event_type = :openType"
                             + " AND a.session_id IS NOT NULL",
             nativeQuery = true)
-    long countReturnedAfterOpen(
+    long countReturnedAfterDetail(
             @Param("since") LocalDateTime since, @Param("openType") String openType);
 
     /** 개인정보 처리방침의 90일 보관 약속을 코드로 강제한다. {@code VisitService} 의 정리 작업이 함께 부른다. */

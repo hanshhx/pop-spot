@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   ArrowLeft,
@@ -135,6 +135,7 @@ export default function PopupDetailClient({
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [user, setUser] = useState<User | null>(null);
   const [takedownOpen, setTakedownOpen] = useState(false);
+  const trackedDetailId = useRef<number | null>(null);
 
   const TEST_USER_ID = 'test_user';
 
@@ -173,6 +174,15 @@ export default function PopupDetailClient({
     }
     setIsCheckingAuth(false);
   }, []);
+
+  useEffect(() => {
+    if (!popup || trackedDetailId.current === popup.id) return;
+    trackedDetailId.current = popup.id;
+
+    // 카드 클릭 수가 아니라 실제 상세 도착 수를 센다. 검색 결과·SEO 랜딩·공유 링크처럼
+    // PopupCard를 거치지 않는 유입도 모두 같은 기준으로 퍼널에 들어와야 한다.
+    trackVisitEvent('detail_view', { popupId: popup.id });
+  }, [popup]);
 
   useEffect(() => {
     if (isCheckingAuth) return;

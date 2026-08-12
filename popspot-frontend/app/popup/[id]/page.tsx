@@ -1,5 +1,6 @@
 import PopupDetailClient from './PopupDetailClient';
-import { fetchPopupForServer } from './serverData';
+import { buildPopupEventJsonLd, serializeJsonLd } from '@/lib/popupEventJsonLd';
+import { fetchPopupForServer, kstToday, shouldIndexDetail } from './serverData';
 
 /**
  * 팝업 상세 — <b>서버가 내용을 그린다.</b>
@@ -15,11 +16,41 @@ import { fetchPopupForServer } from './serverData';
  * 때문에, 데이터만 제때 주면 전체 화면이 그대로 HTML 에 실린다. 지도·찜·스탬프·음악 같은
  * 브라우저 기능은 하나도 건드리지 않았다.
  */
-export default async function PopupDetailPage({ params }: { params: Promise<{ id: string }> }) {
+type PopupDetailPageProps = {
+  params: Promise<{ id: string }>;
+  includeEventJsonLd?: boolean;
+};
+
+/**
+ * 상세 본문을 언어 경로에서도 함께 쓰되, 검색에 노출하지 않는 번역 경로에는 Event 데이터를 넣지 않는다.
+ */
+export async function PopupDetailPageContent({
+  params,
+  includeEventJsonLd = true,
+}: PopupDetailPageProps) {
   const { id } = await params;
   // 실패하면 null 이 넘어가고, 클라이언트가 예전처럼 스스로 가져온다. 서버가 못 받았다고
   // 페이지를 못 쓰게 만들지 않는다.
   const initial = await fetchPopupForServer(id);
+  const canonical = `https://popspot.co.kr/popup/${id}`;
+  const eventJsonLd =
+    includeEventJsonLd && /^\d+$/.test(id) && shouldIndexDetail(initial)
+      ? buildPopupEventJsonLd(initial, canonical, kstToday())
+      : null;
 
-  return <PopupDetailClient id={id} initial={initial} />;
+  return (
+    <>
+      <PopupDetailClient id={id} initial={initial} />
+      {eventJsonLd && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: serializeJsonLd(eventJsonLd) }}
+        />
+      )}
+    </>
+  );
+}
+
+export default async function PopupDetailPage(props: PopupDetailPageProps) {
+  return <PopupDetailPageContent {...props} />;
 }

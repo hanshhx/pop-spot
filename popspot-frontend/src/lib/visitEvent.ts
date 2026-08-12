@@ -26,7 +26,7 @@ const SESSION_IDLE_MS = 30 * 60 * 1000;
  * 수집하지 않아서 "목록 → 상세" 까지밖에 그릴 수 없었다.
  */
 export type VisitEventType =
-  'popup_open' | 'map_search' | 'popup_share' | 'wishlist_add' | 'outbound_click';
+  'popup_open' | 'detail_view' | 'map_search' | 'popup_share' | 'wishlist_add' | 'outbound_click';
 
 /**
  * 이번 방문의 세션 ID.
