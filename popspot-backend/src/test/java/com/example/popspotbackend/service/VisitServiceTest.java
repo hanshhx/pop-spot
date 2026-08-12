@@ -1,12 +1,17 @@
 package com.example.popspotbackend.service;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.example.popspotbackend.dto.FunnelDto;
 import com.example.popspotbackend.repository.VisitEventRepository;
 import com.example.popspotbackend.repository.VisitLogRepository;
 import java.time.LocalDateTime;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -117,8 +122,33 @@ class VisitServiceTest {
     void 허용된_종류는_저장한다() {
         VisitService service = new VisitService(visitLogRepository, visitEventRepository);
 
-        service.recordEvent("visitor-1", "session-1", "popup_open", 42L, "/", true);
+        service.recordEvent("visitor-1", "session-1", "detail_view", 42L, "/popup/42", true);
 
-        verify(visitEventRepository).save(argThat(e -> e.getPopupId() == 42L));
+        verify(visitEventRepository)
+                .save(
+                        argThat(
+                                e ->
+                                        e.getPopupId() == 42L
+                                                && "detail_view".equals(e.getEventType())));
+    }
+
+    @Test
+    void 퍼널은_카드_클릭이_아니라_실제_상세_방문을_센다() {
+        VisitService service = new VisitService(visitLogRepository, visitEventRepository);
+        when(visitLogRepository.countDistinctVisitorsSince(any())).thenReturn(100L);
+        when(visitEventRepository.visitorsByType(any()))
+                .thenReturn(
+                        List.of(
+                                new Object[] {"popup_open", 90L},
+                                new Object[] {"detail_view", 12L}));
+        when(visitEventRepository.countReturnedAfterDetail(any(), eq("detail_view")))
+                .thenReturn(3L);
+
+        FunnelDto funnel = service.getFunnel(7);
+
+        assertThat(funnel.steps().get(1).label()).isEqualTo("상세 방문");
+        assertThat(funnel.steps().get(1).visitors()).isEqualTo(12L);
+        assertThat(funnel.steps().get(4).visitors()).isEqualTo(3L);
+        verify(visitEventRepository).countReturnedAfterDetail(any(), eq("detail_view"));
     }
 }

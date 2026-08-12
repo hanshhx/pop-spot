@@ -3,16 +3,11 @@ import type { Metadata } from 'next';
 import { fetchPopupForServer, shouldIndexDetail } from './serverData';
 
 /**
- * 팝업 상세 — 제목·설명·공유카드는 채우되, 검색 색인은 <b>계속 막는다.</b>
+ * 팝업 상세의 제목·설명·공유카드와 §14-4 조건부 색인 판정을 한곳에서 만든다.
  *
- * <p><b>왜 색인을 막는가.</b> 이용약관 <b>§14-4</b> 가 "자동수집된 개별 팝업스토어 상세 페이지는
- * 사이트맵에 포함하지 않으며 {@code noindex} 메타 태그로 검색엔진 색인을 명시적으로 차단합니다"
- * 라고 공표해 뒀다.
- *
- * <p>예전 주석은 원인을 채팅(ChatRoom)이라고 적었는데 <b>틀렸다.</b> 회원 콘텐츠 조항은 그 다음
- * 항목(§14-5)이고, §14-4 는 그와 별개로 <b>자동수집 상세 전체</b>를 막는다. 즉 채팅을 이 URL 에서
- * 떼어도 색인은 못 연다. 열려면 약관 개정과 7일 사전 공지(§15-1)가 먼저이고, <b>코드가 그 상태가
- * 된 뒤에</b> 약관을 고쳐야 한다 — 지키지 못할 문장을 먼저 공표할 수는 없다.
+ * <p>2026-08-11부터 종료일과 찾을 수 있는 장소가 검증된 진행 중 상세만 색인을 허용한다. 날짜가
+ * 없거나 끝났거나 장소가 모호하면 계속 noindex다. {@link shouldIndexDetail}을 사이트맵과 공유해
+ * "사이트맵에는 있는데 noindex"인 상태가 생기지 않게 한다.
  *
  * <p><b>그런데 왜 제목·설명은 채우는가.</b> {@code noindex} 는 <b>검색 결과에 안 나오게</b> 하는
  * 것이지, 페이지가 자기를 설명하지 말라는 뜻이 아니다. 지금은 상세 URL 을 카톡·X 에 붙여넣으면
@@ -59,8 +54,7 @@ export async function generateMetadata({
   const marker = await fetchPopupForServer(id);
   if (!marker) return base;
 
-  // 색인 여부는 자격 판정이 정한다. 지금은 약관 §14-4 때문에 항상 false 이고,
-  // 약관이 바뀌면 serverData.ts 의 스위치 하나로 448건이 열린다.
+  // 약관 §14-4와 같은 판정. 사이트맵도 serverData.ts의 같은 함수를 사용한다.
   const robots = shouldIndexDetail(marker)
     ? { index: true, follow: true }
     : { index: false, follow: false };

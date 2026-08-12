@@ -168,12 +168,12 @@ const ko: LandingCopy = {
   statRunning: '진행 중',
   mapCtaPrimary: (l) => `지도에서 ${l} 팝업 위치·마감일 보기 →`,
   mapCtaSecondary: (l) => `지도에서 ${l} 팝업 보기 →`,
-  freeAutoNote: (r) => `무료 · 로그인 없이 · ${r} 자동 갱신`,
+  freeAutoNote: (r) => `가입 없이 확인 · ${r} 자동 갱신`,
   moreCount: (n) => `외 ${n}곳 더 — 메인 지도에서 전체 확인`,
   emptyHeading: (l) => `${l} 팝업은 지금 잠시 쉬어가는 중이에요`,
   emptyBody: (r) =>
     `서울 전체는 지금도 열려 있어요. 새 팝업은 ${r}에 자동 수집됩니다 — 지금 진행 중인 팝업부터 지도에서 둘러보세요.`,
-  emptyNote: '무료 · 로그인 없이 · 메인에서 위시 등록 가능',
+  emptyNote: '가입 없이 확인 · 메인에서 위시 등록 가능',
   pickHeading: '지금 고른다면',
   pickReasons: {
     closing: '곧 끝나요',
@@ -200,25 +200,25 @@ const ko: LandingCopy = {
   },
   descriptions: {
     region: (l) =>
-      `${l} 팝업스토어 위치를 지도에서 한눈에. 진행 중인 팝업의 일정·마감일까지 로그인 없이 무료로 확인.`,
-    period: (l) => `${l} 서울에서 열리는 팝업스토어 목록. 영업 시간, 위치, 종료일까지 정리.`,
+      `${l} 팝업스토어 위치를 지도에서 한눈에. 진행 중인 팝업의 일정·마감일까지 가입 없이 확인.`,
+    period: (l) => `${l} 서울에서 열리는 팝업스토어 목록. 운영 기간, 위치, 종료일까지 정리.`,
     category: (l) => `${l} 관련 팝업스토어 모음. 신상 / 인기 / 마감 임박 한눈에 보기.`,
     brand: (l) =>
-      `${l} 팝업스토어 일정과 위치를 지도로 한눈에. 서울에서 진행 중인 ${l} 팝업을 확인하고 위시 등록과 마감일 확인까지 무료.`,
+      `${l} 팝업스토어 일정과 위치를 지도로 한눈에. 서울에서 진행 중인 ${l} 팝업과 마감일을 가입 없이 확인.`,
     'region-category': (l) =>
-      `${l} 팝업스토어를 한눈에. 위치·일정·카테고리별 큐레이션, 위시 등록과 마감일 확인까지 무료.`,
+      `${l} 팝업스토어를 한눈에. 위치·일정·카테고리별 목록과 마감일을 가입 없이 확인.`,
     'region-period': (l) =>
-      `${l}에서 문 여는 팝업스토어 목록. 영업 시간·위치·종료일까지 지도 한 화면에서 무료로.`,
+      `${l}에서 문 여는 팝업스토어 목록. 운영 기간·위치·종료일까지 지도 한 화면에서 확인.`,
     'category-period': (l) =>
       `${l}에 서울에서 문 여는 팝업스토어 목록. 위치·운영 기간·종료일까지 한눈에 확인.`,
   },
   tails: {
-    region: '일정·위치·마감일을 지도 한 화면에서 무료로.',
-    period: '서울 팝업 일정·영업시간·위치·종료일까지.',
+    region: '일정·위치·마감일을 지도 한 화면에서 가입 없이 확인.',
+    period: '서울 팝업 일정·운영 기간·위치·종료일까지.',
     category: '일정·위치와 신상·인기·마감임박순을 한눈에.',
-    brand: '일정과 위치를 지도로 한눈에. 무료.',
-    'region-category': '위치·일정을 지도 한 화면에서 무료로.',
-    'region-period': '영업시간·위치·마감일까지 지도에서.',
+    brand: '일정과 위치를 지도에서 가입 없이 확인.',
+    'region-category': '위치·일정을 지도 한 화면에서 확인.',
+    'region-period': '운영 기간·위치·마감일까지 지도에서.',
     'category-period': '위치·운영 기간·마감일까지 한눈에.',
   },
   metaWithCount: (l, c) => `${l} 팝업스토어 ${c}곳 진행 중.`,
@@ -268,9 +268,8 @@ const ko: LandingCopy = {
       `${l}에 실제로 문을 여는 팝업만 모았습니다. 위치와 운영 기간, 마감일을 한눈에 확인할 수 있습니다.`,
   },
   urgencyWithDday: (d) =>
-    `${d === 0 ? '오늘 끝나는 팝업이 있어요' : `가장 빨리 끝나는 곳은 D-${d}`}. 위치·영업기간·마감일을 로그인 없이 무료로, 지금 지도에서 확인하세요.`,
-  urgencyPlain: (l) =>
-    `${l} 팝업 위치·영업기간·마감일을 지도 한 화면에서. 로그인 없이 무료로 지금 바로.`,
+    `${d === 0 ? '오늘 끝나는 팝업이 있어요' : `가장 빨리 끝나는 곳은 D-${d}`}. 위치·운영 기간·마감일을 가입 없이 지도에서 확인하세요.`,
+  urgencyPlain: (l) => `${l} 팝업 위치·운영 기간·마감일을 지도 한 화면에서 가입 없이 확인하세요.`,
 
   backHome: '메인으로',
   statCount: (c) => `${c}곳`,
@@ -279,7 +278,7 @@ const ko: LandingCopy = {
   statOpeningTodayValue: (n) => `${n}곳`,
   badgeMap: '지도 한눈에',
   badgeSorted: '마감임박순 정렬',
-  badgeFree: '무료 · 로그인 없이',
+  badgeFree: '가입 없이 확인',
   listHeading: '마감 임박순 팝업',
   mapCta: '지금 열린 팝업 지도에서 보기 →',
   detailAria: (n) => `${n} 상세 보기`,
@@ -329,12 +328,12 @@ const en: LandingCopy = {
   statRunning: 'Open now',
   mapCtaPrimary: (l) => `See ${l} pop-ups on the map →`,
   mapCtaSecondary: (l) => `View ${l} pop-ups on the map →`,
-  freeAutoNote: (r) => `Free · no sign-up · updated ${r}`,
+  freeAutoNote: (r) => `No sign-up · updated ${r}`,
   moreCount: (n) => `+${n} more — see them all on the map`,
   emptyHeading: (l) => `Nothing running in ${l} right now`,
   emptyBody: (r) =>
     `The rest of Seoul is still open. New pop-ups are collected ${r} — start with what's running now on the map.`,
-  emptyNote: 'Free · no sign-up · save from the main map',
+  emptyNote: 'No sign-up · save from the main map',
   pickHeading: 'If you had to pick',
   pickReasons: {
     closing: 'Ending soon',
@@ -361,26 +360,26 @@ const en: LandingCopy = {
   },
   descriptions: {
     region: (l) =>
-      `See every pop-up store in ${l}, Seoul on one map, with opening dates and closing days. Free, no sign-up.`,
+      `See every pop-up store in ${l}, Seoul on one map, with opening dates and closing days. No sign-up.`,
     period: (l) =>
       `Pop-up stores open in Seoul ${l}. Hours, location and closing dates in one place.`,
     category: (l) =>
       `${l} pop-up stores in Seoul — new, popular and closing soon, all in one view.`,
     brand: (l) =>
-      `Dates and location for the ${l} pop-up store in Seoul. Check what's running now, save it, and see when it closes. Free.`,
+      `Dates and location for the ${l} pop-up store in Seoul. Check what's running now and when it closes. No sign-up.`,
     'region-category': (l) =>
-      `${l} pop-up stores in Seoul, with location, dates and closing days. Free.`,
+      `${l} pop-up stores in Seoul, with location, dates and closing days. No sign-up.`,
     'region-period': (l) =>
       `Pop-up stores open in Seoul ${l}. Hours, location and closing dates on one map.`,
     'category-period': (l) =>
       `${l} pop-up stores in Seoul, with locations, run dates and closing days in one place.`,
   },
   tails: {
-    region: 'Location and closing dates on one free map.',
+    region: 'Location and closing dates on one map, no sign-up.',
     period: 'Hours, location and closing dates at a glance.',
     category: 'Sorted by new, popular and closing soon.',
-    brand: 'Dates and location on one map. Free.',
-    'region-category': 'Location and dates on one free map.',
+    brand: 'Dates and location on one map, no sign-up.',
+    'region-category': 'Location and dates on one map.',
     'region-period': 'Hours, location and closing dates on the map.',
     'category-period': 'Locations, run dates and closing days at a glance.',
   },
@@ -441,9 +440,9 @@ const en: LandingCopy = {
   urgencyWithDday: (d) =>
     `${
       d === 0 ? 'One closes today' : `The next one closes in ${d} day${d === 1 ? '' : 's'}`
-    }. Check locations, run dates and closing days on the map — free, no sign-up.`,
+    }. Check locations, run dates and closing days on the map — no sign-up.`,
   urgencyPlain: (l) =>
-    `Locations, run dates and closing days for ${l} pop-ups, all on one map. Free, no sign-up.`,
+    `Locations, run dates and closing days for ${l} pop-ups, all on one map. No sign-up.`,
 
   backHome: 'Home',
   statCount: (c) => `${c}`,
@@ -452,7 +451,7 @@ const en: LandingCopy = {
   statOpeningTodayValue: (n) => `${n}`,
   badgeMap: 'One map',
   badgeSorted: 'Closing first',
-  badgeFree: 'Free · no sign-up',
+  badgeFree: 'No sign-up',
   listHeading: 'Closing soonest',
   mapCta: 'See what’s open on the map →',
   detailAria: (n) => `${n} — details`,
@@ -500,12 +499,12 @@ const ja: LandingCopy = {
   statRunning: '開催中',
   mapCtaPrimary: (l) => `${l}のポップアップをマップで見る →`,
   mapCtaSecondary: (l) => `${l}のポップアップをマップで →`,
-  freeAutoNote: (r) => `無料・登録不要・${r}に自動更新`,
+  freeAutoNote: (r) => `登録不要・${r}に自動更新`,
   moreCount: (n) => `ほか${n}件 — マップですべて見る`,
   emptyHeading: (l) => `${l}のポップアップは現在お休み中です`,
   emptyBody: (r) =>
     `ソウル全体では今も開催中です。新しいポップアップは${r}に自動収集されます — まずは開催中のものをマップでご覧ください。`,
-  emptyNote: '無料・登録不要・メインから保存できます',
+  emptyNote: '登録不要・メインから保存できます',
   pickHeading: '今選ぶなら',
   pickReasons: {
     closing: 'まもなく終了',
@@ -531,25 +530,25 @@ const ja: LandingCopy = {
   },
   descriptions: {
     region: (l) =>
-      `${l}のポップアップストアをマップでまとめて。開催中の日程・終了日まで、登録不要・無料で確認できます。`,
-    period: (l) => `${l}にソウルで開催されるポップアップストア一覧。営業時間・場所・終了日まで。`,
+      `${l}のポップアップストアをマップでまとめて。開催中の日程・終了日まで、登録不要で確認できます。`,
+    period: (l) => `${l}にソウルで開催されるポップアップストア一覧。開催期間・場所・終了日まで。`,
     category: (l) => `${l}関連のポップアップストアまとめ。新着・人気・終了間近を一画面で。`,
     brand: (l) =>
-      `${l}ポップアップストアの日程と場所をマップで。ソウルで開催中の${l}ポップアップを確認、保存も終了日チェックも無料。`,
+      `${l}ポップアップストアの日程と場所をマップで。ソウルで開催中の${l}ポップアップと終了日を登録不要で確認。`,
     'region-category': (l) =>
-      `${l}のポップアップストアを一画面で。場所・日程・カテゴリ別、保存も終了日チェックも無料。`,
+      `${l}のポップアップストアを一画面で。場所・日程・カテゴリ別、終了日まで登録不要で確認。`,
     'region-period': (l) =>
-      `${l}にオープンするポップアップストア一覧。営業時間・場所・終了日までマップ一画面で無料。`,
+      `${l}にオープンするポップアップストア一覧。開催期間・場所・終了日までマップ一画面で確認。`,
     'category-period': (l) =>
       `${l}ポップアップストア一覧。場所・開催期間・終了日まで一画面で確認できます。`,
   },
   tails: {
-    region: '場所と終了日をマップ一画面で無料に。',
-    period: '営業時間・場所・終了日まで一目で。',
+    region: '場所と終了日をマップ一画面で、登録不要で確認。',
+    period: '開催期間・場所・終了日まで一目で。',
     category: '新着・人気・終了間近順に整理。',
-    brand: '日程と場所をマップで。無料です。',
-    'region-category': '場所と日程をマップ一画面で無料に。',
-    'region-period': '営業時間・場所・終了日までマップで。',
+    brand: '日程と場所をマップで、登録不要で確認。',
+    'region-category': '場所と日程をマップ一画面で確認。',
+    'region-period': '開催期間・場所・終了日までマップで。',
     'category-period': '場所・開催期間・終了日まで一目で。',
   },
   metaWithCount: (l, c) => `${l}のポップアップストア${c}件が開催中。`,
@@ -599,9 +598,8 @@ const ja: LandingCopy = {
       `${l}ポップアップのうち、その期間に実際に開くものだけをまとめました。場所・開催期間・終了日を一目で確認できます。`,
   },
   urgencyWithDday: (d) =>
-    `${d === 0 ? '本日終了するものがあります' : `最短で終了するのはあと${d}日`}。場所・開催期間・終了日を、登録不要・無料でマップからご確認ください。`,
-  urgencyPlain: (l) =>
-    `${l}ポップアップの場所・開催期間・終了日をマップ一画面で。登録不要・無料です。`,
+    `${d === 0 ? '本日終了するものがあります' : `最短で終了するのはあと${d}日`}。場所・開催期間・終了日を、登録不要でマップからご確認ください。`,
+  urgencyPlain: (l) => `${l}ポップアップの場所・開催期間・終了日をマップ一画面で。登録不要です。`,
 
   backHome: 'ホームへ',
   statCount: (c) => `${c}件`,
@@ -610,7 +608,7 @@ const ja: LandingCopy = {
   statOpeningTodayValue: (n) => `${n}件`,
   badgeMap: 'マップで一目',
   badgeSorted: '終了間近順',
-  badgeFree: '無料・登録不要',
+  badgeFree: '登録不要',
   listHeading: '終了間近のポップアップ',
   mapCta: '開催中のポップアップをマップで見る →',
   detailAria: (n) => `${n} の詳細`,

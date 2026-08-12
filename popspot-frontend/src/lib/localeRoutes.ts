@@ -71,18 +71,18 @@ export const LOCALE_META: Record<Locale, { title: string; description: string }>
   ko: {
     title: '서울 팝업스토어 일정·지도 | 오늘·이번주 여는 팝업 한눈에',
     description:
-      '서울 팝업스토어 일정·위치를 지도 한 장에. 오늘·이번 주·주말 여는 성수·홍대·강남 팝업과 마감 임박까지 무료로 한눈에.',
+      '서울 팝업스토어 일정·위치를 지도 한 장에. 오늘·이번 주·주말 여는 성수·홍대·강남 팝업과 마감 임박까지 가입 없이 한눈에.',
   },
   en: {
     // "pop-up store" 는 영어권에서 이 형태로 검색한다. Seoul 을 앞에 두어 지역을 명확히 한다.
     title: 'Seoul Pop-up Stores — Map, Dates & What’s Open Today',
     description:
-      'Find pop-up stores in Seoul on one map. See what’s open today, this week and closing soon in Seongsu, Hongdae, Gangnam and more. Free, no sign-up.',
+      'Find pop-up stores in Seoul on one map. See what’s open today, this week and closing soon in Seongsu, Hongdae, Gangnam and more. No sign-up.',
   },
   ja: {
     // 일본어권은 "ポップアップストア" 와 "ソウル" 조합으로 검색한다.
     title: 'ソウルのポップアップストア — マップ・開催日程・本日オープン',
     description:
-      'ソウルのポップアップストアをマップでまとめて。本日・今週・週末オープン、終了間近まで。ソンス・ホンデ・カンナムなどエリア別に無料で確認できます。',
+      'ソウルのポップアップストアをマップでまとめて。本日・今週・週末オープン、終了間近まで。ソンス・ホンデ・カンナムなどエリア別に登録不要で確認できます。',
   },
 };
