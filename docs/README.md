@@ -11,6 +11,8 @@
 | [plan-2026-08-security-analytics.md](plan-2026-08-security-analytics.md) | 보안·분석 플랜(A~D)의 진행 상태와 결정 근거. 만든 가드와 그 가드가 새어 나갔던 사례 포함 |
 | [seo-findings-2026-08-05.md](seo-findings-2026-08-05.md) | 유입 구조·사이트맵·상세 색인 실측. 네이버 API 약관 검토 결과 |
 | [runbook-firewall-lockout.md](runbook-firewall-lockout.md) | 방화벽에 스스로 잠겼을 때의 긴급 해제 절차 (A-4) |
+| [runbook-search-index-request.md](runbook-search-index-request.md) | 색인 요청 절차. 목록 생성기와 거르는 기준, 넣기 전 확인할 것 |
+| [search-index-request-list.txt](search-index-request-list.txt) | 위 절차로 뽑은 요청 목록. `scripts/index-request-list.mjs` 로 다시 만든다 |
 
 ## 쓸 때 지킬 것
 
