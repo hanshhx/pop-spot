@@ -1,0 +1,212 @@
+색인 요청 목록 — 2026-08-12 기준
+
+  색인 자격 전체            349건 (사이트맵에 올라간 것)
+  7일 안에 끝나서 제외       105건
+  같은 행사라 묶어서 제외    76건
+  → 요청할 것              168건
+
+순서는 "검색 수요 → 남은 기간" 이다. 수요는 서치콘솔 실제 노출 수다.
+수동 색인 요청은 하루 10건 남짓이니 하루 한 묶음씩. 구글·네이버 양쪽에 같이 넣으면 된다.
+
+
+--- 1일차 ---
+https://popspot.co.kr/popup/3699    [수요  552 · 19일] 포켓몬 무릉도원 팝업스토어
+https://popspot.co.kr/popup/3068    [수요  512 · 49일] 더현대 서울 5층 블루보틀 팝업
+https://popspot.co.kr/popup/742    [수요  428 · 19일] 스파이더맨: 브랜드 뉴 데이 팝업스토어
+https://popspot.co.kr/popup/2494    [수요  294 · 18일] 은혼 팝업 스토어
+https://popspot.co.kr/popup/2782    [수요  216 · 322일] 산리오 팝업카페
+https://popspot.co.kr/popup/630    [수요  203 · 19일] 토이스토리X피스마이너스원 더퍼스트팬 팝업스토어
+https://popspot.co.kr/popup/506    [수요  179 · 19일] 피마원 X 토이스토리 팝업
+https://popspot.co.kr/popup/3171    [수요  134 · 49일] 귀멸의 칼날 팝업스토어
+https://popspot.co.kr/popup/2991    [수요  127 · 36일] 스트릿 레스토랑 파이터 셰프 릴레이 팝업스토어
+https://popspot.co.kr/popup/3382    [수요  113 · 11일] 외모지상주의 팝업 Ep.인천 [선 : 죽음으로 가는 길]
+
+--- 2일차 ---
+https://popspot.co.kr/popup/2562    [수요  109 · 19일] 에일리언 스테이지 아낙트 예술고등학교 팝업
+https://popspot.co.kr/popup/1240    [수요  102 · 19일] 성수동 롯데시네마 우산 피규어 팝업
+https://popspot.co.kr/popup/3082    [수요   83 · 19일] 무신사 성수 치이카와 스시 팝업
+https://popspot.co.kr/popup/3132    [수요   76 · 19일] 전지적 독자 시점 X 굿즈모먼트 팝업 스토어
+https://popspot.co.kr/popup/3237    [수요   54 · 18일] PUBG 성수 썸머스쿨 팝업
+https://popspot.co.kr/popup/2309    [수요   49 · 80일] RECO85 목동 현대백화점 팝업
+https://popspot.co.kr/popup/1505    [수요   38 · 19일] 오프사이드 팝업스토어
+https://popspot.co.kr/popup/955    [수요   37 · 19일] 원피스 콜라보 팝업
+https://popspot.co.kr/popup/3489    [수요   36 · 172일] 포터리 명동 팝업
+https://popspot.co.kr/popup/3703    [수요   36 · 19일] 승리의 여신 니케 팝업스토어
+
+--- 3일차 ---
+https://popspot.co.kr/popup/3457    [수요   31 · 20일] 무신사역 팝업 스토어
+https://popspot.co.kr/popup/1239    [수요   31 · 11일] 롯데홈쇼핑 K-뷰티 팝업스토어
+https://popspot.co.kr/popup/1643    [수요   28 · 19일] 다이소 디즈니 팝업
+https://popspot.co.kr/popup/2747    [수요   20 · 9일] 온유 공식 캐릭터 '찡냥' 파자마 파티 팝업
+https://popspot.co.kr/popup/1814    [수요   13 · 65일] 김햄찌 팝업 스토어
+https://popspot.co.kr/popup/543    [수요    9 · 126일] 에스파 X 신라면 팝업스토어
+https://popspot.co.kr/popup/726    [수요    9 · 18일] 더티니핑 원그로브점 팝업스토어
+https://popspot.co.kr/popup/1525    [수요    9 · 18일] 티니핑 팝업스토어
+https://popspot.co.kr/popup/2826    [수요    8 · 118일] 스포티지 팝업 스토어
+https://popspot.co.kr/popup/2387    [수요    8 · 110일] 메디큐브 포에버체리 리본 체리 글래스 헤어브러시 팝업스토어
+
+--- 4일차 ---
+https://popspot.co.kr/popup/773    [수요    8 · 110일] 라네즈 팝업스토어
+https://popspot.co.kr/popup/3172    [수요    8 · 109일] 명탐정 코난 팝업스토어
+https://popspot.co.kr/popup/2796    [수요    8 · 96일] 널디 플래그십 팝업스토어
+https://popspot.co.kr/popup/2405    [수요    8 · 72일] 노브랜드 버거 카스 제로 팝업스토어
+https://popspot.co.kr/popup/3484    [수요    8 · 53일] 크로우캐년 X 헬로키티 팝업스토어
+https://popspot.co.kr/popup/1266    [수요    8 · 49일] 카이카와 팝업스토어
+https://popspot.co.kr/popup/523    [수요    8 · 49일] 리쥬덱스 팝업스토어
+https://popspot.co.kr/popup/631    [수요    8 · 47일] 와쿠쿠 히얼 팝업 스토어
+https://popspot.co.kr/popup/1347    [수요    8 · 46일] 도토리숲 지브리 팝업스토어
+https://popspot.co.kr/popup/3705    [수요    8 · 45일] 민음사 팝업스토어 '문장 너머의 세계'
+
+--- 5일차 ---
+https://popspot.co.kr/popup/3538    [수요    8 · 41일] 이누야샤 팝업스토어
+https://popspot.co.kr/popup/3261    [수요    8 · 38일] 베이커리 팝업스토어
+https://popspot.co.kr/popup/3065    [수요    8 · 30일] 프로티원 팝업스토어
+https://popspot.co.kr/popup/2891    [수요    8 · 29일] 드래곤디퓨전 팝업스토어
+https://popspot.co.kr/popup/3537    [수요    8 · 25일] 해리포터 팝업스토어
+https://popspot.co.kr/popup/2204    [수요    8 · 25일] 체인소맨 레제편 팝업스토어
+https://popspot.co.kr/popup/1700    [수요    8 · 23일] 리끌로우 팝업스토어
+https://popspot.co.kr/popup/2943    [수요    8 · 19일] K-푸드 홍보 팝업스토어
+https://popspot.co.kr/popup/3015    [수요    8 · 19일] 리센느 팝업스토어
+https://popspot.co.kr/popup/1161    [수요    8 · 19일] 닥터자르트 팝업스토어
+
+--- 6일차 ---
+https://popspot.co.kr/popup/1553    [수요    8 · 19일] 샤넬 코리아 팝업스토어
+https://popspot.co.kr/popup/859    [수요    8 · 19일] 메가MGC커피 팝업스토어
+https://popspot.co.kr/popup/1885    [수요    8 · 19일] 21시아이스 팝업스토어
+https://popspot.co.kr/popup/3092    [수요    8 · 19일] 조지젠슨 팝업스토어
+https://popspot.co.kr/popup/3155    [수요    8 · 18일] 구찌 에디트 룸 팝업 스토어
+https://popspot.co.kr/popup/1326    [수요    8 · 18일] 요시와라 대염상 팝업스토어
+https://popspot.co.kr/popup/2379    [수요    8 · 18일] 젤리샵 by 코데즈컴바인 팝업스토어
+https://popspot.co.kr/popup/1042    [수요    8 · 18일] KFC 체험형 팝업스토어
+https://popspot.co.kr/popup/1013    [수요    8 · 18일] 리프 팝업스토어
+https://popspot.co.kr/popup/3320    [수요    8 · 18일] 하츄핑 팝업스토어
+
+--- 7일차 ---
+https://popspot.co.kr/popup/3665    [수요    8 · 15일] 이솝 팝업스토어
+https://popspot.co.kr/popup/2307    [수요    8 · 13일] 히카루가 죽은 여름 x MOAE:KU 팝업스토어
+https://popspot.co.kr/popup/2882    [수요    8 · 11일] Tintingcl 모펀 콜라보카페 & 팝업스토어
+https://popspot.co.kr/popup/3726    [수요    8 · 11일] 신세계센텀시티점 팝업스토어
+https://popspot.co.kr/popup/2650    [수요    8 · 11일] 우소우소짱 팝업스토어
+https://popspot.co.kr/popup/685    [수요    8 · 11일] 포레포레 팝업스토어
+https://popspot.co.kr/popup/3604    [수요    8 · 8일] 코르티스 2m 볼 팝업스토어
+https://popspot.co.kr/popup/3617    [수요    8 · 7일] 해즈빈 호텔 팝업스토어
+https://popspot.co.kr/popup/2389    [수요    6 · 19일] 롯데백화점 본점 디저트 팝업
+https://popspot.co.kr/popup/447    [수요    5 · 18일] 도산 제로컨셉스토어 팝업
+
+--- 8일차 ---
+https://popspot.co.kr/popup/3372    [수요    3 · 19일] 롯데백화점 노원점 크리스피크림 도넛 팝업
+https://popspot.co.kr/popup/3706    [수요    2 · 404일] 김해김 10주년 아카이빙 상품 팝업
+https://popspot.co.kr/popup/3137    [수요    2 · 201일] 서촌 팝업
+https://popspot.co.kr/popup/2690    [수요    2 · 141일] 토리든 팝업 26.07.15(수) - 12. 31(목)
+https://popspot.co.kr/popup/1368    [수요    2 · 74일] Mnet 댄스 프로그램 연계 팝업
+https://popspot.co.kr/popup/2776    [수요    2 · 55일] 주간 소년점프 점프샵 팝업 제3탄
+https://popspot.co.kr/popup/824    [수요    2 · 53일] K-POP 아케이드 팝업 라운지
+https://popspot.co.kr/popup/1043    [수요    2 · 49일] 카사 페라리 팝업 공간
+https://popspot.co.kr/popup/1669    [수요    2 · 49일] 야세(YASE) 팝업
+https://popspot.co.kr/popup/3240    [수요    2 · 37일] 라인프렌즈 스퀘어 포카아이 팝업
+
+--- 9일차 ---
+https://popspot.co.kr/popup/2854    [수요    2 · 30일] MINIVE 팝업
+https://popspot.co.kr/popup/710    [수요    2 · 25일] 마르디 메크르디 팝업
+https://popspot.co.kr/popup/3084    [수요    2 · 25일] 29CM×LOFT 문구 팝업
+https://popspot.co.kr/popup/862    [수요    2 · 21일] 박뚜기 소금빵 팝업
+https://popspot.co.kr/popup/3572    [수요    2 · 21일] 다이닛(DEINET) 팝업
+https://popspot.co.kr/popup/1723    [수요    2 · 19일] 타임스퀘어 디자인스킨 5 굿즈 팝업
+https://popspot.co.kr/popup/1421    [수요    2 · 19일] 롯토체스 TFT 팝업
+https://popspot.co.kr/popup/2673    [수요    2 · 19일] 북촌 한옥 무드 힐링 원씽 리커버리 하우스 팝업
+https://popspot.co.kr/popup/945    [수요    2 · 19일] 키덕투어
+https://popspot.co.kr/popup/1041    [수요    2 · 19일] 반포한강공원 대표 볼거리 팝업
+
+--- 10일차 ---
+https://popspot.co.kr/popup/711    [수요    2 · 19일] 쿠에른 썸머 팝업
+https://popspot.co.kr/popup/3433    [수요    2 · 19일] 강릉 길감자 팝업
+https://popspot.co.kr/popup/1642    [수요    2 · 19일] 곰돌이 푸 벌꿀 아이스크림 팝업
+https://popspot.co.kr/popup/2619    [수요    2 · 19일] 친절한 이웃 팝업
+https://popspot.co.kr/popup/1344    [수요    2 · 18일] 겨울왕국 프로즌 서머 팝업
+https://popspot.co.kr/popup/3146    [수요    2 · 16일] 우리 길드 아이돌 팝업
+https://popspot.co.kr/popup/2908    [수요    2 · 15일] 아로마케미 팝업
+https://popspot.co.kr/popup/2231    [수요    2 · 13일] 코리아보드게임즈 써머 컬렉션 팝업
+https://popspot.co.kr/popup/1508    [수요    2 · 11일] 지커 팝업 전시
+https://popspot.co.kr/popup/3175    [수요    2 · 8일] 몽레브 팝업
+
+--- 11일차 ---
+https://popspot.co.kr/popup/2809    [수요    - · 141일] 로사의 아틀리에
+https://popspot.co.kr/popup/967    [수요    - · 141일] 디올
+https://popspot.co.kr/popup/1097    [수요    - · 141일] 로에베 퍼퓸
+https://popspot.co.kr/popup/3033    [수요    - · 141일] 언페이지 커피
+https://popspot.co.kr/popup/2691    [수요    - · 141일] 스트레이 키즈 케넥트 성수
+https://popspot.co.kr/popup/2009    [수요    - · 137일] 헤이팝
+https://popspot.co.kr/popup/782    [수요    - · 80일] 신세계 팩토리스토어 강남점
+https://popspot.co.kr/popup/1003    [수요    - · 79일] 더 퍼스트 슬램덩크
+https://popspot.co.kr/popup/1454    [수요    - · 49일] SUMMER SEASON OFF 50~70%
+https://popspot.co.kr/popup/3185    [수요    - · 49일] House of Burn
+
+--- 12일차 ---
+https://popspot.co.kr/popup/1834    [수요    - · 49일] 폼폼푸린 카페
+https://popspot.co.kr/popup/1455    [수요    - · 49일] 어나더 팜
+https://popspot.co.kr/popup/3248    [수요    - · 49일] 갤러리 구조
+https://popspot.co.kr/popup/3345    [수요    - · 49일] 뱅크시 특별전
+https://popspot.co.kr/popup/2223    [수요    - · 46일] 마땡킴 전시
+https://popspot.co.kr/popup/2224    [수요    - · 46일] 카카오프렌즈 후렌즈문방구
+https://popspot.co.kr/popup/3289    [수요    - · 36일] 툴스미 플레이스 서울대입구역점
+https://popspot.co.kr/popup/3583    [수요    - · 34일] 런던베이글 뮤지엄
+https://popspot.co.kr/popup/2631    [수요    - · 33일] eskァ파
+https://popspot.co.kr/popup/3626    [수요    - · 29일] 진격의 거인 전시회
+
+--- 13일차 ---
+https://popspot.co.kr/popup/2191    [수요    - · 27일] 몰랑이수
+https://popspot.co.kr/popup/2250    [수요    - · 25일] 쪽지 아트북마켓
+https://popspot.co.kr/popup/2061    [수요    - · 25일] 딴지와 모토
+https://popspot.co.kr/popup/3163    [수요    - · 23일] 마티에 프리미에르 더현대 서울
+https://popspot.co.kr/popup/3220    [수요    - · 23일] 린클
+https://popspot.co.kr/popup/2956    [수요    - · 20일] 페리엔 치즈케이크
+https://popspot.co.kr/popup/3427    [수요    - · 19일] Ames-Worldwide x The Powerpuff Girls Pop
+https://popspot.co.kr/popup/3050    [수요    - · 19일] 디스이즈네버댓
+https://popspot.co.kr/popup/3712    [수요    - · 19일] 모찌이야기 과일chap쌀떡
+https://popspot.co.kr/popup/3176    [수요    - · 19일] 붕괴:스타레일 전시
+
+--- 14일차 ---
+https://popspot.co.kr/popup/3026    [수요    - · 19일] 더 고기한 버거집
+https://popspot.co.kr/popup/3534    [수요    - · 19일] 흑백요리사
+https://popspot.co.kr/popup/3542    [수요    - · 19일] 다올상점
+https://popspot.co.kr/popup/3548    [수요    - · 19일] 징그루드
+https://popspot.co.kr/popup/2878    [수요    - · 19일] LiSAnimate
+https://popspot.co.kr/popup/3564    [수요    - · 19일] 맨시티하우스 성수
+https://popspot.co.kr/popup/2406    [수요    - · 19일] 툰 페스티벌
+https://popspot.co.kr/popup/2660    [수요    - · 19일] 더얀 얀카페트
+https://popspot.co.kr/popup/3438    [수요    - · 19일] 댄스댄스댄스
+https://popspot.co.kr/popup/3124    [수요    - · 19일] BEAUTY GUARD SHELTER
+
+--- 15일차 ---
+https://popspot.co.kr/popup/2503    [수요    - · 19일] 에몽 시원함 보관소
+https://popspot.co.kr/popup/2591    [수요    - · 19일] 암행천문: 별을 헤다
+https://popspot.co.kr/popup/2633    [수요    - · 19일] 무신사 킥스
+https://popspot.co.kr/popup/2637    [수요    - · 19일] 더현대 러닝클럽 아크테릭스 매장 오픈
+https://popspot.co.kr/popup/2883    [수요    - · 19일] 맘스터치LAB
+https://popspot.co.kr/popup/2663    [수요    - · 19일] 삿포로 프리미엄 비어스탠드
+https://popspot.co.kr/popup/946    [수요    - · 19일] 빌리버 빌리지
+https://popspot.co.kr/popup/2711    [수요    - · 19일] 더컬쳐앤 라운지6호점
+https://popspot.co.kr/popup/2813    [수요    - · 19일] 스위트델리
+https://popspot.co.kr/popup/3277    [수요    - · 18일] 상상 공작소
+
+--- 16일차 ---
+https://popspot.co.kr/popup/3156    [수요    - · 13일] 성수 드래곤볼 전시 히어로즈 라이즈 얼리버드 예매
+https://popspot.co.kr/popup/3159    [수요    - · 13일] 셀렉티드닉스
+https://popspot.co.kr/popup/2853    [수요    - · 12일] 주술회전 (사멸회유)
+https://popspot.co.kr/popup/3424    [수요    - · 11일] 蒽特朗西 艾恩特勒西
+https://popspot.co.kr/popup/3667    [수요    - · 11일] 카시나 성수
+https://popspot.co.kr/popup/3650    [수요    - · 11일] 케스타
+https://popspot.co.kr/popup/2010    [수요    - · 11일] 신백리워드 사은행사
+https://popspot.co.kr/popup/1230    [수요    - · 10일] 신촌 SC Rebel 팝Ups
+https://popspot.co.kr/popup/2484    [수요    - · 10일] 엔드필드×프랭크버거
+https://popspot.co.kr/popup/3196    [수요    - · 10일] KTis 114On
+
+--- 17일차 ---
+https://popspot.co.kr/popup/2889    [수요    - · 9일] Chingnyeo Pop-Up Store
+https://popspot.co.kr/popup/2916    [수요    - · 9일] 樟냥帕兹马派对
+https://popspot.co.kr/popup/3379    [수요    - · 9일] 드리미 인 서울
+https://popspot.co.kr/popup/3666    [수요    - · 8일] 키스 서울
+https://popspot.co.kr/popup/3728    [수요    - · 8일] 위글위글
+https://popspot.co.kr/popup/3525    [수요    - · 8일] 트루더 시계
+https://popspot.co.kr/popup/3708    [수요    - · 7일] 꼬깔콘 낭만포차
+https://popspot.co.kr/popup/3011    [수요    - · 7일] EVANGELION 30th ONLY SHOP
