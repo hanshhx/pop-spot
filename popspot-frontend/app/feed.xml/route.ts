@@ -264,17 +264,29 @@ export async function GET() {
   // 최신순. RSS 리더와 검색엔진 모두 앞쪽을 중요하게 본다.
   items.sort((a, b) => b.date.getTime() - a.date.getTime());
 
-  // 최신 N 개로 자른다.
-  //
-  // 슬라이스를 전부 실으면 128건 / 60KB 가 나오는데, 네이버 RSS 제출 화면이 "본문 크기에 따라 제출에
-  // 제한될 수 있으니 중요한 콘텐츠만 포함시켜 주세요" 라고 안내한다. 정확한 상한은 공개돼 있지 않아
-  // 넘겼을 때 무슨 일이 생기는지 알 수 없고, 거부되면 피드 전체를 잃는다.
-  //
-  // 자르는 쪽이 안전한 이유는 sitemap 과 역할이 다르기 때문이다 — 색인 대상 전체 목록은 sitemap 이
-  // 이미 167건 전부 싣고 있고(§sitemap.ts), RSS 가 맡은 일은 "최근에 뭐가 바뀌었나" 신호다. 최신순으로
-  // 정렬한 뒤 자르므로 그 역할은 그대로 유지된다.
-  const MAX_SLICE_ITEMS = 60;
-  items.length = Math.min(items.length, MAX_SLICE_ITEMS);
+  /*
+   * 건수가 아니라 크기로 자른다.
+   *
+   * 예전에는 60건으로 잘랐다. 네이버 RSS 제출 화면이 "본문 크기에 따라 제출에 제한될 수 있으니
+   * 중요한 콘텐츠만 포함시켜 주세요" 라고 안내하는데, 정확한 상한이 공개돼 있지 않아 거부되면
+   * 피드 전체를 잃을까 봐 보수적으로 잡은 값이었다.
+   *
+   * 그 값이 지금 병목이다. 2026-08-12 서치어드바이저 기준 네이버 색인이 43건인데 RSS 가 60건이다.
+   * 사이트맵에는 분류 랜딩만 173건을 내고 있는데도 색인이 피드 크기에 붙어 있다 — 네이버가 보는
+   * 재고가 사실상 이 피드라는 뜻이다.
+   *
+   * 그래서 걱정하던 것(크기)을 직접 재기로 한다. 건수로 자르면 항목이 짧든 길든 같은 수에서 멈춰
+   * 여유가 있어도 못 싣는다. 바이트로 재면 안전한 만큼 최대한 싣는다.
+   *
+   * 200KB 는 네이버가 공개한 값이 아니라 우리가 정한 보수적인 상한이다. 지금 전체를 실어도
+   * 60KB 남짓이라 한참 아래이고, 팝업이 늘어 항목이 불어나도 이 선에서 멈춘다.
+   *
+   * 싣는 것은 여전히 <b>우리가 만든 분류 페이지</b>뿐이다. 수집 원문(팝업 이름·설명)은 넣지
+   * 않는다 — §10-2 관련 판단은 이 파일 상단 주석 그대로다.
+   */
+  const fitted = fitWithinBudget(items, MAX_FEED_BYTES);
+  items.length = 0;
+  items.push(...fitted);
   const lastBuildDate = items.reduce(
     (latest, item) => (item.date.getTime() > latest.getTime() ? item.date : latest),
     ABOUT_PUBLISHED_AT,
@@ -301,6 +313,43 @@ ${items.map(renderItem).join('\n')}
       'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=86400',
     },
   });
+}
+
+/**
+ * 네이버 RSS 제출에 넣을 <b>본문 크기 상한</b>.
+ *
+ * <p>네이버가 공개한 값이 아니라 우리가 정한 보수적인 선이다. 제출 화면은 "본문 크기에 따라 제출에
+ * 제한될 수 있다" 고만 안내한다. 지금 슬라이스를 전부 실어도 60KB 남짓이라 한참 아래이고, 팝업이
+ * 늘어 항목이 불어나도 여기서 멈춘다.
+ */
+export const MAX_FEED_BYTES = 200_000;
+
+/**
+ * 크기 예산 안에 들어가는 만큼만 남긴다.
+ *
+ * <p>예전에는 60건으로 <b>건수</b>를 잘랐다. 그러면 항목이 짧든 길든 같은 수에서 멈춰, 여유가 있어도
+ * 못 싣는다. 걱정하던 것은 크기였으니 크기를 직접 재는 편이 맞다.
+ *
+ * <p>이 값이 곧 네이버가 보는 재고다 — 2026-08-12 기준 색인 43건에 피드 60건이었다. 사이트맵에 분류
+ * 랜딩만 173건을 내고 있는데도 색인이 피드 크기에 붙어 있었다.
+ *
+ * <p><b>순서를 지킨다.</b> 호출자가 최신순으로 정렬해 넘기므로, 앞에서부터 채우면 잘리는 것은 늘 가장
+ * 오래된 항목이다. RSS 가 맡은 "최근에 뭐가 바뀌었나" 신호가 유지된다.
+ */
+export function fitWithinBudget<T>(
+  items: T[],
+  maxBytes: number,
+  render: (item: T) => string = (item) => renderItem(item as FeedItem),
+): T[] {
+  const encoder = new TextEncoder();
+  const fitted: T[] = [];
+  let used = 0;
+  for (const item of items) {
+    used += encoder.encode(render(item)).length;
+    if (used > maxBytes) break;
+    fitted.push(item);
+  }
+  return fitted;
 }
 
 function renderItem(item: FeedItem): string {
