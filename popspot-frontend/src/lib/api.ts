@@ -11,6 +11,11 @@ import {
   setAuthToken,
   setRefreshToken,
 } from './authStorage';
+import {
+  getServiceAvailability,
+  serviceUnavailableResponse,
+  setServiceAvailability,
+} from './serviceAvailability';
 
 export const API_BASE_URL = env.apiUrl;
 export const SOCKET_BASE_URL = env.socketUrl;
@@ -139,6 +144,12 @@ const isSessionGone = (status: number, endpoint: string, body: string): boolean 
  * </ul>
  */
 export const apiFetch = async (endpoint: string, options: FetchOptions = {}): Promise<Response> => {
+  // 장애가 이미 확인된 탭에서는 같은 502를 만드는 요청을 더 보내지 않는다.
+  // 상태 확인 라우트는 apiFetch를 사용하지 않으므로 복구 감지는 계속 작동한다.
+  if (typeof window !== 'undefined' && getServiceAvailability() === 'unavailable') {
+    return serviceUnavailableResponse();
+  }
+
   const url = buildUrl(endpoint, options);
   const headers = buildHeaders(options, url);
 
@@ -149,6 +160,10 @@ export const apiFetch = async (endpoint: string, options: FetchOptions = {}): Pr
 
   try {
     const response = await fetchWithRetry(url, options, headers);
+
+    if (typeof window !== 'undefined') {
+      setServiceAvailability(GATEWAY_STATUSES.has(response.status) ? 'unavailable' : 'available');
+    }
 
     if (!response.ok) {
       console.error(`API Error (${response.status}): ${url}`);
@@ -178,6 +193,9 @@ export const apiFetch = async (endpoint: string, options: FetchOptions = {}): Pr
     }
     return response;
   } catch (error) {
+    if (typeof window !== 'undefined' && !options.signal?.aborted) {
+      setServiceAvailability('unavailable');
+    }
     console.error(`Network Error: ${url}`, error);
     throw error;
   }
@@ -221,6 +239,13 @@ const fetchWithRetry = async (
 
   let lastError: unknown;
   for (let attempt = 0; ; attempt++) {
+    if (
+      attempt > 0 &&
+      typeof window !== 'undefined' &&
+      getServiceAvailability() === 'unavailable'
+    ) {
+      return serviceUnavailableResponse();
+    }
     try {
       const response = await fetch(url, {
         ...options,
