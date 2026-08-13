@@ -38,7 +38,7 @@ import {
   type CategoryCode,
 } from '@/lib/popupSlices';
 
-interface InteractiveMapProps {
+export interface InteractiveMapProps {
   /** 서버가 첫 HTML과 함께 준비한 마커. 있으면 브라우저가 같은 목록을 다시 요청하지 않는다. */
   initialMarkers?: PublicMapMarker[];
   places?: {
@@ -93,6 +93,13 @@ interface ViewportBounds {
   east: number;
   south: number;
   north: number;
+}
+
+interface MarkerCluster {
+  key: string;
+  markers: MapMarkerData[];
+  lat: number;
+  lng: number;
 }
 
 // DB 의 실제 카테고리 값과 일치 (자동수집 팝업까지 모두 매칭되도록)
@@ -370,6 +377,9 @@ export default function InteractiveMap({
   const [map, setMap] = useState<MapLibreMap | null>(null);
   const [viewportBounds, setViewportBounds] = useState<ViewportBounds | null>(null);
   const [isListOpen, setIsListOpen] = useState(false);
+  const [isListExpanded, setIsListExpanded] = useState(false);
+  const [isMobileViewport, setIsMobileViewport] = useState(false);
+  const [zoomLevel, setZoomLevel] = useState(11);
   // 동네 바로가기 + 범례 패널 열림 상태.
   const [isExploreOpen, setIsExploreOpen] = useState(false);
   // 사용자 현재 위치 — 브라우저 메모리에만 보관 (서버 저장 X · PIPA 부담 최소).
@@ -378,6 +388,17 @@ export default function InteractiveMap({
   // 사이트 전역 테마 → 지도 mode, 그리고 테마 확정 전에는 지도 생성을 보류(라이트 깜빡임 방지).
   // 이 로직은 DetailMap 과 공유한다. @see useMapMode
   const { mode: mapMode, ready: mounted } = useMapMode();
+
+  useEffect(() => {
+    const media = window.matchMedia('(max-width: 767px)');
+    const syncViewport = () => {
+      setIsMobileViewport(media.matches);
+      if (media.matches) setIsListOpen(true);
+    };
+    syncViewport();
+    media.addEventListener('change', syncViewport);
+    return () => media.removeEventListener('change', syncViewport);
+  }, []);
 
   // v2.21-S3.5 — useSearchParams 가 Suspense 없이 호출돼 production 빌드에서 마운트 실패하던
   // 회귀 차단. window.location.search 를 useEffect 안에서 안전하게 읽고 popstate 로 변경 감지.
@@ -513,9 +534,50 @@ export default function InteractiveMap({
     );
   }, [markers, mode, selectedMarker?.popupId, showPath, viewportBounds]);
 
+  const listMarkers = useMemo(() => {
+    const visible = renderedMarkers.length > 0 ? renderedMarkers : markers;
+    return visible.slice(0, 100);
+  }, [markers, renderedMarkers]);
+
+  const markerClusters = useMemo<MarkerCluster[]>(() => {
+    if (!isMobileViewport || zoomLevel >= 16 || showPath || mode === 'PLAN') {
+      return renderedMarkers.map((marker) => ({
+        key: String(marker.popupId),
+        markers: [marker],
+        lat: parseFloat(marker.latitude),
+        lng: parseFloat(marker.longitude),
+      }));
+    }
+
+    const cellSize =
+      zoomLevel < 11.5 ? 0.028 : zoomLevel < 13 ? 0.014 : zoomLevel < 15 ? 0.007 : 0.0035;
+    const grouped = new Map<string, MapMarkerData[]>();
+    for (const marker of renderedMarkers) {
+      const lat = parseFloat(marker.latitude);
+      const lng = parseFloat(marker.longitude);
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
+      const key = `${Math.floor(lat / cellSize)}:${Math.floor(lng / cellSize)}`;
+      grouped.set(key, [...(grouped.get(key) ?? []), marker]);
+    }
+
+    return [...grouped.entries()].map(([key, groupedMarkers]) => ({
+      key,
+      markers: groupedMarkers,
+      lat:
+        groupedMarkers.reduce((sum, marker) => sum + parseFloat(marker.latitude), 0) /
+        groupedMarkers.length,
+      lng:
+        groupedMarkers.reduce((sum, marker) => sum + parseFloat(marker.longitude), 0) /
+        groupedMarkers.length,
+    }));
+  }, [isMobileViewport, mode, renderedMarkers, showPath, zoomLevel]);
+
   useEffect(() => {
     if (!map) return;
-    const sync = () => setViewportBounds(paddedViewport(map));
+    const sync = () => {
+      setViewportBounds(paddedViewport(map));
+      setZoomLevel(map.getZoom());
+    };
     const frame = requestAnimationFrame(sync);
     map.on('moveend', sync);
     map.on('resize', sync);
@@ -795,27 +857,40 @@ export default function InteractiveMap({
           <AnimatePresence>
             {isListOpen && (
               <motion.div
-                initial={{ x: -300, opacity: 0 }}
-                animate={{ x: 0, opacity: 1 }}
-                exit={{ x: -300, opacity: 0 }}
+                initial={{ y: 80, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                exit={{ y: 80, opacity: 0 }}
                 transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-                className="absolute top-0 left-0 bottom-0 w-[240px] md:w-[280px] z-30 bg-black/80 backdrop-blur-xl border-r border-white/10 flex flex-col shadow-2xl"
+                className={`absolute inset-x-0 bottom-0 z-30 flex flex-col rounded-t-[1.75rem] border-t border-white/10 bg-black/90 shadow-2xl backdrop-blur-xl transition-[height] duration-300 md:inset-y-0 md:right-auto md:w-[280px] md:rounded-none md:border-r md:border-t-0 ${
+                  isListExpanded ? 'h-[76%]' : 'h-[40%]'
+                } md:h-auto`}
               >
-                <div className="p-3 md:p-4 border-b border-white/10 flex justify-between items-center">
-                  <h3 className="text-white font-bold text-base md:text-lg flex items-center gap-1.5 md:gap-2">
-                    <List size={16} className="text-primary md:w-[18px] md:h-[18px]" /> POPUP LIST
-                  </h3>
+                <div className="border-b border-white/10 p-3 md:p-4">
                   <button
-                    onClick={() => setIsListOpen(false)}
-                    className="p-1 hover:bg-white/10 rounded-full transition-colors"
-                  >
-                    <X size={16} className="text-muted hover:text-white md:w-[18px] md:h-[18px]" />
-                  </button>
+                    type="button"
+                    onClick={() => setIsListExpanded((current) => !current)}
+                    className="mx-auto mb-2 block h-1.5 w-12 rounded-full bg-white/35 md:hidden"
+                    aria-label={isListExpanded ? 'Collapse popup list' : 'Expand popup list'}
+                  />
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-white font-bold text-base md:text-lg flex items-center gap-1.5 md:gap-2">
+                      <List size={16} className="text-primary md:w-[18px] md:h-[18px]" /> POPUP LIST
+                    </h3>
+                    <button
+                      onClick={() => setIsListOpen(false)}
+                      className="p-1 hover:bg-white/10 rounded-full transition-colors"
+                    >
+                      <X
+                        size={16}
+                        className="text-muted hover:text-white md:w-[18px] md:h-[18px]"
+                      />
+                    </button>
+                  </div>
                 </div>
 
                 <div className="flex-1 overflow-y-auto custom-scrollbar p-2 md:p-3 space-y-1.5 md:space-y-2">
-                  {markers.length > 0 ? (
-                    markers.map((marker, index) => {
+                  {listMarkers.length > 0 ? (
+                    listMarkers.map((marker, index) => {
                       const shown = shownName(marker);
                       return (
                         <div
@@ -876,13 +951,14 @@ export default function InteractiveMap({
               onClick={() => setIsListOpen(!isListOpen)}
               aria-label={t('map.listAria')}
               aria-expanded={isListOpen}
-              className={`p-2 md:p-2.5 backdrop-blur-md border rounded-lg md:rounded-xl text-white transition-all shadow-lg ${
+              className={`flex min-h-11 items-center gap-2 rounded-full border px-4 py-2 text-xs font-black text-white shadow-lg backdrop-blur-md transition-all md:rounded-xl md:p-2.5 ${
                 isListOpen
                   ? 'bg-primary text-black border-primary'
                   : 'bg-black/80 border-white/20 hover:text-primary hover:border-primary'
               }`}
             >
               <List size={16} className="md:w-[18px] md:h-[18px]" />
+              <span className="md:sr-only">{t('map.listAria')}</span>
             </button>
           </div>
         </>
@@ -968,7 +1044,35 @@ export default function InteractiveMap({
             </MapMarker>
           )}
 
-          {renderedMarkers.map((marker, index) => {
+          {markerClusters.map((cluster, index) => {
+            if (cluster.markers.length > 1) {
+              return (
+                <MapMarker
+                  key={`marker-cluster-${cluster.key}`}
+                  position={{ lat: cluster.lat, lng: cluster.lng }}
+                  anchor="center"
+                  zIndex={20}
+                >
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      map?.easeTo({
+                        center: [cluster.lng, cluster.lat],
+                        zoom: Math.min(16, zoomLevel + 2),
+                        duration: 450,
+                      });
+                    }}
+                    aria-label={`${cluster.markers.length} popups`}
+                    className="grid h-11 min-w-11 place-items-center rounded-full border-2 border-white bg-lime-300 px-2 text-sm font-black text-ink-900 shadow-xl ring-4 ring-lime-300/25 transition active:scale-95"
+                  >
+                    {cluster.markers.length}
+                  </button>
+                </MapMarker>
+              );
+            }
+
+            const marker = cluster.markers[0];
             // PLAN 모드용 스타일 계산
             const style = getCategoryStyle(marker.category);
             const approximate = isApproximateLocation(marker.address);
@@ -1050,7 +1154,11 @@ export default function InteractiveMap({
                         >
                           {style.icon}
                         </span>
-                        <span className="font-bold text-[10px] md:text-xs">
+                        <span
+                          className={`font-bold text-[10px] md:text-xs ${
+                            isMobileViewport && zoomLevel < 15.5 ? 'hidden' : ''
+                          }`}
+                        >
                           {truncateForPin(shownName(marker).display, locale)}
                         </span>
                         {approximate && <span className="text-[9px] opacity-70">≈</span>}

@@ -436,9 +436,17 @@ export default function PopupDetailClient({
     ? `https://map.kakao.com/link/to/${encodeURIComponent(popup.name)},${lat},${lng}`
     : `https://map.kakao.com/link/search/${encodeURIComponent(popup.address || popup.name)}`;
   const coverUrl = popupCoverUrl(popup, 1200);
+  const calendarInput = {
+    id: popup.id,
+    name: popup.name,
+    address: popup.address,
+    startDate: popup.openDate,
+    endDate: popup.closeDate,
+  };
+  const canAddCalendar = toCalendarEvent(calendarInput) !== null;
 
   return (
-    <main className="min-h-screen bg-background text-foreground pb-24">
+    <main className="min-h-screen bg-background pb-36 text-foreground md:pb-24">
       {/* 사진 히어로 — 실제 커버 이미지(없으면 카테고리 그라디언트) + 제목 오버레이 */}
       <div className="relative h-[38vh] min-h-[240px] max-h-[440px] w-full overflow-hidden">
         <div className={`absolute inset-0 bg-gradient-to-br ${catGrad}`} />
@@ -558,23 +566,42 @@ export default function PopupDetailClient({
 
         {/* 캘린더 추가 — 시작·종료일이 둘 다 검증된 경우에만 노출(날짜 없는 팝업은 숨김).
             iOS 는 .ics, Android·데스크톱은 Google Calendar 웹 딥링크(Android 는 .ics import 불가). */}
-        {(() => {
-          const calInput = {
-            id: popup.id,
-            name: popup.name,
-            address: popup.address,
-            startDate: popup.openDate,
-            endDate: popup.closeDate,
-          };
-          return toCalendarEvent(calInput) ? (
-            <button
-              onClick={() => addToCalendar(calInput)}
-              className="mt-2.5 flex w-full items-center justify-center gap-2 rounded-2xl border border-gray-300 bg-white py-3 text-sm font-bold text-foreground transition hover:border-lime-400 dark:border-white/15 dark:bg-white/5"
-            >
-              <CalendarPlus size={18} /> {t('detail.addCalendar')}
-            </button>
-          ) : null;
-        })()}
+        {canAddCalendar ? (
+          <button
+            onClick={() => addToCalendar(calendarInput)}
+            className="mt-2.5 flex w-full items-center justify-center gap-2 rounded-2xl border border-gray-300 bg-white py-3 text-sm font-bold text-foreground transition hover:border-lime-400 dark:border-white/15 dark:bg-white/5"
+          >
+            <CalendarPlus size={18} /> {t('detail.addCalendar')}
+          </button>
+        ) : null}
+
+        {/* 방문 결정을 돕는 공식 링크는 소개보다 먼저 보여준다. 검증된 URL이 있을 때만 노출한다. */}
+        {(popup.reservationUrl || popup.officialUrl) && (
+          <div className="mt-3 flex flex-wrap gap-2.5">
+            {popup.reservationUrl && (
+              <a
+                href={popup.reservationUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => trackVisitEvent('outbound_click', { popupId: popup.id })}
+                className="inline-flex min-h-12 flex-1 items-center justify-center gap-1.5 rounded-xl bg-lime-500 px-4 py-3 text-sm font-bold text-ink-900 transition hover:bg-lime-400"
+              >
+                {t('detail.reserve')} <ExternalLink size={14} className="shrink-0" />
+              </a>
+            )}
+            {popup.officialUrl && (
+              <a
+                href={popup.officialUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => trackVisitEvent('outbound_click', { popupId: popup.id })}
+                className="inline-flex min-h-12 flex-1 items-center justify-center gap-1.5 rounded-xl border border-gray-300 px-4 py-3 text-sm font-bold text-foreground transition hover:bg-black/[0.03] dark:border-white/15 dark:hover:bg-white/[0.05]"
+              >
+                {t('detail.official')} <ExternalLink size={14} className="shrink-0" />
+              </a>
+            )}
+          </div>
+        )}
 
         {/* 지금 어때요? — 원터치 대기 제보. 실시간 채팅과 달리 혼자 눌러도 다음 방문자에게 남는 신호라
             방문자가 적어도 작동한다(로그인 불필요 = 참여 문턱 최소). */}
@@ -623,41 +650,6 @@ export default function PopupDetailClient({
           <p className="mb-4 text-xs text-muted-foreground">{t('detail.tipsDesc')}</p>
           <ChatRoom roomId={popup.id} nickname={user?.nickname || t('detail.anonymous')} />
         </section>
-
-        {/* 공식 사이트 · 예약 — 크롤이 snippet 에서 URL 을 실제로 뽑았을 때만 노출 */}
-        {(popup.reservationUrl || popup.officialUrl) && (
-          <div className="mt-8 flex flex-wrap gap-2.5">
-            {popup.reservationUrl && (
-              <a
-                href={popup.reservationUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                /*
-                 * C-4 퍼널의 마지막 단계. 이 서비스가 사용자를 위해 할 수 있는 가장 끝이라,
-                 * 여기까지 온 사람은 그 팝업에 실제로 갈 마음이 있다는 뜻이다.
-                 *
-                 * onClick 을 써도 이동을 막지 않는다 — trackVisitEvent 는 await 하지 않고
-                 * keepalive 로 보내므로, 새 탭이 열리는 동안에도 전송이 끊기지 않는다.
-                 */
-                onClick={() => trackVisitEvent('outbound_click', { popupId: popup.id })}
-                className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-lime-500 px-4 py-3 text-sm font-bold text-ink-900 transition hover:bg-lime-400"
-              >
-                {t('detail.reserve')} <ExternalLink size={14} className="shrink-0" />
-              </a>
-            )}
-            {popup.officialUrl && (
-              <a
-                href={popup.officialUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => trackVisitEvent('outbound_click', { popupId: popup.id })}
-                className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-gray-300 px-4 py-3 text-sm font-bold text-foreground transition hover:bg-black/[0.03] dark:border-white/15 dark:hover:bg-white/[0.05]"
-              >
-                {t('detail.official')} <ExternalLink size={14} className="shrink-0" />
-              </a>
-            )}
-          </div>
-        )}
 
         {/* 출처 / 신고 */}
         <section className="mt-8 space-y-4 rounded-2xl border border-gray-200 bg-white p-5 dark:border-white/10 dark:bg-[#111] md:p-6">
@@ -715,6 +707,45 @@ export default function PopupDetailClient({
           </div>
         </section>
       </div>
+
+      <nav
+        aria-label={
+          locale === 'ko' ? '빠른 실행' : locale === 'ja' ? 'クイック操作' : 'Quick actions'
+        }
+        className="fixed inset-x-3 z-50 mx-auto flex max-w-md gap-2 rounded-2xl border border-black/10 bg-white/95 p-2 shadow-2xl backdrop-blur-xl md:hidden dark:border-white/10 dark:bg-[#111]/95"
+        style={{ bottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
+      >
+        <a
+          href={directionsUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex min-h-12 flex-1 items-center justify-center gap-1.5 rounded-xl bg-lime-300 px-2 text-xs font-black text-ink-900 active:scale-[0.98]"
+        >
+          <Navigation size={17} aria-hidden /> {t('detail.directions')}
+        </a>
+        {canAddCalendar ? (
+          <button
+            type="button"
+            onClick={() => addToCalendar(calendarInput)}
+            className="flex min-h-12 flex-1 items-center justify-center gap-1.5 rounded-xl bg-gray-100 px-2 text-xs font-black text-gray-900 active:scale-[0.98] dark:bg-white/10 dark:text-white"
+          >
+            <CalendarPlus size={17} aria-hidden /> {t('detail.addCalendar')}
+          </button>
+        ) : null}
+        <button
+          type="button"
+          onClick={handleToggleLike}
+          aria-pressed={isLiked}
+          className={`flex min-h-12 flex-1 items-center justify-center gap-1.5 rounded-xl px-2 text-xs font-black active:scale-[0.98] ${
+            isLiked
+              ? 'bg-hot-400 text-white'
+              : 'bg-gray-100 text-gray-900 dark:bg-white/10 dark:text-white'
+          }`}
+        >
+          <Heart size={17} className={isLiked ? 'fill-current' : ''} aria-hidden />
+          {t('common.wishlist')}
+        </button>
+      </nav>
 
       <TakedownModal
         open={takedownOpen}

@@ -49,11 +49,11 @@ export function useServiceAvailability() {
 export default function ServiceStatusBanner() {
   const { locale } = useLocale();
   const status = useServiceAvailability();
-  const [collapsed, setCollapsed] = useState(
-    () =>
-      typeof window !== 'undefined' &&
-      window.sessionStorage.getItem(COLLAPSED_SESSION_KEY) === 'true',
-  );
+  const [collapsed, setCollapsed] = useState(() => {
+    if (typeof window === 'undefined') return true;
+    const stored = window.sessionStorage.getItem(COLLAPSED_SESSION_KEY);
+    return stored === null ? true : stored === 'true';
+  });
 
   useEffect(() => {
     let stopped = false;
@@ -131,7 +131,14 @@ export default function ServiceStatusBanner() {
           className="flex min-h-11 items-center gap-2 rounded-full border border-amber-400/40 bg-amber-950/95 px-3.5 py-2 text-left text-xs font-bold text-amber-50 shadow-lg backdrop-blur transition hover:bg-amber-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 focus-visible:ring-offset-2"
         >
           <AlertTriangle className="size-4 shrink-0 text-amber-300" aria-hidden />
-          <span className="truncate">{copy.title}</span>
+          <span className="sm:hidden">
+            {locale === 'ko'
+              ? '서버 일시 중단 · 자세히'
+              : locale === 'ja'
+                ? 'サーバー停止中 · 詳細'
+                : 'Server paused · Details'}
+          </span>
+          <span className="hidden truncate sm:inline">{copy.title}</span>
           <ChevronDown className="size-4 shrink-0 text-amber-200" aria-hidden />
           <span className="sr-only">{copy.expand}</span>
         </button>

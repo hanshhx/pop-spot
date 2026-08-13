@@ -1,6 +1,7 @@
 'use client';
 
-import { Map as MapIcon, Route, Ticket, User, Users, Music2 } from 'lucide-react';
+import { Map as MapIcon, Route, Ticket, User, Users, Music2, MoreHorizontal } from 'lucide-react';
+import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { useLocale, type MessageKey } from '@/lib/i18n';
 
@@ -41,15 +42,47 @@ export const DOCK_ITEMS: DockItemDef[] = [
  * 가능하게 만들어 좁은 화면에서도 모든 탭 접근 가능. 데스크탑은 기존과 동일하게 한 줄 정렬.
  */
 export function BottomDock({ currentTab, onTabChange }: BottomDockProps) {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
+  const [moreOpen, setMoreOpen] = useState(false);
+  const primaryItems = (['MAP', 'COURSE', 'MATE', 'MY'] as const)
+    .map((key) => DOCK_ITEMS.find((item) => item.key === key))
+    .filter((item): item is DockItemDef => Boolean(item));
+  const secondaryItems = DOCK_ITEMS.filter((item) => ['MUSIC', 'PASSPORT'].includes(item.key));
+  const moreActive = secondaryItems.some((item) => item.key === currentTab);
+  const moreLabel = locale === 'ko' ? '더보기' : locale === 'ja' ? 'その他' : 'More';
+
   return (
     <nav
       aria-label={t('nav.mainMenu')}
-      className={cn(
-        'fixed bottom-4 md:bottom-6 left-1/2 -translate-x-1/2 z-50 lg:hidden',
-        'w-[95%] max-w-[560px]',
-      )}
+      className={cn('fixed left-1/2 -translate-x-1/2 z-50 lg:hidden', 'w-[95%] max-w-[560px]')}
+      style={{ bottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
     >
+      {moreOpen ? (
+        <div className="absolute bottom-[calc(100%+0.5rem)] right-2 w-48 rounded-2xl border border-black/10 bg-surface/95 p-2 shadow-pop backdrop-blur-xl dark:border-white/10">
+          {secondaryItems.map((item) => {
+            const Icon = item.icon;
+            return (
+              <button
+                key={item.key}
+                type="button"
+                onClick={() => {
+                  setMoreOpen(false);
+                  onTabChange(item.key);
+                }}
+                className={cn(
+                  'flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-sm font-bold transition',
+                  currentTab === item.key
+                    ? 'bg-lime-300 text-ink-900'
+                    : 'text-foreground hover:bg-foreground/[0.06]',
+                )}
+              >
+                <Icon className="size-5" aria-hidden />
+                {t(item.labelKey)}
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
       <div
         className={cn(
           // 균등 분할(flex-1) — 가로 스크롤 없이 6탭이 폭에 딱 맞게.
@@ -58,7 +91,7 @@ export function BottomDock({ currentTab, onTabChange }: BottomDockProps) {
           'bg-surface/90 backdrop-blur-xl shadow-pop ring-1 ring-black/[0.02] dark:ring-white/[0.04]',
         )}
       >
-        {DOCK_ITEMS.map((item) => (
+        {primaryItems.map((item) => (
           <DockButton
             key={item.key}
             icon={item.icon}
@@ -67,6 +100,12 @@ export function BottomDock({ currentTab, onTabChange }: BottomDockProps) {
             onClick={() => onTabChange(item.key)}
           />
         ))}
+        <DockButton
+          icon={MoreHorizontal}
+          label={moreLabel}
+          isActive={moreActive || moreOpen}
+          onClick={() => setMoreOpen((current) => !current)}
+        />
       </div>
     </nav>
   );
