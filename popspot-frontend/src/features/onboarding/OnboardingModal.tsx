@@ -16,6 +16,8 @@ import { useLocale, type MessageKey } from '@/lib/i18n';
 
 /** 저장 키 — 화면에 보이지 않는 값이라 언어와 무관하게 고정한다. */
 const STORAGE_KEY = 'popspot:onboarding-seen';
+const VISIT_KEY = 'popspot:onboarding-visits';
+export const ONBOARDING_TRIGGER_EVENT = 'popspot:show-onboarding';
 
 interface OnboardingStep {
   icon: React.ReactNode;
@@ -62,7 +64,35 @@ export function OnboardingModal() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const seen = window.localStorage.getItem(STORAGE_KEY);
-    if (!seen) setShowPrompt(true);
+    if (seen) return;
+
+    const visits = Number(window.sessionStorage.getItem(VISIT_KEY) ?? '0') + 1;
+    window.sessionStorage.setItem(VISIT_KEY, String(visits));
+
+    let interacted = false;
+    const markInteraction = () => {
+      interacted = true;
+    };
+    const reveal = () => {
+      if (document.visibilityState === 'visible') setShowPrompt(true);
+    };
+    const revealAfterFeatureUse = () => window.setTimeout(reveal, 700);
+    const timer = window.setTimeout(
+      () => {
+        if (visits >= 2 || interacted) reveal();
+      },
+      visits >= 2 ? 8_000 : 22_000,
+    );
+
+    window.addEventListener('scroll', markInteraction, { passive: true, once: true });
+    window.addEventListener('pointerdown', markInteraction, { passive: true, once: true });
+    window.addEventListener(ONBOARDING_TRIGGER_EVENT, revealAfterFeatureUse);
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener('scroll', markInteraction);
+      window.removeEventListener('pointerdown', markInteraction);
+      window.removeEventListener(ONBOARDING_TRIGGER_EVENT, revealAfterFeatureUse);
+    };
   }, []);
 
   const dismiss = () => {

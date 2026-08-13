@@ -355,6 +355,41 @@ function ddayBadge(dday: number | null, copy: LandingCopy): { text: string; cls:
   return { text: copy.ddayOngoing, cls: 'bg-lime-300 text-ink-900' };
 }
 
+function formatPeriod(
+  startDate: string | null | undefined,
+  endDate: string | null | undefined,
+  locale: Locale,
+): string {
+  const parseParts = (value: string | null | undefined) => {
+    const match = value?.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    return match
+      ? { year: Number(match[1]), month: Number(match[2]), day: Number(match[3]) }
+      : null;
+  };
+  const start = parseParts(startDate);
+  const end = parseParts(endDate);
+  const format = (date: NonNullable<typeof start>) => {
+    if (locale === 'en') {
+      return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(
+        new Date(Date.UTC(date.year, date.month - 1, date.day)),
+      );
+    }
+    return locale === 'ja' ? `${date.month}月${date.day}日` : `${date.month}월 ${date.day}일`;
+  };
+
+  if (start && end && startDate === endDate) {
+    return locale === 'en'
+      ? `${format(start)} only`
+      : locale === 'ja'
+        ? `${format(start)}のみ`
+        : `${format(start)} 하루`;
+  }
+  if (start && end) return `${format(start)} ~ ${format(end)}`;
+  if (start) return locale === 'en' ? `From ${format(start)}` : `${format(start)}부터`;
+  if (end) return locale === 'en' ? `Until ${format(end)}` : `${format(end)}까지`;
+  return '';
+}
+
 // nearestDeadline 은 지웠다. 검색 결과 설명이 건수+최단마감("156곳 진행 중. 가장 빠른 마감 8/4")
 // 에서 실제 이름("무기와라 팝업스토어(~8/4 잠실 롯데월드몰) 외 148곳")으로 바뀌면서, 첫 항목이 곧
 // 최단 마감이라 문구가 겹쳤다. 설명은 80자쯤에서 잘리므로 겹치는 문장에 자리를 쓰지 않는다.
@@ -738,7 +773,7 @@ export async function SliceLandingPage({ slug, locale }: { slug: string; locale:
   const kicker = kickerByKind[slice.kind];
 
   return (
-    <main className="min-h-screen bg-white text-gray-900 dark:bg-[#0a0a0a] dark:text-white">
+    <main className="min-h-screen bg-white pb-24 text-gray-900 md:pb-0 dark:bg-[#0a0a0a] dark:text-white">
       <div className="max-w-3xl mx-auto px-5 md:px-8 py-8 md:py-14">
         <Link
           href={home}
@@ -961,7 +996,7 @@ export async function SliceLandingPage({ slug, locale }: { slug: string; locale:
                         )}
                         {(m.startDate || m.endDate) && (
                           <p className="text-xs text-muted-foreground mt-0.5">
-                            {m.startDate ?? '?'} ~ {m.endDate ?? '?'}
+                            {formatPeriod(m.startDate, m.endDate, locale)}
                           </p>
                         )}
                       </div>
@@ -1054,6 +1089,24 @@ export async function SliceLandingPage({ slug, locale }: { slug: string; locale:
 
         <FaqSection slice={slice} count={count} copy={copy} refresh={refresh} />
       </div>
+
+      {count > 0 && (
+        <div
+          className="fixed inset-x-3 z-40 mx-auto max-w-md md:hidden"
+          style={{ bottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
+        >
+          <Link
+            href={mapHref}
+            className="flex min-h-14 items-center justify-center rounded-2xl border border-ink-900/10 bg-lime-300 px-5 text-sm font-black text-ink-900 shadow-2xl active:scale-[0.99]"
+          >
+            {locale === 'ko'
+              ? `지도에서 ${count}곳 보기`
+              : locale === 'ja'
+                ? `地図で${count}件見る`
+                : `See ${count} on the map`}
+          </Link>
+        </div>
+      )}
 
       {/* 목록은 ItemList, 개별 행사의 Event는 검증된 상세 URL에서만 선언한다. */}
       <script
@@ -1295,7 +1348,7 @@ function CrossSell({
       )}
 
       <ul className="flex flex-wrap gap-2">
-        {links.map((s) => (
+        {links.slice(0, 12).map((s) => (
           <li key={`${s.kind}-${s.slug}`}>
             <Link
               href={`${home}/popups/${s.slug}`}
@@ -1306,6 +1359,29 @@ function CrossSell({
           </li>
         ))}
       </ul>
+      {links.length > 12 && (
+        <details className="group mt-3">
+          <summary className="inline-flex min-h-11 cursor-pointer list-none items-center rounded-pill border border-gray-200 bg-gray-50 px-4 py-2 text-xs font-bold transition hover:border-lime-300 dark:border-white/10 dark:bg-white/5">
+            {locale === 'ko'
+              ? '관련 지역·주제 더 보기'
+              : locale === 'ja'
+                ? '関連項目をもっと見る'
+                : 'Show more related pages'}
+          </summary>
+          <ul className="mt-3 flex flex-wrap gap-2">
+            {links.slice(12).map((s) => (
+              <li key={`${s.kind}-${s.slug}`}>
+                <Link
+                  href={`${home}/popups/${s.slug}`}
+                  className="inline-flex min-h-9 items-center rounded-pill border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-900 transition hover:border-lime-300 hover:bg-lime-50 dark:border-white/10 dark:bg-white/5 dark:text-white dark:hover:border-lime-300/40 dark:hover:bg-lime-300/10"
+                >
+                  {s.label}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
     </nav>
   );
 }
