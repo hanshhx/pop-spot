@@ -72,7 +72,7 @@ import {
 } from '@dnd-kit/core';
 import { arrayMove, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 
-import InteractiveMap from '../src/components/Map/InteractiveMap';
+import InteractiveMap from '../src/components/Map/DeferredInteractiveMap';
 import PassportView from '../src/components/Passport/PassportView';
 import AIReportModal from '../src/components/AIReportModal';
 import LiveChatTicker from '../src/components/LiveChatTicker';
@@ -111,7 +111,7 @@ import { PopupCalendarModal } from '@/features/popup/PopupCalendarModal';
 import { AllTrendingModal } from '@/features/popup/AllTrendingModal';
 import { AddPlaceModal } from '@/features/popup/AddPlaceModal';
 import { GlobalSearchModal, useGlobalSearchHotkey } from '@/features/popup/GlobalSearchModal';
-import { OnboardingModal } from '@/features/onboarding/OnboardingModal';
+import { OnboardingModal, ONBOARDING_TRIGGER_EVENT } from '@/features/onboarding/OnboardingModal';
 import { NotificationCenter } from '@/features/notifications/NotificationCenter';
 import { MyFeedbackList } from '@/features/feedback/MyFeedbackList';
 import { FeedbackForm } from '@/features/feedback/FeedbackForm';
@@ -133,6 +133,7 @@ import type {
 } from '@/types/popup';
 
 const INITIAL_MY_COURSE: CourseItem[] = [];
+const MAP_RETURN_STATE_KEY = 'popspot:map-return-state';
 const EMPTY_POPUPS: PopupStore[] = [];
 
 function popupToMapMarker(popup: PopupStore): PublicMapMarker {
@@ -932,8 +933,40 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
   const handleOpenModal = () => setIsModalOpen(true);
 
   const handleMarkerClickToDetail = (popupId: number | string) => {
+    try {
+      window.sessionStorage.setItem(
+        MAP_RETURN_STATE_KEY,
+        JSON.stringify({
+          scrollY: window.scrollY,
+          search: window.location.search,
+          savedAt: Date.now(),
+        }),
+      );
+    } catch {
+      // Private browsing may block session storage; navigation should still work.
+    }
     router.push(localizedPath(`/popup/${popupId}`, locale));
   };
+
+  useEffect(() => {
+    let saved: { scrollY?: number; search?: string; savedAt?: number } | null = null;
+    try {
+      saved = JSON.parse(window.sessionStorage.getItem(MAP_RETURN_STATE_KEY) ?? 'null');
+      window.sessionStorage.removeItem(MAP_RETURN_STATE_KEY);
+    } catch {
+      return;
+    }
+    if (
+      !saved ||
+      typeof saved.scrollY !== 'number' ||
+      saved.search !== window.location.search ||
+      Date.now() - (saved.savedAt ?? 0) > 30 * 60_000
+    ) {
+      return;
+    }
+    const timer = window.setTimeout(() => window.scrollTo({ top: saved.scrollY }), 120);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   /*
    * 보안 (v2.7): 옛 OAuth 흐름은 토큰뿐 아니라 isPremium / role / userId / nickname 까지 URL 쿼리에
@@ -1230,7 +1263,7 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
             잠그기만 하고 여는 버튼이 없으면 막다른 길이 된다. 로그인 페이지에도 같은 버튼이
             있지만, 거기까지 가려면 이 화면을 떠나야 한다. */}
         {!user && guestRemainingDays == null && (
-          <div className="mb-4 md:mb-6 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-[var(--color-border)] bg-surface px-4 py-3 shadow-sm">
+          <div className="mb-4 hidden flex-wrap items-center justify-between gap-2 rounded-2xl border border-[var(--color-border)] bg-surface px-4 py-3 shadow-sm md:mb-6 md:flex">
             <span className="text-xs font-bold md:text-sm">{t('home.guestLockedTitle')}</span>
             <button
               type="button"
@@ -1246,7 +1279,7 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
         )}
 
         {guestRemainingDays != null && (
-          <div className="mb-4 md:mb-6 flex items-center justify-between gap-3 rounded-pill bg-lime-300/85 px-4 py-2 text-ink-900 ring-1 ring-ink-900/10 shadow-sm dark:bg-lime-400/95">
+          <div className="mb-4 hidden items-center justify-between gap-3 rounded-pill bg-lime-300/85 px-4 py-2 text-ink-900 ring-1 ring-ink-900/10 shadow-sm md:mb-6 md:flex dark:bg-lime-400/95">
             <span className="inline-flex items-center gap-1.5 text-xs md:text-sm font-bold">
               <Clock className="size-3.5 md:size-4 shrink-0" aria-hidden />
               {guestRemainingDays > 0
@@ -1349,20 +1382,21 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
                       <div className="mt-5 flex flex-col sm:flex-row gap-2.5 justify-center md:justify-start">
                         <button
                           type="button"
-                          onClick={() =>
+                          onClick={() => {
                             // 예전에는 aria-label 의 한국어 문구로 찾았다 — 그 문구를 번역하는 순간
                             // 영어·일본어에서 이 버튼이 조용히 아무 일도 안 하게 된다. id 로 찾는다.
                             document
                               .getElementById(HOME_MAP_ID)
-                              ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-                          }
+                              ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                            window.dispatchEvent(new Event(ONBOARDING_TRIGGER_EVENT));
+                          }}
                           className="inline-flex items-center justify-center gap-2 rounded-pill bg-lime-300 px-6 py-3 text-sm md:text-base font-bold text-ink-900 transition hover:bg-lime-400"
                         >
                           {t('cta.browseMap')} <ArrowRight size={16} />
                         </button>
                         <Link
                           href="/signup"
-                          className="inline-flex items-center justify-center gap-2 rounded-pill border border-gray-300 bg-white px-6 py-3 text-sm md:text-base font-bold text-gray-900 transition hover:bg-gray-100 dark:border-white/20 dark:bg-white/10 dark:text-white dark:hover:bg-white/20"
+                          className="hidden items-center justify-center gap-2 rounded-pill border border-gray-300 bg-white px-6 py-3 text-sm font-bold text-gray-900 transition hover:bg-gray-100 sm:inline-flex md:text-base dark:border-white/20 dark:bg-white/10 dark:text-white dark:hover:bg-white/20"
                         >
                           {t('auth.signup')}
                         </Link>
