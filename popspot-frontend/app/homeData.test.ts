@@ -24,30 +24,34 @@ describe('fetchHomePopups', () => {
     vi.unstubAllGlobals();
   });
 
-  it('백엔드가 502 면 빈 배열 — 홈을 500 으로 만들지 않는다', async () => {
+  it('백엔드가 502 면 검증된 비상 목록으로 홈을 유지한다', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => new Response('', { status: 502 })),
     );
-    await expect(fetchHomePopups()).resolves.toEqual([]);
+    const rows = await fetchHomePopups();
+    expect(rows.length).toBeGreaterThan(0);
+    expect(rows.every((row) => row.status === 'SNAPSHOT')).toBe(true);
   });
 
-  it('네트워크가 끊겨도 예외를 밖으로 던지지 않는다', async () => {
+  it('네트워크가 끊겨도 예외를 밖으로 던지지 않고 비상 목록을 돌려준다', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => {
         throw new Error('ECONNREFUSED');
       }),
     );
-    await expect(fetchHomePopups()).resolves.toEqual([]);
+    const rows = await fetchHomePopups();
+    expect(rows.length).toBeGreaterThan(0);
   });
 
-  it('응답이 배열이 아니면 빈 배열 — 모양이 바뀌어도 화면이 터지지 않는다', async () => {
+  it('응답이 배열이 아니면 비상 목록을 사용해 화면을 지킨다', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => Response.json({ error: 'nope' })),
     );
-    await expect(fetchHomePopups()).resolves.toEqual([]);
+    const rows = await fetchHomePopups();
+    expect(rows.length).toBeGreaterThan(0);
   });
 
   it('API 주소가 없거나 형식이 틀리면 아예 요청하지 않는다', async () => {
@@ -55,10 +59,10 @@ describe('fetchHomePopups', () => {
     vi.stubGlobal('fetch', spy);
 
     process.env.NEXT_PUBLIC_API_URL = '';
-    await expect(fetchHomePopups()).resolves.toEqual([]);
+    await expect(fetchHomePopups()).resolves.not.toHaveLength(0);
 
     process.env.NEXT_PUBLIC_API_URL = 'vm-113.tailc57dd4.ts.net'; // 스킴 없음
-    await expect(fetchHomePopups()).resolves.toEqual([]);
+    await expect(fetchHomePopups()).resolves.not.toHaveLength(0);
 
     expect(spy).not.toHaveBeenCalled();
   });

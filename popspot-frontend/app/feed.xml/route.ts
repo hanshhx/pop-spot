@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 
 import { REGIONS, classifyRegion } from '@/lib/regions';
+import { loadPublicMarkers } from '@/lib/emergencyPopupData';
 import {
   getPeriods,
   CATEGORIES,
@@ -61,34 +62,17 @@ type FeedItem = {
  * Next 데이터 캐시를 공유해 백엔드를 중복 호출하지 않고, 세 곳이 같은 스냅샷을 본다. 스냅샷이 어긋나면
  * "sitemap 에는 있는데 RSS 에는 없는" 불일치가 생긴다.
  *
- * <p>실패 시 빈 배열 → 아래에서 슬라이스가 전부 0건이 되어 정적 페이지만 나간다. 피드가 비는 것보다
- * 낫고, sitemap 의 실패 처리와도 같은 방향이다.
+ * <p>실패 시 sitemap 과 같은 검증된 공개 스냅샷을 써서 피드가 정적 항목 1건으로 무너지지 않게 한다.
  */
 async function liveMarkers(): Promise<Marker[]> {
-  const apiBase = process.env.NEXT_PUBLIC_API_URL;
-  if (!apiBase || !/^https?:\/\//.test(apiBase)) {
-    console.error(
-      `[feed] NEXT_PUBLIC_API_URL 이 없거나 형식이 잘못되었습니다(값: ${apiBase ?? '미설정'}). ` +
-        `슬라이스 랜딩 없이 정적 페이지만 내보냅니다.`,
-    );
-    return [];
+  const { markers, source, capturedAt } = await loadPublicMarkers(3600);
+  if (source === 'snapshot') {
+    console.warn(`[feed] 비상 스냅샷 사용(마지막 확인 ${capturedAt}, ${markers.length}건)`);
   }
-
-  try {
-    const res = await fetch(`${apiBase}/api/map/markers`, { next: { revalidate: 3600 } });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const markers = (await res.json()) as Marker[];
-    const today = kstTodayStart();
-    return markers.filter(
-      (m) => !isExpired(m.endDate, today) && !isStale(m.startDate, m.endDate, today),
-    );
-  } catch (e) {
-    console.error(
-      `[feed] 마커 fetch 실패(${e instanceof Error ? e.message : String(e)}) — ` +
-        `슬라이스 랜딩 없이 정적 페이지만 내보냅니다.`,
-    );
-    return [];
-  }
+  const today = kstTodayStart();
+  return markers.filter(
+    (m) => !isExpired(m.endDate, today) && !isStale(m.startDate, m.endDate, today),
+  );
 }
 
 /**
