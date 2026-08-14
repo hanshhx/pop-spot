@@ -5,7 +5,24 @@ export type PopupEventInput = {
   address: string;
   openDate?: string;
   closeDate?: string;
+  imageUrl?: string;
+  photoOrigin?: string;
 };
+
+/** 실제 팝업 사진으로 출처가 명시된 URL만 검색·공유 메타데이터에 사용한다. */
+export function verifiedPopupImage(popup: {
+  imageUrl?: string | null;
+  photoOrigin?: string | null;
+}): string | null {
+  const origin = popup.photoOrigin?.trim().toUpperCase();
+  if (origin !== 'CRAWLED' && origin !== 'USER') return null;
+  try {
+    const url = new URL(popup.imageUrl?.trim() ?? '');
+    return url.protocol === 'http:' || url.protocol === 'https:' ? url.toString() : null;
+  } catch {
+    return null;
+  }
+}
 
 function validYmd(value?: string): value is string {
   if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
@@ -45,6 +62,7 @@ export function buildPopupEventJsonLd(
 
   const name = popup.name.trim();
   const address = popup.address.trim();
+  const image = verifiedPopupImage(popup);
   return {
     '@context': 'https://schema.org',
     '@type': 'Event',
@@ -54,6 +72,7 @@ export function buildPopupEventJsonLd(
     eventStatus: 'https://schema.org/EventScheduled',
     eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode',
     url: canonical,
+    ...(image ? { image: [image] } : {}),
     location: {
       '@type': 'Place',
       name: address,

@@ -29,6 +29,31 @@ describe('buildPopupEventJsonLd', () => {
     expect(value).not.toHaveProperty('organizer');
   });
 
+  it('출처가 확인된 실제 사진만 Event에 포함한다', () => {
+    const base = {
+      name: '테스트 팝업',
+      address: '서울특별시 성동구 연무장길 1',
+      openDate: '2026-08-01',
+      closeDate: '2026-08-31',
+      imageUrl: 'https://cdn.example.com/popup.jpg',
+    };
+
+    expect(
+      buildPopupEventJsonLd(
+        { ...base, photoOrigin: 'CRAWLED' },
+        'https://popspot.co.kr/popup/42',
+        TODAY,
+      ),
+    ).toHaveProperty('image', ['https://cdn.example.com/popup.jpg']);
+    expect(
+      buildPopupEventJsonLd(
+        { ...base, photoOrigin: 'PEXELS' },
+        'https://popspot.co.kr/popup/42',
+        TODAY,
+      ),
+    ).not.toHaveProperty('image');
+  });
+
   it.each([
     [{ name: '날짜 없음', address: '서울 성동구', closeDate: '2026-08-31' }],
     [

@@ -102,7 +102,7 @@ export interface PopupReportPayload {
   startDate: string;
   endDate: string;
   description: string;
-  reporterId: string;
+  sourceUrl: string;
 }
 
 /* ============================== Congestion ============================== */

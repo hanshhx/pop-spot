@@ -1,6 +1,7 @@
 package com.example.popspotbackend.dto;
 
 import com.example.popspotbackend.entity.PopupStore;
+import java.time.LocalDateTime;
 import lombok.Builder;
 import lombok.Data;
 
@@ -10,9 +11,10 @@ import lombok.Data;
  * <p><b>왜 필요한가.</b> 지금까지 상세는 {@code result.put("data", popup)} 로 엔티티를 통째로 내보냈다. 그래서 엔티티에 필드를 하나
  * 추가하면 그 순간 무인증 공개 API 의 스펙이 같이 늘어났다 — 아무도 그런 의도로 필드를 넣지 않는데도. 노출을 게이트가 아니라 화이트리스트로 고정한다.
  *
- * <p><b>뺀 필드.</b> crawledAt / lastSeenAt / confidenceScore / reviewStatus / externalId / reporterId
- * / partnerId / apiPopupId / isActive / images 원본 배열. 전부 수집·검수용 내부 값이고, 프론트 상세 화면 ({@code
- * app/popup/[id]/page.tsx})에서 화면에 그려지는 곳이 없다({@code reviewStatus} 는 state 에 담기기만 하고 렌더에 쓰이지 않는다).
+ * <p><b>뺀 필드.</b> crawledAt / lastSeenAt 원본 / confidenceScore / reviewStatus / externalId /
+ * reporterId / partnerId / apiPopupId / isActive / images 원본 배열. 전부 수집·검수용 내부 값이고, 프론트 상세 화면
+ * ({@code app/popup/[id]/page.tsx})에서 화면에 그려지는 곳이 없다({@code reviewStatus} 는 state 에 담기기만 하고 렌더에 쓰이지
+ * 않는다).
  *
  * <p><b>sourceUrl / sourceName 은 남긴다.</b> 목록에서는 뺐지만 상세에서는 유지한다. (1) 이용약관 §10-2 가 "자동수집 정보에는 항상 원본
  * 출처 링크가 함께 표시되며, 상세페이지에서 이용자가 원문으로 이동할 수 있도록 출처 링크를 제공한다" 고 공표돼 있고, (2) 상세 화면의 'AI 자동수집 정보' 블록이
@@ -64,6 +66,9 @@ public class PopupPublicDetailDto {
 
     private String reservationUrl;
 
+    /** 자동수집 원문을 마지막으로 다시 확인한 시각. 내부 수집 이력은 숨기고 사용자에게 필요한 한 시각만 보낸다. */
+    private LocalDateTime informationCheckedAt;
+
     public static PopupPublicDetailDto fromEntity(PopupStore p) {
         return PopupPublicDetailDto.builder()
                 .id(p.getId())
@@ -93,6 +98,14 @@ public class PopupPublicDetailDto {
                 .sourceUrl(p.getSourceUrl())
                 .officialUrl(p.getOfficialUrl())
                 .reservationUrl(p.getReservationUrl())
+                .informationCheckedAt(informationCheckedAt(p))
                 .build();
+    }
+
+    private static LocalDateTime informationCheckedAt(PopupStore popup) {
+        if (!"CRAWLED".equalsIgnoreCase(popup.getSourceType())) {
+            return null;
+        }
+        return popup.getLastSeenAt() != null ? popup.getLastSeenAt() : popup.getCrawledAt();
     }
 }

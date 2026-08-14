@@ -65,6 +65,7 @@ interface PopupDetail {
   reviewStatus?: string;
   officialUrl?: string;
   reservationUrl?: string;
+  informationCheckedAt?: string;
   emergencySnapshot?: boolean;
   emergencyCapturedAt?: string;
 }
@@ -239,6 +240,7 @@ export default function PopupDetailClient({
           reviewStatus: data.reviewStatus,
           officialUrl: data.officialUrl,
           reservationUrl: data.reservationUrl,
+          informationCheckedAt: data.informationCheckedAt,
         });
         setLoading(false);
         // v2.18 — 최근 본 팝업 자동 기록.
@@ -426,6 +428,8 @@ export default function PopupDetailClient({
   );
   const displayName = shownName.display || popup.name;
   const displayPlace = shownPlace.display || popup.address;
+  const isCrawledSource = popup.sourceType === 'CRAWLED';
+  const hasSourceInformation = isCrawledSource || Boolean(popup.sourceUrl);
   const snapshotCopy =
     locale === 'en'
       ? {
@@ -689,19 +693,30 @@ export default function PopupDetailClient({
         {/* 출처 / 신고 */}
         {!popup.emergencySnapshot && (
           <section className="mt-8 space-y-4 rounded-2xl border border-gray-200 bg-white p-5 dark:border-white/10 dark:bg-[#111] md:p-6">
-            {popup.sourceType === 'CRAWLED' && (
+            {hasSourceInformation && (
               <div className="flex items-start gap-3">
                 <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-sky-300/30 bg-sky-300/10 text-sky-500">
                   <Sparkles size={16} />
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-[11px] font-bold text-muted-foreground">
-                    {t('detail.sourceTitle')}
+                    {t(isCrawledSource ? 'detail.sourceTitle' : 'detail.reportedSourceTitle')}
                   </p>
                   <p className="mt-0.5 text-xs leading-relaxed text-foreground/70 md:text-sm">
-                    {t('detail.sourceDesc1')} ({popup.sourceName || t('detail.externalSource')}){' '}
-                    {t('detail.sourceDesc2')}
+                    {isCrawledSource ? (
+                      <>
+                        {t('detail.sourceDesc1')} ({popup.sourceName || t('detail.externalSource')}){' '}
+                        {t('detail.sourceDesc2')}
+                      </>
+                    ) : (
+                      t('detail.reportedSourceDesc')
+                    )}
                   </p>
+                  {popup.informationCheckedAt && (
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                      {t('detail.informationChecked')} {popup.informationCheckedAt.slice(0, 10)}
+                    </p>
+                  )}
                   {popup.sourceUrl && (
                     <a
                       href={popup.sourceUrl}
@@ -721,7 +736,7 @@ export default function PopupDetailClient({
               </div>
             )}
             <div
-              className={`flex items-start gap-3 ${popup.sourceType === 'CRAWLED' ? 'border-t border-gray-100 pt-4 dark:border-white/5' : ''}`}
+              className={`flex items-start gap-3 ${hasSourceInformation ? 'border-t border-gray-100 pt-4 dark:border-white/5' : ''}`}
             >
               <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-red-300/30 bg-red-300/10 text-red-500">
                 <ShieldAlert size={16} />

@@ -19,6 +19,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -44,6 +45,9 @@ public class PopupStoreController {
 
     private static final String REVIEW_STATUS_TAKEDOWN = "TAKEDOWN";
     private static final String STATUS_PENDING = "PENDING";
+    private static final String REVIEW_STATUS_PENDING = "PENDING_REVIEW";
+    private static final String SOURCE_TYPE_USER_REPORT = "USER_REPORT";
+    private static final String SOURCE_NAME_USER_REPORT = "사용자 제보";
     private static final String IMAGE_NOTE_PREFIX = "\n\n[제보 이미지] ";
 
     /**
@@ -152,8 +156,10 @@ public class PopupStoreController {
     /** 사용자 팝업 제보. DTO 화이트리스트로 Mass Assignment 방어. */
     @PostMapping("/report")
     public ResponseEntity<Map<String, Object>> reportPopup(
-            @Valid @RequestBody PopupReportRequestDto dto) {
-        PopupStore saved = popupStoreService.save(buildReportedPopup(dto));
+            @Valid @RequestBody PopupReportRequestDto dto, Authentication authentication) {
+        PopupStore saved =
+                popupStoreService.save(
+                        buildReportedPopup(dto, authenticatedUserId(authentication)));
 
         Map<String, Object> resp = new HashMap<>();
         resp.put("id", saved.getId());
@@ -201,20 +207,37 @@ public class PopupStoreController {
     }
 
     /** 제보 단계에서는 imageUrl 필드가 없어 description 끝에 메모로 남긴다. 정식 등록은 관리자가 PopupImage 를 통해 추가한다. */
-    private PopupStore buildReportedPopup(PopupReportRequestDto dto) {
+    private PopupStore buildReportedPopup(PopupReportRequestDto dto, String reporterId) {
         String description = appendImageNote(dto.getDescription(), dto.getImageUrl());
         PopupStore popup =
                 PopupStore.builder()
                         .name(dto.getName())
                         .location(dto.getLocation())
+                        .address(dto.getAddress())
                         .category(dto.getCategory())
                         .description(description)
                         .startDate(dto.getStartDate())
                         .endDate(dto.getEndDate())
+                        .sourceType(SOURCE_TYPE_USER_REPORT)
+                        .sourceName(SOURCE_NAME_USER_REPORT)
+                        .sourceUrl(dto.getSourceUrl())
+                        .reviewStatus(REVIEW_STATUS_PENDING)
+                        .reporterId(reporterId)
                         .build();
         popup.setStatus(STATUS_PENDING);
         popup.setViewCount(0);
         return popup;
+    }
+
+    /** 클라이언트가 보낸 ID는 신뢰하지 않고 검증된 JWT 주체만 제보자에 기록한다. 게스트는 null이다. */
+    private String authenticatedUserId(Authentication authentication) {
+        if (authentication == null
+                || !authentication.isAuthenticated()
+                || authentication.getName() == null
+                || "anonymousUser".equals(authentication.getName())) {
+            return null;
+        }
+        return authentication.getName();
     }
 
     private String appendImageNote(String description, String imageUrl) {

@@ -40,6 +40,7 @@ export type ServerPopup = {
   reviewStatus?: string;
   officialUrl?: string;
   reservationUrl?: string;
+  informationCheckedAt?: string;
   emergencySnapshot?: boolean;
   emergencyCapturedAt?: string;
 };
@@ -121,6 +122,7 @@ export async function fetchPopupForServer(id: string): Promise<ServerPopup | nul
       reviewStatus: d.reviewStatus ?? undefined,
       officialUrl: d.officialUrl ?? undefined,
       reservationUrl: d.reservationUrl ?? undefined,
+      informationCheckedAt: d.informationCheckedAt ?? undefined,
     };
   } catch {
     return emergencyPopup(id);
