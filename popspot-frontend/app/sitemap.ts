@@ -2,6 +2,7 @@ import type { MetadataRoute } from 'next';
 
 import { REGIONS, classifyRegion } from '@/lib/regions';
 import { isIndexableDetail } from '@/lib/indexableDetail';
+import { loadPublicMarkers } from '@/lib/emergencyPopupData';
 import { TERMS_EFFECTIVE_DATE, kstToday } from './popup/[id]/serverData';
 import {
   getPeriods,
@@ -87,41 +88,18 @@ function latestModified(markers: Marker[], now: Date): Date | undefined {
  * 공유해 백엔드를 두 번 부르지 않고, 무엇보다 sitemap 과 페이지가 <b>같은 스냅샷</b>을 보게 된다. 두 곳이 서로
  * 다른 시점의 데이터로 판정하면 지금 고치는 불일치(색인 대상인데 sitemap 에 없거나 그 반대)가 다시 생긴다.
  *
- * <p>실패 시 빈 배열. 빌드를 세우지 않는 이유는 page.tsx 가 같은 fetch 를 3회 재시도한 뒤 이미 빌드를 중단하기
- * 때문이다(ALLOW_EMPTY_SEO_BUILD 로 명시 허용했을 때만 통과). 그 탈출구를 켠 빌드에서는 page.tsx 도 빈 목록을
- * 보고 해당 랜딩을 전부 noindex 로 만들므로, 여기서도 같은 판정(=목록에서 제외)이 맞다. 반대로 실패 시 전부
- * 올려버리면 지금 고치는 문제를 그대로 재현한다.
- *
- * <p>{@code src/lib/env.ts} 대신 환경변수를 직접 읽는 것은 page.tsx 와 맞추기 위해서다. env 모듈은 값이
- * 없을 때 운영 서버에서 throw 하므로, 그쪽을 쓰면 sitemap 이 빌드를 세우는 쪽으로 동작이 바뀐다. 두 파일의
- * 판정 기준을 같게 유지하는 것이 여기서는 더 중요하다.
+ * <p>백엔드가 응답하지 않으면 공통 로더의 2026-08-11 공개 스냅샷을 사용한다. 현재 날짜에 끝난 행과
+ * 운영에서 숨긴 중복은 다시 노출하지 않으며, 서버가 복구되면 별도 배포 없이 최신 응답이 우선한다.
  */
 async function liveMarkers(): Promise<Marker[]> {
-  const apiBase = process.env.NEXT_PUBLIC_API_URL;
-  if (!apiBase || !/^https?:\/\//.test(apiBase)) {
-    console.error(
-      `[sitemap] NEXT_PUBLIC_API_URL 이 없거나 형식이 잘못되었습니다(값: ${apiBase ?? '미설정'}). ` +
-        `결과 0곳 슬라이스를 걸러낼 수 없어 슬라이스 랜딩을 sitemap 에서 제외합니다.`,
-    );
-    return [];
+  const { markers, source, capturedAt } = await loadPublicMarkers(3600);
+  if (source === 'snapshot') {
+    console.warn(`[sitemap] 비상 스냅샷 사용(마지막 확인 ${capturedAt}, ${markers.length}건)`);
   }
-
-  try {
-    const res = await fetch(`${apiBase}/api/map/markers`, { next: { revalidate: 3600 } });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const markers = (await res.json()) as Marker[];
-    const today = kstTodayStart();
-    // 만료 팝업 제외 — page.tsx 의 liveMarkers() 와 같은 기준(isExpired + kstTodayStart).
-    return markers.filter(
-      (m) => !isExpired(m.endDate, today) && !isStale(m.startDate, m.endDate, today),
-    );
-  } catch (e) {
-    console.error(
-      `[sitemap] 마커 fetch 실패(${e instanceof Error ? e.message : String(e)}) — ` +
-        `noindex 판정을 못 하므로 브랜드·지역×카테고리 랜딩을 sitemap 에서 제외합니다.`,
-    );
-    return [];
-  }
+  const today = kstTodayStart();
+  return markers.filter(
+    (m) => !isExpired(m.endDate, today) && !isStale(m.startDate, m.endDate, today),
+  );
 }
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {

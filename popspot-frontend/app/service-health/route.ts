@@ -25,7 +25,43 @@ export async function GET() {
       return NextResponse.json({ available: false }, { headers: NO_STORE_HEADERS });
     }
     const body = (await response.json()) as { status?: string };
-    return NextResponse.json({ available: body.status === 'UP' }, { headers: NO_STORE_HEADERS });
+    if (body.status !== 'UP') {
+      return NextResponse.json({ available: false }, { headers: NO_STORE_HEADERS });
+    }
+
+    // 프로세스만 UP이고 공개 데이터베이스 연결이 죽은 상태를 복구로 오인하지 않는다.
+    const markersResponse = await fetch(`${apiBase}/api/map/markers`, {
+      cache: 'no-store',
+      signal: AbortSignal.timeout(5_000),
+    });
+    if (!markersResponse.ok) {
+      return NextResponse.json({ available: false }, { headers: NO_STORE_HEADERS });
+    }
+    const markers: unknown = await markersResponse.json();
+    const representative = Array.isArray(markers)
+      ? markers.find(
+          (marker): marker is { id: number; name: string } =>
+            marker !== null &&
+            typeof marker === 'object' &&
+            typeof (marker as { id?: unknown }).id === 'number' &&
+            typeof (marker as { name?: unknown }).name === 'string',
+        )
+      : undefined;
+    if (!representative) {
+      return NextResponse.json({ available: false }, { headers: NO_STORE_HEADERS });
+    }
+
+    const detailResponse = await fetch(`${apiBase}/api/popups/${representative.id}`, {
+      cache: 'no-store',
+      signal: AbortSignal.timeout(5_000),
+    });
+    if (!detailResponse.ok) {
+      return NextResponse.json({ available: false }, { headers: NO_STORE_HEADERS });
+    }
+    const detail = (await detailResponse.json()) as { data?: { name?: string }; name?: string };
+    const detailName = detail.data?.name ?? detail.name;
+    const available = typeof detailName === 'string' && detailName.trim().length > 0;
+    return NextResponse.json({ available }, { headers: NO_STORE_HEADERS });
   } catch {
     return NextResponse.json({ available: false }, { headers: NO_STORE_HEADERS });
   }

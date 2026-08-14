@@ -1,9 +1,14 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { TERMS_EFFECTIVE_DATE, shouldIndexDetailOn, type ServerPopup } from './serverData';
+import {
+  TERMS_EFFECTIVE_DATE,
+  fetchPopupForServer,
+  shouldIndexDetailOn,
+  type ServerPopup,
+} from './serverData';
 
 /**
  * <b>공표한 것과 다르게 동작하지 않게</b> 막는다.
@@ -67,5 +72,42 @@ describe('코드의 시행일과 약관에 적힌 시행일이 같다', () => {
     expect(terms).toContain('운영 종료일과 찾아갈 수 있는 위치가 모두 확인된 경우에 한해');
     // 회원 콘텐츠 차단은 이번 개정과 무관하게 유지돼야 한다(§14-5).
     expect(terms).toContain('X-Robots-Tag');
+  });
+});
+
+describe('상세 페이지 비상 스냅샷', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+  });
+
+  it('네트워크·5xx일 때 기존 상세 ID를 최소 정보로 유지한다', async () => {
+    vi.stubEnv('NEXT_PUBLIC_API_URL', 'https://backend.example.com');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response('', { status: 502 })),
+    );
+
+    const popup = await fetchPopupForServer('1890');
+    expect(popup).toMatchObject({ id: 1890, emergencySnapshot: true });
+    expect(popup?.emergencyCapturedAt).toContain('2026-08-11');
+  });
+
+  it('정상 서버의 404는 삭제·비공개 결정으로 보고 스냅샷으로 되살리지 않는다', async () => {
+    vi.stubEnv('NEXT_PUBLIC_API_URL', 'https://backend.example.com');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response('', { status: 404 })),
+    );
+
+    await expect(fetchPopupForServer('1890')).resolves.toBeNull();
+  });
+
+  it('목록에서 숨긴 중복 상세는 조회되지만 noindex로 유지한다', async () => {
+    vi.stubEnv('NEXT_PUBLIC_API_URL', '');
+    const popup = await fetchPopupForServer('525');
+
+    expect(popup?.reviewStatus).toBe('DUPLICATE');
+    expect(shouldIndexDetailOn(popup, '2026-08-14')).toBe(false);
   });
 });

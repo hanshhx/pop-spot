@@ -1,4 +1,9 @@
 import { judgeIndexable } from '@/lib/indexableDetail';
+import {
+  EMERGENCY_SNAPSHOT_META,
+  findEmergencyMarker,
+  isEmergencyDuplicate,
+} from '@/lib/emergencyPopupData';
 
 /**
  * 상세 페이지가 서버에서 쓰는 것 — 팝업 하나 가져오기와 색인 자격 판정.
@@ -35,7 +40,32 @@ export type ServerPopup = {
   reviewStatus?: string;
   officialUrl?: string;
   reservationUrl?: string;
+  emergencySnapshot?: boolean;
+  emergencyCapturedAt?: string;
 };
+
+function emergencyPopup(id: string): ServerPopup | null {
+  const marker = findEmergencyMarker(id);
+  if (!marker) return null;
+  return {
+    id: marker.id,
+    name: marker.name,
+    nameEn: marker.nameEn ?? undefined,
+    nameJa: marker.nameJa ?? undefined,
+    content: '',
+    address: marker.location ?? '',
+    locationEn: marker.locationEn ?? undefined,
+    locationJa: marker.locationJa ?? undefined,
+    category: marker.category ?? 'ETC',
+    openDate: marker.startDate ?? undefined,
+    closeDate: marker.endDate ?? undefined,
+    latitude: marker.latitude ?? undefined,
+    longitude: marker.longitude ?? undefined,
+    reviewStatus: isEmergencyDuplicate(marker.id) ? 'DUPLICATE' : undefined,
+    emergencySnapshot: true,
+    emergencyCapturedAt: EMERGENCY_SNAPSHOT_META.capturedAt,
+  };
+}
 
 /** 서버 시각은 UTC 다. 날짜 판정은 반드시 KST 로 해야 하루가 어긋나지 않는다. */
 export function kstToday(): string {
@@ -53,14 +83,17 @@ export function kstToday(): string {
  */
 export async function fetchPopupForServer(id: string): Promise<ServerPopup | null> {
   const apiBase = process.env.NEXT_PUBLIC_API_URL;
-  if (!apiBase || !/^https?:\/\//.test(apiBase) || !/^\d+$/.test(id)) return null;
+  if (!/^\d+$/.test(id)) return null;
+  if (!apiBase || !/^https?:\/\//.test(apiBase)) return emergencyPopup(id);
 
   try {
     const res = await fetch(`${apiBase}/api/popups/${id}`, { next: { revalidate: 300 } });
-    if (!res.ok) return null;
+    // 정상 서버의 삭제·비공개 결정을 스냅샷이 되살리면 안 된다.
+    if (res.status === 404 || res.status === 410) return null;
+    if (!res.ok) return res.status >= 500 ? emergencyPopup(id) : null;
     const body = await res.json();
     const d = body?.data ?? body;
-    if (!d || !d.name) return null;
+    if (!d || !d.name) return emergencyPopup(id);
 
     return {
       id: Number(d.popupId ?? d.id),
@@ -90,7 +123,7 @@ export async function fetchPopupForServer(id: string): Promise<ServerPopup | nul
       reservationUrl: d.reservationUrl ?? undefined,
     };
   } catch {
-    return null;
+    return emergencyPopup(id);
   }
 }
 
@@ -124,6 +157,7 @@ export function shouldIndexDetail(popup: ServerPopup | null): boolean {
 /** 날짜를 받는 형태 — 시행일 경계를 테스트로 못박기 위해 나눠 뒀다. */
 export function shouldIndexDetailOn(popup: ServerPopup | null, today: string): boolean {
   if (!popup) return false;
+  if (popup.reviewStatus === 'DUPLICATE') return false;
   if (today < TERMS_EFFECTIVE_DATE) return false;
   return judgeIndexable(
     {

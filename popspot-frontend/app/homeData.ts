@@ -1,4 +1,5 @@
 import type { PopupStore } from '@/types/popup';
+import { emergencyMarkerToPopup, loadPublicMarkers } from '@/lib/emergencyPopupData';
 
 /**
  * 홈이 <b>서버에서</b> 미리 받아 두는 팝업 목록.
@@ -40,16 +41,22 @@ const REVALIDATE_SECONDS = 120;
  */
 export async function fetchHomePopups(): Promise<PopupStore[]> {
   const apiBase = process.env.NEXT_PUBLIC_API_URL;
-  if (!apiBase || !/^https?:\/\//.test(apiBase)) return [];
+  if (!apiBase || !/^https?:\/\//.test(apiBase)) {
+    const { markers } = await loadPublicMarkers(REVALIDATE_SECONDS);
+    return markers.map(emergencyMarkerToPopup);
+  }
 
   try {
     const res = await fetch(`${apiBase}/api/popups`, {
       next: { revalidate: REVALIDATE_SECONDS },
     });
-    if (!res.ok) return [];
+    if (!res.ok) throw new Error(`popup list ${res.status}`);
     const raw = await res.json();
-    return Array.isArray(raw) ? (raw as PopupStore[]) : [];
+    if (Array.isArray(raw) && raw.length > 0) return raw as PopupStore[];
   } catch {
-    return [];
+    // 아래 비상 목록으로 이어진다.
   }
+
+  const { markers } = await loadPublicMarkers(REVALIDATE_SECONDS);
+  return markers.map(emergencyMarkerToPopup);
 }

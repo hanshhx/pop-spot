@@ -12,7 +12,9 @@ describe('GET /service-health', () => {
     vi.stubEnv('NEXT_PUBLIC_API_URL', 'https://backend.example.com');
     const fetchMock = vi
       .spyOn(globalThis, 'fetch')
-      .mockResolvedValue(Response.json({ status: 'UP' }));
+      .mockResolvedValueOnce(Response.json({ status: 'UP' }))
+      .mockResolvedValueOnce(Response.json([{ id: 1890, name: '대표 팝업' }]))
+      .mockResolvedValueOnce(Response.json({ id: 1890, name: '대표 팝업' }));
 
     const response = await GET();
 
@@ -22,6 +24,22 @@ describe('GET /service-health', () => {
       'https://backend.example.com/actuator/health',
       expect.objectContaining({ cache: 'no-store' }),
     );
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://backend.example.com/api/popups/1890',
+      expect.objectContaining({ cache: 'no-store' }),
+    );
+  });
+
+  it('프로세스가 UP이어도 실제 목록이나 상세가 실패하면 복구로 판단하지 않는다', async () => {
+    vi.stubEnv('NEXT_PUBLIC_API_URL', 'https://backend.example.com');
+    vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(Response.json({ status: 'UP' }))
+      .mockResolvedValueOnce(new Response('', { status: 502 }))
+      .mockResolvedValueOnce(Response.json({ id: 1890, name: '대표 팝업' }));
+
+    const response = await GET();
+
+    await expect(response.json()).resolves.toEqual({ available: false });
   });
 
   it('프록시 200이어도 health 본문이 UP이 아니면 장애를 유지한다', async () => {
