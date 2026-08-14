@@ -13,6 +13,8 @@ import {
 
 const CHECK_WHEN_DOWN_MS = 15_000;
 const CHECK_WHEN_UP_MS = 60_000;
+const RECOVERY_SUCCESS_COUNT = 3;
+const RECOVERY_STABLE_MS = 60_000;
 const COLLAPSED_SESSION_KEY = 'popspot:service-banner-collapsed';
 
 const COPY = {
@@ -59,6 +61,8 @@ export default function ServiceStatusBanner() {
     let stopped = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
     let checking = false;
+    let recoverySuccesses = 0;
+    let recoveryStartedAt = 0;
 
     function schedule(available: boolean) {
       if (stopped) return;
@@ -72,13 +76,33 @@ export default function ServiceStatusBanner() {
       try {
         const response = await fetch(`/service-health?t=${Date.now()}`, {
           cache: 'no-store',
-          signal: AbortSignal.timeout(6_000),
+          // The health route verifies the process, public list and one real detail in sequence.
+          signal: AbortSignal.timeout(12_000),
         });
         const body = (await response.json()) as { available?: boolean };
         const available = response.ok && body.available === true;
-        setServiceAvailability(available ? 'available' : 'unavailable');
-        schedule(available);
+        const current = getServiceAvailability();
+        if (!available) {
+          recoverySuccesses = 0;
+          recoveryStartedAt = 0;
+          setServiceAvailability('unavailable');
+          schedule(false);
+        } else if (current !== 'unavailable') {
+          // 정상 방문자는 복구 대기 시간을 겪지 않는다. 대기 조건은 장애를 실제로 확인한 탭에만 적용한다.
+          setServiceAvailability('available');
+          schedule(true);
+        } else {
+          recoverySuccesses += 1;
+          if (recoveryStartedAt === 0) recoveryStartedAt = Date.now();
+          const stableFor = Date.now() - recoveryStartedAt;
+          const recovered =
+            recoverySuccesses >= RECOVERY_SUCCESS_COUNT && stableFor >= RECOVERY_STABLE_MS;
+          if (recovered) setServiceAvailability('available');
+          schedule(recovered);
+        }
       } catch {
+        recoverySuccesses = 0;
+        recoveryStartedAt = 0;
         setServiceAvailability('unavailable');
         schedule(false);
       } finally {

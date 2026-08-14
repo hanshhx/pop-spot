@@ -13,6 +13,7 @@ import { localizedPath } from '@/lib/localePath';
 import { CRAWL_REFRESH_BY_LOCALE } from '@/lib/siteCopy';
 import { groupSameEvent } from '@/lib/groupSameEvent';
 import { isProvenOutsideSeoul } from '@/lib/seoulGuard';
+import { loadPublicMarkers } from '@/lib/emergencyPopupData';
 import { CalendarButton } from '@/features/landing/CalendarButton';
 import {
   getPeriods,
@@ -221,68 +222,13 @@ function deepLinkQuery(slice: Slice): string {
   }
 }
 
-/** 일시적 장애에 대한 재시도 횟수. 백엔드 재시작(수십 초) 정도는 넘길 수 있게. */
-const MARKER_FETCH_ATTEMPTS = 3;
-const MARKER_RETRY_BASE_MS = 1500;
-
 /**
- * 비상 빌드 탈출구.
- *
- * <p>백엔드가 길게 내려간 동안에도 프론트 핫픽스를 내보내야 할 때만 쓴다. 켜져 있으면 빌드는 통과하지만
- * 로그에 크게 남는다. 기본값은 꺼짐 — 조용히 빈 페이지를 만드는 것이 원래 문제였다.
- */
-const ALLOW_EMPTY_BUILD = process.env.ALLOW_EMPTY_SEO_BUILD === 'true';
-
-/**
- * 백엔드 visible markers — SSG 빌드 타임에 fetch.
- *
- * <p>이전에는 4xx·5xx·타임아웃을 전부 빈 배열로 바꿔, 백엔드가 죽은 채로 빌드해도 종료 코드 0 에 랜딩
- * 160여 개가 "0곳" 으로 생성됐다. 파이프라인에서는 성공으로 보이고 사용자·검색엔진에는 빈 페이지가 나갔다.
- *
- * <p>이제 원인별로 나눈다 — 설정 오류는 즉시 실패(사람 실수라 빨리 터지는 게 낫다), 일시적 장애는 재시도 후
- * 실패, 그래도 내보내야 하면 {@code ALLOW_EMPTY_SEO_BUILD=true} 로 명시적으로 허용한다.
+ * 정상 응답·Next 성공 캐시를 먼저 쓰고, 둘 다 없을 때만 검증된 공개 스냅샷을 쓴다.
+ * 백엔드 장애 중 새 배포를 해도 SEO 랜딩이 0곳으로 다시 생성되지 않는다.
  */
 async function fetchMarkers(): Promise<Marker[]> {
-  const apiBase = process.env.NEXT_PUBLIC_API_URL;
-
-  // 설정 오류 — 재시도해도 소용없다. 즉시 멈춘다.
-  if (!apiBase || !/^https?:\/\//.test(apiBase)) {
-    throw new Error(
-      `[popups/slug] NEXT_PUBLIC_API_URL 이 없거나 형식이 잘못되었습니다(값: ${apiBase ?? '미설정'}). ` +
-        `빈 SEO 페이지를 만들지 않기 위해 빌드를 중단합니다.`,
-    );
-  }
-
-  let lastError = '';
-  for (let attempt = 1; attempt <= MARKER_FETCH_ATTEMPTS; attempt++) {
-    try {
-      const res = await fetch(`${apiBase}/api/map/markers`, { next: { revalidate: 3600 } });
-      if (res.ok) return (await res.json()) as Marker[];
-
-      lastError = `HTTP ${res.status}`;
-      // 4xx 는 재시도해도 같은 결과다(경로·인증 문제). 5xx 만 기다려 본다.
-      if (res.status < 500) break;
-    } catch (e) {
-      lastError = e instanceof Error ? e.message : String(e);
-    }
-    if (attempt < MARKER_FETCH_ATTEMPTS) {
-      await new Promise((r) => setTimeout(r, MARKER_RETRY_BASE_MS * attempt));
-    }
-  }
-
-  if (ALLOW_EMPTY_BUILD) {
-    console.error(
-      `[popups/slug] ⚠️ 마커 fetch 실패(${lastError}) — ALLOW_EMPTY_SEO_BUILD=true 라 빈 목록으로 진행합니다. ` +
-        `이 빌드의 SEO 랜딩은 "0곳" 으로 생성됩니다.`,
-    );
-    return [];
-  }
-
-  throw new Error(
-    `[popups/slug] 마커 fetch 실패(${MARKER_FETCH_ATTEMPTS}회 시도, 마지막 오류: ${lastError}). ` +
-      `빈 SEO 페이지를 배포하지 않기 위해 빌드를 중단합니다. ` +
-      `백엔드 장애 중에도 반드시 내보내야 하면 ALLOW_EMPTY_SEO_BUILD=true 로 실행하세요.`,
-  );
+  const { markers } = await loadPublicMarkers(3600);
+  return markers;
 }
 
 function filterBySlice(markers: Marker[], slice: Slice): Marker[] {

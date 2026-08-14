@@ -65,6 +65,8 @@ interface PopupDetail {
   reviewStatus?: string;
   officialUrl?: string;
   reservationUrl?: string;
+  emergencySnapshot?: boolean;
+  emergencyCapturedAt?: string;
 }
 
 const CATEGORY_KEY: Record<string, MessageKey> = {
@@ -424,8 +426,28 @@ export default function PopupDetailClient({
   );
   const displayName = shownName.display || popup.name;
   const displayPlace = shownPlace.display || popup.address;
-  const displayStatus =
-    popup.status === '영업중' || popup.status === '운영중' || popup.status === 'OPEN'
+  const snapshotCopy =
+    locale === 'en'
+      ? {
+          status: 'Stored information',
+          notice: `The service is temporarily unavailable. This information was last checked on ${popup.emergencyCapturedAt?.slice(0, 10) ?? '2026-08-11'}.`,
+          intro:
+            'Photos, descriptions, booking links, and live features will return after the server recovers.',
+        }
+      : locale === 'ja'
+        ? {
+            status: '保存済み情報',
+            notice: `サービス一時停止中のため、${popup.emergencyCapturedAt?.slice(0, 10) ?? '2026-08-11'}に最終確認した情報を表示しています。`,
+            intro: '写真・紹介・予約リンク・リアルタイム機能はサーバー復旧後に再表示されます。',
+          }
+        : {
+            status: '저장된 정보',
+            notice: `서비스 일시 중단으로 ${popup.emergencyCapturedAt?.slice(0, 10) ?? '2026-08-11'}에 마지막으로 확인한 정보를 표시하고 있음.`,
+            intro: '사진·소개·예약 링크·실시간 기능은 서버 복구 후 다시 표시됨.',
+          };
+  const displayStatus = popup.emergencySnapshot
+    ? snapshotCopy.status
+    : popup.status === '영업중' || popup.status === '운영중' || popup.status === 'OPEN'
       ? t('status.open')
       : popup.status || t('status.open');
   // 좌표를 모르면 <b>길안내가 아니라 검색</b>으로 보낸다. 예전 폴백(성수동)을 없앤 뒤 이 링크를
@@ -477,15 +499,17 @@ export default function PopupDetailClient({
             >
               <Share2 size={18} />
             </button>
-            <button
-              onClick={handleToggleLike}
-              aria-label={t('common.wishlist')}
-              className={`grid h-11 w-11 place-items-center rounded-full backdrop-blur-md transition ${
-                isLiked ? 'bg-hot-400 text-white' : 'bg-black/40 text-white hover:bg-black/60'
-              }`}
-            >
-              <Heart size={18} className={isLiked ? 'fill-current' : ''} />
-            </button>
+            {!popup.emergencySnapshot && (
+              <button
+                onClick={handleToggleLike}
+                aria-label={t('common.wishlist')}
+                className={`grid h-11 w-11 place-items-center rounded-full backdrop-blur-md transition ${
+                  isLiked ? 'bg-hot-400 text-white' : 'bg-black/40 text-white hover:bg-black/60'
+                }`}
+              >
+                <Heart size={18} className={isLiked ? 'fill-current' : ''} />
+              </button>
+            )}
           </div>
         </div>
 
@@ -516,6 +540,11 @@ export default function PopupDetailClient({
       </div>
 
       <div className="mx-auto max-w-3xl px-4 md:px-6">
+        {popup.emergencySnapshot && (
+          <div className="mt-4 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-semibold leading-relaxed text-amber-950 dark:border-amber-300/30 dark:bg-amber-300/10 dark:text-amber-100">
+            {snapshotCopy.notice}
+          </div>
+        )}
         {/* 정보 바 — 우리가 <b>실제로 아는 것</b>만 둔다.
             예전엔 '운영 11:00~20:00' 칸이 있었는데, openTime/closeTime 은 백엔드에 존재하지도
             않는 필드라 폴백이 그대로 찍혔다. 즉 팝업 3,225곳 전부가 같은 영업시간을 내걸고
@@ -550,18 +579,20 @@ export default function PopupDetailClient({
           >
             <Navigation size={18} /> {t('detail.directions')}
           </a>
-          <button
-            onClick={handleStamp}
-            disabled={isStamped}
-            className={`flex flex-1 items-center justify-center gap-1.5 rounded-2xl border py-3.5 font-bold transition ${
-              isStamped
-                ? 'cursor-not-allowed border-gray-200 bg-gray-50 text-gray-400 dark:border-white/10 dark:bg-white/5 dark:text-white/30'
-                : 'border-gray-300 bg-white text-foreground hover:border-lime-400 dark:border-white/15 dark:bg-white/5'
-            }`}
-          >
-            {isStamped ? <CheckCircle size={16} /> : <Ticket size={16} />}
-            {isStamped ? t('detail.verified') : t('detail.visitVerify')}
-          </button>
+          {!popup.emergencySnapshot && (
+            <button
+              onClick={handleStamp}
+              disabled={isStamped}
+              className={`flex flex-1 items-center justify-center gap-1.5 rounded-2xl border py-3.5 font-bold transition ${
+                isStamped
+                  ? 'cursor-not-allowed border-gray-200 bg-gray-50 text-gray-400 dark:border-white/10 dark:bg-white/5 dark:text-white/30'
+                  : 'border-gray-300 bg-white text-foreground hover:border-lime-400 dark:border-white/15 dark:bg-white/5'
+              }`}
+            >
+              {isStamped ? <CheckCircle size={16} /> : <Ticket size={16} />}
+              {isStamped ? t('detail.verified') : t('detail.visitVerify')}
+            </button>
+          )}
         </div>
 
         {/* 캘린더 추가 — 시작·종료일이 둘 다 검증된 경우에만 노출(날짜 없는 팝업은 숨김).
@@ -605,7 +636,7 @@ export default function PopupDetailClient({
 
         {/* 지금 어때요? — 원터치 대기 제보. 실시간 채팅과 달리 혼자 눌러도 다음 방문자에게 남는 신호라
             방문자가 적어도 작동한다(로그인 불필요 = 참여 문턱 최소). */}
-        <NowWait popupId={popup.id} />
+        {!popup.emergencySnapshot && <NowWait popupId={popup.id} />}
 
         {/* 소개 */}
         <section className="mt-8">
@@ -616,7 +647,7 @@ export default function PopupDetailClient({
                 {t('detail.originalKorean')}
               </p>
             )}
-            {renderContentWithLinks(popup.content)}
+            {popup.emergencySnapshot ? snapshotCopy.intro : renderContentWithLinks(popup.content)}
           </div>
         </section>
 
@@ -639,73 +670,79 @@ export default function PopupDetailClient({
         </section>
 
         {/* 어울리는 곡 — 하단 보조 위젯 */}
-        <section className="mt-8">
-          <MusicForPopup popupId={popup.id} />
-        </section>
+        {!popup.emergencySnapshot && (
+          <section className="mt-8">
+            <MusicForPopup popupId={popup.id} />
+          </section>
+        )}
 
         {/* 방문 팁 — '실시간 톡'은 동시 접속자가 있어야 성립해 빈 방으로 보였다.
             남긴 글이 쌓여 다음 방문자에게 남는 비동기 팁으로 성격을 바꾼다. */}
-        <section className="mt-8">
-          <h2 className="mb-1 text-lg font-black">{t('detail.tipsTitle')}</h2>
-          <p className="mb-4 text-xs text-muted-foreground">{t('detail.tipsDesc')}</p>
-          <ChatRoom roomId={popup.id} nickname={user?.nickname || t('detail.anonymous')} />
-        </section>
+        {!popup.emergencySnapshot && (
+          <section className="mt-8">
+            <h2 className="mb-1 text-lg font-black">{t('detail.tipsTitle')}</h2>
+            <p className="mb-4 text-xs text-muted-foreground">{t('detail.tipsDesc')}</p>
+            <ChatRoom roomId={popup.id} nickname={user?.nickname || t('detail.anonymous')} />
+          </section>
+        )}
 
         {/* 출처 / 신고 */}
-        <section className="mt-8 space-y-4 rounded-2xl border border-gray-200 bg-white p-5 dark:border-white/10 dark:bg-[#111] md:p-6">
-          {popup.sourceType === 'CRAWLED' && (
-            <div className="flex items-start gap-3">
-              <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-sky-300/30 bg-sky-300/10 text-sky-500">
-                <Sparkles size={16} />
+        {!popup.emergencySnapshot && (
+          <section className="mt-8 space-y-4 rounded-2xl border border-gray-200 bg-white p-5 dark:border-white/10 dark:bg-[#111] md:p-6">
+            {popup.sourceType === 'CRAWLED' && (
+              <div className="flex items-start gap-3">
+                <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-sky-300/30 bg-sky-300/10 text-sky-500">
+                  <Sparkles size={16} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[11px] font-bold text-muted-foreground">
+                    {t('detail.sourceTitle')}
+                  </p>
+                  <p className="mt-0.5 text-xs leading-relaxed text-foreground/70 md:text-sm">
+                    {t('detail.sourceDesc1')} ({popup.sourceName || t('detail.externalSource')}){' '}
+                    {t('detail.sourceDesc2')}
+                  </p>
+                  {popup.sourceUrl && (
+                    <a
+                      href={popup.sourceUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      /*
+                       * 글자만 있는 링크는 높이가 글자 높이(16px)라 손가락으로 정확히 누르기 어렵다.
+                       * 글자 크기는 그대로 두고 위아래 여백으로 누를 면적만 44px 로 넓힌다 —
+                       * 겉모습을 키우면 본문 흐름이 흐트러진다.
+                       */
+                      className="mt-1 inline-flex min-h-11 items-center gap-1.5 py-2 text-xs font-semibold text-lime-600 underline dark:text-lime-400 md:text-sm"
+                    >
+                      {t('detail.viewSource')} <ExternalLink size={12} className="shrink-0" />
+                    </a>
+                  )}
+                </div>
+              </div>
+            )}
+            <div
+              className={`flex items-start gap-3 ${popup.sourceType === 'CRAWLED' ? 'border-t border-gray-100 pt-4 dark:border-white/5' : ''}`}
+            >
+              <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-red-300/30 bg-red-300/10 text-red-500">
+                <ShieldAlert size={16} />
               </div>
               <div className="min-w-0 flex-1">
                 <p className="text-[11px] font-bold text-muted-foreground">
-                  {t('detail.sourceTitle')}
+                  {t('detail.reportTitle')}
                 </p>
-                <p className="mt-0.5 text-xs leading-relaxed text-foreground/70 md:text-sm">
-                  {t('detail.sourceDesc1')} ({popup.sourceName || t('detail.externalSource')}){' '}
-                  {t('detail.sourceDesc2')}
+                <p className="mb-2 mt-0.5 text-xs leading-relaxed text-foreground/70 md:text-sm">
+                  {t('detail.reportDesc')}
                 </p>
-                {popup.sourceUrl && (
-                  <a
-                    href={popup.sourceUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    /*
-                     * 글자만 있는 링크는 높이가 글자 높이(16px)라 손가락으로 정확히 누르기 어렵다.
-                     * 글자 크기는 그대로 두고 위아래 여백으로 누를 면적만 44px 로 넓힌다 —
-                     * 겉모습을 키우면 본문 흐름이 흐트러진다.
-                     */
-                    className="mt-1 inline-flex min-h-11 items-center gap-1.5 py-2 text-xs font-semibold text-lime-600 underline dark:text-lime-400 md:text-sm"
-                  >
-                    {t('detail.viewSource')} <ExternalLink size={12} className="shrink-0" />
-                  </a>
-                )}
+                <button
+                  onClick={() => setTakedownOpen(true)}
+                  className="inline-flex min-h-11 items-center gap-1.5 py-2 text-xs font-semibold text-red-500 underline hover:text-red-400 md:text-sm"
+                >
+                  {t('detail.reportAction')} <ShieldAlert size={12} />
+                </button>
               </div>
             </div>
-          )}
-          <div
-            className={`flex items-start gap-3 ${popup.sourceType === 'CRAWLED' ? 'border-t border-gray-100 pt-4 dark:border-white/5' : ''}`}
-          >
-            <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-red-300/30 bg-red-300/10 text-red-500">
-              <ShieldAlert size={16} />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-bold text-muted-foreground">
-                {t('detail.reportTitle')}
-              </p>
-              <p className="mb-2 mt-0.5 text-xs leading-relaxed text-foreground/70 md:text-sm">
-                {t('detail.reportDesc')}
-              </p>
-              <button
-                onClick={() => setTakedownOpen(true)}
-                className="inline-flex min-h-11 items-center gap-1.5 py-2 text-xs font-semibold text-red-500 underline hover:text-red-400 md:text-sm"
-              >
-                {t('detail.reportAction')} <ShieldAlert size={12} />
-              </button>
-            </div>
-          </div>
-        </section>
+          </section>
+        )}
       </div>
 
       <nav
@@ -732,27 +769,31 @@ export default function PopupDetailClient({
             <CalendarPlus size={17} aria-hidden /> {t('detail.addCalendar')}
           </button>
         ) : null}
-        <button
-          type="button"
-          onClick={handleToggleLike}
-          aria-pressed={isLiked}
-          className={`flex min-h-12 flex-1 items-center justify-center gap-1.5 rounded-xl px-2 text-xs font-black active:scale-[0.98] ${
-            isLiked
-              ? 'bg-hot-400 text-white'
-              : 'bg-gray-100 text-gray-900 dark:bg-white/10 dark:text-white'
-          }`}
-        >
-          <Heart size={17} className={isLiked ? 'fill-current' : ''} aria-hidden />
-          {t('common.wishlist')}
-        </button>
+        {!popup.emergencySnapshot && (
+          <button
+            type="button"
+            onClick={handleToggleLike}
+            aria-pressed={isLiked}
+            className={`flex min-h-12 flex-1 items-center justify-center gap-1.5 rounded-xl px-2 text-xs font-black active:scale-[0.98] ${
+              isLiked
+                ? 'bg-hot-400 text-white'
+                : 'bg-gray-100 text-gray-900 dark:bg-white/10 dark:text-white'
+            }`}
+          >
+            <Heart size={17} className={isLiked ? 'fill-current' : ''} aria-hidden />
+            {t('common.wishlist')}
+          </button>
+        )}
       </nav>
 
-      <TakedownModal
-        open={takedownOpen}
-        onOpenChange={setTakedownOpen}
-        popupId={popup.id}
-        popupName={popup.name}
-      />
+      {!popup.emergencySnapshot && (
+        <TakedownModal
+          open={takedownOpen}
+          onOpenChange={setTakedownOpen}
+          popupId={popup.id}
+          popupName={popup.name}
+        />
+      )}
     </main>
   );
 }
