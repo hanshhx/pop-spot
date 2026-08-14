@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 
 import { fetchPopupForServer, shouldIndexDetail } from './serverData';
+import { popupDetailTitle } from '@/lib/detailTitle';
+import { verifiedPopupImage } from '@/lib/popupEventJsonLd';
 
 /**
  * 팝업 상세의 제목·설명·공유카드와 §14-4 조건부 색인 판정을 한곳에서 만든다.
@@ -61,14 +63,15 @@ export async function generateMetadata({
 
   const when = period(marker);
   const where = marker.address?.trim() ?? '';
-  // 루트 layout 의 title.template 이 "· POP-SPOT" 을 붙인다. 여기서 또 붙이면
-  // "짱구는못말려 대축제 | POP-SPOT · POP-SPOT" 이 된다. 이름만 넘긴다.
-  const title = marker.name;
+  // 루트 layout 의 title.template 이 "· POP-SPOT" 을 붙인다. 여기서는 검색자가 찾는
+  // "팝업 일정·위치"까지만 중복 없이 붙이고 브랜드명은 템플릿에 맡긴다.
+  const title = popupDetailTitle(marker.name);
   // og:title 은 템플릿이 적용되지 않으므로 브랜드를 직접 붙인다.
-  const ogTitle = `${marker.name} · POP-SPOT`;
+  const ogTitle = `${title} · POP-SPOT`;
   // 링크를 받은 사람이 갈지 말지 정하는 데 필요한 것 — 언제, 어디서.
   const description =
     [when, where].filter(Boolean).join(' · ') || '서울 팝업스토어 정보를 지도로 한눈에 — POP-SPOT';
+  const socialImage = verifiedPopupImage(marker);
 
   return {
     ...base,
@@ -81,8 +84,14 @@ export async function generateMetadata({
       url: canonical,
       siteName: 'POP-SPOT',
       type: 'website',
+      images: socialImage ? [socialImage] : undefined,
     },
-    twitter: { card: 'summary_large_image', title: ogTitle, description },
+    twitter: {
+      card: socialImage ? 'summary_large_image' : 'summary',
+      title: ogTitle,
+      description,
+      images: socialImage ? [socialImage] : undefined,
+    },
   };
 }
 

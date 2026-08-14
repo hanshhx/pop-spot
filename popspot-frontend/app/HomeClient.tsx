@@ -43,6 +43,7 @@ import {
 } from '@/lib/i18n';
 import { REGIONS, type RegionCode } from '@/lib/regions';
 import { localizedPath } from '@/lib/localePath';
+import { PRIORITY_LANDING_LINKS } from '@/lib/priorityLandingLinks';
 
 /**
  * 소개 화면에 고정으로 박혀 있는 지역명.
@@ -228,6 +229,17 @@ function SeoLandingDirectory() {
           {title}
         </summary>
         <div className="mt-4 space-y-4">
+          <nav className="flex flex-wrap gap-2" aria-label="priority">
+            {PRIORITY_LANDING_LINKS.map((item) => (
+              <Link
+                key={item.slug}
+                href={localizedPath(`/popups/${item.slug}`, locale)}
+                className="rounded-full border border-lime-300/60 bg-lime-50 px-3 py-1.5 text-xs font-bold text-lime-800 transition hover:bg-lime-100 dark:bg-lime-300/10 dark:text-lime-300"
+              >
+                {localizedLabel(item, locale)}
+              </Link>
+            ))}
+          </nav>
           {groups.map((group) => (
             <nav key={group.key} className="flex flex-wrap gap-2" aria-label={group.key}>
               {group.items.map((item) => (
@@ -2638,6 +2650,11 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
         )}
       </div>
 
+      {currentTab === 'MAP' && (
+        <div className="mx-auto mb-4 max-w-[1600px] px-4 md:px-6">
+          <RecentVisitsCard standalone />
+        </div>
+      )}
       {currentTab === 'MAP' && <SeoLandingDirectory />}
 
       <Footer />
@@ -2647,7 +2664,7 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
 
       {/* Modals — 새 Dialog 컴포넌트(Radix) 사용. 포커스 트랩·ESC·스크롤 잠금 자동. */}
       <AllTrendingModal open={isModalOpen} onOpenChange={setIsModalOpen} popups={mappablePopups} />
-      <ReportPopupModal open={isReportPopupOpen} onOpenChange={setIsReportPopupOpen} user={user} />
+      <ReportPopupModal open={isReportPopupOpen} onOpenChange={setIsReportPopupOpen} />
       <GlobalSearchModal
         open={isGlobalSearchOpen}
         onOpenChange={setIsGlobalSearchOpen}
@@ -2691,9 +2708,9 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
  * v2.18 — 최근 본 팝업 카드. localStorage 기반이라 회원/게스트 무관 표시.
  *
  * <p>본 컴포넌트는 mount 시점에 localStorage 를 한 번만 읽어 가벼움. 다른 페이지에서 팝업 상세 진입하면
- * 자동으로 기록되고, 사용자가 MY 탭으로 돌아오면 다음 mount 에 갱신.
+ * 자동으로 기록되고, 사용자가 홈이나 MY 탭으로 돌아오면 다음 mount 에 갱신.
  */
-function RecentVisitsCard() {
+function RecentVisitsCard({ standalone = false }: { standalone?: boolean } = {}) {
   const { t, locale } = useLocale();
   const [visits, setVisits] = useState<
     Array<{ popupId: number; popupName: string; popupImage?: string }>
@@ -2708,7 +2725,13 @@ function RecentVisitsCard() {
   if (visits.length === 0) return null;
 
   return (
-    <div className="p-4 lg:p-6 border-b border-[var(--color-border)]">
+    <div
+      className={`p-4 lg:p-6 ${
+        standalone
+          ? 'rounded-2xl border border-[var(--color-border)] bg-white/90 shadow-sm dark:bg-[#111]/90'
+          : 'border-b border-[var(--color-border)]'
+      }`}
+    >
       <h3 className="text-base lg:text-lg font-bold mb-4 flex items-center gap-2 text-foreground">
         <Clock size={16} className="lg:w-[18px] lg:h-[18px] text-lime-500" /> {t('recent.title')}
       </h3>
