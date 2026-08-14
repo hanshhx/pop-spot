@@ -3,6 +3,7 @@ package com.example.popspotbackend.dto;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.example.popspotbackend.entity.PopupStore;
+import java.time.LocalDateTime;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -33,5 +34,22 @@ class PopupPublicDtoTranslationTest {
         assertThat(detail.getNameJa()).isEqualTo(list.getNameJa());
         assertThat(detail.getLocationEn()).isEqualTo(list.getLocationEn());
         assertThat(detail.getLocationJa()).isEqualTo(list.getLocationJa());
+    }
+
+    @Test
+    @DisplayName("공개 상세는 자동수집 원문의 마지막 확인 시각만 보내고 내부 이력은 노출하지 않는다")
+    void mapsPublicInformationCheckedAtOnlyForCrawledPopup() {
+        PopupStore crawled = new PopupStore();
+        crawled.setSourceType("CRAWLED");
+        crawled.setCrawledAt(LocalDateTime.of(2026, 8, 1, 4, 0));
+        crawled.setLastSeenAt(LocalDateTime.of(2026, 8, 14, 16, 0));
+
+        PopupStore manual = new PopupStore();
+        manual.setSourceType("MANUAL");
+        manual.setLastSeenAt(LocalDateTime.of(2026, 8, 14, 16, 0));
+
+        assertThat(PopupPublicDetailDto.fromEntity(crawled).getInformationCheckedAt())
+                .isEqualTo(LocalDateTime.of(2026, 8, 14, 16, 0));
+        assertThat(PopupPublicDetailDto.fromEntity(manual).getInformationCheckedAt()).isNull();
     }
 }

@@ -6,6 +6,7 @@ import { ArrowLeft, MapPin, Calendar, Tag, Clock, Flame, MessageSquare } from 'l
 import { REGIONS, classifyRegion, regionBySlug } from '@/lib/regions';
 import { LANDING_COPY, type LandingCopy, type MetaPick, type PickReason } from '@/lib/landingCopy';
 import { localizedLabel } from '@/lib/localeLabel';
+import { PRIORITY_LANDING_LINKS } from '@/lib/priorityLandingLinks';
 import { bilingual } from '@/lib/bilingual';
 import type { Locale } from '@/lib/i18n';
 import { LOCALE_PATH, slugAlternates } from '@/lib/localeRoutes';
@@ -1253,13 +1254,22 @@ function CrossSell({
 
   // 전체 링크(SEO) — 브랜드/IP 먼저
   const links: { slug: string; label: string; kind: Slice['kind'] }[] = [
+    ...PRIORITY_LANDING_LINKS.map((item) => ({
+      slug: item.slug,
+      label: L(item),
+      kind: item.kind,
+    })),
     ...regionPeriodLinks,
     ...categoryPeriodLinks,
     ...BRANDS.map((b) => ({ slug: b.slug, label: L(b), kind: 'brand' as const })),
     ...REGIONS.map((r) => ({ slug: r.slug, label: L(r), kind: 'region' as const })),
     ...getPeriods().map((p) => ({ slug: p.slug, label: L(p), kind: 'period' as const })),
     ...CATEGORIES.map((c) => ({ slug: c.slug, label: L(c), kind: 'category' as const })),
-  ].filter((s) => s.slug !== current.slug);
+  ]
+    .filter((s) => s.slug !== current.slug)
+    .filter(
+      (item, index, all) => all.findIndex((candidate) => candidate.slug === item.slug) === index,
+    );
 
   return (
     <nav

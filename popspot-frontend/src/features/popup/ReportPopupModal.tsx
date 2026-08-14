@@ -15,12 +15,11 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog';
-import type { User, PopupReportPayload } from '@/types/popup';
+import type { PopupReportPayload } from '@/types/popup';
 
 interface ReportPopupModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  user: User | null;
 }
 
 /**
@@ -37,7 +36,7 @@ const CATEGORY_OPTIONS: ReadonlyArray<{ value: string; labelKey: MessageKey }> =
  * 사용자가 발견한 팝업을 제보하는 모달.
  * 새 Dialog 컴포넌트(Radix) 사용 — 포커스 트랩 / ESC / 스크롤 잠금 자동.
  */
-export function ReportPopupModal({ open, onOpenChange, user }: ReportPopupModalProps) {
+export function ReportPopupModal({ open, onOpenChange }: ReportPopupModalProps) {
   const { t } = useLocale();
   const [formData, setFormData] = useState<PopupReportPayload>({
     name: '',
@@ -47,7 +46,7 @@ export function ReportPopupModal({ open, onOpenChange, user }: ReportPopupModalP
     startDate: '',
     endDate: '',
     description: '',
-    reporterId: user?.userId || 'unknown',
+    sourceUrl: '',
   });
   const [submitting, setSubmitting] = useState(false);
 
@@ -66,7 +65,11 @@ export function ReportPopupModal({ open, onOpenChange, user }: ReportPopupModalP
         method: 'POST',
         body: JSON.stringify({
           ...formData,
-          reporterId: user?.userId || 'unknown',
+          name: formData.name.trim(),
+          location: formData.location.trim(),
+          address: formData.address.trim(),
+          description: formData.description.trim(),
+          sourceUrl: formData.sourceUrl.trim() || undefined,
         }),
       });
       if (res.ok) {
@@ -171,6 +174,16 @@ export function ReportPopupModal({ open, onOpenChange, user }: ReportPopupModalP
               onChange={handleChange}
               className="w-full rounded-md border border-[var(--color-border-strong)] bg-surface text-surface-foreground p-3 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-none"
               placeholder={t('report.descPlaceholder')}
+            />
+          </Field>
+
+          <Field label={t('report.sourceUrlLabel')}>
+            <Input
+              name="sourceUrl"
+              type="url"
+              value={formData.sourceUrl}
+              onChange={handleChange}
+              placeholder={t('report.sourceUrlPlaceholder')}
             />
           </Field>
 
