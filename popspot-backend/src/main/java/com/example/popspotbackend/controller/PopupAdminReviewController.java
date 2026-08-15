@@ -78,7 +78,7 @@ public class PopupAdminReviewController {
      */
     @PostMapping("/{id}/approve")
     public ResponseEntity<Map<String, Object>> approve(@PathVariable Long id) {
-        PopupStore popup = popupStoreService.updateReviewStatus(id, REVIEW_APPROVED);
+        PopupStore popup = popupStoreService.approveReview(id);
 
         boolean geocoded = false;
         try {
@@ -100,7 +100,7 @@ public class PopupAdminReviewController {
 
     @PostMapping("/{id}/reject")
     public ResponseEntity<Map<String, Object>> reject(@PathVariable Long id) {
-        PopupStore popup = popupStoreService.updateReviewStatus(id, REVIEW_REJECTED);
+        PopupStore popup = popupStoreService.rejectReview(id);
         log.info("[CrawlReview] REJECTED id={} name={}", id, popup.getName());
         return ResponseEntity.ok(Map.of("status", REVIEW_REJECTED, "id", id));
     }

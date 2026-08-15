@@ -68,4 +68,46 @@ class PopupStoreServiceTest {
                 .isInstanceOf(ResourceNotFoundException.class);
         verify(popupStoreRepository, never()).incrementViewCount(id);
     }
+
+    @Test
+    @DisplayName("사용자 제보 승인은 상태와 검수 상태를 함께 공개 가능 값으로 바꾼다")
+    void approveReview_promotesPendingUserReportAtomically() {
+        long id = 44L;
+        PopupStore pending =
+                PopupStore.builder()
+                        .id(id)
+                        .name("사용자 제보 팝업")
+                        .status("PENDING")
+                        .reviewStatus("PENDING_REVIEW")
+                        .build();
+        when(popupStoreRepository.findById(id)).thenReturn(Optional.of(pending));
+        when(popupStoreRepository.save(pending)).thenReturn(pending);
+
+        PopupStore approved = new PopupStoreService(popupStoreRepository).approveReview(id);
+
+        assertThat(approved.getStatus()).isEqualTo("영업중");
+        assertThat(approved.getReviewStatus()).isEqualTo("APPROVED");
+        verify(popupStoreRepository).save(pending);
+    }
+
+    @Test
+    @DisplayName("반려는 팝업을 삭제하지 않고 검수 이력을 보존한다")
+    void rejectReview_preservesRowForAudit() {
+        long id = 45L;
+        PopupStore pending =
+                PopupStore.builder()
+                        .id(id)
+                        .name("반려할 팝업")
+                        .status("PENDING")
+                        .reviewStatus("PENDING_REVIEW")
+                        .build();
+        when(popupStoreRepository.findById(id)).thenReturn(Optional.of(pending));
+        when(popupStoreRepository.save(pending)).thenReturn(pending);
+
+        PopupStore rejected = new PopupStoreService(popupStoreRepository).rejectReview(id);
+
+        assertThat(rejected.getReviewStatus()).isEqualTo("REJECTED");
+        verify(popupStoreRepository).save(pending);
+        verify(popupStoreRepository, never()).delete(pending);
+    }
 }
