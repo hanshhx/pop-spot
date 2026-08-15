@@ -13,8 +13,6 @@ type DashboardTabProps = {
   dbActive: number;
   serverStatus: 'online' | 'offline';
   setActiveTab: (tab: string) => void;
-  handleApprove: (id: number) => void;
-  handleReject: (id: number) => void;
 };
 
 export function DashboardTab({
@@ -27,8 +25,6 @@ export function DashboardTab({
   dbActive,
   serverStatus,
   setActiveTab,
-  handleApprove,
-  handleReject,
 }: DashboardTabProps) {
   return (
     <div className="space-y-5 md:space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -132,16 +128,10 @@ export function DashboardTab({
                     </p>
                   </div>
                   <button
-                    onClick={() => handleApprove(p.id)}
+                    onClick={() => setActiveTab('PENDING')}
                     className="shrink-0 rounded-lg bg-lime-300 px-2.5 py-1.5 text-[11px] font-bold text-ink-900 hover:bg-lime-400 transition-colors"
                   >
-                    승인
-                  </button>
-                  <button
-                    onClick={() => handleReject(p.id)}
-                    className="shrink-0 rounded-lg border border-[var(--color-border)] px-2.5 py-1.5 text-[11px] font-bold text-muted-foreground hover:border-danger hover:text-danger transition-colors"
-                  >
-                    반려
+                    검수하기
                   </button>
                 </li>
               ))}

@@ -47,6 +47,8 @@ export interface PopupStore {
   id: number;
   name: string;
   location: string;
+  /** 건물·지역명(location)보다 구체적인 도로명 또는 상세 주소. */
+  address?: string;
   /** 외국어 화면용 표시명. 비어 있으면 한국어 원문을 함께 보여준다. */
   nameEn?: string | null;
   nameJa?: string | null;

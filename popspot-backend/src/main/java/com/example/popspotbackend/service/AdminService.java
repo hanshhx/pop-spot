@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,7 +30,6 @@ import org.springframework.transaction.annotation.Transactional;
 public class AdminService {
 
     private static final String STATUS_OPEN = "영업중";
-    private static final String STATUS_PENDING = "PENDING";
 
     private final PopupStoreRepository popupStoreRepository;
     private final UserRepository userRepository;
@@ -39,7 +39,7 @@ public class AdminService {
 
     @Transactional(readOnly = true)
     public List<PopupStore> findPendingPopups() {
-        return popupStoreRepository.findByStatus(STATUS_PENDING);
+        return popupStoreRepository.findPendingReview(PageRequest.of(0, 100));
     }
 
     /** 관리자는 PENDING / 영업중 / 종료 구분 없이 모든 팝업을 본다. */
@@ -59,22 +59,6 @@ public class AdminService {
         return userRepository.findAllByOrderByCreatedAtDesc().stream()
                 .map(AdminUserDto::from)
                 .toList();
-    }
-
-    /**
-     * 제보된 팝업 승인 — 상태를 "영업중" 으로 바꾼다.
-     *
-     * <p>예전에는 제보자에게 확성기 1개를 자동 지급했다. 서비스에서 보상 제도를 접으면서 지웠다. 제보 화면은 애초에 보상을 약속하지
-     * 않으므로(ReportPopupModal) 사용자와의 약속이 깨지지 않는다. {@code reporterId} 는 남긴다 — 누가 제보했는지는 검수에 필요하다.
-     */
-    @Transactional
-    public void approvePopup(Long popupId) {
-        findPopupOrThrow(popupId).setStatus(STATUS_OPEN);
-    }
-
-    @Transactional
-    public void rejectPopup(Long popupId) {
-        popupStoreRepository.deleteById(popupId);
     }
 
     @Transactional
@@ -98,7 +82,7 @@ public class AdminService {
         stats.put("totalUsers", userRepository.count());
         stats.put("activePopups", popupStoreRepository.countByStatus(STATUS_OPEN));
         stats.put("totalMatePosts", matePostRepository.count());
-        stats.put("pendingPopups", popupStoreRepository.countByStatus(STATUS_PENDING));
+        stats.put("pendingPopups", popupStoreRepository.countPendingReview());
         return stats;
     }
 

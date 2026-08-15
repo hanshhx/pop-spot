@@ -122,7 +122,7 @@ export default function AdminPage() {
     try {
       const [statsRes, pendingRes] = await Promise.all([
         apiFetch('/api/admin/stats'),
-        apiFetch('/api/admin/popups/pending'),
+        apiFetch('/api/admin/popups/crawl/pending?size=100'),
       ]);
       if (statsRes.ok) setStats(await statsRes.json());
       if (pendingRes.ok) setPendingPopups(await pendingRes.json());
@@ -293,12 +293,14 @@ export default function AdminPage() {
   const handleApprove = async (id: number) => {
     if (!(await confirmAction({ text: '승인하시겠습니까?' }))) return;
     try {
-      const res = await apiFetch(`/api/admin/popups/${id}/approve`, { method: 'POST' });
+      const res = await apiFetch(`/api/admin/popups/crawl/${id}/approve`, { method: 'POST' });
       if (res.ok) {
         notifySuccess('승인 완료!');
         loadDashboardData();
+      } else {
+        notifyError('승인하지 못했습니다. 입력 정보와 서버 상태를 확인해 주세요.');
       }
-    } catch (e) {
+    } catch {
       notifyError('승인 처리 중 오류가 발생했습니다.');
     }
   };
@@ -306,12 +308,14 @@ export default function AdminPage() {
   const handleReject = async (id: number) => {
     if (!(await confirmAction({ text: '거절하시겠습니까?', destructive: true }))) return;
     try {
-      const res = await apiFetch(`/api/admin/popups/${id}/reject`, { method: 'DELETE' });
+      const res = await apiFetch(`/api/admin/popups/crawl/${id}/reject`, { method: 'POST' });
       if (res.ok) {
-        notifySuccess('삭제 완료');
+        notifySuccess('반려 완료');
         loadDashboardData();
+      } else {
+        notifyError('반려하지 못했습니다. 서버 상태를 확인해 주세요.');
       }
-    } catch (e) {
+    } catch {
       notifyError('거절 처리 중 오류가 발생했습니다.');
     }
   };
@@ -793,8 +797,6 @@ export default function AdminPage() {
                 dbActive={dbActive}
                 serverStatus={serverStatus}
                 setActiveTab={setActiveTab}
-                handleApprove={handleApprove}
-                handleReject={handleReject}
               />
             )}
 

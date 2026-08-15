@@ -33,10 +33,12 @@ public class PopupStoreService {
     private static final String CATEGORY_ALL = "ALL";
 
     private static final String STATUS_PENDING = "PENDING";
+    private static final String STATUS_OPEN = "영업중";
     private static final String STATUS_EXPIRED = "EXPIRED";
 
     private static final String REVIEW_AUTO_PUBLISHED = "AUTO_PUBLISHED";
     private static final String REVIEW_APPROVED = "APPROVED";
+    private static final String REVIEW_REJECTED = "REJECTED";
 
     private static final int TRENDING_TOP_N = 4;
     private static final int DEFAULT_CALENDAR_WINDOW_DAYS = 60;
@@ -119,6 +121,40 @@ public class PopupStoreService {
     public PopupStore updateReviewStatus(Long id, String reviewStatus) {
         PopupStore popup = findOrThrow(id);
         popup.setReviewStatus(reviewStatus);
+        return popupStoreRepository.save(popup);
+    }
+
+    /**
+     * 검수 승인 결과를 공개 가능한 상태로 한 번에 전환한다.
+     *
+     * <p>자동수집 검수 건은 이미 영업중 상태지만 사용자 제보는 {@code status=PENDING} 으로 들어온다. reviewStatus 만 승인으로 바꾸면 공개
+     * 게이트가 PENDING 을 다시 차단하므로 두 값을 같은 트랜잭션에서 함께 바꿔야 한다.
+     */
+    @Transactional
+    @Caching(
+            evict = {
+                @CacheEvict(value = CacheConfig.CACHE_POPUPS_VISIBLE, allEntries = true),
+                @CacheEvict(value = CacheConfig.CACHE_POPUPS_HOT, allEntries = true)
+            })
+    public PopupStore approveReview(Long id) {
+        PopupStore popup = findOrThrow(id);
+        popup.setReviewStatus(REVIEW_APPROVED);
+        if (STATUS_PENDING.equals(popup.getStatus())) {
+            popup.setStatus(STATUS_OPEN);
+        }
+        return popupStoreRepository.save(popup);
+    }
+
+    /** 반려 내역을 보존한다. 운영자가 실수로 반려해도 행을 복구·감사할 수 있도록 즉시 삭제하지 않는다. */
+    @Transactional
+    @Caching(
+            evict = {
+                @CacheEvict(value = CacheConfig.CACHE_POPUPS_VISIBLE, allEntries = true),
+                @CacheEvict(value = CacheConfig.CACHE_POPUPS_HOT, allEntries = true)
+            })
+    public PopupStore rejectReview(Long id) {
+        PopupStore popup = findOrThrow(id);
+        popup.setReviewStatus(REVIEW_REJECTED);
         return popupStoreRepository.save(popup);
     }
 
