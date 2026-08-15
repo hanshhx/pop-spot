@@ -58,14 +58,14 @@ public class AdminController {
 
     @PostMapping("/popups/{id}/approve")
     public ResponseEntity<String> approvePopup(@PathVariable Long id) {
-        adminService.approvePopup(id);
-        return ResponseEntity.ok("승인 및 보상 지급 완료!");
+        popupStoreService.approveReview(id);
+        return ResponseEntity.ok("승인 완료");
     }
 
     @DeleteMapping("/popups/{id}/reject")
     public ResponseEntity<String> rejectPopup(@PathVariable Long id) {
-        adminService.rejectPopup(id);
-        return ResponseEntity.ok("거절(삭제) 완료!");
+        popupStoreService.rejectReview(id);
+        return ResponseEntity.ok("반려 완료");
     }
 
     /* ============================== 대시보드 / 전체 팝업 ============================== */
