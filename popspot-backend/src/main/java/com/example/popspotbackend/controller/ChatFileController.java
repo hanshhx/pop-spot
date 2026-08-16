@@ -16,6 +16,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -35,6 +36,7 @@ import org.springframework.web.multipart.MultipartFile;
 @Slf4j
 @RestController
 @RequestMapping("/api/chat")
+@PreAuthorize("isAuthenticated()")
 public class ChatFileController {
 
     private static final List<String> ALLOWED_EXTENSIONS =
@@ -68,15 +70,18 @@ public class ChatFileController {
     private final String uploadDir;
 
     private final List<Pattern> allowedHostPatterns;
+    private final boolean trustProxyHeaders;
     private final ImageUploadGuard imageGuard;
     private final UploadQuotaService uploadQuota;
 
     public ChatFileController(
             @Value("${" + ALLOWED_HOST_PATTERNS_PROP + ":}") String allowedHostPatternsCsv,
+            @Value("${app.trust-proxy-headers:false}") boolean trustProxyHeaders,
             @Value("${app.upload.path}") String uploadPath,
             ImageUploadGuard imageGuard,
             UploadQuotaService uploadQuota) {
         this.allowedHostPatterns = compilePatterns(allowedHostPatternsCsv);
+        this.trustProxyHeaders = trustProxyHeaders;
         this.uploadDir = Paths.get(uploadPath).toAbsolutePath().normalize().toString();
         this.imageGuard = imageGuard;
         this.uploadQuota = uploadQuota;
@@ -116,11 +121,10 @@ public class ChatFileController {
 
         try {
             File destination = prepareDestination(inspection.extension());
-            Files.write(destination.toPath(), inspection.bytes());
-            uploadQuota.record(authentication.getName(), inspection.bytes().length);
-
             String savedFileName = destination.getName();
             String fileUrl = buildPublicUrl(request, savedFileName);
+            Files.write(destination.toPath(), inspection.bytes());
+            uploadQuota.record(authentication.getName(), inspection.bytes().length);
 
             Map<String, String> response = new HashMap<>();
             response.put("fileUrl", fileUrl);
@@ -193,21 +197,35 @@ public class ChatFileController {
     }
 
     private String resolveScheme(HttpServletRequest request) {
-        String forwardedProto = request.getHeader(HEADER_X_FORWARDED_PROTO);
-        return forwardedProto != null ? forwardedProto : request.getScheme();
+        if (trustProxyHeaders) {
+            String forwardedProto = request.getHeader(HEADER_X_FORWARDED_PROTO);
+            if ("http".equalsIgnoreCase(forwardedProto)
+                    || "https".equalsIgnoreCase(forwardedProto)) {
+                return forwardedProto.toLowerCase(java.util.Locale.ROOT);
+            }
+            if (forwardedProto != null) {
+                log.warn("허용하지 않은 X-Forwarded-Proto 값 무시: {}", forwardedProto);
+            }
+        }
+        String requestScheme = request.getScheme();
+        return "https".equalsIgnoreCase(requestScheme) ? "https" : "http";
     }
 
     private String resolveHost(HttpServletRequest request) {
-        String forwardedHost = request.getHeader(HEADER_X_FORWARDED_HOST);
-        if (forwardedHost != null && isAllowedHost(forwardedHost)) {
-            return forwardedHost;
-        }
-        if (forwardedHost != null) {
-            log.warn("X-Forwarded-Host 헤더 '{}' 가 허용 패턴과 일치하지 않아 무시.", forwardedHost);
+        if (trustProxyHeaders) {
+            String forwardedHost = request.getHeader(HEADER_X_FORWARDED_HOST);
+            if (forwardedHost != null && isAllowedHost(forwardedHost)) {
+                return forwardedHost;
+            }
+            if (forwardedHost != null) {
+                log.warn("허용 목록과 일치하지 않는 X-Forwarded-Host 값 무시: {}", forwardedHost);
+            }
         }
         int port = request.getServerPort();
         boolean omitPort = port == HTTP_PORT || port == HTTPS_PORT;
-        return request.getServerName() + (omitPort ? "" : ":" + port);
+        String authority = request.getServerName() + (omitPort ? "" : ":" + port);
+        if (isAllowedHost(authority) || isLocalhost(authority)) return authority;
+        throw new SecurityException("허용되지 않은 업로드 요청 호스트");
     }
 
     /**
@@ -221,6 +239,16 @@ public class ChatFileController {
             if (p.matcher(host).matches()) return true;
         }
         return false;
+    }
+
+    private boolean isLocalhost(String host) {
+        String lower = host.toLowerCase(java.util.Locale.ROOT);
+        return lower.equals("localhost")
+                || lower.startsWith("localhost:")
+                || lower.equals("127.0.0.1")
+                || lower.startsWith("127.0.0.1:")
+                || lower.equals("[::1]")
+                || lower.startsWith("[::1]:");
     }
 
     private static List<Pattern> compilePatterns(String csv) {

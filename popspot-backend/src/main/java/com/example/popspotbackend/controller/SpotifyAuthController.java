@@ -18,6 +18,7 @@ import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -90,6 +91,7 @@ public class SpotifyAuthController {
      * <p>비로그인 사용자는 401.
      */
     @GetMapping("/login")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Map<String, String>> login(Authentication authentication) {
         String userId = authenticatedUserId(authentication);
         if (userId == null) {
@@ -153,6 +155,7 @@ public class SpotifyAuthController {
 
     /** 사용자가 명시적으로 Spotify 연결 끊기. */
     @PostMapping("/disconnect")
+    @PreAuthorize("isAuthenticated()")
     @Transactional
     public ResponseEntity<Void> disconnect(Authentication authentication) {
         String userId = authenticatedUserId(authentication);
@@ -170,6 +173,7 @@ public class SpotifyAuthController {
      * <p>이 endpoint 는 짧은 TTL 의 access token 만 노출하고, refresh_token 은 절대 노출 X.
      */
     @GetMapping("/token")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Map<String, String>> token(Authentication authentication) {
         String userId = authenticatedUserId(authentication);
         if (userId == null) {
