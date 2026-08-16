@@ -12,6 +12,7 @@ import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -45,6 +46,7 @@ public class MateController {
     }
 
     @GetMapping("/{postId}/chat")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<MateChatMessageResponseDto>> getChatMessages(
             Authentication authentication, @PathVariable Long postId) {
         return ResponseEntity.ok(
@@ -52,6 +54,7 @@ public class MateController {
     }
 
     @PostMapping
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<MatePostResponseDto> createPost(
             Authentication authentication, @Valid @RequestBody MateDto dto) {
         return ResponseEntity.ok(mateService.createPost(dto, requireUserId(authentication)));
@@ -59,11 +62,13 @@ public class MateController {
 
     /** 글쓰기 모달에서 "이번 달 N회 남음" 표시용. 등급 + 한도 + 사용량 + 잔여 횟수. */
     @GetMapping("/boost-status")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<BoostStatus> getBoostStatus(Authentication authentication) {
         return ResponseEntity.ok(mateService.getBoostStatus(requireUserId(authentication)));
     }
 
     @PostMapping("/{id}/join")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<String> joinMate(Authentication authentication, @PathVariable Long id) {
         JoinResult result = mateService.joinMate(id, requireUserId(authentication));
         return switch (result) {
@@ -74,6 +79,7 @@ public class MateController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<String> deletePost(Authentication authentication, @PathVariable Long id) {
         mateService.deletePost(id, requireUserId(authentication));
         return ResponseEntity.ok(RESPONSE_DELETE_SUCCESS);
@@ -85,6 +91,7 @@ public class MateController {
      * <p>응답으로 누적 신고 수를 돌려줘 프론트가 사용자에게 "n번째 신고가 접수됐습니다" 안내 가능.
      */
     @PostMapping("/{id}/report")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<java.util.Map<String, Object>> reportPost(
             Authentication authentication, @PathVariable Long id) {
         int reportCount = mateService.reportPost(id, requireUserId(authentication));

@@ -69,13 +69,15 @@ public class AdminReauthService {
     /**
      * 지금 이 사용자가 민감 작업을 해도 되는가.
      *
-     * <p>기능이 꺼져 있거나 확인 수단이 없으면 참이다 — 잠기지 않는 쪽으로 기운다.
+     * <p>기능이 꺼져 있으면 참이다. 기능이 켜진 운영 환경에서 확인 수단이 없는 계정은 민감 작업을 수행할 수 없다.
      */
     public boolean isSatisfied(String userId) {
         if (!enabled || userId == null) return true;
         if (methodFor(userId) == Method.NONE) {
-            log.warn("[재인증] 확인 수단이 없어 통과시킴 — userId={} (2단계 인증 등록 필요)", userId);
-            return true;
+            // 확인 수단이 없는 계정을 통과시키면 재인증 보호가 가장 필요한 계정에서
+            // 오히려 무력화된다. 관리자는 TOTP를 등록한 뒤 민감 작업을 수행해야 한다.
+            log.warn("[AdminReauth] 확인 수단이 없어 민감 작업 차단 userId={}", userId);
+            return false;
         }
         return redisTemplate.hasKey(KEY_PREFIX + userId);
     }
