@@ -4,6 +4,7 @@ import com.example.popspotbackend.service.TicketService;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -28,6 +29,7 @@ public class GameController {
     private final TicketService ticketService;
 
     @PostMapping("/start")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<String> startSimulation(
             Authentication authentication, @RequestParam String itemId) {
         requireAuthenticatedUserId(authentication);
@@ -37,6 +39,7 @@ public class GameController {
     }
 
     @PostMapping("/reserve")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Map<String, String>> reserve(
             Authentication authentication, @RequestParam String itemId) {
         String userId = requireAuthenticatedUserId(authentication);

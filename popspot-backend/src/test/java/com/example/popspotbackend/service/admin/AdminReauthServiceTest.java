@@ -70,13 +70,13 @@ class AdminReauthServiceTest {
     }
 
     @Test
-    @DisplayName("확인할 방법이 없는 계정은 막지 않는다 — 막으면 영영 못 고친다")
-    void accountWithoutMeansIsNotBlocked() {
+    @DisplayName("확인 수단이 없는 계정은 민감 작업을 수행할 수 없다")
+    void accountWithoutMeansIsBlocked() {
         // 소셜 가입이라 비밀번호가 없고, 2단계 인증도 등록하지 않았다.
         assertThat(service.methodFor(USER_ID)).isEqualTo(AdminReauthService.Method.NONE);
         assertThat(service.isSatisfied(USER_ID))
-                .describedAs("이 상태에서 막으면 2단계 인증 등록 화면에도 못 들어간다")
-                .isTrue();
+                .describedAs("TOTP 등록 경로는 재인증 대상이 아니므로 민감 작업만 차단한다")
+                .isFalse();
     }
 
     @Test

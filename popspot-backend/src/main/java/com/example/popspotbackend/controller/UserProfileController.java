@@ -24,6 +24,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -136,6 +137,7 @@ public class UserProfileController {
     /* ============================== 아바타 업로드 ============================== */
 
     @PostMapping("/me/avatar")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> uploadAvatar(
             @RequestParam("file") MultipartFile file,
             Authentication authentication,
@@ -164,10 +166,9 @@ public class UserProfileController {
 
         try {
             File destination = prepareDestination(inspection.extension());
+            String fileUrl = buildPublicUrl(request, destination.getName());
             Files.write(destination.toPath(), inspection.bytes());
             uploadQuota.record(userId, inspection.bytes().length);
-
-            String fileUrl = buildPublicUrl(request, destination.getName());
 
             // DB 의 picture 컬럼도 함께 갱신.
             User user =
@@ -201,6 +202,7 @@ public class UserProfileController {
     }
 
     @PatchMapping("/me")
+    @PreAuthorize("isAuthenticated()")
     @Transactional
     public ResponseEntity<Map<String, Object>> updateMe(
             @Valid @RequestBody UpdateProfileRequest dto, Authentication authentication) {
@@ -250,6 +252,7 @@ public class UserProfileController {
      * <p>비밀번호 확인 본인 인증은 추후 강화 가능. 현재는 토큰 보유 자체가 본인 인증.
      */
     @DeleteMapping("/me")
+    @PreAuthorize("isAuthenticated()")
     @Transactional
     public ResponseEntity<Map<String, Object>> deleteMe(Authentication authentication) {
         String userId = requireAuthenticatedUserId(authentication);
@@ -335,12 +338,15 @@ public class UserProfileController {
     }
 
     private String resolveScheme(HttpServletRequest request) {
-        String forwardedProto = request.getHeader(HEADER_X_FORWARDED_PROTO);
-        // 값은 http/https 두 개로 제한한다. 이 헤더는 공개 URL 스킴에만 쓰며 IP 판정에는 사용하지 않는다.
-        if ("https".equalsIgnoreCase(forwardedProto) || "http".equalsIgnoreCase(forwardedProto)) {
-            return forwardedProto.toLowerCase();
+        if (trustProxyHeaders) {
+            String forwardedProto = request.getHeader(HEADER_X_FORWARDED_PROTO);
+            // 값은 http/https 두 개로 제한한다. 이 헤더는 공개 URL 스킴에만 쓰며 IP 판정에는 사용하지 않는다.
+            if ("https".equalsIgnoreCase(forwardedProto)
+                    || "http".equalsIgnoreCase(forwardedProto)) {
+                return forwardedProto.toLowerCase(java.util.Locale.ROOT);
+            }
         }
-        return request.getScheme();
+        return "https".equalsIgnoreCase(request.getScheme()) ? "https" : "http";
     }
 
     private String resolveHost(HttpServletRequest request) {

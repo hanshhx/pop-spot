@@ -2712,6 +2712,7 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
  */
 function RecentVisitsCard({ standalone = false }: { standalone?: boolean } = {}) {
   const { t, locale } = useLocale();
+  const [isExpanded, setIsExpanded] = useState(true);
   const [visits, setVisits] = useState<
     Array<{ popupId: number; popupName: string; popupImage?: string }>
   >([]);
@@ -2724,37 +2725,111 @@ function RecentVisitsCard({ standalone = false }: { standalone?: boolean } = {})
 
   if (visits.length === 0) return null;
 
+  const visibleVisits = visits.slice(0, 6);
+  const itemCountLabel =
+    locale === 'en'
+      ? `${visibleVisits.length} viewed`
+      : locale === 'ja'
+        ? `${visibleVisits.length}件`
+        : `${visibleVisits.length}개`;
+  const toggleLabel = isExpanded
+    ? locale === 'en'
+      ? 'Collapse recently viewed pop-ups'
+      : locale === 'ja'
+        ? '最近見たポップアップを閉じる'
+        : '최근 본 팝업 접기'
+    : locale === 'en'
+      ? 'Expand recently viewed pop-ups'
+      : locale === 'ja'
+        ? '最近見たポップアップを開く'
+        : '최근 본 팝업 펼치기';
+
+  const handleToggle = () => {
+    setIsExpanded((current) => !current);
+  };
+
   return (
     <div
-      className={`p-4 lg:p-6 ${
+      className={`px-4 py-3 lg:px-6 lg:py-4 ${
         standalone
           ? 'rounded-2xl border border-[var(--color-border)] bg-white/90 shadow-sm dark:bg-[#111]/90'
           : 'border-b border-[var(--color-border)]'
       }`}
     >
-      <h3 className="text-base lg:text-lg font-bold mb-4 flex items-center gap-2 text-foreground">
-        <Clock size={16} className="lg:w-[18px] lg:h-[18px] text-lime-500" /> {t('recent.title')}
-      </h3>
-      <div className="grid grid-cols-3 gap-2">
-        {visits.slice(0, 6).map((v) => (
-          <Link
-            key={v.popupId}
-            href={localizedPath(`/popup/${v.popupId}`, locale)}
-            className="group block rounded-md overflow-hidden border border-[var(--color-border)] bg-cream-300 dark:bg-ink-800 aspect-square relative"
-          >
-            <PopupCoverVisual
-              popup={{ id: v.popupId, imageUrl: v.popupImage }}
-              name={v.popupName}
-              compact
-            />
-            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-ink-900/85 to-transparent p-1.5">
-              <span className="text-cream-200 text-[10px] font-semibold truncate block">
-                {v.popupName}
+      <button
+        type="button"
+        onClick={handleToggle}
+        aria-expanded={isExpanded}
+        aria-label={toggleLabel}
+        className={`flex min-h-11 w-full items-center justify-between gap-3 rounded-lg text-left outline-none transition-colors hover:bg-black/[0.035] focus-visible:ring-2 focus-visible:ring-lime-500/70 dark:hover:bg-white/[0.05] ${
+          isExpanded ? 'mb-3' : ''
+        }`}
+      >
+        <span className="flex min-w-0 items-center gap-2.5 text-foreground">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-lime-500/10">
+            <Clock size={17} className="text-lime-500" />
+          </span>
+          <span className="min-w-0">
+            <span className="block text-base font-extrabold leading-tight lg:text-lg">
+              {t('recent.title')}
+            </span>
+            <span className="mt-0.5 block text-xs font-medium text-muted-foreground">
+              {itemCountLabel}
+            </span>
+          </span>
+        </span>
+        <span className="flex shrink-0 items-center gap-1.5 pr-1 text-xs font-semibold text-muted-foreground">
+          <span>
+            {isExpanded
+              ? locale === 'en'
+                ? 'Hide'
+                : locale === 'ja'
+                  ? '閉じる'
+                  : '접기'
+              : locale === 'en'
+                ? 'Show'
+                : locale === 'ja'
+                  ? '開く'
+                  : '펼치기'}
+          </span>
+          <ChevronRight
+            size={18}
+            aria-hidden="true"
+            className={`transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`}
+          />
+        </span>
+      </button>
+
+      {isExpanded && (
+        <div
+          className={`grid grid-cols-1 gap-2 sm:grid-cols-2 ${standalone ? 'lg:grid-cols-3' : ''}`}
+        >
+          {visibleVisits.map((v) => (
+            <Link
+              key={v.popupId}
+              href={localizedPath(`/popup/${v.popupId}`, locale)}
+              className="group flex min-w-0 items-center gap-3 rounded-xl border border-[var(--color-border)] bg-cream-300/70 p-2 transition-colors hover:border-lime-400/60 hover:bg-lime-50/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-500/70 dark:bg-ink-800/75 dark:hover:bg-lime-950/30"
+            >
+              <span className="relative h-[68px] w-[68px] shrink-0 overflow-hidden rounded-lg bg-cream-300 dark:bg-ink-800 sm:h-[72px] sm:w-[72px]">
+                <PopupCoverVisual
+                  popup={{ id: v.popupId, imageUrl: v.popupImage }}
+                  name={v.popupName}
+                  compact
+                />
               </span>
-            </div>
-          </Link>
-        ))}
-      </div>
+              <span className="min-w-0 flex-1 py-1">
+                <span className="line-clamp-2 text-[15px] font-extrabold leading-snug text-foreground sm:text-base">
+                  {v.popupName}
+                </span>
+                <span className="mt-2 flex items-center gap-1 text-xs font-semibold text-lime-700 dark:text-lime-300">
+                  {locale === 'en' ? 'View again' : locale === 'ja' ? 'もう一度見る' : '다시 보기'}
+                  <ArrowRight size={13} aria-hidden="true" />
+                </span>
+              </span>
+            </Link>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

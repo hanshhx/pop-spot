@@ -14,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -80,6 +81,7 @@ public class TermsController {
     }
 
     @PostMapping("/accept")
+    @PreAuthorize("isAuthenticated()")
     @Transactional
     public ResponseEntity<Map<String, Object>> accept(
             Authentication authentication, @Valid @RequestBody ConsentRequest request) {
@@ -106,6 +108,7 @@ public class TermsController {
 
     /** 정책 동의를 거절하면 로그아웃한다. 아직 한 번도 동의하지 않은 신규 소셜 계정은 수집된 프로필을 남기지 않도록 계정 자체를 함께 삭제한다. */
     @PostMapping("/decline")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Map<String, Object>> decline(Authentication authentication) {
         String userId = requireAuthenticatedUserId(authentication);
         User user =
