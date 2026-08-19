@@ -1,3 +1,16 @@
+> # ⛔ 이 문서는 폐기됐다
+>
+> **여기 적힌 서버는 존재하지 않는다.** IP `34.121.111.208`, `~/.ssh/gcp_key`, GCP Compute Engine 은
+> 모두 옛 구성이다. 그 뒤 집 Proxmox VM 으로 옮겼고, 그 VM 도 2026-08-13 부터 접속 불가다.
+>
+> 지금 이대로 따라가면 없는 서버에 접속을 시도하고, Certbot·80/443 개방은 Cloudflare Tunnel 방식과
+> 충돌한다.
+>
+> **새 절차는 [docs/plan-2026-08-oracle-migration.md](../../docs/plan-2026-08-oracle-migration.md) 를 따른다.**
+> Oracle 서버가 서고 검증이 끝나면 이 문서를 그 구성으로 다시 쓴다.
+>
+> 아래 내용은 기록으로만 남긴다.
+
 # POP-SPOT 백엔드 GCP Compute Engine VM 배포 가이드
 
 ## 사용자 환경 (확정)
@@ -134,9 +147,16 @@ sudo nano /home/reo4321/popspot.env
 운영에서는 첫 부팅을 포함해 `dev` 또는 `ddl-auto=update`를 사용하지 않는다. 기존 DB는 백업 후
 Flyway가 마이그레이션을 적용하게 하고, 신규 빈 DB는 검증된 schema-only 백업을 먼저 복원한다.
 
-기존 운영 DB는 V22까지 수동 SQL이 적용된 상태이다. `flyway_schema_history`가 없는 첫 prod 기동은
-`application-prod.properties`의 `baseline-version=22`로 기존 상태를 기준점으로 기록한 뒤 V23만 실행한다.
-기준 버전을 V1로 두면 과거의 비멱등 마이그레이션이 다시 실행될 수 있으므로 변경하지 않는다.
+**DB 상태에 따라 절차가 다르다.** 현재 코드 기준은 `baseline-version=28` 이고 마이그레이션은 `V33` 까지 있다.
+
+| DB 상태 | 절차 |
+|---|---|
+| 빈 DB | `V1` → `V33` 전체 실행 |
+| 스키마는 있는데 이력 없음 | 실제로 V28 수준인지 **대조한 뒤에만** baseline 28, 이어서 `V29~V33` |
+| `flyway_schema_history` 있음 | 기록된 최신 성공 버전부터 이어서 실행. **임의 baseline 금지** |
+
+기준 버전을 V1 로 두면 과거의 비멱등 마이그레이션이 다시 실행된다. 반대로 실제보다 높은 값을 찍으면
+필요한 마이그레이션이 건너뛰어진다. 둘 다 조용히 깨지므로 눈대중으로 정하지 않는다.
 
 ```bash
 # popspot.env

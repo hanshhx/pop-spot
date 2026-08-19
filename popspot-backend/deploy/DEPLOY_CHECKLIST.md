@@ -73,7 +73,7 @@
 - [ ] `SPRING_PROFILES_ACTIVE=prod`
 - [ ] `JPA_DDL_AUTO=validate` (`update/create` 운영 사용 금지, 변경은 Flyway SQL로만 적용)
 - [ ] `POPSPOT_TERMS_VERSION=1.2`, `POPSPOT_PRIVACY_VERSION=1.2`, `POPSPOT_POLICY_CONSENT_EFFECTIVE_DATE=2026-08-10` (정책별 동의 증적·시행일·만 14세 이상 확인)
-- [ ] Flyway `V30__policy_consent_evidence.sql` 적용 확인 (`ddl-auto=validate` 기동 전 필수)
+- [ ] Flyway 최신 `V33__visit_log_utm.sql` 까지 적용 확인 (`ddl-auto=validate` 기동 전 필수)
 
 #### Vercel 측 — Settings > Environment Variables
 - [ ] `NEXT_PUBLIC_API_URL=https://api.popspot.co.kr`
@@ -92,19 +92,28 @@
 ### C. 방화벽 / DNS
 - [ ] DNS: `api.popspot.co.kr A → VM 외부 IP`
 - [ ] DNS: `popspot.co.kr CNAME → cname.vercel-dns.com`
-- [ ] GCP 방화벽: 80/443만 0.0.0.0/0 허용. 22는 본인 IP만. 5432/6379/8080 외부 차단
-- [ ] Let's Encrypt: `sudo certbot --nginx -d api.popspot.co.kr`
+- [ ] **(폐기)** GCP 방화벽·80/443 개방 — Cloudflare Tunnel 방식에서는 80/443 을 열지 않는다
+- [ ] **(폐기)** Certbot — Tunnel 이 TLS 를 맡는다. 두 방식을 섞지 않는다
 
 ### D. 스키마 적용
 
 - 기존 운영 DB는 백업을 만든 뒤 `prod + validate + Flyway`로 기동하여 마이그레이션을 먼저 적용한다.
-- 운영 DB는 V22까지 수동 적용된 기존 스키마이므로, Flyway 이력이 없는 최초 prod 기동에서
-  `spring.flyway.baseline-version=22`가 기준 이력을 만들고 V23부터 실행해야 한다.
+- **DB 상태에 따라 절차가 다르다. 하나로 적으면 안 된다.**
+
+  | DB 상태 | 절차 | 어디서 쓰나 |
+  |---|---|---|
+  | 빈 DB | `V1` → `V33` 전체 실행 | 새 서버의 임시 공개 DB |
+  | 스키마는 있는데 `flyway_schema_history` 없음 | **실제로 V28 수준인지 대조한 뒤에만** `baseline-version=28`, 이어서 `V29~V33` | 예외 상황 |
+  | `flyway_schema_history` 있음 | 기록된 최신 성공 버전부터 이어서 실행. **임의 baseline 금지** | 옛 운영 DB 복원본 |
+
+  운영이 Flyway 로 돌아왔으므로 복원본은 세 번째에 해당한다. 두 번째는 이력이 유실된 예외에서만 쓴다.
+  `baseline-version` 을 눈대중으로 찍지 않는다 — V28 까지의 마이그레이션이 만드는 테이블·컬럼과
+  실제 스키마를 대조해 확인한 뒤에만 쓴다.
 - 최초 기동 전에 `flyway_schema_history` 존재 여부를 확인한다. 이미 이력이 있다면 최신 성공 버전과 실제
   스키마가 일치하는지 확인하고, 임의로 이력 행을 추가하거나 삭제하지 않는다.
 - 신규 빈 DB는 검증된 schema-only 백업을 복원한 뒤 Flyway 이력을 맞춘다. `dev/update`로 테이블을 자동 생성하지 않는다.
 - 기동 전 `flyway_schema_history`와 최신 마이그레이션 번호를 확인하고, 기동 후 unique 인덱스를 실제 DB에서 조회한다.
-- V23 적용 전 아래 쿼리가 모두 0행인지 확인한다. 결과가 있으면 자동 삭제하지 말고 주문 원장과 PortOne 결제를 대조해 수동 정리한다.
+- V29~V33 적용 전 아래 쿼리가 모두 0행인지 확인한다. 결과가 있으면 자동 삭제하지 말고 주문 원장과 PortOne 결제를 대조해 수동 정리한다.
 
 ```sql
 SELECT imp_uid, COUNT(*) FROM orders
