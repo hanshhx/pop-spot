@@ -50,7 +50,13 @@ Singapore West 에서 끝났다. Oracle 이 신규 무료 계정에 모든 리�
 
 ### Compartment Quota (실제 차단)
 
-메뉴: **Governance & Administration → Tenancy Management → Quota policies → Create quota**
+메뉴 (한국어 콘솔):
+
+```
+거버넌스 및 관리  →  테넌시 관리  →  할당량 정책  →  할당량 생성
+```
+
+영문 콘솔이면 **Governance & Administration → Tenancy Management → Quota policies → Create quota**.
 
 (콘솔 검색창에 `Quota policies` 를 쳐도 된다. 다만 검색어는 문서에 없는 편법이고, 위 메뉴 경로가
 문서에 적힌 정식 경로다.)
@@ -105,7 +111,7 @@ zero container-engine quotas in tenancy
 
 **최대 10분 걸린다.** 저장 직후 다른 리전에서 생성이 되더라도 정책 실패로 단정하지 않는다.
 
-`Limits, Quotas and Usage` 화면에서 눈으로 확인한다.
+**한도, 할당량 및 사용량**(`Limits, Quotas and Usage`) 화면에서 눈으로 확인한다.
 
 | 항목 | 기대값 |
 |---|---|
