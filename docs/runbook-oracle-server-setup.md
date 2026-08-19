@@ -8,17 +8,33 @@
 
 | | |
 |---|---|
-| 골라야 할 것 | **South Korea Central (Seoul)** — `ap-seoul-1` |
-| 고르면 안 되는 것 | ~~South Korea North (Chuncheon)~~ — `ap-chuncheon-1` |
+| 골라야 할 것 | **Japan East (Tokyo)** — `ap-tokyo-1` |
 
-춘천이 나쁜 곳이라서가 아니라, 서울이 사용자와 Cloudflare 엣지에 더 가깝고 지금 프론트(Vercel)도
-서울(`icn1`)에서 돈다.
+### 왜 서울이 아닌가
+
+**서울·춘천이 목록에 없다.** 2026-08-19 에 신규 무료 계정으로 확인했더니 ASIA-PACIFIC 구간이
+Singapore West 에서 끝났다. Oracle 이 신규 무료 계정에 모든 리전을 열어 주지 않는다.
+
+그래서 그다음으로 가까운 도쿄를 쓴다.
+
+| 리전 | 한국에서 지연(대략) |
+|---|---|
+| ~~Seoul~~ | ~5ms — 고를 수 없음 |
+| **Tokyo** | **~35ms** |
+| Singapore | ~70ms |
+| 미국 서부 | ~130ms |
+
+35ms 는 API 호출마다 더해지는 값이라 체감이 거의 없다. Vercel 도 도쿄 엣지(`hnd1`)가 있어
+프론트와 백엔드가 멀리 갈라지지 않는다.
+
+**가입 나라(Country/Territory)를 대한민국으로 두고도 서울이 안 보이면** 그건 정책이므로 도쿄로 간다.
 
 ## 1. 가입
 
 1. <https://www.oracle.com/cloud/free/> → **Start for free**
 2. 나라: 대한민국
-3. **Home Region: South Korea Central (Seoul)** ← 여기서 멈추고 한 번 더 확인한다
+3. **Home Region: Japan East (Tokyo)** ← 여기서 멈추고 한 번 더 확인한다
+   (서울이 목록에 보이면 그쪽이 낫다 — 위 표 참고)
 4. 카드 본인 확인 — 확인용이고 Always Free 안에서는 청구되지 않는다
 5. 가입 완료 후 콘솔 로그인
 
@@ -40,7 +56,7 @@
 
 ```
 set compute-core quota standard-a1-core-count to 4 in tenancy
-zero compute-core quotas in tenancy where request.region != 'ap-seoul-1'
+zero compute-core quotas in tenancy where request.region != 'ap-tokyo-1'
 zero database quotas in tenancy
 zero load-balancer quotas in tenancy
 ```
@@ -79,10 +95,10 @@ ssh-keygen -t ed25519 -C "popspot-oracle" -f ~/.ssh/oracle_popspot
 
 흔한 일이다. 무료 ARM 은 자리가 늘 부족하다.
 
-### 서울에서는 "다른 가용 영역"이 없다
+### 도쿄는 AD 가 하나다
 
-`ap-seoul-1` 은 **단일 AD(Availability Domain)** 리전이다. 그래서 "다른 AD 를 시도하라" 는 조언은
-서울에서 통하지 않는다. Fault Domain 은 용량과 무관하다.
+`ap-tokyo-1` 은 **단일 AD(Availability Domain)** 리전이다. 그래서 "다른 AD 를 시도하라" 는 조언이
+통하지 않는다. Fault Domain 은 용량과 무관하다.
 
 ### 할 수 있는 것
 
