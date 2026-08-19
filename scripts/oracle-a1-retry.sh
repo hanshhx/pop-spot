@@ -15,8 +15,10 @@ set -uo pipefail
 # ── 여기만 바꾼다 ────────────────────────────────────────────
 PUBKEY="ssh-ed25519 AAAA... popspot-oracle"
 NAME="popspot-api"
+OCPUS=2                # 이틀을 기다려도 안 나면 1 로 낮춘다
+MEM_GB=8               # OCPUS 를 1 로 낮출 때는 6 으로 (코어당 6GB 가 A1 기본)
 BOOT_GB=50
-MAX_TRIES=600          # 60초 간격이므로 약 10시간
+MAX_TRIES=900          # 60초 간격이므로 약 15시간
 # ────────────────────────────────────────────────────────────
 
 die() { echo "❌ $*" >&2; exit 1; }
@@ -58,7 +60,6 @@ echo
 ERR=$(mktemp)
 trap 'rm -f "$ERR"' EXIT
 
-# 큰 것과 작은 것을 번갈아 시도한다. 2코어 자리는 없어도 1코어 자리는 있을 수 있다.
 try() {
   local ocpus=$1 mem=$2
   oci compute instance launch \
@@ -76,15 +77,17 @@ try() {
     >/dev/null 2>"$ERR"
 }
 
+echo "${OCPUS}코어 / ${MEM_GB}GB 자리가 날 때까지 기다립니다. 60초 간격."
+echo "작은 사양으로 타협하지 않습니다 — 낮추려면 위쪽 OCPUS·MEM_GB 를 고치고 다시 돌리세요."
+echo
+
 for i in $(seq 1 "$MAX_TRIES"); do
-  if [ $((i % 2)) -eq 1 ]; then OCPUS=2; MEM=8; else OCPUS=1; MEM=6; fi
+  printf '[%3d] %s ... ' "$i" "$(date '+%H:%M:%S')"
 
-  printf '[%3d] %s  %d코어/%dGB ... ' "$i" "$(date '+%H:%M:%S')" "$OCPUS" "$MEM"
-
-  if try "$OCPUS" "$MEM"; then
+  if try "$OCPUS" "$MEM_GB"; then
     echo "성공"
     echo
-    echo "✅ $NAME 이 떴습니다 ($OCPUS코어 / ${MEM}GB)"
+    echo "✅ $NAME 이 떴습니다 (${OCPUS}코어 / ${MEM_GB}GB)"
     oci compute instance list -c "$COMPARTMENT" \
       --display-name "$NAME" --lifecycle-state RUNNING \
       --query 'data[0].id' --raw-output |
