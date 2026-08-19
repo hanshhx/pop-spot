@@ -21,7 +21,9 @@ NAME="popspot-api"
 OCPUS=2                # 이틀을 기다려도 안 나면 1 로 낮춘다
 MEM_GB=8               # OCPUS 를 1 로 낮출 때는 6 으로 (코어당 6GB 가 A1 기본)
 BOOT_GB=50
-MAX_TRIES=900          # 60초 간격이므로 약 15시간
+INTERVAL_S=300         # 자리가 없을 때 대기. 60초로 하면 429(요청 과다)에 걸린다
+BACKOFF_S=900          # 429 를 맞았을 때 대기
+MAX_TRIES=200          # 5분 간격이므로 약 16시간
 # ────────────────────────────────────────────────────────────
 
 die() { echo "❌ $*" >&2; exit 1; }
@@ -103,13 +105,20 @@ for i in $(seq 1 "$MAX_TRIES"); do
     exit 0
   fi
 
-  if grep -qi "capacity" "$ERR"; then
-    echo "자리 없음"
-    sleep 60
+  # 429 는 설정 오류가 아니라 "천천히 하라" 는 뜻이다. 더 오래 쉬고 계속한다.
+  if grep -qi "TooManyRequests" "$ERR"; then
+    echo "요청 과다 — ${BACKOFF_S}초 쉼"
+    sleep "$BACKOFF_S"
     continue
   fi
 
-  # 자리 문제가 아니면 설정 문제다. 멈추고 보여준다.
+  if grep -qi "capacity" "$ERR"; then
+    echo "자리 없음"
+    sleep "$INTERVAL_S"
+    continue
+  fi
+
+  # 자리도 아니고 속도도 아니면 설정 문제다. 멈추고 보여준다.
   echo "중단"
   echo
   echo "──── 용량 부족이 아닌 오류라 멈춥니다 ────" >&2
