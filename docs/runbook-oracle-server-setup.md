@@ -50,19 +50,99 @@ Singapore West 에서 끝났다. Oracle 이 신규 무료 계정에 모든 리�
 
 ### Compartment Quota (실제 차단)
 
-**Identity → Compartments → (해당 compartment) → Quotas** 에서 정책을 만든다.
+메뉴: **Governance & Administration → Tenancy Management → Quota policies → Create quota**
 
-무료 한도를 넘는 생성 자체를 막고, 쓰지 않을 자원 종류는 0 으로 잠근다. 예시:
+(콘솔 검색창에 `Quota policies` 를 쳐도 된다. 다만 검색어는 문서에 없는 편법이고, 위 메뉴 경로가
+문서에 적힌 정식 경로다.)
+
+#### 붙여넣을 정책
+
+**12줄 전부를 하나의 정책 안에, 아래 순서 그대로** 넣는다.
 
 ```
-set compute-core quota standard-a1-core-count to 4 in tenancy
-zero compute-core quotas in tenancy where request.region != 'ap-tokyo-1'
+zero compute-core quotas in tenancy
+set compute-core quota standard-a1-core-count to 2 in tenancy where request.region = ap-tokyo-1
+zero compute-memory quotas in tenancy
+set compute-memory quota standard-a1-memory-count to 12 in tenancy where request.region = ap-tokyo-1
+zero block-storage quotas in tenancy
+set block-storage quota total-storage-gb to 200 in tenancy where request.region = ap-tokyo-1
+set block-storage quota backup-count to 5 in tenancy where request.region = ap-tokyo-1
+zero object-storage quotas in tenancy
+set object-storage quota storage-bytes to 10000000000 in tenancy where request.region = ap-tokyo-1
 zero database quotas in tenancy
 zero load-balancer quotas in tenancy
+zero container-engine quotas in tenancy
 ```
 
-정확한 정책 이름은 콘솔의 Quota 편집 화면이 목록으로 보여준다. **내가 적은 숫자보다 콘솔이 보여주는
-"Always Free Eligible" 표시를 믿는다.**
+#### 왜 이 모양인가
+
+`where request.region != ap-tokyo-1` 같은 **부정 조건은 존재하지 않는다.** 문서에 명시돼 있다 —
+조건은 `request.region` 과 `request.ad` 둘뿐이고, 공개된 어떤 예제에도 `=` 외의 연산자가 없다.
+
+그래서 리전 잠금은 **전부 막고 도쿄만 다시 여는** 두 줄짜리 짝으로만 표현된다. Oracle 문서의
+"Limit creating dense I/O compute resources to only one region" 예제가 같은 모양이다.
+
+| 짝 | 막는 줄 | 다시 여는 줄 |
+|---|---|---|
+| CPU | `zero compute-core` | A1 코어 2개 · 도쿄만 |
+| 메모리 | `zero compute-memory` | A1 메모리 12GB · 도쿄만 |
+| 디스크 | `zero block-storage` | 200GB + 백업 5개 · 도쿄만 |
+| 오브젝트 | `zero object-storage` | 10GB · 도쿄만 (DB 백업 보관용) |
+
+**CPU 와 메모리는 서로 다른 패밀리다.** `compute-core` 만 막으면 메모리는 안 막힌다.
+
+#### 절대 하면 안 되는 것
+
+| 하면 | 결과 |
+|---|---|
+| 두 정책으로 쪼개기 | **인스턴스 생성 불가.** 정책끼리는 가장 엄격한 쪽이 이겨서 `zero` 가 이긴다 |
+| 순서 바꾸기 · 정렬하기 | **인스턴스 생성 불가.** 같은 정책 안에서는 뒤 문장이 이긴다 |
+| 나중에 `zero` 를 맨 끝에 추가 | **인스턴스 생성 불가.** 위 `set` 을 덮어쓴다 |
+| `zero vcn quotas in tenancy` | **인스턴스 생성 불가.** 이 패밀리에 `vcn-count` 가 들어 있어 VCN 자체를 못 만든다 |
+| `unset` 을 차단 용도로 사용 | **보호 해제.** `unset` 은 오라클 기본 한도까지 되열어준다 |
+
+#### 저장 후 확인
+
+**최대 10분 걸린다.** 저장 직후 다른 리전에서 생성이 되더라도 정책 실패로 단정하지 않는다.
+
+`Limits, Quotas and Usage` 화면에서 눈으로 확인한다.
+
+| 항목 | 기대값 |
+|---|---|
+| `standard-a1-core-count` | 2 |
+| `standard-a1-memory-count` | 12 |
+| `total-storage-gb` | 200 |
+
+**오타가 났을 때 오라클이 거부하는지 조용히 무시하는지는 문서에 없다.** 그래서 눈으로 본다.
+`set` 줄에 오타가 나면 `zero` 만 남아 인스턴스를 못 만들고, `zero` 줄에 오타가 나면 보호가 사라진다.
+
+저장이 거부되면 리전 값에 작은따옴표를 씌워 본다(`= 'ap-tokyo-1'`). 오라클 문서 안에서도
+따옴표 표기가 엇갈린다.
+
+#### 이 정책이 막지 못하는 것
+
+쿼터는 48개 서비스 중 여기서 이름을 댄 7개만 막는다. 나머지는 열려 있다.
+
+- **OKE 클러스터** — `container-engine` 에는 가상 노드 쿼터밖에 없다
+- **MySQL HeatWave** — 문서상 쿼터를 아예 지원하지 않는다
+- **Network Load Balancer** — 쿼터 패밀리가 없다 (`load-balancer` 는 구형 LB 전용)
+- **A1 컨테이너 인스턴스** — 도쿄에 열어둔 2 OCPU 를 VM 대신 이걸로 쓸 수 있다. 조건절이
+  shape 을 못 걸러서 구조적으로 막을 방법이 없다
+- **Analytics · Big Data · Data Science · File Storage · API Gateway 등** — 패밀리 이름을
+  확인하지 않아 넣지 않았다. 이름을 지어내면 저장은 되고 아무것도 안 막는 게 최악이다
+
+문서에 이렇게 적혀 있다 — **"Service limits always take precedence over quotas."** 쿼터는
+조이기만 할 뿐 무료를 보장하지 않는다. **진짜 방어선은 예산 알림이다.**
+
+#### 알아둘 부작용
+
+- 무료 x86 2대(`VM.Standard.E2.1.Micro`)도 같이 막힌다. 쓰려면 정책 **끝에**
+  `set compute-core quota standard-e2-micro-core-count to 1 in tenancy where request.region = ap-tokyo-1` 추가
+- 무료 Autonomous Database 2개도 막힌다. 쓰려면 `zero database` 줄을 지운다
+- **코어 상한이 정확히 2라 재구축 여유가 없다.** 새로 만들고 옛것을 지우는 순서가 안 된다.
+  반드시 옛것을 먼저 종료해야 한다
+- 코어·메모리·디스크 쿼터는 **AD 당** 값이다. 테넌시 총량이 아니다. 도쿄는 AD 가 하나라 실질
+  차이는 없다
 
 ## 3. 인스턴스 생성
 
