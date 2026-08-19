@@ -30,17 +30,27 @@ MAX_TRIES=200          # 5분 간격이므로 약 16시간
 
 die() { echo "❌ $*" >&2; exit 1; }
 
-[ -f "$PUBKEY_FILE" ] || die "$PUBKEY_FILE 이 없습니다.
-   PC의 PowerShell 에서:  Get-Content \"\$HOME\\.ssh\\oracle_popspot.pub\" | Set-Clipboard
-   Cloud Shell 에서:      cat > $PUBKEY_FILE   ← 붙여넣고 Ctrl+D"
+# 공개키 위치는 환경에 따라 다르다. Cloud Shell 은 홈에 올려두고,
+# 내 PC 는 ssh-keygen 이 만든 자리에 그대로 있다.
+for f in "$PUBKEY_FILE" ~/.ssh/oracle_popspot.pub; do
+  [ -f "$f" ] && { PUBKEY_FILE=$f; break; }
+done
+
+[ -f "$PUBKEY_FILE" ] || die "공개키 파일을 못 찾았습니다.
+   찾아본 곳: ~/popspot.pub, ~/.ssh/oracle_popspot.pub"
 
 # 여러 줄로 붙여넣어졌어도 ssh- 로 시작하는 첫 줄만 쓴다.
 PUBKEY=$(grep -m1 '^ssh-' "$PUBKEY_FILE" | tr -d '\r')
 [ -n "$PUBKEY" ] || die "$PUBKEY_FILE 안에 ssh- 로 시작하는 줄이 없습니다.
    .pub 파일(공개키)이 맞는지 확인하세요. 개인키 파일은 -----BEGIN 으로 시작합니다."
 
+# Cloud Shell 은 OCI_TENANCY 를 넣어준다. 내 PC 에서는 설정 파일에서 꺼낸다.
 COMPARTMENT="${OCI_TENANCY:-}"
-[ -n "$COMPARTMENT" ] || die "OCI_TENANCY 가 비어 있습니다. Cloud Shell 에서 돌리고 있는지 확인하세요."
+if [ -z "$COMPARTMENT" ] && [ -f ~/.oci/config ]; then
+  COMPARTMENT=$(sed -n 's/^tenancy[[:space:]]*=[[:space:]]*//p' ~/.oci/config | head -1)
+fi
+[ -n "$COMPARTMENT" ] || die "테넌시 OCID 를 못 찾았습니다.
+   Cloud Shell 이 아니라면 먼저 'oci setup config' 를 끝내야 합니다."
 
 echo "가용성 도메인·서브넷·이미지를 찾는 중..."
 
