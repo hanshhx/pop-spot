@@ -30,6 +30,20 @@ MAX_TRIES=200          # 5분 간격이므로 약 16시간
 
 die() { echo "❌ $*" >&2; exit 1; }
 
+# Cloud Shell 에는 oci 가 PATH 에 있다. 내 PC 에서는 venv 안에 있어서
+# 매번 export 를 치게 하면 붙여넣기에서 깨진다. 여기서 직접 찾는다.
+if ! command -v oci >/dev/null 2>&1; then
+  for d in "$HOME/oci-venv/Scripts" "$HOME/oci-venv/bin" "$HOME/lib/oracle-cli/bin"; do
+    if [ -x "$d/oci.exe" ] || [ -x "$d/oci" ]; then
+      PATH="$d:$PATH"
+      export PATH
+      break
+    fi
+  done
+fi
+command -v oci >/dev/null 2>&1 || die "oci 명령을 못 찾았습니다.
+   찾아본 곳: ~/oci-venv/Scripts, ~/oci-venv/bin, ~/lib/oracle-cli/bin"
+
 # 공개키 위치는 환경에 따라 다르다. Cloud Shell 은 홈에 올려두고,
 # 내 PC 는 ssh-keygen 이 만든 자리에 그대로 있다.
 for f in "$PUBKEY_FILE" ~/.ssh/oracle_popspot.pub; do
@@ -47,7 +61,9 @@ PUBKEY=$(grep -m1 '^ssh-' "$PUBKEY_FILE" | tr -d '\r')
 # Cloud Shell 은 OCI_TENANCY 를 넣어준다. 내 PC 에서는 설정 파일에서 꺼낸다.
 COMPARTMENT="${OCI_TENANCY:-}"
 if [ -z "$COMPARTMENT" ] && [ -f ~/.oci/config ]; then
-  COMPARTMENT=$(sed -n 's/^tenancy[[:space:]]*=[[:space:]]*//p' ~/.oci/config | head -1)
+  # 윈도우가 쓴 설정 파일은 줄 끝에 CR 이 붙는다. 앞뒤 공백과 함께 털어낸다.
+  COMPARTMENT=$(sed -n 's/^[[:space:]]*tenancy[[:space:]]*=[[:space:]]*//p' ~/.oci/config |
+    head -1 | tr -d '\r' | tr -d '[:space:]')
 fi
 [ -n "$COMPARTMENT" ] || die "테넌시 OCID 를 못 찾았습니다.
    Cloud Shell 이 아니라면 먼저 'oci setup config' 를 끝내야 합니다."
