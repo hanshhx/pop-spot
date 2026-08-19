@@ -63,7 +63,7 @@ Singapore West 에서 끝났다. Oracle 이 신규 무료 계정에 모든 리�
 
 #### 붙여넣을 정책
 
-**12줄 전부를 하나의 정책 안에, 아래 순서 그대로** 넣는다.
+**14줄 전부를 하나의 정책 안에, 아래 순서 그대로** 넣는다.
 
 ```
 zero compute-core quotas in tenancy
@@ -78,6 +78,8 @@ set object-storage quota storage-bytes to 10000000000 in tenancy where request.r
 zero database quotas in tenancy
 zero load-balancer quotas in tenancy
 zero container-engine quotas in tenancy
+set compute-core quota standard-a1-core-regional-count to 2 in tenancy where request.region = ap-tokyo-1
+set compute-memory quota standard-a1-memory-regional-count to 12 in tenancy where request.region = ap-tokyo-1
 ```
 
 #### 왜 이 모양인가
@@ -90,12 +92,33 @@ zero container-engine quotas in tenancy
 
 | 짝 | 막는 줄 | 다시 여는 줄 |
 |---|---|---|
-| CPU | `zero compute-core` | A1 코어 2개 · 도쿄만 |
-| 메모리 | `zero compute-memory` | A1 메모리 12GB · 도쿄만 |
+| CPU | `zero compute-core` | A1 코어 2개 · 도쿄만 (**AD 범위 + 리전 범위 둘 다**) |
+| 메모리 | `zero compute-memory` | A1 메모리 12GB · 도쿄만 (**AD 범위 + 리전 범위 둘 다**) |
 | 디스크 | `zero block-storage` | 200GB + 백업 5개 · 도쿄만 |
 | 오브젝트 | `zero object-storage` | 10GB · 도쿄만 (DB 백업 보관용) |
 
 **CPU 와 메모리는 서로 다른 패밀리다.** `compute-core` 만 막으면 메모리는 안 막힌다.
+
+#### A1 쿼터는 이름이 네 개다
+
+이게 실제로 생성을 실패시켰다(2026-08-19).
+
+| 범위 | 코어 | 메모리 |
+|---|---|---|
+| 가용성 도메인 | `standard-a1-core-count` | `standard-a1-memory-count` |
+| **리전** | `standard-a1-core-regional-count` | `standard-a1-memory-regional-count` |
+
+**네 개를 전부 열어야 한다.** AD 범위만 열면 생성할 때 이렇게 막힌다.
+
+> The following compartment quotas were exceeded: `standard-a1-core-regional-count` ... by 2,
+> `standard-a1-memory-regional-count` ... by 8
+
+**오라클 문서에는 리전 범위 두 개가 없다.** Compute Quotas 페이지는 `standard-a1` 로 시작하는
+쿼터 6개를 전부 "가용성 도메인" 으로만 적어 놓았다. 문서가 실제 시스템보다 뒤처져 있으므로,
+**쿼터 이름은 문서가 아니라 실패 메시지가 최종 판정자다.**
+
+`한도, 할당량 및 사용량` 화면에서도 안 보인다 — 범위 필터를 AD 로 놓으면 리전 범위 항목이
+목록에서 빠진다. **확인할 때 범위를 두 번(AD·리전) 봐야 한다.**
 
 #### 절대 하면 안 되는 것
 
@@ -113,14 +136,21 @@ zero container-engine quotas in tenancy
 
 **한도, 할당량 및 사용량**(`Limits, Quotas and Usage`) 화면에서 눈으로 확인한다.
 
-| 항목 | 기대값 |
-|---|---|
-| `standard-a1-core-count` | 2 |
-| `standard-a1-memory-count` | 12 |
-| `total-storage-gb` | 200 |
+**범위를 두 번 본다.** 먼저 AD(`...AP-TOKYO-1-AD-1`), 그다음 리전(`ap-tokyo-1`).
 
-**오타가 났을 때 오라클이 거부하는지 조용히 무시하는지는 문서에 없다.** 그래서 눈으로 본다.
-`set` 줄에 오타가 나면 `zero` 만 남아 인스턴스를 못 만들고, `zero` 줄에 오타가 나면 보호가 사라진다.
+| 범위 | 항목 | 기대값 |
+|---|---|---|
+| AD | `standard-a1-core-count` | 2 |
+| AD | `standard-a1-memory-count` | 12 |
+| AD | `total-storage-gb` | 200 |
+| **리전** | `standard-a1-core-regional-count` | **2** |
+| **리전** | `standard-a1-memory-regional-count` | **12** |
+
+**쿼터가 부족하면 인스턴스 생성이 실제로 거부된다** — 2026-08-19 에 확인했다. 오류 메시지가
+어느 쿼터가 얼마나 모자란지 이름과 숫자로 알려준다. 조용히 통과하지 않는다.
+
+그래도 눈으로 보는 이유는 반대 방향 때문이다. `zero` 줄에 오타가 나면 **보호가 사라지는데 그건
+아무 오류도 내지 않는다.** 막히는 실수는 시끄럽고, 안 막히는 실수는 조용하다.
 
 저장이 거부되면 리전 값에 작은따옴표를 씌워 본다(`= 'ap-tokyo-1'`). 오라클 문서 안에서도
 따옴표 표기가 엇갈린다.
