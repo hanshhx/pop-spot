@@ -25,6 +25,8 @@ SMALL_OCPUS=1; SMALL_MEM=6
 BOOT_GB=50
 INTERVAL_S=300         # 자리가 없을 때 대기. 60초로 하면 429(요청 과다)에 걸린다
 BACKOFF_S=900          # 429 를 맞았을 때 대기
+NET_RETRY_S=120        # 네트워크가 끊겼을 때 대기
+NET_FAIL_LIMIT=10      # 네트워크 오류가 이만큼 연속이면 진짜 고장으로 본다
 MAX_TRIES=200          # 5분 간격이므로 약 16시간
 # ────────────────────────────────────────────────────────────
 
@@ -95,6 +97,7 @@ echo
 
 ERR=$(mktemp)
 trap 'rm -f "$ERR"' EXIT
+NET_FAILS=0
 
 try() {
   local ocpus=$1 mem=$2
@@ -148,11 +151,25 @@ for i in $(seq 1 "$MAX_TRIES"); do
 
   if grep -qi "capacity" "$ERR"; then
     echo "자리 없음"
+    NET_FAILS=0          # 응답을 받았으니 네트워크는 멀쩡하다
     sleep "$INTERVAL_S"
     continue
   fi
 
-  # 자리도 아니고 속도도 아니면 설정 문제다. 멈추고 보여준다.
+  # 인터넷이 잠깐 끊긴 것도 설정 문제가 아니다.
+  # 다만 계속 이러면 진짜 고장이므로 세어 두었다가 멈춘다.
+  if grep -qiE "timed out|timeout|ConnectionError|RequestException|Max retries" "$ERR"; then
+    NET_FAILS=$((NET_FAILS + 1))
+    if [ "$NET_FAILS" -ge "$NET_FAIL_LIMIT" ]; then
+      echo "중단"
+      die "네트워크 오류가 ${NET_FAIL_LIMIT}회 연속입니다. 인터넷 연결을 확인하세요."
+    fi
+    echo "네트워크 오류 ${NET_FAILS}/${NET_FAIL_LIMIT}"
+    sleep "$NET_RETRY_S"
+    continue
+  fi
+
+  # 자리도, 속도도, 네트워크도 아니면 설정 문제다. 멈추고 보여준다.
   echo "중단"
   echo
   echo "──── 용량 부족이 아닌 오류라 멈춥니다 ────" >&2
