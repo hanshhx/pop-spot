@@ -4,8 +4,9 @@
 # OCI Cloud Shell 에서 돌린다 — 거기엔 oci CLI 가 이미 인증된 채로 깔려 있다.
 #
 #   1. 콘솔 오른쪽 위 [>_] 아이콘 → Cloud Shell
-#   2. 아래 PUBKEY 를 자기 공개키로 바꾼다
-#   3. bash oracle-a1-retry.sh
+#   2. cat > ~/popspot.pub   ← 공개키 붙여넣고 Ctrl+D
+#   3. cat > retry.sh        ← 이 스크립트 붙여넣고 Ctrl+D
+#   4. bash retry.sh
 #
 # 자리가 없으면 60초 뒤 다시 시도하고, 그 외 오류가 나면 멈춘다.
 # 설정이 틀렸는데 밤새 도는 것이 제일 나쁘기 때문이다.
@@ -13,7 +14,9 @@
 set -uo pipefail
 
 # ── 여기만 바꾼다 ────────────────────────────────────────────
-PUBKEY="ssh-ed25519 AAAA... popspot-oracle"
+# 공개키는 이 파일에서 읽는다. 스크립트를 편집할 필요가 없다.
+#   cat > ~/popspot.pub     ← 붙여넣고 Ctrl+D
+PUBKEY_FILE=~/popspot.pub
 NAME="popspot-api"
 OCPUS=2                # 이틀을 기다려도 안 나면 1 로 낮춘다
 MEM_GB=8               # OCPUS 를 1 로 낮출 때는 6 으로 (코어당 6GB 가 A1 기본)
@@ -23,11 +26,14 @@ MAX_TRIES=900          # 60초 간격이므로 약 15시간
 
 die() { echo "❌ $*" >&2; exit 1; }
 
-case "$PUBKEY" in
-  *AAAA...*) die "PUBKEY 를 실제 공개키로 바꾸세요. oracle_popspot.pub 내용 한 줄입니다." ;;
-  ssh-*) ;;
-  *) die "PUBKEY 가 ssh- 로 시작하지 않습니다. .pub 파일 내용이 맞는지 보세요." ;;
-esac
+[ -f "$PUBKEY_FILE" ] || die "$PUBKEY_FILE 이 없습니다.
+   PC의 PowerShell 에서:  Get-Content \"\$HOME\\.ssh\\oracle_popspot.pub\" | Set-Clipboard
+   Cloud Shell 에서:      cat > $PUBKEY_FILE   ← 붙여넣고 Ctrl+D"
+
+# 여러 줄로 붙여넣어졌어도 ssh- 로 시작하는 첫 줄만 쓴다.
+PUBKEY=$(grep -m1 '^ssh-' "$PUBKEY_FILE" | tr -d '\r')
+[ -n "$PUBKEY" ] || die "$PUBKEY_FILE 안에 ssh- 로 시작하는 줄이 없습니다.
+   .pub 파일(공개키)이 맞는지 확인하세요. 개인키 파일은 -----BEGIN 으로 시작합니다."
 
 COMPARTMENT="${OCI_TENANCY:-}"
 [ -n "$COMPARTMENT" ] || die "OCI_TENANCY 가 비어 있습니다. Cloud Shell 에서 돌리고 있는지 확인하세요."
