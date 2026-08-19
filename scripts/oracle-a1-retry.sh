@@ -18,8 +18,10 @@ set -uo pipefail
 #   cat > ~/popspot.pub     ← 붙여넣고 Ctrl+D
 PUBKEY_FILE=~/popspot.pub
 NAME="popspot-api"
-OCPUS=2                # 이틀을 기다려도 안 나면 1 로 낮춘다
-MEM_GB=8               # OCPUS 를 1 로 낮출 때는 6 으로 (코어당 6GB 가 A1 기본)
+# 두 사양을 번갈아 시도한다. 둘 다 무료 한도 안이고, 2코어 자리는 없어도
+# 1코어 틈은 자주 난다. 유료 전환이 선택지에 없으므로 먼저 오는 것을 잡는다.
+BIG_OCPUS=2;   BIG_MEM=8
+SMALL_OCPUS=1; SMALL_MEM=6
 BOOT_GB=50
 INTERVAL_S=300         # 자리가 없을 때 대기. 60초로 하면 429(요청 과다)에 걸린다
 BACKOFF_S=900          # 429 를 맞았을 때 대기
@@ -85,12 +87,18 @@ try() {
     >/dev/null 2>"$ERR"
 }
 
-echo "${OCPUS}코어 / ${MEM_GB}GB 자리가 날 때까지 기다립니다. 60초 간격."
-echo "작은 사양으로 타협하지 않습니다 — 낮추려면 위쪽 OCPUS·MEM_GB 를 고치고 다시 돌리세요."
+echo "${BIG_OCPUS}코어/${BIG_MEM}GB 와 ${SMALL_OCPUS}코어/${SMALL_MEM}GB 를 번갈아 시도합니다."
+echo "먼저 자리가 나는 쪽을 잡습니다. ${INTERVAL_S}초 간격."
 echo
 
 for i in $(seq 1 "$MAX_TRIES"); do
-  printf '[%3d] %s ... ' "$i" "$(date '+%H:%M:%S')"
+  if [ $((i % 2)) -eq 1 ]; then
+    OCPUS=$BIG_OCPUS;   MEM_GB=$BIG_MEM
+  else
+    OCPUS=$SMALL_OCPUS; MEM_GB=$SMALL_MEM
+  fi
+
+  printf '[%3d] %s  %d코어/%dGB ... ' "$i" "$(date '+%H:%M:%S')" "$OCPUS" "$MEM_GB"
 
   if try "$OCPUS" "$MEM_GB"; then
     echo "성공"
