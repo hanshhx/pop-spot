@@ -34,12 +34,13 @@ describe('serviceAvailability', () => {
     await expect(response.json()).resolves.toMatchObject({ error: 'Service Unavailable' });
   });
 
-  it('확인이 한 번 실패한 것으로는 장애를 선언하지 않는다', () => {
+  it('두 번까지의 실패로는 장애를 선언하지 않는다', () => {
     expect(availabilityAfterFailure(1)).toBeNull();
+    expect(availabilityAfterFailure(2)).toBeNull();
   });
 
-  it('연속 두 번 실패하면 장애로 선언한다', () => {
-    expect(availabilityAfterFailure(2)).toBe('unavailable');
+  it('연속 세 번 실패하면 장애로 선언한다', () => {
     expect(availabilityAfterFailure(3)).toBe('unavailable');
+    expect(availabilityAfterFailure(4)).toBe('unavailable');
   });
 });
