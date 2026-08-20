@@ -34,6 +34,29 @@ export function setServiceAvailability(next: ServiceAvailability): void {
   }
 }
 
+/**
+ * 확인 한 번의 결과를 반영해 다음 상태를 정한다. {@code null} 이면 지금 상태를 그대로 둔다.
+ *
+ * <p>이 판정이 배너 하나만 좌우하는 것이 아니다. 로그인 화면({@code app/login/page.tsx})과
+ * 회원 API 차단({@code api.ts} 의 사전 차단)이 같은 값을 읽으므로, 여기서 한 번 깜빡이면
+ * 사용자에게는 "서버가 또 나갔고 로그인도 풀렸다" 로 보인다.
+ *
+ * <p>그래서 실패는 <b>연속 2회</b>부터 장애로 본다. 확인 요청 한 번이 느려서 제한시간에
+ * 걸리는 일은 흔한데, 그때마다 회원 기능을 끊으면 멀쩡한 서버가 고장 난 것처럼 보인다.
+ * 진짜 장애는 다음 확인(15초 뒤)에도 실패하므로 15초 늦게 잡힐 뿐 놓치지 않는다.
+ *
+ * <p>반대 방향(복구)은 호출부가 더 엄격하게 본다 — 장애를 실제로 겪은 탭만 3연속 성공과
+ * 60초 안정을 요구한다. 끊길 때보다 돌아올 때를 더 신중하게 보는 비대칭은 의도한 것이다.
+ *
+ * @param consecutiveFailures 이번 실패까지 포함한 연속 실패 횟수
+ */
+export function availabilityAfterFailure(consecutiveFailures: number): ServiceAvailability | null {
+  return consecutiveFailures >= FAILURE_COUNT_TO_DECLARE_DOWN ? 'unavailable' : null;
+}
+
+/** 장애로 선언하기 전에 필요한 연속 실패 횟수. */
+export const FAILURE_COUNT_TO_DECLARE_DOWN = 2;
+
 export function serviceUnavailableResponse(): Response {
   return new Response(
     JSON.stringify({
