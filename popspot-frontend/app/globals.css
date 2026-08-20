@@ -280,6 +280,9 @@ li {
 /* 기본은 둘 다 그리지 않는다. 아래 미디어쿼리보다 <b>먼저</b> 와야 한다 —
    뒤에 두면 같은 특정도라 미디어쿼리를 덮어써서 좁은 화면에서도 사라진다. */
 .home-flat-bg,
+.home-flat-road,
+.home-flat-river,
+.home-flat-glow,
 .home-flat-grain {
   display: none;
 }
@@ -298,8 +301,8 @@ li {
     inset: 0;
     background-image:
       radial-gradient(88% 40% at 50% 104%, rgba(168, 230, 69, 0.16), transparent 68%),
-      linear-gradient(rgba(79, 122, 16, 0.06) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(79, 122, 16, 0.06) 1px, transparent 1px);
+      linear-gradient(rgba(79, 122, 16, 0.042) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(79, 122, 16, 0.042) 1px, transparent 1px);
     background-size:
       100% 100%,
       44px 44px,
@@ -336,6 +339,49 @@ li {
     background: rgba(79, 122, 16, 0.16);
   }
 
+  /* 1c 보정판: 핀처럼 보이는 장식은 두지 않고 지도에서 읽히는 큰 지형선만 남긴다. */
+  .home-flat-road {
+    display: block;
+    position: absolute;
+    left: -28%;
+    right: -28%;
+    top: 63%;
+    height: 34%;
+    transform: rotate(-8deg);
+    border-top: 1px solid rgba(79, 122, 16, 0.13);
+    background: repeating-linear-gradient(
+      90deg,
+      transparent 0 72px,
+      rgba(79, 122, 16, 0.05) 72px 73px,
+      transparent 73px 142px
+    );
+  }
+
+  .home-flat-river {
+    display: block;
+    position: absolute;
+    inset: 0;
+    height: 100%;
+    width: 100%;
+    fill: none;
+    stroke: rgba(136, 200, 40, 0.15);
+    stroke-width: 30;
+    stroke-linecap: round;
+  }
+
+  .home-flat-glow {
+    display: block;
+    position: absolute;
+    left: -36%;
+    bottom: -10rem;
+    width: 33rem;
+    height: 33rem;
+    border-radius: 9999px;
+    background: radial-gradient(circle, rgba(168, 230, 69, 0.13), transparent 67%);
+    animation: home-flat-drift 52s ease-in-out infinite alternate;
+    will-change: transform;
+  }
+
   /* 띠 방지용 입자. 마스크를 타지 않도록 형제로 둔다. */
   .home-flat-grain {
     display: block;
@@ -348,8 +394,8 @@ li {
   .dark .home-flat-bg {
     background-image:
       radial-gradient(88% 40% at 50% 104%, rgba(136, 200, 40, 0.11), transparent 68%),
-      linear-gradient(rgba(194, 249, 112, 0.05) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(194, 249, 112, 0.05) 1px, transparent 1px);
+      linear-gradient(rgba(194, 249, 112, 0.034) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(194, 249, 112, 0.034) 1px, transparent 1px);
     background-size:
       100% 100%,
       44px 44px,
@@ -360,9 +406,64 @@ li {
     background: rgba(194, 249, 112, 0.12);
   }
 
+  .dark .home-flat-road {
+    border-color: rgba(194, 249, 112, 0.09);
+    background: repeating-linear-gradient(
+      90deg,
+      transparent 0 72px,
+      rgba(194, 249, 112, 0.035) 72px 73px,
+      transparent 73px 142px
+    );
+  }
+
+  .dark .home-flat-river {
+    stroke: rgba(136, 200, 40, 0.09);
+  }
+
+  .dark .home-flat-glow {
+    background: radial-gradient(circle, rgba(136, 200, 40, 0.09), transparent 67%);
+  }
+
   .dark .home-flat-grain {
     opacity: 0.022;
   }
+}
+
+@keyframes home-flat-drift {
+  from {
+    transform: translate3d(-3%, 1%, 0) scale(0.96);
+  }
+  to {
+    transform: translate3d(18%, -5%, 0) scale(1.05);
+  }
+}
+
+/* SEO 목록은 읽는 화면이다. 장식은 제목 뒤의 빛과 한 줄만 두고 본문에는 침범하지 않는다. */
+.seo-landing-bg {
+  position: relative;
+  isolation: isolate;
+  overflow-x: clip;
+  background: #faf8f3;
+}
+
+.seo-landing-bg::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: 0;
+  height: 17rem;
+  border-bottom: 1px solid rgba(79, 122, 16, 0.12);
+  background: radial-gradient(64% 92% at 28% 0%, rgba(168, 230, 69, 0.13), transparent 68%);
+  pointer-events: none;
+}
+
+.dark .seo-landing-bg {
+  background: #101114;
+}
+
+.dark .seo-landing-bg::before {
+  border-bottom-color: rgba(194, 249, 112, 0.08);
+  background: radial-gradient(64% 92% at 28% 0%, rgba(136, 200, 40, 0.09), transparent 68%);
 }
 
 /* 영상 위 스크림 — 상·하단만 살짝 눌러 헤더/푸터 대비 확보, 중앙은 거의 투명해 영상이 그대로 보임. */

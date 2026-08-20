@@ -88,7 +88,13 @@ export default function BrowseSection({ initialMarkers }: { initialMarkers?: Mar
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const saved = window.localStorage.getItem(EXPAND_STORAGE_KEY);
-    if (saved === '0') setIsExpanded(false);
+    const nextExpanded =
+      saved === '0' || saved === '1'
+        ? saved === '1'
+        : // 첫 방문만 화면 폭에 맞춘다. 이후에는 사용자가 고른 상태를 그대로 기억한다.
+          !window.matchMedia('(max-width: 767px)').matches;
+    const task = window.setTimeout(() => setIsExpanded(nextExpanded), 0);
+    return () => window.clearTimeout(task);
   }, []);
 
   function toggleExpand() {
