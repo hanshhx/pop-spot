@@ -26,6 +26,9 @@ export function DashboardTab({
   serverStatus,
   setActiveTab,
 }: DashboardTabProps) {
+  const automationDisabled = Boolean(
+    dashboard.snapshot && dashboard.snapshot.crawler?.automationEnabled === false,
+  );
   return (
     <div className="space-y-5 md:space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* 서비스 지표 4카드 */}
@@ -163,6 +166,9 @@ export function DashboardTab({
           />{' '}
           {serverStatus === 'online' ? '정상' : '오프라인'}
         </span>
+        {automationDisabled && (
+          <span className="font-bold text-red-600 dark:text-red-400">자동 갱신 꺼짐</span>
+        )}
         <span className="ml-auto flex items-center gap-0.5 font-bold text-lime-600 dark:text-lime-300">
           자세히 <ChevronRight size={12} />
         </span>

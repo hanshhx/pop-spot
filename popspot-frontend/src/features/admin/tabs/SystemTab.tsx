@@ -1,4 +1,4 @@
-import { Activity, Cpu, Database, Globe, ShieldAlert } from 'lucide-react';
+import { Activity, AlertTriangle, Cpu, Database, Globe, ShieldAlert } from 'lucide-react';
 import { LogViewer } from '@/components/admin/log/LogViewer';
 import { MetricCard } from '@/components/admin/metrics/MetricCard';
 import { TotpSetupPanel } from '@/features/admin/TotpSetupPanel';
@@ -31,6 +31,11 @@ export function SystemTab({
   serverStatus,
   onRevokeAllSessions,
 }: SystemTabProps) {
+  const crawler = dashboard.snapshot?.crawler;
+  const automationDisabled = Boolean(dashboard.snapshot && crawler?.automationEnabled === false);
+  const popupDataStale = Boolean(
+    dashboard.snapshot && crawler?.automationEnabled === true && crawler?.newPopupDataStale,
+  );
   const memPercent = serverResource?.memoryTotalMb
     ? (serverResource.memoryUsedMb / serverResource.memoryTotalMb) * 100
     : 0;
@@ -39,6 +44,32 @@ export function SystemTab({
     : 0;
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      {automationDisabled && (
+        <div className="rounded-2xl border border-red-500/40 bg-red-500/10 p-4 text-sm">
+          <p className="flex items-center gap-2 font-bold text-red-700 dark:text-red-300">
+            <AlertTriangle size={17} /> 자동 갱신이 꺼져 있습니다
+          </p>
+          <p className="mt-1 text-muted-foreground">
+            예약 작업 {crawler?.schedulingEnabled ? '켜짐' : '꺼짐'} · 자동수집{' '}
+            {crawler?.crawlerEnabled ? '켜짐' : '꺼짐'}. 서버 복구 뒤 이 상태가 남으면 새 팝업과
+            만료 처리가 갱신되지 않습니다.
+          </p>
+        </div>
+      )}
+
+      {popupDataStale && (
+        <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4 text-sm">
+          <p className="flex items-center gap-2 font-bold text-amber-700 dark:text-amber-300">
+            <AlertTriangle size={17} /> 새 자동수집 데이터가 36시간 넘게 없습니다
+          </p>
+          <p className="mt-1 text-muted-foreground">
+            새 팝업이 없었던 것일 수도 있습니다. 마지막 신규 저장{' '}
+            <b className="text-foreground">{crawler?.lastNewPopupAt ?? '기록 없음'}</b> · 크롤 실행
+            로그와 API 키 상태를 함께 확인하세요.
+          </p>
+        </div>
+      )}
+
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
         <MetricCard
           label="JVM Heap"

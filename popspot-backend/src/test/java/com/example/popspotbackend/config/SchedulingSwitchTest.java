@@ -15,13 +15,12 @@ import org.springframework.scheduling.annotation.ScheduledAnnotationBeanPostProc
  * 예약 작업 전체 스위치가 <b>실제로</b> 작업을 막는지 본다.
  *
  * <p><b>왜 이게 중요한가.</b> 새 서버 이전에는 DB 가 아직 진짜가 아닌 구간이 있다 — 빈 DB 로 헬스체크를 하거나, 스냅샷을 시드한 임시 공개 DB 로 읽기
- * 전용 운영을 하는 때다. 그 사이에 예약 작업이 돌면 만료 처리와 중복 정리가 임시 DB 를 고치고, 백업 스케줄러가 빈 DB 를 떠서 7일 보관 목록에 섞어
- * 놓는다.
+ * 전용 운영을 하는 때다. 그 사이에 예약 작업이 돌면 만료 처리와 중복 정리가 임시 DB 를 고치고, 백업 스케줄러가 빈 DB 를 떠서 7일 보관 목록에 섞어 놓는다.
  *
  * <p>예약 작업이 붙은 클래스는 아홉 개인데 개별 스위치가 있는 것은 크롤러 하나뿐이었다. 나머지는 애플리케이션이 뜨는 순간 함께 시작한다.
  *
- * <p><b>어노테이션만 보던 것을 컨텍스트로 바꿨다.</b> 처음에는 {@code @ConditionalOnProperty} 의 값만 확인했는데, 그러면 "꺼지면 작업이 0개"
- * 라는 약속을 검사하지 못한다. {@link ApplicationContextRunner} 는 웹 서버를 띄우지 않아 이 PC(로컬 소켓 쌍이 막혀 있다)에서도 돈다.
+ * <p><b>어노테이션만 보던 것을 컨텍스트로 바꿨다.</b> 처음에는 {@code @ConditionalOnProperty} 의 값만 확인했는데, 그러면 "꺼지면 작업이
+ * 0개" 라는 약속을 검사하지 못한다. {@link ApplicationContextRunner} 는 웹 서버를 띄우지 않아 이 PC(로컬 소켓 쌍이 막혀 있다)에서도 돈다.
  */
 class SchedulingSwitchTest {
 
@@ -39,9 +38,7 @@ class SchedulingSwitchTest {
                     .withUserConfiguration(
                             SchedulingConfig.class, SchedulingDisabledNotice.class, TestJob.class);
 
-    /**
-     * 설정을 빠뜨렸을 때 켜지면 이 스위치의 목적이 사라진다. 실수는 "설정을 안 넣는" 쪽으로 일어나므로 그때 안전한 쪽에 있어야 한다.
-     */
+    /** 설정을 빠뜨렸을 때 켜지면 이 스위치의 목적이 사라진다. 실수는 "설정을 안 넣는" 쪽으로 일어나므로 그때 안전한 쪽에 있어야 한다. */
     @Test
     @DisplayName("설정이 없으면 예약 작업이 등록되지 않는다")
     void missingPropertyRegistersNoTasks() {
@@ -59,7 +56,8 @@ class SchedulingSwitchTest {
                 .run(
                         context ->
                                 assertThat(context)
-                                        .doesNotHaveBean(ScheduledAnnotationBeanPostProcessor.class));
+                                        .doesNotHaveBean(
+                                                ScheduledAnnotationBeanPostProcessor.class));
     }
 
     @Test
