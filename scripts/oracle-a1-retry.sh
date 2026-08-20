@@ -23,7 +23,7 @@ NAME="popspot-api"
 BIG_OCPUS=2;   BIG_MEM=8
 SMALL_OCPUS=1; SMALL_MEM=6
 BOOT_GB=50
-INTERVAL_S=300         # 자리가 없을 때 대기. 60초로 하면 429(요청 과다)에 걸린다
+INTERVAL_S=180         # 자리가 없을 때 대기. --no-retry 로 호출이 1/7 로 줄어 짧게 잡는다
 BACKOFF_S=900          # 429 를 맞았을 때 대기
 NET_RETRY_S=120        # 네트워크가 끊겼을 때 대기
 NET_FAIL_LIMIT=10      # 네트워크 오류가 이만큼 연속이면 진짜 고장으로 본다
@@ -101,7 +101,9 @@ NET_FAILS=0
 
 try() {
   local ocpus=$1 mem=$2
-  oci compute instance launch \
+  # --no-retry 가 없으면 CLI 가 알아서 최대 7번까지 다시 부른다.
+  # 그러면 우리가 세는 "1회" 가 실제로는 7회라 429 를 금방 맞는다.
+  oci --no-retry compute instance launch \
     -c "$COMPARTMENT" \
     --availability-domain "$AD" \
     --display-name "$NAME" \
