@@ -54,8 +54,19 @@ export function availabilityAfterFailure(consecutiveFailures: number): ServiceAv
   return consecutiveFailures >= FAILURE_COUNT_TO_DECLARE_DOWN ? 'unavailable' : null;
 }
 
-/** 장애로 선언하기 전에 필요한 연속 실패 횟수. */
-export const FAILURE_COUNT_TO_DECLARE_DOWN = 2;
+/**
+ * 장애로 선언하기 전에 필요한 연속 실패 횟수.
+ *
+ * <p>2 에서 3 으로 올렸다(2026-08-21). 2 로도 깜빡임은 크게 줄었지만 하루에 몇 번은 떴는데,
+ * 원인이 확인 요청 자체에 있었다 — 상태 확인이 매번 341KB 짜리 목록을 받아 오느라 2코어 서버를
+ * 눌렀고, 그 지연이 5초 제한을 넘겨 <b>확인이 스스로 만든 부하로 실패</b>했다. 그 비용은
+ * {@code app/service-health/route.ts} 에서 없앴다(대표 id 를 기억해 133바이트만 받는다).
+ *
+ * <p>여기서 한 칸 더 올리는 것은 그 위에 얹는 여유분이다. 대가는 진짜 장애를 15초 늦게 잡는 것인데,
+ * 이 신호가 켜는 것은 안내 배너와 회원 API 사전 차단이라 15초 늦어도 잃는 것이 거의 없다.
+ * 반대로 잘못 켜지면 사용자는 "서버가 또 나갔다" 로 읽는다.
+ */
+export const FAILURE_COUNT_TO_DECLARE_DOWN = 3;
 
 export function serviceUnavailableResponse(): Response {
   return new Response(
