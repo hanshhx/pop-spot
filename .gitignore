@@ -19,6 +19,9 @@ popspot.env
 **/node_modules/
 **/dist/
 
+# 문서·이미지 생성 도구의 결과물. 원본 자료가 섞일 수 있어 저장소에 올리지 않음.
+/output/pdf/
+
 # ===== IDE =====
 **/.idea/
 **/.vscode/
