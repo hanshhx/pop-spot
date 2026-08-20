@@ -393,6 +393,7 @@ export default function InteractiveMap({
     const media = window.matchMedia('(max-width: 767px)');
     const syncViewport = () => {
       setIsMobileViewport(media.matches);
+      if (media.matches) setIsListOpen(true);
     };
     syncViewport();
     media.addEventListener('change', syncViewport);
@@ -860,7 +861,7 @@ export default function InteractiveMap({
                 animate={{ y: 0, opacity: 1 }}
                 exit={{ y: 80, opacity: 0 }}
                 transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-                className={`absolute inset-x-0 bottom-[calc(5.75rem+env(safe-area-inset-bottom))] z-30 flex flex-col rounded-t-[1.75rem] border-t border-white/10 bg-black/90 shadow-2xl backdrop-blur-xl transition-[height] duration-300 md:inset-y-0 md:right-auto md:w-[280px] md:rounded-none md:border-r md:border-t-0 ${
+                className={`absolute inset-x-0 bottom-0 z-30 flex flex-col rounded-t-[1.75rem] border-t border-white/10 bg-black/90 shadow-2xl backdrop-blur-xl transition-[height] duration-300 md:inset-y-0 md:right-auto md:w-[280px] md:rounded-none md:border-r md:border-t-0 ${
                   isListExpanded ? 'h-[76%]' : 'h-[40%]'
                 } md:h-auto`}
               >
@@ -869,34 +870,14 @@ export default function InteractiveMap({
                     type="button"
                     onClick={() => setIsListExpanded((current) => !current)}
                     className="mx-auto mb-2 block h-1.5 w-12 rounded-full bg-white/35 md:hidden"
-                    aria-label={
-                      isListExpanded
-                        ? locale === 'ko'
-                          ? '팝업 목록 줄이기'
-                          : locale === 'ja'
-                            ? 'ポップアップ一覧を縮小'
-                            : 'Collapse popup list'
-                        : locale === 'ko'
-                          ? '팝업 목록 펼치기'
-                          : locale === 'ja'
-                            ? 'ポップアップ一覧を展開'
-                            : 'Expand popup list'
-                    }
+                    aria-label={isListExpanded ? 'Collapse popup list' : 'Expand popup list'}
                   />
                   <div className="flex items-center justify-between">
                     <h3 className="text-white font-bold text-base md:text-lg flex items-center gap-1.5 md:gap-2">
                       <List size={16} className="text-primary md:w-[18px] md:h-[18px]" /> POPUP LIST
                     </h3>
                     <button
-                      type="button"
                       onClick={() => setIsListOpen(false)}
-                      aria-label={
-                        locale === 'ko'
-                          ? '팝업 목록 닫기'
-                          : locale === 'ja'
-                            ? 'ポップアップ一覧を閉じる'
-                            : 'Close popup list'
-                      }
                       className="p-1 hover:bg-white/10 rounded-full transition-colors"
                     >
                       <X
@@ -965,7 +946,7 @@ export default function InteractiveMap({
           </AnimatePresence>
 
           {/* 우측 하단 리스트 컨트롤러 (반응형 여백/크기 조절) */}
-          <div className="absolute bottom-[calc(6.25rem+env(safe-area-inset-bottom))] right-3 z-20 flex flex-col gap-2 md:bottom-6 md:right-4">
+          <div className="absolute bottom-4 md:bottom-6 right-3 md:right-4 z-20 flex flex-col gap-2">
             <button
               onClick={() => setIsListOpen(!isListOpen)}
               aria-label={t('map.listAria')}
@@ -977,9 +958,7 @@ export default function InteractiveMap({
               }`}
             >
               <List size={16} className="md:w-[18px] md:h-[18px]" />
-              <span className="md:sr-only">
-                {t('map.listAria')} · {markers.length}
-              </span>
+              <span className="md:sr-only">{t('map.listAria')}</span>
             </button>
           </div>
         </>
@@ -987,11 +966,8 @@ export default function InteractiveMap({
 
       {/* 공통 컨트롤러 (위치, 줌) - 반응형 여백 조절 */}
       <div
-        className={`absolute right-3 z-20 flex flex-col gap-1.5 md:right-4 md:gap-2 ${
-          showPath || mode === 'PLAN'
-            ? 'bottom-4'
-            : 'bottom-[calc(9.5rem+env(safe-area-inset-bottom))] md:bottom-16'
-        }`}
+        className="absolute right-3 md:right-4 z-20 flex flex-col gap-1.5 md:gap-2"
+        style={{ bottom: showPath || mode === 'PLAN' ? '16px' : '64px' }}
       >
         <button
           onClick={handleMyLocation}

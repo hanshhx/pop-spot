@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { LogOut, ShieldCheck, Megaphone, Crown, User as UserIcon, Bell } from 'lucide-react';
@@ -37,14 +37,6 @@ interface HeaderProps {
   /** 데스크톱(lg+) 상단 네비 — 현재 탭 + 전환 콜백. 모바일은 BottomDock 사용. */
   activeTab?: string;
   onNavChange?: (tab: string) => void;
-  /** 모바일 헤더 안에 넣는 언어 선택기. 넓은 화면에서는 기존 위치를 유지한다. */
-  mobileLocaleControl?: ReactNode;
-  /** 비로그인 사용자의 7일 체험 상태. 큰 상시 배너 대신 헤더 한 칸에서만 알린다. */
-  mobileGuestAction?: {
-    label: string;
-    ariaLabel: string;
-    onClick: () => void;
-  };
   className?: string;
 }
 
@@ -64,8 +56,6 @@ export function Header({
   subtitle,
   activeTab,
   onNavChange,
-  mobileLocaleControl,
-  mobileGuestAction,
   className,
 }: HeaderProps) {
   const { t, locale } = useLocale();
@@ -83,7 +73,7 @@ export function Header({
     <header
       role="banner"
       className={cn(
-        'flex items-center justify-between gap-2 md:items-end',
+        'flex flex-col gap-4 md:flex-row md:items-end md:justify-between',
         'border-b border-[var(--color-border)] pb-4',
         className,
       )}
@@ -91,20 +81,20 @@ export function Header({
       <Link
         href={localizedPath('/?entered=1', locale)}
         onClick={onLogoClick}
-        className="group inline-flex min-w-0 flex-col"
+        className="group inline-flex flex-col"
       >
         <div className="leading-none">
-          <Logo className="h-8 transition-opacity group-hover:opacity-80 md:h-14" />
+          <Logo className="h-10 md:h-14 transition-opacity group-hover:opacity-80" />
         </div>
         {subtitle ? (
-          <p className="mt-1 hidden text-[10px] uppercase tracking-[0.2em] text-muted-foreground md:block md:text-xs">
+          <p className="text-[10px] md:text-xs mt-1 tracking-[0.2em] uppercase text-muted-foreground">
             {subtitle}
           </p>
         ) : (
           <SectionLogo
             name="tagline"
             label="Seoul Popup Store Intelligence"
-            className="mt-1.5 hidden h-5 text-muted-foreground md:block md:h-6"
+            className="h-5 md:h-6 mt-1.5 text-muted-foreground"
           />
         )}
       </Link>
@@ -138,12 +128,11 @@ export function Header({
         </nav>
       )}
 
-      <nav aria-label={t('nav.userMenu')} className="flex min-w-0 items-center gap-1 md:gap-3">
-        {mobileLocaleControl ? <div className="md:hidden">{mobileLocaleControl}</div> : null}
-
-        <div className="hidden md:block">
-          <ThemeToggle />
-        </div>
+      <nav
+        aria-label={t('nav.userMenu')}
+        className="flex items-center gap-2 md:gap-3 self-end md:self-auto"
+      >
+        <ThemeToggle />
 
         {onBellClick && (
           <button
@@ -153,7 +142,6 @@ export function Header({
             className={cn(
               'relative inline-flex items-center justify-center h-11 w-11 rounded-pill',
               'text-foreground hover:bg-foreground/5 transition-colors',
-              !user && 'hidden md:inline-flex',
             )}
           >
             <Bell className="size-4" aria-hidden />
@@ -167,17 +155,6 @@ export function Header({
             )}
           </button>
         )}
-
-        {!user && mobileGuestAction ? (
-          <button
-            type="button"
-            onClick={mobileGuestAction.onClick}
-            aria-label={mobileGuestAction.ariaLabel}
-            className="inline-flex min-h-10 shrink-0 items-center rounded-pill border border-lime-500/50 bg-lime-300/20 px-2.5 text-[11px] font-black text-lime-800 transition-colors hover:bg-lime-300/35 md:hidden dark:text-lime-300"
-          >
-            {mobileGuestAction.label}
-          </button>
-        ) : null}
 
         {/*
           제보는 <b>로그인 없이도</b> 할 수 있다.
@@ -200,7 +177,6 @@ export function Header({
             variant="outline"
             size="sm"
             onClick={onReportClick}
-            className="hidden md:inline-flex"
             iconLeft={<Megaphone className="size-3.5" aria-hidden />}
           >
             {t('nav.report')}
