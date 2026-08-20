@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { LogOut, ShieldCheck, Megaphone, Crown, User as UserIcon, Bell } from 'lucide-react';
@@ -37,6 +37,8 @@ interface HeaderProps {
   /** 데스크톱(lg+) 상단 네비 — 현재 탭 + 전환 콜백. 모바일은 BottomDock 사용. */
   activeTab?: string;
   onNavChange?: (tab: string) => void;
+  /** 좁은 화면에서 로고 옆에 붙는 간단한 언어 선택기. */
+  mobileLocaleControl?: ReactNode;
   className?: string;
 }
 
@@ -56,6 +58,7 @@ export function Header({
   subtitle,
   activeTab,
   onNavChange,
+  mobileLocaleControl,
   className,
 }: HeaderProps) {
   const { t, locale } = useLocale();
@@ -73,31 +76,34 @@ export function Header({
     <header
       role="banner"
       className={cn(
-        'flex flex-col gap-4 md:flex-row md:items-end md:justify-between',
+        'flex min-w-0 flex-col items-stretch gap-3 md:flex-row md:items-end md:justify-between md:gap-4',
         'border-b border-[var(--color-border)] pb-4',
         className,
       )}
     >
-      <Link
-        href={localizedPath('/?entered=1', locale)}
-        onClick={onLogoClick}
-        className="group inline-flex flex-col"
-      >
-        <div className="leading-none">
-          <Logo className="h-10 md:h-14 transition-opacity group-hover:opacity-80" />
-        </div>
-        {subtitle ? (
-          <p className="text-[10px] md:text-xs mt-1 tracking-[0.2em] uppercase text-muted-foreground">
-            {subtitle}
-          </p>
-        ) : (
-          <SectionLogo
-            name="tagline"
-            label="Seoul Popup Store Intelligence"
-            className="h-5 md:h-6 mt-1.5 text-muted-foreground"
-          />
-        )}
-      </Link>
+      <div className="flex min-w-0 items-center justify-between gap-2 md:block md:w-auto">
+        <Link
+          href={localizedPath('/?entered=1', locale)}
+          onClick={onLogoClick}
+          className="group inline-flex min-w-0 shrink items-start"
+        >
+          <div className="leading-none">
+            <Logo className="h-6 max-w-[132px] transition-opacity group-hover:opacity-80 sm:h-7 sm:max-w-[148px] md:h-14 md:max-w-none" />
+          </div>
+          {subtitle ? (
+            <p className="mt-1 hidden text-[10px] tracking-[0.2em] uppercase text-muted-foreground md:block md:text-xs">
+              {subtitle}
+            </p>
+          ) : (
+            <SectionLogo
+              name="tagline"
+              label="Seoul Popup Store Intelligence"
+              className="mt-1.5 hidden h-6 text-muted-foreground md:block"
+            />
+          )}
+        </Link>
+        <div className="shrink-0 md:hidden">{mobileLocaleControl}</div>
+      </div>
 
       {/* 데스크톱(lg+) 상단 네비 — 모바일은 하단 BottomDock. */}
       {onNavChange && (
@@ -130,17 +136,17 @@ export function Header({
 
       <nav
         aria-label={t('nav.userMenu')}
-        className="flex items-center gap-2 md:gap-3 self-end md:self-auto"
+        className="flex min-w-0 flex-wrap items-center justify-end gap-1.5 md:w-auto md:flex-nowrap md:gap-3"
       >
         <ThemeToggle />
 
-        {onBellClick && (
+        {onBellClick && user && (
           <button
             type="button"
             onClick={onBellClick}
             aria-label={unread > 0 ? `${t('nav.notifications')} ${unread}` : t('nav.notifications')}
             className={cn(
-              'relative inline-flex items-center justify-center h-11 w-11 rounded-pill',
+              'relative inline-flex h-9 w-9 items-center justify-center rounded-pill md:h-11 md:w-11',
               'text-foreground hover:bg-foreground/5 transition-colors',
             )}
           >
@@ -177,9 +183,11 @@ export function Header({
             variant="outline"
             size="sm"
             onClick={onReportClick}
-            iconLeft={<Megaphone className="size-3.5" aria-hidden />}
+            className="h-10 w-10 px-0 sm:w-auto sm:px-3"
+            aria-label={t('nav.report')}
           >
-            {t('nav.report')}
+            <Megaphone className="size-3.5" aria-hidden />
+            <span className="hidden sm:inline">{t('nav.report')}</span>
           </Button>
         )}
 
@@ -188,11 +196,11 @@ export function Header({
             asChild
             variant="outline"
             size="sm"
-            className="border-hot-400 text-hot-400 hover:bg-hot-400 hover:text-white"
+            className="h-10 w-10 border-hot-400 px-0 text-hot-400 hover:bg-hot-400 hover:text-white sm:w-auto sm:px-3"
           >
-            <Link href="/admin">
+            <Link href="/admin" aria-label={t('nav.admin')}>
               <ShieldCheck className="size-3.5" aria-hidden />
-              {t('nav.admin')}
+              <span className="hidden sm:inline">{t('nav.admin')}</span>
             </Link>
           </Button>
         )}
@@ -200,32 +208,22 @@ export function Header({
         {user ? (
           <UserChip user={user} onLogout={onLogout} onProfileClick={onProfileClick} />
         ) : (
-          /* 로그인은 <b>모든 화면 폭</b>에서 보인다. 회원가입만 넓은 화면 전용이다.
-           *
-           * 예전엔 둘 다 `hidden md:flex` 안에 있어서 좁은 화면에서 통째로 사라졌다. 그런데
-           * 회원가입은 상단 배너("지금 가입하기")와 히어로에 따로 있어서 보였고, <b>로그인만
-           * 갈 곳이 없었다.</b> 이미 가입한 사람이 폰에서 돌아올 입구가 없다는 뜻이다.
-           *
-           * 이게 오래 안 드러난 이유는 게스트가 7일 동안 모든 탭을 쓸 수 있어서다(canAccessTab).
-           * 재방문율이 0.76% 라 만료를 겪는 사람이 사실상 없었고, 그래서 로그인이 필요해지는
-           * 순간 자체가 오지 않았다.
-           *
-           * 좁은 화면에는 로그인만 낸다. 테마 토글·알림이 이미 있어서 둘 다 꺼내면 헤더가
-           * 넘치고, 없던 것은 로그인 하나뿐이다. */
-          <div className="flex items-center gap-1 md:gap-2">
+          /* 모바일에서도 데스크톱과 동일하게 로그인·회원가입 진입점을 모두 유지한다.
+             좁은 화면은 헤더를 두 줄로 나누고 버튼 크기만 줄여 가로 잘림을 막는다. */
+          <div className="flex items-center gap-1.5 md:gap-2">
             <Button
               asChild
               variant="ghost"
-              size="md"
-              className="text-[13px] md:text-[15px] font-bold"
+              size="sm"
+              className="h-10 px-2 text-[12px] font-bold sm:px-3 md:text-[15px]"
             >
               <Link href={localizedPath('/login', locale)}>{t('nav.login')}</Link>
             </Button>
             <Button
               asChild
               variant="primary"
-              size="md"
-              className="hidden md:inline-flex text-sm md:text-[15px] font-bold"
+              size="sm"
+              className="h-10 px-2.5 text-[12px] font-bold sm:px-3 md:text-[15px]"
             >
               <Link href={localizedPath('/signup', locale)}>{t('auth.signup')}</Link>
             </Button>
@@ -287,10 +285,11 @@ function UserChip({
         <button
           type="button"
           onClick={onLogout}
-          className="inline-flex items-center gap-1 px-2 py-1 rounded-pill text-xs opacity-70 hover:opacity-100 transition-opacity"
+          className="inline-flex items-center gap-1 rounded-pill px-1 py-1 text-xs opacity-70 transition-opacity hover:opacity-100 md:px-2"
           aria-label={t('nav.logout')}
         >
           <LogOut className="size-3" aria-hidden />
+          <span className="hidden md:inline">{t('nav.logout')}</span>
         </button>
       )}
     </div>
