@@ -2,7 +2,17 @@
 
 import { useCallback, useEffect, useRef, useState, type SyntheticEvent } from 'react';
 
+import { isPlaybackStalled } from '@/lib/videoWatchdog';
+
 const CROSSFADE_MS = 1200;
+
+/**
+ * 배경이 멈추지 않았는지 확인하는 간격.
+ *
+ * <p>2초면 사용자가 "멈췄네" 하고 알아채기 전에 되살릴 수 있고, 재생 중 판정에 필요한 시간
+ * 변화(수백 ms)도 충분히 확보된다. 판정 규칙은 {@code lib/videoWatchdog} 참고.
+ */
+const WATCHDOG_MS = 2_000;
 
 /**
  * 끊김 없는 배경 영상 루프.
@@ -130,6 +140,81 @@ export default function LoopingBgVideo({
     };
   }, [src, applyRate]);
 
+  /**
+   * 배경이 멈춘 채로 남지 않게 지킨다.
+   *
+   * <p>이 컴포넌트에서 {@code play()} 거절은 전부 {@code .catch(() => {})} 로 삼켜진다 — 배경 장식이
+   * 오류를 띄우면 안 되니 맞는 처리지만, 그 결과 <b>시작하지 못한 영상이 조용히 드러난다.</b>
+   * 되살릴 곳이 여기 한 군데뿐인 이유다.
+   */
+  useEffect(() => {
+    if (!shouldRender) return;
+
+    let previousTime = -1;
+    const activeVideo = () => (activeIsA.current ? aRef.current : bRef.current);
+
+    const revive = () => {
+      const video = activeVideo();
+      if (!video) return;
+      // 끝난 채로 서 있으면 되감아야 다시 돈다. 그냥 play() 하면 그 자리에 머문다.
+      if (video.ended) {
+        try {
+          video.currentTime = 0;
+        } catch {
+          /* noop */
+        }
+      }
+      void video.play().catch(() => {});
+    };
+
+    const tick = () => {
+      // 배경 탭에서는 브라우저가 정당하게 멈춘다. 되살리려 들면 배터리만 쓴다.
+      if (document.visibilityState !== 'visible') return;
+      const video = activeVideo();
+      if (!video) return;
+      if (isPlaybackStalled(video.paused, video.ended, video.currentTime, previousTime)) revive();
+      previousTime = video.currentTime;
+    };
+
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible') return;
+      // 돌아온 직후의 위치는 떠나기 전 값이라 비교 대상이 못 된다.
+      previousTime = -1;
+      revive();
+    };
+
+    const timer = window.setInterval(tick, WATCHDOG_MS);
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [shouldRender, src]);
+
+  /**
+   * 교대가 걸리지 않은 채 영상이 끝났을 때의 대비.
+   *
+   * <p>교대는 {@code timeupdate} 로 남은 시간을 보고 거는데, 그 이벤트가 드물게 오면 판정 구간을
+   * 건너뛰고 그대로 끝난다. 그때는 크로스페이드를 포기하고 즉시 되감아 잇는다 — 한 번 튀는 편이
+   * 영원히 멈춰 있는 것보다 낫다.
+   *
+   * <p>교대가 정상적으로 걸린 뒤 물러난 편도 곧 {@code ended} 를 내지만, 그쪽은 이미 활성이
+   * 아니므로 건드리지 않는다.
+   */
+  const handleEnded = useCallback(
+    (isA: boolean) => (e: SyntheticEvent<HTMLVideoElement>) => {
+      if (isA !== activeIsA.current) return;
+      const video = e.currentTarget;
+      try {
+        video.currentTime = 0;
+      } catch {
+        /* noop */
+      }
+      void video.play().catch(() => {});
+    },
+    [],
+  );
+
   const handleTimeUpdate = useCallback(
     (isA: boolean) => (e: SyntheticEvent<HTMLVideoElement>) => {
       if (swapping.current || isA !== activeIsA.current) return;
@@ -174,6 +259,7 @@ export default function LoopingBgVideo({
         preload="auto"
         onLoadedMetadata={(e) => applyRate(e.currentTarget)}
         onTimeUpdate={handleTimeUpdate(true)}
+        onEnded={handleEnded(true)}
         className={`${base} ${className}`}
       >
         <source src={src} type="video/mp4" />
@@ -185,6 +271,7 @@ export default function LoopingBgVideo({
         preload="auto"
         onLoadedMetadata={(e) => applyRate(e.currentTarget)}
         onTimeUpdate={handleTimeUpdate(false)}
+        onEnded={handleEnded(false)}
         className={`${base} ${className}`}
       >
         <source src={src} type="video/mp4" />
