@@ -1245,6 +1245,52 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
     return days > 0 ? days : 0;
   };
 
+  const mobileMapSummary = useMemo(() => {
+    const today = kstTodayStart();
+    const dayMs = 24 * 60 * 60 * 1000;
+    let closingSoon = 0;
+    let openingToday = 0;
+    for (const popup of mappablePopups) {
+      const start = parseDate(popup.startDate);
+      const end = parseDate(popup.endDate);
+      if (start?.getTime() === today.getTime()) openingToday += 1;
+      if (end) {
+        const remaining = Math.round((end.getTime() - today.getTime()) / dayMs);
+        if (remaining >= 0 && remaining <= 3) closingSoon += 1;
+      }
+    }
+    return { closingSoon, openingToday };
+  }, [mappablePopups]);
+
+  const mobileGuestAction = !user
+    ? {
+        label:
+          guestRemainingDays == null
+            ? locale === 'ko'
+              ? '7일 둘러보기'
+              : locale === 'ja'
+                ? '7日体験'
+                : 'Try 7 days'
+            : guestRemainingDays > 0
+              ? `D-${guestRemainingDays}`
+              : t('cta.signup'),
+        ariaLabel:
+          guestRemainingDays == null
+            ? t('home.guestStart')
+            : guestRemainingDays > 0
+              ? `${t('home.guestMode')} D-${guestRemainingDays}, ${t('cta.signup')}`
+              : t('home.guestExpired'),
+        onClick: () => {
+          if (guestRemainingDays == null) {
+            startGuestMode();
+            setGuestRemainingDays(getRemainingGuestDays());
+            return;
+          }
+          router.push(localizedPath('/signup', locale));
+        },
+      }
+    : undefined;
+
   return (
     <main className="min-h-screen font-sans relative pb-32 lg:pb-16 overflow-x-hidden transition-colors duration-500 text-gray-900 dark:text-white">
       {/* 모드별 풀 배경 영상 — 라이트=밝은 스카이라인(light-bg), 다크=생기있는 서울 야경(login-bg).
@@ -1256,6 +1302,16 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
             globals.css 의 .home-flat-bg 주석 참고. 넓은 화면에서는 display:none 이라
             영상 위에 아무것도 얹지 않는다. */}
         <div className="home-flat-bg"></div>
+        <div className="home-flat-road"></div>
+        <svg
+          className="home-flat-river"
+          viewBox="0 0 420 900"
+          preserveAspectRatio="none"
+          aria-hidden
+        >
+          <path d="M-35 770 C 90 700, 155 845, 260 790 S 390 705, 455 765" />
+        </svg>
+        <div className="home-flat-glow"></div>
         <div className="home-flat-grain"></div>
         <div className="home-video-scrim absolute inset-0"></div>
       </div>
@@ -1270,6 +1326,8 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
           onBellClick={() => setIsNotificationsOpen(true)}
           activeTab={currentTab}
           onNavChange={(t) => handleTabChange(t)}
+          mobileLocaleControl={<LocaleSwitcher locale={locale} />}
+          mobileGuestAction={mobileGuestAction}
           className="mb-4 md:mb-6"
         />
 
@@ -1322,6 +1380,7 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
             whileInView="visible"
             viewport={{ once: true }}
             variants={sectionVariants}
+            className="flex flex-col md:block"
           >
             {/* 언어 전환 — 히어로 <b>밖</b>, 자기 줄에 둔다.
                 예전엔 히어로 카드 안에 absolute right-4 top-4 로 띄웠는데 두 가지가 깨졌다.
@@ -1330,12 +1389,12 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
                 (2) 그 카드는 비로그인일 때만 그려진다. 로그인하면 언어 전환이 통째로 사라져,
                     외국인 회원은 한 번 로그인한 뒤 언어를 못 바꿨다.
                 흐름 안에 두면 겹칠 수가 없고, 로그인 여부와 무관하게 늘 같은 자리에 있다. */}
-            <div className="mb-3 flex justify-end md:mb-4">
+            <div className="mb-3 hidden justify-end md:mb-4 md:flex">
               <LocaleSwitcher locale={locale} />
             </div>
 
             {/* User Greeting Section */}
-            <section aria-label="Welcome Banner" className="mb-6">
+            <section aria-label="Welcome Banner" className="mb-6 hidden md:block">
               {user ? (
                 <div className="w-full border rounded-xl p-5 md:p-8 relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-4 bg-ink-900 text-cream-200 border-ink-900 dark:bg-cream-200 dark:text-ink-900 dark:border-cream-200">
                   <div className="relative z-10 text-center md:text-left">
@@ -1447,13 +1506,15 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
             </section>
 
             {/* 지역 / 시점 / 카테고리 빠른 필터 (지도 위 진입점) */}
-            <BrowseSection initialMarkers={initialMapMarkers} />
+            <div className="order-3 md:order-none">
+              <BrowseSection initialMarkers={initialMapMarkers} />
+            </div>
 
             {/* 서울 팝업 지도 — 홈의 주인공 (디자인 진단서 P0). 지도 전체폭·크게, 보조 정보는 아래 3열. */}
             <section
               id={HOME_MAP_ID}
               aria-label={t('map.aria')}
-              className="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-10"
+              className="order-1 mb-3 grid grid-cols-1 gap-3 md:order-none lg:mb-10 lg:grid-cols-12 lg:gap-4"
             >
               {/* Search Zone */}
               <div className="col-span-1 lg:col-span-12 relative z-50 order-1 lg:order-none">
@@ -1506,7 +1567,7 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
               </div>
 
               {/* Map Zone — 배경 분리를 위해 solid 배경 + shadow 로 카드 블록 강화. */}
-              <div className="col-span-1 lg:col-span-12 rounded-[2rem] relative overflow-hidden border border-gray-200 dark:border-white/10 group bg-white dark:bg-[#111] shadow-lg shadow-black/5 dark:shadow-black/30 h-[58vh] min-h-[420px] order-2 lg:order-none">
+              <div className="relative order-2 col-span-1 h-[58vh] min-h-[420px] overflow-hidden rounded-[1.375rem] border border-gray-200 bg-white shadow-lg shadow-black/5 dark:border-white/10 dark:bg-[#111] dark:shadow-black/30 lg:order-none lg:col-span-12 lg:rounded-[2rem]">
                 <InteractiveMap
                   initialMarkers={initialMapMarkers}
                   center={mapCenter}
@@ -1515,13 +1576,32 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
                   filterIds={mapFilterIds}
                   fitReq={mapFit}
                 />
-                <div className="absolute bottom-4 md:bottom-6 left-4 md:left-6 flex gap-2 z-20">
+                <div className="absolute left-4 top-14 z-20 flex gap-2 md:bottom-6 md:top-auto md:left-6">
                   <span className="backdrop-blur px-3 py-1.5 md:px-4 md:py-2 rounded-full border text-[10px] md:text-xs font-bold flex items-center gap-1.5 md:gap-2 bg-white/80 border-gray-200 text-gray-900 dark:bg-black/60 dark:border-white/10 dark:text-white">
                     <span className="w-1.5 h-1.5 md:w-2 md:h-2 bg-green-500 rounded-full animate-pulse" />{' '}
                     {t('bento.live')}
                   </span>
                 </div>
               </div>
+            </section>
+
+            <section
+              aria-label={locale === 'ko' ? '오늘의 팝업 요약' : 'Popup summary'}
+              className="order-2 mb-3 grid grid-cols-3 gap-1.5 md:hidden"
+            >
+              <MobileSummaryStat
+                label={locale === 'ko' ? '진행 중' : locale === 'ja' ? '開催中' : 'Open now'}
+                value={`${mappablePopupCount}${t('count.unit')}`}
+              />
+              <MobileSummaryStat
+                label={locale === 'ko' ? '마감 임박' : locale === 'ja' ? '終了間近' : 'Ending soon'}
+                value={`${mobileMapSummary.closingSoon}${t('count.unit')}`}
+                highlight
+              />
+              <MobileSummaryStat
+                label={locale === 'ko' ? '오늘 오픈' : locale === 'ja' ? '本日開始' : 'Opens today'}
+                value={`${mobileMapSummary.openingToday}${t('count.unit')}`}
+              />
             </section>
 
             {/* 지도 아래 지름길 — 실시간 혼잡도(공간) + 팝업 캘린더(시간). 누르면 모달이 열린다.
@@ -2851,6 +2931,29 @@ function RecentVisitsCard({ standalone = false }: { standalone?: boolean } = {})
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+function MobileSummaryStat({
+  label,
+  value,
+  highlight = false,
+}: {
+  label: string;
+  value: string;
+  highlight?: boolean;
+}) {
+  return (
+    <div className="rounded-xl border border-black/5 bg-white/88 px-2 py-2.5 text-center shadow-sm backdrop-blur dark:border-white/10 dark:bg-black/55">
+      <span className="block truncate text-[10px] font-bold text-muted-foreground">{label}</span>
+      <strong
+        className={`mt-0.5 block text-base font-black ${
+          highlight ? 'text-hot-400' : 'text-foreground'
+        }`}
+      >
+        {value}
+      </strong>
     </div>
   );
 }
