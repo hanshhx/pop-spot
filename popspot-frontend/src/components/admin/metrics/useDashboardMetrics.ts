@@ -21,7 +21,17 @@ export interface DashboardSnapshot {
   jvm?: Record<string, number>;
   http?: Record<string, number>;
   db?: Record<string, number>;
-  crawler?: Record<string, number>;
+  crawler?: {
+    crawledToday?: number;
+    avgConfidence?: number;
+    pendingReview?: number;
+    schedulingEnabled?: boolean;
+    crawlerEnabled?: boolean;
+    automationEnabled?: boolean;
+    /** 마지막 크롤 성공이 아니라 마지막으로 새 자동수집 팝업이 저장된 시각. */
+    lastNewPopupAt?: string | null;
+    newPopupDataStale?: boolean;
+  };
   timestamp?: number;
 }
 

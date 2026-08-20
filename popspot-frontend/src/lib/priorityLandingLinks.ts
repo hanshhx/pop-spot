@@ -40,4 +40,13 @@ export const PRIORITY_LANDING_LINKS = [
     labelEn: 'Hongdae pop-ups',
     labelJa: 'ホンデのポップアップ',
   },
+  {
+    // 8/14~8/19 Google 실측에서 223회 노출·34회 클릭(15.2%). 한때의 행사명이 아니라
+    // 계속 쓰이는 장소 페이지라 홈의 고정 연결로 두어도 문구가 낡지 않는다.
+    slug: 'coex',
+    kind: 'region',
+    label: '코엑스 팝업',
+    labelEn: 'COEX pop-ups',
+    labelJa: 'COEXのポップアップ',
+  },
 ] as const;
