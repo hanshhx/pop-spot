@@ -731,8 +731,8 @@ export async function SliceLandingPage({ slug, locale }: { slug: string; locale:
   const kicker = kickerByKind[slice.kind];
 
   return (
-    <main className="seo-landing-bg min-h-screen pb-24 text-gray-900 md:pb-0 dark:text-white">
-      <div className="relative z-10 max-w-3xl mx-auto px-5 md:px-8 py-8 md:py-14">
+    <main className="min-h-screen bg-white pb-24 text-gray-900 md:pb-0 dark:bg-[#0a0a0a] dark:text-white">
+      <div className="max-w-3xl mx-auto px-5 md:px-8 py-8 md:py-14">
         <Link
           href={home}
           /*
@@ -789,7 +789,7 @@ export async function SliceLandingPage({ slug, locale }: { slug: string; locale:
             </div>
 
             {/* 라임 CTA 박스 — 편익 CTA + 마찰 제거 + 편익 예고 */}
-            <section className="mb-8 hidden rounded-2xl border border-lime-300/50 bg-lime-50 p-5 dark:bg-lime-300/[0.06] md:block md:p-6">
+            <section className="mb-8 rounded-2xl border border-lime-300/50 bg-lime-50 p-5 dark:bg-lime-300/[0.06] md:p-6">
               <Link
                 href={mapHref}
                 className="block w-full rounded-2xl bg-lime-300 px-6 py-4 text-center text-base font-black text-ink-900 shadow-lg transition hover:bg-lime-400 md:text-lg"
@@ -971,7 +971,7 @@ export async function SliceLandingPage({ slug, locale }: { slug: string; locale:
 
             <Link
               href={mapHref}
-              className="hidden w-full rounded-2xl bg-lime-300 px-6 py-4 text-center text-base font-black text-ink-900 shadow-lg transition hover:bg-lime-400 md:block md:text-lg"
+              className="block w-full text-center px-6 py-4 rounded-2xl bg-lime-300 text-ink-900 font-black text-base md:text-lg hover:bg-lime-400 transition shadow-lg"
             >
               {copy.mapCtaSecondary(slice.label)}
             </Link>
