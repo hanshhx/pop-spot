@@ -293,6 +293,15 @@ public interface PopupStoreRepository extends JpaRepository<PopupStore, Long> {
                     + "WHERE p.sourceType = 'CRAWLED' AND p.crawledAt >= :since")
     long countCrawledSince(@Param("since") java.time.LocalDateTime since);
 
+    /**
+     * 가장 최근에 새 자동수집 팝업이 저장된 시각.
+     *
+     * <p>이 값은 "마지막 크롤 성공 시각"이 아니다. 크롤이 정상 실행돼도 새 팝업이 없으면 바뀌지 않는다. 관리자 화면에서 예약 작업이 켜져 있는지와 함께 보고,
+     * 데이터가 오래 멈춰 있는지를 조기에 의심하는 보조 신호로만 쓴다.
+     */
+    @Query("SELECT MAX(p.crawledAt) FROM PopupStore p WHERE p.sourceType = 'CRAWLED'")
+    java.time.LocalDateTime findLatestCrawledAt();
+
     /** 특정 시각 이후 자동수집 row 의 평균 신뢰도. row 가 없으면 0. */
     @Query(
             "SELECT COALESCE(AVG(p.confidenceScore), 0) FROM PopupStore p "

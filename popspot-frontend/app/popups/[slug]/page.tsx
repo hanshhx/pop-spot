@@ -12,6 +12,7 @@ import type { Locale } from '@/lib/i18n';
 import { LOCALE_PATH, slugAlternates } from '@/lib/localeRoutes';
 import { localizedPath } from '@/lib/localePath';
 import { CRAWL_REFRESH_BY_LOCALE } from '@/lib/siteCopy';
+import { searchLandingTitle } from '@/lib/searchLandingTitle';
 import { groupSameEvent } from '@/lib/groupSameEvent';
 import { isProvenOutsideSeoul } from '@/lib/seoulGuard';
 import { loadPublicMarkers } from '@/lib/emergencyPopupData';
@@ -584,7 +585,14 @@ export async function sliceMetadata(slug: string, locale: Locale): Promise<Metad
   // 제목에는 건수만. 앞머리 키워드("니케 팝업스토어")를 건드리지 않도록 뒤에 붙인다 — 검색 결과에서
   // 숫자는 클릭을 끌지만 제목 앞부분은 순위에 쓰이므로 순서를 바꾸지 않는다.
   const base = copy.titles[slice.kind](slice.label);
-  const title = count > 0 ? copy.withCount(base, count) : base;
+  const title =
+    searchLandingTitle({
+      locale,
+      kind: slice.kind,
+      slug: slice.slug,
+      label: slice.label,
+      count,
+    }) ?? (count > 0 ? copy.withCount(base, count) : base);
 
   // 설명 = 건수 + 최단 마감일 + 짧은 가치제안. 마감일 있는 팝업이 없으면 마감 문구를 뺀다.
   //
@@ -603,7 +611,10 @@ export async function sliceMetadata(slug: string, locale: Locale): Promise<Metad
   // 한국 검색 성과에서 실제로 확인된 표현만 사용한다. 별도 얇은 페이지를 대량 생성하지 않고, 같은
   // 목록을 찾는 말(팝업/팝업스토어·일정·위치·지도·연도)을 한 문서의 검색 단서로 묶는다. 괄호 안의
   // 동적 날짜는 검색어로 쓰이지 않으므로 키워드에서는 제거한다.
-  const keywordLabel = slice.label.replace(/\s*\([^)]*\)/g, '').trim();
+  const keywordLabel =
+    locale === 'ko' && slice.kind === 'brand' && slice.slug === 'offside'
+      ? '오프사이드 스토어'
+      : slice.label.replace(/\s*\([^)]*\)/g, '').trim();
   const koreanKeywords =
     locale === 'ko'
       ? [
