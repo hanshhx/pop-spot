@@ -259,6 +259,112 @@ li {
    가독성은 불투명 카드가 담당 → 스크림은 헤더/푸터 대비만 살짝 보강.
    ============================================================ */
 
+/* 좁은 화면 배경 보강 — 영상을 대신하는 것이 아니라 단색을 보완하는 것.
+   ============================================================
+   모바일에서 배경 영상을 불러오지 않는 것은 <b>의도된 선택</b>이다(LoopingBgVideo 의
+   useShouldRender — 다크 배경만 2.8MB 인데 방문자의 75.7% 가 모바일이다). 여기서 영상을
+   되살리지 않으며, 이 규칙은 CSS 만 쓰므로 전송량이 0 바이트 늘어난다.
+
+   고치려는 것은 따로 있다. 영상이 없으면 화면에는 단색과 스크림만 남는데, 스크림과 바탕의
+   색 차이가 작아 상·하단 명암이 거의 드러나지 않는다. 그래서 화면이 평면적으로 보인다.
+
+   구성은 세 겹이고 라이트·다크가 <b>같은 구조에 색만 다르다</b>.
+     1) 격자   — 팝스팟이 지도 서비스라는 점에 기댄다. 콘텐츠 뒤는 마스크로 비워
+                실제 지도 화면으로 오해하지 않게 하고, 배경이 먼저 읽히지 않게 한다.
+     2) 기준선 — 라임 가로선 하나. 격자에 방향을 준다.
+     3) 빛 번짐 — 하단 중앙에 아주 약하게.
+     4) 입자   — 1.5%. 장식이 아니라 <b>띠(banding) 방지</b>다. 어두운 바탕 위 옅은
+                그라데이션은 8비트 화면(특히 OLED)에서 계단처럼 끊겨 보이는데, 미세한
+                노이즈가 그 경계를 흩어 준다.
+   ============================================================ */
+/* 기본은 둘 다 그리지 않는다. 아래 미디어쿼리보다 <b>먼저</b> 와야 한다 —
+   뒤에 두면 같은 특정도라 미디어쿼리를 덮어써서 좁은 화면에서도 사라진다. */
+.home-flat-bg,
+.home-flat-grain {
+  display: none;
+}
+
+/* 테마를 바꾸면 body 바탕색이 0.3초에 걸쳐 변한다. 덧그림이 즉시 갈아타면 그 0.3초 동안
+   둘이 어긋난다. 같은 시간·같은 곡선을 준다. 그라데이션 보간을 지원하지 않는 브라우저에서는
+   그냥 즉시 바뀌는데, 이 층은 최대 16% 투명도라 어긋나도 눈에 띄는 폭이 작다. */
+.home-flat-bg {
+  transition: background-image 0.3s var(--ease-out-quart);
+}
+
+@media (max-width: 767px) {
+  .home-flat-bg {
+    display: block;
+    position: absolute;
+    inset: 0;
+    background-image:
+      radial-gradient(88% 40% at 50% 104%, rgba(168, 230, 69, 0.16), transparent 68%),
+      linear-gradient(rgba(79, 122, 16, 0.06) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(79, 122, 16, 0.06) 1px, transparent 1px);
+    background-size:
+      100% 100%,
+      44px 44px,
+      44px 44px;
+    /* 가운데(콘텐츠가 지나가는 띠)는 비운다. 위아래 가장자리에만 격자가 남는다. */
+    -webkit-mask-image: linear-gradient(
+      180deg,
+      #000 0%,
+      rgba(0, 0, 0, 0.35) 26%,
+      transparent 46%,
+      transparent 62%,
+      rgba(0, 0, 0, 0.45) 84%,
+      #000 100%
+    );
+    mask-image: linear-gradient(
+      180deg,
+      #000 0%,
+      rgba(0, 0, 0, 0.35) 26%,
+      transparent 46%,
+      transparent 62%,
+      rgba(0, 0, 0, 0.45) 84%,
+      #000 100%
+    );
+  }
+
+  /* 기준선 — 지도 아래 지름길 줄 언저리에 한 줄. */
+  .home-flat-bg::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 72%;
+    height: 1px;
+    background: rgba(79, 122, 16, 0.16);
+  }
+
+  /* 띠 방지용 입자. 마스크를 타지 않도록 형제로 둔다. */
+  .home-flat-grain {
+    display: block;
+    position: absolute;
+    inset: 0;
+    opacity: 0.015;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  .dark .home-flat-bg {
+    background-image:
+      radial-gradient(88% 40% at 50% 104%, rgba(136, 200, 40, 0.11), transparent 68%),
+      linear-gradient(rgba(194, 249, 112, 0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(194, 249, 112, 0.05) 1px, transparent 1px);
+    background-size:
+      100% 100%,
+      44px 44px,
+      44px 44px;
+  }
+
+  .dark .home-flat-bg::before {
+    background: rgba(194, 249, 112, 0.12);
+  }
+
+  .dark .home-flat-grain {
+    opacity: 0.022;
+  }
+}
+
 /* 영상 위 스크림 — 상·하단만 살짝 눌러 헤더/푸터 대비 확보, 중앙은 거의 투명해 영상이 그대로 보임. */
 .home-video-scrim {
   background: linear-gradient(
