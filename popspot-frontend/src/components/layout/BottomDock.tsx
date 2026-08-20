@@ -22,6 +22,15 @@ interface DockItemDef {
   labelKey: MessageKey;
 }
 
+/** 더보기 안의 기능을 보고 있을 때 마지막 칸이 현재 위치를 말하도록 한다. */
+export function contextualMoreItem(currentTab: DockTab): DockItemDef | null {
+  return (
+    DOCK_ITEMS.find(
+      (item) => item.key === currentTab && (item.key === 'MUSIC' || item.key === 'PASSPORT'),
+    ) ?? null
+  );
+}
+
 /**
  * 모든 탭은 같은 페이지 안에서 즉시 전환된다 — 외부 라우트 X.
  * 마이페이지/지도/음악 모두 같은 모델로 통일해서 깜빡임 없이 이동.
@@ -50,6 +59,7 @@ export function BottomDock({ currentTab, onTabChange }: BottomDockProps) {
   const secondaryItems = DOCK_ITEMS.filter((item) => ['MUSIC', 'PASSPORT'].includes(item.key));
   const moreActive = secondaryItems.some((item) => item.key === currentTab);
   const moreLabel = locale === 'ko' ? '더보기' : locale === 'ja' ? 'その他' : 'More';
+  const currentSecondary = contextualMoreItem(currentTab);
 
   return (
     <nav
@@ -97,12 +107,15 @@ export function BottomDock({ currentTab, onTabChange }: BottomDockProps) {
             icon={item.icon}
             label={t(item.labelKey)}
             isActive={currentTab === item.key}
-            onClick={() => onTabChange(item.key)}
+            onClick={() => {
+              setMoreOpen(false);
+              onTabChange(item.key);
+            }}
           />
         ))}
         <DockButton
-          icon={MoreHorizontal}
-          label={moreLabel}
+          icon={currentSecondary?.icon ?? MoreHorizontal}
+          label={currentSecondary ? t(currentSecondary.labelKey) : moreLabel}
           isActive={moreActive || moreOpen}
           onClick={() => setMoreOpen((current) => !current)}
         />
