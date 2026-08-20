@@ -5,6 +5,7 @@ import { AlertTriangle, ChevronDown, ChevronUp, RefreshCw } from 'lucide-react';
 
 import { useLocale } from '@/lib/i18n';
 import {
+  availabilityAfterFailure,
   getServerServiceAvailability,
   getServiceAvailability,
   setServiceAvailability,
@@ -63,6 +64,7 @@ export default function ServiceStatusBanner() {
     let checking = false;
     let recoverySuccesses = 0;
     let recoveryStartedAt = 0;
+    let consecutiveFailures = 0;
 
     function schedule(available: boolean) {
       if (stopped) return;
@@ -76,7 +78,7 @@ export default function ServiceStatusBanner() {
       try {
         const response = await fetch(`/service-health?t=${Date.now()}`, {
           cache: 'no-store',
-          // The health route verifies the process, public list and one real detail in sequence.
+          // 상태 확인 경로는 프로세스·공개 목록을 동시에 보고, 그다음 실제 상세 하나를 본다.
           signal: AbortSignal.timeout(12_000),
         });
         const body = (await response.json()) as { available?: boolean };
@@ -85,9 +87,16 @@ export default function ServiceStatusBanner() {
         if (!available) {
           recoverySuccesses = 0;
           recoveryStartedAt = 0;
-          setServiceAvailability('unavailable');
+          consecutiveFailures += 1;
+          // 첫 실패로는 선언하지 않는다. 15초 뒤 한 번 더 보고 그때도 실패면 장애다.
+          const declared = availabilityAfterFailure(consecutiveFailures);
+          if (declared) setServiceAvailability(declared);
           schedule(false);
-        } else if (current !== 'unavailable') {
+          return;
+        }
+
+        consecutiveFailures = 0;
+        if (current !== 'unavailable') {
           // 정상 방문자는 복구 대기 시간을 겪지 않는다. 대기 조건은 장애를 실제로 확인한 탭에만 적용한다.
           setServiceAvailability('available');
           schedule(true);
@@ -101,9 +110,12 @@ export default function ServiceStatusBanner() {
           schedule(recovered);
         }
       } catch {
+        // 제한시간 초과·네트워크 오류도 위와 같게 센다. 한 번 느린 것과 진짜 장애를 구분한다.
         recoverySuccesses = 0;
         recoveryStartedAt = 0;
-        setServiceAvailability('unavailable');
+        consecutiveFailures += 1;
+        const declared = availabilityAfterFailure(consecutiveFailures);
+        if (declared) setServiceAvailability(declared);
         schedule(false);
       } finally {
         checking = false;

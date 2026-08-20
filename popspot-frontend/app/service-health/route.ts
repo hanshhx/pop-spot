@@ -17,10 +17,19 @@ export async function GET() {
   }
 
   try {
-    const response = await fetch(`${apiBase}/actuator/health`, {
-      cache: 'no-store',
-      signal: AbortSignal.timeout(4_000),
-    });
+    // 프로세스 확인과 목록 확인은 서로를 기다릴 이유가 없다. 순차로 부르면 왕복이 하나 더 붙고,
+    // 그만큼 느려진 응답이 브라우저 제한시간에 걸려 멀쩡한 서버를 장애로 보이게 한다.
+    // (실측 2026-08-20: 순차 3회 왕복이 3.3~6.7초)
+    const [response, markersResponse] = await Promise.all([
+      fetch(`${apiBase}/actuator/health`, {
+        cache: 'no-store',
+        signal: AbortSignal.timeout(4_000),
+      }),
+      fetch(`${apiBase}/api/map/markers`, {
+        cache: 'no-store',
+        signal: AbortSignal.timeout(5_000),
+      }),
+    ]);
     if (!response.ok) {
       return NextResponse.json({ available: false }, { headers: NO_STORE_HEADERS });
     }
@@ -30,10 +39,6 @@ export async function GET() {
     }
 
     // 프로세스만 UP이고 공개 데이터베이스 연결이 죽은 상태를 복구로 오인하지 않는다.
-    const markersResponse = await fetch(`${apiBase}/api/map/markers`, {
-      cache: 'no-store',
-      signal: AbortSignal.timeout(5_000),
-    });
     if (!markersResponse.ok) {
       return NextResponse.json({ available: false }, { headers: NO_STORE_HEADERS });
     }
