@@ -1246,7 +1246,7 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
   };
 
   return (
-    <main className="min-h-screen font-sans relative pb-32 lg:pb-16 overflow-x-hidden transition-colors duration-500 text-gray-900 dark:text-white">
+    <main className="relative min-h-screen overflow-x-clip pb-28 font-sans text-gray-900 transition-colors duration-500 dark:text-white lg:pb-16">
       {/* 모드별 풀 배경 영상 — 라이트=밝은 스카이라인(light-bg), 다크=생기있는 서울 야경(login-bg).
           영상이 '실제로 보이도록' 스크림은 얕게(home-video-scrim). 콘텐츠는 불투명 카드 위라 가독성은 카드가 담당.
           마운트 전엔 브랜드 단색(cream/ink)만 → 깜빡임 없이 영상 페이드 인. 활성 모드 영상 한 개만 로드. */}
@@ -1270,6 +1270,7 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
           onBellClick={() => setIsNotificationsOpen(true)}
           activeTab={currentTab}
           onNavChange={(t) => handleTabChange(t)}
+          mobileLocaleControl={<LocaleSwitcher locale={locale} />}
           className="mb-4 md:mb-6"
         />
 
@@ -1330,7 +1331,7 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
                 (2) 그 카드는 비로그인일 때만 그려진다. 로그인하면 언어 전환이 통째로 사라져,
                     외국인 회원은 한 번 로그인한 뒤 언어를 못 바꿨다.
                 흐름 안에 두면 겹칠 수가 없고, 로그인 여부와 무관하게 늘 같은 자리에 있다. */}
-            <div className="mb-3 flex justify-end md:mb-4">
+            <div className="mb-4 hidden justify-end md:flex">
               <LocaleSwitcher locale={locale} />
             </div>
 
@@ -1361,14 +1362,14 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
                   </button>
                 </div>
               ) : (
-                <div className="relative w-full overflow-hidden rounded-2xl border p-6 md:p-8 bg-white border-gray-200 dark:bg-[#1c1c1e] dark:border-white/10">
+                <div className="relative w-full overflow-hidden rounded-2xl border border-gray-200 bg-white p-5 dark:border-white/10 dark:bg-[#1c1c1e] md:p-8">
                   {/* 은은한 라임 글로우 — 칙칙함 대신 활력. 밝지만 텍스트 대비는 유지. */}
                   <div
                     aria-hidden
                     className="pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full bg-lime-300/35 blur-3xl dark:bg-lime-400/20"
                   />
                   <div className="relative z-10 flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-                    <div className="text-center md:text-left">
+                    <div className="min-w-0 text-left">
                       <span className="inline-block mb-3 rounded-pill bg-lime-300 px-3 py-1 text-[10px] md:text-xs font-black tracking-[0.2em] uppercase text-ink-900">
                         {locale === 'ko' ? '오늘의 서울 팝업' : t('stat.open')}
                       </span>
@@ -1398,7 +1399,7 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
                           ? '지도에서 일정과 장소를 확인하고, 마음에 드는 팝업을 저장하세요.'
                           : t('hero.subtitle')}
                       </p>
-                      <div className="mt-5 flex flex-col sm:flex-row gap-2.5 justify-center md:justify-start">
+                      <div className="mt-5 flex flex-col gap-2.5 sm:flex-row md:justify-start">
                         <button
                           type="button"
                           onClick={() => {
@@ -1424,7 +1425,7 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
 
                     {/* 팝업 정보 클러스터 — 실제 사진이 없으면 이름·장소를 우선 표시. */}
                     {hotPopups.length > 0 && (
-                      <div className="grid grid-cols-2 gap-2 shrink-0 md:w-[280px]">
+                      <div className="grid w-full min-w-0 shrink-0 grid-cols-2 gap-2 md:w-[280px]">
                         {hotPopups.slice(0, 4).map((p, i) => (
                           <button
                             key={p.id}
@@ -1456,7 +1457,7 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
               className="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-10"
             >
               {/* Search Zone */}
-              <div className="col-span-1 lg:col-span-12 relative z-50 order-1 lg:order-none">
+              <div className="relative z-50 col-span-1 lg:col-span-12">
                 <SearchZone
                   popups={allPopups}
                   onSelectPopup={(hit) => {
@@ -1506,7 +1507,7 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
               </div>
 
               {/* Map Zone — 배경 분리를 위해 solid 배경 + shadow 로 카드 블록 강화. */}
-              <div className="col-span-1 lg:col-span-12 rounded-[2rem] relative overflow-hidden border border-gray-200 dark:border-white/10 group bg-white dark:bg-[#111] shadow-lg shadow-black/5 dark:shadow-black/30 h-[58vh] min-h-[420px] order-2 lg:order-none">
+              <div className="group relative col-span-1 h-[min(62svh,560px)] min-h-[430px] overflow-hidden rounded-[1.5rem] border border-gray-200 bg-white shadow-lg shadow-black/5 dark:border-white/10 dark:bg-[#111] dark:shadow-black/30 sm:rounded-[2rem] lg:col-span-12 lg:h-[58vh]">
                 <InteractiveMap
                   initialMarkers={initialMapMarkers}
                   center={mapCenter}
@@ -1709,10 +1710,10 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
                   <div
                     ref={rail.ref}
                     {...rail.dragBind}
-                    className="custom-scrollbar -mx-1 flex cursor-grab snap-x select-none gap-4 overflow-x-auto px-1 pb-3 active:cursor-grabbing"
+                    className="grid grid-cols-1 gap-3 pb-2 sm:-mx-1 sm:flex sm:cursor-grab sm:snap-x sm:select-none sm:gap-4 sm:overflow-x-auto sm:px-1 sm:pb-3 sm:active:cursor-grabbing"
                   >
                     {railPopups.map((p) => (
-                      <div key={p.id} className="snap-start">
+                      <div key={p.id} className="min-w-0 snap-start">
                         <PopupCard
                           popup={p}
                           onClick={() => {

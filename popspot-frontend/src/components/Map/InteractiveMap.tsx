@@ -393,7 +393,6 @@ export default function InteractiveMap({
     const media = window.matchMedia('(max-width: 767px)');
     const syncViewport = () => {
       setIsMobileViewport(media.matches);
-      if (media.matches) setIsListOpen(true);
     };
     syncViewport();
     media.addEventListener('change', syncViewport);

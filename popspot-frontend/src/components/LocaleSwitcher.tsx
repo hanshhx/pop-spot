@@ -80,7 +80,7 @@ export default function LocaleSwitcher({
         aria-expanded={open}
         aria-haspopup="menu"
         aria-label="Language"
-        className="inline-flex min-h-11 items-center gap-2 rounded-full border border-gray-200 bg-white/90 px-3 text-xs font-black uppercase text-foreground shadow-sm backdrop-blur transition hover:border-lime-400 sm:hidden dark:border-white/10 dark:bg-black/55"
+        className="inline-flex min-h-10 items-center gap-1.5 rounded-full border border-gray-200 bg-white/90 px-2.5 text-[11px] font-black uppercase text-foreground shadow-sm backdrop-blur transition hover:border-lime-400 md:hidden dark:border-white/10 dark:bg-black/55"
       >
         <Globe size={16} aria-hidden />
         {locale}
@@ -94,14 +94,14 @@ export default function LocaleSwitcher({
       {open ? (
         <div
           role="menu"
-          className="absolute right-0 top-12 z-[70] min-w-40 overflow-hidden rounded-2xl border border-gray-200 bg-white p-1.5 text-gray-900 shadow-xl sm:hidden dark:border-white/10 dark:bg-[#171717] dark:text-white"
+          className="absolute right-0 top-11 z-[70] min-w-40 overflow-hidden rounded-2xl border border-gray-200 bg-white p-1.5 text-gray-900 shadow-xl md:hidden dark:border-white/10 dark:bg-[#171717] dark:text-white"
         >
           {localeLinks(true)}
         </div>
       ) : null}
 
       <div
-        className="hidden items-center gap-1 rounded-pill border border-gray-200 bg-white/80 px-1.5 py-1 backdrop-blur sm:inline-flex dark:border-white/10 dark:bg-black/40"
+        className="hidden items-center gap-1 rounded-pill border border-gray-200 bg-white/80 px-1.5 py-1 backdrop-blur md:inline-flex dark:border-white/10 dark:bg-black/40"
         role="group"
         aria-label="Language"
       >
