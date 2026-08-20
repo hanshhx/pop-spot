@@ -1252,6 +1252,11 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
           마운트 전엔 브랜드 단색(cream/ink)만 → 깜빡임 없이 영상 페이드 인. 활성 모드 영상 한 개만 로드. */}
       <div className="fixed inset-0 -z-10 bg-cream-100 dark:bg-ink-900 overflow-hidden" aria-hidden>
         {themeReady && <LoopingBgVideo key={bgVideoSrc} src={bgVideoSrc} rate={bgVideoRate} />}
+        {/* 좁은 화면 전용 배경 보강. 영상이 없는 구간에서만 그려지고 CSS 만 쓴다 — 규칙은
+            globals.css 의 .home-flat-bg 주석 참고. 넓은 화면에서는 display:none 이라
+            영상 위에 아무것도 얹지 않는다. */}
+        <div className="home-flat-bg"></div>
+        <div className="home-flat-grain"></div>
         <div className="home-video-scrim absolute inset-0"></div>
       </div>
 
@@ -1519,14 +1524,9 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
               </div>
             </section>
 
-            {/* 지도 아래 유틸리티 3열 — 실시간 혼잡도(공간) + 팝업 캘린더(시간) + 최근 본 팝업(나).
-                앞의 둘은 누르면 모달, 마지막은 그 자리에서 펼쳐진다.
-
-                최근 본 팝업은 2026-08-21 에 스크롤 맨 끝에서 여기로 올렸다. 예전에는 본문 컨테이너
-                <b>바깥</b>, 푸터 바로 앞에 붙어 있어서 어디에도 속하지 않은 잡동사니로 보였다.
-                셋 다 "지도를 보다가 바로 눌러 보는 지름길" 이라 성격이 맞고, 좁은 화면에서도
-                지도 바로 아래라 읽는 순서가 자연스럽다. */}
-            <div className="mb-10 grid grid-cols-1 gap-4 md:grid-cols-3">
+            {/* 지도 아래 지름길 — 실시간 혼잡도(공간) + 팝업 캘린더(시간). 누르면 모달이 열린다.
+                최근 본 팝업은 바로 아래 자기 줄에 둔다(같은 묶음이지만 폭이 다르다 — 아래 주석). */}
+            <div className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-2">
               {/* 실시간 혼잡도 */}
               <button
                 type="button"
@@ -1578,8 +1578,16 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
                   {t('tile.calendarCta')}
                 </span>
               </button>
+            </div>
 
-              {/* 최근 본 팝업 — 본 적이 없으면 스스로 아무것도 그리지 않는다(첫 방문자에게는 2열). */}
+            {/* 최근 본 팝업 — 위 두 칸과 같은 묶음이지만 <b>줄을 따로 쓴다.</b>
+                한 칸에 넣었더니 두 가지가 깨졌다(2026-08-21).
+                  1) 펼치면 그리드가 형제 칸 높이를 같이 늘려 혼잡도·캘린더가 빈 상자가 됐다.
+                  2) 펼친 목록이 lg:grid-cols-3 인데 부모가 화면의 1/3 이라 항목 하나가 130px 로
+                     좁아졌고, 썸네일 68px 를 빼면 글자 자리가 30px 뿐이라 세로로 쪼개졌다.
+                접힌 높이는 옆 칸과 같아 한 묶음으로 읽히고, 펼치면 전체 폭을 쓴다.
+                본 적이 없으면 스스로 아무것도 그리지 않는다. */}
+            <div className="mb-10">
               <RecentVisitsCard standalone />
             </div>
 
