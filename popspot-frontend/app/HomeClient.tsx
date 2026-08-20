@@ -223,9 +223,11 @@ function SeoLandingDirectory() {
   ];
 
   return (
-    <section className="mx-auto mb-8 max-w-[1600px] px-4 md:px-6" aria-label={title}>
-      <details className="rounded-2xl border border-gray-200 bg-white/90 px-5 py-4 text-sm shadow-sm dark:border-white/10 dark:bg-[#111]/90">
-        <summary className="cursor-pointer font-bold text-gray-900 dark:text-white">
+    <section className="mx-auto max-w-[1600px] px-4 md:px-6" aria-label={title}>
+      {/* 카드가 아니라 푸터의 앞머리처럼 보이게 한다. 테두리·그림자·흰 배경을 빼면 본문에서
+          경쟁하지 않으면서도 링크는 그대로 남아 크롤 경로가 유지된다. */}
+      <details className="border-t border-[var(--color-border)] py-4 text-sm">
+        <summary className="flex min-h-11 cursor-pointer items-center font-bold text-muted-foreground transition-colors hover:text-foreground">
           {title}
         </summary>
         <div className="mt-4 space-y-4">
@@ -1517,8 +1519,14 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
               </div>
             </section>
 
-            {/* 지도 아래 유틸리티 2열 — 실시간 혼잡도(공간) + 팝업 캘린더(시간). 각각 누르면 모달. */}
-            <div className="mb-10 grid grid-cols-1 gap-4 md:grid-cols-2">
+            {/* 지도 아래 유틸리티 3열 — 실시간 혼잡도(공간) + 팝업 캘린더(시간) + 최근 본 팝업(나).
+                앞의 둘은 누르면 모달, 마지막은 그 자리에서 펼쳐진다.
+
+                최근 본 팝업은 2026-08-21 에 스크롤 맨 끝에서 여기로 올렸다. 예전에는 본문 컨테이너
+                <b>바깥</b>, 푸터 바로 앞에 붙어 있어서 어디에도 속하지 않은 잡동사니로 보였다.
+                셋 다 "지도를 보다가 바로 눌러 보는 지름길" 이라 성격이 맞고, 좁은 화면에서도
+                지도 바로 아래라 읽는 순서가 자연스럽다. */}
+            <div className="mb-10 grid grid-cols-1 gap-4 md:grid-cols-3">
               {/* 실시간 혼잡도 */}
               <button
                 type="button"
@@ -1570,6 +1578,9 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
                   {t('tile.calendarCta')}
                 </span>
               </button>
+
+              {/* 최근 본 팝업 — 본 적이 없으면 스스로 아무것도 그리지 않는다(첫 방문자에게는 2열). */}
+              <RecentVisitsCard standalone />
             </div>
 
             {/* 홈 하단 발견 존 — 1a안 (랭킹 히어로 + 나의 기록 + 같이 갈 사람). 혼잡도는 위 바로, 캘린더·음악은 이 존 제외. */}
@@ -1886,29 +1897,11 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
             {/* v2.34 — 기능 소개 개별 섹션 (코스·음악·여권·동행). 각각 다른 무드+비주얼+좌우 교차. */}
             <FeatureSections onNavigate={handleTabChange} />
 
-            {/* 의견 보내기 진입점 — v2.28 에서 독의 '의견' 탭이 빠진 뒤로 MY 탭 안쪽과 푸터 링크만
-                남아, 게스트(유입의 대부분)는 사실상 찾지 못했다. 새 모달/라우트를 만들지 않고 이미
-                있는 FEEDBACK 탭을 그대로 연다(게스트도 통과 — canAccessTab 참조).
-                모양은 지도 아래 유틸리티 스트립(혼잡도·캘린더)과 같은 카드 패턴을 그대로 써서
-                새 UI 처럼 보이지 않게 하고, 위치는 스크롤 끝이라 본 흐름을 가리지 않는다. */}
-            <button
-              type="button"
-              onClick={() => handleTabChange('FEEDBACK')}
-              className="group mb-16 flex w-full items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-white px-5 py-3.5 shadow-sm transition hover:border-primary hover:shadow-md dark:border-white/10 dark:bg-[#111]"
-            >
-              <div className="flex min-w-0 items-center gap-2.5">
-                <MessageCircle size={16} className="shrink-0 text-primary" aria-hidden />
-                <span className="shrink-0 text-sm font-bold text-gray-900 dark:text-white">
-                  {t('feedback.send')}
-                </span>
-                <span className="truncate text-sm text-gray-500 dark:text-white/60">
-                  {t('feedback.sub')}
-                </span>
-              </div>
-              <span className="shrink-0 text-sm font-bold text-lime-600 dark:text-lime-400 group-hover:underline">
-                {t('feedback.cta')}
-              </span>
-            </button>
+            {/* 의견 보내기 진입점은 푸터의 '제보하기 · 의견 보내기' 짝으로 옮겼다(2026-08-21).
+                v2.28 에서 여기에 전체폭 카드를 놓은 이유는 게스트가 의견 낼 곳을 못 찾아서였는데,
+                그 해결책이 하단에 성격이 다른 카드 세 장(의견·최근 본 팝업·탐색 링크)을 쌓는
+                결과를 낳았다. 푸터에서 제보와 나란히 두면 "사용자가 우리에게 보내는 것" 두 개가
+                한자리에 모여 찾기도 쉽고 하단도 정리된다. */}
 
             {/* (구) 협업 프로모 — FeatureSections 로 대체됨(주석 유지 시 아래 미사용 블록 제거 필요) */}
             <motion.section
@@ -2650,14 +2643,9 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
         )}
       </div>
 
-      {currentTab === 'MAP' && (
-        <div className="mx-auto mb-4 max-w-[1600px] px-4 md:px-6">
-          <RecentVisitsCard standalone />
-        </div>
-      )}
       {currentTab === 'MAP' && <SeoLandingDirectory />}
 
-      <Footer />
+      <Footer onReportClick={() => setIsReportPopupOpen(true)} />
 
       {/* Navigation Dock */}
       <BottomDock currentTab={currentTab as DockTab} onTabChange={(t) => handleTabChange(t)} />
@@ -2712,7 +2700,14 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
  */
 function RecentVisitsCard({ standalone = false }: { standalone?: boolean } = {}) {
   const { t, locale } = useLocale();
-  const [isExpanded, setIsExpanded] = useState(true);
+  /**
+   * 홈에서는 접은 채로 시작한다.
+   *
+   * <p>MY 탭은 자기 기록을 보러 오는 화면이라 펼쳐 두는 것이 맞다. 홈은 <b>새 팝업을 찾는</b>
+   * 화면인데, 방문자의 75.7% 가 쓰는 좁은 화면에서 썸네일 여섯 장이 펼쳐지면 그만큼 아래 내용이
+   * 밀린다. 홈에서는 "최근 본 것이 있다" 는 사실만 한 줄로 알리고, 볼 사람이 펼치게 한다.
+   */
+  const [isExpanded, setIsExpanded] = useState(!standalone);
   const [visits, setVisits] = useState<
     Array<{ popupId: number; popupName: string; popupImage?: string }>
   >([]);
@@ -2750,7 +2745,9 @@ function RecentVisitsCard({ standalone = false }: { standalone?: boolean } = {})
 
   return (
     <div
-      className={`px-4 py-3 lg:px-6 lg:py-4 ${
+      // standalone 은 세로 여백을 최소로 둔다. 안쪽 토글이 이미 min-h-11(44px) 로 손가락 목표를
+      // 확보하고 있어서, 바깥에서 여백을 더 주면 옆 타일(50px)보다 혼자 커진다.
+      className={`${standalone ? 'px-5 py-1' : 'px-4 py-3 lg:px-6 lg:py-4'} ${
         standalone
           ? 'rounded-2xl border border-[var(--color-border)] bg-white/90 shadow-sm dark:bg-[#111]/90'
           : 'border-b border-[var(--color-border)]'
@@ -2765,19 +2762,35 @@ function RecentVisitsCard({ standalone = false }: { standalone?: boolean } = {})
           isExpanded ? 'mb-3' : ''
         }`}
       >
-        <span className="flex min-w-0 items-center gap-2.5 text-foreground">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-lime-500/10">
-            <Clock size={17} className="text-lime-500" />
-          </span>
-          <span className="min-w-0">
-            <span className="block text-base font-extrabold leading-tight lg:text-lg">
+        {/* 홈(standalone)에서는 옆 타일(혼잡도·캘린더)과 같은 한 줄 꼴로 맞춘다. 두 줄짜리 제목에
+            동그란 아이콘까지 쓰면 좁은 화면에서 이 칸만 40% 높아져 혼자 튄다. 넓은 화면은 그리드가
+            높이를 맞춰 주므로 차이가 안 보이지만, 세로로 쌓이는 모바일에서는 그대로 드러난다.
+            MY 탭은 자기 기록을 보는 화면이라 기존의 큰 제목을 유지한다. */}
+        {standalone ? (
+          <span className="flex min-w-0 items-center gap-2.5">
+            <Clock size={16} className="shrink-0 text-lime-500" aria-hidden />
+            <span className="shrink-0 text-sm font-bold text-gray-900 dark:text-white">
               {t('recent.title')}
             </span>
-            <span className="mt-0.5 block text-xs font-medium text-muted-foreground">
-              {itemCountLabel}
+            <span className="truncate text-sm text-gray-500 dark:text-white/60">
+              · {itemCountLabel}
             </span>
           </span>
-        </span>
+        ) : (
+          <span className="flex min-w-0 items-center gap-2.5 text-foreground">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-lime-500/10">
+              <Clock size={17} className="text-lime-500" />
+            </span>
+            <span className="min-w-0">
+              <span className="block text-base font-extrabold leading-tight lg:text-lg">
+                {t('recent.title')}
+              </span>
+              <span className="mt-0.5 block text-xs font-medium text-muted-foreground">
+                {itemCountLabel}
+              </span>
+            </span>
+          </span>
+        )}
         <span className="flex shrink-0 items-center gap-1.5 pr-1 text-xs font-semibold text-muted-foreground">
           <span>
             {isExpanded
