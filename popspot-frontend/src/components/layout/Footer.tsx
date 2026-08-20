@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useLocale, type MessageKey } from '@/lib/i18n';
-import { Instagram } from 'lucide-react';
+import { Instagram, Megaphone, MessageCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Logo } from '@/components/layout/Logo';
 import { SectionLogo } from '@/components/layout/BrandLogos';
@@ -35,7 +35,6 @@ const PLATFORM_LINKS: ReadonlyArray<{ labelKey: MessageKey; href: string }> = [
   { labelKey: 'footer.congestion', href: '/' },
   { labelKey: 'footer.magazine', href: '/' },
   { labelKey: 'footer.about', href: '/about' },
-  { labelKey: 'feedback.send', href: '/feedback' },
   { labelKey: 'footer.terms', href: '/terms' },
   { labelKey: 'footer.privacy', href: '/privacy' },
 ];
@@ -51,9 +50,16 @@ const PARTNER_LINKS: ReadonlyArray<{ labelKey: MessageKey; href: string }> = [
 
 interface FooterProps {
   className?: string;
+  /**
+   * 팝업 제보 모달을 여는 손잡이. 없으면 제보 자리에 아무것도 그리지 않는다.
+   *
+   * <p>제보는 모달이라 링크로 걸 수 없다. 모달 상태를 가진 화면(홈)만 이 값을 넘기고,
+   * 나머지 화면에서는 의견 보내기만 보인다.
+   */
+  onReportClick?: () => void;
 }
 
-export function Footer({ className }: FooterProps) {
+export function Footer({ className, onReportClick }: FooterProps) {
   return (
     <footer
       role="contentinfo"
@@ -64,6 +70,8 @@ export function Footer({ className }: FooterProps) {
         className,
       )}
     >
+      <ContributeRow onReportClick={onReportClick} />
+
       <div className="max-w-[1600px] mx-auto px-6 lg:px-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-12">
         <BrandColumn />
         <LinkColumn title="Platform" links={PLATFORM_LINKS} />
@@ -76,6 +84,58 @@ export function Footer({ className }: FooterProps) {
 }
 
 /* ============================== 내부 컴포넌트 ============================== */
+
+/**
+ * 제보하기 · 의견 보내기 — 사용자가 우리에게 보내는 두 통로를 나란히 둔다.
+ *
+ * <p>둘은 받는 곳이 다르다. <b>제보</b>는 빠진 팝업을 알려 주는 것이라 관리자 승인 대기열로 가서
+ * 데이터가 되고, <b>의견</b>은 서비스에 대한 말이라 의견 게시판으로 간다. 2026-08-09 에 게스트가
+ * 빠진 팝업을 의견으로 남겨 데이터가 되지 못한 일이 있었다 — 붙여 놓으면 어느 쪽인지 고르기 쉽다.
+ *
+ * <p>링크 목록 안에 한 줄로 넣지 않고 따로 뺀 이유: 예전에 의견 보내기가 링크 여덟 개 사이에
+ * 묻혀 있어 게스트가 찾지 못했고, 그래서 홈 맨 아래에 전체폭 카드를 따로 만들어야 했다. 그 카드가
+ * 하단을 어지럽힌 원인이었으므로, 여기서는 처음부터 눈에 띄게 둔다.
+ *
+ * <p>좁은 화면에서는 세로로 쌓아 각 버튼이 full-width 가 된다. 영어 라벨("Submit a pop-up")이
+ * 길어 2열로 두면 줄바꿈이 생긴다. 손가락 목표는 {@code min-h-12} 로 확보한다.
+ */
+function ContributeRow({ onReportClick }: { onReportClick?: () => void }) {
+  const { t, locale } = useLocale();
+
+  const shared =
+    'flex min-h-12 items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-bold transition ' +
+    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-500/70';
+
+  return (
+    <div className="max-w-[1600px] mx-auto px-6 lg:px-8 mb-10 lg:mb-12">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:max-w-lg">
+        {onReportClick && (
+          <button
+            type="button"
+            onClick={onReportClick}
+            className={cn(
+              shared,
+              'border-lime-500/50 bg-lime-500/10 text-lime-800 hover:bg-lime-500/20 dark:text-lime-300',
+            )}
+          >
+            <Megaphone className="size-4 shrink-0" aria-hidden />
+            {t('nav.report')}
+          </button>
+        )}
+        <Link
+          href={localizedPath('/feedback', locale)}
+          className={cn(
+            shared,
+            'border-[var(--color-border)] text-muted-foreground hover:border-lime-500/50 hover:text-foreground',
+          )}
+        >
+          <MessageCircle className="size-4 shrink-0" aria-hidden />
+          {t('feedback.send')}
+        </Link>
+      </div>
+    </div>
+  );
+}
 
 function BrandColumn() {
   const { t } = useLocale();
