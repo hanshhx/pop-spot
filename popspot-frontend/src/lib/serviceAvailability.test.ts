@@ -3,6 +3,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  availabilityAfterFailure,
   getServiceAvailability,
   resetServiceAvailabilityForTest,
   serviceUnavailableResponse,
@@ -31,5 +32,14 @@ describe('serviceAvailability', () => {
     expect(response.status).toBe(503);
     expect(response.headers.get('Retry-After')).toBe('15');
     await expect(response.json()).resolves.toMatchObject({ error: 'Service Unavailable' });
+  });
+
+  it('확인이 한 번 실패한 것으로는 장애를 선언하지 않는다', () => {
+    expect(availabilityAfterFailure(1)).toBeNull();
+  });
+
+  it('연속 두 번 실패하면 장애로 선언한다', () => {
+    expect(availabilityAfterFailure(2)).toBe('unavailable');
+    expect(availabilityAfterFailure(3)).toBe('unavailable');
   });
 });
