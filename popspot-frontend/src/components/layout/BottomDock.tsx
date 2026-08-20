@@ -54,11 +54,13 @@ export function BottomDock({ currentTab, onTabChange }: BottomDockProps) {
   return (
     <nav
       aria-label={t('nav.mainMenu')}
-      className={cn('fixed left-1/2 -translate-x-1/2 z-50 lg:hidden', 'w-[95%] max-w-[560px]')}
-      style={{ bottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
+      className={cn(
+        'fixed left-1/2 z-50 w-[calc(100%-1rem)] max-w-[560px] -translate-x-1/2 lg:hidden',
+      )}
+      style={{ bottom: 'max(0.5rem, env(safe-area-inset-bottom))' }}
     >
       {moreOpen ? (
-        <div className="absolute bottom-[calc(100%+0.5rem)] right-2 w-48 rounded-2xl border border-black/10 bg-surface/95 p-2 shadow-pop backdrop-blur-xl dark:border-white/10">
+        <div className="absolute bottom-[calc(100%+0.4rem)] right-1 w-44 rounded-2xl border border-black/10 bg-surface/95 p-2 shadow-pop backdrop-blur-xl dark:border-white/10">
           {secondaryItems.map((item) => {
             const Icon = item.icon;
             return (
@@ -86,8 +88,8 @@ export function BottomDock({ currentTab, onTabChange }: BottomDockProps) {
       <div
         className={cn(
           // 균등 분할(flex-1) — 가로 스크롤 없이 6탭이 폭에 딱 맞게.
-          'flex items-stretch gap-1 p-2.5',
-          'rounded-[1.75rem] border border-black/5 dark:border-white/10',
+          'flex items-stretch gap-0.5 p-1.5',
+          'rounded-[1.5rem] border border-black/5 dark:border-white/10',
           'bg-surface/90 backdrop-blur-xl shadow-pop ring-1 ring-black/[0.02] dark:ring-white/[0.04]',
         )}
       >
@@ -127,7 +129,7 @@ function DockButton({ icon: Icon, label, isActive, onClick }: DockButtonProps) {
       aria-label={label}
       className={cn(
         'relative flex flex-1 min-w-0 flex-col items-center justify-center gap-1',
-        'h-16 md:h-[72px] rounded-[1.375rem] transition-all duration-200 group',
+        'h-14 rounded-[1.125rem] transition-all duration-200 group sm:h-16 sm:rounded-[1.375rem]',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-400',
         isActive
           ? 'bg-lime-300 text-ink-900 shadow-sm shadow-lime-400/40'
@@ -136,12 +138,14 @@ function DockButton({ icon: Icon, label, isActive, onClick }: DockButtonProps) {
     >
       <Icon
         className={cn(
-          'size-7 transition-transform duration-200',
-          isActive ? 'scale-110' : 'group-hover:-translate-y-0.5',
+          'size-5 transition-transform duration-200 sm:size-6',
+          isActive ? 'scale-105' : 'group-hover:-translate-y-0.5',
         )}
         aria-hidden
       />
-      <span className="text-[12px] font-bold tracking-tight leading-none">{label}</span>
+      <span className="max-w-full truncate text-[10px] font-bold leading-none tracking-tight sm:text-[11px]">
+        {label}
+      </span>
     </button>
   );
 }

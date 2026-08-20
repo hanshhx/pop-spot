@@ -81,14 +81,18 @@ export default function BrowseSection({ initialMarkers }: { initialMarkers?: Mar
   );
   const [error, setError] = useState(false);
   const [activeSlice, setActiveSlice] = useState<ActiveSlice | null>(null);
-  const [isExpanded, setIsExpanded] = useState(true);
+  const [isExpanded, setIsExpanded] = useState(false);
   const periods = useMemo(() => getPeriods(), []);
 
   // 토글 상태 localStorage 영속화 — 새로고침 후에도 사용자 선택 유지.
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const saved = window.localStorage.getItem(EXPAND_STORAGE_KEY);
-    if (saved === '0') setIsExpanded(false);
+    if (saved === '1' || saved === '0') {
+      setIsExpanded(saved === '1');
+      return;
+    }
+    setIsExpanded(window.matchMedia('(min-width: 768px)').matches);
   }, []);
 
   function toggleExpand() {
