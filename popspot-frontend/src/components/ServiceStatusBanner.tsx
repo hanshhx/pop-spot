@@ -9,6 +9,7 @@ import {
   getServerServiceAvailability,
   getServiceAvailability,
   setServiceAvailability,
+  shouldRunHealthCheck,
   subscribeServiceAvailability,
 } from '@/lib/serviceAvailability';
 
@@ -59,6 +60,10 @@ export default function ServiceStatusBanner() {
   });
 
   useEffect(() => {
+    // 꺼져 있으면 아무것도 재지 않는다. 상태가 'checking' 에 머물러 배너·로그인 화면·
+    // api.ts 의 사전 차단이 모두 평소대로 동작한다. 경위는 shouldRunHealthCheck 주석.
+    if (!shouldRunHealthCheck()) return;
+
     let stopped = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
     let checking = false;
