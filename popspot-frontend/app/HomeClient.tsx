@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import {
@@ -44,6 +44,8 @@ import {
 import { REGIONS, type RegionCode } from '@/lib/regions';
 import { localizedPath } from '@/lib/localePath';
 import { PRIORITY_LANDING_LINKS } from '@/lib/priorityLandingLinks';
+import { nextHomeUrl, parsePanel } from '@/lib/homeUrlState';
+import { DDAY_TONE_CLASS, ddayTone } from '@/lib/ddayTone';
 
 /**
  * 소개 화면에 고정으로 박혀 있는 지역명.
@@ -364,6 +366,20 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
   useGlobalSearchHotkey(setIsGlobalSearchOpen);
 
   const [currentTab, setCurrentTab] = useState('MAP');
+
+  /**
+   * 지금 보고 있는 탭을 주소창에 반영한다. 규칙은 {@code lib/homeUrlState} 주석 참고.
+   *
+   * <p>Next 라우터가 아니라 {@code history.replaceState} 를 쓴다 — 라우터를 쓰면 리렌더가 일어나고,
+   * 예전에 그것 때문에 게스트 잔여일이 매번 다시 계산돼 깜빡인 적이 있다(아래 진입 게이트 주석).
+   */
+  const syncTabToUrl = useCallback((tab: string) => {
+    if (typeof window === 'undefined') return;
+    const next = nextHomeUrl(window.location.href, tab);
+    if (next !== window.location.pathname + window.location.search + window.location.hash) {
+      window.history.replaceState(window.history.state, '', next);
+    }
+  }, []);
   const [user, setUser] = useState<User | null>(null);
   const [myPageInfo, setMyPageInfo] = useState<MyPageData | null>(null);
   const [savedCourses, setSavedCourses] = useState<SavedCourse[]>([]);
@@ -776,6 +792,7 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
     }
     setCurrentTab(tab);
     sessionStorage.setItem('lastTab', tab);
+    syncTabToUrl(tab);
     // 탭 전환 시 항상 상단부터 보이게 (아래로 스크롤한 상태에서 여권/동행 등을 누르면
     // 스크롤 위치가 유지돼 새 탭의 하단이 먼저 보이던 문제 수정).
     if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'auto' });
@@ -1076,6 +1093,25 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
       })
       .catch((err) => console.error('혼잡도 데이터 실패:', err));
   }, [initialPopups]);
+
+  /**
+   * 주소로 지정한 패널을 <b>처음 한 번만</b> 연다. {@code /?open=calendar} · {@code ?open=congestion}.
+   *
+   * <p>푸터의 "팝업 캘린더 · 실시간 혼잡도" 링크가 이것을 쓴다 — 예전에는 그 둘이 전부
+   * <code>/</code> 라 눌러도 홈만 다시 떴다.
+   *
+   * <p>탭({@code ?tab=})은 여기서 다루지 않는다. 아래에 이미 그 일을 하는 effect 가 있고,
+   * 잠긴 탭으로 들어온 사람에게 무엇이 막혔는지 알리는 처리까지 들어 있다. 여기서 또 손대면
+   * 그 안내를 건너뛰게 된다.
+   *
+   * <p>deps 를 비워 mount 시 1회만 돌린다. 닫은 패널이 다시 열리면 안 되기 때문이다.
+   */
+  useEffect(() => {
+    const panel = parsePanel(searchParams.get('open'));
+    if (panel === 'calendar') setIsCalendarOpen(true);
+    if (panel === 'congestion') setIsReportOpen(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   /*
    * 메인 진입 게이트 (v2.7 재설계 → v2.13.1 mount-once 분리):
@@ -1818,8 +1854,17 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
                         </span>
                         {(() => {
                           const d = getDday(featuredPopup.endDate ?? null);
-                          return d !== null ? (
-                            <span className="rounded-pill bg-lime-300 px-2.5 py-0.5 text-[11px] font-bold text-ink-900">
+                          const tone = ddayTone(d);
+                          // 사진 위라 어두운 배경을 깔 수 없다. 급하지 않은 것은 반투명 흰색으로
+                          // 두어 옆의 카테고리 알약과 같은 무게로 읽히게 한다.
+                          return d !== null && tone !== null ? (
+                            <span
+                              className={`rounded-pill px-2.5 py-0.5 text-[11px] font-bold ${
+                                tone === 'urgent'
+                                  ? DDAY_TONE_CLASS.urgent
+                                  : 'bg-white/20 text-white backdrop-blur'
+                              }`}
+                            >
                               {d === 0 ? t('card.today') : `D-${d}`}
                             </span>
                           ) : null;

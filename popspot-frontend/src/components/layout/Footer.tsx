@@ -29,11 +29,18 @@ function XLogo({ className }: { className?: string }) {
 
 const CONTACT_EMAIL = 'reo4321@naver.com';
 
+/**
+ * 네 개가 전부 <code>/</code> 였다. 더미 <code>#</code> 는 아니지만 사용자에게는 결과가 같다 —
+ * 무엇을 눌러도 홈이 다시 뜬다.
+ *
+ * <p>홈 안의 기능은 그 기능을 여는 주소로 잇는다({@code lib/homeUrlState} 가 해석한다).
+ * 매거진은 페이지가 없으므로 링크에서 뺀다 — 없는 곳으로 보내느니 안 보이는 편이 낫다.
+ */
 const PLATFORM_LINKS: ReadonlyArray<{ labelKey: MessageKey; href: string }> = [
   { labelKey: 'footer.mapView', href: '/' },
-  { labelKey: 'footer.calendar', href: '/' },
-  { labelKey: 'footer.congestion', href: '/' },
-  { labelKey: 'footer.magazine', href: '/' },
+  { labelKey: 'footer.calendar', href: '/?open=calendar' },
+  { labelKey: 'footer.congestion', href: '/?open=congestion' },
+  { labelKey: 'footer.regions', href: '/popups/seongsu' },
   { labelKey: 'footer.about', href: '/about' },
   { labelKey: 'footer.terms', href: '/terms' },
   { labelKey: 'footer.privacy', href: '/privacy' },
