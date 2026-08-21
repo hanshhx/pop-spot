@@ -1713,7 +1713,11 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
                     className="grid grid-cols-1 gap-3 pb-2 sm:-mx-1 sm:flex sm:cursor-grab sm:snap-x sm:select-none sm:gap-4 sm:overflow-x-auto sm:px-1 sm:pb-3 sm:active:cursor-grabbing"
                   >
                     {railPopups.map((p) => (
-                      <div key={p.id} className="min-w-0 snap-start">
+                      // 넓은 화면에서 이 줄은 flex 다. flex 자식은 <b>카드가 아니라 이 감싸개</b>라,
+                      // 여기에 shrink-0 가 없으면 감싸개가 눌린다. 카드는 sm:w-[220px] 로 제 폭을
+                      // 지키므로 눌린 감싸개 밖으로 삐져나와 서로 겹친다(2026-08-21에 실제로 발생).
+                      // min-w-0 은 좁은 화면(grid)에서 긴 이름이 칸을 넘기지 않게 하는 것이라 남긴다.
+                      <div key={p.id} className="min-w-0 snap-start sm:shrink-0">
                         <PopupCard
                           popup={p}
                           onClick={() => {
