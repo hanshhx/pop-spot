@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Heart, MapPin, Shirt, Coffee, Palette, Star, Sparkles, Cpu, Store } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { DDAY_TONE_CLASS, ddayTone } from '@/lib/ddayTone';
 import { popupCoverUrl } from '@/lib/popupCover';
 import { PhotoDisclosure } from '@/components/popup/PhotoDisclosure';
 import { useLocale, type MessageKey } from '@/lib/i18n';
@@ -151,9 +152,11 @@ export function PopupCard({ popup, onClick, onWish, wished, className }: PopupCa
         )}
 
         {dday && (
+          /* 색은 lib/ddayTone 이 정한다. 예전에는 끝난 것/아닌 것 두 갈래로만 나눠 진행 중인
+             팝업이 전부 라임이었다 — 목록 전체가 라임으로 덮여 정작 급한 것이 안 보였다. */
           <span
             className={`absolute left-2.5 top-2.5 rounded-full px-2.5 py-1 text-[11px] font-bold ${
-              dday.ended ? 'bg-gray-800/80 text-white' : 'bg-lime-300 text-ink-900'
+              DDAY_TONE_CLASS[ddayTone(dday.days) ?? 'calm']
             }`}
           >
             {dday.labelKey
