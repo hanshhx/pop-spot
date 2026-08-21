@@ -209,7 +209,7 @@ export default function BrowseSection({ initialMarkers }: { initialMarkers?: Mar
           className="w-full flex items-center justify-between gap-3 pl-6 pr-5 md:pr-6 py-4 hover:bg-lime-50/40 dark:hover:bg-lime-300/5 transition-colors text-left"
         >
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.4em] text-lime-600 dark:text-lime-300">
+            <p className="text-[10px] font-bold uppercase tracking-[0.4em] text-muted-foreground">
               BROWSE
             </p>
             <h3 className="text-base md:text-lg font-black text-gray-900 dark:text-white">

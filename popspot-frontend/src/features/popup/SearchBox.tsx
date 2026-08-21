@@ -138,7 +138,7 @@ export function SearchZone({ onAiFilter, onSelectPopup, popups }: SearchZoneProp
           label="Search Zone"
           className="h-9 text-foreground md:h-12"
         />
-        <span className="inline-flex items-center gap-1 rounded-pill bg-lime-300 px-2 py-0.5 text-[10px] font-black text-ink-900">
+        <span className="inline-flex items-center gap-1 rounded-pill bg-black/[0.05] px-2 py-0.5 text-[10px] font-black text-muted-foreground dark:bg-white/10">
           <Sparkles size={11} /> AI
         </span>
       </div>
