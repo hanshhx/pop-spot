@@ -145,6 +145,7 @@
      잡았다가 10px 캡션이 4.45:1 로 미달했다 — 가장 어두운 면이 아니라 가장 밝은 면에 맞춰야 한다.
      지금 값은 #1c1c1e 위 4.75:1, ink-900 위 5.53:1. */
   --color-subtle-foreground: #8b877f;
+  --map-grid-line: rgba(245, 243, 238, 0.07);
   --color-border: rgba(245, 243, 238, 0.12);
   --color-border-strong: rgba(245, 243, 238, 0.22);
 
@@ -519,6 +520,9 @@ li {
   --dock-h: 70px;
   --safe-b: max(0.5rem, env(safe-area-inset-bottom));
 
+
+  /* 지도가 뜨기 전 자리표시자의 격자선. 라이트에서는 옅은 먹, 다크에서는 옅은 흰색이다. */
+  --map-grid-line: rgba(10, 10, 10, 0.06);
 
   /* 지도 컨트롤이 아래에서 비워야 할 높이. 기본은 0 이다 —
      같은 InteractiveMap 이 /map 에서도 쓰이는데 그 화면에는 도크가 없다.
