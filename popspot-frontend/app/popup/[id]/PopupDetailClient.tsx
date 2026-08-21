@@ -23,6 +23,7 @@ import NowWait from '@/components/popup/NowWait';
 import MusicForPopup from '../../../src/components/music/MusicForPopup';
 import { apiFetch } from '../../../src/lib/api';
 import { notify, notifyError } from '@/lib/notify';
+import { ddayTone } from '@/lib/ddayTone';
 import { trackVisitEvent } from '@/lib/visitEvent';
 import { popupCoverUrl } from '@/lib/popupCover';
 import { PhotoDisclosure } from '@/components/popup/PhotoDisclosure';
@@ -90,11 +91,19 @@ const CAT_GRAD: Record<string, string> = {
   ETC: 'from-gray-300 to-gray-400',
 };
 
+/**
+ * 마감까지 남은 기간 — <b>문구와 일수를 함께</b> 돌려준다.
+ *
+ * <p>예전에는 문구 하나만 돌려주고, 색을 고르는 쪽이 {@code dday === t('detail.ended')} 로
+ * 되물었다. 번역 문구를 한 글자만 고쳐도 그 비교가 빗나가 <b>끝난 팝업이 핫핑크로 남는다.</b>
+ * 보이는 글자와 판단 기준이 같은 값이면 늘 이렇게 된다 — {@code PopupCard} 가 같은 이유로 이미
+ * 나눠 두었다.
+ */
 function ddayLabel(
   closeDate: string | undefined,
   ended: string,
   todayClosing: string,
-): string | null {
+): { text: string; days: number } | null {
   if (!closeDate) return null;
   const end = new Date(closeDate);
   if (Number.isNaN(end.getTime())) return null;
@@ -102,9 +111,9 @@ function ddayLabel(
   today.setHours(0, 0, 0, 0);
   end.setHours(0, 0, 0, 0);
   const diff = Math.round((end.getTime() - today.getTime()) / 86_400_000);
-  if (diff < 0) return ended;
-  if (diff === 0) return todayClosing;
-  return `D-${diff}`;
+  if (diff < 0) return { text: ended, days: diff };
+  if (diff === 0) return { text: todayClosing, days: 0 };
+  return { text: `D-${diff}`, days: diff };
 }
 
 /**
@@ -565,10 +574,14 @@ export default function PopupDetailClient({
           </div>
           <div className="px-3 py-4 text-center">
             <p className="text-[10px] font-bold text-muted-foreground">{t('detail.closing')}</p>
+            {/* 색은 3일 이하에만 쓴다(lib/ddayTone). 예전에는 끝나지 않은 것이 전부 핫핑크라
+                두 달 남은 팝업도 오늘 마감처럼 보였다. */}
             <p
-              className={`mt-1 text-sm font-black ${dday === t('detail.ended') ? 'text-muted-foreground' : 'text-hot-400'}`}
+              className={`mt-1 text-sm font-black ${
+                ddayTone(dday?.days ?? null) === 'urgent' ? 'text-hot-500' : 'text-muted-foreground'
+              }`}
             >
-              {dday || '-'}
+              {dday?.text || '-'}
             </p>
           </div>
         </div>
