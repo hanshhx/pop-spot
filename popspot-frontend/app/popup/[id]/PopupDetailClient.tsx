@@ -14,16 +14,20 @@ import {
   Sparkles,
   Navigation,
   CalendarPlus,
+  Copy,
+  Check,
 } from 'lucide-react';
 import { TakedownModal } from '../../../src/features/popup/TakedownModal';
 
 import DetailMap from '../../../src/components/Map/DetailMap';
 import ChatRoom from '../../../src/components/ChatRoom';
 import NowWait from '@/components/popup/NowWait';
+import NearbyPopups from '@/components/popup/NearbyPopups';
 import MusicForPopup from '../../../src/components/music/MusicForPopup';
 import { apiFetch } from '../../../src/lib/api';
 import { notify, notifyError } from '@/lib/notify';
 import { ddayTone } from '@/lib/ddayTone';
+import { copyText } from '@/lib/copyText';
 import { trackVisitEvent } from '@/lib/visitEvent';
 import { popupCoverUrl } from '@/lib/popupCover';
 import { PhotoDisclosure } from '@/components/popup/PhotoDisclosure';
@@ -147,6 +151,8 @@ export default function PopupDetailClient({
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [user, setUser] = useState<User | null>(null);
   const [takedownOpen, setTakedownOpen] = useState(false);
+  /** 주소를 방금 복사했는지. 알림과 별개로 버튼 자체가 잠깐 답을 해야 눌린 줄 안다. */
+  const [addressCopied, setAddressCopied] = useState(false);
   const trackedDetailId = useRef<number | null>(null);
 
   const TEST_USER_ID = 'test_user';
@@ -423,6 +429,26 @@ export default function PopupDetailClient({
   const lat = popup.latitude ? parseFloat(popup.latitude) : NaN;
   const lng = popup.longitude ? parseFloat(popup.longitude) : NaN;
 
+  /**
+   * 주소를 클립보드로.
+   *
+   * <p>여기까지 온 사람은 대개 지도 앱이나 택시 앱에 주소를 옮겨 적는다. 지금은 길게 눌러
+   * 드래그로 긁어야 하는데, 주소가 사진 위 흰 글씨라 손가락으로 정확히 잡기 어렵다.
+   *
+   * <p>{@link copyText} 가 두 가지 방식을 다 시도한다 — 카카오톡 인앱 브라우저처럼
+   * {@code navigator.clipboard} 가 막힌 곳이 있고, 이 서비스는 링크가 카카오톡으로 돌아다닌다.
+   * 그래도 안 되면 직접 긁으라고 알려 준다. 눌렀는데 아무 일도 안 일어나는 것이 제일 나쁘다.
+   */
+  const handleCopyAddress = async () => {
+    if (await copyText(popup.address ?? '')) {
+      setAddressCopied(true);
+      notify(t('detail.addressCopied'));
+      window.setTimeout(() => setAddressCopied(false), 2000);
+    } else {
+      notifyError(t('detail.copyFailed'));
+    }
+  };
+
   const catKey = popup.category?.toUpperCase() ?? 'ETC';
   const category = CATEGORY_KEY[catKey] ? t(CATEGORY_KEY[catKey]) : popup.category;
   const catGrad = CAT_GRAD[catKey] ?? CAT_GRAD.ETC;
@@ -684,7 +710,40 @@ export default function PopupDetailClient({
               <span className="truncate">{displayPlace}</span>
             </div>
           </div>
+
+          {/* 지도 위 칩은 사진·지도 위 흰 글씨라 손가락으로 긁기 어렵다. 옮겨 적을 수 있는
+              주소는 따로 한 줄 둔다. */}
+          {popup.address ? (
+            <div className="mt-2 flex items-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 py-3 dark:border-white/10 dark:bg-white/[0.04]">
+              <MapPin size={14} className="shrink-0 text-muted-foreground" aria-hidden />
+              <span className="min-w-0 flex-1 break-words text-sm text-foreground">
+                {displayPlace}
+              </span>
+              <button
+                type="button"
+                onClick={handleCopyAddress}
+                className="flex shrink-0 items-center gap-1.5 rounded-xl border border-gray-300 bg-white px-3 py-2 text-xs font-bold text-foreground transition hover:bg-black/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-400 dark:border-white/15 dark:bg-white/5 dark:hover:bg-white/10"
+              >
+                {addressCopied ? (
+                  <Check size={14} aria-hidden />
+                ) : (
+                  <Copy size={14} aria-hidden />
+                )}
+                {addressCopied ? t('detail.addressCopied') : t('detail.copyAddress')}
+              </button>
+            </div>
+          ) : null}
         </section>
+
+        {/* 근처 팝업 — 좌표가 없으면 스스로 접는다. */}
+        {!popup.emergencySnapshot && (
+          <NearbyPopups
+            popupId={popup.id}
+            popupName={popup.name}
+            latitude={lat}
+            longitude={lng}
+          />
+        )}
 
         {/* 어울리는 곡 — 하단 보조 위젯 */}
         {!popup.emergencySnapshot && (
