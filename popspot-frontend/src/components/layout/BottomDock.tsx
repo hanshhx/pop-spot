@@ -4,6 +4,7 @@ import { Map as MapIcon, Route, Ticket, User, Users, Music2, MoreHorizontal } fr
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { useLocale, type MessageKey } from '@/lib/i18n';
+import { dockSlots } from '@/lib/dockSlots';
 
 export type DockTab = 'MAP' | 'COURSE' | 'MUSIC' | 'PASSPORT' | 'MY' | 'MATE' | 'FEEDBACK';
 
@@ -26,6 +27,17 @@ interface DockItemDef {
  * 모든 탭은 같은 페이지 안에서 즉시 전환된다 — 외부 라우트 X.
  * 마이페이지/지도/음악 모두 같은 모델로 통일해서 깜빡임 없이 이동.
  */
+/**
+ * 도크 앞 네 칸 — <b>표시 순서</b>다. 아래 배열 순서와 다르다.
+ *
+ * <p>배열을 잘라 쓰면(시안이 그렇게 적혀 있다) 메이트·마이가 빠지고 음악·여권이 앞으로 나온다.
+ * 배열 자체는 데스크탑 상단 네비게이션이 같이 쓰므로 순서를 바꿀 수도 없다.
+ */
+const PRIMARY_KEYS = ['MAP', 'COURSE', 'MATE', 'MY'] as const;
+
+/** 다섯째 칸 뒤에 접어 두는 탭. */
+const SECONDARY_KEYS = ['MUSIC', 'PASSPORT'] as const;
+
 export const DOCK_ITEMS: DockItemDef[] = [
   { key: 'MAP', icon: MapIcon, labelKey: 'dock.map' },
   { key: 'COURSE', icon: Route, labelKey: 'dock.course' },
@@ -44,12 +56,21 @@ export const DOCK_ITEMS: DockItemDef[] = [
 export function BottomDock({ currentTab, onTabChange }: BottomDockProps) {
   const { t, locale } = useLocale();
   const [moreOpen, setMoreOpen] = useState(false);
-  const primaryItems = (['MAP', 'COURSE', 'MATE', 'MY'] as const)
-    .map((key) => DOCK_ITEMS.find((item) => item.key === key))
-    .filter((item): item is DockItemDef => Boolean(item));
-  const secondaryItems = DOCK_ITEMS.filter((item) => ['MUSIC', 'PASSPORT'].includes(item.key));
-  const moreActive = secondaryItems.some((item) => item.key === currentTab);
+  const {
+    primary: primaryItems,
+    secondary: secondaryItems,
+    fifth,
+  } = dockSlots(DOCK_ITEMS, PRIMARY_KEYS, SECONDARY_KEYS, currentTab);
   const moreLabel = locale === 'ko' ? '더보기' : locale === 'ja' ? 'その他' : 'More';
+
+  /**
+   * 다섯째 칸은 두 얼굴이다 — 평소에는 "더보기", 음악·여권을 보고 있을 때는 그 탭.
+   *
+   * <p>예전에는 늘 "더보기" 였다. 음악 탭에 들어가면 이 칸에 라임만 켜지고, 정작 <b>무엇이
+   * 열려 있는지는 아무 데도 안 적혀</b> 있었다. 앞 네 칸은 이름이 보이는데 이 칸만 안 보였다.
+   */
+  const fifthIcon = fifth.openItem?.icon ?? MoreHorizontal;
+  const fifthLabel = fifth.openItem ? t(fifth.openItem.labelKey) : moreLabel;
 
   return (
     <nav
@@ -101,13 +122,18 @@ export function BottomDock({ currentTab, onTabChange }: BottomDockProps) {
             icon={item.icon}
             label={t(item.labelKey)}
             isActive={currentTab === item.key}
+            isCurrent={currentTab === item.key}
             onClick={() => onTabChange(item.key)}
           />
         ))}
         <DockButton
-          icon={MoreHorizontal}
-          label={moreLabel}
-          isActive={moreActive || moreOpen}
+          icon={fifthIcon}
+          label={fifthLabel}
+          isActive={fifth.isCurrent || moreOpen}
+          isCurrent={fifth.isCurrent}
+          hasMore={fifth.hasMore}
+          hasPopup
+          expanded={moreOpen}
           onClick={() => setMoreOpen((current) => !current)}
         />
       </div>
@@ -119,15 +145,38 @@ interface DockButtonProps {
   icon: React.ElementType;
   label: string;
   isActive: boolean;
+  /**
+   * 지금 보고 있는 화면인가. {@code isActive} 와 나누는 이유는 다섯째 칸 때문이다 —
+   * 그 칸은 메뉴가 열려 있을 때도 켜지는데, 그건 "여기 있다" 가 아니라 "메뉴가 열렸다" 다.
+   */
+  isCurrent?: boolean;
+  /** 이 칸 뒤에 다른 탭이 더 있는가. 점 하나로 알린다. */
+  hasMore?: boolean;
+  /** 눌렀을 때 메뉴가 열리는 버튼인가. */
+  hasPopup?: boolean;
+  expanded?: boolean;
   onClick?: () => void;
 }
 
-function DockButton({ icon: Icon, label, isActive, onClick }: DockButtonProps) {
+function DockButton({
+  icon: Icon,
+  label,
+  isActive,
+  isCurrent = false,
+  hasMore = false,
+  hasPopup = false,
+  expanded = false,
+  onClick,
+}: DockButtonProps) {
   return (
     <button
       type="button"
       onClick={onClick}
-      aria-pressed={isActive}
+      // 탭 이동은 누름 상태가 아니라 "지금 여기" 다. aria-pressed 는 토글 버튼의 말이라
+      // 화면 낭독기가 "선택됨" 이라고만 읽고 어디에 있는지는 알려주지 않았다.
+      aria-current={isCurrent ? 'page' : undefined}
+      aria-haspopup={hasPopup ? 'menu' : undefined}
+      aria-expanded={hasPopup ? expanded : undefined}
       aria-label={label}
       className={cn(
         'relative flex flex-1 min-w-0 flex-col items-center justify-center gap-1',
@@ -148,6 +197,14 @@ function DockButton({ icon: Icon, label, isActive, onClick }: DockButtonProps) {
       <span className="max-w-full truncate text-[10px] font-bold leading-none tracking-tight sm:text-[11px]">
         {label}
       </span>
+      {/* 이 칸이 탭 하나를 보여주는 동안에는 나머지로 가는 길이 화면에서 사라진다.
+          점 하나로 "여기 더 있다" 만 남긴다. 읽어 줄 내용은 아니라 화면 낭독기에선 숨긴다. */}
+      {hasMore && (
+        <span
+          className="absolute right-2.5 top-2 size-1 rounded-full bg-ink-900/35"
+          aria-hidden
+        />
+      )}
     </button>
   );
 }
