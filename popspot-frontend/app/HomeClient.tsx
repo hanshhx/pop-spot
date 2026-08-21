@@ -250,7 +250,7 @@ function SeoLandingDirectory() {
                 <Link
                   key={item.slug}
                   href={localizedPath(`/popups/${item.slug}`, locale)}
-                  className="rounded-full border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs font-medium text-gray-700 transition hover:border-lime-300 hover:bg-lime-50 dark:border-white/10 dark:bg-white/5 dark:text-white/75 dark:hover:border-lime-300/40"
+                  className="rounded-full border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs font-medium text-muted-foreground transition hover:border-lime-300 hover:bg-lime-50 dark:border-white/10 dark:bg-white/5 dark:hover:border-lime-300/40"
                 >
                   {localizedLabel(item, locale)}
                 </Link>
@@ -1268,7 +1268,7 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
       case '붐빔':
         return 'text-red-500';
       default:
-        return 'text-gray-400';
+        return 'text-subtle-foreground';
     }
   };
 
@@ -1282,7 +1282,7 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
   };
 
   return (
-    <main className="relative min-h-screen overflow-x-clip pb-28 font-sans text-gray-900 transition-colors duration-500 dark:text-white lg:pb-16">
+    <main className="relative min-h-screen overflow-x-clip pb-28 font-sans text-foreground transition-colors duration-500 lg:pb-16">
       {/* 모드별 풀 배경 영상 — 라이트=밝은 스카이라인(light-bg), 다크=생기있는 서울 야경(login-bg).
           영상이 '실제로 보이도록' 스크림은 얕게(home-video-scrim). 콘텐츠는 불투명 카드 위라 가독성은 카드가 담당.
           마운트 전엔 브랜드 단색(cream/ink)만 → 깜빡임 없이 영상 페이드 인. 활성 모드 영상 한 개만 로드. */}
@@ -1409,7 +1409,7 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
                       <span className="inline-block mb-3 rounded-pill bg-lime-300 px-3 py-1 text-[10px] md:text-xs font-black tracking-[0.2em] uppercase text-ink-900">
                         {locale === 'ko' ? '오늘의 서울 팝업' : t('stat.open')}
                       </span>
-                      <h1 className="text-2xl md:text-4xl font-black leading-tight text-gray-900 dark:text-white">
+                      <h1 className="text-2xl md:text-4xl font-black leading-tight text-foreground">
                         {locale === 'ko' ? (
                           <>
                             {t('hero.openedPrefix')}
@@ -1430,7 +1430,7 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
                           </>
                         )}
                       </h1>
-                      <p className="mt-2 text-sm md:text-base text-gray-600 dark:text-white/70">
+                      <p className="mt-2 text-sm md:text-base text-muted-foreground">
                         {locale === 'ko'
                           ? '지도에서 일정과 장소를 확인하고, 마음에 드는 팝업을 저장하세요.'
                           : t('hero.subtitle')}
@@ -1452,7 +1452,7 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
                         </button>
                         <Link
                           href="/signup"
-                          className="hidden items-center justify-center gap-2 rounded-pill border border-gray-300 bg-white px-6 py-3 text-sm font-bold text-gray-900 transition hover:bg-gray-100 sm:inline-flex md:text-base dark:border-white/20 dark:bg-white/10 dark:text-white dark:hover:bg-white/20"
+                          className="hidden items-center justify-center gap-2 rounded-pill border border-gray-300 bg-white px-6 py-3 text-sm font-bold text-foreground transition hover:bg-black/[0.04] sm:inline-flex md:text-base dark:border-white/20 dark:bg-white/10 dark:hover:bg-white/20"
                         >
                           {t('auth.signup')}
                         </Link>
@@ -1575,18 +1575,18 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
                     className={`h-2.5 w-2.5 shrink-0 animate-pulse rounded-full bg-current ${congestionData ? getCongestionColor(congestionData.level) : 'text-green-500'}`}
                     aria-hidden
                   />
-                  <span className="shrink-0 text-sm font-bold text-gray-900 dark:text-white">
+                  <span className="shrink-0 text-sm font-bold text-foreground">
                     {t('tile.congestion')}
                   </span>
                   {congestionData ? (
-                    <span className="truncate text-sm text-gray-500 dark:text-white/60">
+                    <span className="truncate text-sm text-muted-foreground">
                       · {fixedRegionLabel('seongsu', locale)}{' '}
                       <span className={`font-bold ${getCongestionColor(congestionData.level)}`}>
                         {congestionData.level}
                       </span>
                     </span>
                   ) : (
-                    <span className="hidden truncate text-sm text-gray-500 dark:text-white/60 sm:inline">
+                    <span className="hidden truncate text-sm text-muted-foreground sm:inline">
                       {t('tile.congestionSub')}
                     </span>
                   )}
@@ -1604,10 +1604,10 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
               >
                 <div className="flex min-w-0 items-center gap-2.5">
                   <Calendar size={16} className="shrink-0 text-primary" aria-hidden />
-                  <span className="shrink-0 text-sm font-bold text-gray-900 dark:text-white">
+                  <span className="shrink-0 text-sm font-bold text-foreground">
                     {t('tile.calendar')}
                   </span>
-                  <span className="hidden truncate text-sm text-gray-500 dark:text-white/60 sm:inline">
+                  <span className="hidden truncate text-sm text-muted-foreground sm:inline">
                     {t('tile.calendarSub')}
                   </span>
                 </div>
@@ -1688,7 +1688,7 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
                     <button
                       type="button"
                       onClick={() => setRailCat('all')}
-                      className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold transition ${railCat === 'all' ? 'bg-ink-900 text-white dark:bg-white dark:text-ink-900' : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-white/10 dark:text-white/60'}`}
+                      className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold transition ${railCat === 'all' ? 'bg-ink-900 text-white dark:bg-white dark:text-ink-900' : 'bg-gray-100 text-muted-foreground hover:bg-gray-200 dark:bg-white/10'}`}
                     >
                       {t('filter.all')}
                     </button>
@@ -1697,7 +1697,7 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
                         key={c.code}
                         type="button"
                         onClick={() => setRailCat(c.code)}
-                        className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold transition ${railCat === c.code ? 'bg-ink-900 text-white dark:bg-white dark:text-ink-900' : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-white/10 dark:text-white/60'}`}
+                        className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold transition ${railCat === c.code ? 'bg-ink-900 text-white dark:bg-white dark:text-ink-900' : 'bg-gray-100 text-muted-foreground hover:bg-gray-200 dark:bg-white/10'}`}
                       >
                         {localizedLabel(c, locale)}
                       </button>
@@ -1789,7 +1789,7 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
                     className="h-10 md:h-16 relative z-10 text-foreground"
                   />
                   <div className="mt-2 flex flex-col items-center gap-3 md:mt-0 md:items-end">
-                    <p className="text-gray-500 dark:text-white/60 max-w-md relative z-10 text-xs md:text-base">
+                    <p className="text-muted-foreground max-w-md relative z-10 text-xs md:text-base">
                       {t('poplook.lead')}
                       <br />
                       {t('poplook.sub')}
@@ -1897,7 +1897,7 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
                             }}
                             className="flex items-center gap-3 py-3 -mx-2 rounded-xl px-2 text-left transition hover:bg-black/[0.03] dark:hover:bg-white/[0.04]"
                           >
-                            <span className="w-5 shrink-0 text-center text-lg font-black text-ink-400 dark:text-cream-200/40">
+                            <span className="w-5 shrink-0 text-center text-lg font-black text-subtle-foreground">
                               {i + 2}
                             </span>
                             <div className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-xl bg-gradient-to-br from-lime-100 to-amber-100 dark:from-lime-950 dark:to-amber-950">
@@ -1950,7 +1950,7 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
             >
               <LiveChatTicker />
               <div className="text-center mt-6 lg:mt-8">
-                <p className="text-[10px] lg:text-sm text-gray-500 dark:text-white/40">
+                <p className="text-[10px] lg:text-sm text-subtle-foreground">
                   {t('congestion.note')}
                 </p>
               </div>
@@ -2831,10 +2831,10 @@ function RecentVisitsCard({ standalone = false }: { standalone?: boolean } = {})
         {standalone ? (
           <span className="flex min-w-0 items-center gap-2.5">
             <Clock size={16} className="shrink-0 text-lime-500" aria-hidden />
-            <span className="shrink-0 text-sm font-bold text-gray-900 dark:text-white">
+            <span className="shrink-0 text-sm font-bold text-foreground">
               {t('recent.title')}
             </span>
-            <span className="truncate text-sm text-gray-500 dark:text-white/60">
+            <span className="truncate text-sm text-muted-foreground">
               · {itemCountLabel}
             </span>
           </span>
@@ -2961,7 +2961,7 @@ function PopupCoverVisual({
         <strong className="line-clamp-2 text-xs text-ink-900 dark:text-cream-100">{name}</strong>
       )}
       {!compact && location && (
-        <span className="mt-1 line-clamp-1 text-[10px] text-ink-500 dark:text-cream-200/55">
+        <span className="mt-1 line-clamp-1 text-[10px] text-subtle-foreground">
           {location.split(' ').slice(0, 2).join(' ')}
         </span>
       )}

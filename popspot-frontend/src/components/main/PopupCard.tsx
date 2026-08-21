@@ -182,20 +182,20 @@ export function PopupCard({ popup, onClick, onWish, wished, className }: PopupCa
       </div>
 
       <div className="flex flex-col gap-1 p-3">
-        <h3 className="truncate text-sm font-bold text-gray-900 dark:text-white">
+        <h3 className="truncate text-sm font-bold text-foreground">
           {shownName.display || popup.name}
         </h3>
         {shownName.original && (
-          <span className="truncate text-[10px] text-gray-400 dark:text-white/35">
+          <span className="truncate text-[10px] text-subtle-foreground">
             {shownName.original}
           </span>
         )}
-        <div className="flex items-center gap-1 text-[11px] text-gray-500 dark:text-white/50">
+        <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
           <MapPin size={11} className="shrink-0" />
           <span className="truncate">{region}</span>
         </div>
         {cat && (
-          <span className="mt-0.5 inline-flex w-fit rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold text-gray-600 dark:bg-white/10 dark:text-white/60">
+          <span className="mt-0.5 inline-flex w-fit rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold text-muted-foreground dark:bg-white/10">
             {cat}
           </span>
         )}
