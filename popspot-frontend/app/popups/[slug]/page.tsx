@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import { ArrowLeft, MapPin, Calendar, Tag, Clock, Flame, MessageSquare } from 'lucide-react';
 
 import { REGIONS, classifyRegion, regionBySlug } from '@/lib/regions';
+import { DDAY_TONE_CLASS, ddayTone } from '@/lib/ddayTone';
 import { LANDING_COPY, type LandingCopy, type MetaPick, type PickReason } from '@/lib/landingCopy';
 import { localizedLabel } from '@/lib/localeLabel';
 import { PRIORITY_LANDING_LINKS } from '@/lib/priorityLandingLinks';
@@ -292,15 +293,22 @@ function ddayOf(endDate: string | null, today: Date): number | null {
   return Math.round((startOfDay(end).getTime() - today.getTime()) / 86400000);
 }
 
-/** D-day → 배지(문구·색). 상시(null)·종료(음수)는 무배지. */
+/**
+ * D-day → 배지(문구·색). 상시(null)·종료(음수)는 무배지.
+ *
+ * <p>색은 {@link ddayTone} 이 정한다 — 예전에는 여기서 빨강·주황·호박·라임 네 가지를 직접 골랐고,
+ * 홈 카드와 상세가 또 각자 골라 같은 팝업이 화면마다 다른 색이었다. 문구만 여기서 정한다.
+ */
 function ddayBadge(dday: number | null, copy: LandingCopy): { text: string; cls: string } | null {
-  if (dday === null || dday < 0) return null;
-  if (dday === 0) return { text: copy.ddayToday, cls: 'bg-red-500 text-white' };
-  if (dday === 1) return { text: copy.ddayTomorrow, cls: 'bg-red-500 text-white' };
+  const tone = ddayTone(dday);
+  if (dday === null || tone === null || tone === 'ended') return null;
+
+  const cls = DDAY_TONE_CLASS[tone];
+  if (dday === 0) return { text: copy.ddayToday, cls };
+  if (dday === 1) return { text: copy.ddayTomorrow, cls };
   // 'D-3' 표기는 한국에서만 통한다. 영어권은 '3d', 일본은 'あと3日' 로 읽는다.
-  if (dday <= 3) return { text: copy.ddayValue(dday), cls: 'bg-orange-500 text-white' };
-  if (dday <= 7) return { text: copy.ddayValue(dday), cls: 'bg-amber-400 text-ink-900' };
-  return { text: copy.ddayOngoing, cls: 'bg-lime-300 text-ink-900' };
+  if (dday <= 7) return { text: copy.ddayValue(dday), cls };
+  return { text: copy.ddayOngoing, cls };
 }
 
 function formatPeriod(
