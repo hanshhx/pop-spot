@@ -53,6 +53,8 @@ export function BottomDock({ currentTab, onTabChange }: BottomDockProps) {
 
   return (
     <nav
+      // 지도 카드가 이 도크를 재서 컨트롤을 비켜세운다(useMapBottomInset).
+      data-bottom-dock=""
       aria-label={t('nav.mainMenu')}
       className={cn(
         'fixed left-1/2 z-50 w-[calc(100%-1rem)] max-w-[560px] -translate-x-1/2 lg:hidden',

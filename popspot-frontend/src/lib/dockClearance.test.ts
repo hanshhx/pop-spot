@@ -65,6 +65,22 @@ describe('지도 컨트롤 비켜서기', () => {
     );
   });
 
+  it('훅이 찾는 표식이 도크에 붙어 있다', () => {
+    // useMapBottomInset 은 [data-bottom-dock] 으로 도크를 찾아 잰다. 표식이 사라지면
+    // 못 찾고 조용히 0 으로 돌아간다 — 오류도 경고도 없이 버튼만 도크 밑으로 들어간다.
+    const hook = fs.readFileSync(path.join(ROOT, 'src/hooks/useMapBottomInset.ts'), 'utf8');
+    expect(DOCK).toMatch(/data-bottom-dock/);
+    expect(hook).toMatch(/\[data-bottom-dock\]/);
+  });
+
+  it('스크롤에 따라 다시 잰다', () => {
+    // 카드는 문서 흐름 안, 도크는 화면에 고정이라 거리가 스크롤마다 변한다.
+    // 한 번만 재면 그 지점에서만 맞는다 — 실제로 목록이 11px 만 남는 자리가 있었다.
+    const hook = fs.readFileSync(path.join(ROOT, 'src/hooks/useMapBottomInset.ts'), 'utf8');
+    expect(hook).toMatch(/addEventListener\('scroll'/);
+    expect(hook).toMatch(/requestAnimationFrame/); // 스크롤마다 레이아웃을 읽으면 끊긴다
+  });
+
   it('지도 쪽에 도크 숫자를 다시 적지 않는다', () => {
     // 숫자를 두 곳에 적는 순간 한쪽만 고쳐지고 어긋난다. 지도는 변수만 본다.
     const map = fs.readFileSync(path.join(ROOT, 'src/components/Map/InteractiveMap.tsx'), 'utf8');

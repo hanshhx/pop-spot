@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import {
@@ -63,6 +63,7 @@ function fixedRegionLabel(code: RegionCode, locale: Locale): string {
 import LocaleSwitcher from '@/components/LocaleSwitcher';
 import { PhotoDisclosure } from '@/components/popup/PhotoDisclosure';
 import { useDragScroll } from '@/hooks/useDragScroll';
+import { useMapBottomInset } from '@/hooks/useMapBottomInset';
 
 import {
   DndContext,
@@ -366,6 +367,15 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
   useGlobalSearchHotkey(setIsGlobalSearchOpen);
 
   const [currentTab, setCurrentTab] = useState('MAP');
+
+  /**
+   * 지도 카드. 하단 도크와 겹치는 만큼을 재서 컨트롤·목록 시트를 비켜세운다.
+   *
+   * <p>카드는 문서 흐름 안에 있고 도크는 화면에 떠 있어서, 둘 사이 거리가 스크롤에 따라 변한다.
+   * CSS 고정값으로는 한 지점에서만 맞는다.
+   */
+  const mapCardRef = useRef<HTMLDivElement>(null);
+  useMapBottomInset(mapCardRef);
 
   /**
    * 지금 보고 있는 탭을 주소창에 반영한다. 규칙은 {@code lib/homeUrlState} 주석 참고.
@@ -1545,7 +1555,9 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
               {/* Map Zone — 배경 분리를 위해 solid 배경 + shadow 로 카드 블록 강화.
                   map-clears-dock: 이 화면에만 하단 도크가 떠 있다. 지도 컨트롤과 목록 시트가
                   그 높이만큼 위로 올라온다(/map 에는 도크가 없어 이 클래스를 붙이지 않는다). */}
-              <div className="map-clears-dock group relative col-span-1 h-[min(62svh,560px)] min-h-[430px] overflow-hidden rounded-[1.5rem] border border-gray-200 bg-white shadow-lg shadow-black/5 dark:border-white/10 dark:bg-[#111] dark:shadow-black/30 sm:rounded-[2rem] lg:col-span-12 lg:h-[58vh]">
+              <div
+                ref={mapCardRef}
+                className="map-clears-dock group relative col-span-1 h-[min(62svh,560px)] min-h-[430px] overflow-hidden rounded-[1.5rem] border border-gray-200 bg-white shadow-lg shadow-black/5 dark:border-white/10 dark:bg-[#111] dark:shadow-black/30 sm:rounded-[2rem] lg:col-span-12 lg:h-[58vh]">
                 <InteractiveMap
                   initialMarkers={initialMapMarkers}
                   center={mapCenter}
