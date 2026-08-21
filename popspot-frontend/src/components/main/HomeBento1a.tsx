@@ -173,7 +173,7 @@ export default function HomeBento1a({ popups, total, onOpenRanking, onNavigate }
         <button
           type="button"
           onClick={onOpenRanking}
-          className="mt-3 w-full rounded-xl bg-lime-400/15 py-2.5 text-center text-xs font-bold text-lime-700 transition hover:bg-lime-400/25 dark:bg-lime-300/15 dark:text-lime-300 dark:hover:bg-lime-300/25"
+          className="mt-3 w-full rounded-xl bg-black/[0.05] py-2.5 text-center text-xs font-bold text-foreground transition hover:bg-black/[0.08] dark:bg-white/10 dark:hover:bg-white/[0.15] dark:hover:bg-lime-300/25"
         >
           {t('ranking.viewAll')}
         </button>

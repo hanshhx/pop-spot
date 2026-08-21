@@ -52,6 +52,55 @@ describe('홈 글자색', () => {
   });
 });
 
+/**
+ * 라임은 <b>지금 누를 수 있는 것</b>에만 쓴다.
+ *
+ * <p>홈 한 화면에 라임이 열다섯 군데 있었고 그중 여섯은 누를 수 없는 것이었다 — 라벨 배지,
+ * 섹션 제목, 이동 링크, 그리고 섹션마다 하나씩 붙은 장식 아이콘. 버튼도 라임이고 라벨도 라임이면
+ * 색이 아무것도 알려주지 않는다. "오늘의 서울 팝업" 알약이 바로 아래 "지도에서 둘러보기" 버튼과
+ * 같은 색이던 것이 가장 나쁜 예였다.
+ *
+ * <p>아이콘을 특히 막는 이유는, 아이콘이 라임을 가장 조용히 늘리기 때문이다. 섹션을 하나 더할
+ * 때마다 아이콘 하나가 딸려 오고 각각은 작아서 눈에 안 띈다. 열 개가 모이고 나서야 보인다.
+ */
+describe('홈 라임', () => {
+  /**
+   * 항상 켜져 있는 <b>진한</b> 라임 아이콘.
+   *
+   * <p>{@code hover:} 로 손을 올렸을 때만 라임이 되는 것은 대상이 아니다 — 그건 "누를 수 있다" 를
+   * 말하는 것이라 규칙과 어긋나지 않는다.
+   *
+   * <p>투명도가 붙은 것({@code text-lime-700/40})도 뺀다. 사진이 없는 카드에 깔아 두는 흐린 그림이라
+   * 강조가 아니다. {@code \d{2,3}} 뒤의 {@code \b} 가 있어야 {@code /40} 짜리를 두 자리로 잘라
+   * 매칭하는 역추적을 막을 수 있다.
+   */
+  const STATIC_LIME_ICON = /<[A-Z]\w*\s[^>]*className="[^"]*(?<![-:])\btext-lime-\d{2,3}\b(?!\/)[^"]*"/;
+
+  /**
+   * 예외 하나 — 불러오는 중 표시.
+   *
+   * <p>누를 수 없지만 옆에 경쟁할 버튼이 없다. 아직 내용이 안 왔으니 화면에 그것뿐이고,
+   * 잠깐 있다 사라진다. 예외를 두되 이름을 적어 둔다 — 이름 없는 예외가 쌓이는 것이 원래 문제였다.
+   */
+  const ALLOWED = /animate-spin/;
+
+  it.each(HOME_FILES)('%s — 장식 아이콘에 라임을 쓰지 않는다', (rel) => {
+    const offenders = read(rel)
+      .map((line, i) => ({ line, no: i + 1 }))
+      .filter(({ line }) => STATIC_LIME_ICON.test(line) && !ALLOWED.test(line))
+      .map(({ line, no }) => `${rel}:${no}  ${line.trim().slice(0, 100)}`);
+
+    expect(offenders).toEqual([]);
+  });
+
+  it('누를 수 없는 라벨 배지가 라임으로 채워져 있지 않다', () => {
+    // 알약 모양 + 라임 채움 + 대문자 자간 = 배지다. 버튼은 이 조합을 쓰지 않는다.
+    const src = read('app/HomeClient.tsx').join('\n');
+    const badgeFilled = /rounded-pill[^"]*\bbg-lime-\d{2,3}\b(?!\/)[^"]*\b(?:uppercase|tracking-)/;
+    expect(src).not.toMatch(badgeFilled);
+  });
+});
+
 describe('globals.css', () => {
   const css = fs.readFileSync(path.join(ROOT, 'app/globals.css'), 'utf8');
 

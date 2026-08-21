@@ -1406,7 +1406,7 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
                   />
                   <div className="relative z-10 flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
                     <div className="min-w-0 text-left">
-                      <span className="inline-block mb-3 rounded-pill bg-lime-300 px-3 py-1 text-[10px] md:text-xs font-black tracking-[0.2em] uppercase text-ink-900">
+                      <span className="inline-block mb-3 rounded-pill bg-black/[0.05] px-3 py-1 text-[10px] md:text-xs font-black tracking-[0.2em] uppercase text-muted-foreground dark:bg-white/10">
                         {locale === 'ko' ? '오늘의 서울 팝업' : t('stat.open')}
                       </span>
                       <h1 className="text-2xl md:text-4xl font-black leading-tight text-foreground">
@@ -1591,7 +1591,7 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
                     </span>
                   )}
                 </div>
-                <span className="shrink-0 text-sm font-bold text-lime-600 dark:text-lime-400 group-hover:underline">
+                <span className="shrink-0 text-sm font-bold text-foreground group-hover:underline">
                   {t('tile.congestionCta')}
                 </span>
               </button>
@@ -1611,7 +1611,7 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
                     {t('tile.calendarSub')}
                   </span>
                 </div>
-                <span className="shrink-0 text-sm font-bold text-lime-600 dark:text-lime-400 group-hover:underline">
+                <span className="shrink-0 text-sm font-bold text-foreground group-hover:underline">
                   {t('tile.calendarCta')}
                 </span>
               </button>
@@ -2137,7 +2137,9 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
             className="min-h-[60vh] flex flex-col items-center rounded-xl border border-[var(--color-border)] bg-surface text-surface-foreground mb-16 p-4 lg:p-6 relative overflow-hidden"
           >
             <header className="text-center mb-8 lg:mb-10 z-10 mt-6 lg:mt-8">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-pill border border-lime-300/40 bg-lime-300/10 text-lime-500 text-[10px] lg:text-xs font-semibold tracking-wide mb-4">
+              {/* 코스 탭의 라벨. 히어로의 "오늘의 서울 팝업" 배지와 같은 성격이라 같이 회색으로
+                  내렸다 — 누를 수 없는 것에 라임을 쓰면 옆의 진짜 버튼이 묻힌다. */}
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-pill bg-black/[0.05] text-muted-foreground text-[10px] lg:text-xs font-semibold tracking-wide mb-4 dark:bg-white/10">
                 <Sparkles size={10} className="lg:w-3 lg:h-3" /> AI CURATION · BETA
               </div>
               <h2 className="font-display-en text-2xl md:text-4xl lg:text-5xl font-extrabold tracking-tighter mb-2 text-foreground">
@@ -2252,7 +2254,7 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
                   {isAiLoading ? (
                     <Loader2 className="animate-spin text-lime-500 w-4 h-4 lg:w-5 lg:h-5" />
                   ) : (
-                    <Route size={16} className="text-lime-500 lg:w-5 lg:h-5" />
+                    <Route size={16} className="text-muted-foreground lg:w-5 lg:h-5" />
                   )}
                   {isAiLoading
                     ? t('home.aiBuilding')
@@ -2371,7 +2373,7 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
                         v2.17 — 회원 탈퇴 버튼 추가 (PIPA 의무). */}
               <div className="p-4 lg:p-6 border-b border-[var(--color-border)]">
                 <h3 className="text-base lg:text-lg font-bold mb-4 flex items-center gap-2 text-foreground">
-                  <UserIcon size={16} className="lg:w-[18px] lg:h-[18px] text-lime-500" />{' '}
+                  <UserIcon size={16} className="lg:w-[18px] lg:h-[18px] text-muted-foreground" />{' '}
                   {t('my.account')}
                 </h3>
                 <div className="flex items-center gap-4 p-3 lg:p-4 rounded-md border border-[var(--color-border)] bg-cream-300 dark:bg-ink-800">
@@ -2386,7 +2388,7 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
                     />
                   ) : (
                     <div className="w-14 h-14 rounded-full bg-lime-300/20 flex items-center justify-center border border-[var(--color-border)]">
-                      <UserIcon size={24} className="text-lime-500" />
+                      <UserIcon size={24} className="text-muted-foreground" />
                     </div>
                   )}
                   <div className="min-w-0 flex-1">
@@ -2419,7 +2421,7 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
               {/* Activity Dashboard */}
               <div className="p-4 lg:p-6 border-b border-[var(--color-border)]">
                 <h3 className="text-base lg:text-lg font-bold mb-4 flex items-center gap-2 text-foreground">
-                  <UserIcon size={16} className="lg:w-[18px] lg:h-[18px] text-lime-500" />{' '}
+                  <UserIcon size={16} className="lg:w-[18px] lg:h-[18px] text-muted-foreground" />{' '}
                   {t('my.activity')}
                 </h3>
                 <div className="grid grid-cols-3 gap-2 lg:gap-3">
@@ -2431,7 +2433,7 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
                     <div className="text-xs text-muted-foreground mt-0.5">{t('my.wishlist')}</div>
                   </div>
                   <div className="bg-cream-300 dark:bg-ink-800 p-4 rounded-md text-center border border-[var(--color-border)]">
-                    <Ticket size={16} className="lg:w-5 lg:h-5 mx-auto mb-1 text-lime-500" />
+                    <Ticket size={16} className="lg:w-5 lg:h-5 mx-auto mb-1 text-muted-foreground" />
                     <div className="text-2xl font-extrabold text-foreground">
                       {myPageInfo?.stampCount || 0}
                       <span className="text-sm text-muted-foreground font-normal">/12</span>
@@ -2526,7 +2528,7 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
               {/* Saved Courses History */}
               <div className="p-4 lg:p-6 border-b border-[var(--color-border)]">
                 <h3 className="text-base lg:text-lg font-bold mb-4 flex items-center gap-2 text-foreground">
-                  <FolderOpen size={16} className="lg:w-[18px] lg:h-[18px] text-lime-500" />{' '}
+                  <FolderOpen size={16} className="lg:w-[18px] lg:h-[18px] text-muted-foreground" />{' '}
                   {t('course.saved')}
                 </h3>
 
@@ -2574,7 +2576,7 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
               <div className="p-4 lg:p-6 border-b border-[var(--color-border)]">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-base lg:text-lg font-bold flex items-center gap-2 text-foreground">
-                    <MessageCircle size={16} className="lg:w-[18px] lg:h-[18px] text-lime-500" />{' '}
+                    <MessageCircle size={16} className="lg:w-[18px] lg:h-[18px] text-muted-foreground" />{' '}
                     {t('feedback.mine')}
                   </h3>
                   <button
@@ -2595,7 +2597,7 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
               {/* Current Editing Course (DND) */}
               <div className="p-4 lg:p-6">
                 <h3 className="text-base lg:text-lg font-bold mb-4 flex items-center gap-2 text-foreground">
-                  <Route size={16} className="lg:w-[18px] lg:h-[18px] text-lime-500" /> Current Plan
+                  <Route size={16} className="lg:w-[18px] lg:h-[18px] text-muted-foreground" /> Current Plan
                 </h3>
 
                 {myCourseItems.length === 0 && (
@@ -2830,7 +2832,7 @@ function RecentVisitsCard({ standalone = false }: { standalone?: boolean } = {})
             MY 탭은 자기 기록을 보는 화면이라 기존의 큰 제목을 유지한다. */}
         {standalone ? (
           <span className="flex min-w-0 items-center gap-2.5">
-            <Clock size={16} className="shrink-0 text-lime-500" aria-hidden />
+            <Clock size={16} className="shrink-0 text-muted-foreground" aria-hidden />
             <span className="shrink-0 text-sm font-bold text-foreground">
               {t('recent.title')}
             </span>
@@ -2841,7 +2843,7 @@ function RecentVisitsCard({ standalone = false }: { standalone?: boolean } = {})
         ) : (
           <span className="flex min-w-0 items-center gap-2.5 text-foreground">
             <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-lime-500/10">
-              <Clock size={17} className="text-lime-500" />
+              <Clock size={17} className="text-muted-foreground" />
             </span>
             <span className="min-w-0">
               <span className="block text-base font-extrabold leading-tight lg:text-lg">
