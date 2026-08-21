@@ -80,6 +80,13 @@
   --color-surface-foreground: var(--color-ink-900);
   --color-muted: var(--color-ink-300);
   --color-muted-foreground: var(--color-ink-500);
+  /* 세 번째 글자 단계 — 순번, 캡션, 값이 없을 때의 '-' 처럼 자리는 지켜야 하지만 읽는 순서가
+     마지막인 것들. 이 단계가 없어서 그런 자리마다 text-gray-400 · text-white/35 · ink-400 이
+     제각각 쓰였고, 그때마다 다크모드 짝을 따로 적어야 했다.
+
+     값은 대비에서 나왔다. 크림 배경(#f5f3ee) 위에서 4.5:1 을 넘기는 가장 밝은 회색이 #6f6f6f 인데
+     그게 마침 ink-400 이다. 이보다 밝게 잡으면 10px 캡션이 기준 미달이 된다. */
+  --color-subtle-foreground: var(--color-ink-400);
   --color-border: rgba(10, 10, 10, 0.1);
   --color-border-strong: rgba(10, 10, 10, 0.2);
   --color-ring: var(--color-lime-300);
@@ -131,6 +138,13 @@
   --color-surface-foreground: #d8d4ca;
   --color-muted: var(--color-ink-400);
   --color-muted-foreground: #9a958a;
+  /* 낮모드처럼 ink-400 을 그대로 쓸 수는 없다 — 어두운 바탕에서는 3.1:1 로 떨어진다.
+     위의 따뜻한 회색 계열은 유지하면서 밝기만 올렸다.
+
+     기준면은 ink-700(#161616)이 아니라 실제로 가장 밝은 카드면(#1c1c1e)이다. 처음에 ink-700 으로
+     잡았다가 10px 캡션이 4.45:1 로 미달했다 — 가장 어두운 면이 아니라 가장 밝은 면에 맞춰야 한다.
+     지금 값은 #1c1c1e 위 4.75:1, ink-900 위 5.53:1. */
+  --color-subtle-foreground: #8b877f;
   --color-border: rgba(245, 243, 238, 0.12);
   --color-border-strong: rgba(245, 243, 238, 0.22);
 
