@@ -1471,7 +1471,7 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
                               router.push(localizedPath(`/popup/${p.id}`, locale));
                             }}
                             aria-label={`${p.name} ${t('common.viewDetail')}`}
-                            className={`aspect-[4/5] overflow-hidden rounded-xl ring-1 ring-black/5 dark:ring-white/10 transition hover:-translate-y-0.5 hover:shadow-lg ${i % 2 === 1 ? 'sm:translate-y-3' : ''}`}
+                            className={`aspect-[4/5] overflow-hidden rounded-xl ring-1 ring-black/5 dark:ring-white/10 card-lift hover:shadow-lg ${i % 2 === 1 ? 'sm:translate-y-3' : ''}`}
                           >
                             <PopupCoverVisual popup={p} name={p.name} location={p.location} />
                           </button>
@@ -1568,7 +1568,7 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
               <button
                 type="button"
                 onClick={() => setIsReportOpen(true)}
-                className="group flex items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-white px-5 py-3.5 shadow-sm transition hover:border-primary hover:shadow-md dark:border-white/10 dark:bg-[#111]"
+                className="group flex items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-white px-5 py-3.5 shadow-sm card-lift hover:shadow-lg dark:border-white/10 dark:bg-[#111]"
               >
                 <div className="flex min-w-0 items-center gap-2.5">
                   <span
@@ -1600,7 +1600,7 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
               <button
                 type="button"
                 onClick={() => setIsCalendarOpen(true)}
-                className="group flex items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-white px-5 py-3.5 shadow-sm transition hover:border-primary hover:shadow-md dark:border-white/10 dark:bg-[#111]"
+                className="group flex items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-white px-5 py-3.5 shadow-sm card-lift hover:shadow-lg dark:border-white/10 dark:bg-[#111]"
               >
                 <div className="flex min-w-0 items-center gap-2.5">
                   <Calendar size={16} className="shrink-0 text-primary" aria-hidden />

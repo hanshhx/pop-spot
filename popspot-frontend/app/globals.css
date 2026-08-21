@@ -507,6 +507,46 @@ li {
   background: linear-gradient(0deg, rgba(16, 17, 20, 0.99) 58%, rgba(16, 17, 20, 0));
 }
 
+/* 손을 올린 카드를 살짝 띄운다.
+   거리와 시간만 여기서 정하고, 그림자는 카드에 붙은 `hover:shadow-lg` 가 맡는다.
+   `var(--shadow-lg)` 로 가져올 수 없어서다 — @theme 의 그림자 토큰은 유틸리티 안으로 들어가고
+   :root 에서는 빈 값으로 읽힌다.
+
+   거리가 세 가지였다. 팝업 카드는 4px, 히어로 썸네일은 2px, 목록 링크는 아예 안 움직이고
+   테두리 색만 바뀌었다. 같은 "카드" 인데 손을 올릴 때마다 다르게 반응했다.
+
+   2px 로 맞춘 이유: 그림자를 두 겹으로 바꾼 뒤로는 그림자가 떠 있는 느낌을 거의 다 만든다.
+   4px 은 목록을 훑을 때 카드가 눈에 띄게 튄다.
+
+   `transform` 이 아니라 `translate` 를 쓴다. 둘은 다른 속성이고 브라우저가 따로 적용해서 서로
+   더해진다. `transform` 으로 쓰면 카드가 이미 갖고 있던 자리 이동을 통째로 덮어쓴다 —
+   히어로 썸네일은 `sm:translate-y-3` 으로 12px 내려 엇갈리게 놓여 있어서, 손을 올리는 순간
+   12px 아래에서 2px 위로 14px 튀어 오른다. `translate` 면 제자리에서 2px 만 올라간다. */
+.card-lift {
+  transition:
+    translate 150ms ease-out,
+    box-shadow 150ms ease-out;
+}
+
+/* 손가락 화면에서는 걸지 않는다. 터치는 :hover 가 탭한 뒤에도 남아 있어서,
+   한 번 누른 카드가 계속 떠 있는 것처럼 보인다. */
+@media (hover: hover) {
+  .card-lift:hover {
+    translate: 0 -2px;
+  }
+}
+
+/* 움직임 줄이기를 켠 사람에게는 그림자만 남긴다. 위치는 그대로 두되 반응은 있어야 한다. */
+@media (prefers-reduced-motion: reduce) {
+  .card-lift {
+    transition: box-shadow 150ms ease-out;
+  }
+
+  .card-lift:hover {
+    translate: none;
+  }
+}
+
 /* 배경 영상 페이드 인 — 마운트 시 브랜드 단색에서 영상으로 부드럽게 */
 @keyframes bgfade {
   from {
