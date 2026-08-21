@@ -88,7 +88,10 @@ export function Header({
           className="group inline-flex min-w-0 shrink items-start"
         >
           <div className="leading-none">
-            <Logo className="h-6 max-w-[132px] transition-opacity group-hover:opacity-80 sm:h-7 sm:max-w-[148px] md:h-14 md:max-w-none" />
+            {/* 로고 비율이 약 5.1:1 이라 높이를 올리면 폭도 그만큼 늘어난다. max-w 를 같이 올리지
+                않으면 폭에서 잘려 높이만 키운 효과가 사라진다. 모바일 h-6(24px)은 데스크톱
+                h-14(56px)에 비해 유독 작았다. */}
+            <Logo className="h-9 max-w-[188px] transition-opacity group-hover:opacity-80 sm:h-10 sm:max-w-[210px] md:h-14 md:max-w-none" />
           </div>
           {subtitle ? (
             <p className="mt-1 hidden text-[10px] tracking-[0.2em] uppercase text-muted-foreground md:block md:text-xs">
