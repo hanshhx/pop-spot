@@ -1542,8 +1542,10 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
                 />
               </div>
 
-              {/* Map Zone — 배경 분리를 위해 solid 배경 + shadow 로 카드 블록 강화. */}
-              <div className="group relative col-span-1 h-[min(62svh,560px)] min-h-[430px] overflow-hidden rounded-[1.5rem] border border-gray-200 bg-white shadow-lg shadow-black/5 dark:border-white/10 dark:bg-[#111] dark:shadow-black/30 sm:rounded-[2rem] lg:col-span-12 lg:h-[58vh]">
+              {/* Map Zone — 배경 분리를 위해 solid 배경 + shadow 로 카드 블록 강화.
+                  map-clears-dock: 이 화면에만 하단 도크가 떠 있다. 지도 컨트롤과 목록 시트가
+                  그 높이만큼 위로 올라온다(/map 에는 도크가 없어 이 클래스를 붙이지 않는다). */}
+              <div className="map-clears-dock group relative col-span-1 h-[min(62svh,560px)] min-h-[430px] overflow-hidden rounded-[1.5rem] border border-gray-200 bg-white shadow-lg shadow-black/5 dark:border-white/10 dark:bg-[#111] dark:shadow-black/30 sm:rounded-[2rem] lg:col-span-12 lg:h-[58vh]">
                 <InteractiveMap
                   initialMarkers={initialMapMarkers}
                   center={mapCenter}
@@ -1552,7 +1554,7 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
                   filterIds={mapFilterIds}
                   fitReq={mapFit}
                 />
-                <div className="absolute bottom-4 md:bottom-6 left-4 md:left-6 flex gap-2 z-20">
+                <div className="absolute bottom-[calc(1rem+var(--map-bottom-inset,0px))] left-4 flex gap-2 z-20 md:bottom-[calc(1.5rem+var(--map-bottom-inset,0px))] md:left-6">
                   <span className="backdrop-blur px-3 py-1.5 md:px-4 md:py-2 rounded-full border text-[10px] md:text-xs font-bold flex items-center gap-1.5 md:gap-2 bg-white/80 border-gray-200 text-gray-900 dark:bg-black/60 dark:border-white/10 dark:text-white">
                     <span className="w-1.5 h-1.5 md:w-2 md:h-2 bg-green-500 rounded-full animate-pulse" />{' '}
                     {t('bento.live')}
