@@ -129,7 +129,7 @@ export function PopupCard({ popup, onClick, onWish, wished, className }: PopupCa
         }
       }}
       className={cn(
-        'group relative flex w-full min-w-0 cursor-pointer flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white text-left shadow-sm transition hover:-translate-y-1 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-400 sm:w-[220px] sm:shrink-0 dark:border-white/10 dark:bg-white/[0.04]',
+        'group relative flex w-full min-w-0 cursor-pointer flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white text-left shadow-sm card-lift hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-400 sm:w-[220px] sm:shrink-0 dark:border-white/10 dark:bg-white/[0.04]',
         className,
       )}
     >
