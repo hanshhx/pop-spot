@@ -4,23 +4,22 @@ import dynamic from 'next/dynamic';
 import { useEffect, useRef, useState } from 'react';
 
 import type { InteractiveMapProps } from './InteractiveMap';
+import MapPlaceholder from './MapPlaceholder';
 
 const InteractiveMap = dynamic(() => import('./InteractiveMap'), {
   ssr: false,
   loading: () => <MapLoadingSurface />,
 });
 
+/**
+ * 지도가 오기 전 자리.
+ *
+ * <p>예전에는 <code>bg-ink-900</code> 한 겹이라, 라이트 화면에서 흰 카드 안에 <b>검은 사각형</b>이
+ * 잠깐 떴다가 밝은 지도로 바뀌었다. 두 번 튀는 셈이다. 격자는 테마를 따라간다.
+ */
 function MapLoadingSurface() {
   return (
-    <div
-      role="status"
-      aria-label="Loading map"
-      className="relative h-full min-h-[280px] w-full overflow-hidden rounded-[20px] bg-ink-900"
-    >
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_35%_35%,rgba(190,242,100,0.15),transparent_35%)]" />
-      <div className="absolute inset-x-5 top-5 h-10 animate-pulse rounded-full bg-white/10" />
-      <div className="absolute inset-x-4 bottom-4 h-[38%] animate-pulse rounded-3xl border border-white/10 bg-white/10" />
-    </div>
+    <MapPlaceholder label="Loading map" className="min-h-[280px] rounded-[20px]" />
   );
 }
 
