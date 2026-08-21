@@ -731,8 +731,12 @@ export async function SliceLandingPage({ slug, locale }: { slug: string; locale:
   const kicker = kickerByKind[slice.kind];
 
   return (
-    <main className="min-h-screen bg-white pb-24 text-gray-900 md:pb-0 dark:bg-[#0a0a0a] dark:text-white">
-      <div className="max-w-3xl mx-auto px-5 md:px-8 py-8 md:py-14">
+    <main className="seo-landing-surface relative isolate min-h-screen overflow-x-clip pb-24 text-gray-900 md:pb-0 dark:text-white">
+      {/* 확정안 1d: 장식은 제목 주변에서만 끝나고 목록 아래는 조용한 종이 면으로 남긴다. */}
+      <div aria-hidden="true" className="seo-landing-glow" />
+      <div aria-hidden="true" className="seo-landing-grain" />
+
+      <div className="relative z-10 mx-auto max-w-3xl px-5 py-8 md:px-8 md:py-14">
         <Link
           href={home}
           /*
@@ -763,9 +767,11 @@ export async function SliceLandingPage({ slug, locale }: { slug: string; locale:
 
         <h1 className="text-3xl md:text-5xl font-black mb-3 leading-tight">{heading}</h1>
 
-        <p className="text-sm md:text-base text-gray-600 dark:text-white/70 max-w-2xl mb-6">
+        <p className="mb-5 max-w-2xl text-sm text-gray-600 md:text-base dark:text-white/70">
           {count > 0 ? subcopy : intro}
         </p>
+
+        <div aria-hidden="true" className="seo-landing-hairline mb-5" />
 
         {count > 0 && (
           <>
@@ -789,7 +795,7 @@ export async function SliceLandingPage({ slug, locale }: { slug: string; locale:
             </div>
 
             {/* 라임 CTA 박스 — 편익 CTA + 마찰 제거 + 편익 예고 */}
-            <section className="mb-8 rounded-2xl border border-lime-300/50 bg-lime-50 p-5 dark:bg-lime-300/[0.06] md:p-6">
+            <section className="mb-8 rounded-2xl border border-lime-300/50 bg-white p-5 shadow-lg shadow-black/5 dark:bg-[#17181c] dark:shadow-black/30 md:p-6">
               <Link
                 href={mapHref}
                 className="block w-full rounded-2xl bg-lime-300 px-6 py-4 text-center text-base font-black text-ink-900 shadow-lg transition hover:bg-lime-400 md:text-lg"
@@ -817,7 +823,7 @@ export async function SliceLandingPage({ slug, locale }: { slug: string; locale:
                 한 장만 보고 나간 322명 중 293명(91%)이 이 화면에서 나갔다. 이름·지역·날짜만
                 153줄 늘어놓으면 고를 수가 없어서다. 목록 길이 자체는 전환과 무관했다(상관 -0.15). */}
             {topPicks.length > 0 && (
-              <section className="rounded-2xl border border-gray-200 dark:border-white/10 bg-white dark:bg-[#111] shadow-lg shadow-black/5 dark:shadow-black/30 p-6 md:p-8 mb-6">
+              <section className="mb-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-lg shadow-black/5 dark:border-white/10 dark:bg-[#17181c] dark:shadow-black/30 md:p-8">
                 <h2 className="mb-4 flex items-center gap-2 text-lg font-bold md:text-xl">
                   <Flame size={16} className="text-lime-500" /> {copy.pickHeading}
                 </h2>
@@ -877,7 +883,7 @@ export async function SliceLandingPage({ slug, locale }: { slug: string; locale:
             )}
 
             {/* 목록 — 마감임박순 + D-day 배지 (기존 기간 재포맷) */}
-            <section className="rounded-2xl border border-gray-200 dark:border-white/10 bg-white dark:bg-[#111] shadow-lg shadow-black/5 dark:shadow-black/30 p-6 md:p-8 mb-6">
+            <section className="mb-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-lg shadow-black/5 dark:border-white/10 dark:bg-[#17181c] dark:shadow-black/30 md:p-8">
               <h2 className="text-lg md:text-xl font-bold mb-4 flex items-center gap-2">
                 <Clock size={16} className="text-orange-500" /> {copy.listHeading}
               </h2>
@@ -979,7 +985,7 @@ export async function SliceLandingPage({ slug, locale }: { slug: string; locale:
         )}
 
         {count === 0 && (
-          <section className="rounded-2xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5 p-6 md:p-8">
+          <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-lg shadow-black/5 dark:border-white/10 dark:bg-[#17181c] dark:shadow-black/30 md:p-8">
             <h2 className="text-lg md:text-xl font-bold mb-2">{copy.emptyHeading(slice.label)}</h2>
             <p className="text-sm text-muted-foreground mb-4">{copy.emptyBody(refresh)}</p>
             <Link
@@ -1049,20 +1055,19 @@ export async function SliceLandingPage({ slug, locale }: { slug: string; locale:
       </div>
 
       {count > 0 && (
-        <div
-          className="fixed inset-x-3 z-40 mx-auto max-w-md md:hidden"
-          style={{ bottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
-        >
-          <Link
-            href={mapHref}
-            className="flex min-h-14 items-center justify-center rounded-2xl border border-ink-900/10 bg-lime-300 px-5 text-sm font-black text-ink-900 shadow-2xl active:scale-[0.99]"
-          >
-            {locale === 'ko'
-              ? `지도에서 ${count}곳 보기`
-              : locale === 'ja'
-                ? `地図で${count}件見る`
-                : `See ${count} on the map`}
-          </Link>
+        <div className="seo-landing-sticky-cta fixed inset-x-0 bottom-0 z-40 px-3 pt-7 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:hidden">
+          <div className="mx-auto max-w-md">
+            <Link
+              href={mapHref}
+              className="flex min-h-14 items-center justify-center rounded-2xl border border-ink-900/10 bg-lime-300 px-5 text-sm font-black text-ink-900 shadow-2xl active:scale-[0.99]"
+            >
+              {locale === 'ko'
+                ? `지도에서 ${count}곳 보기`
+                : locale === 'ja'
+                  ? `地図で${count}件見る`
+                  : `See ${count} on the map`}
+            </Link>
+          </div>
         </div>
       )}
 
@@ -1116,8 +1121,8 @@ function StatCard({
     <div
       className={`flex-1 rounded-2xl border p-3 md:p-4 text-center ${
         big
-          ? 'border-lime-300/60 bg-lime-50 dark:bg-lime-300/[0.06]'
-          : 'border-gray-200 bg-gray-50 dark:border-white/10 dark:bg-white/5'
+          ? 'border-lime-300/60 bg-[#f5fde6] dark:bg-lime-300/[0.08]'
+          : 'border-gray-200 bg-white dark:border-white/10 dark:bg-[#17181c]'
       }`}
     >
       <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
@@ -1154,7 +1159,7 @@ function SliceIcon({ kind }: { kind: Slice['kind'] }) {
  */
 function FeedbackNote({ copy }: { copy: LandingCopy }) {
   return (
-    <section className="mt-10 rounded-2xl border border-gray-200 bg-gray-50 px-5 py-4 md:px-6 dark:border-white/10 dark:bg-white/5">
+    <section className="mt-10 rounded-2xl border border-gray-200 bg-white px-5 py-4 shadow-lg shadow-black/5 dark:border-white/10 dark:bg-[#17181c] dark:shadow-black/30 md:px-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <h3 className="flex items-center gap-2 text-sm font-bold md:text-base">
