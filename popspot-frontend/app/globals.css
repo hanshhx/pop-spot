@@ -386,6 +386,82 @@ li {
   );
 }
 
+/* SEO 랜딩 1d — 검색으로 처음 들어오는 페이지는 홈보다 조용하게 둔다.
+   장식은 제목 주변 420px 안에서만 끝나고, 목록 구간은 종이처럼 평평한 면으로 남긴다.
+   영상이나 큰 배경 이미지를 쓰지 않아 검색 랜딩의 다운로드 비용도 늘리지 않는다. */
+.seo-landing-surface {
+  background: #faf8f3;
+}
+
+.dark .seo-landing-surface {
+  background: #101114;
+}
+
+.seo-landing-glow {
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: 0;
+  height: 420px;
+  pointer-events: none;
+  background: radial-gradient(
+    120% 100% at 30% -14%,
+    rgba(168, 230, 69, 0.24),
+    rgba(168, 230, 69, 0) 62%
+  );
+}
+
+.dark .seo-landing-glow {
+  background: radial-gradient(
+    120% 100% at 30% -14%,
+    rgba(194, 249, 112, 0.13),
+    rgba(194, 249, 112, 0) 62%
+  );
+}
+
+/* 옅은 그라데이션이 OLED에서 띠처럼 끊겨 보이지 않게 하는 1.5% 입자다.
+   내용을 꾸미는 무늬가 아니므로 포인터와 스크린리더에서 완전히 제외한다. */
+.seo-landing-grain {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.012;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+.dark .seo-landing-grain {
+  opacity: 0.018;
+  filter: invert(1);
+}
+
+.seo-landing-hairline {
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    rgba(106, 163, 23, 0.55),
+    rgba(106, 163, 23, 0.08) 60%,
+    transparent
+  );
+}
+
+.dark .seo-landing-hairline {
+  background: linear-gradient(
+    90deg,
+    rgba(194, 249, 112, 0.55),
+    rgba(194, 249, 112, 0.06) 60%,
+    transparent
+  );
+}
+
+/* 스크롤 중에도 지도 CTA가 목록을 가리지 않고 종이 면에서 자연스럽게 떠 있도록 한다. */
+.seo-landing-sticky-cta {
+  background: linear-gradient(0deg, rgba(250, 248, 243, 0.99) 58%, rgba(250, 248, 243, 0));
+}
+
+.dark .seo-landing-sticky-cta {
+  background: linear-gradient(0deg, rgba(16, 17, 20, 0.99) 58%, rgba(16, 17, 20, 0));
+}
+
 /* 배경 영상 페이드 인 — 마운트 시 브랜드 단색에서 영상으로 부드럽게 */
 @keyframes bgfade {
   from {
