@@ -1710,14 +1710,18 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
                   <div
                     ref={rail.ref}
                     {...rail.dragBind}
-                    className="grid grid-cols-1 gap-3 pb-2 sm:-mx-1 sm:flex sm:cursor-grab sm:snap-x sm:select-none sm:gap-4 sm:overflow-x-auto sm:px-1 sm:pb-3 sm:active:cursor-grabbing"
+                    // 좁은 화면에서도 가로로 넘긴다. 예전에는 여기서 1열 세로 목록이었는데,
+                    // 30장을 세로로 쌓으면 아래 내용까지 내려가기 전에 스크롤이 너무 길어진다.
+                    // 가로 레일이면 한 화면에 두 장 남짓 보이면서 "더 있다" 는 것이 드러난다.
+                    className="-mx-1 flex cursor-grab snap-x select-none gap-3 overflow-x-auto px-1 pb-3 sm:gap-4 active:cursor-grabbing"
                   >
                     {railPopups.map((p) => (
-                      // 넓은 화면에서 이 줄은 flex 다. flex 자식은 <b>카드가 아니라 이 감싸개</b>라,
-                      // 여기에 shrink-0 가 없으면 감싸개가 눌린다. 카드는 sm:w-[220px] 로 제 폭을
-                      // 지키므로 눌린 감싸개 밖으로 삐져나와 서로 겹친다(2026-08-21에 실제로 발생).
-                      // min-w-0 은 좁은 화면(grid)에서 긴 이름이 칸을 넘기지 않게 하는 것이라 남긴다.
-                      <div key={p.id} className="min-w-0 snap-start sm:shrink-0">
+                      // flex 자식은 <b>카드가 아니라 이 감싸개</b>다. shrink-0 가 없으면 감싸개가
+                      // 눌리는데, 카드는 제 폭을 지키므로 눌린 감싸개 밖으로 삐져나와 서로 겹친다
+                      // (2026-08-21에 실제로 발생). 폭도 여기서 정한다 — 카드 안쪽은 w-full 이라
+                      // 감싸개를 그대로 따라오고, PopupCard 를 쓰는 다른 화면은 건드리지 않는다.
+                      // 168px 은 390px 화면에서 두 장 조금 넘게 보이는 폭이다.
+                      <div key={p.id} className="w-[168px] shrink-0 snap-start sm:w-[220px]">
                         <PopupCard
                           popup={p}
                           onClick={() => {
