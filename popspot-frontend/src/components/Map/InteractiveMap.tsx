@@ -860,7 +860,7 @@ export default function InteractiveMap({
                 animate={{ y: 0, opacity: 1 }}
                 exit={{ y: 80, opacity: 0 }}
                 transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-                className={`absolute inset-x-0 bottom-0 z-30 flex flex-col rounded-t-[1.75rem] border-t border-white/10 bg-black/90 shadow-2xl backdrop-blur-xl transition-[height] duration-300 md:inset-y-0 md:right-auto md:w-[280px] md:rounded-none md:border-r md:border-t-0 ${
+                className={`map-list-sheet absolute inset-x-0 bottom-0 z-30 flex flex-col rounded-t-[1.75rem] border-t border-white/10 bg-black/90 shadow-2xl backdrop-blur-xl transition-[height] duration-300 md:inset-y-0 md:right-auto md:w-[280px] md:rounded-none md:border-r md:border-t-0 ${
                   isListExpanded ? 'h-[76%]' : 'h-[40%]'
                 } md:h-auto`}
               >
@@ -887,7 +887,7 @@ export default function InteractiveMap({
                   </div>
                 </div>
 
-                <div className="flex-1 overflow-y-auto custom-scrollbar p-2 md:p-3 space-y-1.5 md:space-y-2">
+                <div className="flex-1 overflow-y-auto custom-scrollbar p-2 md:p-3 space-y-1.5 md:space-y-2 pb-[calc(0.5rem+var(--map-bottom-inset,0px))]">
                   {listMarkers.length > 0 ? (
                     listMarkers.map((marker, index) => {
                       const shown = shownName(marker);
@@ -945,7 +945,7 @@ export default function InteractiveMap({
           </AnimatePresence>
 
           {/* 우측 하단 리스트 컨트롤러 (반응형 여백/크기 조절) */}
-          <div className="absolute bottom-4 md:bottom-6 right-3 md:right-4 z-20 flex flex-col gap-2">
+          <div className="absolute bottom-[calc(1rem+var(--map-bottom-inset,0px))] right-3 z-20 flex flex-col gap-2 md:bottom-[calc(1.5rem+var(--map-bottom-inset,0px))] md:right-4">
             <button
               onClick={() => setIsListOpen(!isListOpen)}
               aria-label={t('map.listAria')}
@@ -966,7 +966,12 @@ export default function InteractiveMap({
       {/* 공통 컨트롤러 (위치, 줌) - 반응형 여백 조절 */}
       <div
         className="absolute right-3 md:right-4 z-20 flex flex-col gap-1.5 md:gap-2"
-        style={{ bottom: showPath || mode === 'PLAN' ? '16px' : '64px' }}
+        style={{
+          bottom:
+            showPath || mode === 'PLAN'
+              ? 'calc(16px + var(--map-bottom-inset, 0px))'
+              : 'calc(64px + var(--map-bottom-inset, 0px))',
+        }}
       >
         <button
           onClick={handleMyLocation}
