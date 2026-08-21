@@ -507,6 +507,59 @@ li {
   background: linear-gradient(0deg, rgba(16, 17, 20, 0.99) 58%, rgba(16, 17, 20, 0));
 }
 
+/* 하단 도크가 지도 컨트롤을 가리지 않게 하는 값들.
+
+   재 본 값이다 — 도크는 70px 이고 바닥에서 8px 떠 있다. 시안에는 68px / 0.75rem 으로 적혀 있는데
+   둘 다 틀렸다. 버튼 56 + 안쪽 여백 12 + 테두리 2 = 70, 그리고 BottomDock 은 bottom 을
+   `max(0.5rem, env(safe-area-inset-bottom))` 으로 준다.
+
+   숫자를 지도 쪽에 다시 적지 않는 이유: 도크 높이가 바뀌면 지도 컨트롤이 조용히 어긋난다.
+   한 곳에서 정하고 양쪽이 같은 값을 본다. */
+:root {
+  --dock-h: 70px;
+  --safe-b: max(0.5rem, env(safe-area-inset-bottom));
+
+
+  /* 지도 컨트롤이 아래에서 비워야 할 높이. 기본은 0 이다 —
+     같은 InteractiveMap 이 /map 에서도 쓰이는데 그 화면에는 도크가 없다.
+     도크가 있는 화면만 아래 클래스로 값을 켠다. */
+  --map-bottom-inset: 0px;
+}
+
+/* 도크가 떠 있는 화면의 지도에 붙인다. lg 부터는 도크가 사라지므로(BottomDock 은 lg:hidden)
+   다시 0 으로 되돌린다 — 안 그러면 데스크탑에서 컨트롤만 붕 뜬다. */
+/* 도크 버튼이 sm 부터 h-14(56) → h-16(64) 으로 커진다. 도크는 lg 에서야 사라지므로
+   640~1023px 구간에서는 78px 이다. 하나로 두면 그 구간에서 여백이 0 이 된다. */
+@media (min-width: 640px) {
+  :root {
+    --dock-h: 78px;
+  }
+}
+
+.map-clears-dock {
+  --map-bottom-inset: calc(var(--dock-h) + var(--safe-b) + 0.5rem);
+}
+
+@media (min-width: 1024px) {
+  .map-clears-dock {
+    --map-bottom-inset: 0px;
+  }
+}
+
+/* 목록 시트({@code .map-list-sheet})를 화면 기준으로 띄우려고 하지 마라. 해 봤고 안 된다.
+
+   시안은 시트를 `fixed ... bottom: calc(dock-h + safe-b)` 로 적어 두었다. 그대로 하면
+   position 도 bottom 도 계산값은 맞는데 시트는 여전히 도크 밑에 깔린다 — 홈의 지도를 감싼
+   섹션이 framer-motion 으로 `transform` 을 갖고 있어서, 그 요소가 fixed 의 기준이 되기
+   때문이다. 화면이 아니라 그 섹션 기준으로 78px 이 된다.
+
+   그래서 시트는 지도 상자 기준(absolute)에 그대로 두고, 대신 목록의 아래 여백을
+   {@code --map-bottom-inset} 만큼 줘서 마지막 항목이 도크 위로 스크롤돼 올라오게 했다.
+   위치를 옮기는 대신 <b>가려서 못 읽는 항목이 없게</b> 하는 방식이다.
+
+   제대로 고치려면 시트를 body 로 포털해야 하는데, 그건 이 지도가 페이지 안의 카드가 아니라
+   전체화면이라는 전제에서만 값이 있다. 시안 4b 가 그 전제로 쓰였다. */
+
 /* 손을 올린 카드를 살짝 띄운다.
    거리와 시간만 여기서 정하고, 그림자는 카드에 붙은 `hover:shadow-lg` 가 맡는다.
    `var(--shadow-lg)` 로 가져올 수 없어서다 — @theme 의 그림자 토큰은 유틸리티 안으로 들어가고
