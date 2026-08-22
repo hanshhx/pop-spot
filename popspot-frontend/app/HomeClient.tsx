@@ -1345,17 +1345,26 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
         )}
 
         {guestRemainingDays != null && (
-          <div className="mb-4 hidden items-center justify-between gap-3 rounded-pill bg-lime-300/85 px-4 py-2 text-ink-900 ring-1 ring-ink-900/10 shadow-sm md:mb-6 md:flex dark:bg-lime-400/95">
-            <span className="inline-flex items-center gap-1.5 text-xs md:text-sm font-bold">
-              <Clock className="size-3.5 md:size-4 shrink-0" aria-hidden />
-              {guestRemainingDays > 0
-                ? `${t('home.guestMode')} · D-${guestRemainingDays}`
-                : t('home.guestExpired')}
+          /* 예전에는 `hidden md:flex` 라 <b>모바일에서 아예 안 보였다.</b> 방문자의 3/4 이
+             모바일인데, 그 사람들은 체험이 며칠 남았는지도 가입 버튼도 못 봤다.
+
+             채움을 라임에서 회색으로 내렸다. 이 줄 자체는 누를 수 없는데 옆의 진짜 버튼과 같은
+             색이었다(4단계 규칙). 대신 안의 "가입" 을 라임 버튼으로 올려 눌러야 할 것을 분명히 한다. */
+          <div className="mb-4 flex items-center justify-between gap-2 rounded-pill bg-black/[0.05] px-3 py-1.5 ring-1 ring-black/5 md:mb-6 md:gap-3 md:px-4 md:py-2 dark:bg-white/10 dark:ring-white/10">
+            <span className="inline-flex min-w-0 items-center gap-1.5 text-xs font-bold text-foreground md:text-sm">
+              <Clock className="size-3.5 shrink-0 md:size-4" aria-hidden />
+              <span className="truncate">
+                {guestRemainingDays > 0
+                  ? `${t('home.guestMode')} · D-${guestRemainingDays}`
+                  : t('home.guestExpired')}
+              </span>
             </span>
             <button
               type="button"
               onClick={() => router.push(localizedPath('/signup', locale))}
-              className="shrink-0 text-[11px] md:text-xs font-semibold underline-offset-2 hover:underline"
+              // min-h-11 — 손가락으로 누르는 버튼은 44px 이어야 한다. 처음엔 25px 이었는데,
+              // 게스트를 가입으로 잇는 이 서비스에서 가장 중요한 버튼이 제일 누르기 어려웠다.
+              className="min-h-11 shrink-0 rounded-pill bg-lime-300 px-3 text-[11px] font-bold text-ink-900 transition hover:bg-lime-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-400 md:min-h-9 md:text-xs"
             >
               {t('cta.signup')}
             </button>
