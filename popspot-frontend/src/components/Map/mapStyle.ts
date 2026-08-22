@@ -78,12 +78,23 @@ function cssToken(name: string, fallback: string): string {
   return v || fallback;
 }
 
-/** THEMES 의 하드코딩 값 중 globals.css 토큰과 1:1 대응하는 것만 실제 토큰으로 치환. */
+/**
+ * THEMES 의 하드코딩 값 중 globals.css 토큰과 1:1 대응하는 것만 실제 토큰으로 치환.
+ *
+ * <p>지도 면(earth)과 경계선은 계절 토큰을 쓴다. 지도는 화면을 통째로 덮는 면이라, 여기만
+ * 계절을 안 따라가면 지도를 여는 순간 계절이 사라진 것처럼 보인다. 값이 없으면(계절 테마가
+ * 꺼진 화면) 기존 브랜드 토큰으로, 그것도 없으면 THEMES 의 하드코딩 값으로 떨어진다.
+ *
+ * <p>핀·클러스터의 라임은 여기 없다 — 그건 DOM 오버레이라 {@code bg-lime-300} 클래스를 쓰고,
+ * 계절 라임 스케일이 이미 갈아끼워져 자동으로 따라온다.
+ */
 function resolveTheme(mode: MapMode): Theme {
   const t = THEMES[mode];
+  const brandEarth = cssToken(mode === 'dark' ? '--color-ink-900' : '--color-cream-100', t.earth);
   return {
     ...t,
-    earth: cssToken(mode === 'dark' ? '--color-ink-900' : '--color-cream-100', t.earth),
+    earth: cssToken('--s-map', brandEarth),
+    boundary: cssToken('--s-mapline', t.boundary),
     subway: cssToken(mode === 'dark' ? '--color-violet-400' : '--color-violet-500', t.subway),
   };
 }

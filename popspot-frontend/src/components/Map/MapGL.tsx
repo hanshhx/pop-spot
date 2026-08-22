@@ -22,6 +22,7 @@ import {
 import { createPortal } from 'react-dom';
 import type { Map, Marker, GeoJSONSource } from 'maplibre-gl';
 import { buildBaseStyle, basemapTileUrl, fetchBasemapVersion, type MapMode } from './mapStyle';
+import { useSeason } from '@/lib/seasonContext';
 
 type MapInstance = Map;
 // 런타임 lib 값은 import('maplibre-gl').then((m) => m.default) 로 받는 default export 다.
@@ -69,8 +70,10 @@ export function MapGL({
 }: MapGLProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [ctx, setCtx] = useState<Ctx>({ map: null, lib: null });
-  // 현재 스타일에 실제로 적용된 mode. 불필요한 setStyle(깜빡임) 방지용.
-  const appliedModeRef = useRef<MapMode | null>(null);
+  // 지도 면(--s-map)과 경계선(--s-mapline)이 계절을 타므로, 계절이 바뀌면 다시 칠해야 한다.
+  const season = useSeason();
+  /** 이미 적용된 `mode:season`. 같은 값이면 setStyle 을 건너뛰어 깜빡임을 막는다. */
+  const appliedModeRef = useRef<string | null>(null);
   // 버전이 붙은 타일 URL(캐시 가능). setStyle 시에도 재사용.
   const tileUrlRef = useRef<string>('');
   // 최신 콜백을 effect 재실행 없이 참조. 렌더 중 ref 를 쓰면 안 되므로(React 19) 커밋 후 갱신한다.
@@ -117,7 +120,7 @@ export function MapGL({
         // 만료 타일 재검증 안 함(우린 버전으로 캐시 무효화 관리).
         refreshExpiredTiles: false,
       });
-      appliedModeRef.current = mode; // 초기 스타일은 마운트 시점 mode 로 지음
+      appliedModeRef.current = `${mode}:${season}`; // 초기 스타일은 마운트 시점 mode·계절로 지음
       map.touchZoomRotate?.disableRotation?.();
 
       if (onClickRef.current) map.on('click', () => onClickRef.current?.());
@@ -139,17 +142,21 @@ export function MapGL({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // mode(다크/라이트) 변경 시 스타일 교체.
+  // mode(다크/라이트)나 계절이 바뀌면 스타일 교체.
   // ctx.map 을 deps 에 넣어, 지도 로드 전에 테마가 확정된 경우에도 로드 직후 반영되게 한다.
-  // appliedModeRef 로 이미 적용된 mode 는 건너뛰어 불필요한 setStyle(깜빡임)을 막는다.
   // 마커는 DOM 오버레이라 setStyle 후에도 유지되고, dark: 클래스로 테마에 자동 반응한다.
+  //
+  // 비교 키에 계절이 들어가야 한다. 예전엔 mode 만 봐서, 계절만 바뀌면 이미 적용된 것으로
+  // 판정하고 건너뛰었다 — UI 는 계절색으로 갈아입었는데 지도 면만 옛 계절로 남는다.
+  // buildBaseStyle 은 호출 시점에 CSS 변수를 읽으므로, 다시 부르기만 하면 새 색이 잡힌다.
   useEffect(() => {
     const m = ctx.map;
     if (!m) return;
-    if (appliedModeRef.current === mode) return;
-    appliedModeRef.current = mode;
+    const key = `${mode}:${season}`;
+    if (appliedModeRef.current === key) return;
+    appliedModeRef.current = key;
     m.setStyle(buildBaseStyle(mode, tileUrlRef.current || basemapTileUrl()));
-  }, [mode, ctx.map]);
+  }, [mode, season, ctx.map]);
 
   // center prop 이 실제로 바뀌면 지도를 그쪽으로 이동한다. 좌표가 갱신되는 소비자(예: DetailMap
   // 에서 팝업 A→B 이동)를 위해 필요. 값(위경도) 기준 비교라, 부모가 매 렌더 새 객체를 줘도
