@@ -186,9 +186,20 @@
 
    다크에서 배경은 거의 중립으로 둔다 — 어두운 면의 미세한 색기운은 계절이 아니라 모니터
    캘리브레이션 오류나 번인처럼 읽히기 때문이다. 다크의 계절감은 전부 신호 레이어가 진다.
+
+   블록마다 셀렉터가 둘인 이유 — `:root[data-season]` 과 `[data-season]` 을 나란히 적는다.
+   앞엣것만 있으면 계절은 <html> 에서만 갈아입을 수 있어서 **한 페이지 안에 두 계절을 둘 수가
+   없다.** SEO 랜딩이 그걸 필요로 한다: `/popups/12월-성수` 는 오늘이 8월이어도 겨울로 칠해져야
+   하고(lib/landingSeason), 그건 그 페이지 래퍼에 data-season 을 거는 방식으로만 된다.
+   뒤엣것이 그 중첩을 받는다.
+
+   다크 짝은 `:root.dark [data-season]` 로 **자손 셀렉터**를 쓴다(가운데 공백에 주의). 중첩
+   요소에서 특정도가 (0,2,0) 대 (0,1,0) 이라 라이트 블록을 이긴다 — 붙여 쓰면 <html> 자신만
+   가리켜서 중첩된 곳이 다크에서 라이트 값을 입는다.
    ─────────────────────────────────────────────────────────────────────────── */
 
-:root[data-season='spring'] {
+:root[data-season='spring'],
+[data-season='spring'] {
   --s-bg: #fdf7f4;
   --s-surface: #ffffff;
   --s-ink: #14100f;
@@ -204,7 +215,8 @@
   --s-hi-fg: #14100f;
 }
 
-:root[data-season='summer'] {
+:root[data-season='summer'],
+[data-season='summer'] {
   --s-bg: #f5fafb;
   --s-surface: #ffffff;
   --s-ink: #0d1517;
@@ -220,7 +232,8 @@
   --s-hi-fg: #0d1517;
 }
 
-:root[data-season='autumn'] {
+:root[data-season='autumn'],
+[data-season='autumn'] {
   --s-bg: #fdf6ec;
   --s-surface: #fffdf9;
   --s-ink: #17110a;
@@ -236,7 +249,8 @@
   --s-hi-fg: #17110a;
 }
 
-:root[data-season='winter'] {
+:root[data-season='winter'],
+[data-season='winter'] {
   --s-bg: #f6f9fb;
   --s-surface: #ffffff;
   --s-ink: #0c1216;
@@ -279,7 +293,8 @@
    ─────────────────────────────────────────────────────────────────────────── */
 
 /* 봄 · 벚꽃 */
-:root[data-season='spring'] {
+:root[data-season='spring'],
+[data-season='spring'] {
   --color-lime-50: #fff9fb;
   --color-lime-100: #ffeff5;
   --color-lime-200: #fee4ed;
@@ -293,7 +308,8 @@
 }
 
 /* 여름 · 바다 */
-:root[data-season='summer'] {
+:root[data-season='summer'],
+[data-season='summer'] {
   --color-lime-50: #f2fcfd;
   --color-lime-100: #e2f7fb;
   --color-lime-200: #cdf1f7;
@@ -307,7 +323,8 @@
 }
 
 /* 가을 · 감 */
-:root[data-season='autumn'] {
+:root[data-season='autumn'],
+[data-season='autumn'] {
   --color-lime-50: #fff9f2;
   --color-lime-100: #fef2e1;
   --color-lime-200: #fde8cc;
@@ -321,7 +338,8 @@
 }
 
 /* 겨울 · 얼음 */
-:root[data-season='winter'] {
+:root[data-season='winter'],
+[data-season='winter'] {
   --color-lime-50: #f6fafd;
   --color-lime-100: #eaf5fb;
   --color-lime-200: #dcedf9;
@@ -340,14 +358,17 @@
  * --shadow-glow 는 포커스 링이라 주 색상을 따라가야 하고, 랜딩 글로우와 모바일 배경 격자는
  * 화면 전체를 덮는 장식이라 여기만 라임으로 남으면 계절이 어긋난 것으로 읽힌다.
  */
-:root[data-season] {
+:root[data-season],
+[data-season] {
   --shadow-glow: 0 0 0 4px color-mix(in srgb, var(--color-lime-300) 30%, transparent);
 }
-:root.dark[data-season] {
+:root.dark[data-season],
+:root.dark [data-season] {
   --shadow-glow: 0 0 0 4px color-mix(in srgb, var(--color-lime-300) 40%, transparent);
 }
 
-:root.dark[data-season='spring'] {
+:root.dark[data-season='spring'],
+:root.dark [data-season='spring'] {
   --s-bg: #12100f;
   --s-surface: #1c1917;
   --s-ink: #efe9e6;
@@ -363,7 +384,8 @@
   --s-hi-fg: #12100f;
 }
 
-:root.dark[data-season='summer'] {
+:root.dark[data-season='summer'],
+:root.dark [data-season='summer'] {
   --s-bg: #0b1114;
   --s-surface: #141b1f;
   --s-ink: #e4eef1;
@@ -379,7 +401,8 @@
   --s-hi-fg: #0b1114;
 }
 
-:root.dark[data-season='autumn'] {
+:root.dark[data-season='autumn'],
+:root.dark [data-season='autumn'] {
   --s-bg: #13100b;
   --s-surface: #1e1a13;
   --s-ink: #f0e9dd;
@@ -395,7 +418,8 @@
   --s-hi-fg: #13100b;
 }
 
-:root.dark[data-season='winter'] {
+:root.dark[data-season='winter'],
+:root.dark [data-season='winter'] {
   --s-bg: #0c1013;
   --s-surface: #161b20;
   --s-ink: #e6ecf0;
@@ -424,7 +448,8 @@
  *
  * ⚠️ 이 블록이 :root.dark 뒤에 와야 다크에서도 계절 배경이 적용된다(특정도 동률 → 순서 승부).
  */
-:root[data-season] {
+:root[data-season],
+[data-season] {
   --color-background: var(--s-bg);
   --color-surface: var(--s-surface);
   --color-surface-foreground: var(--s-ink);
