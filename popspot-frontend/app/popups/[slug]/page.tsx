@@ -1,8 +1,10 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { Suspense } from 'react';
 import { ArrowLeft, MapPin, Calendar, Tag, Clock, Flame, MessageSquare } from 'lucide-react';
 
+import LocaleSwitcher from '@/components/LocaleSwitcher';
 import { landingSeason } from '@/lib/landingSeason';
 import { REGIONS, classifyRegion, regionBySlug } from '@/lib/regions';
 import { LANDING_COPY, type LandingCopy, type MetaPick, type PickReason } from '@/lib/landingCopy';
@@ -751,16 +753,21 @@ export async function SliceLandingPage({ slug, locale }: { slug: string; locale:
       <div aria-hidden="true" className="seo-landing-grain" />
 
       <div className="relative z-10 mx-auto max-w-3xl px-5 py-8 md:px-8 md:py-14">
-        <Link
-          href={home}
-          /*
-           * 페이지 맨 위 되돌아가기. 글자 높이(16px)만큼밖에 안 돼 손가락으로 누르기 어려웠다.
-           * 글자 크기는 두고 위아래 여백으로 누를 면적만 넓힌다.
-           */
-          className="mb-4 inline-flex min-h-11 items-center gap-1.5 py-2 text-xs text-muted-foreground transition hover:text-foreground md:text-sm"
-        >
-          <ArrowLeft size={14} /> {copy.backHome}
-        </Link>
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <Link
+            href={home}
+            /*
+             * 페이지 맨 위 되돌아가기. 글자 높이(16px)만큼밖에 안 돼 손가락으로 누르기 어려웠다.
+             * 글자 크기는 두고 위아래 여백으로 누를 면적만 넓힌다.
+             */
+            className="inline-flex min-h-11 items-center gap-1.5 py-2 text-xs text-muted-foreground transition hover:text-foreground md:text-sm"
+          >
+            <ArrowLeft size={14} /> {copy.backHome}
+          </Link>
+          <Suspense fallback={<span aria-hidden="true" className="h-11 w-[72px] shrink-0" />}>
+            <LocaleSwitcher locale={locale} className="shrink-0" />
+          </Suspense>
+        </div>
 
         {/* 배지 — 진행 중이면 라임 펄스 점 + 카운트로 '살아있는' 신호 */}
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mb-3">
