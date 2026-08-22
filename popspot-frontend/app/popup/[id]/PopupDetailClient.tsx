@@ -26,6 +26,7 @@ import { notify, notifyError } from '@/lib/notify';
 import { trackVisitEvent } from '@/lib/visitEvent';
 import { popupCoverUrl } from '@/lib/popupCover';
 import { PhotoDisclosure } from '@/components/popup/PhotoDisclosure';
+import LocaleSwitcher from '@/components/LocaleSwitcher';
 import { addToCalendar, toCalendarEvent } from '@/lib/calendar';
 import type { User } from '@/types/popup';
 import { useLocale, type MessageKey } from '@/lib/i18n';
@@ -495,7 +496,8 @@ export default function PopupDetailClient({
           >
             <ArrowLeft size={20} />
           </button>
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
+            <LocaleSwitcher locale={locale} className="shrink-0" />
             <button
               onClick={handleShare}
               aria-label={t('common.share')}
