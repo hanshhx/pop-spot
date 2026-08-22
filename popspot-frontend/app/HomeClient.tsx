@@ -121,6 +121,7 @@ import BrowseSection from '@/components/main/BrowseSection';
 import { PopupCard } from '@/components/main/PopupCard';
 import SeasonBanner from '@/components/main/SeasonBanner';
 import { SEASON_COPY, isSeasonLimited } from '@/lib/season';
+import { seasonBgVideo } from '@/lib/seasonVideo';
 import { useSeason } from '@/lib/seasonContext';
 import { devMockPopups } from '@/lib/devMockPopups';
 import type { PublicMapMarker } from '@/lib/mapMarkers';
@@ -326,15 +327,17 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
   // 모드별 풀 배경 영상: 라이트=밝은 스카이라인(light-bg), 다크=생기있는 서울 야경(login-bg).
   // resolvedTheme 은 마운트 후에야 확정되므로 gate 로 SSR 불일치/깜빡임 방지(마운트 전엔 브랜드 단색만).
   const { resolvedTheme } = useTheme();
+  const season = useSeason();
   const [themeReady, setThemeReady] = useState(false);
   useEffect(() => setThemeReady(true), []);
   // 라이트=매끄러운 루프(부메랑)로 재인코딩한 밝은 스카이라인(light-bg), 다크=서울 야경(login-bg-v2).
   // v2 = 1080p/7.9Mbps 원본(16.3MB)을 720p/CRF28 로 재인코딩한 것(2.8MB, SSIM 0.947). 스크림 두 겹
   // 뒤에 깔리는 배경이라 체감 차이는 없고 모바일 첫 방문 전송량만 83% 줄었다. 파일명을 바꾼 건
   // 캐시에 남은 옛 16MB 파일을 확실히 버리게 하려는 것.
-  const bgVideoSrc = resolvedTheme === 'dark' ? '/login-bg-v2.mp4' : '/light-bg.mp4';
-  // 라이트 영상은 도심 불빛 반짝임이 커서 0.5배속으로 차분하게. 다크(야경)는 원속도 유지.
-  const bgVideoRate = resolvedTheme === 'dark' ? 1 : 0.5;
+  //
+  // 계절 영상이 들어오면 그 계절 편으로 갈아탄다. 아직 안 넣은 칸은 위 두 편으로 떨어진다 —
+  // 넣는 방법과 이유는 lib/seasonVideo.ts 주석 참고.
+  const { src: bgVideoSrc, rate: bgVideoRate } = seasonBgVideo(season, resolvedTheme === 'dark');
 
   // 화면 문구 언어. 첫 렌더는 항상 한국어이고(서버 HTML 과 맞춰 깜빡임 방지),
   // 브라우저에서 저장값·브라우저 언어를 읽어 반영한다.
@@ -356,7 +359,6 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
   const [railCat, setRailCat] = useState<CategoryCode | 'all'>('all');
   /* 계절 한정 필터 — 계절에만 존재하는 칩이다. 없던 버튼이 생기는 것이 색보다 세게 걸린다. */
   const [railSeasonOnly, setRailSeasonOnly] = useState(false);
-  const season = useSeason();
   const seasonCopy = SEASON_COPY[season];
   const rail = useDragScroll<HTMLDivElement>();
 
