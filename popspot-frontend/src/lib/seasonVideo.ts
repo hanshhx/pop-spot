@@ -15,8 +15,20 @@ import type { Season } from './season';
  *   <li>아래 {@code SEASON_BG} 에서 그 칸의 {@code null} 을 경로로 바꾼다.</li>
  * </ol>
  *
- * <p>인코딩 기준은 다크 배경을 720p·CRF28 로 줄였던 때와 같다(16.3MB → 2.8MB, SSIM 0.947).
- * 스크림 두 겹 뒤에 깔리는 장식이라 화질을 더 쓸 이유가 없다.
+ * <p>여덟 편은 4K 원본에서 <b>1280x720 · 무음 · faststart</b> 로 줄였다. 프레임레이트는 원본을
+ * 그대로 둔다 — 30→24 로 낮추면 5프레임마다 하나를 버려 패닝 샷에서 저더가 보인다.
+ *
+ * <p><b>화질이 아니라 용량을 고정한다.</b> 처음엔 기존 두 편과 같은 CRF 로 떴는데 가을 라이트만
+ * 12.9MB 가 나왔다. 화질을 묶으면 용량이 소재를 따라가고, 나뭇잎에 카메라까지 움직이는 그림은
+ * 벚꽃보다 일곱 배를 먹는다. 2패스로 비트레이트를 못박으니 여덟 편 전부 1.5~2.1MB 로,
+ * 이미 쓰던 두 편(0.7MB · 2.8MB) 안쪽에 들어온다.
+ *
+ * <p>인코딩 전에 {@code hqdn3d} 로 그레인을 지운다. 무작위 노이즈는 움직임 예측이 통하지 않아
+ * 비트를 가장 많이 먹는데, 스크림 뒤에서는 그 디테일이 보이지도 않는다. 다만 겨울 라이트는
+ * <b>노이즈처럼 보이는 것이 곧 내리는 눈</b>이라 거의 걸지 않았다.
+ *
+ * <p>짧은 세 편(달·단풍·설림)은 앞뒤로 한 번씩 이어 붙여 끝과 처음을 같은 프레임으로 만들었다.
+ * 6초짜리를 그대로 두면 크로스페이드가 쉴 새 없이 걸린다.
  */
 
 /** 계절 영상이 아직 없을 때 쓰는, 지금까지 쓰던 두 편. */
@@ -32,10 +44,10 @@ const BASE_DARK = '/login-bg-v2.mp4';
 export type SeasonBgManifest = Record<Season, { light: string | null; dark: string | null }>;
 
 export const SEASON_BG: SeasonBgManifest = {
-  spring: { light: null, dark: null },
-  summer: { light: null, dark: null },
-  autumn: { light: null, dark: null },
-  winter: { light: null, dark: null },
+  spring: { light: '/bg/spring-light.mp4', dark: '/bg/spring-dark.mp4' },
+  summer: { light: '/bg/summer-light.mp4', dark: '/bg/summer-dark.mp4' },
+  autumn: { light: '/bg/autumn-light.mp4', dark: '/bg/autumn-dark.mp4' },
+  winter: { light: '/bg/winter-light.mp4', dark: '/bg/winter-dark.mp4' },
 };
 
 export interface SeasonBgVideo {

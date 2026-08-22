@@ -1,16 +1,32 @@
+import { existsSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
-import { SEASON_BG, seasonBgVideo } from './seasonVideo';
+import { SEASON_BG, seasonBgVideo, type SeasonBgManifest } from './seasonVideo';
 import { SEASONS } from './season';
+
+/**
+ * 아무 칸도 채우지 않은 매니페스트.
+ *
+ * <p>물러섬을 확인하는 시험은 <b>실제 {@code SEASON_BG} 가 비어 있다는 사실에 기대면 안 된다.</b>
+ * 처음엔 여덟 칸이 다 {@code null} 이라 기대어도 통했지만, 파일이 들어온 순간 "물러선다" 는
+ * 시험이 "안 물러선다" 로 뒤집혀 깨졌다. 시험 대상은 채워진 정도가 아니라 함수의 규칙이다.
+ */
+const EMPTY: SeasonBgManifest = {
+  spring: { light: null, dark: null },
+  summer: { light: null, dark: null },
+  autumn: { light: null, dark: null },
+  winter: { light: null, dark: null },
+};
 
 describe('계절 배경 영상', () => {
   it('계절 파일이 없으면 기존 두 편으로 떨어진다', () => {
     // 없는 주소를 내주면 배경이 통째로 빈다 — 계절감을 더하려다 원래 있던 것까지 잃는다.
-    expect(seasonBgVideo('spring', false)).toMatchObject({
+    expect(seasonBgVideo('spring', false, EMPTY)).toMatchObject({
       src: '/light-bg.mp4',
       seasonal: false,
     });
-    expect(seasonBgVideo('winter', true)).toMatchObject({
+    expect(seasonBgVideo('winter', true, EMPTY)).toMatchObject({
       src: '/login-bg-v2.mp4',
       seasonal: false,
     });
@@ -30,7 +46,10 @@ describe('계절 배경 영상', () => {
 
   it('채워진 칸만 그 경로를 쓰고, 옆 칸은 그대로 기본 영상이다', () => {
     // 파일은 한 칸씩 들어온다 — 라이트만 채운 계절이 다크까지 끌고 가면 안 된다.
-    const filled = { ...SEASON_BG, autumn: { light: '/bg/autumn-light.mp4', dark: null } };
+    const filled: SeasonBgManifest = {
+      ...EMPTY,
+      autumn: { light: '/bg/autumn-light.mp4', dark: null },
+    };
 
     expect(seasonBgVideo('autumn', false, filled)).toMatchObject({
       src: '/bg/autumn-light.mp4',
@@ -44,5 +63,19 @@ describe('계절 배경 영상', () => {
       src: '/light-bg.mp4',
       seasonal: false,
     });
+  });
+
+  it('적어 둔 경로에는 실제로 파일이 있다', () => {
+    // 이 매니페스트의 유일한 실패 방식이다. 파일 없이 경로만 올리면 배경이 비고, 실패를
+    // 캐시하는 브라우저에서는 새로고침해도 안 돌아온다 — 위 주석이 걱정하는 바로 그 상황이다.
+    // 넣기 전에 확인하자는 약속은 언젠가 깨지므로 여기서 디스크를 직접 본다.
+    for (const season of SEASONS) {
+      for (const mode of ['light', 'dark'] as const) {
+        const path = SEASON_BG[season][mode];
+        if (path === null) continue;
+        const file = fileURLToPath(new URL(`../../public${path}`, import.meta.url));
+        expect(existsSync(file), `${path} 에 파일이 없다`).toBe(true);
+      }
+    }
   });
 });
