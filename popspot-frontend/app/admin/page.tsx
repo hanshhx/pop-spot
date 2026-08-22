@@ -26,6 +26,7 @@ import { AuditTab } from '@/features/admin/tabs/AuditTab';
 import { ReauthGate } from '@/features/admin/ReauthGate';
 import { FeedbackTab } from '@/features/admin/tabs/FeedbackTab';
 import { SystemTab } from '@/features/admin/tabs/SystemTab';
+import { SeasonTab } from '@/features/admin/tabs/SeasonTab';
 import {
   NAV,
   SERVER_METRICS_BUFFER_SIZE,
@@ -880,6 +881,8 @@ export default function AdminPage() {
             />
 
             {/* ===== 시스템 (서버 지표 + 로그) ===== */}
+            {activeTab === 'SEASON' && <SeasonTab />}
+
             {activeTab === 'SYSTEM' && (
               <SystemTab
                 onRevokeAllSessions={handleRevokeAllSessions}
