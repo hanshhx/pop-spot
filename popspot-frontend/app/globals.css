@@ -594,6 +594,21 @@ li {
   }
 }
 
+/* 테마 전환의 <b>기본 경로</b> — 브라우저가 전후 화면을 스냅샷으로 떠서 겹쳐 넘긴다.
+ *
+ * 아래 .theme-switching 방식은 요소마다 transition 을 걸어 색을 흘린다. 부드럽긴 한데 홈에서
+ * 동시 전환이 1,771개 생기고 스타일 재계산이 316ms 걸려 눈에 띄게 버벅였다. 이쪽은 요소가 몇
+ * 개든 텍스처 두 장을 합성하는 비용이고, 배경 영상·지도처럼 색으로 바뀌지 않는 면도 그림째로
+ * 같이 넘어간다.
+ *
+ * 기본 동작이 이미 교차 페이드라 길이와 감속만 나머지와 맞춘다. 이 API 가 없는 브라우저는
+ * ThemeToggle 이 아래 방식으로 물러선다. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: var(--theme-switch-ms);
+  animation-timing-function: var(--ease-out-quart);
+}
+
 /* 테마를 바꾸는 순간에만 켜지는 전역 전환.
  *
  * body 에는 원래 배경·글자색 전환이 걸려 있었지만, 화면에서 실제로 색이 바뀌는 것은 카드 면,

@@ -78,7 +78,9 @@ export function Header({
       role="banner"
       className={cn(
         'flex min-w-0 flex-col items-stretch gap-3 md:flex-row md:items-end md:justify-between md:gap-4',
-        'border-b border-[var(--color-border)] pb-4',
+        // 헤더 아래 여백은 넓은 화면에서만 늘린다. 네비 글자와 계절 배지를 키운 만큼 띠가
+        // 답답해져서, 폰(pb-4)은 그대로 두고 데스크톱만 벌린다.
+        'border-b border-[var(--color-border)] pb-4 md:pb-6',
         className,
       )}
     >
@@ -114,11 +116,12 @@ export function Header({
         <div className="shrink-0 md:hidden">{mobileLocaleControl}</div>
       </div>
 
-      {/* 데스크톱(lg+) 상단 네비 — 모바일은 하단 BottomDock. */}
+      {/* 데스크톱(lg+) 상단 네비 — 모바일은 하단 BottomDock.
+          이 블록 전체가 lg 부터만 보이므로, 여기 값들은 손대도 폰 화면에 닿지 않는다. */}
       {onNavChange && (
         <nav
           aria-label={t('nav.mainMenu')}
-          className="hidden lg:flex items-center gap-10 self-center"
+          className="hidden lg:flex items-center gap-12 self-center xl:gap-14"
         >
           {DOCK_ITEMS.map((item) => {
             const active = activeTab === item.key;
@@ -129,8 +132,8 @@ export function Header({
                 onClick={() => onNavChange(item.key)}
                 aria-current={active ? 'page' : undefined}
                 className={cn(
-                  'relative py-2 text-[20px] tracking-tight transition-colors',
-                  'after:absolute after:left-0 after:right-0 after:-bottom-1 after:h-[3px] after:rounded-full after:transition-colors',
+                  'relative py-3 text-[23px] tracking-tight transition-colors',
+                  'after:absolute after:left-0 after:right-0 after:-bottom-1 after:h-[4px] after:rounded-full after:transition-colors',
                   active
                     ? 'text-foreground font-bold after:bg-lime-400'
                     : 'text-muted-foreground font-medium hover:text-foreground after:bg-transparent',
