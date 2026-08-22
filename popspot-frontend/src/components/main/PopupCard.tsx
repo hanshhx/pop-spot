@@ -9,6 +9,8 @@ import { useLocale, type MessageKey } from '@/lib/i18n';
 import { bilingual } from '@/lib/bilingual';
 import type { PopupStore } from '@/types/popup';
 import { trackVisitEvent } from '@/lib/visitEvent';
+import { isSeasonLimited } from '@/lib/season';
+import { useSeason } from '@/lib/seasonContext';
 
 /**
  * 팝업 사진 카드 — 디자인 진단서 P0. 사진 + D-day + 지역 + 카테고리 + ♥ 를 한 장에.
@@ -100,6 +102,13 @@ export function PopupCard({ popup, onClick, onWish, wished, className }: PopupCa
   const { t, locale } = useLocale();
   const [imgError, setImgError] = useState(false);
   const dday = ddayBadge(popup.endDate);
+  /*
+   * 마감 알림 — 계절 신호 다섯 중 색 없이 가장 잘 먹히는 것. 배지를 새로 얹지 않고 <b>이미 있는
+   * D-day 배지의 색만</b> 만채도로 바꾼다. 하나 더 달면 같은 모서리에서 둘이 겹치고, 무엇보다
+   * "이 계절에 사라진다" 는 정보는 이 배지가 이미 말하고 있다.
+   */
+  const season = useSeason();
+  const seasonLimited = !!dday && !dday.ended && isSeasonLimited(popup.endDate, season);
   const catKey = popup.category ? CATEGORY_LABEL_KEY[popup.category.toUpperCase()] : undefined;
   // 아는 코드면 옮기고, 모르는 값이면 크롤링 원문을 그대로 — 지어내는 것보다 원문이 낫다.
   const cat = catKey ? t(catKey) : popup.category || null;
@@ -155,6 +164,9 @@ export function PopupCard({ popup, onClick, onWish, wished, className }: PopupCa
             className={`absolute left-2.5 top-2.5 rounded-full px-2.5 py-1 text-[11px] font-bold ${
               dday.ended ? 'bg-gray-800/80 text-white' : 'bg-lime-300 text-ink-900'
             }`}
+            style={
+              seasonLimited ? { background: 'var(--s-hi)', color: 'var(--s-hi-fg)' } : undefined
+            }
           >
             {dday.labelKey
               ? t(dday.labelKey)
