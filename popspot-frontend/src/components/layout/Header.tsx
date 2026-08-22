@@ -11,6 +11,7 @@ import { unreadCount as readUnread } from '@/lib/notifications';
 import { cn } from '@/lib/utils';
 import { Logo } from '@/components/layout/Logo';
 import { SectionLogo } from '@/components/layout/BrandLogos';
+import { SeasonBadge } from '@/components/layout/SeasonBadge';
 import { DOCK_ITEMS } from '@/components/layout/BottomDock';
 import { useLocale } from '@/lib/i18n';
 import { localizedPath } from '@/lib/localePath';
@@ -81,7 +82,9 @@ export function Header({
         className,
       )}
     >
-      <div className="flex min-w-0 items-center justify-between gap-2 md:block md:w-auto">
+      {/* md 이상에서도 flex 를 유지한다(예전엔 block). block 이면 계절 배지가 로고 줄의
+          baseline 에 걸려 h-14 로고보다 한참 아래로 떨어진다 — items-center 가 필요하다. */}
+      <div className="flex min-w-0 items-center justify-between gap-2 md:w-auto md:justify-start">
         <Link
           href={localizedPath('/?entered=1', locale)}
           onClick={onLogoClick}
@@ -105,6 +108,9 @@ export function Header({
             />
           )}
         </Link>
+        {/* 계절 배지는 로고 링크 <b>밖</b>에 둔다. 안에 넣으면 배지를 눌러도 홈으로 튀어서,
+            "이건 상태 표시지 버튼이 아니다" 라는 게 전달되지 않는다. */}
+        <SeasonBadge className="ml-2 inline-flex shrink-0 self-center align-middle" />
         <div className="shrink-0 md:hidden">{mobileLocaleControl}</div>
       </div>
 
