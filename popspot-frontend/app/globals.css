@@ -9,6 +9,8 @@
 @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css');
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap');
 @import 'tailwindcss';
+/* 계절 팔레트 8세트. Tailwind 뒤에 둬야 --color-* 재할당이 유틸리티에 반영된다. */
+@import './seasons.css';
 
 @source "../src";
 @source ".";
@@ -274,150 +276,7 @@ li {
   animation: marquee 40s linear infinite;
 }
 
-/* ============================================================
-   홈 배경 영상 시스템 (모드별 풀 배경)
-   라이트 = 밝은 스카이라인(light-bg.mp4) / 다크 = 생기있는 서울 야경(login-bg-v2.mp4).
-   원칙: 영상이 '실제로 보이도록' 스크림은 얕게. 어둡게 덮어 '배경 넣은 의미 없던' 문제 해결.
-   가독성은 불투명 카드가 담당 → 스크림은 헤더/푸터 대비만 살짝 보강.
-   ============================================================ */
-
-/* 좁은 화면 배경 보강 — 영상을 대신하는 것이 아니라 단색을 보완하는 것.
-   ============================================================
-   모바일에서 배경 영상을 불러오지 않는 것은 <b>의도된 선택</b>이다(LoopingBgVideo 의
-   useShouldRender — 다크 배경만 2.8MB 인데 방문자의 75.7% 가 모바일이다). 여기서 영상을
-   되살리지 않으며, 이 규칙은 CSS 만 쓰므로 전송량이 0 바이트 늘어난다.
-
-   고치려는 것은 따로 있다. 영상이 없으면 화면에는 단색과 스크림만 남는데, 스크림과 바탕의
-   색 차이가 작아 상·하단 명암이 거의 드러나지 않는다. 그래서 화면이 평면적으로 보인다.
-
-   다크 모드에서는 무늬 대신 포레스트 블랙의 색 차이와 라임 빛 번짐만 사용한다.
-   라이트 모드와 넓은 화면의 기존 배경은 바꾸지 않는다.
-   ============================================================ */
-/* 기본은 둘 다 그리지 않는다. 아래 미디어쿼리보다 <b>먼저</b> 와야 한다 —
-   뒤에 두면 같은 특정도라 미디어쿼리를 덮어써서 좁은 화면에서도 사라진다. */
-.home-flat-bg,
-.home-flat-grain {
-  display: none;
-}
-
-/* 테마를 바꾸면 body 바탕색이 0.3초에 걸쳐 변한다. 덧그림이 즉시 갈아타면 그 0.3초 동안
-   둘이 어긋난다. 같은 시간·같은 곡선을 준다. 그라데이션 보간을 지원하지 않는 브라우저에서는
-   그냥 즉시 바뀌는데, 이 층은 최대 16% 투명도라 어긋나도 눈에 띄는 폭이 작다. */
-.home-flat-bg {
-  transition: background-image 0.3s var(--ease-out-quart);
-}
-
-@media (max-width: 767px) {
-  .home-flat-bg {
-    display: block;
-    position: absolute;
-    inset: 0;
-    background-image: var(--home-flat-image);
-    background-size: var(--home-flat-size);
-    /* 가운데(콘텐츠가 지나가는 띠)는 비운다. 위아래 가장자리에만 격자가 남는다. */
-    -webkit-mask-image: linear-gradient(
-      180deg,
-      #000 0%,
-      rgba(0, 0, 0, 0.35) 26%,
-      transparent 46%,
-      transparent 62%,
-      rgba(0, 0, 0, 0.45) 84%,
-      #000 100%
-    );
-    mask-image: linear-gradient(
-      180deg,
-      #000 0%,
-      rgba(0, 0, 0, 0.35) 26%,
-      transparent 46%,
-      transparent 62%,
-      rgba(0, 0, 0, 0.45) 84%,
-      #000 100%
-    );
-  }
-
-  /* 기준선 — 지도 아래 지름길 줄 언저리에 한 줄. */
-  .home-flat-bg::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    right: 0;
-    top: 72%;
-    height: 1px;
-    background: rgba(79, 122, 16, 0.16);
-  }
-
-  /* 띠 방지용 입자. 마스크를 타지 않도록 형제로 둔다. */
-  .home-flat-grain {
-    display: block;
-    position: absolute;
-    inset: 0;
-    opacity: 0.015;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
-  }
-
-  .dark .home-flat-bg {
-    background-image: var(--home-flat-image);
-    background-size: 100% 100%;
-    -webkit-mask-image: none;
-    mask-image: none;
-  }
-
-  .dark .home-flat-bg::before {
-    display: none;
-  }
-
-  .dark .home-flat-grain {
-    display: none;
-  }
-
-  /* 좁은 다크 화면에는 영상이 없으므로 영상용 스크림도 제거한다. */
-  .dark .home-video-scrim {
-    background: transparent;
-  }
-
-  .dark .seo-landing-surface {
-    background: linear-gradient(180deg, #171d14 0, #111511 360px, #0d100f 760px), #0d100f;
-  }
-
-  .dark .seo-landing-glow {
-    background: radial-gradient(
-      115% 50% at 24% -7%,
-      rgba(202, 255, 112, 0.27) 0%,
-      rgba(137, 186, 78, 0.1) 42%,
-      transparent 66%
-    );
-  }
-
-  .dark .seo-landing-grain {
-    display: none;
-  }
-
-  .dark .seo-landing-sticky-cta {
-    background: linear-gradient(0deg, rgba(13, 16, 15, 0.99) 58%, rgba(13, 16, 15, 0));
-  }
-}
-
 /* 영상 위 스크림 — 상·하단만 살짝 눌러 헤더/푸터 대비 확보, 중앙은 거의 투명해 영상이 그대로 보임. */
-.home-video-scrim {
-  background: linear-gradient(
-    180deg,
-    rgba(251, 249, 243, 0.68) 0%,
-    rgba(251, 249, 243, 0.34) 9%,
-    rgba(251, 249, 243, 0.13) 22%,
-    rgba(251, 249, 243, 0.12) 68%,
-    rgba(251, 249, 243, 0.5) 100%
-  );
-}
-.dark .home-video-scrim {
-  background: linear-gradient(
-    180deg,
-    rgba(8, 9, 12, 0.55) 0%,
-    rgba(8, 9, 12, 0.24) 16%,
-    rgba(8, 9, 12, 0.2) 66%,
-    rgba(8, 9, 12, 0.58) 100%
-  );
-}
-
 /* SEO 랜딩 1d — 검색으로 처음 들어오는 페이지는 홈보다 조용하게 둔다.
    장식은 제목 주변 420px 안에서만 끝나고, 목록 구간은 종이처럼 평평한 면으로 남긴다.
    영상이나 큰 배경 이미지를 쓰지 않아 검색 랜딩의 다운로드 비용도 늘리지 않는다. */
@@ -485,92 +344,109 @@ li {
   );
 }
 
-/* 스크롤 중에도 지도 CTA가 목록을 가리지 않고 종이 면에서 자연스럽게 떠 있도록 한다. */
-.seo-landing-sticky-cta {
-  background: linear-gradient(0deg, rgba(250, 248, 243, 0.99) 58%, rgba(250, 248, 243, 0));
-}
-
 .dark .seo-landing-sticky-cta {
   background: linear-gradient(0deg, rgba(16, 17, 20, 0.99) 58%, rgba(16, 17, 20, 0));
 }
 
-/* 계절색.
+/* 계절 배경 그림의 움직임. 시안(SeasonBg)에서 가져왔다.
 
-   라임은 건드리지 않는다. 라임은 "지금 누를 것" 이라는 뜻을 갖고 있어서, 계절마다 강조색을
-   바꾸면 그 뜻이 사라지고 계절 4개 × 라이트/다크 2개 = 8조합의 대비를 다시 재야 한다.
+   전부 transform·opacity 만 쓴다 — 이 둘은 합성 단계에서 처리돼 레이아웃을 다시 계산하지 않는다.
+   배경이 스크롤을 버벅이게 만들면 안 되기 때문이다.
 
-   대신 <b>장식 층에만</b> 계절색을 낮은 농도로 섞는다. 배경 격자와 빛 번짐, 로고의 작은 장식.
-   글자·버튼·상태 표시는 계절과 무관하다.
-
-   봄의 분홍은 새로 만든 색이 아니라 심볼에 이미 있는 브랜드 핑크(#e73274)를 옅게 쓴 것이다 —
-   "색은 유지하되 섞는다" 는 뜻에 가장 가깝다. */
-:root,
-[data-season='spring'] {
-  /* 벚꽃 — 브랜드 핑크를 옅게 */
-  --season-tint: 231, 50, 116;
-  --season-tint-strength: 0.22;
-  --season-grid: 0.15;
+   움직임 줄이기 설정은 아래 한 줄이 통째로 막는다. 배경은 읽는 데 필요한 정보가 아니라
+   멈춰도 잃는 것이 없다. */
+@keyframes sBloom {
+  0%,
+  100% {
+    opacity: 0.52;
+  }
+  50% {
+    opacity: 0.78;
+  }
 }
 
-[data-season='summer'] {
-  /* 그늘과 물 — 라임의 보색 쪽 청록. 라임이 가장 자연스러운 계절이라 계절색은 얕게 둔다. */
-  --season-tint: 34, 168, 168;
-  --season-tint-strength: 0.2;
-  --season-grid: 0.15;
+@keyframes sSway {
+  0%,
+  100% {
+    transform: rotate(-2.5deg);
+  }
+  50% {
+    transform: rotate(2.5deg);
+  }
 }
 
-[data-season='autumn'] {
-  /* 단풍 — 주황·황토 */
-  --season-tint: 214, 118, 34;
-  --season-tint-strength: 0.24;
-  --season-grid: 0.16;
+@keyframes sDrift {
+  0% {
+    transform: translate3d(0, -6px, 0);
+  }
+  100% {
+    transform: translate3d(14px, 10px, 0);
+  }
 }
 
-[data-season='winter'] {
-  /* 서리 — 푸른 은빛. 유일하게 차가운 쪽이라 농도를 조금 낮춘다. */
-  --season-tint: 96, 138, 196;
-  --season-tint-strength: 0.22;
-  --season-grid: 0.14;
+@keyframes sFall {
+  0% {
+    transform: translate3d(0, -18px, 0) rotate(-6deg);
+    opacity: 0;
+  }
+  12% {
+    opacity: 0.85;
+  }
+  100% {
+    transform: translate3d(46px, 120px, 0) rotate(18deg);
+    opacity: 0;
+  }
 }
 
-/* 홈 배경 그림 — 실제 배경(.home-flat-bg)과 미리보기(.season-swatch)가 함께 쓴다.
-   미디어 쿼리 밖에 정의해야 데스크탑 폭의 미리보기에서도 읽힌다. */
-:root {
-  --home-flat-image:
-    /* 계절색 — 라임 번짐의 반대편 모서리에서 들어온다. 두 빛이 겹치면 색이 탁해진다. */
-    radial-gradient(
-      130% 62% at 50% -14%,
-      rgba(var(--season-tint), var(--season-tint-strength)),
-      transparent 76%
-    ),
-    radial-gradient(88% 40% at 50% 104%, rgba(168, 230, 69, 0.16), transparent 68%),
-    linear-gradient(rgba(var(--season-tint), var(--season-grid)) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(var(--season-tint), var(--season-grid)) 1px, transparent 1px);
-  --home-flat-size: 100% 100%, 100% 100%, 44px 44px, 44px 44px;
+@media (prefers-reduced-motion: reduce) {
+  .season-backdrop * {
+    animation: none !important;
+  }
 }
 
-:root.dark {
-  --home-flat-image:
-    radial-gradient(
-      115% 56% at 82% -5%,
-      rgba(198, 255, 108, 0.25) 0%,
-      rgba(134, 184, 74, 0.1) 40%,
-      transparent 68%
-    ),
-    radial-gradient(
-      84% 44% at 6% 34%,
-      rgba(var(--season-tint), calc(var(--season-tint-strength) * 1.5)) 0%,
-      transparent 72%
-    ),
-    radial-gradient(76% 46% at -10% 48%, rgba(102, 137, 67, 0.17) 0%, transparent 70%),
-    linear-gradient(180deg, #171e13 0%, #101510 43%, #0c100e 100%);
-  --home-flat-size: 100% 100%;
+/* 계절 그림 띠 — 아래로 갈수록 지워 페이지 바탕에 녹인다.
+   자르지 않고 지우는 이유는, 잘라 놓으면 그림과 바탕 사이에 선이 하나 생기기 때문이다.
+
+   좁은 화면일수록 띠가 얇아진다(가로 배너라 폭에 비례한다). 그래서 폰에서는 그림이 위쪽
+   한 뼘만 차지하고, 넓은 화면에서는 더 넉넉히 보인다 — 둘 다 콘텐츠를 밀어내지 않는다. */
+.season-backdrop-band {
+  -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 42%, transparent 92%);
+  mask-image: linear-gradient(180deg, #000 0%, #000 42%, transparent 92%);
 }
 
-/* 계절 미리보기 조각. 실제 배경과 같은 그림을 어느 폭에서도 보여준다. */
-.season-swatch {
-  background-image: var(--home-flat-image);
-  background-size: var(--home-flat-size);
+/* 배경 영상 위에 덮는 베일.
+ *
+ * <b>색을 var(--color-background) 로 쓰는 것이 이 규칙의 전부다.</b> 배포본은 크림/잉크를 숫자로
+ * 박아 두었는데, 그러면 계절 바탕색과 영상이 서로 다른 두 겹이 되어 자리를 다툰다 — 영상을 되살릴
+ * 때 "배경 계절색과 둘 중 하나만 남겨야 한다" 던 것이 그 뜻이었다. 베일을 계절색으로 두면 둘이
+ * 한 겹이 된다. 영상은 계절색 <b>너머로</b> 보이고, 계절색은 여전히 화면 전체를 지배한다.
+ * 그래서 겨울 영상은 겨울 흰빛으로, 가을 영상은 가을 크림으로 걸러져 들어온다.
+ *
+ * 농도 분포는 배포본에서 그대로 가져왔다(가독성으로 검증된 값이다): 위아래를 두껍게, 가운데를
+ * 얇게. 헤더와 푸터는 카드 없이 글자만 놓이는 자리라 두껍고, 가운데는 불투명 카드가 가독성을
+ * 책임지므로 영상이 가장 잘 보이게 비워 둔다.
+ *
+ * 다크가 라이트보다 얇은 이유: 다크 바탕은 거의 검정이라(seasons.css) 같은 농도로 덮으면 영상이
+ * 그냥 사라진다. */
+.home-video-scrim {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--color-background) 72%, transparent) 0%,
+    color-mix(in srgb, var(--color-background) 38%, transparent) 9%,
+    color-mix(in srgb, var(--color-background) 20%, transparent) 22%,
+    color-mix(in srgb, var(--color-background) 18%, transparent) 68%,
+    color-mix(in srgb, var(--color-background) 55%, transparent) 100%
+  );
+}
+
+.dark .home-video-scrim {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--color-background) 55%, transparent) 0%,
+    color-mix(in srgb, var(--color-background) 24%, transparent) 16%,
+    color-mix(in srgb, var(--color-background) 20%, transparent) 66%,
+    color-mix(in srgb, var(--color-background) 58%, transparent) 100%
+  );
 }
 
 /* 하단 도크가 지도 컨트롤을 가리지 않게 하는 값들.
@@ -584,7 +460,6 @@ li {
 :root {
   --dock-h: 70px;
   --safe-b: max(0.5rem, env(safe-area-inset-bottom));
-
 
   /* 지도가 뜨기 전 자리표시자의 격자선. 라이트에서는 옅은 먹, 다크에서는 옅은 흰색이다. */
   --map-grid-line: rgba(10, 10, 10, 0.06);
@@ -678,3 +553,5 @@ li {
     opacity: 1;
   }
 }
+
+/* rebuild touch */

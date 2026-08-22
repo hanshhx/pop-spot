@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next';
-import { headers } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import './globals.css';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { Analytics } from '@vercel/analytics/next';
@@ -12,9 +12,17 @@ import GlobalChatManager from '@/components/GlobalChatManager';
 import { MusicPlayerProvider } from '@/components/music/MusicPlayerProvider';
 import { GlobalMusicPlayer } from '@/components/music/GlobalMusicPlayer';
 import ServiceStatusBanner from '@/components/ServiceStatusBanner';
-import { seasonOf } from '@/lib/season';
+import { SEASON_COOKIE, parseSeasonSetting, resolveSeason } from '@/lib/seasonOverride';
+import { ogImageFor } from '@/lib/seasonOgImage';
 
-export const metadata: Metadata = {
+export async function generateMetadata(): Promise<Metadata> {
+  /* 공유 카드는 계절을 따른다. 정적 상수로 두면 계절이 바뀌어도 8월 카드가 계속 나간다.
+     파일이 아직 없는 계절은 기본 카드로 물러선다(lib/seasonOgImage). */
+  const store = await cookies();
+  const season = resolveSeason(parseSeasonSetting(store.get(SEASON_COOKIE)?.value));
+  const ogImage = ogImageFor(season);
+
+  return {
   metadataBase: new URL('https://popspot.co.kr'),
   title: {
     default: 'POP-SPOT — 서울 팝업스토어 인텔리전스',
@@ -32,14 +40,14 @@ export const metadata: Metadata = {
     locale: 'ko_KR',
     url: 'https://popspot.co.kr',
     siteName: 'POP-SPOT',
-    images: ['/og-image.png'],
+    images: [ogImage],
   },
   twitter: {
     card: 'summary_large_image',
     title: 'POP-SPOT — 서울 팝업스토어 인텔리전스',
     description:
       '서울 팝업스토어 일정을 지도로 한눈에. 성수·홍대·강남 팝업까지 지역·브랜드별로 무료 확인.',
-    images: ['/og-image.png'],
+    images: [ogImage],
   },
   icons: {
     icon: '/icon.svg',
@@ -51,7 +59,8 @@ export const metadata: Metadata = {
       'application/rss+xml': [{ url: '/feed.xml', title: 'POP-SPOT RSS' }],
     },
   },
-};
+  };
+}
 
 /**
  * v2.17 — JSON-LD 구조화 데이터.
@@ -104,13 +113,16 @@ export default async function RootLayout({
   const locale = headerLocale === 'en' || headerLocale === 'ja' ? headerLocale : 'ko';
   const jsonLd = jsonLdFor(locale);
 
+  /* 계절은 관리자가 고정해 둔 값이 있으면 그것을, 없으면 날짜를 따른다.
+     쿠키라서 서버가 그리는 첫 HTML 부터 맞는 계절이 실린다 — 브라우저에서 정하면 한 번 깜빡인다. */
+  const cookieStore = await cookies();
+  const season = resolveSeason(parseSeasonSetting(cookieStore.get(SEASON_COOKIE)?.value));
+
   return (
     /* Proxy가 주소의 /en·/ja 접두어를 요청 헤더로 넘긴다. 루트 레이아웃에서 이를 읽어 서버가 보내는
        첫 HTML부터 올바른 lang과 언어별 JSON-LD를 넣는다. 브라우저에서 뒤늦게 바꾸는 방식은
        화면 낭독기와 자바스크립트를 적게 실행하는 검색로봇이 한국어 문서로 오인할 수 있다. */
-    /* 계절은 날짜에서 나오므로 서버가 정해 붙인다. 브라우저에서 정하면 첫 그림이 계절 없이
-       떴다가 바뀌어 한 번 깜빡인다. KST 로 판정하므로 서버(UTC)와도 어긋나지 않는다. */
-    <html lang={locale} data-season={seasonOf()} suppressHydrationWarning>
+    <html lang={locale} data-season={season} suppressHydrationWarning>
       <head>
         {/* v2.17 — JSON-LD 구조화 데이터 (WebSite + Organization). 검색 결과 풍부도 ↑. */}
         <script

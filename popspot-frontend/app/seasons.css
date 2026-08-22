@@ -1,0 +1,171 @@
+/* 계절 팔레트 — 4계절 × 라이트/다크 = 8세트.
+ *
+ * <b>값은 전부 시안 PPT 에서 그대로 옮긴 것이다.</b> 슬라이드 4(라이트 4토큰),
+ * 슬라이드 11(다크 배경), 슬라이드 12(다크 강조신호). 눈으로 고른 색은 하나도 없다.
+ *
+ * <h3>토큰 넷</h3>
+ *
+ * <ul>
+ *   <li><b>배경</b> — 계절마다 색온도만 다르다. 라이트는 4~6%, 다크는 2~3%.
+ *   <li><b>라임</b> — 주 동작(누를 것). 계절마다 밝기만 5~8% 움직인다.
+ *   <li><b>액센트</b> — 기간·상태를 말하는 중간 색. 좋아요·혼잡도 피크·모집완료 같은 자리.
+ *   <li><b>강조 신호</b> — 만채도. D-day 배지·건수·마감일처럼 <b>좁은 자리에만</b>.
+ * </ul>
+ *
+ * <h3>다크는 라이트에서 계산해 만들 수 없다</h3>
+ *
+ * 어두운 면에 미세한 색기운을 넣으면 계절이 아니라 모니터 결함(캘리브레이션 오류·번인)처럼
+ * 읽힌다. 그래서 다크 배경은 거의 같은 검정 넷이고, 계절은 전부 신호가 말한다.
+ * 여덟 블록을 그냥 다 적는다.
+ *
+ * 다크 액센트만 시안에 표가 없어, 문서가 명시한 규칙(명도 +12%, 채도 −10%)을 라이트 값에
+ * 적용해 만들었다.
+ */
+
+/* ── 봄 · 라이트 ─────────────────────────────────────────────────── */
+:root[data-season='spring'],
+[data-season='spring'] {
+  --color-background: #fdf7f4;
+  --logo-lime: #c4dd6b;
+  --s-accent: #d9718f;
+  --s-hi: #ef6f9b;
+  --s-hi2: #f5c26b;
+  --s-soft: #fbe6ec;
+  --s-hi-ink: #ffffff;
+}
+
+/* ── 봄 · 다크 ───────────────────────────────────────────────────── */
+:root.dark[data-season='spring'],
+:root.dark [data-season='spring'] {
+  --color-background: #12100f;
+  --logo-lime: #c4dd6b;
+  --s-accent: #e0a7b8;
+  --s-hi: #f58cae;
+  --s-hi2: #f8d79a;
+  --s-soft: #2a1e22;
+  --s-hi-ink: #1a1a1a;
+}
+
+/* ── 여름 · 라이트 ─────────────────────────────────────────────────── */
+:root[data-season='summer'],
+[data-season='summer'] {
+  --color-background: #f5fafb;
+  --logo-lime: #b8d565;
+  --s-accent: #3f9cba;
+  --s-hi: #00a6c4;
+  --s-hi2: #ffd23d;
+  --s-soft: #ddeff5;
+  --s-hi-ink: #ffffff;
+}
+
+/* ── 여름 · 다크 ───────────────────────────────────────────────────── */
+:root.dark[data-season='summer'],
+:root.dark [data-season='summer'] {
+  --color-background: #0b1114;
+  --logo-lime: #b8d565;
+  --s-accent: #74afc2;
+  --s-hi: #22c1e0;
+  --s-hi2: #ffdc5c;
+  --s-soft: #12262c;
+  --s-hi-ink: #1a1a1a;
+}
+
+/* ── 가을 · 라이트 ─────────────────────────────────────────────────── */
+:root[data-season='autumn'],
+[data-season='autumn'] {
+  --color-background: #fdf6ec;
+  --logo-lime: #a9c452;
+  --s-accent: #c9702f;
+  --s-hi: #e2661a;
+  --s-hi2: #f6c445;
+  --s-soft: #f8e5d2;
+  --s-hi-ink: #ffffff;
+}
+
+/* ── 가을 · 다크 ───────────────────────────────────────────────────── */
+:root.dark[data-season='autumn'],
+:root.dark [data-season='autumn'] {
+  --color-background: #13100b;
+  --logo-lime: #a9c452;
+  --s-accent: #cf9266;
+  --s-hi: #f07c33;
+  --s-hi2: #ffd15e;
+  --s-soft: #2b2015;
+  --s-hi-ink: #1a1a1a;
+}
+
+/* ── 겨울 · 라이트 ─────────────────────────────────────────────────── */
+:root[data-season='winter'],
+[data-season='winter'] {
+  --color-background: #f6f9fb;
+  --logo-lime: #9fbc52;
+  --s-accent: #4d7691;
+  --s-hi: #2f6ea8;
+  --s-hi2: #8fc6f0;
+  --s-soft: #e3edf7;
+  --s-hi-ink: #ffffff;
+}
+
+/* ── 겨울 · 다크 ───────────────────────────────────────────────────── */
+:root.dark[data-season='winter'],
+:root.dark [data-season='winter'] {
+  --color-background: #0c1013;
+  --logo-lime: #9fbc52;
+  --s-accent: #7692a5;
+  --s-hi: #4f96d4;
+  --s-hi2: #b4d9f5;
+  --s-soft: #16222d;
+  --s-hi-ink: #1a1a1a;
+}
+
+/* ── 신호 레이어 ─────────────────────────────────────────────────────────────
+ *
+ * 계절이 실제로 보이는 자리. 만채도를 쓰되 면적은 화면의 10% 를 넘기지 않는다 —
+ * 넘으면 배경으로 읽히기 시작하고, 배경이 되면 다시 안 보인다.
+ *
+ * 배경·카드면·본문에는 절대 넣지 않는다.
+ */
+.season-signal {
+  background-color: var(--s-hi);
+  color: var(--s-hi-ink);
+}
+
+/* 글자만 계절색으로 — 숫자·마감일처럼 면이 없는 자리. */
+.season-signal-text {
+  color: var(--s-hi);
+}
+
+/* 액센트 — 신호보다 한 단 조용하다. 기간·상태를 말하는 자리에 쓴다
+   (좋아요, 혼잡도 피크, 모집완료). 계절색이되 화면을 지배하지 않는다. */
+.season-accent {
+  background-color: var(--s-accent);
+  color: #ffffff;
+}
+
+.season-accent-text {
+  color: var(--s-accent);
+}
+
+/* 액센트 소프트 — 같은 색을 아주 옅게. 칩 배경처럼 넓지 않은 면. */
+.season-signal-soft {
+  background-color: color-mix(in srgb, var(--s-accent) 16%, transparent);
+  color: var(--s-accent);
+}
+
+/* ── 지도 면 ─────────────────────────────────────────────────────────────────
+ *
+ * 시안: "지도 면은 배경보다 3% 어둡게 고정."
+ *
+ * 지도는 제 색(도로·녹지·물)을 갖고 있어서 계절색을 칠하면 두 색이 싸운다. 밝기만 한 단
+ * 낮춰 지도가 페이지 위에 놓인 별개의 면으로 읽히게 한다.
+ */
+.map-surface {
+  background-color: color-mix(in srgb, var(--color-background) 97%, #000000);
+}
+
+/* 보조 신호 — 시안에서 배너의 연도 칩 하나에만 쓰인다.
+   강조신호 면 위에 얹히므로 글자는 잉크다(시안 슬라이드 6 의 SUMMER 2026 칩). */
+.season-signal2 {
+  background-color: var(--s-hi2);
+  color: #1a1a1a;
+}

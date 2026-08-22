@@ -5,6 +5,7 @@ import { ArrowLeft, MapPin, Calendar, Tag, Clock, Flame, MessageSquare } from 'l
 
 import { REGIONS, classifyRegion, regionBySlug } from '@/lib/regions';
 import { DDAY_TONE_CLASS, ddayTone } from '@/lib/ddayTone';
+import { landingSeason } from '@/lib/landingSeason';
 import { LANDING_COPY, type LandingCopy, type MetaPick, type PickReason } from '@/lib/landingCopy';
 import { localizedLabel } from '@/lib/localeLabel';
 import { PRIORITY_LANDING_LINKS } from '@/lib/priorityLandingLinks';
@@ -740,7 +741,16 @@ export async function SliceLandingPage({ slug, locale }: { slug: string; locale:
   const kicker = kickerByKind[slice.kind];
 
   return (
-    <main className="seo-landing-surface relative isolate min-h-screen overflow-x-clip pb-24 text-gray-900 md:pb-0 dark:text-white">
+    /* 이 페이지가 입는 계절은 <b>오늘</b>이 아니라 <b>이 목록이 다루는 기간</b>이다.
+       /popups/12월-성수 를 8월에 여는 사람이 매일 있는데, 지금 계절로 칠하면 겨울 팝업 목록이
+       여름 하늘색으로 나온다. 규칙은 lib/landingSeason 참고.
+
+       계절은 <b>색과 배지에만</b> 들어간다 — title·description·h1 에는 넣지 않는다.
+       색인된 글자에 "여름" 이 들어가면 9월에도 검색 결과에는 여름으로 남는다. */
+    <main
+      data-season={landingSeason(slug)}
+      className="seo-landing-surface relative isolate min-h-screen overflow-x-clip pb-24 text-gray-900 md:pb-0 dark:text-white"
+    >
       {/* 확정안 1d: 장식은 제목 주변에서만 끝나고 목록 아래는 조용한 종이 면으로 남긴다. */}
       <div aria-hidden="true" className="seo-landing-glow" />
       <div aria-hidden="true" className="seo-landing-grain" />
@@ -1124,9 +1134,16 @@ function StatCard({
   big?: boolean;
   tone?: 'neutral' | 'lime' | 'hot';
 }) {
+  /*
+   * 'hot' 은 <b>마감이 걸린 숫자</b>다 — 가장 빠른 마감일이 여기 들어간다.
+   * 계절 신호가 가는 네 자리 중 하나라 계절색을 따른다(seasons.css 의 --s-hi).
+   *
+   * 랜딩에서 계절색이 마감을 강조하는 데 쓰이면 목적이 일치해서 광고로 안 읽힌다.
+   * 반대로 계절색을 제목이나 배너에 쓰면 첫 방문자에게는 뜬금없는 장식이 된다.
+   */
   const valueColor =
     tone === 'hot'
-      ? 'text-orange-500'
+      ? 'season-signal-text'
       : tone === 'lime'
         ? 'text-lime-600 dark:text-lime-300'
         : 'text-foreground';
