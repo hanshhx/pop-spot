@@ -119,6 +119,9 @@ import { FeedbackForm } from '@/features/feedback/FeedbackForm';
 import { ProfileEditModal } from '@/features/profile/ProfileEditModal';
 import BrowseSection from '@/components/main/BrowseSection';
 import { PopupCard } from '@/components/main/PopupCard';
+import SeasonBanner from '@/components/main/SeasonBanner';
+import { SEASON_COPY, isSeasonLimited } from '@/lib/season';
+import { useSeason } from '@/lib/seasonContext';
 import { devMockPopups } from '@/lib/devMockPopups';
 import type { PublicMapMarker } from '@/lib/mapMarkers';
 import FeatureSections from '@/components/main/FeatureSections';
@@ -351,6 +354,10 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
   // "지금 뜨는 팝업" 레일 정렬/필터. 전체(allPopups)에서 파생한다.
   const [railSort, setRailSort] = useState<'popular' | 'deadline' | 'latest'>('popular');
   const [railCat, setRailCat] = useState<CategoryCode | 'all'>('all');
+  /* 계절 한정 필터 — 계절에만 존재하는 칩이다. 없던 버튼이 생기는 것이 색보다 세게 걸린다. */
+  const [railSeasonOnly, setRailSeasonOnly] = useState(false);
+  const season = useSeason();
+  const seasonCopy = SEASON_COPY[season];
   const rail = useDragScroll<HTMLDivElement>();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -430,7 +437,10 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
       railCat === 'all'
         ? dedupedPopups
         : dedupedPopups.filter((p) => classifyCategory(p.category) === railCat);
-    const list = [...base];
+    // 계절 한정 = 이번 계절 안에 마감하는 것. 계절이 끝나면 목록에서 사라진다.
+    const list = railSeasonOnly
+      ? base.filter((p) => isSeasonLimited(p.endDate, season))
+      : [...base];
     if (railSort === 'deadline') {
       // 마감임박순 — endDate 없는 건 뒤로(Infinity). parseDate 로 달력 실재성까지 검증(이월 방지).
       const end = (p: PopupStore) => {
@@ -450,7 +460,13 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
       list.sort((a, b) => (b.viewCount || 0) - (a.viewCount || 0) || b.id - a.id);
     }
     return list.slice(0, RAIL_POPUP_COUNT);
-  }, [dedupedPopups, railSort, railCat]);
+  }, [dedupedPopups, railSort, railCat, railSeasonOnly, season]);
+
+  /** 계절 한정 칩은 실제로 걸리는 게 있을 때만 띄운다 — 눌러도 빈 목록이면 신호가 아니라 고장이다. */
+  const seasonLimitedCount = useMemo(
+    () => dedupedPopups.filter((p) => isSeasonLimited(p.endDate, season)).length,
+    [dedupedPopups, season],
+  );
 
   /** 필터 칩 노출 대상 — 전체 목록에 실제로 존재하는 카테고리만(카운트 0 은 숨김). */
   const railCategories = useMemo(() => {
@@ -1250,7 +1266,13 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
       {/* 모드별 풀 배경 영상 — 라이트=밝은 스카이라인(light-bg), 다크=생기있는 서울 야경(login-bg).
           영상이 '실제로 보이도록' 스크림은 얕게(home-video-scrim). 콘텐츠는 불투명 카드 위라 가독성은 카드가 담당.
           마운트 전엔 브랜드 단색(cream/ink)만 → 깜빡임 없이 영상 페이드 인. 활성 모드 영상 한 개만 로드. */}
-      <div className="fixed inset-0 -z-10 bg-cream-100 dark:bg-ink-900 overflow-hidden" aria-hidden>
+      {/* 이 층이 화면 전체를 덮으므로 여기가 크림/잉크로 고정돼 있으면 계절 배경은 어디에도
+          안 보인다 — body 의 --color-background 까지 전부 가린다. 계절 토큰으로 바꾼다. */}
+      <div
+        className="fixed inset-0 -z-10 overflow-hidden"
+        style={{ background: 'var(--s-bg)' }}
+        aria-hidden
+      >
         {themeReady && <LoopingBgVideo key={bgVideoSrc} src={bgVideoSrc} rate={bgVideoRate} />}
         {/* 좁은 화면 전용 배경 보강. 영상이 없는 구간에서만 그려지고 CSS 만 쓴다 — 규칙은
             globals.css 의 .home-flat-bg 주석 참고. 넓은 화면에서는 display:none 이라
@@ -1272,6 +1294,17 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
           onNavChange={(t) => handleTabChange(t)}
           mobileLocaleControl={<LocaleSwitcher locale={locale} />}
           className="mb-4 md:mb-6"
+        />
+
+        {/* 계절 전환 배너 — 재방문자에게 계절당 한 번, 2주 뒤 접힘. 자세한 규칙은 컴포넌트 주석. */}
+        <SeasonBanner
+          onExplore={() => {
+            setRailSeasonOnly(true);
+            handleTabChange('MAP');
+            document
+              .getElementById('season-limited-rail')
+              ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }}
         />
 
         {/*
@@ -1602,12 +1635,13 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
 
             {/* 지금 뜨는 팝업 — 사진 카드 레일 (디자인 진단서 P0: 팝업 사진 카드로 코어 뷰잉 강화). */}
             <motion.section
+              id="season-limited-rail"
               aria-label={t('section.trending')}
               initial="hidden"
               whileInView="visible"
               viewport={{ once: true, margin: '-80px' }}
               variants={sectionVariants}
-              className="mb-16"
+              className="mb-16 scroll-mt-24"
             >
               <header className="mb-4 flex items-end justify-between gap-3">
                 <div>
@@ -1649,6 +1683,37 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
                 </div>
                 {railCategories.length > 0 && (
                   <div className="custom-scrollbar -mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1">
+                    {/* 계절 한정 — 계절에만 존재하는 칩. 카테고리 칩과 같은 줄, 맨 앞에 둔다.
+                        만채도(--s-hi)는 켜졌을 때만 칠한다. 꺼진 상태까지 칠하면 칩 하나가
+                        상시 만채도 면이 되어 10% 상한을 혼자 먹는다. */}
+                    {seasonLimitedCount > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setRailSeasonOnly((on) => !on)}
+                        aria-pressed={railSeasonOnly}
+                        className="inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold text-foreground transition"
+                        style={
+                          railSeasonOnly
+                            ? {
+                                background: 'var(--s-hi)',
+                                borderColor: 'var(--s-hi)',
+                                color: 'var(--s-hi-fg)',
+                              }
+                            : { borderColor: 'color-mix(in srgb, var(--s-hi) 50%, transparent)' }
+                        }
+                      >
+                        {/* 꺼진 상태의 글자는 본문색이다. 만채도 글자를 밝은 배경에 두면 대비가
+                            AA 아래로 떨어져서, 계절 색은 점과 테두리만 진다. */}
+                        {!railSeasonOnly && (
+                          <span
+                            aria-hidden
+                            className="size-1.5 rounded-full"
+                            style={{ background: 'var(--s-hi)' }}
+                          />
+                        )}
+                        {seasonCopy.chip} {seasonLimitedCount}
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={() => setRailCat('all')}

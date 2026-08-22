@@ -135,6 +135,180 @@
   --shadow-glow: 0 0 0 4px rgba(194, 249, 112, 0.4);
 }
 
+/* ───────────────────────────────────────────────────────────────────────────
+   계절 테마 — 12토큰 × 4계절 × 라이트/다크 = 8세트.
+
+   셀렉터를 곱하지 말고 나열한다. `[data-season="summer"]` 와 `.dark[data-season="summer"]`
+   두 블록을 각각 쓰는 편이 디버깅이 훨씬 쉽고, 무엇보다 **다크를 라이트에서 계산해 만들려는
+   시도는 실패한다** — 명도 반전이나 필터로는 아래 다크 값들이 도출되지 않는다. 그게 8개를
+   그냥 다 적어 두는 이유다.
+
+   역할은 사계절 고정이고 계절이 옮기는 건 색온도뿐이다:
+     --s-lime    주 동작        --s-accent  기간 · 긴급
+     --s-ink     글자           --s-line    경계선
+     --s-hi      강조 신호(만채도)   --s-hi2  강조 보조(만채도)
+
+   ⚠️ --s-hi / --s-hi2 는 **신호 레이어에서만** 쓴다. 한 화면에서 차지하는 면적이 10% 를
+   넘으면 배경이 되고, 배경이 되면 다시 안 보인다. 배경·카드 면·본문·긴 문단에는 넣지 않는다.
+
+   --s-hi 면 위에 얹는 글자색은 --s-hi-fg 를 쓴다. 흰 글자로 통일하면 여덟 중 일곱이 AA(4.5:1)
+   에 못 미친다 — 만채도 값들의 명도가 계절마다 제각각이라 한쪽으로 고정할 수가 없다. 실제로
+   흰 글자가 이기는 건 라이트 겨울(#2f6ea8) 하나뿐이고, 나머지는 어두운 글자가 이긴다.
+
+   다크에서 배경은 거의 중립으로 둔다 — 어두운 면의 미세한 색기운은 계절이 아니라 모니터
+   캘리브레이션 오류나 번인처럼 읽히기 때문이다. 다크의 계절감은 전부 신호 레이어가 진다.
+   ─────────────────────────────────────────────────────────────────────────── */
+
+:root[data-season='spring'] {
+  --s-bg: #fdf7f4;
+  --s-surface: #ffffff;
+  --s-ink: #14100f;
+  --s-muted: #7a5c56;
+  --s-line: #e7d8d3;
+  --s-lime: #c4dd6b;
+  --s-accent: #d9718f;
+  --s-soft: #fbe6ec;
+  --s-map: #f5ece8;
+  --s-mapline: #e6d5cf;
+  --s-hi: #ef6f9b;
+  --s-hi2: #8fc93a;
+  --s-hi-fg: #14100f;
+}
+
+:root[data-season='summer'] {
+  --s-bg: #f5fafb;
+  --s-surface: #ffffff;
+  --s-ink: #0d1517;
+  --s-muted: #4a6e78;
+  --s-line: #d3e4e9;
+  --s-lime: #b8d565;
+  --s-accent: #3f9cba;
+  --s-soft: #ddeff5;
+  --s-map: #e7f1f4;
+  --s-mapline: #d2e2e7;
+  --s-hi: #00a6c4;
+  --s-hi2: #ffd23d;
+  --s-hi-fg: #0d1517;
+}
+
+:root[data-season='autumn'] {
+  --s-bg: #fdf6ec;
+  --s-surface: #fffdf9;
+  --s-ink: #17110a;
+  --s-muted: #7d6444;
+  --s-line: #e8dac2;
+  --s-lime: #a9c452;
+  --s-accent: #c9702f;
+  --s-soft: #f8e5d2;
+  --s-map: #f4ebdc;
+  --s-mapline: #e2d3ba;
+  --s-hi: #e2661a;
+  --s-hi2: #f6c445;
+  --s-hi-fg: #17110a;
+}
+
+:root[data-season='winter'] {
+  --s-bg: #f6f9fb;
+  --s-surface: #ffffff;
+  --s-ink: #0c1216;
+  --s-muted: #546c7c;
+  --s-line: #d8e2e9;
+  --s-lime: #9fbc52;
+  --s-accent: #4d7691;
+  --s-soft: #e2ecf2;
+  --s-map: #e9f0f4;
+  --s-mapline: #d6e0e7;
+  --s-hi: #2f6ea8;
+  --s-hi2: #8ec9ee;
+  --s-hi-fg: #ffffff;
+}
+
+:root.dark[data-season='spring'] {
+  --s-bg: #12100f;
+  --s-surface: #1c1917;
+  --s-ink: #efe9e6;
+  --s-muted: #9a908c;
+  --s-line: #332b28;
+  --s-lime: #cfe87d;
+  --s-accent: #e88aa8;
+  --s-soft: #2a2320;
+  --s-map: #171413;
+  --s-mapline: #241f1d;
+  --s-hi: #f58cae;
+  --s-hi2: #a8d84f;
+  --s-hi-fg: #12100f;
+}
+
+:root.dark[data-season='summer'] {
+  --s-bg: #0b1114;
+  --s-surface: #141b1f;
+  --s-ink: #e4eef1;
+  --s-muted: #8a969a;
+  --s-line: #243036;
+  --s-lime: #c2f970;
+  --s-accent: #4fb8d4;
+  --s-soft: #1b262b;
+  --s-map: #0f171b;
+  --s-mapline: #1b2429;
+  --s-hi: #22c1e0;
+  --s-hi2: #ffdc5c;
+  --s-hi-fg: #0b1114;
+}
+
+:root.dark[data-season='autumn'] {
+  --s-bg: #13100b;
+  --s-surface: #1e1a13;
+  --s-ink: #f0e9dd;
+  --s-muted: #9c9284;
+  --s-line: #352d20;
+  --s-lime: #c3dc66;
+  --s-accent: #e08240;
+  --s-soft: #2b2418;
+  --s-map: #181410;
+  --s-mapline: #26201a;
+  --s-hi: #f07c33;
+  --s-hi2: #ffd15e;
+  --s-hi-fg: #13100b;
+}
+
+:root.dark[data-season='winter'] {
+  --s-bg: #0c1013;
+  --s-surface: #161b20;
+  --s-ink: #e6ecf0;
+  --s-muted: #8b939a;
+  --s-line: #252d34;
+  --s-lime: #b8d565;
+  --s-accent: #6fa3c4;
+  --s-soft: #1e252c;
+  --s-map: #101519;
+  --s-mapline: #1c2329;
+  --s-hi: #4f96d4;
+  --s-hi2: #a8d4f2;
+  --s-hi-fg: #0c1013;
+}
+
+/*
+ * 기존 시맨틱 토큰 → 계절 토큰 브릿지.
+ *
+ * 저장소에는 `bg-white`·`dark:bg-[#111]` 같은 하드코딩이 수백 곳 있어서, 그걸 전부 --s-* 로
+ * 치환하는 건 이 작업의 범위가 아니다(회귀 위험이 이득보다 크다). 대신 화면 전체의 바탕을
+ * 이루는 네 토큰만 계절에 연결한다 — 이게 "색온도만 3~6% 이동" 에 해당하는 몫이다.
+ *
+ * 브랜드 라임(--color-primary)은 건드리지 않는다. 계절 라임(--s-lime)은 로고 글리프와
+ * 계절 범위 안의 요소에서만 쓴다 — 라임 네 칸이 서로 비슷해 보이는 건 의도된 것이고,
+ * 온도를 끄는 건 배경과 액센트지 라임이 아니다.
+ *
+ * ⚠️ 이 블록이 :root.dark 뒤에 와야 다크에서도 계절 배경이 적용된다(특정도 동률 → 순서 승부).
+ */
+:root[data-season] {
+  --color-background: var(--s-bg);
+  --color-surface: var(--s-surface);
+  --color-surface-foreground: var(--s-ink);
+  --color-foreground: var(--s-ink);
+  --color-muted-foreground: var(--s-muted);
+  --color-border: var(--s-line);
+}
+
 /*
  * 다크모드에서 'text-white' 또는 'dark:text-white' 로 박힌 절대 흰색은
  * 배경과 대비가 너무 강해서 가독성이 떨어진다. 본문 톤으로 부드럽게 덮어쓴다.
