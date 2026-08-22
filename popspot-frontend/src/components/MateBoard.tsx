@@ -382,7 +382,7 @@ export default function MateBoard({ user }: MateBoardProps) {
                           }`}
                 >
                   {post.isMegaphone && post.status === 'CLOSED' && (
-                    <div className="absolute top-0 right-0 bg-gray-400 text-white text-[9px] md:text-[10px] font-bold px-2 py-1 md:px-3 md:py-1.5 rounded-bl-lg md:rounded-bl-xl flex items-center gap-1">
+                    <div className="absolute top-0 right-0 season-signal-soft text-[9px] md:text-[10px] font-bold px-2 py-1 md:px-3 md:py-1.5 rounded-bl-lg md:rounded-bl-xl flex items-center gap-1">
                       {t('mate.boostClosed')}
                     </div>
                   )}

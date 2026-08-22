@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type SyntheticEvent } from 'react';
 
 import { canRevealVideo, isPlaybackStalled, shouldUseStandbyRecovery } from '@/lib/videoWatchdog';
+import { VIDEO_MIN_WIDTH } from '@/lib/seasonVideo';
 
 const CROSSFADE_MS = 1200;
 
@@ -37,11 +38,15 @@ const FRAME_READY_TIMEOUT_MS = 3_500;
  * 이게 차지한다. 안 그리면 부모의 브랜드 단색(cream/ink)이 그대로 보인다 — 빈 화면이 아니다.
  *
  * <p>움직임을 줄이도록 설정한 사람에게도 그리지 않는다.
+ *
+ * <p>기준 폭은 {@link VIDEO_MIN_WIDTH} 하나만 본다. 예전에는 여기에 768 이 박혀 있었는데,
+ * 같은 규칙을 설명하는 lib/seasonVideo 주석과 관리자 화면은 1024 라고 적고 있었다. 셋이 어긋나면
+ * 운영자가 화면에서 읽은 폭과 실제로 파일이 내려가는 폭이 달라진다.
  */
 function useShouldRender(): boolean {
   const [ok, setOk] = useState(false);
   useEffect(() => {
-    const wide = window.matchMedia('(min-width: 768px)');
+    const wide = window.matchMedia(`(min-width: ${VIDEO_MIN_WIDTH}px)`);
     const calm = window.matchMedia('(prefers-reduced-motion: no-preference)');
     const update = () => setOk(wide.matches && calm.matches);
     update();

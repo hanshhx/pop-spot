@@ -34,9 +34,9 @@ import { PhotoDisclosure } from '@/components/popup/PhotoDisclosure';
 import { addToCalendar, toCalendarEvent } from '@/lib/calendar';
 import type { User } from '@/types/popup';
 import { useLocale, type MessageKey } from '@/lib/i18n';
-import LocaleSwitcherBoundary from '@/components/LocaleSwitcherBoundary';
 import { localizedPath } from '@/lib/localePath';
 import { bilingual } from '@/lib/bilingual';
+import LocaleSwitcherBoundary from '@/components/LocaleSwitcherBoundary';
 
 declare global {
   interface Window {
@@ -546,7 +546,7 @@ export default function PopupDetailClient({
                 onClick={handleToggleLike}
                 aria-label={t('common.wishlist')}
                 className={`grid h-11 w-11 place-items-center rounded-full backdrop-blur-md transition ${
-                  isLiked ? 'bg-hot-400 text-white' : 'bg-black/40 text-white hover:bg-black/60'
+                  isLiked ? 'season-accent' : 'bg-black/40 text-white hover:bg-black/60'
                 }`}
               >
                 <Heart size={18} className={isLiked ? 'fill-current' : ''} />

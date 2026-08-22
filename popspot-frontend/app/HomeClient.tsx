@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useTheme } from 'next-themes';
 import {
   MapPin,
   Flame,
@@ -45,6 +44,11 @@ import { REGIONS, type RegionCode } from '@/lib/regions';
 import { localizedPath } from '@/lib/localePath';
 import { PRIORITY_LANDING_LINKS } from '@/lib/priorityLandingLinks';
 import { nextHomeUrl, parsePanel } from '@/lib/homeUrlState';
+import { useSeason } from '@/hooks/useSeason';
+import { useSeasonBackground } from '@/hooks/useSeasonBackground';
+import LoopingBgVideo from '@/components/LoopingBgVideo';
+import { SeasonBanner } from '@/components/season/SeasonBanner';
+import { SEASON_LABEL, seasonOfMonth } from '@/lib/season';
 import { DDAY_TONE_CLASS, ddayTone } from '@/lib/ddayTone';
 
 /**
@@ -100,7 +104,6 @@ import { Footer } from '../src/components/layout/Footer';
 import { BottomDock, type DockTab } from '../src/components/layout/BottomDock';
 import MusicTab from '@/components/music/MusicTab';
 import RankCard from '@/components/rank/RankCard';
-import LoopingBgVideo from '@/components/LoopingBgVideo';
 import { notify, notifySuccess, notifyError, notifyWarning, confirmAction } from '@/lib/notify';
 import {
   getGuestFirstVisit,
@@ -323,18 +326,24 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // 모드별 풀 배경 영상: 라이트=밝은 스카이라인(light-bg), 다크=생기있는 서울 야경(login-bg).
-  // resolvedTheme 은 마운트 후에야 확정되므로 gate 로 SSR 불일치/깜빡임 방지(마운트 전엔 브랜드 단색만).
-  const { resolvedTheme } = useTheme();
-  const [themeReady, setThemeReady] = useState(false);
-  useEffect(() => setThemeReady(true), []);
-  // 라이트=매끄러운 루프(부메랑)로 재인코딩한 밝은 스카이라인(light-bg), 다크=서울 야경(login-bg-v2).
-  // v2 = 1080p/7.9Mbps 원본(16.3MB)을 720p/CRF28 로 재인코딩한 것(2.8MB, SSIM 0.947). 스크림 두 겹
-  // 뒤에 깔리는 배경이라 체감 차이는 없고 모바일 첫 방문 전송량만 83% 줄었다. 파일명을 바꾼 건
-  // 캐시에 남은 옛 16MB 파일을 확실히 버리게 하려는 것.
-  const bgVideoSrc = resolvedTheme === 'dark' ? '/login-bg-v2.mp4' : '/light-bg.mp4';
-  // 라이트 영상은 도심 불빛 반짝임이 커서 0.5배속으로 차분하게. 다크(야경)는 원속도 유지.
-  const bgVideoRate = resolvedTheme === 'dark' ? 1 : 0.5;
+  /*
+   * 지금 계절. 서버가 <html data-season> 에 정해 둔 값을 읽는다 — 날짜로 다시 계산하지 않는다.
+   * 관리자가 계절을 고정해 두었을 수 있고 그 설정은 쿠키에 있어 서버만 본다.
+   *
+   * <p>한동안 배경 영상을 걷어내고 계절 바탕색만 뒀었다. 영상이 화면을 덮으면 계절색이 뒤에
+   * 완전히 가려져, 계절이 보이는 곳이 헤더 마크와 숫자 몇 개뿐이 됐기 때문이다 — 배경은 하나만
+   * 주인일 수 있다.
+   *
+   * <p>지금은 <b>둘을 한 겹으로 합쳐</b> 되살렸다. 영상 위에 덮는 베일이 계절 바탕색 그 자체라
+   * (globals.css 의 home-video-scrim), 영상은 계절색 너머로 보인다. 주인은 여전히 계절색 하나다.
+   */
+  const season = useSeason();
+
+  /*
+   * 계절 × 테마 배경 영상. 좁은 화면(1024px 미만)과 '움직임 줄이기' 설정에서는 LoopingBgVideo 가
+   * 스스로 아무것도 그리지 않고 파일도 받지 않는다 — 그때 보이는 것이 아래 bg-background 다.
+   */
+  const { src: bgVideoSrc, rate: bgVideoRate, ready: bgReady } = useSeasonBackground();
 
   // 화면 문구 언어. 첫 렌더는 항상 한국어이고(서버 HTML 과 맞춰 깜빡임 방지),
   // 브라우저에서 저장값·브라우저 언어를 읽어 반영한다.
@@ -353,7 +362,7 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
   const initialMapMarkers = useMemo(() => initialPopups.map(popupToMapMarker), [initialPopups]);
   // "지금 뜨는 팝업" 레일 정렬/필터. 전체(allPopups)에서 파생한다.
   const [railSort, setRailSort] = useState<'popular' | 'deadline' | 'latest'>('popular');
-  const [railCat, setRailCat] = useState<CategoryCode | 'all'>('all');
+  const [railCat, setRailCat] = useState<CategoryCode | 'all' | 'season'>('all');
   const rail = useDragScroll<HTMLDivElement>();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -452,6 +461,16 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
      * 병합본을 쓴다. 같은 행사가 이름만 다른 여러 줄로 들어와 목록을 채우면, 스크롤을 내려도
      * 새로운 것이 안 나온다 — 실측에서 상위 12칸 중 8칸이 3개 행사였다.
      */
+    if (railCat === 'season') {
+      // 이 계절 안에 마감하는 팝업. 계절이 끝나면 스스로 사라진다.
+      const inSeason = dedupedPopups.filter((p) => {
+        if (!p.endDate) return false;
+        const end = new Date(p.endDate);
+        return Number.isFinite(end.getTime()) && seasonOfMonth(end.getMonth() + 1) === season;
+      });
+      return inSeason.slice(0, RAIL_POPUP_COUNT);
+    }
+
     const base =
       railCat === 'all'
         ? dedupedPopups
@@ -1293,17 +1312,22 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
 
   return (
     <main className="relative min-h-screen overflow-x-clip pb-28 font-sans text-foreground transition-colors duration-500 lg:pb-16">
-      {/* 모드별 풀 배경 영상 — 라이트=밝은 스카이라인(light-bg), 다크=생기있는 서울 야경(login-bg).
-          영상이 '실제로 보이도록' 스크림은 얕게(home-video-scrim). 콘텐츠는 불투명 카드 위라 가독성은 카드가 담당.
-          마운트 전엔 브랜드 단색(cream/ink)만 → 깜빡임 없이 영상 페이드 인. 활성 모드 영상 한 개만 로드. */}
-      <div className="fixed inset-0 -z-10 bg-cream-100 dark:bg-ink-900 overflow-hidden" aria-hidden>
-        {themeReady && <LoopingBgVideo key={bgVideoSrc} src={bgVideoSrc} rate={bgVideoRate} />}
-        {/* 좁은 화면 전용 배경 보강. 영상이 없는 구간에서만 그려지고 CSS 만 쓴다 — 규칙은
-            globals.css 의 .home-flat-bg 주석 참고. 넓은 화면에서는 display:none 이라
-            영상 위에 아무것도 얹지 않는다. */}
-        <div className="home-flat-bg"></div>
-        <div className="home-flat-grain"></div>
-        <div className="home-video-scrim absolute inset-0"></div>
+      {/* 배경은 계절 하나다 — 바탕색과 영상이 겹이 아니라 한 겹이다.
+
+          바탕색이 먼저 깔리고(영상을 안 그리는 화면에서는 이것만 보인다), 그 위에 계절 영상,
+          다시 그 위에 같은 바탕색으로 짠 베일이 덮인다. 격자도 번짐도 넣지 않는다 — 시안 원칙대로
+          배경은 조용히 두고 계절은 신호가 말한다. 앞서 격자를 깔았다가 화면이 모눈종이처럼
+          보였다.
+
+          bgReady 전에는 영상을 만들지 않는다. 테마를 모르는 채로 그리면 라이트 사용자가 다크
+          영상 2MB 를 받기 시작했다가 버린다(useSeasonBackground 주석).
+
+          key 를 소스로 주는 이유: 계절이나 테마가 바뀌면 같은 자리에서 파일만 갈아 끼우는 대신
+          컴포넌트를 새로 만든다. LoopingBgVideo 는 <video> 두 개의 재생 위치를 ref 로 들고 있어,
+          갈아 끼우면 이전 영상의 진행 상태가 새 파일에 그대로 남는다. */}
+      <div className="fixed inset-0 -z-10 overflow-hidden bg-background" aria-hidden>
+        {bgReady && <LoopingBgVideo key={bgVideoSrc} src={bgVideoSrc} rate={bgVideoRate} />}
+        <div className="home-video-scrim absolute inset-0" />
       </div>
 
       <div className="relative z-10 px-4 md:px-6 py-4 md:py-6 max-w-[1600px] mx-auto">
@@ -1343,6 +1367,18 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
             </button>
           </div>
         )}
+
+        {/* 계절 전환 배너 — 신호 다섯 중 가장 센 것. 2주 뒤 스스로 사라진다.
+            버튼을 누르면 계절 한정 목록으로 간다(레일 필터와 같은 상태를 쓴다). */}
+        <SeasonBanner
+          season={season}
+          onShowSeasonPicks={() => {
+            setRailCat('season');
+            document
+              .getElementById(HOME_MAP_ID)
+              ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }}
+        />
 
         {guestRemainingDays != null && (
           /* 예전에는 `hidden md:flex` 라 <b>모바일에서 아예 안 보였다.</b> 방문자의 3/4 이
@@ -1432,7 +1468,7 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
                         {locale === 'ko' ? (
                           <>
                             {t('hero.openedPrefix')}
-                            <span className="text-lime-600 dark:text-lime-300">
+                            <span className="season-signal-text">
                               {mappablePopupCount || '…'}
                               {t('count.unit')}
                             </span>
@@ -1442,9 +1478,7 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
                           </>
                         ) : (
                           <>
-                            <span className="text-lime-600 dark:text-lime-300">
-                              {mappablePopupCount || '…'}
-                            </span>{' '}
+                            <span className="season-signal-text">{mappablePopupCount || '…'}</span>{' '}
                             {t('hero.title')}
                           </>
                         )}
@@ -1566,7 +1600,8 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
                   그 높이만큼 위로 올라온다(/map 에는 도크가 없어 이 클래스를 붙이지 않는다). */}
               <div
                 ref={mapCardRef}
-                className="map-clears-dock group relative col-span-1 h-[min(62svh,560px)] min-h-[430px] overflow-hidden rounded-[1.5rem] border border-gray-200 bg-white shadow-lg shadow-black/5 dark:border-white/10 dark:bg-[#111] dark:shadow-black/30 sm:rounded-[2rem] lg:col-span-12 lg:h-[58vh]">
+                className="map-surface map-clears-dock group relative col-span-1 h-[min(62svh,560px)] min-h-[430px] overflow-hidden rounded-[1.5rem] border border-[var(--color-border)] shadow-lg shadow-black/5 dark:border-white/10 dark:shadow-black/30 sm:rounded-[2rem] lg:col-span-12 lg:h-[58vh]"
+              >
                 <InteractiveMap
                   initialMarkers={initialMapMarkers}
                   center={mapCenter}
@@ -1708,6 +1743,21 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
                 </div>
                 {railCategories.length > 0 && (
                   <div className="custom-scrollbar -mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1">
+                    {/* 계절 한정 — 이 계절에만 존재하는 칩. 색보다 강한 신호는
+                        "없던 버튼이 생기는 것" 이라, 계절이 바뀌면 이름과 색이 함께 바뀐다.
+                        누르면 이 계절에 끝나는 팝업만 남는다. */}
+                    <button
+                      type="button"
+                      onClick={() => setRailCat(railCat === 'season' ? 'all' : 'season')}
+                      aria-pressed={railCat === 'season'}
+                      className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-bold transition ${
+                        railCat === 'season'
+                          ? 'season-signal'
+                          : 'season-signal-soft border border-[var(--color-border)]'
+                      }`}
+                    >
+                      {SEASON_LABEL[season].ko} 한정
+                    </button>
                     <button
                       type="button"
                       onClick={() => setRailCat('all')}
@@ -1726,6 +1776,16 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
                       </button>
                     ))}
                   </div>
+                )}
+
+                {/* 시안 슬라이드 9 — "사라진다고 말한다".
+                    계절을 실감하게 하는 건 색이 아니라 마감이다. 색은 기억에 안 남지만
+                    "지나면 못 본다" 는 말은 남는다. 계절 한정을 켰을 때만 나온다. */}
+                {railCat === 'season' && (
+                  <p className="mt-2 text-xs font-semibold text-muted-foreground">
+                    <span className="season-signal-text font-bold">{SEASON_LABEL[season].ko}</span>
+                    이 지나면 목록에서 사라집니다 · {railPopups.length}곳
+                  </p>
                 )}
               </div>
 
@@ -2456,7 +2516,10 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
                     <div className="text-xs text-muted-foreground mt-0.5">{t('my.wishlist')}</div>
                   </div>
                   <div className="bg-cream-300 dark:bg-ink-800 p-4 rounded-md text-center border border-[var(--color-border)]">
-                    <Ticket size={16} className="lg:w-5 lg:h-5 mx-auto mb-1 text-muted-foreground" />
+                    <Ticket
+                      size={16}
+                      className="lg:w-5 lg:h-5 mx-auto mb-1 text-muted-foreground"
+                    />
                     <div className="text-2xl font-extrabold text-foreground">
                       {myPageInfo?.stampCount || 0}
                       <span className="text-sm text-muted-foreground font-normal">/12</span>
@@ -2599,7 +2662,10 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
               <div className="p-4 lg:p-6 border-b border-[var(--color-border)]">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-base lg:text-lg font-bold flex items-center gap-2 text-foreground">
-                    <MessageCircle size={16} className="lg:w-[18px] lg:h-[18px] text-muted-foreground" />{' '}
+                    <MessageCircle
+                      size={16}
+                      className="lg:w-[18px] lg:h-[18px] text-muted-foreground"
+                    />{' '}
                     {t('feedback.mine')}
                   </h3>
                   <button
@@ -2620,7 +2686,8 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
               {/* Current Editing Course (DND) */}
               <div className="p-4 lg:p-6">
                 <h3 className="text-base lg:text-lg font-bold mb-4 flex items-center gap-2 text-foreground">
-                  <Route size={16} className="lg:w-[18px] lg:h-[18px] text-muted-foreground" /> Current Plan
+                  <Route size={16} className="lg:w-[18px] lg:h-[18px] text-muted-foreground" />{' '}
+                  Current Plan
                 </h3>
 
                 {myCourseItems.length === 0 && (
@@ -2856,12 +2923,8 @@ function RecentVisitsCard({ standalone = false }: { standalone?: boolean } = {})
         {standalone ? (
           <span className="flex min-w-0 items-center gap-2.5">
             <Clock size={16} className="shrink-0 text-muted-foreground" aria-hidden />
-            <span className="shrink-0 text-sm font-bold text-foreground">
-              {t('recent.title')}
-            </span>
-            <span className="truncate text-sm text-muted-foreground">
-              · {itemCountLabel}
-            </span>
+            <span className="shrink-0 text-sm font-bold text-foreground">{t('recent.title')}</span>
+            <span className="truncate text-sm text-muted-foreground">· {itemCountLabel}</span>
           </span>
         ) : (
           <span className="flex min-w-0 items-center gap-2.5 text-foreground">

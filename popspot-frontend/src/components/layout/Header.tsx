@@ -10,6 +10,8 @@ import ThemeToggle from '@/components/ThemeToggle';
 import { unreadCount as readUnread } from '@/lib/notifications';
 import { cn } from '@/lib/utils';
 import { Logo } from '@/components/layout/Logo';
+import { SeasonMark } from '@/components/layout/SeasonMark';
+import { useSeason } from '@/hooks/useSeason';
 import { SectionLogo } from '@/components/layout/BrandLogos';
 import { DOCK_ITEMS } from '@/components/layout/BottomDock';
 import { useLocale } from '@/lib/i18n';
@@ -62,6 +64,8 @@ export function Header({
   className,
 }: HeaderProps) {
   const { t, locale } = useLocale();
+  // 지금 계절 — 서버가 <html data-season> 에 정해 둔 값을 읽는다(관리자 고정 반영).
+  const season = useSeason();
   // v2.18.1 — 미확인 알림 개수 (localStorage 기반).
   const [unread, setUnread] = useState(0);
   useEffect(() => {
@@ -87,11 +91,14 @@ export function Header({
           onClick={onLogoClick}
           className="group inline-flex min-w-0 shrink items-start"
         >
-          <div className="leading-none">
+          <div className="flex items-start gap-1.5 leading-none">
             {/* 로고 비율이 약 5.1:1 이라 높이를 올리면 폭도 그만큼 늘어난다. max-w 를 같이 올리지
                 않으면 폭에서 잘려 높이만 키운 효과가 사라진다. 모바일 h-6(24px)은 데스크톱
                 h-14(56px)에 비해 유독 작았다. */}
             <Logo className="h-9 max-w-[188px] transition-opacity group-hover:opacity-80 sm:h-10 sm:max-w-[210px] md:h-14 md:max-w-none" />
+            {/* 계절 표시 — 로고 자체는 건드리지 않고 옆에 붙인다. 로고를 계절색으로 칠하면
+                브랜드가 흔들린다. 사계절 상주하는 신호라 화면 어디서든 지금이 어느 계절인지 알 수 있다. */}
+            <SeasonMark season={season} className="mt-0.5 size-3.5 shrink-0 sm:size-4 md:mt-1 md:size-5" />
           </div>
           {subtitle ? (
             <p className="mt-1 hidden text-[10px] tracking-[0.2em] uppercase text-muted-foreground md:block md:text-xs">

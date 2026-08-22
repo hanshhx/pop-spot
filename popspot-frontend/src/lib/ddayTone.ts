@@ -46,7 +46,9 @@ export function ddayTone(daysLeft: number | null): DdayTone | null {
  * 쓰는 이 브랜드의 규칙과도 맞는다.
  */
 export const DDAY_TONE_CLASS: Record<DdayTone, string> = {
-  urgent: 'bg-hot-400 text-ink-900',
+  // 계절 신호가 들어가는 다섯 자리 중 하나. 그리드에 여덟 번 반복되므로 면적 없이 빈도로
+  // 존재감을 낸다 — 넓은 면을 물들이는 대신 좁은 자리에 만채도를 쓰는 것이 이 테마의 방식이다.
+  urgent: 'season-signal',
   calm: 'bg-black/[0.06] text-ink-600 dark:bg-white/10 dark:text-white/75',
   ended: 'bg-black/[0.55] text-white/85 dark:bg-white/15 dark:text-white/70',
 };
