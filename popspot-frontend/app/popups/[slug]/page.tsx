@@ -1121,7 +1121,7 @@ function StatCard({
     <div
       className={`flex-1 rounded-2xl border p-3 md:p-4 text-center ${
         big
-          ? 'border-lime-300/60 bg-[#f5fde6] dark:bg-lime-300/[0.08]'
+          ? 'border-lime-300/60 bg-lime-50 dark:bg-lime-300/[0.08]'
           : 'border-gray-200 bg-white dark:border-white/10 dark:bg-[#17181c]'
       }`}
     >
