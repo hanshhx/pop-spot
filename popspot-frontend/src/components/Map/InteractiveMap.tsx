@@ -927,10 +927,33 @@ export default function InteractiveMap({
                       );
                     })
                   ) : (
-                    <div className="text-center text-muted text-[10px] md:text-xs py-8 md:py-10">
-                      {t('map.emptyLine1')}
-                      <br />
-                      {t('map.emptyLine2')}
+                    /* 0곳일 때 문구만 있고 빠져나갈 길이 없었다. 어쩌다 여기 온 사람은
+                       필터를 어디서 풀어야 하는지 모른 채 빈 목록만 본다.
+                       되돌리는 두 가지를 바로 옆에 둔다 — 필터 풀기, 서울 전체 보기. */
+                    <div className="px-4 py-8 text-center md:py-10">
+                      <p className="text-xs text-white/70">
+                        {t('map.emptyLine1')}
+                        <br />
+                        {t('map.emptyLine2')}
+                      </p>
+                      <div className="mt-3 flex flex-wrap justify-center gap-2">
+                        {activeCategory !== 'ALL' && (
+                          <button
+                            type="button"
+                            onClick={() => setActiveCategory('ALL')}
+                            className="rounded-pill bg-lime-300 px-3 py-1.5 text-[11px] font-bold text-ink-900 transition hover:bg-lime-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-400"
+                          >
+                            {t('map.emptyClearFilter')}
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => flyToArea(SEOUL_OVERVIEW)}
+                          className="rounded-pill border border-white/25 px-3 py-1.5 text-[11px] font-bold text-white transition hover:border-white/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-400"
+                        >
+                          {t('map.emptyWholeCity')}
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>

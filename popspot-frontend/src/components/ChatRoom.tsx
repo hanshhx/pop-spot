@@ -261,7 +261,9 @@ export default function ChatRoom({ roomId, nickname }: Props) {
            * 자리라 그 확대가 매번 일어난다 — 예전엔 text-xs(12px) 였다.
            * 높이는 py 로 맞춰 두어 글자만 커지고 칸이 과하게 굵어지지는 않는다.
            */
-          className="min-h-11 flex-1 rounded-full bg-gray-100 px-3 py-2 text-base focus:outline-none md:px-4 md:py-3 dark:bg-black/20 dark:text-white"
+          // focus:outline-none 만 있고 대신할 표시가 없어서, 키보드로 이 칸에 오면 아무 표시가
+          // 없었다. 전역 :focus-visible 규칙까지 같이 꺼진다. 링을 직접 준다.
+          className="min-h-11 flex-1 rounded-full bg-gray-100 px-3 py-2 text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-400 md:px-4 md:py-3 dark:bg-black/20 dark:text-white"
         />
         <button
           onClick={sendMessage}
