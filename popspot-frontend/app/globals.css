@@ -312,14 +312,8 @@ li {
     display: block;
     position: absolute;
     inset: 0;
-    background-image:
-      radial-gradient(88% 40% at 50% 104%, rgba(168, 230, 69, 0.16), transparent 68%),
-      linear-gradient(rgba(79, 122, 16, 0.06) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(79, 122, 16, 0.06) 1px, transparent 1px);
-    background-size:
-      100% 100%,
-      44px 44px,
-      44px 44px;
+    background-image: var(--home-flat-image);
+    background-size: var(--home-flat-size);
     /* 가운데(콘텐츠가 지나가는 띠)는 비운다. 위아래 가장자리에만 격자가 남는다. */
     -webkit-mask-image: linear-gradient(
       180deg,
@@ -362,15 +356,7 @@ li {
   }
 
   .dark .home-flat-bg {
-    background-image:
-      radial-gradient(
-        115% 56% at 82% -5%,
-        rgba(198, 255, 108, 0.25) 0%,
-        rgba(134, 184, 74, 0.1) 40%,
-        transparent 68%
-      ),
-      radial-gradient(76% 46% at -10% 48%, rgba(102, 137, 67, 0.17) 0%, transparent 70%),
-      linear-gradient(180deg, #171e13 0%, #101510 43%, #0c100e 100%);
+    background-image: var(--home-flat-image);
     background-size: 100% 100%;
     -webkit-mask-image: none;
     mask-image: none;
@@ -506,6 +492,85 @@ li {
 
 .dark .seo-landing-sticky-cta {
   background: linear-gradient(0deg, rgba(16, 17, 20, 0.99) 58%, rgba(16, 17, 20, 0));
+}
+
+/* 계절색.
+
+   라임은 건드리지 않는다. 라임은 "지금 누를 것" 이라는 뜻을 갖고 있어서, 계절마다 강조색을
+   바꾸면 그 뜻이 사라지고 계절 4개 × 라이트/다크 2개 = 8조합의 대비를 다시 재야 한다.
+
+   대신 <b>장식 층에만</b> 계절색을 낮은 농도로 섞는다. 배경 격자와 빛 번짐, 로고의 작은 장식.
+   글자·버튼·상태 표시는 계절과 무관하다.
+
+   봄의 분홍은 새로 만든 색이 아니라 심볼에 이미 있는 브랜드 핑크(#e73274)를 옅게 쓴 것이다 —
+   "색은 유지하되 섞는다" 는 뜻에 가장 가깝다. */
+:root,
+[data-season='spring'] {
+  /* 벚꽃 — 브랜드 핑크를 옅게 */
+  --season-tint: 231, 50, 116;
+  --season-tint-strength: 0.22;
+  --season-grid: 0.15;
+}
+
+[data-season='summer'] {
+  /* 그늘과 물 — 라임의 보색 쪽 청록. 라임이 가장 자연스러운 계절이라 계절색은 얕게 둔다. */
+  --season-tint: 34, 168, 168;
+  --season-tint-strength: 0.2;
+  --season-grid: 0.15;
+}
+
+[data-season='autumn'] {
+  /* 단풍 — 주황·황토 */
+  --season-tint: 214, 118, 34;
+  --season-tint-strength: 0.24;
+  --season-grid: 0.16;
+}
+
+[data-season='winter'] {
+  /* 서리 — 푸른 은빛. 유일하게 차가운 쪽이라 농도를 조금 낮춘다. */
+  --season-tint: 96, 138, 196;
+  --season-tint-strength: 0.22;
+  --season-grid: 0.14;
+}
+
+/* 홈 배경 그림 — 실제 배경(.home-flat-bg)과 미리보기(.season-swatch)가 함께 쓴다.
+   미디어 쿼리 밖에 정의해야 데스크탑 폭의 미리보기에서도 읽힌다. */
+:root {
+  --home-flat-image:
+    /* 계절색 — 라임 번짐의 반대편 모서리에서 들어온다. 두 빛이 겹치면 색이 탁해진다. */
+    radial-gradient(
+      130% 62% at 50% -14%,
+      rgba(var(--season-tint), var(--season-tint-strength)),
+      transparent 76%
+    ),
+    radial-gradient(88% 40% at 50% 104%, rgba(168, 230, 69, 0.16), transparent 68%),
+    linear-gradient(rgba(var(--season-tint), var(--season-grid)) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(var(--season-tint), var(--season-grid)) 1px, transparent 1px);
+  --home-flat-size: 100% 100%, 100% 100%, 44px 44px, 44px 44px;
+}
+
+:root.dark {
+  --home-flat-image:
+    radial-gradient(
+      115% 56% at 82% -5%,
+      rgba(198, 255, 108, 0.25) 0%,
+      rgba(134, 184, 74, 0.1) 40%,
+      transparent 68%
+    ),
+    radial-gradient(
+      84% 44% at 6% 34%,
+      rgba(var(--season-tint), calc(var(--season-tint-strength) * 1.5)) 0%,
+      transparent 72%
+    ),
+    radial-gradient(76% 46% at -10% 48%, rgba(102, 137, 67, 0.17) 0%, transparent 70%),
+    linear-gradient(180deg, #171e13 0%, #101510 43%, #0c100e 100%);
+  --home-flat-size: 100% 100%;
+}
+
+/* 계절 미리보기 조각. 실제 배경과 같은 그림을 어느 폭에서도 보여준다. */
+.season-swatch {
+  background-image: var(--home-flat-image);
+  background-size: var(--home-flat-size);
 }
 
 /* 하단 도크가 지도 컨트롤을 가리지 않게 하는 값들.
