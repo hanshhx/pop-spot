@@ -9,6 +9,7 @@ import { MyFeedbackList } from '@/features/feedback/MyFeedbackList';
 import { useLocale } from '@/lib/i18n';
 import { localizedPath } from '@/lib/localePath';
 import type { User } from '@/types/popup';
+import LocaleSwitcherBoundary from '@/components/LocaleSwitcherBoundary';
 
 const USER_KEY = 'user';
 
@@ -37,18 +38,21 @@ export default function FeedbackPage() {
 
   return (
     <main className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
-      <header className="mb-6 flex items-center justify-between gap-3">
+      <header className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-foreground">{t('fb.pageTitle')}</h1>
           <p className="mt-1 text-sm text-muted-foreground">{t('fb.pageDescription')}</p>
         </div>
-        <Link
-          href={localizedPath('/', locale)}
-          className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeft className="size-4" aria-hidden />
-          {t('fb.back')}
-        </Link>
+        <div className="flex shrink-0 items-center gap-3 self-end sm:self-auto">
+          <LocaleSwitcherBoundary locale={locale} />
+          <Link
+            href={localizedPath('/', locale)}
+            className="inline-flex min-h-11 items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+          >
+            <ArrowLeft className="size-4" aria-hidden />
+            {t('fb.back')}
+          </Link>
+        </div>
       </header>
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-5">

@@ -18,6 +18,7 @@ import { groupSameEvent } from '@/lib/groupSameEvent';
 import { isProvenOutsideSeoul } from '@/lib/seoulGuard';
 import { loadPublicMarkers } from '@/lib/emergencyPopupData';
 import { CalendarButton } from '@/features/landing/CalendarButton';
+import LocaleSwitcherBoundary from '@/components/LocaleSwitcherBoundary';
 import {
   getPeriods,
   CATEGORIES,
@@ -745,16 +746,20 @@ export async function SliceLandingPage({ slug, locale }: { slug: string; locale:
       <div aria-hidden="true" className="seo-landing-grain" />
 
       <div className="relative z-10 mx-auto max-w-3xl px-5 py-8 md:px-8 md:py-14">
-        <Link
-          href={home}
-          /*
-           * 페이지 맨 위 되돌아가기. 글자 높이(16px)만큼밖에 안 돼 손가락으로 누르기 어려웠다.
-           * 글자 크기는 두고 위아래 여백으로 누를 면적만 넓힌다.
-           */
-          className="mb-4 inline-flex min-h-11 items-center gap-1.5 py-2 text-xs text-muted-foreground transition hover:text-foreground md:text-sm"
-        >
-          <ArrowLeft size={14} /> {copy.backHome}
-        </Link>
+        <div className="mb-4 flex min-h-11 items-start justify-between gap-3">
+          <Link
+            href={home}
+            /*
+             * 페이지 맨 위 되돌아가기. 글자 높이(16px)만큼밖에 안 돼 손가락으로 누르기 어려웠다.
+             * 글자 크기는 두고 위아래 여백으로 누를 면적만 넓힌다.
+             */
+            className="inline-flex min-h-11 items-center gap-1.5 py-2 text-xs text-muted-foreground transition hover:text-foreground md:text-sm"
+          >
+            <ArrowLeft size={14} /> {copy.backHome}
+          </Link>
+          {/* 검색 결과로 이 페이지에 바로 온 사람도 같은 목록의 영어·일본어판을 찾을 수 있어야 한다. */}
+          <LocaleSwitcherBoundary locale={locale} className="shrink-0" />
+        </div>
 
         {/* 배지 — 진행 중이면 라임 펄스 점 + 카운트로 '살아있는' 신호 */}
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mb-3">
@@ -1055,7 +1060,7 @@ export async function SliceLandingPage({ slug, locale }: { slug: string; locale:
           </section>
         )}
 
-        <FeedbackNote copy={copy} />
+        <FeedbackNote copy={copy} locale={locale} />
 
         <CrossSell current={slice} filtered={filtered} copy={copy} locale={locale} />
 
@@ -1165,7 +1170,7 @@ function SliceIcon({ kind }: { kind: Slice['kind'] }) {
  * 같은 아웃라인 계열로 낮춘다. {@code prefetch=false} 인 이유는 대부분의 방문자가 누르지 않는
  * 링크를 랜딩 160여 개에서 미리 받아올 이유가 없어서다(/feedback 은 noindex 라 SEO 영향도 없다).
  */
-function FeedbackNote({ copy }: { copy: LandingCopy }) {
+function FeedbackNote({ copy, locale }: { copy: LandingCopy; locale: Locale }) {
   return (
     <section className="mt-10 rounded-2xl border border-gray-200 bg-white px-5 py-4 shadow-lg shadow-black/5 dark:border-white/10 dark:bg-[#17181c] dark:shadow-black/30 md:px-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -1177,7 +1182,7 @@ function FeedbackNote({ copy }: { copy: LandingCopy }) {
           <p className="mt-1 text-xs text-muted-foreground md:text-sm">{copy.feedbackNote}</p>
         </div>
         <Link
-          href="/feedback"
+          href={localizedPath('/feedback', locale)}
           prefetch={false}
           className="inline-flex shrink-0 items-center justify-center rounded-pill border border-gray-200 bg-white px-4 py-2 text-xs font-bold text-gray-900 transition hover:border-lime-300 hover:bg-lime-50 md:text-sm dark:border-white/10 dark:bg-white/5 dark:text-white dark:hover:border-lime-300/40 dark:hover:bg-lime-300/10"
         >
