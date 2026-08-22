@@ -15,45 +15,57 @@ import ServiceStatusBanner from '@/components/ServiceStatusBanner';
 import SeasonQueryOverride from '@/components/SeasonQueryOverride';
 import { SEASON_COOKIE, resolveSeason } from '@/lib/season';
 import { SeasonProvider } from '@/lib/seasonContext';
+import { ogImageFor } from '@/lib/seasonOgImage';
 
-export const metadata: Metadata = {
-  metadataBase: new URL('https://popspot.co.kr'),
-  title: {
-    default: 'POP-SPOT — 서울 팝업스토어 인텔리전스',
-    template: '%s · POP-SPOT',
-  },
-  // 네이버 권장(80자 이내). 페이지별 미지정 시 쓰이는 기본 설명.
-  description:
-    '서울 팝업스토어 일정을 지도로 한눈에. 성수·홍대·강남 팝업까지 지역·브랜드별로 무료 확인.',
-  keywords: ['POP-SPOT', '팝스팟', 'popspot'],
-  openGraph: {
-    title: 'POP-SPOT — 서울 팝업스토어 인텔리전스',
-    description:
-      '서울 팝업스토어 일정을 지도로 한눈에. 성수·홍대·강남 팝업까지 지역·브랜드별로 무료 확인.',
-    type: 'website',
-    locale: 'ko_KR',
-    url: 'https://popspot.co.kr',
-    siteName: 'POP-SPOT',
-    images: ['/og-image.png'],
-  },
-  twitter: {
-    card: 'summary_large_image',
-    title: 'POP-SPOT — 서울 팝업스토어 인텔리전스',
-    description:
-      '서울 팝업스토어 일정을 지도로 한눈에. 성수·홍대·강남 팝업까지 지역·브랜드별로 무료 확인.',
-    images: ['/og-image.png'],
-  },
-  icons: {
-    icon: '/icon.svg',
-  },
-  // v2.20.3 — Naver SearchAdvisor / RSS 리더가 자동 인식하도록 alternate 선언
-  alternates: {
-    canonical: 'https://popspot.co.kr',
-    types: {
-      'application/rss+xml': [{ url: '/feed.xml', title: 'POP-SPOT RSS' }],
+export async function generateMetadata(): Promise<Metadata> {
+  /*
+   * 공유 카드는 계절을 따른다. 상수로 두면 계절이 바뀌어도 8월 카드가 계속 나간다.
+   *
+   * 정적 metadata 를 함수로 바꾼 이유가 이것뿐이다 — 쿠키는 요청마다 달라서 상수에서는 읽을 수
+   * 없다. 파일이 아직 없는 계절은 기본 카드로 물러선다(lib/seasonOgImage).
+   */
+  const season = resolveSeason(null, (await cookies()).get(SEASON_COOKIE)?.value);
+  const ogImage = ogImageFor(season);
+
+  return {
+    metadataBase: new URL('https://popspot.co.kr'),
+    title: {
+      default: 'POP-SPOT — 서울 팝업스토어 인텔리전스',
+      template: '%s · POP-SPOT',
     },
-  },
-};
+    // 네이버 권장(80자 이내). 페이지별 미지정 시 쓰이는 기본 설명.
+    description:
+      '서울 팝업스토어 일정을 지도로 한눈에. 성수·홍대·강남 팝업까지 지역·브랜드별로 무료 확인.',
+    keywords: ['POP-SPOT', '팝스팟', 'popspot'],
+    openGraph: {
+      title: 'POP-SPOT — 서울 팝업스토어 인텔리전스',
+      description:
+        '서울 팝업스토어 일정을 지도로 한눈에. 성수·홍대·강남 팝업까지 지역·브랜드별로 무료 확인.',
+      type: 'website',
+      locale: 'ko_KR',
+      url: 'https://popspot.co.kr',
+      siteName: 'POP-SPOT',
+      images: [ogImage],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: 'POP-SPOT — 서울 팝업스토어 인텔리전스',
+      description:
+        '서울 팝업스토어 일정을 지도로 한눈에. 성수·홍대·강남 팝업까지 지역·브랜드별로 무료 확인.',
+      images: [ogImage],
+    },
+    icons: {
+      icon: '/icon.svg',
+    },
+    // v2.20.3 — Naver SearchAdvisor / RSS 리더가 자동 인식하도록 alternate 선언
+    alternates: {
+      canonical: 'https://popspot.co.kr',
+      types: {
+        'application/rss+xml': [{ url: '/feed.xml', title: 'POP-SPOT RSS' }],
+      },
+    },
+  };
+}
 
 /**
  * v2.17 — JSON-LD 구조화 데이터.

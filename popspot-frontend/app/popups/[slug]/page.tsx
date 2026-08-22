@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ArrowLeft, MapPin, Calendar, Tag, Clock, Flame, MessageSquare } from 'lucide-react';
 
+import { landingSeason } from '@/lib/landingSeason';
 import { REGIONS, classifyRegion, regionBySlug } from '@/lib/regions';
 import { LANDING_COPY, type LandingCopy, type MetaPick, type PickReason } from '@/lib/landingCopy';
 import { localizedLabel } from '@/lib/localeLabel';
@@ -731,7 +732,20 @@ export async function SliceLandingPage({ slug, locale }: { slug: string; locale:
   const kicker = kickerByKind[slice.kind];
 
   return (
-    <main className="seo-landing-surface relative isolate min-h-screen overflow-x-clip pb-24 text-gray-900 md:pb-0 dark:text-white">
+    /*
+     * 이 랜딩만 다른 계절을 입는다 — <html> 의 계절을 여기서 덮어쓴다.
+     *
+     * 앱은 "지금" 이 곧 계절이지만 랜딩은 아니다. /popups/12월-성수 를 8월에 여는 사람이 매일
+     * 있고, 그때 지금 계절로 칠하면 겨울 팝업 목록이 여름 하늘색으로 나온다. 규칙은
+     * lib/landingSeason 참고.
+     *
+     * globals.css 의 계절 블록에 :root 없는 짝이 있어서 이 중첩이 먹는다. 그 짝을 지우면 이
+     * 속성은 조용히 무시되고, 랜딩은 아무 표시 없이 오늘 계절로 돌아간다.
+     */
+    <main
+      data-season={landingSeason(slug)}
+      className="seo-landing-surface relative isolate min-h-screen overflow-x-clip pb-24 text-gray-900 md:pb-0 dark:text-white"
+    >
       {/* 확정안 1d: 장식은 제목 주변에서만 끝나고 목록 아래는 조용한 종이 면으로 남긴다. */}
       <div aria-hidden="true" className="seo-landing-glow" />
       <div aria-hidden="true" className="seo-landing-grain" />
