@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { parseCssDuration, THEME_SWITCH_FALLBACK_MS } from './themeTransition';
+import { parseCssDuration, FALLBACK_MS } from './transientClass';
 
 describe('parseCssDuration', () => {
   it('ms 와 s 를 모두 밀리초로 읽는다', () => {
@@ -26,7 +26,7 @@ describe('parseCssDuration', () => {
     // 변수를 못 읽으면 getComputedStyle 은 빈 문자열을 준다. 그때 0 을 쓰면 클래스가 즉시
     // 떨어져 전환이 통째로 사라진다 — 고치려던 증상 그대로가 된다.
     for (const bad of ['', '   ', 'fast', '320', 'ms', '-200ms', '0s', 'NaNms']) {
-      expect(parseCssDuration(bad), `${JSON.stringify(bad)}`).toBe(THEME_SWITCH_FALLBACK_MS);
+      expect(parseCssDuration(bad), `${JSON.stringify(bad)}`).toBe(FALLBACK_MS);
     }
   });
 
