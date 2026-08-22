@@ -1275,7 +1275,12 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
         style={{ background: 'var(--s-bg)' }}
         aria-hidden
       >
-        {themeReady && <LoopingBgVideo key={bgVideoSrc} src={bgVideoSrc} rate={bgVideoRate} />}
+        {/* 영상만 따로 감싼다. 테마가 바뀌면 파일이 통째로 갈려 툭 끊기는데, 색처럼 흐르게 할
+            방법이 없어 따로 페이드한다(globals.css 의 theme-bg-fade). 바탕색·스크림까지 같이
+            감싸면 그 둘은 이미 색으로 부드럽게 흐르는 중이라 두 번 흔들린 것처럼 보인다. */}
+        <div className="theme-bg-fade absolute inset-0">
+          {themeReady && <LoopingBgVideo key={bgVideoSrc} src={bgVideoSrc} rate={bgVideoRate} />}
+        </div>
         {/* 좁은 화면 전용 배경 보강. 영상이 없는 구간에서만 그려지고 CSS 만 쓴다 — 규칙은
             globals.css 의 .home-flat-bg 주석 참고. 넓은 화면에서는 display:none 이라
             영상 위에 아무것도 얹지 않는다. */}
