@@ -34,6 +34,7 @@ import { PhotoDisclosure } from '@/components/popup/PhotoDisclosure';
 import { addToCalendar, toCalendarEvent } from '@/lib/calendar';
 import type { User } from '@/types/popup';
 import { useLocale, type MessageKey } from '@/lib/i18n';
+import LocaleSwitcherBoundary from '@/components/LocaleSwitcherBoundary';
 import { localizedPath } from '@/lib/localePath';
 import { bilingual } from '@/lib/bilingual';
 
@@ -530,7 +531,9 @@ export default function PopupDetailClient({
           >
             <ArrowLeft size={20} />
           </button>
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
+            {/* 상세로 바로 들어온 외국인도 홈으로 돌아가지 않고 같은 팝업의 번역 주소로 이동한다. */}
+            <LocaleSwitcherBoundary locale={locale} />
             <button
               onClick={handleShare}
               aria-label={t('common.share')}
