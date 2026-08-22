@@ -7,6 +7,9 @@ describe('언어별 주소', () => {
       '/ja/popups/seongsu?sort=deadline',
     );
     expect(localizedPath('/ja/popup/12', 'ko')).toBe('/popup/12');
+    expect(localizedPath('/popup/4093', 'en')).toBe('/en/popup/4093');
+    expect(localizedPath('/popups/seongsu', 'ja')).toBe('/ja/popups/seongsu');
+    expect(localizedPath('/en/feedback', 'ko')).toBe('/feedback');
   });
 
   it('언어별 홈은 중복 슬래시 없이 만든다', () => {
