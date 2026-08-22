@@ -223,6 +223,101 @@
   --s-hi-fg: #ffffff;
 }
 
+/* ───────────────────────────────────────────────────────────────────────────
+   계절 주 색상 — 라임 스케일 자체를 갈아끼운다.
+
+   Tailwind v4 는 유틸리티를 var() 참조로 뽑는다:
+       .bg-lime-300{background-color:var(--color-lime-300)}
+   그래서 여기서 스케일을 덮어쓰면 **전 페이지 647곳의 라임이 파일 수정 없이 따라온다** —
+   메인·상세·지도·코스·동행·음악·여권·SEO 랜딩·관리자까지 한꺼번에.
+
+   값의 단일 출처는 src/lib/seasonPalette.ts 다. 여기와 어긋나면 seasonPalette.test.ts 가
+   잡는다 — 한쪽만 고치고 넘어가는 사고를 막으려고 둔 테스트다.
+
+   단계마다 역할이 다르고, 그 역할이 값을 정했다:
+     50·100·200   옅은 바탕(hover:bg-lime-50). 라임과 **같은 휘도** — 여기가 진해지면
+                  은은한 hover 가 색 덩어리가 된다.
+     300·400      주 동작 면. 계절색이 실제로 보이는 곳. 잉크 글자 대비 9.7:1 이상.
+     500~900      글자색. 대비가 오늘보다 **좋아진다**(700/흰 배경: 라임 5.09 → 봄 6.57).
+
+   ⚠️ 만채도(--s-hi)를 여기 쓰지 않는 이유: 겨울 #2f6ea8 위의 잉크 글자는 3.67:1 로 AA
+   미달이다. bg-lime-300 text-ink-900 조합이 324곳이라 겨울에만 글자색을 뒤집는 예외를
+   걸어야 하고, 그건 반드시 어딘가에서 빠진다. 만채도는 좁은 면적에만 남긴다.
+
+   ▸ 어느 계절을 원래 popspot 라임으로 되돌리려면 그 계절 블록을 통째로 주석 처리하면 된다.
+     덮어쓰지 않으면 @theme 의 원본 값이 그대로 남는다. 라이트/다크 구분은 두지 않는다 —
+     지금 라임 스케일도 두 모드가 같은 값을 쓰고 있어서, 여기만 갈라놓으면 규칙이 하나 는다.
+   ─────────────────────────────────────────────────────────────────────────── */
+
+/* 봄 · 벚꽃 */
+:root[data-season='spring'] {
+  --color-lime-50: #fff9fb;
+  --color-lime-100: #ffeff5;
+  --color-lime-200: #fee4ed;
+  --color-lime-300: #ffb0cd;
+  --color-lime-400: #ff95bc;
+  --color-lime-500: #e976a1;
+  --color-lime-600: #ea2e73;
+  --color-lime-700: #b7104e;
+  --color-lime-800: #850a37;
+  --color-lime-900: #560422;
+}
+
+/* 여름 · 바다 */
+:root[data-season='summer'] {
+  --color-lime-50: #f2fcfd;
+  --color-lime-100: #e2f7fb;
+  --color-lime-200: #cdf1f7;
+  --color-lime-300: #7fe0f0;
+  --color-lime-400: #29d0ec;
+  --color-lime-500: #36b4c8;
+  --color-lime-600: #2392a4;
+  --color-lime-700: #196d7a;
+  --color-lime-800: #114e58;
+  --color-lime-900: #092f36;
+}
+
+/* 가을 · 감 */
+:root[data-season='autumn'] {
+  --color-lime-50: #fff9f2;
+  --color-lime-100: #fef2e1;
+  --color-lime-200: #fde8cc;
+  --color-lime-300: #ffbe6b;
+  --color-lime-400: #ffa431;
+  --color-lime-500: #dc8c26;
+  --color-lime-600: #b86f12;
+  --color-lime-700: #89520c;
+  --color-lime-800: #633a07;
+  --color-lime-900: #3d2403;
+}
+
+/* 겨울 · 얼음 */
+:root[data-season='winter'] {
+  --color-lime-50: #f6fafd;
+  --color-lime-100: #eaf5fb;
+  --color-lime-200: #dcedf9;
+  --color-lime-300: #a8d4f2;
+  --color-lime-400: #82c4f0;
+  --color-lime-500: #6ba8d2;
+  --color-lime-600: #3088c5;
+  --color-lime-700: #236794;
+  --color-lime-800: #17496a;
+  --color-lime-900: #0d2d42;
+}
+
+/*
+ * 라임 리터럴이 박혀 있어 var() 를 안 거치는 곳. 계절 토큰으로 바꾼다.
+ *
+ * --shadow-glow 는 포커스 링이라 주 색상을 따라가야 하고, 랜딩 글로우와 모바일 배경 격자는
+ * 화면 전체를 덮는 장식이라 여기만 라임으로 남으면 계절이 어긋난 것으로 읽힌다.
+ */
+:root[data-season] {
+  --shadow-glow: 0 0 0 4px color-mix(in srgb, var(--color-lime-300) 30%, transparent);
+}
+:root.dark[data-season] {
+  --shadow-glow: 0 0 0 4px color-mix(in srgb, var(--color-lime-300) 40%, transparent);
+}
+
 :root.dark[data-season='spring'] {
   --s-bg: #12100f;
   --s-surface: #1c1917;
@@ -465,9 +560,20 @@ li {
     position: absolute;
     inset: 0;
     background-image:
-      radial-gradient(88% 40% at 50% 104%, rgba(168, 230, 69, 0.16), transparent 68%),
-      linear-gradient(rgba(79, 122, 16, 0.06) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(79, 122, 16, 0.06) 1px, transparent 1px);
+      radial-gradient(
+        88% 40% at 50% 104%,
+        color-mix(in srgb, var(--color-lime-400) 16%, transparent),
+        transparent 68%
+      ),
+      linear-gradient(
+        color-mix(in srgb, var(--color-lime-700) 6%, transparent) 1px,
+        transparent 1px
+      ),
+      linear-gradient(
+        90deg,
+        color-mix(in srgb, var(--color-lime-700) 6%, transparent) 1px,
+        transparent 1px
+      );
     background-size:
       100% 100%,
       44px 44px,
@@ -501,7 +607,7 @@ li {
     right: 0;
     top: 72%;
     height: 1px;
-    background: rgba(79, 122, 16, 0.16);
+    background: color-mix(in srgb, var(--color-lime-700) 16%, transparent);
   }
 
   /* 띠 방지용 입자. 마스크를 타지 않도록 형제로 둔다. */
@@ -548,8 +654,8 @@ li {
   .dark .seo-landing-glow {
     background: radial-gradient(
       115% 50% at 24% -7%,
-      rgba(202, 255, 112, 0.27) 0%,
-      rgba(137, 186, 78, 0.1) 42%,
+      color-mix(in srgb, var(--color-lime-300) 27%, transparent) 0%,
+      color-mix(in srgb, var(--color-lime-500) 10%, transparent) 42%,
       transparent 66%
     );
   }
@@ -603,16 +709,16 @@ li {
   pointer-events: none;
   background: radial-gradient(
     120% 100% at 30% -14%,
-    rgba(168, 230, 69, 0.24),
-    rgba(168, 230, 69, 0) 62%
+    color-mix(in srgb, var(--color-lime-400) 24%, transparent),
+    color-mix(in srgb, var(--color-lime-400) 0%, transparent) 62%
   );
 }
 
 .dark .seo-landing-glow {
   background: radial-gradient(
     120% 100% at 30% -14%,
-    rgba(194, 249, 112, 0.13),
-    rgba(194, 249, 112, 0) 62%
+    color-mix(in srgb, var(--color-lime-300) 13%, transparent),
+    color-mix(in srgb, var(--color-lime-300) 0%, transparent) 62%
   );
 }
 
@@ -636,8 +742,8 @@ li {
   height: 1px;
   background: linear-gradient(
     90deg,
-    rgba(106, 163, 23, 0.55),
-    rgba(106, 163, 23, 0.08) 60%,
+    color-mix(in srgb, var(--color-lime-600) 55%, transparent),
+    color-mix(in srgb, var(--color-lime-600) 8%, transparent) 60%,
     transparent
   );
 }
@@ -645,8 +751,8 @@ li {
 .dark .seo-landing-hairline {
   background: linear-gradient(
     90deg,
-    rgba(194, 249, 112, 0.55),
-    rgba(194, 249, 112, 0.06) 60%,
+    color-mix(in srgb, var(--color-lime-300) 55%, transparent),
+    color-mix(in srgb, var(--color-lime-300) 6%, transparent) 60%,
     transparent
   );
 }
