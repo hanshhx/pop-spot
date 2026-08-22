@@ -1,11 +1,11 @@
 'use client';
 
 import { useTheme } from 'next-themes';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Sun, Moon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useLocale } from '@/lib/i18n';
-import { THEME_SWITCHING_CLASS, themeSwitchMs } from '@/lib/themeTransition';
+import { runTransientClass, THEME_SWITCHING_CLASS } from '@/lib/transientClass';
 
 /**
  * 라이트/다크 토글.
@@ -20,27 +20,10 @@ export default function ThemeToggle() {
 
   const isDark = resolvedTheme === 'dark';
 
-  /**
-   * 전환하는 <b>동안에만</b> 전역 transition 을 켠다. 규칙은 globals.css 의 .theme-switching.
-   *
-   * <p>타이머를 ref 로 들고 있는 이유: 전환이 끝나기 전에 다시 누르면 앞선 타이머가 뒤늦게
-   * 발화해 <b>한창 흐르는 중에 클래스를 떼어 버린다.</b> 두 번째 전환만 딱딱해지는데, 재현이
-   * 어려워 원인을 찾기 힘든 종류의 버그다.
-   */
-  const timerRef = useRef(0);
-  useEffect(() => () => window.clearTimeout(timerRef.current), []);
-
+  /** 전환하는 <b>동안에만</b> 전역 transition 을 켠다. 규칙은 globals.css 의 .theme-switching. */
   const toggle = useCallback(() => {
-    const root = document.documentElement;
-    root.classList.add(THEME_SWITCHING_CLASS);
+    runTransientClass(document.documentElement, THEME_SWITCHING_CLASS, '--theme-switch-ms');
     setTheme(isDark ? 'light' : 'dark');
-
-    window.clearTimeout(timerRef.current);
-    timerRef.current = window.setTimeout(
-      () => root.classList.remove(THEME_SWITCHING_CLASS),
-      // 전환이 끝나고 한 프레임 뒤에 뗀다. 딱 맞춰 떼면 마지막 프레임이 잘려 미세하게 튄다.
-      themeSwitchMs(root) + 40,
-    );
   }, [isDark, setTheme]);
 
   return (

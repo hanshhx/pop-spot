@@ -8,6 +8,7 @@ import { createPortal } from 'react-dom';
 
 import { LOCALES, type Locale, useLocale } from '@/lib/i18n';
 import { localizedPath } from '@/lib/localePath';
+import { LOCALE_SWITCHING_CLASS, runTransientClass } from '@/lib/transientClass';
 
 /** Keeps language-specific URLs shareable while using a compact menu on mobile. */
 export default function LocaleSwitcher({
@@ -74,6 +75,24 @@ export default function LocaleSwitcher({
           href={localizedPath(currentHref, code)}
           hrefLang={code}
           onClick={() => {
+            /*
+             * 언어를 바꾸면 화면의 모든 글이 한 프레임에 갈린다. 길이도 함께 달라져서(한국어 →
+             * 영어는 대개 길어진다) 글자만 바뀌는 게 아니라 줄바꿈과 높이까지 튄다. 짧게 흐리게
+             * 했다가 되돌려, 그 교체를 가려 준다.
+             *
+             * 이 처리를 LocaleProvider 가 아니라 버튼에 두는 이유는 Provider 가 겹치기 때문이다 —
+             * /ja 아래에는 루트 것 안에 하나가 더 있어서(i18n.tsx 의 lang 주석), 값 변화에 걸면
+             * 한 번 누른 것이 두 번 발화한다. 바꾸겠다고 누른 이 자리에는 그런 겹침이 없다.
+             *
+             * 이미 그 언어면 아무 일도 안 일어나므로 흐리게 할 이유도 없다.
+             */
+            if (!active) {
+              runTransientClass(
+                document.documentElement,
+                LOCALE_SWITCHING_CLASS,
+                '--locale-switch-ms',
+              );
+            }
             setLocale(code);
             setOpen(false);
           }}
