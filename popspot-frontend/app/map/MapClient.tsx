@@ -15,7 +15,10 @@ import type { PublicMapMarker } from '@/lib/mapMarkers';
  */
 export default function MapClient({ initialMarkers }: { initialMarkers: PublicMapMarker[] }) {
   return (
-    <div className="relative h-[70vh] min-h-[460px] w-full overflow-hidden rounded-[2rem] border border-gray-200 bg-white shadow-lg shadow-black/5 dark:border-white/10 dark:bg-[#111] dark:shadow-black/30">
+    /* 70vh 는 화면에 따라 끝없이 늘어난다 — 27인치 세로 모니터에서는 1,000px 을 넘고,
+       지도만 한 화면을 다 먹은 채 아래 목록·지역 링크가 첫 화면에서 사라진다.
+       홈 지도가 이미 min(62svh, 560px) 로 같은 상한을 두고 있어 값을 맞춘다. */
+    <div className="relative h-[min(70vh,640px)] min-h-[460px] w-full overflow-hidden rounded-[2rem] border border-gray-200 bg-white shadow-lg shadow-black/5 dark:border-white/10 dark:bg-[#111] dark:shadow-black/30">
       <InteractiveMap initialMarkers={initialMarkers} />
     </div>
   );
