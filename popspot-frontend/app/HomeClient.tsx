@@ -43,6 +43,7 @@ import {
 } from '@/lib/i18n';
 import { REGIONS, type RegionCode } from '@/lib/regions';
 import { localizedPath } from '@/lib/localePath';
+import { visitedAgo, type VisitedAgo } from '@/lib/visitedAgo';
 import { PRIORITY_LANDING_LINKS } from '@/lib/priorityLandingLinks';
 
 /**
@@ -2784,9 +2785,34 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
  * 최근 본 팝업 한 장에 몇 개를 놓을지.
  *
  * <p>여섯이면 넓은 화면에서 3열 × 2줄, 좁은 화면에서 6줄이라 지금까지 보이던 분량과 같다.
- * 저장은 열 개까지이므로 장은 최대 두 장이다.
+ * 기록은 이제 밀려나지 않고 쌓이므로 장 수는 본 만큼 늘어난다.
  */
 const RECENT_PAGE_SIZE = 6;
+
+/**
+ * "언제 봤는지" 를 화면 언어로 옮긴다.
+ *
+ * <p>판단은 {@link visitedAgo} 가 이미 끝냈고 여기서는 말만 고른다. 이 카드가 사전 대신 인라인
+ * 삼항으로 문구를 고르는 파일이라 그 관례를 따른다 — 알약 하나 때문에 사전에 키 넉 장을 세 언어로
+ * 심는 것보다, 판단과 표기를 갈라 둔 편이 읽기 쉽다.
+ */
+function visitedAgoLabel(ago: VisitedAgo | null, locale: Locale): string | null {
+  if (!ago) return null;
+  if (ago.kind === 'today') return locale === 'en' ? 'Today' : locale === 'ja' ? '今日' : '오늘';
+  if (ago.kind === 'yesterday')
+    return locale === 'en' ? 'Yesterday' : locale === 'ja' ? '昨日' : '어제';
+  if (ago.kind === 'days')
+    return locale === 'en'
+      ? `${ago.days} days ago`
+      : locale === 'ja'
+        ? `${ago.days}日前`
+        : `${ago.days}일 전`;
+  return locale === 'en'
+    ? `${ago.month}/${ago.day}`
+    : locale === 'ja'
+      ? `${ago.month}月${ago.day}日`
+      : `${ago.month}월 ${ago.day}일`;
+}
 
 function RecentVisitsCard({ standalone = false }: { standalone?: boolean } = {}) {
   const { t, locale } = useLocale();
@@ -2800,7 +2826,7 @@ function RecentVisitsCard({ standalone = false }: { standalone?: boolean } = {})
   const [isExpanded, setIsExpanded] = useState(!standalone);
   const [page, setPage] = useState(0);
   const [visits, setVisits] = useState<
-    Array<{ popupId: number; popupName: string; popupImage?: string }>
+    Array<{ popupId: number; popupName: string; popupImage?: string; visitedAt: string }>
   >([]);
 
   useEffect(() => {
@@ -2808,6 +2834,44 @@ function RecentVisitsCard({ standalone = false }: { standalone?: boolean } = {})
       .then(({ readVisits }) => setVisits(readVisits()))
       .catch(() => setVisits([]));
   }, []);
+
+  /**
+   * 지운 뒤에는 <b>여기서 다시 읽는다.</b>
+   *
+   * <p>{@code recentVisits} 는 알림({@code notifications.ts})과 달리 바뀌었다는 신호를 쏘지 않는다.
+   * 그래서 지우기만 하고 상태를 그대로 두면 저장소에서는 사라진 항목이 화면에는 남는다. 지운
+   * 결과를 되읽는 것이 이 모듈과 약속된 방식이다.
+   */
+  const handleRemove = (popupId: number) => {
+    import('@/lib/recentVisits')
+      .then(({ removeVisit, readVisits }) => {
+        removeVisit(popupId);
+        setVisits(readVisits());
+      })
+      .catch(() => {
+        /* 지우기 실패는 무시 — 목록은 그대로 남는다 */
+      });
+  };
+
+  const handleClearAll = () => {
+    // 되돌릴 수 없는 데다 한 번의 오조작으로 몇 달치가 사라진다. 네이티브 확인창이 투박해도
+    // 이 자리에서는 맞다 — 없는 것보다 낫고, 이것 때문에 별도 모달을 들일 만한 일도 아니다.
+    const question =
+      locale === 'en'
+        ? 'Delete all recently viewed pop-ups? This cannot be undone.'
+        : locale === 'ja'
+          ? '最近見たポップアップをすべて削除しますか？元に戻せません。'
+          : '최근 본 팝업을 모두 지울까요? 되돌릴 수 없습니다.';
+    if (typeof window !== 'undefined' && !window.confirm(question)) return;
+    import('@/lib/recentVisits')
+      .then(({ clearVisits, readVisits }) => {
+        clearVisits();
+        setVisits(readVisits());
+      })
+      .catch(() => {
+        /* 지우기 실패는 무시 */
+      });
+  };
 
   if (visits.length === 0) return null;
 
@@ -2925,35 +2989,76 @@ function RecentVisitsCard({ standalone = false }: { standalone?: boolean } = {})
           className={`grid grid-cols-1 gap-2 sm:grid-cols-2 ${standalone ? 'lg:grid-cols-3' : ''}`}
         >
           {visibleVisits.map((v) => (
-            <Link
-              key={v.popupId}
-              href={localizedPath(`/popup/${v.popupId}`, locale)}
-              className="group flex min-w-0 items-center gap-3 rounded-xl border border-[var(--color-border)] bg-cream-300/70 p-2 transition-colors hover:border-lime-400/60 hover:bg-lime-50/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-500/70 dark:bg-ink-800/75 dark:hover:bg-lime-950/30"
-            >
-              <span className="relative h-[68px] w-[68px] shrink-0 overflow-hidden rounded-lg bg-cream-300 dark:bg-ink-800 sm:h-[72px] sm:w-[72px]">
-                <PopupCoverVisual
-                  popup={{ id: v.popupId, imageUrl: v.popupImage }}
-                  name={v.popupName}
-                  compact
-                />
-              </span>
-              <span className="min-w-0 flex-1 py-1">
-                <span className="line-clamp-2 text-[15px] font-extrabold leading-snug text-foreground sm:text-base">
-                  {v.popupName}
+            // 지우기 버튼은 링크 <b>안</b>에 넣을 수 없다 — a 안의 button 은 잘못된 마크업이고,
+            // 누를 때마다 상세로 떠나 버린다. 형제로 두고 위에 얹는다.
+            <div key={v.popupId} className="relative">
+              <Link
+                href={localizedPath(`/popup/${v.popupId}`, locale)}
+                className="group flex min-w-0 items-center gap-3 rounded-xl border border-[var(--color-border)] bg-cream-300/70 p-2 pr-9 transition-colors hover:border-lime-400/60 hover:bg-lime-50/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-500/70 dark:bg-ink-800/75 dark:hover:bg-lime-950/30"
+              >
+                <span className="relative h-[68px] w-[68px] shrink-0 overflow-hidden rounded-lg bg-cream-300 dark:bg-ink-800 sm:h-[72px] sm:w-[72px]">
+                  <PopupCoverVisual
+                    popup={{ id: v.popupId, imageUrl: v.popupImage }}
+                    name={v.popupName}
+                    compact
+                  />
                 </span>
-                <span className="mt-2 flex items-center gap-1 text-xs font-semibold text-lime-700 dark:text-lime-300">
-                  {locale === 'en' ? 'View again' : locale === 'ja' ? 'もう一度見る' : '다시 보기'}
-                  <ArrowRight size={13} aria-hidden="true" />
+                <span className="min-w-0 flex-1 py-1">
+                  <span className="line-clamp-2 text-[15px] font-extrabold leading-snug text-foreground sm:text-base">
+                    {v.popupName}
+                  </span>
+                  <span className="mt-1.5 flex items-center gap-2 text-xs font-semibold text-lime-700 dark:text-lime-300">
+                    {locale === 'en'
+                      ? 'View again'
+                      : locale === 'ja'
+                        ? 'もう一度見る'
+                        : '다시 보기'}
+                    <ArrowRight size={13} aria-hidden="true" />
+                    {/* 언제 봤는지 — '최근' 이라고 부르면서 언제인지 안 적으면 그 말이 비어 있다. */}
+                    {(() => {
+                      const ago = visitedAgoLabel(visitedAgo(v.visitedAt), locale);
+                      return ago ? (
+                        <span className="font-medium text-muted-foreground">· {ago}</span>
+                      ) : null;
+                    })()}
+                  </span>
                 </span>
-              </span>
-            </Link>
+              </Link>
+              <button
+                type="button"
+                onClick={() => handleRemove(v.popupId)}
+                aria-label={
+                  locale === 'en'
+                    ? `Remove ${v.popupName} from recently viewed`
+                    : locale === 'ja'
+                      ? `${v.popupName} を最近見たポップアップから削除`
+                      : `${v.popupName} 을(를) 최근 본 팝업에서 지우기`
+                }
+                className="absolute right-1.5 top-1.5 grid h-7 w-7 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-black/[0.06] hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-500/70 dark:hover:bg-white/[0.08]"
+              >
+                <X size={13} aria-hidden />
+              </button>
+            </div>
           ))}
+        </div>
+      )}
+
+      {/* 전체 지우기는 장 수와 무관하게 펼쳤을 때 늘 있다 — 한 장뿐인 사람도 지울 수 있어야 한다. */}
+      {isExpanded && (
+        <div className="mt-2 flex items-center justify-end">
+          <button
+            type="button"
+            onClick={handleClearAll}
+            className="rounded-md px-2 py-1 text-[11px] font-semibold text-muted-foreground transition-colors hover:bg-black/[0.06] hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-500/70 dark:hover:bg-white/[0.08]"
+          >
+            {locale === 'en' ? 'Clear all' : locale === 'ja' ? 'すべて削除' : '전체 지우기'}
+          </button>
         </div>
       )}
 
       {/* 장이 하나뿐이면 컨트롤을 그리지 않는다 — 누를 데가 없는 화살표는 장식이다. */}
       {isExpanded && pageCount > 1 && (
-        <div className="mt-2 flex items-center justify-center gap-1">
+        <div className="mt-1 flex items-center justify-center gap-1">
           <button
             type="button"
             onClick={() => setPage((current) => Math.max(0, current - 1))}
