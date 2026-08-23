@@ -44,6 +44,29 @@
 `getPopupsForDate` 가 `!p.startDate` 면 곧바로 버리기 때문이다. 마감을 `endDate` 기준으로 세면
 이 24곳이 제 마감일에 되살아난다.
 
+### 달력이 받는 데이터부터 틀렸다
+
+위 표는 전체 카탈로그(`/api/popups`, 1,167곳 = 종료 543 + 진행 508 + 시작 전 92)로 잰 것이다.
+그런데 **달력에 실제로 넘어가는 것은 508곳뿐이다.** `HomeClient` 가 `keepOpenNow()` 로 "오늘 문이
+열려 있는 것" 만 남긴 `allPopups` 를 넘기기 때문이다.
+
+| 날짜 | 전체 기준 마감/오픈 | 달력이 받는 것 |
+|---|---|---|
+| 08-23 (오늘) | 59 / 11 | 56 / 11 |
+| 08-31 | 153 / 4 | 147 / **0** |
+| 09-05 | 12 / 1 | 12 / **0** |
+
+**오픈은 오늘을 빼면 구조적으로 항상 0이다.** 미래에 시작하는 팝업은 정의상 "지금 진행 중" 이
+아니라 걸러진다. 위에 그린 "8월 31일 · 오픈 4곳" 은 지금 배선으로는 절대 나오지 않는다. 다음 달로
+넘기면 격자가 비는 것도 버그가 아니라 데이터가 없어서다.
+
+그래서 **달력에는 걸러지지 않은 카탈로그를 넘긴다.** `HomeClient` 가 서버에서 받아 두는
+`initialPopups` 가 바로 그 1,167곳이다(`fetchHomePopups` → `/api/popups` 원본). 이걸 `catalogPopups`
+상태로 들고 달력에만 준다. `allPopups` 는 지금 쓰는 곳이 많으므로 손대지 않는다 — 홈 목록·랭킹은
+"지금 열린 것" 이 맞다.
+
+과거 달도 함께 살아난다(7월 15일: 마감 4 · 오픈 23 · 진행 134).
+
 **날짜가 답해야 하는 것은 "그날 무엇이 바뀌는가" 다.** "그날 무엇이 있는가" 는 지도와 홈 레일이
 이미 한다.
 
@@ -86,8 +109,31 @@
 **마감일 오름차순.** 오늘 마감이 맨 위다. 이 서비스에서 가장 강한 정보는 마감이고, 그 순서가
 곧 급한 순서다.
 
-**D-day 표기는 홈 카드와 같은 함수(`ddayBadge`)를 쓴다.** 같은 뜻이 두 화면에서 다르게 보이면
-어느 쪽을 믿어야 할지 알 수 없다.
+**D-day 표기는 홈 카드와 같은 함수를 쓴다.** 같은 뜻이 두 화면에서 다르게 보이면 어느 쪽을 믿어야
+할지 알 수 없다.
+
+다만 지금은 **그 함수를 꺼내 쓸 수 없다.** 날짜 산수가 다섯 곳에 복사돼 있고 하나도 export 가
+아니다.
+
+| 위치 | 형태 |
+|---|---|
+| `PopupCard.tsx:42` | `Math.round`, 양쪽 자정 정렬 |
+| `HomeBento1a.tsx:28` | 〃 (글자까지 같음) |
+| `PopupDetailClient.tsx:105` | 〃 (글자까지 같음) |
+| `popups/[slug]/page.tsx:295` | `startOfDay(end)` vs `today` |
+| `MusicTab.tsx:144` | `Math.ceil`, `Date.now()` — **자정 정렬 없음** |
+
+게다가 `PopupCard.tsx:35` 의 `ddayBadge` 와 `page.tsx:299` 의 `ddayBadge` 는 **이름만 같고
+시그니처가 다른 함수**다(전자는 날짜 → 배지, 후자는 숫자 + 문구 → 클래스).
+
+그래서 `src/lib/dday.ts` 로 먼저 꺼낸다. 글자까지 같은 셋(`PopupCard` · `HomeBento1a` ·
+`PopupDetailClient`)만 옮기고, 계산이 다른 둘(`page.tsx` · `MusicTab`)은 건드리지 않는다 — 같아
+보이지만 다른 것을 "정리" 하다 화면이 바뀌는 쪽이 더 나쁘다.
+
+**`recentVisits` 에는 팝업 날짜가 없다.** 저장 형태는 `{popupId, popupName, popupImage?, visitedAt}`
+뿐이고 `visitedAt` 은 **본 시각**이지 팝업 기간이 아니다. 그래서 마감일은 `popupId` 로 팝업 목록과
+맞춰서 얻는다. 여기서는 `allPopups`(오늘 열린 것) 를 쓴다 — 종료된 팝업은 그 배열에 애초에 없으니
+"종료된 것 제외" 가 조인만으로 지켜진다. 추가 요청은 필요 없다.
 
 **빈 상태는 그리지 않는다.** 이력이 없거나, 있어도 전부 종료됐으면 블록 자체가 나타나지 않고
 달력이 첫 화면이 된다. 유입의 93%가 검색으로 들어와 이력이 없는 사람들이다 — 그들에게 빈 칸을
@@ -164,9 +210,12 @@
 
 | 파일 | |
 |---|---|
+| `src/lib/dday.ts` | 신규. 날짜 산수 한 곳. `PopupCard`·`HomeBento1a`·`PopupDetailClient` 가 여기로 옮겨온다 |
+| `src/lib/dday.test.ts` | 신규 |
 | `src/features/schedule/useMySchedule.ts` | 신규. `recentVisits` 와 팝업 목록을 결합해 진행 중인 것만 마감일 순으로 |
+| `src/features/schedule/useMySchedule.test.ts` | 신규. 조인·정렬·제외 규칙 고정 |
 | `src/features/schedule/MySchedule.tsx` | 신규. 위 블록의 화면 |
-| `app/HomeClient.tsx` | SCHEDULE 탭에 `MySchedule` 를 `PopupCalendar` 위에 추가 |
+| `app/HomeClient.tsx` | SCHEDULE 탭에 `MySchedule` 추가 + 달력에 걸러지지 않은 `catalogPopups` 를 넘김 |
 | `src/features/popup/dayBuckets.ts` | 신규. 하루치를 마감·오픈·진행 셋으로 가르고 마감을 지역별로 묶는 순수 함수 |
 | `src/features/popup/dayBuckets.test.ts` | 신규. 아래 성공 기준을 숫자로 고정 |
 | `src/features/popup/PopupCalendar.tsx` | 날짜 칸에 마감 수, 상세 영역을 세 덩어리로 |
