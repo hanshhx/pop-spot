@@ -2480,7 +2480,7 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
                 />
               </div>
 
-              {/* v2.18 — 최근 본 팝업 (localStorage 기반, 최대 10개). 게스트/회원 무관. */}
+              {/* v2.18 — 최근 본 팝업 (localStorage 기반, 최대 30개). 게스트/회원 무관. */}
               <RecentVisitsCard />
 
               {/* 옛 inventory 컨테이너 — 보존 (혹시 후속 카드 추가 시 재사용) */}
