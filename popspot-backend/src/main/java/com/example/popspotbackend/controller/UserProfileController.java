@@ -4,6 +4,7 @@ import com.example.popspotbackend.entity.User;
 import com.example.popspotbackend.exception.ResourceNotFoundException;
 import com.example.popspotbackend.repository.UserRepository;
 import com.example.popspotbackend.service.AccountDeletionService;
+import com.example.popspotbackend.service.auth.FreshAuthenticationService;
 import com.example.popspotbackend.service.media.ImageUploadGuard;
 import com.example.popspotbackend.service.media.UploadQuotaService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -75,6 +76,7 @@ public class UserProfileController {
 
     private final UserRepository userRepository;
     private final AccountDeletionService accountDeletionService;
+    private final FreshAuthenticationService freshAuthentication;
     private final List<Pattern> allowedHostPatterns;
     private final boolean trustProxyHeaders;
 
@@ -93,6 +95,7 @@ public class UserProfileController {
     public UserProfileController(
             UserRepository userRepository,
             AccountDeletionService accountDeletionService,
+            FreshAuthenticationService freshAuthentication,
             @Value("${" + ALLOWED_HOST_PATTERNS_PROP + ":}") String allowedHostPatternsCsv,
             @Value("${app.trust-proxy-headers:false}") boolean trustProxyHeaders,
             @Value("${app.upload.path}") String uploadPath,
@@ -100,6 +103,7 @@ public class UserProfileController {
             UploadQuotaService uploadQuota) {
         this.userRepository = userRepository;
         this.accountDeletionService = accountDeletionService;
+        this.freshAuthentication = freshAuthentication;
         this.allowedHostPatterns = compilePatterns(allowedHostPatternsCsv);
         this.trustProxyHeaders = trustProxyHeaders;
         this.avatarDir = Paths.get(uploadPath, "avatar").toAbsolutePath().normalize().toString();
@@ -159,24 +163,31 @@ public class UserProfileController {
 
         // 하루 한도는 검증 통과 뒤·저장 직전에 본다. 앞에서 보면 거부될 파일로도 한도가 깎이고,
         // 뒤에서 보면 이미 디스크에 쓴 뒤라 막는 의미가 없다. 크기는 재인코딩된 저장 바이트 기준이다.
-        UploadQuotaService.Decision quota = uploadQuota.check(userId, inspection.bytes().length);
+        User user =
+                userRepository
+                        .findById(userId)
+                        .orElseThrow(() -> ResourceNotFoundException.user(userId));
+
+        UploadQuotaService.Decision quota = uploadQuota.reserve(userId, inspection.bytes().length);
         if (!quota.allowed()) {
-            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(quota.reason());
+            HttpStatus status =
+                    quota.temporarilyUnavailable()
+                            ? HttpStatus.SERVICE_UNAVAILABLE
+                            : HttpStatus.TOO_MANY_REQUESTS;
+            return ResponseEntity.status(status).body(quota.reason());
         }
 
+        File destination = null;
+        boolean completed = false;
         try {
-            File destination = prepareDestination(inspection.extension());
+            destination = prepareDestination(inspection.extension());
             String fileUrl = buildPublicUrl(request, destination.getName());
             Files.write(destination.toPath(), inspection.bytes());
-            uploadQuota.record(userId, inspection.bytes().length);
 
             // DB 의 picture 컬럼도 함께 갱신.
-            User user =
-                    userRepository
-                            .findById(userId)
-                            .orElseThrow(() -> ResourceNotFoundException.user(userId));
             user.setPicture(fileUrl);
             userRepository.save(user);
+            completed = true;
 
             Map<String, String> response = new HashMap<>();
             response.put("url", fileUrl);
@@ -187,6 +198,11 @@ public class UserProfileController {
         } catch (IOException e) {
             log.error("[Avatar] 저장 실패: {}", e.getClass().getSimpleName());
             return ResponseEntity.status(500).body("아바타 저장 중 오류가 발생했습니다.");
+        } finally {
+            if (!completed) {
+                uploadQuota.release(userId, inspection.bytes().length);
+                deleteIncompleteFile(destination, "Avatar");
+            }
         }
     }
 
@@ -249,13 +265,14 @@ public class UserProfileController {
      *
      * <p>식별 정보를 즉시 익명화하고, 찜·스탬프·코스·의견·동행 글·채팅·음악 이력과 Spotify 토큰을 같은 트랜잭션에서 삭제한다.
      *
-     * <p>비밀번호 확인 본인 인증은 추후 강화 가능. 현재는 토큰 보유 자체가 본인 인증.
+     * <p>접근 토큰 보유만으로는 부족하다. 비밀번호·소셜 로그인·2단계 인증을 최근 10분 안에 직접 통과한 세션만 허용한다.
      */
     @DeleteMapping("/me")
     @PreAuthorize("isAuthenticated()")
     @Transactional
     public ResponseEntity<Map<String, Object>> deleteMe(Authentication authentication) {
         String userId = requireAuthenticatedUserId(authentication);
+        freshAuthentication.requireFresh(authentication);
         accountDeletionService.deleteAccount(userId);
         log.info("[User] 회원 탈퇴 및 사용자 데이터 정리 완료 userId={}", userId);
         return ResponseEntity.ok(Map.of("status", "DELETED", "userId", userId));
@@ -279,6 +296,15 @@ public class UserProfileController {
             throw new SecurityException("로그인이 필요합니다.");
         }
         return userId;
+    }
+
+    private void deleteIncompleteFile(File destination, String logPrefix) {
+        if (destination == null) return;
+        try {
+            Files.deleteIfExists(destination.toPath());
+        } catch (IOException e) {
+            log.warn("[{}] 실패한 업로드 임시 파일 삭제 실패", logPrefix);
+        }
     }
 
     private boolean isValidNicknameLength(String value) {
