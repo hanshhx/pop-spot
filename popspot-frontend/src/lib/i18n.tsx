@@ -383,7 +383,7 @@ const DICT = {
     'pmodal.cal.fri': '금',
     'pmodal.cal.sat': '토',
     'pmodal.cal.dayHeadPrefix': '',
-    'pmodal.cal.dayHeadSuffix': ' 진행 팝업',
+    'pmodal.cal.dayHeadSuffix': '',
     'pmodal.cal.empty': '이 날은 팝업 일정이 없습니다.',
     'pmodal.cal.aiBadgeTip': 'AI 자동수집 정보 — 상세페이지에서 출처 확인',
     'pmodal.cal.detail': '상세',
