@@ -1,7 +1,7 @@
 /**
  * v2.18 — 최근 본 팝업 (방문 기록) localStorage 헬퍼.
  *
- * <p>회원/게스트 무관하게 클라이언트에만 저장 — PIPA 부담 0. 한 명당 최대 10개 (FIFO).
+ * <p>회원/게스트 무관하게 클라이언트에만 저장 — PIPA 부담 0. 한 명당 최대 30개 (FIFO).
  *
  * <p>설계 결정:
  * <ul>
@@ -12,7 +12,17 @@
  */
 
 const STORAGE_KEY = 'popspot:recent-visits';
-const MAX_ITEMS = 10;
+
+/**
+ * 몇 개까지 들고 있을지.
+ *
+ * <p>열 개였다. 그런데 일정 탭의 '내가 본 팝업' 은 이 기록에서 <b>아직 진행 중인 것만</b> 남기므로,
+ * 열 개 중 절반이 이미 끝났으면 그 블록이 얇아진다. 서른이면 살아남는 것이 그만큼 늘어난다.
+ *
+ * <p>용량은 걸림돌이 아니다 — 서른 개가 7KB 남짓이고, 이 사이트가 이미 쓰는 localStorage 는
+ * 900KB 다(대부분 팝업 목록 캐시). 알림({@code notifications.ts})도 같은 서른을 쓴다.
+ */
+const MAX_ITEMS = 30;
 
 export interface RecentVisit {
   popupId: number;
