@@ -32,6 +32,7 @@ import type { User } from '@/types/popup';
 import { useLocale, type MessageKey } from '@/lib/i18n';
 import { localizedPath } from '@/lib/localePath';
 import { bilingual } from '@/lib/bilingual';
+import { daysUntilEnd } from '@/lib/dday';
 
 declare global {
   interface Window {
@@ -96,13 +97,8 @@ function ddayLabel(
   ended: string,
   todayClosing: string,
 ): string | null {
-  if (!closeDate) return null;
-  const end = new Date(closeDate);
-  if (Number.isNaN(end.getTime())) return null;
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  end.setHours(0, 0, 0, 0);
-  const diff = Math.round((end.getTime() - today.getTime()) / 86_400_000);
+  const diff = daysUntilEnd(closeDate);
+  if (diff === null) return null;
   if (diff < 0) return ended;
   if (diff === 0) return todayClosing;
   return `D-${diff}`;
