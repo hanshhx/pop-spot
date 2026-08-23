@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { bucketByDay, closingCountsByDate } from './dayBuckets';
+import {
+  REGION_GROUP_THRESHOLD,
+  bucketByDay,
+  closingCountsByDate,
+  groupByRegion,
+} from './dayBuckets';
 import type { PopupStore } from '@/types/popup';
 
 /**
@@ -154,5 +159,64 @@ describe('closingCountsByDate', () => {
       }),
     ]);
     expect(counts.get(DAY)).toBe(1);
+  });
+});
+
+/**
+ * 마감이 긴 날을 읽을 수 있게 자른다.
+ *
+ * <p>월말에 몰린다. 8월 31일 실측 마감이 153곳이었고, 지역으로 묶으면 가장 큰 덩어리가 61(기타)로
+ * 줄고 나머지는 2~28곳이 된다. 그런데 3곳짜리 날을 지역으로 접는 것은 도움이 아니라 방해다 —
+ * 그래서 임계값이 있다.
+ */
+describe('groupByRegion', () => {
+  const many = (n: number, location: string, from: number) =>
+    Array.from({ length: n }, (_, i) => p({ id: from + i, name: `${location} ${i}`, location }));
+
+  it('임계값 이하면 묶지 않는다 — 묶지 않았다는 것을 null 로 알린다', () => {
+    expect(groupByRegion(many(REGION_GROUP_THRESHOLD, '서울 성동구 성수동', 1))).toBeNull();
+  });
+
+  it('임계값을 넘으면 묶는다', () => {
+    const groups = groupByRegion(many(REGION_GROUP_THRESHOLD + 1, '서울 성동구 성수동', 1));
+    expect(groups).not.toBeNull();
+    expect(groups).toHaveLength(1);
+    expect(groups?.[0]).toMatchObject({ code: 'seongsu' });
+    expect(groups?.[0].popups).toHaveLength(REGION_GROUP_THRESHOLD + 1);
+  });
+
+  it('덩어리가 큰 지역이 앞에 온다', () => {
+    const groups = groupByRegion([
+      ...many(3, '서울 마포구 연남동', 100),
+      ...many(9, '서울 성동구 성수동', 200),
+      ...many(5, '서울 송파구 잠실동', 300),
+    ]);
+    expect(groups?.map((g) => g.code)).toEqual(['seongsu', 'jamsil', 'mapo']);
+  });
+
+  it('기타는 가장 많아도 맨 뒤다 — 지역이 확실한 것부터 보여준다', () => {
+    const groups = groupByRegion([...many(20, '서울', 400), ...many(3, '서울 성동구 성수동', 500)]);
+    expect(groups?.map((g) => g.code)).toEqual(['seongsu', 'other']);
+    expect(groups?.[1].popups).toHaveLength(20);
+  });
+
+  it('묶어도 팝업이 사라지거나 겹치지 않는다', () => {
+    const list = [...many(7, '서울 강남구 역삼동', 600), ...many(7, '서울 중구 명동', 700)];
+    const groups = groupByRegion(list);
+    const ids = groups?.flatMap((g) => g.popups.map((x) => x.id)) ?? [];
+    expect(ids).toHaveLength(list.length);
+    expect(new Set(ids).size).toBe(list.length);
+  });
+
+  it('기타가 나중에 나타나도 맨 뒤다 — 비교 함수의 반대 방향', () => {
+    const groups = groupByRegion([...many(3, '서울 성동구 성수동', 800), ...many(20, '서울', 900)]);
+    expect(groups?.map((g) => g.code)).toEqual(['seongsu', 'other']);
+  });
+
+  it('지역 안에서는 넘겨받은 순서를 그대로 둔다 — 부모가 정한 인기순을 여기서 흔들지 않는다', () => {
+    const groups = groupByRegion(many(13, '서울 성동구 성수동', 1));
+    expect(groups?.[0].popups.map((x) => x.id)).toEqual([
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13,
+    ]);
   });
 });

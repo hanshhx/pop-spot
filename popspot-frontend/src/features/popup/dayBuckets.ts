@@ -1,4 +1,5 @@
 import type { PopupStore } from '@/types/popup';
+import { classifyRegion, type RegionCode } from '@/lib/regions';
 
 /**
  * 달력에서 하루가 뜻하는 것 — 그날 <b>바뀌는</b> 것과 그저 <b>있는</b> 것을 가른다.
@@ -65,4 +66,47 @@ export function closingCountsByDate(popups: PopupStore[]): Map<string, number> {
     counts.set(end, (counts.get(end) ?? 0) + 1);
   }
   return counts;
+}
+
+/**
+ * 이보다 많으면 지역으로 묶는다.
+ *
+ * <p>3곳을 지역으로 접는 것은 도움이 아니라 방해다. 반대로 월말에는 하루 153곳이 닫힌다 —
+ * 실측 분포는 12곳 근처가 "그냥 나열해도 읽히는" 경계였다.
+ */
+export const REGION_GROUP_THRESHOLD = 12;
+
+/** 한 지역 덩어리. 표시명이 아니라 <b>코드</b>를 담는다 — 언어는 그리는 쪽이 고른다. */
+export interface RegionGroup {
+  code: RegionCode;
+  popups: PopupStore[];
+}
+
+/**
+ * 마감 목록을 지역으로 묶는다. 묶을 만큼 길지 않으면 {@code null}.
+ *
+ * <p>{@code null} 은 "지역이 하나뿐" 이 아니라 <b>"묶지 않았다"</b> 는 뜻이다. 빈 배열로 돌려주면
+ * 그리는 쪽이 "지역이 없다" 와 구별할 수 없다.
+ *
+ * <p>기타는 개수와 무관하게 맨 뒤다. 실측으로 전체 1,167곳 중 524곳(45%)이 기타이고 — 위치
+ * 문자열의 59%에 구 이름이 없다 — 앞에 두면 지역이 확실한 나머지가 안 보인다.
+ */
+export function groupByRegion(popups: PopupStore[]): RegionGroup[] | null {
+  if (popups.length <= REGION_GROUP_THRESHOLD) return null;
+
+  const byRegion = new Map<RegionCode, PopupStore[]>();
+  for (const popup of popups) {
+    const code = classifyRegion(popup.location);
+    const bucket = byRegion.get(code);
+    if (bucket) bucket.push(popup);
+    else byRegion.set(code, [popup]);
+  }
+
+  return [...byRegion.entries()]
+    .map(([code, list]) => ({ code, popups: list }))
+    .sort((a, b) => {
+      if (a.code === 'other') return 1;
+      if (b.code === 'other') return -1;
+      return b.popups.length - a.popups.length;
+    });
 }
