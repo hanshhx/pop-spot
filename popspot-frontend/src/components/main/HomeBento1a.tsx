@@ -9,6 +9,7 @@ import { localizedPath } from '@/lib/localePath';
 import { bilingual } from '@/lib/bilingual';
 import { popupStatusLabel } from '@/lib/popupLocale';
 import { isPexelsPhoto, popupCoverUrl } from '@/lib/popupCover';
+import { daysUntilEnd } from '@/lib/dday';
 
 /**
  * 홈 하단 발견 존 — 1a안 (히어로 + 서브 타일).
@@ -17,16 +18,6 @@ import { isPexelsPhoto, popupCoverUrl } from '@/lib/popupCover';
  * 필터 칩(이번 주·마감임박·혼잡)은 실제로 랭킹을 필터한다. 서브 타일은 <b>유저별로 다른 값을 하드코딩하지 않고</b>
  * 기능 설명 + 일반 일러스트만 둔다(실제 카운트가 필요하면 로그인 데이터를 별도로 배선).
  */
-
-function ddayNum(endDate?: string): number | null {
-  if (!endDate) return null;
-  const end = new Date(endDate);
-  if (Number.isNaN(end.getTime())) return null;
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  end.setHours(0, 0, 0, 0);
-  return Math.round((end.getTime() - today.getTime()) / 86_400_000);
-}
 
 function statusTone(status?: string): string {
   if (status === '혼잡') return 'text-hot-500 dark:text-hot-400';
@@ -50,12 +41,12 @@ export default function HomeBento1a({ popups, total, onOpenRanking, onNavigate }
   const filtered = useMemo(() => {
     if (chip === '마감임박')
       return popups.filter((p) => {
-        const d = ddayNum(p.endDate);
+        const d = daysUntilEnd(p.endDate);
         return d !== null && d >= 0 && d <= 3;
       });
     if (chip === '이번 주')
       return popups.filter((p) => {
-        const d = ddayNum(p.endDate);
+        const d = daysUntilEnd(p.endDate);
         return d !== null && d >= 0 && d <= 7;
       });
     if (chip === '혼잡') return popups.filter((p) => p.status === '혼잡');
