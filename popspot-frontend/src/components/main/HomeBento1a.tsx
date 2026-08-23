@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Flame, Ticket, Users, ArrowRight, Store } from 'lucide-react';
+import { Flame, Ticket, CalendarDays, ArrowRight, Store } from 'lucide-react';
 import type { PopupStore } from '@/types/popup';
 import { useLocale } from '@/lib/i18n';
 import { localizedPath } from '@/lib/localePath';
@@ -13,7 +13,7 @@ import { isPexelsPhoto, popupCoverUrl } from '@/lib/popupCover';
 /**
  * 홈 하단 발견 존 — 1a안 (히어로 + 서브 타일).
  *
- * <p>6칸 벤토를 3칸으로: 실시간 랭킹을 큰 히어로로, 나의 기록(여권)·같이 갈 사람(동행)을 사이드 타일로.
+ * <p>6칸 벤토를 3칸으로: 실시간 랭킹을 큰 히어로로, 나의 기록(여권)·언제 갈까(일정)를 사이드 타일로.
  * 필터 칩(이번 주·마감임박·혼잡)은 실제로 랭킹을 필터한다. 서브 타일은 <b>유저별로 다른 값을 하드코딩하지 않고</b>
  * 기능 설명 + 일반 일러스트만 둔다(실제 카운트가 필요하면 로그인 데이터를 별도로 배선).
  */
@@ -211,10 +211,12 @@ export default function HomeBento1a({ popups, total, onOpenRanking, onNavigate }
         </div>
       </button>
 
-      {/* 같이 갈 사람 (동행) — 유저별 값 없이 기능 설명만 */}
+      {/* 언제 갈까 (일정) — 동행 타일이 있던 자리. 유저별 값 없이 기능 설명만.
+          타일을 그냥 빼면 3열 격자에 구멍이 하나 남고, 무엇보다 새로 생긴 일정 탭이 홈에서
+          아무 데도 안 보이게 된다. */}
       <button
         type="button"
-        onClick={() => onNavigate('MATE')}
+        onClick={() => onNavigate('SCHEDULE')}
         className="group relative overflow-hidden rounded-[2rem] border border-black/[0.06] bg-white p-5 text-left text-ink-900 shadow-pop transition hover:scale-[1.02] md:p-6 lg:col-span-1 dark:border-transparent dark:bg-ink-900 dark:text-cream-200"
       >
         <div
@@ -223,23 +225,17 @@ export default function HomeBento1a({ popups, total, onOpenRanking, onNavigate }
         />
         <div className="relative z-10 flex h-full flex-col justify-between gap-6">
           <span className="grid h-10 w-10 place-items-center rounded-xl bg-sky-400 text-ink-900">
-            <Users size={18} />
+            <CalendarDays size={18} />
           </span>
           <div>
-            <div className="mb-2 flex -space-x-2" aria-hidden>
-              {['bg-lime-300', 'bg-hot-400', 'bg-sky-400'].map((c, i) => (
-                <span
-                  key={i}
-                  className={`h-7 w-7 rounded-full ring-2 ring-white dark:ring-ink-900 ${c}`}
-                />
-              ))}
-            </div>
-            <h3 className="text-base font-black">{t('bento.mateTitle')}</h3>
+            {/* 겹친 아바타 세 개가 있던 자리. 사람을 찾는 기능일 때는 맞는 그림이었지만
+                달력에는 사람이 등장하지 않는다 — 뜻과 다른 장식은 빼는 편이 낫다. */}
+            <h3 className="text-base font-black">{t('bento.scheduleTitle')}</h3>
             <p className="mt-1 text-xs leading-relaxed text-ink-500 dark:text-cream-200/55">
-              {t('bento.mateDesc')}
+              {t('bento.scheduleDesc')}
             </p>
             <span className="mt-3 inline-flex items-center gap-1 text-xs font-bold text-sky-600 dark:text-sky-300">
-              {t('bento.mateCta')}{' '}
+              {t('bento.scheduleCta')}{' '}
               <ArrowRight size={13} className="transition-transform group-hover:translate-x-0.5" />
             </span>
           </div>
