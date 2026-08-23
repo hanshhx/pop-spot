@@ -8,7 +8,7 @@ import { useLocale, localizedLabel, type Locale, type MessageKey } from '@/lib/i
 import { localizedPath } from '@/lib/localePath';
 import { REGIONS, type RegionCode } from '@/lib/regions';
 import type { PopupStore } from '@/types/popup';
-import { bucketByDay, closingCountsByDate, groupByRegion } from './dayBuckets';
+import { bucketByDay, closingCountsByDate, groupByRegion, toDateKey } from './dayBuckets';
 
 /**
  * 요일 머리글. 모듈 상수라 훅을 쓸 수 없어 <b>키만 두고</b> 그리는 쪽에서 옮긴다.
@@ -102,11 +102,7 @@ export function PopupCalendar({
   /** 날짜별 마감 수 — 격자에 적을 숫자. 목록이 바뀔 때만 다시 센다. */
   const closingByDate = useMemo(() => closingCountsByDate(popups), [popups]);
 
-  const dateKey = useCallback(
-    (day: number) =>
-      `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
-    [year, month],
-  );
+  const dateKey = useCallback((day: number) => toDateKey(year, month, day), [year, month]);
 
   const handlePrevMonth = () => {
     setCurrentDate(new Date(year, month - 1, 1));
@@ -257,7 +253,11 @@ export function PopupCalendar({
                   {t('cal.countSuffix')}
                 </h5>
                 {closingGroups ? (
-                  <div className="flex flex-wrap gap-1.5">
+                  <div
+                    className="flex flex-wrap gap-1.5"
+                    role="group"
+                    aria-label={t('cal.closing')}
+                  >
                     {closingGroups.map((group) => (
                       <button
                         key={group.code}
@@ -266,7 +266,9 @@ export function PopupCalendar({
                           setOpenRegion((prev) => (prev === group.code ? null : group.code))
                         }
                         aria-expanded={openRegion === group.code}
-                        aria-controls={`cal-region-${group.code}`}
+                        aria-controls={
+                          openRegion === group.code ? `cal-region-${group.code}` : undefined
+                        }
                         className={cn(
                           'rounded-pill px-2.5 py-1 text-[11px] font-bold transition-colors',
                           openRegion === group.code
@@ -357,7 +359,7 @@ function PopupRows({
         >
           <article className="p-3 bg-cream-300 dark:bg-ink-800 rounded-md border border-[var(--color-border)] flex justify-between items-center hover:border-lime-300/60 transition-colors group cursor-pointer">
             <div className="min-w-0 flex-1">
-              <h5 className="font-semibold text-sm text-foreground group-hover:text-lime-500 transition-colors truncate flex items-center gap-1.5">
+              <h6 className="font-semibold text-sm text-foreground group-hover:text-lime-500 transition-colors truncate flex items-center gap-1.5">
                 {popup.name}
                 {/* [V4] 자동수집 정보임을 한눈에 알리는 뱃지 — 정확성 면책의 가시성 확보 */}
                 {popup.sourceType === 'CRAWLED' && (
@@ -369,7 +371,7 @@ function PopupRows({
                     AI
                   </span>
                 )}
-              </h5>
+              </h6>
               <p className="text-xs text-muted-foreground mt-0.5 truncate">{popup.location}</p>
             </div>
             <span className="text-[10px] font-bold px-2 py-1 bg-surface border border-[var(--color-border)] text-foreground rounded-pill shrink-0 ml-3 group-hover:bg-lime-300 group-hover:text-ink-900 group-hover:border-lime-300 transition-colors">

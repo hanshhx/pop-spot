@@ -117,15 +117,6 @@ export const SEASON_COPY: Record<Season, SeasonCopy> = {
   },
 };
 
-/** 마감까지 남은 일수. 오늘 마감이면 0. 날짜가 없거나 이상하면 null. */
-export function daysUntil(endDate: string | undefined, now: Date = new Date()): number | null {
-  if (!endDate) return null;
-  const end = new Date(endDate);
-  if (Number.isNaN(end.getTime())) return null;
-  const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
-  return Math.round((startOfDay(end) - startOfDay(now)) / 86_400_000);
-}
-
 /** 관리자 화면 등에서 쓰는 계절 이름. */
 export const SEASON_LABEL: Record<Season, string> = {
   spring: '봄',
