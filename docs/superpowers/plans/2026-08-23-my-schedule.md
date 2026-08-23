@@ -658,14 +658,15 @@ git add popspot-frontend/src/features/popup/dayBuckets.ts popspot-frontend/src/f
 
 - [ ] **Step 1: 실패하는 테스트를 덧붙인다**
 
-`src/features/popup/dayBuckets.test.ts` 의 import 를 바꾼다:
+`src/features/popup/dayBuckets.test.ts` 의 import 를 바꾼다. **`closingCountsByDate` 를 빠뜨리지 말 것** — Task 3 의 마지막 세 테스트가 그걸 쓴다:
 
 ```ts
 import {
   REGION_GROUP_THRESHOLD,
   bucketByDay,
+  closingCountsByDate,
   groupByRegion,
-} from "./dayBuckets"
+} from './dayBuckets';
 ```
 
 파일 끝에 덧붙인다:
