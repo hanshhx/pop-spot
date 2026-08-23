@@ -117,38 +117,6 @@ export const SEASON_COPY: Record<Season, SeasonCopy> = {
   },
 };
 
-/**
- * <b>이번 계절 안에 마감하는가.</b> 계절 행사인지와는 무관하다.
- *
- * <h3>이름에 속지 말 것</h3>
- *
- * <p>이 판정이 보는 것은 마감일 하나뿐이다. 그래서 가을과 아무 관련 없는 팝업도 9월에 끝나면
- * 참이 된다. 예전에는 이 값으로 "가을 한정" 칩과 필터를 그렸는데, 화면에 적힌 사실 주장이
- * 자주 거짓이었으므로 둘 다 걷어냈다. <b>여기에 계절 이름을 붙이는 문구를 다시 달지 말 것.</b>
- *
- * <p>지금 남은 쓰임은 카드의 D-day 배지를 만채도로 칠하는 것 하나다. 그 배지는 "이 계절에
- * 사라진다" 는 뜻이라 계산과 일치한다 — 다만 대부분의 팝업이 석 달 안에 끝나므로 거의 모든
- * 카드가 칠해질 수 있다. 전부 칠해지면 신호가 아니므로, 실제 비율을 재서 판단할 일이 남아 있다.
- *
- * <p>시작일을 보지 않는 이유: 지난달에 열었어도 이번 계절에 닫으면 지금 놓치는 것은 같다.
- * 이미 끝난 팝업은 제외한다 — 알릴 마감이 없다.
- */
-export function isSeasonLimited(
-  endDate: string | undefined,
-  season: Season,
-  now: Date = new Date(),
-): boolean {
-  const end = endDate ? new Date(endDate) : null;
-  if (!end || Number.isNaN(end.getTime())) return false;
-  // 날짜로 비교한다. 시각으로 비교하면 "오늘 마감" 이 자정 기준 과거가 되어 빠진다 — 가장 급한
-  // 한 칸이 정확히 그날 사라지는 셈이라, 마감을 알리자는 신호의 취지와 반대가 된다.
-  const left = daysUntil(endDate, now);
-  if (left == null || left < 0) return false;
-  // 계절은 1년마다 돌아온다. 내년 같은 계절까지 포함하면 마감이라는 말이 의미를 잃는다.
-  if (end.getFullYear() !== now.getFullYear()) return false;
-  return seasonOfMonth(end.getMonth() + 1) === season;
-}
-
 /** 마감까지 남은 일수. 오늘 마감이면 0. 날짜가 없거나 이상하면 null. */
 export function daysUntil(endDate: string | undefined, now: Date = new Date()): number | null {
   if (!endDate) return null;
