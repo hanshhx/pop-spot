@@ -188,9 +188,13 @@ export function PopupCalendar({
               >
                 {day}
               </span>
-              {/* 점이 아니라 숫자다 — 마감 153곳인 날과 12곳인 날이 점으로는 똑같아 보인다. */}
+              {/* 점이 아니라 숫자다 — 마감 153곳인 날과 12곳인 날이 점으로는 똑같아 보인다.
+                  aria-hidden 은 점에 있던 것을 그대로 가져온다: 뜻은 버튼의 aria-label 이 지고,
+                  숫자는 눈으로 보는 쪽만 맡는다. 가리지 않으면 브라우즈 모드에서 맥락 없는
+                  "153" 이 읽힌다. */}
               {day && closingCount > 0 && (
                 <span
+                  aria-hidden
                   className={cn(
                     'mt-0.5 text-[10px] font-bold leading-none tabular-nums',
                     isSelected ? 'text-cream-200 dark:text-ink-900' : 'text-hot-500',
