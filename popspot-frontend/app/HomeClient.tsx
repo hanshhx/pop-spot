@@ -2780,6 +2780,14 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
  * <p>본 컴포넌트는 mount 시점에 localStorage 를 한 번만 읽어 가벼움. 다른 페이지에서 팝업 상세 진입하면
  * 자동으로 기록되고, 사용자가 홈이나 MY 탭으로 돌아오면 다음 mount 에 갱신.
  */
+/**
+ * 최근 본 팝업 한 장에 몇 개를 놓을지.
+ *
+ * <p>여섯이면 넓은 화면에서 3열 × 2줄, 좁은 화면에서 6줄이라 지금까지 보이던 분량과 같다.
+ * 저장은 열 개까지이므로 장은 최대 두 장이다.
+ */
+const RECENT_PAGE_SIZE = 6;
+
 function RecentVisitsCard({ standalone = false }: { standalone?: boolean } = {}) {
   const { t, locale } = useLocale();
   /**
@@ -2790,6 +2798,7 @@ function RecentVisitsCard({ standalone = false }: { standalone?: boolean } = {})
    * 밀린다. 홈에서는 "최근 본 것이 있다" 는 사실만 한 줄로 알리고, 볼 사람이 펼치게 한다.
    */
   const [isExpanded, setIsExpanded] = useState(!standalone);
+  const [page, setPage] = useState(0);
   const [visits, setVisits] = useState<
     Array<{ popupId: number; popupName: string; popupImage?: string }>
   >([]);
@@ -2802,13 +2811,26 @@ function RecentVisitsCard({ standalone = false }: { standalone?: boolean } = {})
 
   if (visits.length === 0) return null;
 
-  const visibleVisits = visits.slice(0, 6);
+  /*
+   * 개수는 <b>저장된 전부</b>를 센다.
+   *
+   * 예전에는 여섯 개로 자른 뒤 그 자른 목록의 길이를 적었다. 그래서 여섯을 넘긴 사람에게는
+   * 아무리 더 봐도 "6개" 로 굳어, 기록이 안 되는 것처럼 보였다 — 실제로는 최신 항목이 맨 앞으로
+   * 잘 들어오고 있었고 숫자만 거짓말을 하고 있었다. 나머지는 이제 장을 넘겨 본다.
+   */
+  const pageCount = Math.ceil(visits.length / RECENT_PAGE_SIZE);
+  // 목록이 줄어든 뒤에도 예전 page 가 남아 빈 장을 그리지 않게 막는다.
+  const safePage = Math.min(page, pageCount - 1);
+  const visibleVisits = visits.slice(
+    safePage * RECENT_PAGE_SIZE,
+    (safePage + 1) * RECENT_PAGE_SIZE,
+  );
   const itemCountLabel =
     locale === 'en'
-      ? `${visibleVisits.length} viewed`
+      ? `${visits.length} viewed`
       : locale === 'ja'
-        ? `${visibleVisits.length}件`
-        : `${visibleVisits.length}개`;
+        ? `${visits.length}件`
+        : `${visits.length}개`;
   const toggleLabel = isExpanded
     ? locale === 'en'
       ? 'Collapse recently viewed pop-ups'
@@ -2823,6 +2845,9 @@ function RecentVisitsCard({ standalone = false }: { standalone?: boolean } = {})
 
   const handleToggle = () => {
     setIsExpanded((current) => !current);
+    // 접었다 다시 펴면 첫 장부터. 세 번째 장을 보다 접은 사람이 다시 열었을 때 거기서
+    // 시작하면, 맨 앞에 있어야 할 최신 항목이 안 보인다.
+    setPage(0);
   };
 
   return (
@@ -2923,6 +2948,49 @@ function RecentVisitsCard({ standalone = false }: { standalone?: boolean } = {})
               </span>
             </Link>
           ))}
+        </div>
+      )}
+
+      {/* 장이 하나뿐이면 컨트롤을 그리지 않는다 — 누를 데가 없는 화살표는 장식이다. */}
+      {isExpanded && pageCount > 1 && (
+        <div className="mt-2 flex items-center justify-center gap-1">
+          <button
+            type="button"
+            onClick={() => setPage((current) => Math.max(0, current - 1))}
+            disabled={safePage === 0}
+            aria-label={
+              locale === 'en'
+                ? 'Previous page of recently viewed pop-ups'
+                : locale === 'ja'
+                  ? '最近見たポップアップの前のページ'
+                  : '최근 본 팝업 이전 장'
+            }
+            className="grid h-9 w-9 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-black/[0.05] disabled:opacity-35 disabled:hover:bg-transparent dark:hover:bg-white/[0.06]"
+          >
+            <ChevronLeft size={16} aria-hidden />
+          </button>
+          {/* 장을 넘긴 사실은 화면 밖에서도 들려야 한다 — 바뀌는 것은 이 숫자뿐이다. */}
+          <span
+            aria-live="polite"
+            className="px-1 text-xs font-semibold tabular-nums text-muted-foreground"
+          >
+            {safePage + 1} / {pageCount}
+          </span>
+          <button
+            type="button"
+            onClick={() => setPage((current) => Math.min(pageCount - 1, current + 1))}
+            disabled={safePage === pageCount - 1}
+            aria-label={
+              locale === 'en'
+                ? 'Next page of recently viewed pop-ups'
+                : locale === 'ja'
+                  ? '最近見たポップアップの次のページ'
+                  : '최근 본 팝업 다음 장'
+            }
+            className="grid h-9 w-9 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-black/[0.05] disabled:opacity-35 disabled:hover:bg-transparent dark:hover:bg-white/[0.06]"
+          >
+            <ChevronRight size={16} aria-hidden />
+          </button>
         </div>
       )}
     </div>
