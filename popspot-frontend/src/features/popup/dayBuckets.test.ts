@@ -5,6 +5,7 @@ import {
   bucketByDay,
   closingCountsByDate,
   groupByRegion,
+  toDateKey,
 } from './dayBuckets';
 import type { PopupStore } from '@/types/popup';
 
@@ -27,6 +28,16 @@ const p = (o: Partial<PopupStore> & { id: number; name: string }): PopupStore =>
 });
 
 const DAY = '2026-08-31';
+
+describe('toDateKey', () => {
+  it('월은 0부터 시작해서 받는다 — 12월(monthIndex 11)이 -12- 로 나온다', () => {
+    expect(toDateKey(2026, 11, 25)).toBe('2026-12-25');
+  });
+
+  it('한 자리 월과 일은 0을 채운다', () => {
+    expect(toDateKey(2026, 0, 5)).toBe('2026-01-05');
+  });
+});
 
 describe('bucketByDay', () => {
   it('그날 끝나는 것은 마감이고, 그날 시작하는 것은 오픈이다', () => {

@@ -29,7 +29,7 @@ export function MySchedule({ popups }: { popups: PopupStore[] }) {
 
   return (
     <section className="mb-6 border-b border-[var(--color-border)] pb-6">
-      <h3 className="mb-3 flex items-center gap-2 text-base font-bold text-foreground lg:text-lg">
+      <h3 className="mb-3 text-base font-bold text-foreground lg:text-lg">
         {t('sched.mineTitle')}
       </h3>
 

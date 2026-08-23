@@ -21,6 +21,16 @@ export interface DayBuckets {
 }
 
 /**
+ * 연·월·일을 {@code YYYY-MM-DD} 키로 만든다.
+ *
+ * <p>{@code monthIndex} 는 0부터 시작한다 — {@link Date} 와 호출부의 {@code month} 변수를 그대로
+ * 따른다. 1부터 세는 월을 넘기면 한 달 밀린 키가 조용히 만들어진다.
+ */
+export function toDateKey(year: number, monthIndex: number, day: number): string {
+  return `${year}-${String(monthIndex + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
+/**
  * 하루치를 세 덩어리로 가른다.
  *
  * <p>마감만 {@code startDate} 를 요구하지 않는다. 종료일만 있고 시작일이 없는 팝업이 실측 24곳
