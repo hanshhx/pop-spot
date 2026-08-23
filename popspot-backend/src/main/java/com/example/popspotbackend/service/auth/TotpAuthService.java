@@ -11,6 +11,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
+import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,6 +28,14 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 public class TotpAuthService {
+
+    /** Redis 6.0 호환 원자적 GET+DEL — 같은 도전표의 동시 재사용을 막는다. */
+    private static final RedisScript<String> GET_DEL_SCRIPT =
+            new DefaultRedisScript<>(
+                    "local v = redis.call('GET', KEYS[1]) "
+                            + "if v then redis.call('DEL', KEYS[1]) end "
+                            + "return v",
+                    String.class);
 
     private static final String ISSUER = "POP-SPOT";
     private static final int TIME_STEP_SECONDS = 30;
@@ -178,9 +188,7 @@ public class TotpAuthService {
     public String consumeChallenge(String token) {
         if (token == null || token.isBlank() || token.length() > 100) return null;
         String key = CHALLENGE_PREFIX + token;
-        String userId = redisTemplate.opsForValue().get(key);
-        redisTemplate.delete(key);
-        return userId;
+        return redisTemplate.execute(GET_DEL_SCRIPT, List.of(key));
     }
 
     /**
