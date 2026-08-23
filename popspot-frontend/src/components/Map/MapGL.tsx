@@ -22,6 +22,8 @@ import {
 import { createPortal } from 'react-dom';
 import type { Map, Marker, GeoJSONSource } from 'maplibre-gl';
 import { buildBaseStyle, basemapTileUrl, fetchBasemapVersion, type MapMode } from './mapStyle';
+import { useDocumentDark } from '@/lib/documentTheme';
+import { useSeason } from '@/lib/seasonContext';
 
 type MapInstance = Map;
 // 런타임 lib 값은 import('maplibre-gl').then((m) => m.default) 로 받는 default export 다.
@@ -47,7 +49,6 @@ export interface LngLatLike {
 interface MapGLProps {
   center: LngLatLike;
   zoom: number;
-  mode?: MapMode;
   /** 지도 생성 완료 후 원본 maplibre Map 인스턴스를 넘긴다(패닝/줌 제어용). */
   onCreate?: (map: MapInstance) => void;
   /** 빈 지도(마커 아닌 곳) 클릭. 선택 해제 등에 사용. */
@@ -57,20 +58,20 @@ interface MapGLProps {
   children?: ReactNode;
 }
 
-export function MapGL({
-  center,
-  zoom,
-  mode = 'dark',
-  onCreate,
-  onClick,
-  className,
-  id,
-  children,
-}: MapGLProps) {
+export function MapGL({ center, zoom, onCreate, onClick, className, id, children }: MapGLProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [ctx, setCtx] = useState<Ctx>({ map: null, lib: null });
-  // 현재 스타일에 실제로 적용된 mode. 불필요한 setStyle(깜빡임) 방지용.
-  const appliedModeRef = useRef<MapMode | null>(null);
+  // 지도 면(--s-map)과 경계선(--s-mapline)이 계절을 타므로, 계절이 바뀌면 다시 칠해야 한다.
+  const season = useSeason();
+  /*
+   * 다크 여부는 <html> 의 클래스에서 직접 읽는다. mode prop(=next-themes 의 resolvedTheme)이 아니다.
+   * 스타일 색은 CSS 변수에서 나오고 그 값은 클래스가 정하므로, 둘 중 클래스가 진짜다.
+   * 아래 appliedModeRef 도 같은 값으로 적어야 한다 — 자세한 경위는 lib/documentTheme 주석.
+   */
+  const dark = useDocumentDark();
+  const styleMode: MapMode = dark ? 'dark' : 'light';
+  /** 이미 적용된 `styleMode:season`. 같은 값이면 setStyle 을 건너뛰어 깜빡임을 막는다. */
+  const appliedModeRef = useRef<string | null>(null);
   // 버전이 붙은 타일 URL(캐시 가능). setStyle 시에도 재사용.
   const tileUrlRef = useRef<string>('');
   // 최신 콜백을 effect 재실행 없이 참조. 렌더 중 ref 를 쓰면 안 되므로(React 19) 커밋 후 갱신한다.
@@ -104,7 +105,7 @@ export function MapGL({
 
       map = new maplibregl.Map({
         container: containerRef.current,
-        style: buildBaseStyle(mode, tileUrl),
+        style: buildBaseStyle(styleMode, tileUrl),
         center: [center.lng, center.lat],
         zoom,
         attributionControl: { compact: true },
@@ -117,7 +118,7 @@ export function MapGL({
         // 만료 타일 재검증 안 함(우린 버전으로 캐시 무효화 관리).
         refreshExpiredTiles: false,
       });
-      appliedModeRef.current = mode; // 초기 스타일은 마운트 시점 mode 로 지음
+      appliedModeRef.current = `${styleMode}:${season}`; // 스타일을 지은 값 그대로 적는다
       map.touchZoomRotate?.disableRotation?.();
 
       if (onClickRef.current) map.on('click', () => onClickRef.current?.());
@@ -139,17 +140,22 @@ export function MapGL({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // mode(다크/라이트) 변경 시 스타일 교체.
+  // 다크/라이트나 계절이 바뀌면 스타일 교체.
   // ctx.map 을 deps 에 넣어, 지도 로드 전에 테마가 확정된 경우에도 로드 직후 반영되게 한다.
-  // appliedModeRef 로 이미 적용된 mode 는 건너뛰어 불필요한 setStyle(깜빡임)을 막는다.
   // 마커는 DOM 오버레이라 setStyle 후에도 유지되고, dark: 클래스로 테마에 자동 반응한다.
+  //
+  // 비교 키는 스타일을 실제로 지은 값과 같아야 한다. 예전엔 색을 문서(.dark)에서 만들면서 키는
+  // React 의 mode 로 적었다 — 둘이 어긋난 채 만들어지면 클래스가 뒤늦게 제자리를 찾아도 키가
+  // 같아서 다시 칠하지 않았고, 지도가 화면과 반대인 채로 굳었다.
+  // buildBaseStyle 은 호출 시점에 CSS 변수를 읽으므로, 다시 부르기만 하면 새 색이 잡힌다.
   useEffect(() => {
     const m = ctx.map;
     if (!m) return;
-    if (appliedModeRef.current === mode) return;
-    appliedModeRef.current = mode;
-    m.setStyle(buildBaseStyle(mode, tileUrlRef.current || basemapTileUrl()));
-  }, [mode, ctx.map]);
+    const key = `${styleMode}:${season}`;
+    if (appliedModeRef.current === key) return;
+    appliedModeRef.current = key;
+    m.setStyle(buildBaseStyle(styleMode, tileUrlRef.current || basemapTileUrl()));
+  }, [styleMode, season, ctx.map]);
 
   // center prop 이 실제로 바뀌면 지도를 그쪽으로 이동한다. 좌표가 갱신되는 소비자(예: DetailMap
   // 에서 팝업 A→B 이동)를 위해 필요. 값(위경도) 기준 비교라, 부모가 매 렌더 새 객체를 줘도

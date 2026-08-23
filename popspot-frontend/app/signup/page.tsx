@@ -249,7 +249,7 @@ export default function SignupPage() {
   };
 
   return (
-    <div className="min-h-screen bg-ink-900 dark:bg-ink-900 text-cream-200 flex flex-col items-center py-8 md:py-10 px-4">
+    <div className="min-h-screen bg-background dark:bg-background text-foreground flex flex-col items-center py-8 md:py-10 px-4">
       {/* v2.17 — 폼 내부 색상 클래스는 다크 디자인 의도 유지 (login 과 일관). 향후 v2.18 라운드에서
           시스템 테마 토큰화 검토. */}
       {/* 헤더 */}
@@ -258,7 +258,7 @@ export default function SignupPage() {
           type="button"
           onClick={() => router.back()}
           aria-label={t('common.back')}
-          className="absolute left-0 size-8 inline-flex items-center justify-center text-cream-200/60 hover:text-cream-200 transition-colors"
+          className="absolute left-0 size-8 inline-flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
         >
           <ChevronLeft className="size-6" aria-hidden />
         </button>
@@ -276,9 +276,7 @@ export default function SignupPage() {
       {guestExpired && (
         <div className="w-full max-w-[460px] md:max-w-[540px] mb-6 rounded-2xl bg-lime-300/15 ring-1 ring-lime-300/40 px-5 py-4">
           <p className="font-bold text-lime-300 mb-1">{t('signup.guestExpiredTitle')}</p>
-          <p className="text-sm leading-relaxed text-cream-200/85">
-            {t('signup.guestExpiredText')}
-          </p>
+          <p className="text-sm leading-relaxed text-foreground">{t('signup.guestExpiredText')}</p>
         </div>
       )}
 
@@ -297,7 +295,7 @@ export default function SignupPage() {
 
         {/* 이메일 */}
         <Field
-          label={<span className="text-cream-200/70">{t('signup.email')}</span>}
+          label={<span className="text-muted-foreground">{t('signup.email')}</span>}
           error={
             formData.email.length > 0 && !isValidEmail && !isAuthVerified ? (
               <span className="flex items-center gap-1">
@@ -316,7 +314,7 @@ export default function SignupPage() {
               disabled={isAuthVerified}
               invalid={formData.email.length > 0 && !isValidEmail && !isAuthVerified}
               autoComplete="email"
-              className="flex-1 bg-ink-800 border-cream-200/15 text-cream-200 placeholder:text-cream-200/30"
+              className="flex-1 bg-surface border-[var(--color-border)] text-foreground placeholder:text-subtle-foreground"
             />
             <Button
               type="button"
@@ -342,7 +340,7 @@ export default function SignupPage() {
                 onChange={handleChange}
                 inputMode="numeric"
                 maxLength={6}
-                className="bg-ink-800 border-cream-200/15 text-cream-200 placeholder:text-cream-200/30 pr-16"
+                className="bg-surface border-[var(--color-border)] text-foreground placeholder:text-subtle-foreground pr-16"
               />
               <span className="absolute right-3 top-1/2 -translate-y-1/2 font-mono text-xs text-lime-300">
                 {formatTime(timer)}
@@ -362,7 +360,7 @@ export default function SignupPage() {
 
         {/* 비밀번호 */}
         <Field
-          label={<span className="text-cream-200/70">{t('signup.password')}</span>}
+          label={<span className="text-muted-foreground">{t('signup.password')}</span>}
           error={
             formData.password.length > 0 && !isValidPassword ? (
               <span className="flex items-center gap-1">
@@ -386,13 +384,13 @@ export default function SignupPage() {
             onChange={handleChange}
             invalid={formData.password.length > 0 && !isValidPassword}
             autoComplete="new-password"
-            className="bg-ink-800 border-cream-200/15 text-cream-200 placeholder:text-cream-200/30"
+            className="bg-surface border-[var(--color-border)] text-foreground placeholder:text-subtle-foreground"
             iconRight={
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
                 aria-label={showPassword ? t('login.hidePassword') : t('login.showPassword')}
-                className="text-cream-200/50 hover:text-cream-200 transition-colors"
+                className="text-muted-foreground hover:text-foreground transition-colors"
               >
                 {/* state-icon 컨벤션 — 눈 뜸 = 현재 보이는 상태, 눈 감김 = 현재 가려진 상태. */}
                 {showPassword ? (
@@ -407,7 +405,7 @@ export default function SignupPage() {
 
         {/* 비밀번호 확인 */}
         <Field
-          label={<span className="text-cream-200/70">{t('signup.passwordConfirm')}</span>}
+          label={<span className="text-muted-foreground">{t('signup.passwordConfirm')}</span>}
           error={
             isPasswordMismatch ? (
               <span className="flex items-center gap-1">
@@ -431,13 +429,13 @@ export default function SignupPage() {
             onChange={handleChange}
             invalid={isPasswordMismatch}
             autoComplete="new-password"
-            className="bg-ink-800 border-cream-200/15 text-cream-200 placeholder:text-cream-200/30"
+            className="bg-surface border-[var(--color-border)] text-foreground placeholder:text-subtle-foreground"
             iconRight={
               <button
                 type="button"
                 onClick={() => setShowPasswordConfirm(!showPasswordConfirm)}
                 aria-label={showPasswordConfirm ? t('login.hidePassword') : t('login.showPassword')}
-                className="text-cream-200/50 hover:text-cream-200 transition-colors"
+                className="text-muted-foreground hover:text-foreground transition-colors"
               >
                 {/* state-icon — 눈 뜸 = 현재 보이는 상태, 눈 감김 = 현재 가려진 상태. */}
                 {showPasswordConfirm ? (
@@ -452,7 +450,7 @@ export default function SignupPage() {
 
         {/* 이름 (닉네임) */}
         <Field
-          label={<span className="text-cream-200/70">{t('signup.name')}</span>}
+          label={<span className="text-muted-foreground">{t('signup.name')}</span>}
           error={
             formData.name.length > 0 && !isValidName ? (
               <span className="flex items-center gap-1">
@@ -476,13 +474,13 @@ export default function SignupPage() {
             value={formData.name}
             onChange={handleChange}
             invalid={formData.name.length > 0 && !isValidName}
-            className="bg-ink-800 border-cream-200/15 text-cream-200 placeholder:text-cream-200/30"
+            className="bg-surface border-[var(--color-border)] text-foreground placeholder:text-subtle-foreground"
           />
         </Field>
 
         {/* 휴대전화 */}
         <Field
-          label={<span className="text-cream-200/70">{t('signup.phone')}</span>}
+          label={<span className="text-muted-foreground">{t('signup.phone')}</span>}
           error={
             formData.phoneNumber.length > 0 && !isValidPhone ? (
               <span className="flex items-center gap-1">
@@ -508,13 +506,13 @@ export default function SignupPage() {
             inputMode="numeric"
             maxLength={11}
             autoComplete="tel"
-            className="bg-ink-800 border-cream-200/15 text-cream-200 placeholder:text-cream-200/30"
+            className="bg-surface border-[var(--color-border)] text-foreground placeholder:text-subtle-foreground"
           />
         </Field>
 
         {/* 약관 동의 */}
-        <div className="bg-ink-800 p-4 rounded-md border border-cream-200/15 space-y-3 mt-6">
-          <label className="flex items-center gap-3 cursor-pointer pb-3 border-b border-cream-200/10 select-none">
+        <div className="bg-surface p-4 rounded-md border border-[var(--color-border)] space-y-3 mt-6">
+          <label className="flex items-center gap-3 cursor-pointer pb-3 border-b border-[var(--color-border)] select-none">
             <input
               type="checkbox"
               className="sr-only"
@@ -524,12 +522,14 @@ export default function SignupPage() {
             <span
               aria-hidden
               className={`size-5 rounded-pill border flex items-center justify-center transition-colors ${
-                isAllAgreed ? 'bg-lime-300 border-lime-300' : 'border-cream-200/30 bg-ink-900'
+                isAllAgreed
+                  ? 'bg-lime-300 border-lime-300'
+                  : 'border-[var(--color-border)] bg-background'
               }`}
             >
               {isAllAgreed && <Check className="size-3 text-ink-900" />}
             </span>
-            <span className="font-bold text-sm text-cream-200">{t('signup.agreeAll')}</span>
+            <span className="font-bold text-sm text-foreground">{t('signup.agreeAll')}</span>
           </label>
 
           <label className="flex items-center gap-3 cursor-pointer select-none">
@@ -542,12 +542,12 @@ export default function SignupPage() {
             <span
               aria-hidden
               className={`size-4 rounded border flex items-center justify-center transition-colors shrink-0 ${
-                agreements.age ? 'bg-lime-300 border-lime-300' : 'border-cream-200/30'
+                agreements.age ? 'bg-lime-300 border-lime-300' : 'border-[var(--color-border)]'
               }`}
             >
               {agreements.age && <Check className="size-2.5 text-ink-900" />}
             </span>
-            <span className="text-xs text-cream-200/60">{t('signup.ageNotice')}</span>
+            <span className="text-xs text-muted-foreground">{t('signup.ageNotice')}</span>
           </label>
 
           {[
@@ -574,12 +574,14 @@ export default function SignupPage() {
                 <span
                   aria-hidden
                   className={`size-4 rounded border flex items-center justify-center transition-colors shrink-0 ${
-                    agreements[item.key] ? 'bg-lime-300 border-lime-300' : 'border-cream-200/30'
+                    agreements[item.key]
+                      ? 'bg-lime-300 border-lime-300'
+                      : 'border-[var(--color-border)]'
                   }`}
                 >
                   {agreements[item.key] && <Check className="size-2.5 text-ink-900" />}
                 </span>
-                <span className="text-xs text-cream-200/60 truncate">{item.label}</span>
+                <span className="text-xs text-muted-foreground truncate">{item.label}</span>
               </label>
 
               {/* 약관 본문 새 탭으로 — "동의 전 열람" 절차 보장 */}
@@ -587,7 +589,7 @@ export default function SignupPage() {
                 href={item.href}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="shrink-0 inline-flex items-center gap-1 text-[11px] text-cream-200/50 hover:text-lime-300 transition-colors underline underline-offset-2"
+                className="shrink-0 inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-lime-300 transition-colors underline underline-offset-2"
                 aria-label={`${item.label} — ${t('signup.viewNewTab')}`}
               >
                 {t('signup.view')}

@@ -2,6 +2,7 @@ import { Activity, AlertTriangle, Cpu, Database, Globe, ShieldAlert } from 'luci
 import { LogViewer } from '@/components/admin/log/LogViewer';
 import { MetricCard } from '@/components/admin/metrics/MetricCard';
 import { TotpSetupPanel } from '@/features/admin/TotpSetupPanel';
+import { SeasonThemePanel } from '@/features/admin/SeasonThemePanel';
 import type { DashboardMetrics, MetricData, ServerResource } from '@/features/admin/types';
 
 type SystemTabProps = {
@@ -44,6 +45,7 @@ export function SystemTab({
     : 0;
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <SeasonThemePanel />
       {automationDisabled && (
         <div className="rounded-2xl border border-red-500/40 bg-red-500/10 p-4 text-sm">
           <p className="flex items-center gap-2 font-bold text-red-700 dark:text-red-300">

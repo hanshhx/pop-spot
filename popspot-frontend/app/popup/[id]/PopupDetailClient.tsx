@@ -26,11 +26,13 @@ import { notify, notifyError } from '@/lib/notify';
 import { trackVisitEvent } from '@/lib/visitEvent';
 import { popupCoverUrl } from '@/lib/popupCover';
 import { PhotoDisclosure } from '@/components/popup/PhotoDisclosure';
+import LocaleSwitcher from '@/components/LocaleSwitcher';
 import { addToCalendar, toCalendarEvent } from '@/lib/calendar';
 import type { User } from '@/types/popup';
 import { useLocale, type MessageKey } from '@/lib/i18n';
 import { localizedPath } from '@/lib/localePath';
 import { bilingual } from '@/lib/bilingual';
+import { daysUntilEnd } from '@/lib/dday';
 
 declare global {
   interface Window {
@@ -95,13 +97,8 @@ function ddayLabel(
   ended: string,
   todayClosing: string,
 ): string | null {
-  if (!closeDate) return null;
-  const end = new Date(closeDate);
-  if (Number.isNaN(end.getTime())) return null;
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  end.setHours(0, 0, 0, 0);
-  const diff = Math.round((end.getTime() - today.getTime()) / 86_400_000);
+  const diff = daysUntilEnd(closeDate);
+  if (diff === null) return null;
   if (diff < 0) return ended;
   if (diff === 0) return todayClosing;
   return `D-${diff}`;
@@ -495,7 +492,8 @@ export default function PopupDetailClient({
           >
             <ArrowLeft size={20} />
           </button>
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
+            <LocaleSwitcher locale={locale} className="shrink-0" />
             <button
               onClick={handleShare}
               aria-label={t('common.share')}
@@ -722,6 +720,15 @@ export default function PopupDetailClient({
                       href={popup.sourceUrl}
                       target="_blank"
                       rel="noopener noreferrer"
+                      /*
+                       * 이 페이지에서 <b>실제로 작동하는 유일한 이탈 경로</b>다. 공식·예약 버튼에도
+                       * 같은 이벤트가 달려 있지만 그 둘은 진행 중 588건 전부 URL 이 비어 있어 한 번도
+                       * 그려진 적이 없다 — 3주간 outbound_click 이 0건이었던 이유가 클릭이 없어서가
+                       * 아니라 버튼이 없어서였다.
+                       *
+                       * 여기 붙여야 "상세를 보고 더 알아보러 떠났는가" 를 처음으로 셀 수 있다.
+                       */
+                      onClick={() => trackVisitEvent('outbound_click', { popupId: popup.id })}
                       /*
                        * 글자만 있는 링크는 높이가 글자 높이(16px)라 손가락으로 정확히 누르기 어렵다.
                        * 글자 크기는 그대로 두고 위아래 여백으로 누를 면적만 44px 로 넓힌다 —

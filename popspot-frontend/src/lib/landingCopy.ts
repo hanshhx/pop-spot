@@ -574,13 +574,14 @@ const ja: LandingCopy = {
   },
 
   h1: {
-    region: (l, c) => `${l}のポップアップストア ${c}件`,
-    period: (l, c) => `${l}に開催中のポップアップ ${c}件`,
-    category: (l, c) => `${l}のポップアップ ${c}件`,
-    brand: (l, c) => `${l} ポップアップストア ${c}件`,
-    'region-category': (l, c) => `${l}のポップアップストア ${c}件`,
-    'region-period': (l, c) => `${l}のポップアップ ${c}件`,
-    'category-period': (l, c) => `${l}ポップアップ ${c}件`,
+    // 숫자와 단위(件)가 줄 끝에서 갈라지지 않도록 둘 사이를 붙인다.
+    region: (l, c) => `${l}のポップアップストア ${c}\u00a0件`,
+    period: (l, c) => `${l}に開催中のポップアップ ${c}\u00a0件`,
+    category: (l, c) => `${l}のポップアップ ${c}\u00a0件`,
+    brand: (l, c) => `${l} ポップアップストア ${c}\u00a0件`,
+    'region-category': (l, c) => `${l}のポップアップストア ${c}\u00a0件`,
+    'region-period': (l, c) => `${l}のポップアップ ${c}\u00a0件`,
+    'category-period': (l, c) => `${l}ポップアップ ${c}\u00a0件`,
   },
   lead: {
     region: (l, r) =>

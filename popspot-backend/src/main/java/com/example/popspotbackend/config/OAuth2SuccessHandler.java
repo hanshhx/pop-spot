@@ -15,6 +15,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.Key;
+import java.time.Instant;
 import java.util.Date;
 import java.util.Map;
 import java.util.UUID;
@@ -113,14 +114,20 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         // 2단계 인증이 켜져 있으면 토큰을 만들지 않는다. 교환 슬롯에는 "코드를 더 받아야 한다" 는
         // 표시와 단기 표만 넣는다 — 토큰을 먼저 만들어 두면 그것만 가로채도 로그인이 끝난다.
         boolean totpPending = totpAuth.isRequiredFor(user);
+        long authenticatedAtEpochSeconds = Instant.now().getEpochSecond();
         // 관리자 접근 토큰은 30분짜리다. 소셜 경로에도 리프레시 토큰을 함께 주지 않으면
         // 이 서비스의 주 관리자(카카오 로그인)가 30분마다 재로그인하게 된다.
         String slotValue =
                 totpPending
                         ? TOTP_CHALLENGE_MARKER + totpAuth.issueChallenge(user.getUserId())
-                        : issueJwt(user)
+                        : issueJwt(user, authenticatedAtEpochSeconds)
                                 + TOKEN_SEPARATOR
-                                + refreshTokens.issue(user.getUserId()).token();
+                                + refreshTokens
+                                        .issue(
+                                                user.getUserId(),
+                                                user.getTokenVersion(),
+                                                authenticatedAtEpochSeconds)
+                                        .token();
 
         // 2단계 인증이 남았으면 아직 로그인이 아니다 — 그 기록은 코드까지 맞힌 뒤
         // AuthService.completeTotpLogin 이 남긴다. 여기서 남기면 코드를 못 맞힌 시도까지
@@ -192,11 +199,12 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
                 "소셜");
     }
 
-    private String issueJwt(User user) {
+    private String issueJwt(User user, long authenticatedAtEpochSeconds) {
         return Jwts.builder()
                 .setSubject(user.getUserId())
                 .claim(CLAIM_ROLE, user.getRole())
                 .claim("ver", user.getTokenVersion())
+                .claim("auth_time", authenticatedAtEpochSeconds)
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + accessTokenValidityMs))
                 .signWith(signingKey, SignatureAlgorithm.HS256)

@@ -35,6 +35,26 @@ export function setServiceAvailability(next: ServiceAvailability): void {
 }
 
 /**
+ * 상태 확인을 돌릴지 여부. <b>기본은 꺼짐이다.</b>
+ *
+ * <p>2026-08-21 에 껐다. 확인이 실패해 "서버 일시 중단" 이 뜨는 일이 계속 있었는데, 정작 서버는
+ * 멀쩡했다. 확인 요청 자체를 가볍게 고쳐도 실측 실패율이 12회 중 4회였다 — 사용자에게는 멀쩡한
+ * 서비스가 하루에 몇 번씩 고장 난 것처럼 보인다는 뜻이다. 없는 장애를 알리는 것보다 알리지 않는
+ * 편이 낫다고 판단했다.
+ *
+ * <p>지우지 않고 스위치로 둔 이유는 이 장치가 원래 풀던 문제가 진짜이기 때문이다 — 서버 전원이
+ * 나가면 한 화면의 API 열 개가 각자 재시도해 게이트웨이를 수십 번 두드린다. 서버가 실제로 죽으면
+ * 아래 값을 <code>true</code> 로 바꾸고 배포하면 그대로 돌아온다.
+ *
+ * <p>꺼져 있는 동안 상태는 {@code 'checking'} 에 머문다. 이 값을 읽는 세 곳(배너·로그인 화면·
+ * {@code api.ts} 의 사전 차단)은 모두 {@code 'unavailable'} 일 때만 반응하므로, 꺼두면 셋 다
+ * 평소대로 동작한다.
+ */
+export function shouldRunHealthCheck(): boolean {
+  return process.env.NEXT_PUBLIC_SERVICE_HEALTH_ENABLED === 'true';
+}
+
+/**
  * 확인 한 번의 결과를 반영해 다음 상태를 정한다. {@code null} 이면 지금 상태를 그대로 둔다.
  *
  * <p>이 판정이 배너 하나만 좌우하는 것이 아니다. 로그인 화면({@code app/login/page.tsx})과
@@ -54,8 +74,19 @@ export function availabilityAfterFailure(consecutiveFailures: number): ServiceAv
   return consecutiveFailures >= FAILURE_COUNT_TO_DECLARE_DOWN ? 'unavailable' : null;
 }
 
-/** 장애로 선언하기 전에 필요한 연속 실패 횟수. */
-export const FAILURE_COUNT_TO_DECLARE_DOWN = 2;
+/**
+ * 장애로 선언하기 전에 필요한 연속 실패 횟수.
+ *
+ * <p>2 에서 3 으로 올렸다(2026-08-21). 2 로도 깜빡임은 크게 줄었지만 하루에 몇 번은 떴는데,
+ * 원인이 확인 요청 자체에 있었다 — 상태 확인이 매번 341KB 짜리 목록을 받아 오느라 2코어 서버를
+ * 눌렀고, 그 지연이 5초 제한을 넘겨 <b>확인이 스스로 만든 부하로 실패</b>했다. 그 비용은
+ * {@code app/service-health/route.ts} 에서 없앴다(대표 id 를 기억해 133바이트만 받는다).
+ *
+ * <p>여기서 한 칸 더 올리는 것은 그 위에 얹는 여유분이다. 대가는 진짜 장애를 15초 늦게 잡는 것인데,
+ * 이 신호가 켜는 것은 안내 배너와 회원 API 사전 차단이라 15초 늦어도 잃는 것이 거의 없다.
+ * 반대로 잘못 켜지면 사용자는 "서버가 또 나갔다" 로 읽는다.
+ */
+export const FAILURE_COUNT_TO_DECLARE_DOWN = 3;
 
 export function serviceUnavailableResponse(): Response {
   return new Response(

@@ -27,6 +27,9 @@ import { useLocale } from '@/lib/i18n';
 import { localizedPath } from '@/lib/localePath';
 import { TotpChallenge } from '@/features/auth/TotpChallenge';
 import { useServiceAvailability } from '@/components/ServiceStatusBanner';
+import { useTheme } from 'next-themes';
+import { useSeason } from '@/lib/seasonContext';
+import { seasonBgVideo } from '@/lib/seasonVideo';
 
 const OUTAGE_COPY = {
   ko: {
@@ -47,6 +50,14 @@ export default function LoginPage() {
   const router = useRouter();
   const { t, locale } = useLocale();
   const serviceStatus = useServiceAvailability();
+
+  /* 배경 영상은 홈과 같은 규칙을 따른다 — 계절 × 라이트/다크.
+     resolvedTheme 은 마운트 전 undefined 라 그때는 다크로 본다. 여기서는 홈처럼 게이트를 두지
+     않는데, 이 영상은 opacity 0.6 로 베일 아래 깔리는 장식이라 잠깐 어긋나도 눈에 띄지 않고,
+     로그인 화면은 첫 페인트가 늦어지는 편이 더 나쁘기 때문이다. */
+  const { resolvedTheme } = useTheme();
+  const season = useSeason();
+  const bgVideo = seasonBgVideo(season, resolvedTheme !== 'light');
   const serviceUnavailable = serviceStatus === 'unavailable';
   const outageCopy = OUTAGE_COPY[locale];
 
@@ -169,9 +180,12 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-ink-900">
-      {/* 배경 비디오 */}
+    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-background">
+      {/* 배경 비디오 — 홈과 같은 계절 영상을 쓴다.
+          예전에는 야경 한 편이 박혀 있어서, 라이트로 바꿔도 이 화면만 한밤중이었다.
+          key 를 주는 이유: <source> 의 src 만 갈아 끼우면 브라우저가 다시 읽지 않는다. */}
       <video
+        key={bgVideo.src}
         autoPlay
         loop
         muted
@@ -181,14 +195,18 @@ export default function LoginPage() {
         className="absolute inset-0 w-full h-full object-cover z-0 opacity-60 motion-reduce:hidden"
       >
         <source
-          src="/login-bg-v2.mp4"
+          src={bgVideo.src}
           type="video/mp4"
           media="(min-width: 768px) and (prefers-reduced-motion: no-preference)"
         />
       </video>
 
-      {/* 어두운 막 */}
-      <div className="absolute inset-0 bg-ink-900/60 z-0" aria-hidden />
+      {/* 영상 위 베일. 색이 계절 바탕색이라 라이트에서는 밝게, 다크에서는 어둡게 덮인다 —
+          한 값으로 두면 라이트 화면에 검은 막이 씌워진다. */}
+      <div
+        className="absolute inset-0 z-0 bg-[color-mix(in_srgb,var(--color-background)_62%,transparent)]"
+        aria-hidden
+      />
 
       {/* 라임 글로우 */}
       <div
@@ -201,21 +219,21 @@ export default function LoginPage() {
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
-        className="w-full max-w-md bg-ink-800/80 backdrop-blur-xl border border-cream-200/10 p-6 md:p-8 rounded-xl shadow-pop relative z-10"
+        className="w-full max-w-md bg-surface/85 backdrop-blur-xl border border-[var(--color-border)] p-6 md:p-8 rounded-xl shadow-pop relative z-10"
       >
         <button
           type="button"
           onClick={() => router.back()}
           aria-label={t('common.back')}
-          className="absolute top-4 left-4 size-8 inline-flex items-center justify-center text-cream-200/60 hover:text-cream-200 transition-colors"
+          className="absolute top-4 left-4 size-8 inline-flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
         >
           <ArrowLeft className="size-5" aria-hidden />
         </button>
 
         <h1 className="flex justify-center mt-4 mb-1">
-          <Logo className="h-7 md:h-8 text-cream-200" />
+          <Logo className="h-7 md:h-8 text-foreground" />
         </h1>
-        <p className="text-center text-cream-200/60 text-sm mb-8">{t('login.welcome')}</p>
+        <p className="text-center text-muted-foreground text-sm mb-8">{t('login.welcome')}</p>
 
         {serviceUnavailable && (
           <div
@@ -246,7 +264,7 @@ export default function LoginPage() {
         ) : (
           <>
             <div className="space-y-4">
-              <Field label={<span className="text-cream-200">{t('login.email')}</span>}>
+              <Field label={<span className="text-foreground">{t('login.email')}</span>}>
                 <Input
                   name="email"
                   type="email"
@@ -256,11 +274,11 @@ export default function LoginPage() {
                   onKeyDown={handleKeyDown}
                   iconLeft={<Mail className="size-4" aria-hidden />}
                   autoComplete="email"
-                  className="bg-ink-900/60 border-cream-200/15 text-cream-200 placeholder:text-cream-200/30"
+                  className="bg-background/60 border-[var(--color-border)] text-foreground placeholder:text-subtle-foreground"
                 />
               </Field>
 
-              <Field label={<span className="text-cream-200">{t('login.password')}</span>}>
+              <Field label={<span className="text-foreground">{t('login.password')}</span>}>
                 <Input
                   name="password"
                   type={showPassword ? 'text' : 'password'}
@@ -274,7 +292,7 @@ export default function LoginPage() {
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
                       aria-label={showPassword ? t('login.hidePassword') : t('login.showPassword')}
-                      className="text-cream-200/50 hover:text-cream-200 transition-colors"
+                      className="text-muted-foreground hover:text-foreground transition-colors"
                     >
                       {showPassword ? (
                         <EyeOff className="size-4" aria-hidden />
@@ -284,7 +302,7 @@ export default function LoginPage() {
                     </button>
                   }
                   autoComplete="current-password"
-                  className="bg-ink-900/60 border-cream-200/15 text-cream-200 placeholder:text-cream-200/30"
+                  className="bg-background/60 border-[var(--color-border)] text-foreground placeholder:text-subtle-foreground"
                 />
               </Field>
             </div>
@@ -302,19 +320,19 @@ export default function LoginPage() {
                   className={`size-4 rounded border flex items-center justify-center transition-colors ${
                     saveId
                       ? 'bg-lime-300 border-lime-300'
-                      : 'border-cream-200/30 group-hover:border-cream-200/60 bg-ink-900/60'
+                      : 'border-[var(--color-border)] group-hover:border-[var(--color-border-strong)] bg-background/60'
                   }`}
                 >
                   {saveId && <Check className="size-3 text-ink-900" aria-hidden />}
                 </span>
-                <span className="text-xs text-cream-200/60 group-hover:text-cream-200 transition-colors">
+                <span className="text-xs text-muted-foreground group-hover:text-foreground transition-colors">
                   {t('login.saveId')}
                 </span>
               </label>
 
               <Link
                 href={localizedPath('/find-account', locale)}
-                className="text-xs text-cream-200/60 hover:text-cream-200 transition-colors"
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors"
               >
                 {t('login.findAccount')}
               </Link>
@@ -332,11 +350,11 @@ export default function LoginPage() {
             </Button>
 
             <div className="relative flex py-4 items-center">
-              <div className="flex-grow border-t border-cream-200/10" />
-              <span className="flex-shrink-0 mx-4 text-cream-200/40 text-xs">
+              <div className="flex-grow border-t border-[var(--color-border)]" />
+              <span className="flex-shrink-0 mx-4 text-subtle-foreground text-xs">
                 {t('login.social')}
               </span>
-              <div className="flex-grow border-t border-cream-200/10" />
+              <div className="flex-grow border-t border-[var(--color-border)]" />
             </div>
 
             <div className="space-y-2.5">
@@ -344,7 +362,7 @@ export default function LoginPage() {
                 type="button"
                 onClick={() => handleSocialLogin('kakao')}
                 disabled={serviceUnavailable}
-                className="w-full h-11 rounded-pill font-semibold bg-[#FEE500] text-ink-900 hover:bg-[#FDD835] transition-colors flex items-center justify-center gap-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FEE500] focus-visible:ring-offset-2 focus-visible:ring-offset-ink-800 disabled:cursor-not-allowed disabled:opacity-45"
+                className="w-full h-11 rounded-pill font-semibold bg-[#FEE500] text-ink-900 hover:bg-[#FDD835] transition-colors flex items-center justify-center gap-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FEE500] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface)] disabled:cursor-not-allowed disabled:opacity-45"
               >
                 <MessageCircle className="size-4" fill="currentColor" aria-hidden />
                 <span>{t('login.kakao')}</span>
@@ -354,7 +372,7 @@ export default function LoginPage() {
                 type="button"
                 onClick={() => handleSocialLogin('naver')}
                 disabled={serviceUnavailable}
-                className="w-full h-11 rounded-pill font-semibold bg-[#03C75A] text-white hover:bg-[#02b351] transition-colors flex items-center justify-center gap-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#03C75A] focus-visible:ring-offset-2 focus-visible:ring-offset-ink-800 disabled:cursor-not-allowed disabled:opacity-45"
+                className="w-full h-11 rounded-pill font-semibold bg-[#03C75A] text-white hover:bg-[#02b351] transition-colors flex items-center justify-center gap-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#03C75A] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface)] disabled:cursor-not-allowed disabled:opacity-45"
               >
                 <span className="font-extrabold text-lg" aria-hidden>
                   N
@@ -366,7 +384,7 @@ export default function LoginPage() {
                 type="button"
                 onClick={() => handleSocialLogin('google')}
                 disabled={serviceUnavailable}
-                className="w-full h-11 rounded-pill font-semibold bg-white text-ink-900 hover:bg-cream-300 transition-colors flex items-center justify-center gap-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cream-200 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-800 disabled:cursor-not-allowed disabled:opacity-45"
+                className="w-full h-11 rounded-pill font-semibold bg-white text-ink-900 hover:bg-cream-300 transition-colors flex items-center justify-center gap-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface)] disabled:cursor-not-allowed disabled:opacity-45"
               >
                 <svg className="size-4" viewBox="0 0 24 24" aria-hidden>
                   <path
@@ -394,7 +412,7 @@ export default function LoginPage() {
               <button
                 type="button"
                 onClick={handleGuestLogin}
-                className="w-full h-11 rounded-pill font-semibold bg-transparent text-cream-200 border border-cream-200/25 hover:bg-cream-200/8 hover:border-cream-200/45 transition-colors flex items-center justify-center gap-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-300 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-800"
+                className="w-full h-11 rounded-pill font-semibold bg-transparent text-foreground border border-[var(--color-border)] hover:bg-foreground/5 hover:border-[var(--color-border-strong)] transition-colors flex items-center justify-center gap-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-300 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface)]"
                 aria-label={`${t('login.guestPrefix')} ${GUEST_GRACE_PERIOD_DAYS}${t('login.guestSuffix')}`}
               >
                 <Clock className="size-4" aria-hidden />
@@ -403,13 +421,13 @@ export default function LoginPage() {
                   {t('login.guestSuffix')}
                 </span>
               </button>
-              <p className="mt-2 text-center text-[11px] text-cream-200/45">
+              <p className="mt-2 text-center text-[11px] text-subtle-foreground">
                 {t('login.guestDesc')}
               </p>
             </div>
 
             <div className="mt-6 text-center text-sm">
-              <span className="text-cream-200/50">{t('login.notMember')}</span>{' '}
+              <span className="text-muted-foreground">{t('login.notMember')}</span>{' '}
               <Link
                 href={localizedPath('/signup', locale)}
                 className="font-semibold text-lime-300 hover:text-lime-400 transition-colors"

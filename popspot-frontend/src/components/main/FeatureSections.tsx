@@ -1,7 +1,7 @@
 'use client';
 
 import { motion, type Variants } from 'framer-motion';
-import { Route, Music, Ticket, Users, ArrowRight } from 'lucide-react';
+import { Route, Music, Ticket, ArrowRight } from 'lucide-react';
 import { localizedLabel, useLocale } from '@/lib/i18n';
 import { REGIONS, type RegionCode } from '@/lib/regions';
 
@@ -184,23 +184,6 @@ function PassportMini() {
   );
 }
 
-/** 동행 — 미니 아바타 + 매칭. */
-function MateMini() {
-  const { t } = useLocale();
-  return (
-    <div className="flex items-center gap-2">
-      <div className="flex -space-x-2">
-        {['bg-lime-300', 'bg-hot-400', 'bg-sky-400'].map((c, i) => (
-          <span key={i} className={`h-7 w-7 rounded-full ring-2 ring-ink-900 ${c}`} />
-        ))}
-      </div>
-      <span className="rounded-pill bg-sky-400/15 px-2 py-0.5 text-[10px] font-bold text-sky-300">
-        {t('feat.matching')}
-      </span>
-    </div>
-  );
-}
-
 interface TileAccent {
   glow: string;
   chip: string;
@@ -224,7 +207,7 @@ function FeatureTile({ Icon, eyebrow, title, desc, cta, onClick, accent, visual 
       type="button"
       onClick={onClick}
       variants={reveal}
-      className="group relative col-span-1 flex h-[340px] flex-col justify-between overflow-hidden rounded-[2rem] bg-ink-900 p-5 text-left text-cream-200 shadow-pop transition hover:scale-[1.02] active:scale-[0.99] md:p-6 lg:col-span-4"
+      className="group relative col-span-1 flex h-[340px] flex-col justify-between overflow-hidden rounded-[2rem] bg-ink-900 p-5 text-left text-cream-200 shadow-pop transition hover:scale-[1.02] active:scale-[0.99] md:p-6 lg:col-span-6"
     >
       <div
         aria-hidden
@@ -252,7 +235,13 @@ interface Props {
   onNavigate: (tab: string) => void;
 }
 
-/** 음악·여권·동행 타일 3열 — 실시간 랭킹/캘린더/혼잡도와 같은 크기(col-4, h-340). */
+/**
+ * 음악·여권 타일 — 실시간 랭킹/캘린더/혼잡도와 같은 높이(h-340).
+ *
+ * <p>동행 타일이 하나 더 있어 3열이었다. 동행을 내리면서 12칸 격자에 구멍이 남지 않도록 남은
+ * 둘을 6칸씩으로 넓혔다. 이 자리에 일정 타일을 새로 넣지는 않는다 — 바로 위 벤토에 이미
+ * 있어서, 같은 화면에서 같은 곳으로 두 번 부르는 꼴이 된다.
+ */
 export function FeatureTiles({ onNavigate }: Props) {
   const { t } = useLocale();
   return (
@@ -287,16 +276,6 @@ export function FeatureTiles({ onNavigate }: Props) {
           chip: 'bg-amber-300 text-ink-900',
           text: 'text-amber-300',
         }}
-      />
-      <FeatureTile
-        Icon={Users}
-        eyebrow="MATE"
-        title={t('feat.mateTitle')}
-        desc={t('feat.mateDesc')}
-        cta={t('feat.mateCta')}
-        onClick={() => onNavigate('MATE')}
-        visual={<MateMini />}
-        accent={{ glow: 'bg-sky-400/25', chip: 'bg-sky-400 text-ink-900', text: 'text-sky-300' }}
       />
     </motion.section>
   );

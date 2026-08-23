@@ -6,10 +6,13 @@ import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.time.Duration;
 import java.util.Base64;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
+import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.stereotype.Service;
 
 /**
@@ -37,6 +40,15 @@ public class RefreshTokenService {
     private static final Duration TTL = Duration.ofDays(7);
 
     private static final String KEY_PREFIX = "REFRESH:";
+    private static final String VALUE_SEPARATOR = "\n";
+
+    /** Redis 6.0에서도 한 토큰이 동시에 두 번 소비되지 않게 하는 원자적 GET+DEL. */
+    private static final RedisScript<String> GET_DEL_SCRIPT =
+            new DefaultRedisScript<>(
+                    "local v = redis.call('GET', KEYS[1]) "
+                            + "if v then redis.call('DEL', KEYS[1]) end "
+                            + "return v",
+                    String.class);
 
     /** 256비트. 추측이 불가능해야 이 토큰만으로 접근 토큰을 계속 받아 갈 수 없다. */
     private static final int TOKEN_BYTES = 32;
@@ -47,13 +59,31 @@ public class RefreshTokenService {
     /** 발급 결과 — 원문은 <b>이때 한 번만</b> 존재한다. 서버에는 해시만 남는다. */
     public record Issued(String token, long expiresInSeconds) {}
 
+    /** 소비한 토큰이 누구에게, 어느 전체-세션 버전·최초 본인 인증 시각에서 발급됐는지. */
+    public record Consumed(String userId, long tokenVersion, long authenticatedAtEpochSeconds) {}
+
     /** 새 리프레시 토큰. 로그인 성공 직후에 부른다. */
-    public Issued issue(String userId) {
+    public Issued issue(String userId, long tokenVersion, long authenticatedAtEpochSeconds) {
+        if (userId == null || userId.isBlank() || userId.contains(VALUE_SEPARATOR)) {
+            throw new IllegalArgumentException("리프레시 토큰 사용자 식별자가 올바르지 않습니다.");
+        }
+        if (tokenVersion < 0) {
+            throw new IllegalArgumentException("전체 세션 버전이 올바르지 않습니다.");
+        }
+        if (authenticatedAtEpochSeconds <= 0) {
+            throw new IllegalArgumentException("본인 인증 시각이 올바르지 않습니다.");
+        }
         byte[] raw = new byte[TOKEN_BYTES];
         random.nextBytes(raw);
         String token = Base64.getUrlEncoder().withoutPadding().encodeToString(raw);
 
-        redisTemplate.opsForValue().set(key(token), userId, TTL.toSeconds(), TimeUnit.SECONDS);
+        String value =
+                userId
+                        + VALUE_SEPARATOR
+                        + tokenVersion
+                        + VALUE_SEPARATOR
+                        + authenticatedAtEpochSeconds;
+        redisTemplate.opsForValue().set(key(token), value, TTL.toSeconds(), TimeUnit.SECONDS);
         return new Issued(token, TTL.toSeconds());
     }
 
@@ -62,9 +92,30 @@ public class RefreshTokenService {
      *
      * <p>먼저 지우고 나서 판단한다. 조회 후 삭제로 나누면 두 요청이 같은 토큰을 동시에 통과할 수 있다 — 그러면 하나의 토큰으로 두 세션이 생긴다.
      */
-    public String consume(String token) {
+    public Consumed consume(String token) {
         if (token == null || token.isBlank() || token.length() > 200) return null;
-        return redisTemplate.opsForValue().getAndDelete(key(token));
+        String value = redisTemplate.execute(GET_DEL_SCRIPT, List.of(key(token)));
+        if (value == null) return null;
+
+        String[] fields = value.split(VALUE_SEPARATOR, -1);
+        if (fields.length != 3 || fields[0].isBlank()) {
+            // 배포 전에 발급된 구형 토큰은 버전 또는 최초 본인 인증 시각이 없다. 현재 값을
+            // 추측해 살리면 전체 로그아웃이나 민감 작업 재인증을 우회할 수 있으므로 재로그인을 요구한다.
+            log.warn("[RefreshToken] 보안 메타데이터 없는 구형/손상 토큰 거부");
+            return null;
+        }
+        try {
+            long tokenVersion = Long.parseLong(fields[1]);
+            long authenticatedAtEpochSeconds = Long.parseLong(fields[2]);
+            if (tokenVersion < 0 || authenticatedAtEpochSeconds <= 0) {
+                log.warn("[RefreshToken] 허용 범위를 벗어난 토큰 메타데이터 거부");
+                return null;
+            }
+            return new Consumed(fields[0], tokenVersion, authenticatedAtEpochSeconds);
+        } catch (NumberFormatException e) {
+            log.warn("[RefreshToken] 손상된 토큰 메타데이터 거부");
+            return null;
+        }
     }
 
     /** 이 토큰 하나만 버린다. 로그아웃할 때 쓴다. */
