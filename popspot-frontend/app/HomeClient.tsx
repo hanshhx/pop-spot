@@ -120,7 +120,6 @@ import { ProfileEditModal } from '@/features/profile/ProfileEditModal';
 import BrowseSection from '@/components/main/BrowseSection';
 import { PopupCard } from '@/components/main/PopupCard';
 import SeasonBanner from '@/components/main/SeasonBanner';
-import { SEASON_COPY, isSeasonLimited } from '@/lib/season';
 import { seasonBgVideo } from '@/lib/seasonVideo';
 import { useSeason } from '@/lib/seasonContext';
 import { devMockPopups } from '@/lib/devMockPopups';
@@ -358,8 +357,6 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
   const [railSort, setRailSort] = useState<'popular' | 'deadline' | 'latest'>('popular');
   const [railCat, setRailCat] = useState<CategoryCode | 'all'>('all');
   /* 계절 한정 필터 — 계절에만 존재하는 칩이다. 없던 버튼이 생기는 것이 색보다 세게 걸린다. */
-  const [railSeasonOnly, setRailSeasonOnly] = useState(false);
-  const seasonCopy = SEASON_COPY[season];
   const rail = useDragScroll<HTMLDivElement>();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -439,10 +436,7 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
       railCat === 'all'
         ? dedupedPopups
         : dedupedPopups.filter((p) => classifyCategory(p.category) === railCat);
-    // 계절 한정 = 이번 계절 안에 마감하는 것. 계절이 끝나면 목록에서 사라진다.
-    const list = railSeasonOnly
-      ? base.filter((p) => isSeasonLimited(p.endDate, season))
-      : [...base];
+    const list = [...base];
     if (railSort === 'deadline') {
       // 마감임박순 — endDate 없는 건 뒤로(Infinity). parseDate 로 달력 실재성까지 검증(이월 방지).
       const end = (p: PopupStore) => {
@@ -462,13 +456,7 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
       list.sort((a, b) => (b.viewCount || 0) - (a.viewCount || 0) || b.id - a.id);
     }
     return list.slice(0, RAIL_POPUP_COUNT);
-  }, [dedupedPopups, railSort, railCat, railSeasonOnly, season]);
-
-  /** 계절 한정 칩은 실제로 걸리는 게 있을 때만 띄운다 — 눌러도 빈 목록이면 신호가 아니라 고장이다. */
-  const seasonLimitedCount = useMemo(
-    () => dedupedPopups.filter((p) => isSeasonLimited(p.endDate, season)).length,
-    [dedupedPopups, season],
-  );
+  }, [dedupedPopups, railSort, railCat]);
 
   /** 필터 칩 노출 대상 — 전체 목록에 실제로 존재하는 카테고리만(카운트 0 은 숨김). */
   const railCategories = useMemo(() => {
@@ -1305,11 +1293,16 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
 
         {/* 계절 전환 배너 — 재방문자에게 계절당 한 번, 2주 뒤 접힘. 자세한 규칙은 컴포넌트 주석. */}
         <SeasonBanner
+          /*
+           * 예전에는 "계절 한정" 필터를 켰다. 그 필터가 실제로 고르던 것은 이번 계절 안에
+           * 마감하는 팝업이었으므로, 같은 목록을 정직한 이름으로 보여 주는 마감임박 정렬로
+           * 옮긴다 — 배너가 말하는 "곧 닫힌다" 와도 이쪽이 맞는다.
+           */
           onExplore={() => {
-            setRailSeasonOnly(true);
+            setRailSort('deadline');
             handleTabChange('MAP');
             document
-              .getElementById('season-limited-rail')
+              .getElementById('trending-rail')
               ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
           }}
         />
@@ -1642,7 +1635,7 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
 
             {/* 지금 뜨는 팝업 — 사진 카드 레일 (디자인 진단서 P0: 팝업 사진 카드로 코어 뷰잉 강화). */}
             <motion.section
-              id="season-limited-rail"
+              id="trending-rail"
               aria-label={t('section.trending')}
               initial="hidden"
               whileInView="visible"
@@ -1690,37 +1683,13 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
                 </div>
                 {railCategories.length > 0 && (
                   <div className="custom-scrollbar -mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1">
-                    {/* 계절 한정 — 계절에만 존재하는 칩. 카테고리 칩과 같은 줄, 맨 앞에 둔다.
-                        만채도(--s-hi)는 켜졌을 때만 칠한다. 꺼진 상태까지 칠하면 칩 하나가
-                        상시 만채도 면이 되어 10% 상한을 혼자 먹는다. */}
-                    {seasonLimitedCount > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => setRailSeasonOnly((on) => !on)}
-                        aria-pressed={railSeasonOnly}
-                        className="inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold text-foreground transition"
-                        style={
-                          railSeasonOnly
-                            ? {
-                                background: 'var(--s-hi)',
-                                borderColor: 'var(--s-hi)',
-                                color: 'var(--s-hi-fg)',
-                              }
-                            : { borderColor: 'color-mix(in srgb, var(--s-hi) 50%, transparent)' }
-                        }
-                      >
-                        {/* 꺼진 상태의 글자는 본문색이다. 만채도 글자를 밝은 배경에 두면 대비가
-                            AA 아래로 떨어져서, 계절 색은 점과 테두리만 진다. */}
-                        {!railSeasonOnly && (
-                          <span
-                            aria-hidden
-                            className="size-1.5 rounded-full"
-                            style={{ background: 'var(--s-hi)' }}
-                          />
-                        )}
-                        {seasonCopy.chip} {seasonLimitedCount}
-                      </button>
-                    )}
+                    {/* 여기 "가을 한정" 칩이 있었다. 판정 기준이 <b>종료일이 이번 계절에 드는가</b>
+                        뿐이라, 가을과 아무 상관 없는 팝업도 9월에 끝나면 가을 한정이 됐다 —
+                        화면에 적힌 사실 주장이 자주 거짓이었다.
+
+                        고른 목록도 사실상 "이번 계절 안에 마감"이라 옆의 마감임박 정렬과 크게
+                        다르지 않았다. 이름만 정직하게 고치면 중복 기능이 하나 남는 셈이라 걷어낸다.
+                        진짜 계절 행사 분류는 팝업 이름에서 근거를 찾을 수 있을 때 따로 만든다. */}
                     <button
                       type="button"
                       onClick={() => setRailCat('all')}

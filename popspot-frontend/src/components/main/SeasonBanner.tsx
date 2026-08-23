@@ -123,7 +123,7 @@ export default function SeasonBanner({ onExplore }: { onExplore?: () => void }) 
             className="shrink-0 rounded-xl px-5 py-3 text-sm font-black transition hover:opacity-90"
             style={{ background: 'var(--s-hi-fg)', color: 'var(--s-hi)' }}
           >
-            {copy.chip} 팝업 보기
+            곧 마감되는 팝업 보기
           </button>
         )}
       </div>
