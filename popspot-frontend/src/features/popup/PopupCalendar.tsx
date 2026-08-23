@@ -266,6 +266,7 @@ export function PopupCalendar({
                           setOpenRegion((prev) => (prev === group.code ? null : group.code))
                         }
                         aria-expanded={openRegion === group.code}
+                        aria-controls={`cal-region-${group.code}`}
                         className={cn(
                           'rounded-pill px-2.5 py-1 text-[11px] font-bold transition-colors',
                           openRegion === group.code
@@ -286,7 +287,9 @@ export function PopupCalendar({
                   />
                 )}
                 {closingGroups && openRegion && (
-                  <div className="mt-2">
+                  // 칩과 이 패널은 DOM 상 형제가 아니다(패널은 칩 목록 밖에 있다) — id 로
+                  // 묶어 aria-controls 가 가리킬 대상을 만든다.
+                  <div className="mt-2" id={`cal-region-${openRegion}`}>
                     <PopupRows
                       popups={closingGroups.find((g) => g.code === openRegion)?.popups ?? []}
                       locale={locale}
