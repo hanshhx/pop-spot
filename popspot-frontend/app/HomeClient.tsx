@@ -94,6 +94,7 @@ import { groupSameEvent } from '@/lib/groupSameEvent';
 import { Header } from '../src/components/layout/Header';
 import { Footer } from '../src/components/layout/Footer';
 import { BottomDock, type DockTab } from '../src/components/layout/BottomDock';
+import { MySchedule } from '../src/features/schedule/MySchedule';
 import MusicTab from '@/components/music/MusicTab';
 import RankCard from '@/components/rank/RankCard';
 import LoopingBgVideo from '@/components/LoopingBgVideo';
@@ -2682,6 +2683,10 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
             animate={{ opacity: 1, scale: 1 }}
             className="min-h-[60vh] rounded-xl border border-[var(--color-border)] bg-surface p-4 text-surface-foreground mb-16 relative overflow-hidden shadow-md md:p-6"
           >
+            <MySchedule popups={allPopups} />
+            <h3 className="mb-3 text-base font-bold text-foreground lg:text-lg">
+              {t('sched.allTitle')}
+            </h3>
             <PopupCalendar popups={catalogPopups} />
           </motion.section>
         )}
