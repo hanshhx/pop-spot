@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type SyntheticEvent } from 'react';
 
-import { isPlaybackStalled } from '@/lib/videoWatchdog';
+import { canRevealVideo, isPlaybackStalled, shouldUseStandbyRecovery } from '@/lib/videoWatchdog';
 
 const CROSSFADE_MS = 1200;
 
@@ -13,6 +13,7 @@ const CROSSFADE_MS = 1200;
  * 변화(수백 ms)도 충분히 확보된다. 판정 규칙은 {@code lib/videoWatchdog} 참고.
  */
 const WATCHDOG_MS = 2_000;
+const FRAME_READY_TIMEOUT_MS = 3_500;
 
 /**
  * 끊김 없는 배경 영상 루프.
@@ -69,6 +70,10 @@ export default function LoopingBgVideo({
   const activeIsA = useRef(true);
   const swapping = useRef(false);
   const rafRef = useRef(0);
+  const fadeFallbackTimerRef = useRef(0);
+  const swapFinishTimerRef = useRef(0);
+  const operationRef = useRef(0);
+  const consecutiveStallsRef = useRef(0);
 
   const applyRate = useCallback(
     (v: HTMLVideoElement | null) => {
@@ -87,6 +92,7 @@ export default function LoopingBgVideo({
   const crossfade = useCallback(
     (incoming: HTMLVideoElement | null, outgoing: HTMLVideoElement | null) => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      if (fadeFallbackTimerRef.current) window.clearTimeout(fadeFallbackTimerRef.current);
       let startTs = 0;
       const step = (ts: number) => {
         if (!startTs) startTs = ts;
@@ -97,33 +103,171 @@ export default function LoopingBgVideo({
       };
       rafRef.current = requestAnimationFrame(step);
       // 폴백: 백그라운드 탭 등 rAF 가 멈춘 경우에도 최종 상태를 보장(setTimeout 은 백그라운드에서도 발화).
-      window.setTimeout(() => {
+      fadeFallbackTimerRef.current = window.setTimeout(() => {
         if (incoming) incoming.style.opacity = '1';
         if (outgoing) outgoing.style.opacity = '0';
+        fadeFallbackTimerRef.current = 0;
       }, CROSSFADE_MS + 80);
     },
     [],
   );
 
+  /** 재생 요청 뒤 디코딩된 첫 프레임이 준비될 때까지 기다린다. */
+  const waitForRenderableFrame = useCallback((video: HTMLVideoElement): Promise<boolean> => {
+    return new Promise((resolve) => {
+      let settled = false;
+      let paintRaf = 0;
+
+      const cleanup = () => {
+        window.clearTimeout(timeout);
+        if (paintRaf) cancelAnimationFrame(paintRaf);
+        video.removeEventListener('playing', check);
+        video.removeEventListener('loadeddata', check);
+        video.removeEventListener('canplay', check);
+        video.removeEventListener('timeupdate', check);
+        video.removeEventListener('error', fail);
+      };
+      const finish = (ready: boolean) => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        resolve(ready);
+      };
+      const afterPaint = () => {
+        paintRaf = requestAnimationFrame(() => {
+          paintRaf = 0;
+          finish(canRevealVideo(video.readyState, Boolean(video.error)) && !video.paused);
+        });
+      };
+      const check = () => {
+        if (!canRevealVideo(video.readyState, Boolean(video.error)) || video.paused) return;
+        if (paintRaf) return;
+        // 첫 프레임이 준비됐다는 이벤트 직후 한 프레임을 더 기다린 뒤에만 기존 영상을 가린다.
+        paintRaf = requestAnimationFrame(afterPaint);
+      };
+      const fail = () => finish(false);
+      const timeout = window.setTimeout(
+        () => finish(canRevealVideo(video.readyState, Boolean(video.error)) && !video.paused),
+        FRAME_READY_TIMEOUT_MS,
+      );
+
+      video.addEventListener('playing', check);
+      video.addEventListener('loadeddata', check);
+      video.addEventListener('canplay', check);
+      video.addEventListener('timeupdate', check);
+      video.addEventListener('error', fail, { once: true });
+      check();
+    });
+  }, []);
+
+  const playUntilFrame = useCallback(
+    async (video: HTMLVideoElement): Promise<boolean> => {
+      applyRate(video);
+      try {
+        await video.play();
+      } catch {
+        return false;
+      }
+      return waitForRenderableFrame(video);
+    },
+    [applyRate, waitForRenderableFrame],
+  );
+
+  /**
+   * 대기 영상이 실제로 재생되고 첫 프레임까지 준비된 뒤에만 화면을 넘긴다.
+   *
+   * <p>예전에는 {@code play()} 성공 여부와 상관없이 불투명도를 바꿔, 재생이 거절되거나 버퍼가
+   * 비어 있으면 검은 대기 영상이 정상 영상을 덮었다. 실패하면 기존 영상을 그대로 유지한다.
+   */
+  const prepareAndSwap = useCallback(
+    async (outgoingIsA: boolean, startAt = 0): Promise<boolean> => {
+      if (swapping.current || outgoingIsA !== activeIsA.current) return false;
+      swapping.current = true;
+      const operation = ++operationRef.current;
+      const incoming = (outgoingIsA ? bRef : aRef).current;
+      const outgoing = (outgoingIsA ? aRef : bRef).current;
+
+      if (!incoming || !outgoing) {
+        swapping.current = false;
+        return false;
+      }
+
+      incoming.style.opacity = '0';
+      if (incoming.error || incoming.networkState === HTMLMediaElement.NETWORK_NO_SOURCE) {
+        // 디코더/네트워크 오류 상태는 play() 만 반복해도 풀리지 않는다. 소스를 다시 연결한다.
+        incoming.load();
+      }
+      try {
+        incoming.currentTime = Number.isFinite(startAt) && startAt >= 0 ? startAt : 0;
+      } catch {
+        /* metadata 전 seek 예외 무시 */
+      }
+
+      const ready = await playUntilFrame(incoming);
+      if (operation !== operationRef.current || outgoingIsA !== activeIsA.current || !ready) {
+        incoming.pause();
+        incoming.style.opacity = '0';
+        outgoing.style.opacity = '1';
+        if (operation === operationRef.current) swapping.current = false;
+        return false;
+      }
+
+      crossfade(incoming, outgoing);
+      activeIsA.current = !outgoingIsA;
+      consecutiveStallsRef.current = 0;
+      if (swapFinishTimerRef.current) window.clearTimeout(swapFinishTimerRef.current);
+      swapFinishTimerRef.current = window.setTimeout(() => {
+        if (operation !== operationRef.current) return;
+        outgoing.pause();
+        try {
+          outgoing.currentTime = 0;
+        } catch {
+          /* noop */
+        }
+        outgoing.style.opacity = '0';
+        incoming.style.opacity = '1';
+        swapping.current = false;
+        swapFinishTimerRef.current = 0;
+      }, CROSSFADE_MS + 120);
+      return true;
+    },
+    [crossfade, playUntilFrame],
+  );
+
   // 마운트 / 테마(src) 변경 시: A 를 처음부터 보이게, B 는 숨겨 대기.
   useEffect(() => {
+    if (!shouldRender) return;
+
+    const operation = ++operationRef.current;
     activeIsA.current = true;
     swapping.current = false;
+    consecutiveStallsRef.current = 0;
     if (rafRef.current) {
       cancelAnimationFrame(rafRef.current);
       rafRef.current = 0;
     }
+    if (fadeFallbackTimerRef.current) {
+      window.clearTimeout(fadeFallbackTimerRef.current);
+      fadeFallbackTimerRef.current = 0;
+    }
+    if (swapFinishTimerRef.current) {
+      window.clearTimeout(swapFinishTimerRef.current);
+      swapFinishTimerRef.current = 0;
+    }
     const a = aRef.current;
     const b = bRef.current;
     if (a) {
-      a.style.opacity = '1';
+      // 디코딩 전 video 요소가 검게 칠해지는 것을 막기 위해 첫 프레임 전에는 숨긴다.
+      a.style.opacity = '0';
       try {
         a.currentTime = 0;
       } catch {
         /* noop */
       }
-      applyRate(a);
-      void a.play().catch(() => {});
+      void playUntilFrame(a).then((ready) => {
+        if (operation !== operationRef.current || !ready) return;
+        a.style.opacity = '1';
+      });
     }
     if (b) {
       b.style.opacity = '0';
@@ -136,9 +280,12 @@ export default function LoopingBgVideo({
       applyRate(b);
     }
     return () => {
+      operationRef.current += 1;
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      if (fadeFallbackTimerRef.current) window.clearTimeout(fadeFallbackTimerRef.current);
+      if (swapFinishTimerRef.current) window.clearTimeout(swapFinishTimerRef.current);
     };
-  }, [src, applyRate]);
+  }, [shouldRender, src, applyRate, playUntilFrame]);
 
   /**
    * 배경이 멈춘 채로 남지 않게 지킨다.
@@ -164,7 +311,7 @@ export default function LoopingBgVideo({
           /* noop */
         }
       }
-      void video.play().catch(() => {});
+      void video.play().catch(() => undefined);
     };
 
     const tick = () => {
@@ -172,7 +319,20 @@ export default function LoopingBgVideo({
       if (document.visibilityState !== 'visible') return;
       const video = activeVideo();
       if (!video) return;
-      if (isPlaybackStalled(video.paused, video.ended, video.currentTime, previousTime)) revive();
+      if (isPlaybackStalled(video.paused, video.ended, video.currentTime, previousTime)) {
+        consecutiveStallsRef.current += 1;
+        if (shouldUseStandbyRecovery(consecutiveStallsRef.current)) {
+          const outgoingIsA = activeIsA.current;
+          const startAt = video.ended ? 0 : video.currentTime;
+          void prepareAndSwap(outgoingIsA, startAt).then((swapped) => {
+            if (!swapped && outgoingIsA === activeIsA.current) revive();
+          });
+        } else {
+          revive();
+        }
+      } else {
+        consecutiveStallsRef.current = 0;
+      }
       previousTime = video.currentTime;
     };
 
@@ -180,6 +340,7 @@ export default function LoopingBgVideo({
       if (document.visibilityState !== 'visible') return;
       // 돌아온 직후의 위치는 떠나기 전 값이라 비교 대상이 못 된다.
       previousTime = -1;
+      consecutiveStallsRef.current = 0;
       revive();
     };
 
@@ -189,7 +350,7 @@ export default function LoopingBgVideo({
       window.clearInterval(timer);
       document.removeEventListener('visibilitychange', onVisible);
     };
-  }, [shouldRender, src]);
+  }, [shouldRender, src, prepareAndSwap]);
 
   /**
    * 교대가 걸리지 않은 채 영상이 끝났을 때의 대비.
@@ -205,14 +366,27 @@ export default function LoopingBgVideo({
     (isA: boolean) => (e: SyntheticEvent<HTMLVideoElement>) => {
       if (isA !== activeIsA.current) return;
       const video = e.currentTarget;
-      try {
-        video.currentTime = 0;
-      } catch {
-        /* noop */
+      // 이미 다음 편을 준비 중이면 마지막 프레임이 검게 변하기 전에 현재 편을 다시 돌린다.
+      if (swapping.current) {
+        try {
+          video.currentTime = 0;
+        } catch {
+          /* noop */
+        }
+        void video.play().catch(() => undefined);
+        return;
       }
-      void video.play().catch(() => {});
+      void prepareAndSwap(isA, 0).then((swapped) => {
+        if (swapped || isA !== activeIsA.current) return;
+        try {
+          video.currentTime = 0;
+        } catch {
+          /* noop */
+        }
+        void video.play().catch(() => undefined);
+      });
     },
-    [],
+    [prepareAndSwap],
   );
 
   const handleTimeUpdate = useCallback(
@@ -223,25 +397,23 @@ export default function LoopingBgVideo({
       if (!dur || !Number.isFinite(dur)) return;
       if ((dur - cur.currentTime) / (rate || 1) > CROSSFADE_MS / 1000 + 0.25) return;
 
-      swapping.current = true;
-      const incoming = (isA ? bRef : aRef).current;
-      const outgoing = (isA ? aRef : bRef).current;
-      if (incoming) {
-        try {
-          incoming.currentTime = 0;
-        } catch {
-          /* noop */
-        }
-        applyRate(incoming);
-        void incoming.play().catch(() => {});
-      }
-      crossfade(incoming, outgoing);
-      activeIsA.current = !isA;
-      window.setTimeout(() => {
-        swapping.current = false;
-      }, CROSSFADE_MS + 300);
+      void prepareAndSwap(isA, 0);
     },
-    [rate, applyRate, crossfade],
+    [rate, prepareAndSwap],
+  );
+
+  const handleError = useCallback(
+    (isA: boolean) => (e: SyntheticEvent<HTMLVideoElement>) => {
+      if (isA !== activeIsA.current) return;
+      const failedVideo = e.currentTarget;
+      void prepareAndSwap(isA, 0).then((swapped) => {
+        if (!swapped && isA === activeIsA.current) {
+          // 오류 난 video 요소의 검은 오류 프레임 대신 부모의 브랜드 배경을 보여 준다.
+          failedVideo.style.opacity = '0';
+        }
+      });
+    },
+    [prepareAndSwap],
   );
 
   const base = 'absolute inset-0 h-full w-full object-cover';
@@ -258,8 +430,13 @@ export default function LoopingBgVideo({
         playsInline
         preload="auto"
         onLoadedMetadata={(e) => applyRate(e.currentTarget)}
+        onPlaying={() => {
+          consecutiveStallsRef.current = 0;
+        }}
         onTimeUpdate={handleTimeUpdate(true)}
         onEnded={handleEnded(true)}
+        onError={handleError(true)}
+        style={{ opacity: 0 }}
         className={`${base} ${className}`}
       >
         <source src={src} type="video/mp4" />
@@ -270,8 +447,13 @@ export default function LoopingBgVideo({
         playsInline
         preload="auto"
         onLoadedMetadata={(e) => applyRate(e.currentTarget)}
+        onPlaying={() => {
+          consecutiveStallsRef.current = 0;
+        }}
         onTimeUpdate={handleTimeUpdate(false)}
         onEnded={handleEnded(false)}
+        onError={handleError(false)}
+        style={{ opacity: 0 }}
         className={`${base} ${className}`}
       >
         <source src={src} type="video/mp4" />

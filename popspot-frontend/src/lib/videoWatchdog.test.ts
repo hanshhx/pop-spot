@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { isPlaybackStalled } from './videoWatchdog';
+import { canRevealVideo, isPlaybackStalled, shouldUseStandbyRecovery } from './videoWatchdog';
 
 describe('isPlaybackStalled', () => {
   it('재생 위치가 흐르고 있으면 멈춘 것이 아니다', () => {
@@ -33,5 +33,26 @@ describe('isPlaybackStalled', () => {
 
   it('아주 미세한 변화는 재생으로 치지 않는다', () => {
     expect(isPlaybackStalled(false, false, 4.2005, 4.2)).toBe(true);
+  });
+});
+
+describe('canRevealVideo', () => {
+  it('현재 프레임이 준비되고 오류가 없을 때만 화면에 올린다', () => {
+    expect(canRevealVideo(2, false)).toBe(true);
+    expect(canRevealVideo(4, false)).toBe(true);
+  });
+
+  it('프레임이 없거나 미디어 오류가 있으면 기존 영상을 유지한다', () => {
+    expect(canRevealVideo(0, false)).toBe(false);
+    expect(canRevealVideo(1, false)).toBe(false);
+    expect(canRevealVideo(4, true)).toBe(false);
+  });
+});
+
+describe('shouldUseStandbyRecovery', () => {
+  it('첫 멈춤은 단순 재시도하고 두 번 연속 멈추면 대기 영상으로 교체한다', () => {
+    expect(shouldUseStandbyRecovery(1)).toBe(false);
+    expect(shouldUseStandbyRecovery(2)).toBe(true);
+    expect(shouldUseStandbyRecovery(3)).toBe(true);
   });
 });

@@ -66,7 +66,7 @@ export function Footer({ className, onReportClick }: FooterProps) {
       className={cn(
         'relative z-10 border-t border-[var(--color-border)]',
         'bg-cream-300 dark:bg-ink-800',
-        'py-12 lg:py-20 mt-12 pb-32',
+        'mt-12 py-12 pb-[calc(8.5rem+env(safe-area-inset-bottom))] lg:py-20',
         className,
       )}
     >

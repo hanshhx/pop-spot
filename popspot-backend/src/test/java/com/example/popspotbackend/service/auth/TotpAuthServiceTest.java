@@ -3,19 +3,24 @@ package com.example.popspotbackend.service.auth;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.example.popspotbackend.entity.User;
 import com.example.popspotbackend.repository.UserRepository;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
+import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.test.util.ReflectionTestUtils;
 
 /**
@@ -210,5 +215,17 @@ class TotpAuthServiceTest {
 
         assertThatCode(() -> auth.beginSetup(USER_ID, false)).doesNotThrowAnyException();
         assertThat(user.isTotpEnabled()).isFalse();
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    @DisplayName("로그인 도전표는 Redis 6.0 호환 원자 연산으로 한 번만 소비한다")
+    void challengeIsConsumedAtomically() {
+        when(redis.execute(any(RedisScript.class), eq(List.of("TOTP_CHALLENGE:ticket"))))
+                .thenReturn(USER_ID);
+
+        assertThat(auth.consumeChallenge("ticket")).isEqualTo(USER_ID);
+
+        verify(redis).execute(any(RedisScript.class), eq(List.of("TOTP_CHALLENGE:ticket")));
     }
 }

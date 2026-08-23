@@ -6,6 +6,7 @@ import static org.mockito.Mockito.mock;
 
 import com.example.popspotbackend.repository.UserRepository;
 import com.example.popspotbackend.service.AccountDeletionService;
+import com.example.popspotbackend.service.auth.FreshAuthenticationService;
 import com.example.popspotbackend.service.media.ImageUploadGuard;
 import com.example.popspotbackend.service.media.UploadQuotaService;
 import org.junit.jupiter.api.DisplayName;
@@ -52,6 +53,7 @@ class UserProfileProxyHeaderTest {
         return new UserProfileController(
                 mock(UserRepository.class),
                 mock(AccountDeletionService.class),
+                mock(FreshAuthenticationService.class),
                 "api\\.popspot\\.co\\.kr",
                 trustProxyHeaders,
                 "build/test-uploads",

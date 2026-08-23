@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { MapGL, MapMarker, MapPolyline } from './MapGL';
 import { zoomFromLevel } from './mapStyle';
-import { useMapMode } from './useMapMode';
+import { useMapReady } from './useMapReady';
 import {
   X,
   MapPin,
@@ -385,15 +385,14 @@ export default function InteractiveMap({
   // 사용자 현재 위치 — 브라우저 메모리에만 보관 (서버 저장 X · PIPA 부담 최소).
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
 
-  // 사이트 전역 테마 → 지도 mode, 그리고 테마 확정 전에는 지도 생성을 보류(라이트 깜빡임 방지).
-  // 이 로직은 DetailMap 과 공유한다. @see useMapMode
-  const { mode: mapMode, ready: mounted } = useMapMode();
+  // 테마가 확정되기 전에는 지도 생성을 보류한다(라이트 깜빡임 방지). 지도가 입을 색은 지도가
+  // <html> 에서 직접 읽는다. 이 로직은 DetailMap 과 공유한다. @see useMapReady
+  const mounted = useMapReady();
 
   useEffect(() => {
     const media = window.matchMedia('(max-width: 767px)');
     const syncViewport = () => {
       setIsMobileViewport(media.matches);
-      if (media.matches) setIsListOpen(true);
     };
     syncViewport();
     media.addEventListener('change', syncViewport);
@@ -1000,7 +999,6 @@ export default function InteractiveMap({
           id="map"
           center={{ lat: 37.5441, lng: 127.0631 }}
           zoom={zoomFromLevel(4)}
-          mode={mapMode}
           className="w-full h-full outline-none"
           onClick={() => {
             setSelectedMarker(null);
