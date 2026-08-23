@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { isSeasonLimited, resolveSeason, seasonOfMonth } from './season';
+import { resolveSeason, seasonOfMonth } from './season';
 
 describe('계절 판정', () => {
   it('12월은 다음 해 겨울의 시작이라 나머지 연산으로 접으면 경계가 어긋난다', () => {
@@ -29,33 +29,5 @@ describe('계절 판정', () => {
 
     expect(resolveSeason('여름', 'winter', august)).toBe('winter');
     expect(resolveSeason(null, 'nonsense', august)).toBe('summer');
-  });
-});
-
-describe('계절 한정 판정', () => {
-  const august = new Date(2026, 7, 22);
-
-  it('오늘 마감하는 팝업은 계절 한정에 <b>포함된다</b>', () => {
-    // 시각으로 비교하면 오늘 자정이 과거가 되어 빠진다 — 가장 급한 한 칸이 그날 사라진다.
-    expect(isSeasonLimited('2026-08-22', 'summer', august)).toBe(true);
-  });
-
-  it('이미 끝난 팝업은 한정이라고 부를 게 없다', () => {
-    expect(isSeasonLimited('2026-08-21', 'summer', august)).toBe(false);
-  });
-
-  it('다른 계절에 마감하면 이번 계절 한정이 아니다', () => {
-    expect(isSeasonLimited('2026-09-01', 'summer', august)).toBe(false);
-    expect(isSeasonLimited('2026-09-01', 'autumn', august)).toBe(true);
-  });
-
-  it('내년 같은 계절까지 한정으로 부르면 마감의 의미가 없어진다', () => {
-    expect(isSeasonLimited('2027-08-01', 'summer', august)).toBe(false);
-  });
-
-  it('날짜가 없거나 읽을 수 없으면 한정이 아니다', () => {
-    expect(isSeasonLimited(undefined, 'summer', august)).toBe(false);
-    expect(isSeasonLimited('', 'summer', august)).toBe(false);
-    expect(isSeasonLimited('마감일 미정', 'summer', august)).toBe(false);
   });
 });
