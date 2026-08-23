@@ -4,41 +4,62 @@ import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
+import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.stereotype.Service;
 
-/**
- * 계정당 하루 업로드 한도.
- *
- * <p><b>왜 계정 기준인가.</b> 아바타·채팅 이미지 업로드는 프론트가 백엔드를 <b>직접</b> 부른다(api.ts 의 FORCE_ABSOLUTE_PREFIXES —
- * 프록시를 태우면 응답 URL 이 popspot.co.kr 로 나와 404 가 된다). 그 경로에는 엣지 서명이 안 붙어 IP 가 {@code remoteAddr} 로
- * 강등되므로 <b>IP 로는 사람을 구분할 수 없다.</b> 업로드는 이미 로그인을 요구하니 계정으로 세는 것이 정확하다.
- *
- * <p><b>왜 필요한가.</b> 지금까지 업로드에는 총량 제한이 없었다. 파일 하나당 크기만 막혀 있어서 계정 하나가 반복 업로드로 디스크를 채울 수 있었다. 디스크가 차면
- * 업로드만 죽는 게 아니라 DB 와 로그까지 같이 멈춘다.
- *
- * <p><b>Redis 를 쓰는 이유.</b> 메모리에 세면 재시작마다 초기화돼 한도가 사실상 없는 것과 같다. 키는 날짜를 포함하고 그날 자정에 만료되므로 따로 청소할 것이
- * 없다.
- *
- * <p><b>Redis 가 죽으면 통과시킨다.</b> 업로드는 사용자가 쓰는 정상 기능이고, 이 한도는 남용을 막는 보조 장치다. 카운터를 못 읽는다고 멀쩡한 사용자의 업로드를
- * 막으면 손해가 더 크다. 대신 로그를 남겨 남용이 의심될 때 확인할 수 있게 한다.
- */
+/** 계정당 하루 업로드 개수·용량을 원자적으로 제한한다. */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class UploadQuotaService {
 
     private static final String KEY_PREFIX = "upload:quota:";
-    private static final String SUFFIX_BYTES = ":bytes";
-    private static final String SUFFIX_COUNT = ":count";
-
-    /** 날짜 경계는 한국 시간 기준. 서버는 UTC 라 그냥 두면 오전 9시에 하루가 바뀐다. */
     private static final ZoneId KST = ZoneId.of("Asia/Seoul");
-
     private static final long BYTES_PER_MB = 1024L * 1024L;
+
+    /**
+     * 확인과 사용량 증가를 Redis 안에서 한 번에 수행한다.
+     *
+     * <p>조회한 뒤 파일을 저장하고 나중에 증가시키면 동시 요청 여러 개가 모두 같은 옛 사용량을 보고 통과할 수 있다. Lua 스크립트 한 번으로 묶어야 서버가 여러
+     * 대여도 하루 한도를 넘지 않는다.
+     */
+    @SuppressWarnings("rawtypes")
+    private static final RedisScript<List> RESERVE_SCRIPT =
+            new DefaultRedisScript<>(
+                    "local usedBytes = tonumber(redis.call('HGET', KEYS[1], 'bytes') or '0') "
+                            + "local usedCount = tonumber(redis.call('HGET', KEYS[1], 'count') or '0') "
+                            + "local incoming = tonumber(ARGV[1]) "
+                            + "local maxBytes = tonumber(ARGV[2]) "
+                            + "local maxCount = tonumber(ARGV[3]) "
+                            + "if usedCount + 1 > maxCount then return {0, usedBytes, usedCount, 1} end "
+                            + "if usedBytes + incoming > maxBytes then return {0, usedBytes, usedCount, 2} end "
+                            + "local nextBytes = redis.call('HINCRBY', KEYS[1], 'bytes', incoming) "
+                            + "local nextCount = redis.call('HINCRBY', KEYS[1], 'count', 1) "
+                            + "if redis.call('TTL', KEYS[1]) < 0 then redis.call('EXPIRE', KEYS[1], ARGV[4]) end "
+                            + "return {1, nextBytes, nextCount, 0}",
+                    List.class);
+
+    /** 저장 실패 시 앞서 잡아 둔 몫을 되돌린다. 값이 음수가 되지 않게 Redis 안에서 계산한다. */
+    @SuppressWarnings("rawtypes")
+    private static final RedisScript<List> RELEASE_SCRIPT =
+            new DefaultRedisScript<>(
+                    "local usedBytes = tonumber(redis.call('HGET', KEYS[1], 'bytes') or '0') "
+                            + "local usedCount = tonumber(redis.call('HGET', KEYS[1], 'count') or '0') "
+                            + "local nextBytes = math.max(0, usedBytes - tonumber(ARGV[1])) "
+                            + "local nextCount = math.max(0, usedCount - 1) "
+                            + "if nextBytes == 0 and nextCount == 0 then "
+                            + "redis.call('DEL', KEYS[1]) "
+                            + "else "
+                            + "redis.call('HSET', KEYS[1], 'bytes', nextBytes, 'count', nextCount) "
+                            + "end "
+                            + "return {nextBytes, nextCount}",
+                    List.class);
 
     private final StringRedisTemplate redis;
 
@@ -48,29 +69,74 @@ public class UploadQuotaService {
     @Value("${app.upload.daily-count:30}")
     private int dailyCount;
 
-    /** 한도 판정 결과. 막을 때는 사용자에게 보여 줄 이유가 함께 온다. */
-    public record Decision(boolean allowed, String reason) {
+    /** 임시 장애는 일반 한도 초과와 구분해 컨트롤러가 503으로 응답한다. */
+    public record Decision(boolean allowed, boolean temporarilyUnavailable, String reason) {
         static Decision ok() {
-            return new Decision(true, null);
+            return new Decision(true, false, null);
         }
 
         static Decision denied(String reason) {
-            return new Decision(false, reason);
+            return new Decision(false, false, reason);
+        }
+
+        static Decision unavailable() {
+            return new Decision(false, true, "업로드 보호 시스템을 잠시 사용할 수 없습니다. 잠시 후 다시 시도해 주세요.");
+        }
+    }
+
+    /** 검증을 마친 파일이 차지할 몫을 먼저 잡는다. 성공한 요청만 파일 저장 단계로 진행할 수 있다. */
+    @SuppressWarnings("unchecked")
+    public Decision reserve(String userId, long incomingBytes) {
+        if (userId == null || userId.isBlank() || incomingBytes <= 0) {
+            log.warn("[UploadQuota] 잘못된 예약 요청 거부");
+            return Decision.unavailable();
+        }
+
+        long limitBytes = dailyMb * BYTES_PER_MB;
+        try {
+            List<Long> result =
+                    (List<Long>)
+                            redis.execute(
+                                    RESERVE_SCRIPT,
+                                    List.of(key(userId)),
+                                    incomingBytes,
+                                    limitBytes,
+                                    dailyCount,
+                                    Math.max(60, untilMidnightKst().toSeconds()));
+            if (result == null || result.size() < 4) {
+                log.error("[UploadQuota] Redis 예약 결과가 비어 있거나 손상됨");
+                return Decision.unavailable();
+            }
+            if (result.get(0) == 1L) return Decision.ok();
+
+            long reasonCode = result.get(3);
+            if (reasonCode == 1L) {
+                return Decision.denied(
+                        "오늘 올릴 수 있는 파일 수(" + dailyCount + "개)를 다 썼어요. 내일 다시 시도해 주세요.");
+            }
+            if (reasonCode == 2L) {
+                long remainMb = Math.max(0, (limitBytes - result.get(1)) / BYTES_PER_MB);
+                return Decision.denied(
+                        "오늘 올릴 수 있는 용량(" + dailyMb + "MB)을 넘었어요. 남은 용량 " + remainMb + "MB.");
+            }
+            log.error("[UploadQuota] 알 수 없는 Redis 예약 결과 code={}", reasonCode);
+            return Decision.unavailable();
+        } catch (RuntimeException e) {
+            log.error("[UploadQuota] Redis 예약 실패 — 업로드를 안전하게 차단: {}", e.getClass().getSimpleName());
+            return Decision.unavailable();
         }
     }
 
     /**
-     * 이 업로드를 받아도 되는지. <b>아직 세지는 않는다</b> — 저장에 성공한 뒤 {@link #record} 를 부른다.
+     * 폐기 예정인 기존 채팅 업로드 경로의 호환용 판정 API.
      *
-     * <p>순서를 나눈 이유는 검증에 걸려 저장되지 않은 파일까지 한도를 깎으면 안 되기 때문이다. 이미지가 아니거나 손상돼 거부된 요청으로 하루치를 소진시킬 수 있다.
+     * <p>신규 업로드 경로는 동시 요청에도 안전한 {@link #reserve}를 사용한다. 이 메서드는 해당 기능을 건드리지 않기 위해 기존 호출 계약만 보존한다.
      */
     public Decision check(String userId, long incomingBytes) {
         if (userId == null || userId.isBlank()) return Decision.ok();
-
         try {
-            long usedBytes = readLong(key(userId, SUFFIX_BYTES));
-            long usedCount = readLong(key(userId, SUFFIX_COUNT));
-
+            long usedBytes = readHashLong(key(userId), "bytes");
+            long usedCount = readHashLong(key(userId), "count");
             if (usedCount + 1 > dailyCount) {
                 return Decision.denied(
                         "오늘 올릴 수 있는 파일 수(" + dailyCount + "개)를 다 썼어요. 내일 다시 시도해 주세요.");
@@ -83,46 +149,51 @@ public class UploadQuotaService {
             }
             return Decision.ok();
         } catch (RuntimeException e) {
-            // 카운터를 못 읽는다고 정상 업로드를 막지 않는다.
-            log.warn("[UploadQuota] 사용량 조회 실패 — 통과시킨다: {}", e.getClass().getSimpleName());
+            log.warn("[UploadQuota] 호환 경로 사용량 조회 실패: {}", e.getClass().getSimpleName());
             return Decision.ok();
         }
     }
 
-    /** 저장에 성공한 업로드를 사용량에 더한다. */
+    /** 폐기 예정인 기존 채팅 업로드 경로의 호환용 기록 API. */
     public void record(String userId, long bytes) {
-        if (userId == null || userId.isBlank()) return;
-
+        if (userId == null || userId.isBlank() || bytes <= 0) return;
         try {
-            Duration ttl = untilMidnightKst();
-            increment(key(userId, SUFFIX_BYTES), bytes, ttl);
-            increment(key(userId, SUFFIX_COUNT), 1, ttl);
+            String key = key(userId);
+            redis.opsForHash().increment(key, "bytes", bytes);
+            redis.opsForHash().increment(key, "count", 1);
+            if (Boolean.FALSE.equals(redis.hasKey(key)) || redis.getExpire(key) < 0) {
+                redis.expire(key, untilMidnightKst());
+            }
         } catch (RuntimeException e) {
-            log.warn("[UploadQuota] 사용량 기록 실패: {}", e.getClass().getSimpleName());
+            log.warn("[UploadQuota] 호환 경로 사용량 기록 실패: {}", e.getClass().getSimpleName());
         }
     }
 
-    private void increment(String key, long delta, Duration ttl) {
-        Long after = redis.opsForValue().increment(key, delta);
-        // 처음 만들어진 키에만 만료를 건다. 매번 걸면 하루 종일 만료가 밀려 영원히 안 지워진다.
-        if (after != null && after == delta) redis.expire(key, ttl);
+    /** 파일 저장이나 DB 반영이 실패했을 때만 호출한다. 성공한 업로드 몫은 자정까지 유지한다. */
+    public void release(String userId, long bytes) {
+        if (userId == null || userId.isBlank() || bytes <= 0) return;
+        try {
+            redis.execute(RELEASE_SCRIPT, List.of(key(userId)), bytes);
+        } catch (RuntimeException e) {
+            // 실제 파일은 저장되지 않았으므로 디스크 고갈 위험은 없다. 한도가 조금 엄격해지는 쪽으로 실패한다.
+            log.warn("[UploadQuota] 실패한 업로드 예약 해제 실패: {}", e.getClass().getSimpleName());
+        }
     }
 
-    private long readLong(String key) {
-        String raw = redis.opsForValue().get(key);
+    private String key(String userId) {
+        return KEY_PREFIX + userId + ":" + LocalDate.now(KST);
+    }
+
+    private long readHashLong(String key, String field) {
+        Object raw = redis.opsForHash().get(key, field);
         if (raw == null) return 0L;
         try {
-            return Long.parseLong(raw);
+            return Long.parseLong(raw.toString());
         } catch (NumberFormatException e) {
             return 0L;
         }
     }
 
-    private String key(String userId, String suffix) {
-        return KEY_PREFIX + userId + ":" + LocalDate.now(KST) + suffix;
-    }
-
-    /** 오늘 자정(KST)까지 남은 시간. 0 이 되지 않도록 최소 1분을 보장한다. */
     private Duration untilMidnightKst() {
         LocalDateTime now = LocalDateTime.now(KST);
         LocalDateTime midnight = now.toLocalDate().plusDays(1).atStartOfDay();
