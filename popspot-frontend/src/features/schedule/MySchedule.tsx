@@ -67,6 +67,11 @@ export function MySchedule({ popups }: { popups: PopupStore[] }) {
               {canSave && (
                 <button
                   type="button"
+                  // 보이는 글자("일정 저장")는 행마다 똑같다 — 스크린리더가 목록을 훑거나
+                  // rotor 로 버튼만 나열하면 셋 다 같은 이름으로 들려 어느 팝업 것인지 알 수
+                  // 없다. 그래서 접근성 이름에는 팝업명을 더해 시각 레이아웃이 대신하던
+                  // 구분을 명시적으로 옮겨준다. 보이는 텍스트는 그대로 둔다.
+                  aria-label={`${t('sched.save')} — ${shownName.display || popup.name}`}
                   // addToCalendar 는 window.open 을 부른다 — onClick 안에서만 안전하다.
                   // 데스크톱·안드로이드에서는 팝업 차단기를 무시하고 true 를 돌려주므로,
                   // 돌려받은 값으로 "저장됨" 을 알리지 않는다.
