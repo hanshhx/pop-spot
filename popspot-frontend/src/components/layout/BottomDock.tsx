@@ -1,11 +1,19 @@
 'use client';
 
-import { Map as MapIcon, Route, Ticket, User, Users, Music2, MoreHorizontal } from 'lucide-react';
+import {
+  Map as MapIcon,
+  Route,
+  Ticket,
+  User,
+  CalendarDays,
+  Music2,
+  MoreHorizontal,
+} from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { useLocale, type MessageKey } from '@/lib/i18n';
 
-export type DockTab = 'MAP' | 'COURSE' | 'MUSIC' | 'PASSPORT' | 'MY' | 'MATE' | 'FEEDBACK';
+export type DockTab = 'MAP' | 'COURSE' | 'MUSIC' | 'PASSPORT' | 'MY' | 'SCHEDULE' | 'FEEDBACK';
 
 interface BottomDockProps {
   currentTab: DockTab;
@@ -32,7 +40,7 @@ export const DOCK_ITEMS: DockItemDef[] = [
   { key: 'MUSIC', icon: Music2, labelKey: 'dock.music' },
   { key: 'PASSPORT', icon: Ticket, labelKey: 'dock.passport' },
   { key: 'MY', icon: User, labelKey: 'dock.my' },
-  { key: 'MATE', icon: Users, labelKey: 'dock.mate' },
+  { key: 'SCHEDULE', icon: CalendarDays, labelKey: 'dock.schedule' },
 ];
 
 /**
@@ -44,7 +52,12 @@ export const DOCK_ITEMS: DockItemDef[] = [
 export function BottomDock({ currentTab, onTabChange }: BottomDockProps) {
   const { t, locale } = useLocale();
   const [moreOpen, setMoreOpen] = useState(false);
-  const primaryItems = (['MAP', 'COURSE', 'MATE', 'MY'] as const)
+  /*
+   * 핵심 네 칸. 예전에는 세 번째가 동행이었는데, 하루 200명 중 진입이 없어 핵심 자리를 차지할
+   * 이유가 없었다. 그 자리를 일정(전체 팝업 달력)이 받는다 — 로그인 없이도 내용이 차는 화면이라
+   * 처음 온 사람에게도 빈 탭이 되지 않는다.
+   */
+  const primaryItems = (['MAP', 'COURSE', 'SCHEDULE', 'MY'] as const)
     .map((key) => DOCK_ITEMS.find((item) => item.key === key))
     .filter((item): item is DockItemDef => Boolean(item));
   const secondaryItems = DOCK_ITEMS.filter((item) => ['MUSIC', 'PASSPORT'].includes(item.key));

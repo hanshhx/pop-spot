@@ -78,7 +78,6 @@ import PassportView from '../src/components/Passport/PassportView';
 import AIReportModal from '../src/components/AIReportModal';
 import LiveChatTicker from '../src/components/LiveChatTicker';
 import { SortableItem } from '../src/components/SortableItem';
-import MateBoard from '../src/components/MateBoard';
 import { apiFetch, AUTH_EXPIRED_EVENT } from '../src/lib/api';
 import { clearAuthToken } from '../src/lib/authStorage';
 import {
@@ -109,6 +108,7 @@ import { SearchZone } from '@/features/popup/SearchBox';
 import { SectionLogo } from '@/components/layout/BrandLogos';
 import { ReportPopupModal } from '@/features/popup/ReportPopupModal';
 import { PopupCalendarModal } from '@/features/popup/PopupCalendarModal';
+import { PopupCalendar } from '@/features/popup/PopupCalendar';
 import { AllTrendingModal } from '@/features/popup/AllTrendingModal';
 import { AddPlaceModal } from '@/features/popup/AddPlaceModal';
 import { GlobalSearchModal, useGlobalSearchHotkey } from '@/features/popup/GlobalSearchModal';
@@ -178,7 +178,11 @@ const DEFAULT_TAB = 'MAP';
  * 시작했는지 모르는 채 카운터가 돌았다는 뜻이다 — {@code guestMode.ts} 의 설계 문서는 원래
  * "명시적으로 눌러야 시작" 이라고 적어 두었는데 구현이 그것과 어긋나 있었다.
  */
-const USER_ONLY_TABS = new Set<string>(['COURSE', 'MUSIC', 'MATE', 'PASSPORT', 'MY']);
+/*
+ * 일정(SCHEDULE)은 여기 없다. 전체 팝업 달력이라 이력도 계정도 필요 없고, 처음 온 사람에게
+ * 바로 내용이 찬다 — 로그인 벽을 세우면 동행이 비어 있던 자리를 또 빈 화면으로 채우는 셈이다.
+ */
+const USER_ONLY_TABS = new Set<string>(['COURSE', 'MUSIC', 'PASSPORT', 'MY']);
 
 /**
  * 홈이 한 번에 보여 주는 팝업 수.
@@ -302,7 +306,6 @@ function canAccessTab(tab: string, hasUser: boolean, isGuestActive: boolean): bo
 function userOnlyTabHintKey(tab: string): MessageKey {
   if (tab === 'COURSE') return 'home.hintCourse';
   if (tab === 'MUSIC') return 'home.hintMusic';
-  if (tab === 'MATE') return 'home.hintMate';
   return 'home.hintDefault';
 }
 
@@ -2655,15 +2658,15 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
           </motion.section>
         )}
 
-        {/* TAB: MATE */}
-        {currentTab === 'MATE' && (
+        {/* TAB: SCHEDULE — 동행이 있던 자리. 전체 팝업 달력이라 비로그인도 그대로 쓴다. */}
+        {currentTab === 'SCHEDULE' && (
           <motion.section
-            aria-label="Mate Board"
+            aria-label={t('dock.schedule')}
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="min-h-[60vh] rounded-xl border border-[var(--color-border)] bg-surface text-surface-foreground mb-16 relative overflow-hidden shadow-md"
+            className="min-h-[60vh] rounded-xl border border-[var(--color-border)] bg-surface p-4 text-surface-foreground mb-16 relative overflow-hidden shadow-md md:p-6"
           >
-            <MateBoard user={user} />
+            <PopupCalendar popups={allPopups} />
           </motion.section>
         )}
 
