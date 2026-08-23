@@ -1015,6 +1015,44 @@ export const BRANDS: BrandDef[] = [
     labelJa: 'マンチェスター・シティ',
     keywords: ['맨시티', '맨체스터 시티', 'man city', 'manchester city'],
   },
+
+  /*
+   * 아래 넷은 방문 로그를 보고 넣었다. 유입의 93% 가 SEO 랜딩으로 들어오는데 그중 작품·IP 페이지가
+   * 지역 페이지의 세 배를 데려온다(28일 기준 981명 대 333명). 재고를 늘릴 곳은 지역이 아니라 작품이다.
+   *
+   * <p>고르는 기준은 <b>우리 조회수가 아니라 검색 수요</b>다. 사이트에서 많이 본 것과 사람들이
+   * 검색창에 치는 것은 다르다 — 조회수 1위였던 이름들 중에서도, 검색어로도 크다고 말할 수 있는
+   * 것만 넣었다. 나머지는 Search Console 에서 노출·검색어를 보고 판단한다.
+   */
+  {
+    slug: 'haikyu',
+    label: '하이큐',
+    labelEn: 'Haikyu!!',
+    labelJa: 'ハイキュー!!',
+    keywords: ['하이큐', 'haikyu', 'haikyuu'],
+  },
+  {
+    slug: 'harry-potter',
+    label: '해리포터',
+    labelEn: 'Harry Potter',
+    labelJa: 'ハリー・ポッター',
+    keywords: ['해리포터', '해리 포터', 'harry potter', '호그와트'],
+  },
+  {
+    slug: 'banksy',
+    label: '뱅크시',
+    labelEn: 'Banksy',
+    labelJa: 'バンクシー',
+    keywords: ['뱅크시', 'banksy'],
+  },
+  {
+    slug: 'naver-webtoon',
+    label: '네이버웹툰',
+    labelEn: 'NAVER WEBTOON',
+    /* 공식 표기 미확인 — 통용 표기. 일본에서는 LINE マンガ 로 유통되는 작품이 많아 다를 수 있다. */
+    labelJa: 'ネイバーウェブトゥーン',
+    keywords: ['네이버웹툰', '네이버 웹툰', 'naver webtoon', '네웹'],
+  },
 ];
 
 const BRAND_BY_SLUG = new Map(BRANDS.map((b) => [b.slug, b]));
