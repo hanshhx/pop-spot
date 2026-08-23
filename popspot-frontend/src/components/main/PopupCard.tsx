@@ -9,6 +9,7 @@ import { useLocale, type MessageKey } from '@/lib/i18n';
 import { bilingual } from '@/lib/bilingual';
 import type { PopupStore } from '@/types/popup';
 import { trackVisitEvent } from '@/lib/visitEvent';
+import { ddayBadge } from '@/lib/dday';
 
 /**
  * 팝업 사진 카드 — 디자인 진단서 P0. 사진 + D-day + 지역 + 카테고리 + ♥ 를 한 장에.
@@ -16,34 +17,6 @@ import { trackVisitEvent } from '@/lib/visitEvent';
  * <p>기존 홈은 텍스트 랭킹 리스트라 "팝업을 눈으로 훑어보는" 코어 경험이 약했다. 크롤링 imageUrl 은 임의 호스트라
  * next/image 대신 순수 <img> 로 렌더(도메인 화이트리스트 불필요). 사진 없으면 지도핀 플레이스홀더.
  */
-
-/** 남은 기간 배지에 필요한 것 — 무엇을 쓸지(labelKey · days)와 어떤 색으로 그릴지(ended). */
-interface DdayBadge {
-  /** 정해진 문구가 있는 경우의 사전 키. 남은 일수를 세어 보여줄 때는 null. */
-  labelKey: MessageKey | null;
-  days: number;
-  ended: boolean;
-}
-
-/**
- * 마감까지 남은 기간.
- *
- * <p>문구와 <b>종료 여부를 나눠서</b> 돌려준다. 예전에는 '종료' 같은 문자열 하나만 주고 배지 색을
- * 고르는 쪽이 {@code dday === '종료'} 로 되물었는데, 그러면 문구를 옮기는 순간 비교가 빗나가
- * 끝난 팝업까지 라임색 배지를 달게 된다 — 보이는 글자와 판단 기준이 같은 값이면 늘 이렇게 된다.
- */
-function ddayBadge(endDate?: string): DdayBadge | null {
-  if (!endDate) return null;
-  const end = new Date(endDate);
-  if (Number.isNaN(end.getTime())) return null;
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  end.setHours(0, 0, 0, 0);
-  const diff = Math.round((end.getTime() - today.getTime()) / 86_400_000);
-  if (diff < 0) return { labelKey: 'misc.cardEnded', days: diff, ended: true };
-  if (diff === 0) return { labelKey: 'card.today', days: 0, ended: false };
-  return { labelKey: null, days: diff, ended: false };
-}
 
 /**
  * 백엔드 카테고리 코드 → 표시 문구.
@@ -128,11 +101,11 @@ export function PopupCard({ popup, onClick, onWish, wished, className }: PopupCa
         }
       }}
       className={cn(
-        'group relative flex w-[220px] shrink-0 cursor-pointer flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white text-left shadow-sm transition hover:-translate-y-1 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-400 dark:border-white/10 dark:bg-white/[0.04]',
+        'group relative flex w-full min-w-0 cursor-pointer flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white text-left shadow-sm transition hover:-translate-y-1 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-400 sm:w-[220px] sm:shrink-0 dark:border-white/10 dark:bg-white/[0.04]',
         className,
       )}
     >
-      <div className="relative aspect-[4/5] w-full overflow-hidden bg-gray-100 dark:bg-white/5">
+      <div className="relative aspect-[16/10] w-full overflow-hidden bg-gray-100 sm:aspect-[4/5] dark:bg-white/5">
         {coverUrl && !imgError ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -150,6 +123,9 @@ export function PopupCard({ popup, onClick, onWish, wished, className }: PopupCa
           </div>
         )}
 
+        {/* 이번 계절에 마감하는 카드는 이 배지를 만채도(--s-hi)로 칠했었다. 재 보니 진행 중
+            팝업 588개 중 321개(54.6%)가 해당한다 — 절반 넘는 카드가 칠해지면 그건 신호가 아니라
+            배경이고, 팔레트 규칙(만채도는 화면의 10% 이내)도 어긴다. */}
         {dday && (
           <span
             className={`absolute left-2.5 top-2.5 rounded-full px-2.5 py-1 text-[11px] font-bold ${

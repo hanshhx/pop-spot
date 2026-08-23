@@ -20,6 +20,7 @@ import jakarta.annotation.PostConstruct;
 import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.Date;
 import java.util.HashMap;
@@ -191,11 +192,11 @@ public class AuthService {
         }
 
         recordAdminLogin(user, "이메일");
-        return withRefreshToken(user);
+        return withRefreshToken(user, Instant.now().getEpochSecond());
     }
 
     /** 로그인 성공 응답 — 접근 토큰과 리프레시 토큰을 함께 준다. */
-    private LoginResponseDto withRefreshToken(User user) {
+    private LoginResponseDto withRefreshToken(User user, long authenticatedAtEpochSeconds) {
         return LoginResponseDto.builder()
                 .userId(user.getUserId())
                 .email(user.getEmail())
@@ -203,8 +204,14 @@ public class AuthService {
                 .role(user.getRole())
                 .isPremium(user.isPremium())
                 .megaphoneCount(user.getMegaphoneCount())
-                .token(issueJwt(user))
-                .refreshToken(refreshTokens.issue(user.getUserId()).token())
+                .token(issueJwt(user, authenticatedAtEpochSeconds))
+                .refreshToken(
+                        refreshTokens
+                                .issue(
+                                        user.getUserId(),
+                                        user.getTokenVersion(),
+                                        authenticatedAtEpochSeconds)
+                                .token())
                 .build();
     }
 
@@ -359,7 +366,7 @@ public class AuthService {
         }
 
         recordAdminLogin(user, "2단계 인증");
-        return withRefreshToken(user);
+        return withRefreshToken(user, Instant.now().getEpochSecond());
     }
 
     /**
@@ -371,27 +378,35 @@ public class AuthService {
      */
     @Transactional(readOnly = true)
     public LoginResponseDto refresh(String refreshToken) {
-        String userId = refreshTokens.consume(refreshToken);
-        if (userId == null) {
+        RefreshTokenService.Consumed consumed = refreshTokens.consume(refreshToken);
+        if (consumed == null) {
+            throw new IllegalArgumentException("로그인이 만료되었습니다. 다시 로그인해 주세요.");
+        }
+        long nowEpochSeconds = Instant.now().getEpochSecond();
+        if (consumed.authenticatedAtEpochSeconds() > nowEpochSeconds + 60) {
             throw new IllegalArgumentException("로그인이 만료되었습니다. 다시 로그인해 주세요.");
         }
 
         User user =
                 userRepository
-                        .findById(userId)
-                        .orElseThrow(() -> ResourceNotFoundException.user(userId));
+                        .findById(consumed.userId())
+                        .orElseThrow(() -> ResourceNotFoundException.user(consumed.userId()));
         if (!user.isAccountActive()) {
             throw new IllegalArgumentException("비활성화된 계정입니다.");
         }
+        if (consumed.tokenVersion() != user.getTokenVersion()) {
+            throw new IllegalArgumentException("로그인이 만료되었습니다. 다시 로그인해 주세요.");
+        }
 
-        return withRefreshToken(user);
+        return withRefreshToken(user, consumed.authenticatedAtEpochSeconds());
     }
 
-    private String issueJwt(User user) {
+    private String issueJwt(User user, long authenticatedAtEpochSeconds) {
         return Jwts.builder()
                 .setSubject(user.getUserId())
                 .claim("role", user.getRole())
                 .claim("ver", user.getTokenVersion())
+                .claim("auth_time", authenticatedAtEpochSeconds)
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + validityFor(user)))
                 .signWith(signingKey, SignatureAlgorithm.HS256)

@@ -2,6 +2,7 @@ package com.example.popspotbackend.config;
 
 import com.example.popspotbackend.entity.User;
 import com.example.popspotbackend.repository.UserRepository;
+import com.example.popspotbackend.service.auth.SessionAuthenticationDetails;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
@@ -13,6 +14,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.Key;
+import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -121,6 +123,25 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 return false;
             }
 
+            Number authTimeClaim = claims.get("auth_time", Number.class);
+            Instant authenticatedAt;
+            boolean primaryAuthenticationVerified;
+            if (authTimeClaim != null && authTimeClaim.longValue() > 0) {
+                authenticatedAt = Instant.ofEpochSecond(authTimeClaim.longValue());
+                primaryAuthenticationVerified = true;
+            } else if (claims.getIssuedAt() != null) {
+                // 배포 직전 발급된 접근 토큰은 최대 1시간만 남아 있다. 전 사용자를 즉시 로그아웃시키지
+                // 않되, 직접 본인 인증 시각을 증명하지 못하므로 민감 작업에는 사용할 수 없게 표시한다.
+                authenticatedAt = claims.getIssuedAt().toInstant();
+                primaryAuthenticationVerified = false;
+            } else {
+                return false;
+            }
+            if (claims.getIssuedAt() != null
+                    && authenticatedAt.isAfter(claims.getIssuedAt().toInstant())) {
+                return false;
+            }
+
             List<SimpleGrantedAuthority> authorities =
                     Collections.singletonList(new SimpleGrantedAuthority(role));
             UserDetails principal =
@@ -129,8 +150,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                             .authorities(authorities)
                             .build();
             SecurityContext context = SecurityContextHolder.createEmptyContext();
-            context.setAuthentication(
-                    new UsernamePasswordAuthenticationToken(principal, null, authorities));
+            UsernamePasswordAuthenticationToken authentication =
+                    new UsernamePasswordAuthenticationToken(principal, null, authorities);
+            authentication.setDetails(
+                    new SessionAuthenticationDetails(
+                            authenticatedAt, primaryAuthenticationVerified));
+            context.setAuthentication(authentication);
             SecurityContextHolder.setContext(context);
             return true;
         } catch (Exception e) {

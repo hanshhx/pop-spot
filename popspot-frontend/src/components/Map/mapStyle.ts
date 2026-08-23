@@ -12,6 +12,8 @@
  *    Map 생성 시 localIdeographFontFamily 로 로컬 폰트(=브랜드 폰트)를 쓴다. (MapGL.tsx)
  */
 
+import { mix } from '@/lib/colorMix';
+
 export type MapMode = 'dark' | 'light';
 
 interface Theme {
@@ -78,12 +80,152 @@ function cssToken(name: string, fallback: string): string {
   return v || fallback;
 }
 
-/** THEMES 의 하드코딩 값 중 globals.css 토큰과 1:1 대응하는 것만 실제 토큰으로 치환. */
-function resolveTheme(mode: MapMode): Theme {
+/**
+ * 계절이 닿지 않는 색들의 기준점.
+ *
+ * <p>물과 공원은 <b>제 색을 지켜야 한다.</b> 계절색으로 그대로 칠하면 가을에 주황색 한강이
+ * 흐른다 — 계절보다 "저건 강" 이라는 인식이 먼저다. 그래서 파랑·초록이라는 기준만 여기 두고,
+ * 실제 색은 지도 바탕(earth)을 섞어 만든다. 섞는 순간 계절 색온도가 옮겨붙어, 제 색을 지키면서도
+ * 같은 화면에 속한 것으로 보인다.
+ *
+ * <p>핀·클러스터의 라임은 여기 없다 — 그건 DOM 오버레이라 {@code bg-lime-300} 클래스를 쓰고,
+ * 계절 라임 스케일이 이미 갈아끼워져 자동으로 따라온다.
+ */
+interface Anchors {
+  /** 도로가 향하는 쪽. 지도 관습상 도로는 <b>두 모드 모두</b> 바탕보다 밝다. */
+  road: string;
+  /** 건물·철도가 향하는 쪽. 바탕에서 멀어지는 방향이라 다크는 밝게, 라이트는 어둡게. */
+  mass: string;
+  water: string;
+  park: string;
+  /** 고속도로. 다른 도로보다 한 단 밝고 따뜻해야 한 눈에 갈린다. */
+  highway: string;
+  /** 글자. */
+  ink: string;
+}
+
+const ANCHORS: Record<MapMode, Anchors> = {
+  dark: {
+    road: '#ffffff',
+    mass: '#ffffff',
+    water: '#12314f',
+    park: '#1d3a1c',
+    highway: '#f2e3bb',
+    ink: '#ffffff',
+  },
+  light: {
+    road: '#ffffff',
+    mass: '#0a0a0a',
+    water: '#b9d6e8',
+    park: '#cbe4b2',
+    highway: '#ffe6a8',
+    ink: '#0a0a0a',
+  },
+};
+
+/** 바탕에서 각 면이 얼마나 떨어져 있는지. 0 이면 바탕과 같은 색이다. */
+const STEPS: Record<
+  MapMode,
+  Record<keyof typeof SURFACE_ANCHOR | 'label' | 'labelSmall', number>
+> = {
+  dark: {
+    building: 0.055,
+    roadMinor: 0.08,
+    roadMedium: 0.135,
+    roadMajor: 0.19,
+    roadHighway: 0.34,
+    rail: 0.145,
+    water: 0.5,
+    park: 0.42,
+    label: 0.8,
+    labelSmall: 0.46,
+  },
+  light: {
+    building: 0.05,
+    // 라이트 지도의 도로는 흰색이다. 굵기로 위계를 만들고 색은 하나로 둔다 — 흰 선이
+    // 이어질 때 '길' 로 읽히지, 세 단계 회색으로 나누면 얼룩처럼 보인다.
+    roadMinor: 1,
+    roadMedium: 1,
+    roadMajor: 1,
+    roadHighway: 0.62,
+    rail: 0.24,
+    water: 0.55,
+    park: 0.5,
+    label: 0.87,
+    labelSmall: 0.5,
+  },
+};
+
+/** 각 면이 어느 기준점을 향해 가는지. 도로·건물은 잉크/흰쪽(=밝기 층), 물·공원은 제 색으로. */
+const SURFACE_ANCHOR = {
+  building: 'mass',
+  roadMinor: 'road',
+  roadMedium: 'road',
+  roadMajor: 'road',
+  roadHighway: 'highway',
+  rail: 'mass',
+  water: 'water',
+  park: 'park',
+} as const;
+
+/**
+ * 팔레트가 실제로 따라야 할 모드.
+ *
+ * <p>색의 출처가 둘이라는 것이 문제다. {@code earth} 는 CSS 변수({@code --s-map})에서 오는데 그
+ * 값은 {@code <html>} 의 {@code .dark} 클래스가 정하고, 나머지는 React 가 넘긴 {@code mode}
+ * (next-themes 의 resolvedTheme)가 정한다. 둘이 한순간이라도 어긋나면 <b>검은 바탕에 연보라
+ * 강물</b> 같은 반쪽짜리 지도가 나온다 — 한쪽은 다크, 한쪽은 라이트 팔레트인 상태다.
+ *
+ * <p>그래서 브라우저에서는 <b>변수를 읽는 그 문서에게 직접 묻는다.</b> 두 출처를 하나로 만들면
+ * 어긋날 여지 자체가 없어진다. 서버에는 document 가 없으므로 넘겨받은 값을 그대로 쓴다.
+ */
+function documentMode(fallback: MapMode): MapMode {
+  if (typeof document === 'undefined') return fallback;
+  return document.documentElement.classList.contains('dark') ? 'dark' : 'light';
+}
+
+/**
+ * 지도 팔레트를 <b>계절 바탕색 하나에서</b> 만든다.
+ *
+ * <p>예전에는 14색 중 {@code earth} 와 {@code boundary} 둘만 계절을 따랐다. 나머지 열둘이 브랜드
+ * 고정값이라, 여름(차가운 청록) 바탕 위에 보라색 강과 따뜻한 초록 공원이 얹혔다 — 한 화면에 두
+ * 팔레트가 섞여 지도만 딴 서비스처럼 보였다.
+ *
+ * <p>계절마다 열두 색을 CSS 에 또 적는 방법도 있지만, 그러면 관리할 값이 여덟 계절 × 열둘로
+ * 불어난다. 대신 바탕에서 계산한다. {@code --s-map} 하나만 바꾸면 도로·건물·물·공원·글자가
+ * 전부 그 색온도로 따라오고, 팔레트를 손볼 때 볼 곳은 지금과 같은 한 줄이다.
+ */
+function resolveTheme(requested: MapMode): Theme {
+  const mode = documentMode(requested);
   const t = THEMES[mode];
+  const a = ANCHORS[mode];
+  const step = STEPS[mode];
+
+  const brandEarth = cssToken(mode === 'dark' ? '--color-ink-900' : '--color-cream-100', t.earth);
+  const earth = cssToken('--s-map', brandEarth);
+  const from = (key: keyof typeof SURFACE_ANCHOR) => mix(earth, a[SURFACE_ANCHOR[key]], step[key]);
+
   return {
-    ...t,
-    earth: cssToken(mode === 'dark' ? '--color-ink-900' : '--color-cream-100', t.earth),
+    earth,
+    building: from('building'),
+    roadMinor: from('roadMinor'),
+    roadMedium: from('roadMedium'),
+    roadMajor: from('roadMajor'),
+    roadHighway: from('roadHighway'),
+    rail: from('rail'),
+    water: from('water'),
+    park: from('park'),
+
+    // 경계선은 이미 계절 토큰이 따로 있다 — 바탕과의 거리를 계절마다 손으로 정해 둔 값이다.
+    boundary: cssToken('--s-mapline', t.boundary),
+
+    // 글자는 바탕에서 잉크 쪽으로. 후광이 바탕색이어야 글자가 지도 위에 얹힌 것으로 읽힌다.
+    label: mix(earth, a.ink, step.label),
+    labelSmall: mix(earth, a.ink, step.labelSmall),
+    labelHalo: earth,
+
+    /* 지하철만 계절 밖에 둔다. 이건 장식이 아니라 위치를 가늠하는 기준점이라 사계절 내내 같은
+       색이어야 하고, 계절 라임(=팝업 핀)과 겹치지 않는 것이 유일한 조건이다. */
     subway: cssToken(mode === 'dark' ? '--color-violet-400' : '--color-violet-500', t.subway),
   };
 }

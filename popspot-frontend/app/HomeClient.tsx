@@ -78,7 +78,6 @@ import PassportView from '../src/components/Passport/PassportView';
 import AIReportModal from '../src/components/AIReportModal';
 import LiveChatTicker from '../src/components/LiveChatTicker';
 import { SortableItem } from '../src/components/SortableItem';
-import MateBoard from '../src/components/MateBoard';
 import { apiFetch, AUTH_EXPIRED_EVENT } from '../src/lib/api';
 import { clearAuthToken } from '../src/lib/authStorage';
 import {
@@ -95,6 +94,7 @@ import { groupSameEvent } from '@/lib/groupSameEvent';
 import { Header } from '../src/components/layout/Header';
 import { Footer } from '../src/components/layout/Footer';
 import { BottomDock, type DockTab } from '../src/components/layout/BottomDock';
+import { MySchedule } from '../src/features/schedule/MySchedule';
 import MusicTab from '@/components/music/MusicTab';
 import RankCard from '@/components/rank/RankCard';
 import LoopingBgVideo from '@/components/LoopingBgVideo';
@@ -109,6 +109,7 @@ import { SearchZone } from '@/features/popup/SearchBox';
 import { SectionLogo } from '@/components/layout/BrandLogos';
 import { ReportPopupModal } from '@/features/popup/ReportPopupModal';
 import { PopupCalendarModal } from '@/features/popup/PopupCalendarModal';
+import { PopupCalendar } from '@/features/popup/PopupCalendar';
 import { AllTrendingModal } from '@/features/popup/AllTrendingModal';
 import { AddPlaceModal } from '@/features/popup/AddPlaceModal';
 import { GlobalSearchModal, useGlobalSearchHotkey } from '@/features/popup/GlobalSearchModal';
@@ -119,6 +120,9 @@ import { FeedbackForm } from '@/features/feedback/FeedbackForm';
 import { ProfileEditModal } from '@/features/profile/ProfileEditModal';
 import BrowseSection from '@/components/main/BrowseSection';
 import { PopupCard } from '@/components/main/PopupCard';
+import SeasonBanner from '@/components/main/SeasonBanner';
+import { seasonBgVideo } from '@/lib/seasonVideo';
+import { useSeason } from '@/lib/seasonContext';
 import { devMockPopups } from '@/lib/devMockPopups';
 import type { PublicMapMarker } from '@/lib/mapMarkers';
 import FeatureSections from '@/components/main/FeatureSections';
@@ -175,7 +179,11 @@ const DEFAULT_TAB = 'MAP';
  * 시작했는지 모르는 채 카운터가 돌았다는 뜻이다 — {@code guestMode.ts} 의 설계 문서는 원래
  * "명시적으로 눌러야 시작" 이라고 적어 두었는데 구현이 그것과 어긋나 있었다.
  */
-const USER_ONLY_TABS = new Set<string>(['COURSE', 'MUSIC', 'MATE', 'PASSPORT', 'MY']);
+/*
+ * 일정(SCHEDULE)은 여기 없다. 전체 팝업 달력이라 이력도 계정도 필요 없고, 처음 온 사람에게
+ * 바로 내용이 찬다 — 로그인 벽을 세우면 동행이 비어 있던 자리를 또 빈 화면으로 채우는 셈이다.
+ */
+const USER_ONLY_TABS = new Set<string>(['COURSE', 'MUSIC', 'PASSPORT', 'MY']);
 
 /**
  * 홈이 한 번에 보여 주는 팝업 수.
@@ -299,7 +307,6 @@ function canAccessTab(tab: string, hasUser: boolean, isGuestActive: boolean): bo
 function userOnlyTabHintKey(tab: string): MessageKey {
   if (tab === 'COURSE') return 'home.hintCourse';
   if (tab === 'MUSIC') return 'home.hintMusic';
-  if (tab === 'MATE') return 'home.hintMate';
   return 'home.hintDefault';
 }
 
@@ -323,15 +330,17 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
   // 모드별 풀 배경 영상: 라이트=밝은 스카이라인(light-bg), 다크=생기있는 서울 야경(login-bg).
   // resolvedTheme 은 마운트 후에야 확정되므로 gate 로 SSR 불일치/깜빡임 방지(마운트 전엔 브랜드 단색만).
   const { resolvedTheme } = useTheme();
+  const season = useSeason();
   const [themeReady, setThemeReady] = useState(false);
   useEffect(() => setThemeReady(true), []);
   // 라이트=매끄러운 루프(부메랑)로 재인코딩한 밝은 스카이라인(light-bg), 다크=서울 야경(login-bg-v2).
   // v2 = 1080p/7.9Mbps 원본(16.3MB)을 720p/CRF28 로 재인코딩한 것(2.8MB, SSIM 0.947). 스크림 두 겹
   // 뒤에 깔리는 배경이라 체감 차이는 없고 모바일 첫 방문 전송량만 83% 줄었다. 파일명을 바꾼 건
   // 캐시에 남은 옛 16MB 파일을 확실히 버리게 하려는 것.
-  const bgVideoSrc = resolvedTheme === 'dark' ? '/login-bg-v2.mp4' : '/light-bg.mp4';
-  // 라이트 영상은 도심 불빛 반짝임이 커서 0.5배속으로 차분하게. 다크(야경)는 원속도 유지.
-  const bgVideoRate = resolvedTheme === 'dark' ? 1 : 0.5;
+  //
+  // 계절 영상이 들어오면 그 계절 편으로 갈아탄다. 아직 안 넣은 칸은 위 두 편으로 떨어진다 —
+  // 넣는 방법과 이유는 lib/seasonVideo.ts 주석 참고.
+  const { src: bgVideoSrc, rate: bgVideoRate } = seasonBgVideo(season, resolvedTheme === 'dark');
 
   // 화면 문구 언어. 첫 렌더는 항상 한국어이고(서버 HTML 과 맞춰 깜빡임 방지),
   // 브라우저에서 저장값·브라우저 언어를 읽어 반영한다.
@@ -347,10 +356,24 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
    * 그것을 거르는 책임은 이 화면에 있다(클라이언트 경로도 같은 함수를 통과한다).
    */
   const [allPopups, setAllPopups] = useState<PopupStore[]>(() => keepOpenNow(initialPopups));
+  /**
+   * 달력 전용 — 걸러지지 않은 전체 카탈로그.
+   *
+   * <p>{@link keepOpenNow} 는 홈 목록·랭킹을 위해 "오늘 문이 열려 있는 것" 만 남긴다. 그건 그
+   * 화면들에는 맞지만 달력에는 틀리다: 다음 주에 여는 팝업이 통째로 빠지므로 <b>오늘이 아닌
+   * 날짜의 '오픈' 은 언제나 0</b> 이 되고, 다음 달로 넘기면 격자가 빈다(실측 1,167곳 중 92곳이
+   * 아직 시작 전, 543곳이 이미 종료).
+   *
+   * <p>SSR 이 성공하면 이 값은 첫 렌더부터 완전하다. 실패했을 때만 아래 효과가 채우는데, 그
+   * 경로의 localStorage 캐시는 이미 걸러진 목록이라 네트워크 응답이 올 때까지는 달력도 걸러진
+   * 상태다 — 비어 보이는 것보다 낫고, 응답이 오면 온전해진다.
+   */
+  const [catalogPopups, setCatalogPopups] = useState<PopupStore[]>(initialPopups);
   const initialMapMarkers = useMemo(() => initialPopups.map(popupToMapMarker), [initialPopups]);
   // "지금 뜨는 팝업" 레일 정렬/필터. 전체(allPopups)에서 파생한다.
   const [railSort, setRailSort] = useState<'popular' | 'deadline' | 'latest'>('popular');
   const [railCat, setRailCat] = useState<CategoryCode | 'all'>('all');
+  /* 계절 한정 필터 — 계절에만 존재하는 칩이다. 없던 버튼이 생기는 것이 색보다 세게 걸린다. */
   const rail = useDragScroll<HTMLDivElement>();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -1017,8 +1040,9 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
       }
       if (cachedPopups) {
         try {
-          const data = keepOpenNow(JSON.parse(cachedPopups));
-          setAllPopups(data);
+          const parsed = JSON.parse(cachedPopups);
+          setAllPopups(keepOpenNow(parsed));
+          setCatalogPopups(Array.isArray(parsed) ? parsed : []);
         } catch {
           localStorage.removeItem('cached_popups');
         }
@@ -1032,6 +1056,7 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
         .then((raw) => {
           const data = keepOpenNow(raw);
           setAllPopups(data);
+          setCatalogPopups(Array.isArray(raw) ? raw : []);
           try {
             localStorage.setItem('cached_popups', JSON.stringify(data));
           } catch {
@@ -1044,6 +1069,7 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
           if (process.env.NODE_ENV === 'development') {
             const mock = devMockPopups();
             setAllPopups(mock);
+            setCatalogPopups(mock);
           }
         });
     }
@@ -1246,12 +1272,28 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
   };
 
   return (
-    <main className="min-h-screen font-sans relative pb-32 lg:pb-16 overflow-x-hidden transition-colors duration-500 text-gray-900 dark:text-white">
+    <main className="relative min-h-screen overflow-x-clip pb-28 font-sans text-gray-900 transition-colors duration-500 dark:text-white lg:pb-16">
       {/* 모드별 풀 배경 영상 — 라이트=밝은 스카이라인(light-bg), 다크=생기있는 서울 야경(login-bg).
           영상이 '실제로 보이도록' 스크림은 얕게(home-video-scrim). 콘텐츠는 불투명 카드 위라 가독성은 카드가 담당.
           마운트 전엔 브랜드 단색(cream/ink)만 → 깜빡임 없이 영상 페이드 인. 활성 모드 영상 한 개만 로드. */}
-      <div className="fixed inset-0 -z-10 bg-cream-100 dark:bg-ink-900 overflow-hidden" aria-hidden>
-        {themeReady && <LoopingBgVideo key={bgVideoSrc} src={bgVideoSrc} rate={bgVideoRate} />}
+      {/* 이 층이 화면 전체를 덮으므로 여기가 크림/잉크로 고정돼 있으면 계절 배경은 어디에도
+          안 보인다 — body 의 --color-background 까지 전부 가린다. 계절 토큰으로 바꾼다. */}
+      <div
+        className="fixed inset-0 -z-10 overflow-hidden"
+        style={{ background: 'var(--s-bg)' }}
+        aria-hidden
+      >
+        {/* 영상만 따로 감싼다. 테마가 바뀌면 파일이 통째로 갈려 툭 끊기는데, 색처럼 흐르게 할
+            방법이 없어 따로 페이드한다(globals.css 의 theme-bg-fade). 바탕색·스크림까지 같이
+            감싸면 그 둘은 이미 색으로 부드럽게 흐르는 중이라 두 번 흔들린 것처럼 보인다. */}
+        <div className="theme-bg-fade absolute inset-0">
+          {themeReady && <LoopingBgVideo key={bgVideoSrc} src={bgVideoSrc} rate={bgVideoRate} />}
+        </div>
+        {/* 좁은 화면 전용 배경 보강. 영상이 없는 구간에서만 그려지고 CSS 만 쓴다 — 규칙은
+            globals.css 의 .home-flat-bg 주석 참고. 넓은 화면에서는 display:none 이라
+            영상 위에 아무것도 얹지 않는다. */}
+        <div className="home-flat-bg"></div>
+        <div className="home-flat-grain"></div>
         <div className="home-video-scrim absolute inset-0"></div>
       </div>
 
@@ -1265,7 +1307,24 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
           onBellClick={() => setIsNotificationsOpen(true)}
           activeTab={currentTab}
           onNavChange={(t) => handleTabChange(t)}
+          mobileLocaleControl={<LocaleSwitcher locale={locale} />}
           className="mb-4 md:mb-6"
+        />
+
+        {/* 계절 전환 배너 — 재방문자에게 계절당 한 번, 2주 뒤 접힘. 자세한 규칙은 컴포넌트 주석. */}
+        <SeasonBanner
+          /*
+           * 예전에는 "계절 한정" 필터를 켰다. 그 필터가 실제로 고르던 것은 이번 계절 안에
+           * 마감하는 팝업이었으므로, 같은 목록을 정직한 이름으로 보여 주는 마감임박 정렬로
+           * 옮긴다 — 배너가 말하는 "곧 닫힌다" 와도 이쪽이 맞는다.
+           */
+          onExplore={() => {
+            setRailSort('deadline');
+            handleTabChange('MAP');
+            document
+              .getElementById('trending-rail')
+              ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }}
         />
 
         {/*
@@ -1325,7 +1384,7 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
                 (2) 그 카드는 비로그인일 때만 그려진다. 로그인하면 언어 전환이 통째로 사라져,
                     외국인 회원은 한 번 로그인한 뒤 언어를 못 바꿨다.
                 흐름 안에 두면 겹칠 수가 없고, 로그인 여부와 무관하게 늘 같은 자리에 있다. */}
-            <div className="mb-3 flex justify-end md:mb-4">
+            <div className="mb-4 hidden justify-end md:flex">
               <LocaleSwitcher locale={locale} />
             </div>
 
@@ -1356,14 +1415,14 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
                   </button>
                 </div>
               ) : (
-                <div className="relative w-full overflow-hidden rounded-2xl border p-6 md:p-8 bg-white border-gray-200 dark:bg-[#1c1c1e] dark:border-white/10">
+                <div className="relative w-full overflow-hidden rounded-2xl border border-gray-200 bg-white p-5 dark:border-white/10 dark:bg-[#1c1c1e] md:p-8">
                   {/* 은은한 라임 글로우 — 칙칙함 대신 활력. 밝지만 텍스트 대비는 유지. */}
                   <div
                     aria-hidden
                     className="pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full bg-lime-300/35 blur-3xl dark:bg-lime-400/20"
                   />
                   <div className="relative z-10 flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-                    <div className="text-center md:text-left">
+                    <div className="min-w-0 text-left">
                       <span className="inline-block mb-3 rounded-pill bg-lime-300 px-3 py-1 text-[10px] md:text-xs font-black tracking-[0.2em] uppercase text-ink-900">
                         {locale === 'ko' ? '오늘의 서울 팝업' : t('stat.open')}
                       </span>
@@ -1393,7 +1452,7 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
                           ? '지도에서 일정과 장소를 확인하고, 마음에 드는 팝업을 저장하세요.'
                           : t('hero.subtitle')}
                       </p>
-                      <div className="mt-5 flex flex-col sm:flex-row gap-2.5 justify-center md:justify-start">
+                      <div className="mt-5 flex flex-col gap-2.5 sm:flex-row md:justify-start">
                         <button
                           type="button"
                           onClick={() => {
@@ -1419,7 +1478,7 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
 
                     {/* 팝업 정보 클러스터 — 실제 사진이 없으면 이름·장소를 우선 표시. */}
                     {hotPopups.length > 0 && (
-                      <div className="grid grid-cols-2 gap-2 shrink-0 md:w-[280px]">
+                      <div className="grid w-full min-w-0 shrink-0 grid-cols-2 gap-2 md:w-[280px]">
                         {hotPopups.slice(0, 4).map((p, i) => (
                           <button
                             key={p.id}
@@ -1451,7 +1510,7 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
               className="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-10"
             >
               {/* Search Zone */}
-              <div className="col-span-1 lg:col-span-12 relative z-50 order-1 lg:order-none">
+              <div className="relative z-50 col-span-1 lg:col-span-12">
                 <SearchZone
                   popups={allPopups}
                   onSelectPopup={(hit) => {
@@ -1501,7 +1560,7 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
               </div>
 
               {/* Map Zone — 배경 분리를 위해 solid 배경 + shadow 로 카드 블록 강화. */}
-              <div className="col-span-1 lg:col-span-12 rounded-[2rem] relative overflow-hidden border border-gray-200 dark:border-white/10 group bg-white dark:bg-[#111] shadow-lg shadow-black/5 dark:shadow-black/30 h-[58vh] min-h-[420px] order-2 lg:order-none">
+              <div className="group relative col-span-1 h-[min(62svh,560px)] min-h-[430px] overflow-hidden rounded-[1.5rem] border border-gray-200 bg-white shadow-lg shadow-black/5 dark:border-white/10 dark:bg-[#111] dark:shadow-black/30 sm:rounded-[2rem] lg:col-span-12 lg:h-[58vh]">
                 <InteractiveMap
                   initialMarkers={initialMapMarkers}
                   center={mapCenter}
@@ -1519,14 +1578,9 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
               </div>
             </section>
 
-            {/* 지도 아래 유틸리티 3열 — 실시간 혼잡도(공간) + 팝업 캘린더(시간) + 최근 본 팝업(나).
-                앞의 둘은 누르면 모달, 마지막은 그 자리에서 펼쳐진다.
-
-                최근 본 팝업은 2026-08-21 에 스크롤 맨 끝에서 여기로 올렸다. 예전에는 본문 컨테이너
-                <b>바깥</b>, 푸터 바로 앞에 붙어 있어서 어디에도 속하지 않은 잡동사니로 보였다.
-                셋 다 "지도를 보다가 바로 눌러 보는 지름길" 이라 성격이 맞고, 좁은 화면에서도
-                지도 바로 아래라 읽는 순서가 자연스럽다. */}
-            <div className="mb-10 grid grid-cols-1 gap-4 md:grid-cols-3">
+            {/* 지도 아래 지름길 — 실시간 혼잡도(공간) + 팝업 캘린더(시간). 누르면 모달이 열린다.
+                최근 본 팝업은 바로 아래 자기 줄에 둔다(같은 묶음이지만 폭이 다르다 — 아래 주석). */}
+            <div className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-2">
               {/* 실시간 혼잡도 */}
               <button
                 type="button"
@@ -1578,8 +1632,16 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
                   {t('tile.calendarCta')}
                 </span>
               </button>
+            </div>
 
-              {/* 최근 본 팝업 — 본 적이 없으면 스스로 아무것도 그리지 않는다(첫 방문자에게는 2열). */}
+            {/* 최근 본 팝업 — 위 두 칸과 같은 묶음이지만 <b>줄을 따로 쓴다.</b>
+                한 칸에 넣었더니 두 가지가 깨졌다(2026-08-21).
+                  1) 펼치면 그리드가 형제 칸 높이를 같이 늘려 혼잡도·캘린더가 빈 상자가 됐다.
+                  2) 펼친 목록이 lg:grid-cols-3 인데 부모가 화면의 1/3 이라 항목 하나가 130px 로
+                     좁아졌고, 썸네일 68px 를 빼면 글자 자리가 30px 뿐이라 세로로 쪼개졌다.
+                접힌 높이는 옆 칸과 같아 한 묶음으로 읽히고, 펼치면 전체 폭을 쓴다.
+                본 적이 없으면 스스로 아무것도 그리지 않는다. */}
+            <div className="mb-10">
               <RecentVisitsCard standalone />
             </div>
 
@@ -1593,12 +1655,13 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
 
             {/* 지금 뜨는 팝업 — 사진 카드 레일 (디자인 진단서 P0: 팝업 사진 카드로 코어 뷰잉 강화). */}
             <motion.section
+              id="trending-rail"
               aria-label={t('section.trending')}
               initial="hidden"
               whileInView="visible"
               viewport={{ once: true, margin: '-80px' }}
               variants={sectionVariants}
-              className="mb-16"
+              className="mb-16 scroll-mt-24"
             >
               <header className="mb-4 flex items-end justify-between gap-3">
                 <div>
@@ -1640,6 +1703,13 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
                 </div>
                 {railCategories.length > 0 && (
                   <div className="custom-scrollbar -mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1">
+                    {/* 여기 "가을 한정" 칩이 있었다. 판정 기준이 <b>종료일이 이번 계절에 드는가</b>
+                        뿐이라, 가을과 아무 상관 없는 팝업도 9월에 끝나면 가을 한정이 됐다 —
+                        화면에 적힌 사실 주장이 자주 거짓이었다.
+
+                        고른 목록도 사실상 "이번 계절 안에 마감"이라 옆의 마감임박 정렬과 크게
+                        다르지 않았다. 이름만 정직하게 고치면 중복 기능이 하나 남는 셈이라 걷어낸다.
+                        진짜 계절 행사 분류는 팝업 이름에서 근거를 찾을 수 있을 때 따로 만든다. */}
                     <button
                       type="button"
                       onClick={() => setRailCat('all')}
@@ -1701,10 +1771,18 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
                   <div
                     ref={rail.ref}
                     {...rail.dragBind}
-                    className="custom-scrollbar -mx-1 flex cursor-grab snap-x select-none gap-4 overflow-x-auto px-1 pb-3 active:cursor-grabbing"
+                    // 좁은 화면에서도 가로로 넘긴다. 예전에는 여기서 1열 세로 목록이었는데,
+                    // 30장을 세로로 쌓으면 아래 내용까지 내려가기 전에 스크롤이 너무 길어진다.
+                    // 가로 레일이면 한 화면에 두 장 남짓 보이면서 "더 있다" 는 것이 드러난다.
+                    className="-mx-1 flex cursor-grab snap-x select-none gap-3 overflow-x-auto px-1 pb-3 sm:gap-4 active:cursor-grabbing"
                   >
                     {railPopups.map((p) => (
-                      <div key={p.id} className="snap-start">
+                      // flex 자식은 <b>카드가 아니라 이 감싸개</b>다. shrink-0 가 없으면 감싸개가
+                      // 눌리는데, 카드는 제 폭을 지키므로 눌린 감싸개 밖으로 삐져나와 서로 겹친다
+                      // (2026-08-21에 실제로 발생). 폭도 여기서 정한다 — 카드 안쪽은 w-full 이라
+                      // 감싸개를 그대로 따라오고, PopupCard 를 쓰는 다른 화면은 건드리지 않는다.
+                      // 168px 은 390px 화면에서 두 장 조금 넘게 보이는 폭이다.
+                      <div key={p.id} className="w-[168px] shrink-0 snap-start sm:w-[220px]">
                         <PopupCard
                           popup={p}
                           onClick={() => {
@@ -2597,15 +2675,19 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
           </motion.section>
         )}
 
-        {/* TAB: MATE */}
-        {currentTab === 'MATE' && (
+        {/* TAB: SCHEDULE — 동행이 있던 자리. 전체 팝업 달력이라 비로그인도 그대로 쓴다. */}
+        {currentTab === 'SCHEDULE' && (
           <motion.section
-            aria-label="Mate Board"
+            aria-label={t('dock.schedule')}
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="min-h-[60vh] rounded-xl border border-[var(--color-border)] bg-surface text-surface-foreground mb-16 relative overflow-hidden shadow-md"
+            className="min-h-[60vh] rounded-xl border border-[var(--color-border)] bg-surface p-4 text-surface-foreground mb-16 relative overflow-hidden shadow-md md:p-6"
           >
-            <MateBoard user={user} />
+            <MySchedule popups={allPopups} />
+            <h3 className="mb-3 text-base font-bold text-foreground lg:text-lg">
+              {t('sched.allTitle')}
+            </h3>
+            <PopupCalendar popups={catalogPopups} />
           </motion.section>
         )}
 
@@ -2679,7 +2761,7 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
       <PopupCalendarModal
         open={isCalendarOpen}
         onOpenChange={setIsCalendarOpen}
-        popups={allPopups}
+        popups={catalogPopups}
       />
 
       {/* AI Report — 기존 컴포넌트는 자체 모달 구조 유지 */}
