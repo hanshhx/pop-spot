@@ -7,7 +7,7 @@
  * <p>설계 근거(계절 테마 덱): 배경을 계절마다 조금씩 물들이는 방식은 인지가 0이다 — 사람 눈은
  * 절대값이 아니라 이웃과의 차이로 색을 읽어서, 어제 화면을 기억하는 유저가 없기 때문이다.
  * 그래서 색은 색온도만 3~6% 옮기고, 유저가 실제로 알아채는 몫은 전부 <b>신호 레이어</b>
- * (전환 배너 · 계절 배지 · 한정 필터 칩 · 한정 카드 · 마감 알림)가 가져간다.
+ * (전환 배너 · 계절 배지 · 마감 알림)가 가져간다.
  */
 
 export const SEASONS = ['spring', 'summer', 'autumn', 'winter'] as const;
@@ -76,8 +76,6 @@ export function resolveSeason(
 export interface SeasonCopy {
   /** "봄" — 문장 안에 박히는 짧은 말. */
   word: string;
-  /** "봄 한정" — 필터 칩·카드 배지 라벨. */
-  chip: string;
   /** "SPRING" — 대문자 배지. */
   upper: string;
   /** 3 · 4 · 5월 */
@@ -91,15 +89,13 @@ export interface SeasonCopy {
 export const SEASON_COPY: Record<Season, SeasonCopy> = {
   spring: {
     word: '봄',
-    chip: '봄 한정',
     upper: 'SPRING',
     months: '3 · 4 · 5월',
     lead: '벚꽃 시즌이 시작됐어요',
-    body: '3월 말부터 꽃 피는 골목에 팝업이 몰립니다. 5월 31일이면 봄 한정은 전부 닫습니다.',
+    body: '3월 말부터 꽃 피는 골목에 팝업이 몰립니다. 봄에 열린 팝업 상당수가 5월 안에 문을 닫습니다.',
   },
   summer: {
     word: '여름',
-    chip: '여름 한정',
     upper: 'SUMMER',
     months: '6 · 7 · 8월',
     lead: '여름이 시작됐어요',
@@ -107,7 +103,6 @@ export const SEASON_COPY: Record<Season, SeasonCopy> = {
   },
   autumn: {
     word: '가을',
-    chip: '가을 한정',
     upper: 'AUTUMN',
     months: '9 · 10 · 11월',
     lead: '가을이 시작됐어요',
@@ -115,7 +110,6 @@ export const SEASON_COPY: Record<Season, SeasonCopy> = {
   },
   winter: {
     word: '겨울',
-    chip: '겨울 한정',
     upper: 'WINTER',
     months: '12 · 1 · 2월',
     lead: '겨울이 시작됐어요',
@@ -124,13 +118,20 @@ export const SEASON_COPY: Record<Season, SeasonCopy> = {
 };
 
 /**
- * "이 계절이 끝나면 사라지는" 팝업인지.
+ * <b>이번 계절 안에 마감하는가.</b> 계절 행사인지와는 무관하다.
  *
- * <p>계절 한정 칩과 카드 배지가 이 판정을 쓴다. 기준은 <b>마감일이 이번 계절 안</b>이라는 것
- * 하나다 — 유저가 계절을 실감하는 건 색이 아니라 마감이기 때문이다. 시작일을 보지 않는 이유도
- * 같다. 지난달에 열었어도 이번 계절에 닫으면 지금 놓치는 것은 똑같다.
+ * <h3>이름에 속지 말 것</h3>
  *
- * <p>이미 끝난 팝업은 제외한다. 목록에 남아 있어도 "한정" 이라고 부를 게 없다.
+ * <p>이 판정이 보는 것은 마감일 하나뿐이다. 그래서 가을과 아무 관련 없는 팝업도 9월에 끝나면
+ * 참이 된다. 예전에는 이 값으로 "가을 한정" 칩과 필터를 그렸는데, 화면에 적힌 사실 주장이
+ * 자주 거짓이었으므로 둘 다 걷어냈다. <b>여기에 계절 이름을 붙이는 문구를 다시 달지 말 것.</b>
+ *
+ * <p>지금 남은 쓰임은 카드의 D-day 배지를 만채도로 칠하는 것 하나다. 그 배지는 "이 계절에
+ * 사라진다" 는 뜻이라 계산과 일치한다 — 다만 대부분의 팝업이 석 달 안에 끝나므로 거의 모든
+ * 카드가 칠해질 수 있다. 전부 칠해지면 신호가 아니므로, 실제 비율을 재서 판단할 일이 남아 있다.
+ *
+ * <p>시작일을 보지 않는 이유: 지난달에 열었어도 이번 계절에 닫으면 지금 놓치는 것은 같다.
+ * 이미 끝난 팝업은 제외한다 — 알릴 마감이 없다.
  */
 export function isSeasonLimited(
   endDate: string | undefined,
@@ -143,7 +144,7 @@ export function isSeasonLimited(
   // 한 칸이 정확히 그날 사라지는 셈이라, 마감을 알리자는 신호의 취지와 반대가 된다.
   const left = daysUntil(endDate, now);
   if (left == null || left < 0) return false;
-  // 계절은 1년마다 돌아온다. 내년 같은 계절까지 "한정" 으로 부르면 마감의 의미가 없어진다.
+  // 계절은 1년마다 돌아온다. 내년 같은 계절까지 포함하면 마감이라는 말이 의미를 잃는다.
   if (end.getFullYear() !== now.getFullYear()) return false;
   return seasonOfMonth(end.getMonth() + 1) === season;
 }
