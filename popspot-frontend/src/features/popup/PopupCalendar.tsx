@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import { useLocale, type MessageKey } from '@/lib/i18n';
 import { localizedPath } from '@/lib/localePath';
 import type { PopupStore } from '@/types/popup';
+import { closingCountsByDate } from './dayBuckets';
 
 /**
  * 요일 머리글. 모듈 상수라 훅을 쓸 수 없어 <b>키만 두고</b> 그리는 쪽에서 옮긴다.
@@ -84,12 +85,18 @@ export function PopupCalendar({
     ];
   }, [year, month]);
 
+  /** 날짜별 마감 수 — 격자에 적을 숫자. 목록이 바뀔 때만 다시 센다. */
+  const closingByDate = useMemo(() => closingCountsByDate(popups), [popups]);
+
+  const dateKey = useCallback(
+    (day: number) =>
+      `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
+    [year, month],
+  );
+
   const getPopupsForDate = (day: number | null): PopupStore[] => {
     if (!day) return [];
-    const targetDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(
-      2,
-      '0',
-    )}`;
+    const targetDate = dateKey(day);
     return popups.filter((p) => {
       if (!p.startDate) return false;
       const start = p.startDate;
@@ -147,8 +154,7 @@ export function PopupCalendar({
 
       <div className="grid grid-cols-7 gap-1" role="grid">
         {days.map((day, idx) => {
-          const dailyPopups = getPopupsForDate(day);
-          const hasPopups = dailyPopups.length > 0;
+          const closingCount = day ? (closingByDate.get(dateKey(day)) ?? 0) : 0;
           const isSelected = day === selectedDay;
           const dayOfWeek = idx % 7;
           return (
@@ -182,14 +188,16 @@ export function PopupCalendar({
               >
                 {day}
               </span>
-              {hasPopups && day && (
+              {/* 점이 아니라 숫자다 — 마감 153곳인 날과 12곳인 날이 점으로는 똑같아 보인다. */}
+              {day && closingCount > 0 && (
                 <span
-                  aria-hidden
                   className={cn(
-                    'size-1.5 rounded-full mt-0.5',
-                    isSelected ? 'bg-cream-200 dark:bg-ink-900' : 'bg-lime-500',
+                    'mt-0.5 text-[10px] font-bold leading-none tabular-nums',
+                    isSelected ? 'text-cream-200 dark:text-ink-900' : 'text-hot-500',
                   )}
-                />
+                >
+                  {closingCount}
+                </span>
               )}
             </button>
           );
