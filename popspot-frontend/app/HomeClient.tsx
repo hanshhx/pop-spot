@@ -355,6 +355,19 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
    * 그것을 거르는 책임은 이 화면에 있다(클라이언트 경로도 같은 함수를 통과한다).
    */
   const [allPopups, setAllPopups] = useState<PopupStore[]>(() => keepOpenNow(initialPopups));
+  /**
+   * 달력 전용 — 걸러지지 않은 전체 카탈로그.
+   *
+   * <p>{@link keepOpenNow} 는 홈 목록·랭킹을 위해 "오늘 문이 열려 있는 것" 만 남긴다. 그건 그
+   * 화면들에는 맞지만 달력에는 틀리다: 다음 주에 여는 팝업이 통째로 빠지므로 <b>오늘이 아닌
+   * 날짜의 '오픈' 은 언제나 0</b> 이 되고, 다음 달로 넘기면 격자가 빈다(실측 1,167곳 중 92곳이
+   * 아직 시작 전, 543곳이 이미 종료).
+   *
+   * <p>SSR 이 성공하면 이 값은 첫 렌더부터 완전하다. 실패했을 때만 아래 효과가 채우는데, 그
+   * 경로의 localStorage 캐시는 이미 걸러진 목록이라 네트워크 응답이 올 때까지는 달력도 걸러진
+   * 상태다 — 비어 보이는 것보다 낫고, 응답이 오면 온전해진다.
+   */
+  const [catalogPopups, setCatalogPopups] = useState<PopupStore[]>(initialPopups);
   const initialMapMarkers = useMemo(() => initialPopups.map(popupToMapMarker), [initialPopups]);
   // "지금 뜨는 팝업" 레일 정렬/필터. 전체(allPopups)에서 파생한다.
   const [railSort, setRailSort] = useState<'popular' | 'deadline' | 'latest'>('popular');
@@ -1026,8 +1039,9 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
       }
       if (cachedPopups) {
         try {
-          const data = keepOpenNow(JSON.parse(cachedPopups));
-          setAllPopups(data);
+          const parsed = JSON.parse(cachedPopups);
+          setAllPopups(keepOpenNow(parsed));
+          setCatalogPopups(Array.isArray(parsed) ? parsed : []);
         } catch {
           localStorage.removeItem('cached_popups');
         }
@@ -1041,6 +1055,7 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
         .then((raw) => {
           const data = keepOpenNow(raw);
           setAllPopups(data);
+          setCatalogPopups(Array.isArray(raw) ? raw : []);
           try {
             localStorage.setItem('cached_popups', JSON.stringify(data));
           } catch {
@@ -1053,6 +1068,7 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
           if (process.env.NODE_ENV === 'development') {
             const mock = devMockPopups();
             setAllPopups(mock);
+            setCatalogPopups(mock);
           }
         });
     }
@@ -2666,7 +2682,7 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
             animate={{ opacity: 1, scale: 1 }}
             className="min-h-[60vh] rounded-xl border border-[var(--color-border)] bg-surface p-4 text-surface-foreground mb-16 relative overflow-hidden shadow-md md:p-6"
           >
-            <PopupCalendar popups={allPopups} />
+            <PopupCalendar popups={catalogPopups} />
           </motion.section>
         )}
 
@@ -2740,7 +2756,7 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
       <PopupCalendarModal
         open={isCalendarOpen}
         onOpenChange={setIsCalendarOpen}
-        popups={allPopups}
+        popups={catalogPopups}
       />
 
       {/* AI Report — 기존 컴포넌트는 자체 모달 구조 유지 */}
