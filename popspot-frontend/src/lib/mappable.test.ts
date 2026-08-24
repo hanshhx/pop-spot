@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { mappable } from './mappable';
+import { mappable, markerBounds } from './mappable';
 import type { PublicMapMarker } from './mapMarkers';
 
 /**
@@ -60,5 +60,55 @@ describe('mappable', () => {
       m({ id: 2, latitude: '37.6', longitude: '127.1' }),
     ]);
     expect(got.shown.map((x) => x.id)).toEqual([9, 2]);
+  });
+});
+
+/**
+ * 찍히는 마커가 전부 화면에 들어오도록 사각형(최소/최댓값)을 구한다.
+ *
+ * <p>예전엔 좌표 평균(중심점) 하나만 지도에 넘겼다 — 지도는 그 중심으로 <b>이동</b>만 하고
+ * <b>줌</b>은 고정된 채였다. 성수처럼 좁은 지역은 우연히 다 들어왔지만, this-week 처럼 서울
+ * 전역에 흩어진 마커는 중심이 한강 한복판이라 나머지 대부분이 화면 밖이었다 — "488곳 중 406곳
+ * 표시" 라고 적어놓고 실제로 보이는 건 9곳뿐이었다.
+ *
+ * <p>중심 대신 <b>사각형</b>을 돌려준다 — 호출하는 쪽이 지도의 fitBounds 에 그대로 넘기면 지도가
+ * 줌까지 알아서 맞춘다.
+ */
+describe('markerBounds', () => {
+  it('여러 마커의 최소·최댓값으로 사각형을 만든다', () => {
+    const got = markerBounds([
+      m({ id: 1, latitude: '37.50', longitude: '127.00' }),
+      m({ id: 2, latitude: '37.60', longitude: '126.90' }),
+      m({ id: 3, latitude: '37.55', longitude: '127.10' }),
+    ]);
+    expect(got).toEqual({ minLat: 37.5, maxLat: 37.6, minLng: 126.9, maxLng: 127.1 });
+  });
+
+  it('마커가 하나면 그 좌표가 네 꼭짓점 모두다 — 넓이 0 인 사각형', () => {
+    const got = markerBounds([m({ id: 1, latitude: '37.5446', longitude: '127.0559' })]);
+    expect(got).toEqual({
+      minLat: 37.5446,
+      maxLat: 37.5446,
+      minLng: 127.0559,
+      maxLng: 127.0559,
+    });
+  });
+
+  it('여러 마커가 같은 좌표를 공유해도 넓이 0 인 사각형을 돌려준다', () => {
+    const got = markerBounds([
+      m({ id: 1, latitude: '37.50', longitude: '127.00' }),
+      m({ id: 2, latitude: '37.50', longitude: '127.00' }),
+    ]);
+    expect(got).toEqual({ minLat: 37.5, maxLat: 37.5, minLng: 127.0, maxLng: 127.0 });
+  });
+
+  it('좌표 없는 마커는 사각형 계산에서 빠진다', () => {
+    const got = markerBounds([m({ id: 1 }), m({ id: 2, latitude: '37.50', longitude: '127.00' })]);
+    expect(got).toEqual({ minLat: 37.5, maxLat: 37.5, minLng: 127.0, maxLng: 127.0 });
+  });
+
+  it('찍을 마커가 하나도 없으면 undefined 다', () => {
+    expect(markerBounds([])).toBeUndefined();
+    expect(markerBounds([m({ id: 1 })])).toBeUndefined();
   });
 });

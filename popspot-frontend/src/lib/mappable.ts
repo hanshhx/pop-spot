@@ -37,3 +37,46 @@ export function mappable(markers: PublicMapMarker[]): Mappable {
     total: markers.length,
   };
 }
+
+/** {@link markerBounds} 가 돌려주는 사각형 — 지도의 fitBounds 가 그대로 받는 모양. */
+export interface MarkerBounds {
+  minLat: number;
+  maxLat: number;
+  minLng: number;
+  maxLng: number;
+}
+
+/**
+ * 찍히는 마커가 전부 화면에 들어오도록 사각형(최소/최댓값)을 구한다.
+ *
+ * <p>예전엔 좌표 평균(중심점) 하나만 지도에 넘겼다({@code markersCenter}, 지금은 지웠다) — 지도는
+ * 그 중심으로 <b>이동</b>만 하고 <b>줌</b>은 고정된 채였다. 성수처럼 좁은 지역은 우연히 다
+ * 들어왔지만, this-week 처럼 서울 전역에 흩어진 마커는 중심이 한강 한복판이라 나머지 대부분이
+ * 화면 밖이었다 — "488곳 중 406곳 표시" 라고 적어놓고 실제로 보이는 건 9곳뿐이었다.
+ *
+ * <p>중심 대신 <b>사각형</b>을 돌려준다 — 호출하는 쪽이 지도의 fitBounds 에 그대로 넘기면 지도가
+ * 줌까지 알아서 맞춘다. 마커가 하나거나 전부 같은 좌표면 넓이 0 인 사각형이 나오는데, 그건
+ * 정상이다 — fitBounds 를 부르는 쪽(InteractiveMap)이 maxZoom 으로 과도한 확대를 막는다.
+ *
+ * <p>{@link mappable} 이 이미 걸러낸 목록({@code .shown})을 받는 게 정상 경로지만, 방어적으로
+ * 여기서도 {@code isCoord} 로 다시 거른다 — 좌표 없는 마커가 섞여 들어와도 {@code Number(null)}
+ * 같은 값이 사각형을 왜곡하지 않는다.
+ */
+export function markerBounds(markers: PublicMapMarker[]): MarkerBounds | undefined {
+  const coords = markers.filter((marker) => isCoord(marker.latitude) && isCoord(marker.longitude));
+  if (coords.length === 0) return undefined;
+
+  let minLat = Infinity;
+  let maxLat = -Infinity;
+  let minLng = Infinity;
+  let maxLng = -Infinity;
+  for (const marker of coords) {
+    const lat = Number(marker.latitude);
+    const lng = Number(marker.longitude);
+    minLat = Math.min(minLat, lat);
+    maxLat = Math.max(maxLat, lat);
+    minLng = Math.min(minLng, lng);
+    maxLng = Math.max(maxLng, lng);
+  }
+  return { minLat, maxLat, minLng, maxLng };
+}

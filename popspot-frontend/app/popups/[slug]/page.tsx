@@ -8,7 +8,7 @@ import LocaleSwitcher from '@/components/LocaleSwitcher';
 import DeferredInteractiveMap from '@/components/Map/DeferredInteractiveMap';
 import { landingSeason } from '@/lib/landingSeason';
 import { landingStatus, type LandingStatus } from '@/lib/landingStatus';
-import { mappable } from '@/lib/mappable';
+import { mappable, markerBounds } from '@/lib/mappable';
 import type { PublicMapMarker } from '@/lib/mapMarkers';
 import { REGIONS, classifyRegion, regionBySlug } from '@/lib/regions';
 import { LANDING_COPY, type LandingCopy, type MetaPick, type PickReason } from '@/lib/landingCopy';
@@ -335,22 +335,6 @@ function toPublicMapMarkers(markers: Marker[]): PublicMapMarker[] {
     latitude: m.latitude ?? null,
     longitude: m.longitude ?? null,
   }));
-}
-
-/**
- * 지도 초기 중심 — 찍히는 마커들의 좌표 평균.
- *
- * <p>{@code InteractiveMap} 은 {@code initialMarkers} 만 받으면 마커에 맞춰 스스로 카메라를
- * 옮기지 않는다(고정된 성수 시작 위치 그대로) — {@code center} 를 받아야 그쪽으로 panTo 한다.
- * 안 넘기면 성수가 아닌 지역 슬라이스는 핀이 화면 밖에 있어 빈 지도로 보인다.
- */
-function markersCenter(markers: PublicMapMarker[]): { lat: number; lng: number } | undefined {
-  if (markers.length === 0) return undefined;
-  const sum = markers.reduce(
-    (acc, m) => ({ lat: acc.lat + Number(m.latitude), lng: acc.lng + Number(m.longitude) }),
-    { lat: 0, lng: 0 },
-  );
-  return { lat: sum.lat / markers.length, lng: sum.lng / markers.length };
 }
 
 /** 상태 → 배지(문구·색). 종료·상시는 무배지. */
@@ -806,7 +790,14 @@ export async function SliceLandingPage({ slug, locale }: { slug: string; locale:
    * 좌표가 있으면 찍힌다 — "N곳 중 M곳" 의 N 이 실제 총 건수({@code count})와 같아야 하기 때문이다.
    */
   const mapMarkers = mappable(toPublicMapMarkers(filtered));
-  const mapCenter = markersCenter(mapMarkers.shown);
+  /**
+   * {@code InteractiveMap} 은 {@code initialMarkers} 만 받으면 마커에 맞춰 스스로 카메라를 옮기지
+   * 않는다(고정된 성수 시작 위치·줌 그대로) — {@code fitBounds} 를 받아야 그 사각형이 다 보이도록
+   * 맞춘다(줌 포함). 예전엔 좌표 평균(중심점)만 넘겼는데, 지도는 그 중심으로 <b>이동</b>만 하고
+   * 줌은 고정 값(≈2km 반경)이었다 — 성수는 우연히 다 들어왔지만 this-week 처럼 서울 전역에
+   * 흩어진 슬라이스는 "488곳 중 406곳 표시" 라고 적어놓고 대부분이 화면 밖(빈 한강)이었다.
+   */
+  const mapBounds = markerBounds(mapMarkers.shown);
 
   /**
    * 걸어서 묶기 — "지금 고른다면" 다음, 본문 목록 위에 놓는 실행 단계 정보.
@@ -1062,7 +1053,7 @@ export async function SliceLandingPage({ slug, locale }: { slug: string; locale:
                   {copy.mapHeading}
                 </h3>
                 <div className="mt-3 h-[280px] overflow-hidden rounded-xl md:h-[380px]">
-                  <DeferredInteractiveMap initialMarkers={mapMarkers.shown} center={mapCenter} />
+                  <DeferredInteractiveMap initialMarkers={mapMarkers.shown} fitBounds={mapBounds} />
                 </div>
                 {/* 개수 문구는 지도 아래. 지도를 먼저 보고 나서 "다 있는 건 아니구나" 를 읽는
                     순서가, 문구를 먼저 읽고 지도를 보는 것보다 자연스럽다. */}

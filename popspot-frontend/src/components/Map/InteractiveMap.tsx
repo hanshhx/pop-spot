@@ -64,6 +64,17 @@ export interface InteractiveMapProps {
    * 안 따라오는" 문제를 원천 차단한다. nonce 로 같은 검색 반복도 매번 반응.
    */
   fitReq?: { pts: [number, number][]; nonce: number } | null;
+  /**
+   * 지도가 <b>열릴 때</b> 이 사각형이 전부 보이도록 맞춘다(줌 포함). {@link center} 는 이동
+   * (panTo)만 하고 줌은 그대로 두므로, 좁은 성수 기준 줌(14)으로 서울 전역에 흩어진 마커를 열면
+   * 대부분 화면 밖에 남는다 — 랜딩 페이지의 슬라이스 지도가 그래서 "488곳 중 406곳 표시" 라고
+   * 적어놓고 실제로는 9곳만 보이는 빈 한강 사진이 됐다.
+   *
+   * <p>선택값이고, <b>없으면 이 컴포넌트의 동작은 지금과 한 글자도 다르지 않다</b> — 홈·작전지도는
+   * 이 prop 을 넘기지 않는다. 넘기면 {@link center} 와 같은 렌더에서 다투므로(panTo 가 fitBounds
+   * 직후 카메라를 다시 당김) 둘 중 하나만 쓴다.
+   */
+  fitBounds?: { minLat: number; maxLat: number; minLng: number; maxLng: number };
 }
 
 interface MapMarkerData {
@@ -353,6 +364,7 @@ export default function InteractiveMap({
   onMarkerClick,
   filterIds,
   fitReq,
+  fitBounds,
 }: InteractiveMapProps) {
   const { t, locale } = useLocale();
 
@@ -593,6 +605,41 @@ export default function InteractiveMap({
       map.panTo([center.lng, center.lat]);
     }
   }, [center, map]);
+
+  /**
+   * fitBounds prop — 지도가 열릴 때 이 사각형이 전부 보이도록 맞춘다(줌까지). {@link center} 는
+   * panTo 만 해서 줌이 고정 값(성수 기준) 그대로 남는데, 서울 전역처럼 넓게 흩어진 마커는 그
+   * 줌으로 대부분 화면 밖에 남는다 — 랜딩 페이지 슬라이스 지도가 이 문제였다.
+   *
+   * <p>넓이 0(마커 하나이거나 전부 같은 좌표)이면 fitBounds 가 최대 줌까지 당기므로 maxZoom 으로
+   * 막는다(fitToPoints 의 단일 좌표 처리와 같은 값 — 지붕 위가 아니라 동네가 보이는 정도).
+   *
+   * <p>값이 실제로 바뀔 때만 다시 맞추도록 좌표 키로 비교한다 — 부모(랜딩 페이지)가 서버 렌더마다
+   * 새 객체를 줘도 같은 사각형이면 사용자가 이미 움직인 지도를 다시 당기지 않는다.
+   */
+  const handledFitBoundsRef = useRef<string>('');
+  useEffect(() => {
+    if (!map || !fitBounds) return;
+    const { minLat, maxLat, minLng, maxLng } = fitBounds;
+    if (
+      !Number.isFinite(minLat) ||
+      !Number.isFinite(maxLat) ||
+      !Number.isFinite(minLng) ||
+      !Number.isFinite(maxLng)
+    ) {
+      return;
+    }
+    const key = `${minLat},${maxLat},${minLng},${maxLng}`;
+    if (handledFitBoundsRef.current === key) return;
+    handledFitBoundsRef.current = key;
+    map.fitBounds(
+      [
+        [minLng, minLat],
+        [maxLng, maxLat],
+      ],
+      { padding: 40, maxZoom: 15, animate: false },
+    );
+  }, [fitBounds, map]);
 
   // 검색 결과 선택 시 그 팝업 마커로 이동 + 정보창 오픈.
   // 지도의 '자기 마커(allMarkers)'에서 직접 찾으므로 allPopups/Algolia 좌표에 의존하지 않는다.
