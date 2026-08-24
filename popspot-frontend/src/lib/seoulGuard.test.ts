@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
-import { isProvenOutsideSeoul } from './seoulGuard';
+import { markerBounds } from './mappable';
+import type { PublicMapMarker } from './mapMarkers';
+import { isProvenOutsideSeoul, seoulCameraBounds } from './seoulGuard';
 
 /**
  * 실측 데이터로 <b>양쪽</b>을 못박는다.
@@ -102,5 +104,80 @@ describe('isProvenOutsideSeoul — 잡으면 안 되는 것', () => {
     for (const [lat, lng] of corners) {
       expect(isProvenOutsideSeoul({ latitude: lat, longitude: lng }), `${lat},${lng}`).toBe(false);
     }
+  });
+});
+
+/**
+ * 카메라 사각형 — 부산 팝업 한 건이 서울 지도를 한반도로 넓히던 자리.
+ *
+ * <p>입력은 전부 라이브 {@code /api/map/markers} 실측값이다.
+ */
+const pin = (
+  id: number,
+  latitude: string,
+  longitude: string,
+  location: string,
+): PublicMapMarker => ({
+  id,
+  name: `팝업 ${id}`,
+  location,
+  latitude,
+  longitude,
+  category: null,
+  startDate: null,
+  endDate: null,
+});
+
+const SEONGSU = pin(1, '37.5446', '127.0559', '서울 성동구 연무장길');
+const GANGNAM = pin(2, '37.4979', '127.0276', '서울 강남구 강남대로');
+// 실측 3003 — 부산 서면. this-week 사각형의 남쪽 끝과 동쪽 끝을 혼자 정하던 마커.
+const BUSAN = pin(3003, '35.1557085419427', '129.05846119682', '서울 서면');
+
+describe('seoulCameraBounds', () => {
+  it('부산 팝업 한 건이 서울 화면을 한반도로 넓히지 않는다', () => {
+    const got = seoulCameraBounds([SEONGSU, GANGNAM, BUSAN]);
+    expect(got).toEqual({
+      minLat: 37.4979,
+      maxLat: 37.5446,
+      minLng: 127.0276,
+      maxLng: 127.0559,
+    });
+  });
+
+  it('실측 네 극단을 넣어도 사각형은 서울 경계 안이다', () => {
+    const got = seoulCameraBounds([
+      SEONGSU,
+      BUSAN,
+      pin(3910, '37.41668435615771', '126.68401236414716', '서울 연수구'), // 인천
+      pin(3106, '37.267038390760796', '126.96178554756972', '서울 수원시'), // 수원
+      pin(1257, '34.94139970471998', '127.50930110415489', '서울 순천시'), // 순천
+    ])!;
+    expect(got.minLat).toBeGreaterThanOrEqual(37.4);
+    expect(got.maxLat).toBeLessThanOrEqual(37.72);
+    expect(got.minLng).toBeGreaterThanOrEqual(126.73);
+    expect(got.maxLng).toBeLessThanOrEqual(127.22);
+  });
+
+  it('표기만 서울 밖인 것은 사각형을 좁히지 않는다 — 좌표가 서울이면 화면 안에 둔다', () => {
+    // 실측 3735 "서울 부산광역시" 는 좌표가 서초 한복판이다. 배지는 붙지만 카메라는 무시하면 안 된다.
+    const mislabelled = pin(3735, '37.4846504739722', '127.031724192797', '서울 부산광역시');
+    expect(isProvenOutsideSeoul(mislabelled)).toBe(true);
+    const got = seoulCameraBounds([SEONGSU, mislabelled])!;
+    expect(got.minLat).toBeLessThanOrEqual(37.4846504739722);
+    expect(got.minLng).toBeLessThanOrEqual(127.031724192797);
+  });
+
+  it('서울 안뿐이면 아무것도 바꾸지 않는다', () => {
+    const seoulOnly = [SEONGSU, GANGNAM];
+    expect(seoulCameraBounds(seoulOnly)).toEqual(markerBounds(seoulOnly));
+  });
+
+  it('전부 서울 밖이면 원래 사각형으로 되돌아간다 — 빈 화면보다 낫다', () => {
+    const outside = [BUSAN, pin(1257, '34.94139970471998', '127.50930110415489', '서울 순천시')];
+    expect(seoulCameraBounds(outside)).toEqual(markerBounds(outside));
+  });
+
+  it('찍을 것이 없으면 undefined 다', () => {
+    expect(seoulCameraBounds([])).toBeUndefined();
   });
 });

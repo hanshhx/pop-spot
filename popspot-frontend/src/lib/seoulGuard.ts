@@ -13,6 +13,9 @@
  * 마지막 확인선이다.
  */
 
+import { markerBounds, type MarkerBounds } from './mappable';
+import type { PublicMapMarker } from './mapMarkers';
+
 /**
  * 서울 행정구역을 감싸는 사각형. 실제 4극단(원지동 37.428 · 도봉동 37.715 · 오곡동 126.764 ·
  * 강일동 127.184)에 1.5~3km 여유를 뒀다.
@@ -68,25 +71,57 @@ export type MaybeLocated = {
 };
 
 /**
+ * 좌표만으로 서울 밖임이 드러나는가 — 주소 표기는 보지 않는다.
+ *
+ * <p>{@link isProvenOutsideSeoul} 의 좌표 절반이다. 배지는 표기까지 봐야 하지만 <b>지도 카메라는
+ * 좌표만 봐야 한다</b>: 표기 규칙에 걸리는 것 중에 좌표는 서울 한복판인 것이 섞여 있어서(실측
+ * "서울 부산광역시" 가 37.4847/127.0317, "서울 제주공항" 이 37.5591/126.8028) 그것까지 빼면
+ * 사각형이 필요 이상으로 좁아져 멀쩡한 핀이 화면 밖으로 밀린다.
+ */
+export function isCoordOutsideSeoul(m: MaybeLocated): boolean {
+  const lat = toNumber(m.latitude);
+  const lng = toNumber(m.longitude);
+  if (lat === null || lng === null) return false;
+  return (
+    lat < SEOUL_BOX.minLat ||
+    lat > SEOUL_BOX.maxLat ||
+    lng < SEOUL_BOX.minLng ||
+    lng > SEOUL_BOX.maxLng
+  );
+}
+
+/**
  * 서울 밖임이 <b>확실한가</b>. 좌표와 주소 표기를 함께 본다.
  *
  * <p>어느 쪽도 증명하지 못하면 false — <b>모르는 것은 밖이 아니다.</b> 이 판정은 목록에서 빼는
  * 데 쓰지 않고 배지를 다는 데 쓰므로, 놓치는 쪽이 잘못 다는 쪽보다 낫다.
  */
 export function isProvenOutsideSeoul(m: MaybeLocated): boolean {
-  const lat = toNumber(m.latitude);
-  const lng = toNumber(m.longitude);
-  const outsideBox =
-    lat !== null &&
-    lng !== null &&
-    (lat < SEOUL_BOX.minLat ||
-      lat > SEOUL_BOX.maxLat ||
-      lng < SEOUL_BOX.minLng ||
-      lng > SEOUL_BOX.maxLng);
-  if (outsideBox) return true;
+  if (isCoordOutsideSeoul(m)) return true;
 
   const text = m.location ?? '';
   return text !== '' && OUTSIDE_TEXT.some((re) => re.test(text));
+}
+
+/**
+ * 지도 카메라가 따를 사각형 — 좌표가 서울 밖인 마커는 <b>계산에서만</b> 뺀다.
+ *
+ * <p>{@link markerBounds} 는 넘겨받은 마커 전부의 최소/최댓값이라, 부산 팝업 한 건이 섞이면
+ * 사각형이 한반도 전체가 된다(실측 this-week: 406곳 중 부산 1건이 남쪽·동쪽 끝을 혼자 정해
+ * 283x209km. 대구·전주·광주가 화면에 보이는데 그 도시엔 마커가 하나도 없다).
+ *
+ * <p>그렇다고 그 팝업을 지우지는 않는다 — 이 파일 맨 위의 원칙 그대로 <b>밝히되 숨기지 않는다</b>.
+ * 핀은 그대로 찍히고 목록에는 "서울 밖" 배지가 붙는다. 바뀌는 것은 <b>처음 보이는 화면</b>뿐이다.
+ *
+ * <p>그래서 이 사각형은 항상 서울 경계 사각형 안이다 — 처음 화면 밖에서 시작하는 마커는 좌표가
+ * 서울 밖임이 증명된 것뿐이고, 그건 어떤 서울 화면에도 애초에 들어올 수 없다.
+ *
+ * <p>전부 서울 밖이면(예: 수도권 지점만 있는 브랜드) 원래 사각형으로 되돌아간다. 멀지만 맞는
+ * 화면이 아무것도 없는 화면보다 낫다.
+ */
+export function seoulCameraBounds(markers: PublicMapMarker[]): MarkerBounds | undefined {
+  const inside = markers.filter((m) => !isCoordOutsideSeoul(m));
+  return markerBounds(inside) ?? markerBounds(markers);
 }
 
 function toNumber(value: string | number | null | undefined): number | null {
