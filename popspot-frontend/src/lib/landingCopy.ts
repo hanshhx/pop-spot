@@ -148,6 +148,10 @@ export type LandingCopy = {
    * (묶음의 첫 항목)에서 각 항목까지 잰 값 중 가장 큰 것이라, 셋째·넷째 항목끼리는 N 분보다 멀
    * 수도 있다. 그래서 이 라벨을 "다 같이 N분 거리" 로 확대 해석하는 문구를 주변에 붙이지 않는다 —
    * 화면에서는 anchor 를 목록 맨 앞에 그대로 두어, "여기서부터 N분" 이라는 순서만으로 뜻을 옮긴다.
+   *
+   * <p><b>0 은 따로 말한다.</b> 좌표가 같은 건물(백화점·몰 안 여러 팝업)이면 도보 시간이 그대로
+   * 0으로 반올림된다. "걸어서 0분" 은 산수로는 맞지만 아무도 그렇게 말하지 않는 표현이라, 0일
+   * 때는 "같은 건물" 계열로 따로 쓴다.
    */
   walkGroupLabel: (minutes: number) => string;
   /** 묶기 섹션의 제목. */
@@ -310,7 +314,7 @@ const ko: LandingCopy = {
   upcomingHeading: '곧 열리는 팝업',
   upcomingNote: '아직 열지 않았습니다. 여는 날 순서입니다.',
   todayMark: (md) => `${md}(오늘)`,
-  walkGroupLabel: (m) => `걸어서 ${m}분`,
+  walkGroupLabel: (m) => (m === 0 ? '같은 건물' : `걸어서 ${m}분`),
   walkHeading: '걸어서 묶어 보기',
   feedbackHeading: '이 목록에 빠졌거나 틀린 팝업이 있나요?',
   feedbackNote:
@@ -488,7 +492,7 @@ const en: LandingCopy = {
   upcomingHeading: 'Opening soon',
   upcomingNote: 'Not open yet — sorted by opening day.',
   todayMark: (md) => `${md} (today)`,
-  walkGroupLabel: (m) => `${m} min walk`,
+  walkGroupLabel: (m) => (m === 0 ? 'Same building' : `${m} min walk`),
   walkHeading: 'Group them by walking distance',
   feedbackHeading: 'Something missing or wrong in this list?',
   feedbackNote:
@@ -651,7 +655,7 @@ const ja: LandingCopy = {
   upcomingHeading: 'まもなく開催',
   upcomingNote: 'まだ開いていません。開始日順です。',
   todayMark: (md) => `${md}（本日）`,
-  walkGroupLabel: (m) => `徒歩${m}分`,
+  walkGroupLabel: (m) => (m === 0 ? '同じ建物' : `徒歩${m}分`),
   walkHeading: '徒歩でまとめる',
   feedbackHeading: 'この一覧に漏れや誤りがありますか？',
   feedbackNote:
