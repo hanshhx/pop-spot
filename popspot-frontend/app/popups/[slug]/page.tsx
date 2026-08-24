@@ -8,7 +8,7 @@ import LocaleSwitcher from '@/components/LocaleSwitcher';
 import DeferredInteractiveMap from '@/components/Map/DeferredInteractiveMap';
 import { landingSeason } from '@/lib/landingSeason';
 import { landingStatus, type LandingStatus } from '@/lib/landingStatus';
-import { mappable, markerBounds } from '@/lib/mappable';
+import { mappable } from '@/lib/mappable';
 import type { PublicMapMarker } from '@/lib/mapMarkers';
 import { REGIONS, classifyRegion, regionBySlug } from '@/lib/regions';
 import { LANDING_COPY, type LandingCopy, type MetaPick, type PickReason } from '@/lib/landingCopy';
@@ -22,7 +22,7 @@ import { CRAWL_REFRESH_BY_LOCALE } from '@/lib/siteCopy';
 import { searchLandingTitle } from '@/lib/searchLandingTitle';
 import { groupSameEvent } from '@/lib/groupSameEvent';
 import { walkGroups } from '@/lib/walkGroups';
-import { isProvenOutsideSeoul } from '@/lib/seoulGuard';
+import { isProvenOutsideSeoul, seoulCameraBounds } from '@/lib/seoulGuard';
 import { loadPublicMarkers } from '@/lib/emergencyPopupData';
 import { CalendarButton } from '@/features/landing/CalendarButton';
 import { FeedbackNoteCard } from '@/features/feedback/FeedbackNoteCard';
@@ -797,7 +797,7 @@ export async function SliceLandingPage({ slug, locale }: { slug: string; locale:
    * 줌은 고정 값(≈2km 반경)이었다 — 성수는 우연히 다 들어왔지만 this-week 처럼 서울 전역에
    * 흩어진 슬라이스는 "488곳 중 406곳 표시" 라고 적어놓고 대부분이 화면 밖(빈 한강)이었다.
    */
-  const mapBounds = markerBounds(mapMarkers.shown);
+  const mapBounds = seoulCameraBounds(mapMarkers.shown);
 
   /**
    * 걸어서 묶기 — "지금 고른다면" 다음, 본문 목록 위에 놓는 실행 단계 정보.

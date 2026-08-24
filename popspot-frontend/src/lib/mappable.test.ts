@@ -64,6 +64,66 @@ describe('mappable', () => {
 });
 
 /**
+ * 좌표가 서울 경계 사각형 밖으로 증명된 마커는 지도에서 완전히 빠진다 — shown 뿐 아니라
+ * total 에서도.
+ *
+ * <p>실측: this-week 406곳 중 부산 서면 1건이 사각형의 남쪽·동쪽 끝을 혼자 정해 282x213km 짜리
+ * 화면(다음으로 가까운 마커가 위도 234km·경도 170km 떨어져 있다)을 만들었다. 좌표 자체가 잘못은
+ * 아니다 — 크롤러가 location 문자열 앞에 "서울" 을 기계적으로 붙일 뿐, 순천·부산·판교처럼 실재하는
+ * 지역 팝업이다. 문제는 {@code public/seoul.pmtiles} 가 서울 언저리만 담고 있어 MapLibre 가 그
+ * 범위 밖 타일 요청은 아예 하지 않는다는 것 — 화면 밖 핀은 지도 없는 배경색 위에 찍혀 애초에
+ * 유의미하게 보여줄 방법이 없다.
+ *
+ * <p>아래는 {@link isCoordOutsideSeoul} (seoulGuard, {@code SEOUL_BOX} 그대로)만 쓴다 —
+ * {@link isProvenOutsideSeoul} 전체를 쓰지 않는다. 판교 8건은 표기로는 서울 밖인데 좌표는
+ * 37.51(서울 한복판)로 잘못 지오코딩돼 있어 우리 타일 위에 멀쩡히(다만 엉뚱한 자리에) 찍힌다 —
+ * 지도가 물어야 할 질문은 "표기가 맞는가" 가 아니라 "이 점이 우리 타일 위에 있는가" 뿐이다.
+ * {@code isProvenOutsideSeoul} 로 바꾸면 판교 8건도 지도에서 사라져, 정말로 못 찍는 것이 아닌데도
+ * 빠지게 된다.
+ */
+describe('mappable — 서울 밖으로 증명된 좌표는 shown 과 total 모두에서 뺀다', () => {
+  it('부산 서면(실측 3003)은 shown 과 total 양쪽에서 빠진다', () => {
+    const got = mappable([
+      m({ id: 3003, latitude: '35.1557085419427', longitude: '129.05846119682' }),
+    ]);
+    expect(got).toEqual({ shown: [], total: 0 });
+  });
+
+  it('순천(실측 1257)도 shown 과 total 양쪽에서 빠진다', () => {
+    const got = mappable([
+      m({ id: 1257, latitude: '34.94139970471998', longitude: '127.50930110415489' }),
+    ]);
+    expect(got).toEqual({ shown: [], total: 0 });
+  });
+
+  it('스타필드 고양(실측)은 위도 37.7096 이 SEOUL_BOX.maxLat 37.72 보다 작아 사각형 안이라 남는다', () => {
+    // seoulGuard.ts 가 이미 밝힌 SEOUL_BOX 의 한계 그대로다: "하남·광명·과천·부천·고양은 이 안에
+    // 들어온다." 계산: 37.7095729528467 < 37.72 → 사각형 안. 그래서 이 좌표는 서울이 아닌데도
+    // 지도 계산에서는 제외되지 않는다 — 알고 넘어가는 오탐(false negative)이다.
+    const got = mappable([
+      m({ id: 9001, latitude: '37.7095729528467', longitude: '126.815731305755' }),
+    ]);
+    expect(got.shown.map((x) => x.id)).toEqual([9001]);
+    expect(got.total).toBe(1);
+  });
+
+  it('평범한 서울 마커는 그대로 남는다', () => {
+    const got = mappable([m({ id: 1, latitude: '37.5447', longitude: '127.0557' })]);
+    expect(got.shown.map((x) => x.id)).toEqual([1]);
+    expect(got.total).toBe(1);
+  });
+
+  it('좌표 없는 서울 팝업은 total 에 남고, 좌표가 부산인 팝업은 total 에서도 빠진다', () => {
+    const got = mappable([
+      m({ id: 1, latitude: null, longitude: null }), // 좌표 없음 — 서울일 수도 있다, 그냥 못 찍을 뿐
+      m({ id: 3003, latitude: '35.1557085419427', longitude: '129.05846119682' }), // 부산 — 서울 밖 증명됨
+    ]);
+    expect(got.shown).toEqual([]);
+    expect(got.total).toBe(1);
+  });
+});
+
+/**
  * 찍히는 마커가 전부 화면에 들어오도록 사각형(최소/최댓값)을 구한다.
  *
  * <p>예전엔 좌표 평균(중심점) 하나만 지도에 넘겼다 — 지도는 그 중심으로 <b>이동</b>만 하고
