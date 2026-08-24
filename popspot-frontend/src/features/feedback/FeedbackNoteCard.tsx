@@ -44,7 +44,9 @@ export function FeedbackNoteCard({ heading, note, cta }: FeedbackNoteCardProps) 
         type="button"
         onClick={() => setOpen((prev) => !prev)}
         aria-expanded={open}
-        aria-controls={FORM_PANEL_ID}
+        // 패널은 열렸을 때만 DOM 에 존재한다 — 접힌 기본 상태에서 무조건 참조하면 가리키는 id 가
+        // 없는 채로 남아 잘못된 ARIA 가 된다. undefined 면 React 가 속성을 아예 안 붙인다.
+        aria-controls={open ? FORM_PANEL_ID : undefined}
         aria-label={cta}
         className="flex w-full flex-col gap-3 text-left sm:flex-row sm:items-center sm:justify-between"
       >
