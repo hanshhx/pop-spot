@@ -132,6 +132,8 @@ export type LandingCopy = {
   ddayToday: string;
   ddayTomorrow: string;
   ddayOngoing: string;
+  /** 아직 열지 않은 팝업의 배지. 며칠 뒤에 여는지. */
+  ddayOpensIn: (days: number) => string;
   todayMark: (md: string) => string;
   feedbackHeading: string;
   feedbackNote: string;
@@ -286,6 +288,7 @@ const ko: LandingCopy = {
   ddayToday: '오늘 마감',
   ddayTomorrow: '내일 마감',
   ddayOngoing: '진행 중',
+  ddayOpensIn: (d) => `${d}일 뒤 오픈`,
   todayMark: (md) => `${md}(오늘)`,
   feedbackHeading: '이 목록에 빠졌거나 틀린 팝업이 있나요?',
   feedbackNote:
@@ -459,6 +462,7 @@ const en: LandingCopy = {
   ddayToday: 'Closes today',
   ddayTomorrow: 'Closes tomorrow',
   ddayOngoing: 'Open',
+  ddayOpensIn: (d) => `Opens in ${d}d`,
   todayMark: (md) => `${md} (today)`,
   feedbackHeading: 'Something missing or wrong in this list?',
   feedbackNote:
@@ -617,6 +621,7 @@ const ja: LandingCopy = {
   ddayToday: '本日終了',
   ddayTomorrow: '明日終了',
   ddayOngoing: '開催中',
+  ddayOpensIn: (d) => `あと${d}日で開始`,
   todayMark: (md) => `${md}（本日）`,
   feedbackHeading: 'この一覧に漏れや誤りがありますか？',
   feedbackNote:

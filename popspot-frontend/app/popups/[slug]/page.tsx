@@ -6,6 +6,7 @@ import { ArrowLeft, MapPin, Calendar, Tag, Clock, Flame, MessageSquare } from 'l
 
 import LocaleSwitcher from '@/components/LocaleSwitcher';
 import { landingSeason } from '@/lib/landingSeason';
+import { landingStatus, type LandingStatus } from '@/lib/landingStatus';
 import { REGIONS, classifyRegion, regionBySlug } from '@/lib/regions';
 import { LANDING_COPY, type LandingCopy, type MetaPick, type PickReason } from '@/lib/landingCopy';
 import { localizedLabel } from '@/lib/localeLabel';
@@ -295,9 +296,17 @@ function ddayOf(endDate: string | null, today: Date): number | null {
   return Math.round((startOfDay(end).getTime() - today.getTime()) / 86400000);
 }
 
-/** D-day → 배지(문구·색). 상시(null)·종료(음수)는 무배지. */
-function ddayBadge(dday: number | null, copy: LandingCopy): { text: string; cls: string } | null {
-  if (dday === null || dday < 0) return null;
+/** 상태 → 배지(문구·색). 종료·상시는 무배지. */
+function ddayBadge(status: LandingStatus, copy: LandingCopy): { text: string; cls: string } | null {
+  // 아직 안 연 것에 '진행 중' 을 달던 자리다. 색도 라임(가도 된다)이 아니라 중립으로 둔다.
+  if (status.kind === 'upcoming')
+    return {
+      text: copy.ddayOpensIn(status.opensIn),
+      cls: 'bg-gray-200 text-gray-700',
+    };
+  if (status.kind === 'ended') return null;
+  const dday = status.dday;
+  if (dday === null) return null;
   if (dday === 0) return { text: copy.ddayToday, cls: 'bg-red-500 text-white' };
   if (dday === 1) return { text: copy.ddayTomorrow, cls: 'bg-red-500 text-white' };
   // 'D-3' 표기는 한국에서만 통한다. 영어권은 '3d', 일본은 'あと3日' 로 읽는다.
@@ -426,13 +435,13 @@ function metaPicks(markers: Marker[], locale: Locale, n: number): MetaPick[] {
 function nowPicks(
   markers: Marker[],
   today: Date,
-): { m: Marker; reason: PickReason; dday: number | null }[] {
-  const picked: { m: Marker; reason: PickReason; dday: number | null }[] = [];
+): { m: Marker; reason: PickReason; status: LandingStatus }[] {
+  const picked: { m: Marker; reason: PickReason; status: LandingStatus }[] = [];
   const used = new Set<number>();
   const take = (m: Marker | undefined, reason: PickReason) => {
     if (!m || used.has(m.id)) return;
     used.add(m.id);
-    picked.push({ m, reason, dday: ddayOf(m.endDate, today) });
+    picked.push({ m, reason, status: landingStatus(m.startDate, m.endDate, today) });
   };
 
   const live = markers
@@ -694,7 +703,11 @@ export async function SliceLandingPage({ slug, locale }: { slug: string; locale:
   // 정렬 기준을 rank() 한 곳에만 두어, 목록 순서와 히어로의 '가장 빠른 마감' 이 어긋날 수 없게 한다.
   const rank = (d: number | null) => (d === null || d < 0 ? Infinity : d);
   const sorted = filtered
-    .map((m) => ({ m, dday: ddayOf(m.endDate, todayStart) }))
+    .map((m) => ({
+      m,
+      dday: ddayOf(m.endDate, todayStart),
+      status: landingStatus(m.startDate, m.endDate, todayStart),
+    }))
     .sort((a, b) => rank(a.dday) - rank(b.dday));
   // 정렬했으므로 맨 앞이 곧 최소값. (Infinity = 유효한 마감일이 하나도 없음)
   const soonest = sorted.length > 0 ? rank(sorted[0].dday) : Infinity;
@@ -709,7 +722,11 @@ export async function SliceLandingPage({ slug, locale }: { slug: string; locale:
   const alternatives =
     count === 0
       ? [...(await liveMarkers())]
-          .map((m) => ({ m, dday: ddayOf(m.endDate, todayStart) }))
+          .map((m) => ({
+            m,
+            dday: ddayOf(m.endDate, todayStart),
+            status: landingStatus(m.startDate, m.endDate, todayStart),
+          }))
           .filter((x) => x.dday !== null && x.dday >= 0)
           .sort((a, b) => (a.dday ?? Infinity) - (b.dday ?? Infinity))
           .slice(0, 3)
@@ -849,8 +866,8 @@ export async function SliceLandingPage({ slug, locale }: { slug: string; locale:
                   <Flame size={16} className="text-lime-500" /> {copy.pickHeading}
                 </h2>
                 <ul className="grid gap-3 sm:grid-cols-3">
-                  {topPicks.map(({ m, reason, dday }) => {
-                    const badge = ddayBadge(dday, copy);
+                  {topPicks.map(({ m, reason, status }) => {
+                    const badge = ddayBadge(status, copy);
                     const shownName = bilingual(
                       m.name,
                       locale === 'en' ? m.nameEn : locale === 'ja' ? m.nameJa : null,
@@ -909,8 +926,8 @@ export async function SliceLandingPage({ slug, locale }: { slug: string; locale:
                 <Clock size={16} className="text-orange-500" /> {copy.listHeading}
               </h2>
               <ul className="space-y-3">
-                {sorted.slice(0, LIST_LIMIT).map(({ m, dday }) => {
-                  const badge = ddayBadge(dday, copy);
+                {sorted.slice(0, LIST_LIMIT).map(({ m, status }) => {
+                  const badge = ddayBadge(status, copy);
                   const shownName = bilingual(
                     m.name,
                     locale === 'en' ? m.nameEn : locale === 'ja' ? m.nameJa : null,
@@ -1028,8 +1045,8 @@ export async function SliceLandingPage({ slug, locale }: { slug: string; locale:
                 <h3 className="text-sm font-bold">{copy.altHeading(slice.label)}</h3>
                 <p className="mt-1 text-xs text-muted-foreground">{copy.altNote}</p>
                 <ul className="mt-3 space-y-2">
-                  {alternatives.map(({ m, dday }) => {
-                    const badge = ddayBadge(dday, copy);
+                  {alternatives.map(({ m, status }) => {
+                    const badge = ddayBadge(status, copy);
                     const shownName = bilingual(
                       m.name,
                       locale === 'en' ? m.nameEn : locale === 'ja' ? m.nameJa : null,
