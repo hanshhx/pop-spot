@@ -8,7 +8,7 @@ import LocaleSwitcher from '@/components/LocaleSwitcher';
 import LandingMap from '@/components/Map/LandingMap';
 import { landingSeason } from '@/lib/landingSeason';
 import { landingStatus, type LandingStatus } from '@/lib/landingStatus';
-import { markerBounds, openMappable } from '@/lib/mappable';
+import { coreBounds, openMappable } from '@/lib/mappable';
 import type { PublicMapMarker } from '@/lib/mapMarkers';
 import { REGIONS, classifyRegion, regionBySlug } from '@/lib/regions';
 import { LANDING_COPY, type LandingCopy, type MetaPick, type PickReason } from '@/lib/landingCopy';
@@ -810,8 +810,17 @@ export async function SliceLandingPage({ slug, locale }: { slug: string; locale:
    * 맞춘다(줌 포함). 예전엔 좌표 평균(중심점)만 넘겼는데, 지도는 그 중심으로 <b>이동</b>만 하고
    * 줌은 고정 값(≈2km 반경)이었다 — 성수는 우연히 다 들어왔지만 this-week 처럼 서울 전역에
    * 흩어진 슬라이스는 "488곳 중 406곳 표시" 라고 적어놓고 대부분이 화면 밖(빈 한강)이었다.
+   *
+   * <p>{@link markerBounds} 가 아니라 {@link coreBounds} 를 쓴다 — 정직한 min/max 사각형은
+   * 위 문제를 고치는 대신 한 단계 축소판으로 재현했다. 실측 성수는 143곳 중 112곳이 지도에
+   * 찍히는데, 그중 106곳은 몇백 미터~1km 안에 모여 있고 나머지 6곳은 주소 텍스트에 "성수" 가
+   * 섞였을 뿐 실제로는 몇 km 떨어진 곳(뉴발란스 덕진점·캐릭터 올스타전 등)이다. min/max 는 그
+   * 6곳에 맞춰 사각형을 도시 규모로 늘리고, 106곳은 지도 한 귀퉁이의 점 뭉치로 뭉개진다.
+   * {@code coreBounds} 는 그 6곳을 사각형 계산에서만 빼고(지도·개수에서는 빼지 않는다) 카메라를
+   * 성수 규모로 좁힌다 — this-week 처럼 정말 서울 전역에 흩어진 슬라이스는 같은 계산이 넓은
+   * 사각형을 그대로 낸다. 근거·실측치는 {@code coreBounds} 문서 참고.
    */
-  const mapBounds = markerBounds(mapMarkers.shown);
+  const mapBounds = coreBounds(mapMarkers.shown);
 
   /**
    * 걸어서 묶기 — "지금 고른다면" 다음, 본문 목록 위에 놓는 실행 단계 정보.
