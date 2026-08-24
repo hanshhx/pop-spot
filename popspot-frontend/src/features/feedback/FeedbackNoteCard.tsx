@@ -11,6 +11,11 @@ interface FeedbackNoteCardProps {
   cta: string;
 }
 
+// 접기/펼치기 패널의 id — 이 페이지에는 FeedbackNoteCard 호출부가 하나뿐이라(app/popups/[slug]/page.tsx
+// 의 FeedbackNote 단일 호출) 고정 문자열로 충돌 없이 aria-controls 와 짝지을 수 있다. 이 컴포넌트를
+// 한 화면에 두 번 이상 쓰게 되면 useId() 로 바꿔야 한다.
+const FORM_PANEL_ID = 'landing-feedback-form';
+
 /**
  * 검색 랜딩 정정 창구 — 그 자리에서 바로 쓰는 의견 폼.
  *
@@ -39,6 +44,8 @@ export function FeedbackNoteCard({ heading, note, cta }: FeedbackNoteCardProps) 
         type="button"
         onClick={() => setOpen((prev) => !prev)}
         aria-expanded={open}
+        aria-controls={FORM_PANEL_ID}
+        aria-label={cta}
         className="flex w-full flex-col gap-3 text-left sm:flex-row sm:items-center sm:justify-between"
       >
         <div className="min-w-0">
@@ -59,7 +66,7 @@ export function FeedbackNoteCard({ heading, note, cta }: FeedbackNoteCardProps) 
       </button>
 
       {open && (
-        <div className="mt-4 border-t border-gray-100 pt-4 dark:border-white/10">
+        <div id={FORM_PANEL_ID} className="mt-4 border-t border-gray-100 pt-4 dark:border-white/10">
           <FeedbackForm userId={null} onSubmitted={() => setOpen(false)} />
         </div>
       )}
