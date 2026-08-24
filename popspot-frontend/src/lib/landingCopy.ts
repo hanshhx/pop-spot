@@ -139,6 +139,20 @@ export type LandingCopy = {
   /** 그 섹션의 한 줄 설명. */
   upcomingNote: string;
   todayMark: (md: string) => string;
+
+  /**
+   * 걸어서 묶기 섹션 — "지금 고른다면" 아래, 본문 목록 위. 결정(고른다면) 다음이 실행(걸어서
+   * 갈 수 있는 곳)이라는 축을 따른다.
+   *
+   * <p>N 은 묶음 안 <b>모든 쌍이 서로 N 분 이내</b>라는 뜻이 아니다. {@code walkGroups} 가 anchor
+   * (묶음의 첫 항목)에서 각 항목까지 잰 값 중 가장 큰 것이라, 셋째·넷째 항목끼리는 N 분보다 멀
+   * 수도 있다. 그래서 이 라벨을 "다 같이 N분 거리" 로 확대 해석하는 문구를 주변에 붙이지 않는다 —
+   * 화면에서는 anchor 를 목록 맨 앞에 그대로 두어, "여기서부터 N분" 이라는 순서만으로 뜻을 옮긴다.
+   */
+  walkGroupLabel: (minutes: number) => string;
+  /** 묶기 섹션의 제목. */
+  walkHeading: string;
+
   feedbackHeading: string;
   feedbackNote: string;
   feedbackCta: string;
@@ -296,6 +310,8 @@ const ko: LandingCopy = {
   upcomingHeading: '곧 열리는 팝업',
   upcomingNote: '아직 열지 않았습니다. 여는 날 순서입니다.',
   todayMark: (md) => `${md}(오늘)`,
+  walkGroupLabel: (m) => `걸어서 ${m}분`,
+  walkHeading: '걸어서 묶어 보기',
   feedbackHeading: '이 목록에 빠졌거나 틀린 팝업이 있나요?',
   feedbackNote:
     '자동 수집이라 누락·오기가 있을 수 있습니다. 알려 주시면 확인해 반영합니다 — 로그인 없이 보낼 수 있어요.',
@@ -472,6 +488,8 @@ const en: LandingCopy = {
   upcomingHeading: 'Opening soon',
   upcomingNote: 'Not open yet — sorted by opening day.',
   todayMark: (md) => `${md} (today)`,
+  walkGroupLabel: (m) => `${m} min walk`,
+  walkHeading: 'Group them by walking distance',
   feedbackHeading: 'Something missing or wrong in this list?',
   feedbackNote:
     'Listings are collected automatically, so something may be missing or wrong. Tell us and we’ll check — no sign-up needed.',
@@ -633,6 +651,8 @@ const ja: LandingCopy = {
   upcomingHeading: 'まもなく開催',
   upcomingNote: 'まだ開いていません。開始日順です。',
   todayMark: (md) => `${md}（本日）`,
+  walkGroupLabel: (m) => `徒歩${m}分`,
+  walkHeading: '徒歩でまとめる',
   feedbackHeading: 'この一覧に漏れや誤りがありますか？',
   feedbackNote:
     '自動収集のため、漏れや誤りがある場合があります。お知らせいただければ確認して反映します — 登録不要で送れます。',
