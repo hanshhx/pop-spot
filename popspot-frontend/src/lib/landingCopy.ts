@@ -140,6 +140,11 @@ export type LandingCopy = {
   upcomingNote: string;
   todayMark: (md: string) => string;
 
+  /** 지도 섹션 제목. */
+  mapHeading: string;
+  /** 몇 곳 중 몇 곳을 찍었는지. 좌표가 없어 못 찍은 것을 숨기지 않는다. */
+  mapShownOf: (shown: number, total: number) => string;
+
   /**
    * 걸어서 묶기 섹션 — "지금 고른다면" 아래, 본문 목록 위. 결정(고른다면) 다음이 실행(걸어서
    * 갈 수 있는 곳)이라는 축을 따른다.
@@ -314,6 +319,8 @@ const ko: LandingCopy = {
   upcomingHeading: '곧 열리는 팝업',
   upcomingNote: '아직 열지 않았습니다. 여는 날 순서입니다.',
   todayMark: (md) => `${md}(오늘)`,
+  mapHeading: '어디에 모여 있나',
+  mapShownOf: (s, t) => `${t}곳 중 ${s}곳 표시 — 나머지는 위치 정보가 아직 없습니다`,
   walkGroupLabel: (m) => (m === 0 ? '같은 건물' : `걸어서 ${m}분`),
   walkHeading: '걸어서 묶어 보기',
   feedbackHeading: '이 목록에 빠졌거나 틀린 팝업이 있나요?',
@@ -492,6 +499,8 @@ const en: LandingCopy = {
   upcomingHeading: 'Opening soon',
   upcomingNote: 'Not open yet — sorted by opening day.',
   todayMark: (md) => `${md} (today)`,
+  mapHeading: 'Where they cluster',
+  mapShownOf: (s, t) => `${s} of ${t} shown — the rest have no location yet`,
   walkGroupLabel: (m) => (m === 0 ? 'Same building' : `${m} min walk`),
   walkHeading: 'Group them by walking distance',
   feedbackHeading: 'Something missing or wrong in this list?',
@@ -655,6 +664,8 @@ const ja: LandingCopy = {
   upcomingHeading: 'まもなく開催',
   upcomingNote: 'まだ開いていません。開始日順です。',
   todayMark: (md) => `${md}（本日）`,
+  mapHeading: 'どこに集まっているか',
+  mapShownOf: (s, t) => `${t}件中${s}件を表示 — 残りは位置情報がまだありません`,
   walkGroupLabel: (m) => (m === 0 ? '同じ建物' : `徒歩${m}分`),
   walkHeading: '徒歩でまとめる',
   feedbackHeading: 'この一覧に漏れや誤りがありますか？',
