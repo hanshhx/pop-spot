@@ -1,4 +1,5 @@
 import type { PublicMapMarker } from './mapMarkers';
+import { isOpenNow } from './popupSlices';
 import { isCoordOutsideSeoul } from './seoulGuard';
 
 /** {@link mappable} 이 돌려주는 결과. */
@@ -47,6 +48,24 @@ export function mappable(markers: PublicMapMarker[]): Mappable {
     shown: inSeoulBox.filter((marker) => isCoord(marker.latitude) && isCoord(marker.longitude)),
     total: inSeoulBox.length,
   };
+}
+
+/**
+ * {@link mappable} 앞에 {@link isOpenNow} 를 한 겹 더 두른 것 — 슬라이스 랜딩 지도가 실제로
+ * 세고 찍는 모집단.
+ *
+ * <p>{@link mappable} 은 좌표·서울 경계만 본다. 날짜는 모른다. 그런데 지도를 그리는
+ * {@code InteractiveMap} 은 받은 마커를 자기 안에서 다시 {@code isOpenNow} 로 거른다(홈·랭킹과
+ * 같은 판정 기준을 쓰기 위해서다 — {@link isOpenNow} 문서 참고). 호출하는 쪽이 이 필터를 먼저
+ * 걸지 않으면, 여기서 세는 개수(N/M)에는 아직 시작하지 않은 팝업이 들어가는데 정작 지도에는
+ * 그 팝업의 핀이 찍히지 않는다 — 화면이 "393곳 중 372곳 표시" 라고 적어놓고 실제로 찍히는 건
+ * 더 적은 상태가 된다.
+ *
+ * <p>그래서 이 함수가 필터와 집계를 한곳에 묶는다. 두 곳(지도가 찍는 것, 페이지가 세는 것)이
+ * 각자 따로 {@code isOpenNow} 를 부르면 한쪽만 고쳤을 때 다시 갈라질 수 있다.
+ */
+export function openMappable(markers: PublicMapMarker[], today: Date): Mappable {
+  return mappable(markers.filter((marker) => isOpenNow(marker.startDate, marker.endDate, today)));
 }
 
 /** {@link markerBounds} 가 돌려주는 사각형 — 지도의 fitBounds 가 그대로 받는 모양. */
