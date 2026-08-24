@@ -110,3 +110,99 @@ export function markerBounds(markers: PublicMapMarker[]): MarkerBounds | undefin
   }
   return { minLat, maxLat, minLng, maxLng };
 }
+
+/**
+ * 백분위 자르기가 쓰는 중앙값. 짝수 개면 가운데 두 값의 평균.
+ *
+ * <p>평균이 아니라 중앙값을 쓰는 이유는 {@link coreBounds} 문서에 있다 — 여기서는 계산만 한다.
+ */
+function median(values: number[]): number {
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
+}
+
+/**
+ * {@link coreBounds} 가 5% 를 잘라내는 기준. 95를 고른 근거는 함수 문서 참고.
+ */
+const CORE_PERCENTILE = 95;
+
+/**
+ * 이 개수 미만이면 {@link coreBounds} 는 자르지 않고 {@link markerBounds} 를 그대로 돌려준다.
+ *
+ * <p>95번째 백분위는 "가장 먼 5%를 버린다" 는 약속이다. 마커가 20개보다 적으면 <b>단 하나</b>를
+ * 잘라내는 것만으로 이미 그 약속을 넘어선다 — 20개 중 1개는 정확히 5%지만, 10개 중 1개는 10%,
+ * 3개 중 1개는 33%다("3개 중 가장 먼 것 하나를 버리면 데이터의 3분의 1을 버리는 것"과 같은
+ * 경우다). 20을 문턱으로 두면 "1개를 잘라내는 것 자체가 목표 비율(5%)을 넘지 않는" 가장 작은
+ * 개수가 되어, 실제로 잘리는 비율이 항상 약속한 5% 이내로 유지된다.
+ */
+const CORE_MIN_COUNT = 20;
+
+/**
+ * {@link markerBounds} 처럼 사각형을 돌려주지만, <b>극단값 몇 개가 아니라 마커 대다수</b>가
+ * 화면에 들어오도록 좁힌다.
+ *
+ * <p>{@code markerBounds} 는 정직한 min/max라서 마커 106개가 성수에 촘촘히 모여 있어도 나머지
+ * 6개(주소 텍스트에 "성수" 가 섞였을 뿐 실제로는 몇 km 떨어진 뉴발란스 덕진점·캐릭터 올스타전
+ * 같은 곳)가 사각형을 도시 규모로 늘려 버린다. this-week 처럼 정말로 서울 전역에 흩어진
+ * 슬라이스에서는 같은 계산이 옳은 답을 낸다 — 그래서 고정 반경으로 자르는 방식은 못 쓴다.
+ * 성수는 좁게, this-week 는 넓게 — 둘 다 "마커 대부분이 모인 곳" 이라는 <b>같은 기준</b>으로
+ * 답이 갈라져야 한다.
+ *
+ * <p><b>중심은 평균이 아니라 위도·경도 각각의 중앙값.</b> 평균은 지금 자르려는 바로 그 극단값에
+ * 끌려간다 — 뉴발란스 덕진점 하나가 평균을 북서쪽으로 당기면, 나머지 106개와의 거리도 함께
+ * 틀어진다. 중앙값은 몇 개가 아무리 멀어도 흔들리지 않는다.
+ *
+ * <p><b>거리는 위도 차·경도 차(× cos(중앙값 위도))의 평면 유클리드로 잰다.</b> 정확한
+ * 지구 곡률 거리(하버사인, {@code src/lib/walkGroups.ts} 의 {@code walkInfo} 에 이미 있다)를
+ * 다시 쓰지 않은 이유: {@code walkInfo} 는 도보 보정(1.3배)과 "1.5km"/"723m" 같은 반올림·문자열 포맷까지 함께
+ * 묶여 있어, 순위를 매길 원시 거리(km)를 꺼내려면 그 포맷을 다시 파싱해야 한다 — 재사용이 아니라
+ * 재구현이 된다. 여기 필요한 건 "누가 더 먼가" 라는 <b>상대적 순서</b>뿐이고, 서울 위도(약
+ * 37.5˚N)·이 규모의 거리(수~수십 km)에서 경도 보정 유클리드와 하버사인의 오차는 순서를 바꿀
+ * 만큼 벌어지지 않는다. 경도 보정을 빼면 위도 1도(~111km)보다 경도 1도(~88km)가 실제로는 짧은데
+ * 같은 무게로 계산돼 동서로 더 쉽게 잘리므로, {@code cos(lat)} 보정은 뺄 수 없다.
+ *
+ * <p><b>{@link CORE_MIN_COUNT} 미만이면 자르지 않는다</b> — 상수 문서에 근거가 있다. 자를 때도
+ * 잘려나간 마커는 지도에서 사라지지 않는다: 이 함수는 <b>카메라가 어디를 비출지</b>만 정하고,
+ * {@code mappable}/{@code openMappable} 이 이미 정해 둔 {@code shown}·개수 문구는 그대로 둔다 —
+ * 방문자가 지도를 줌아웃하면 잘려나간 마커도 그대로 보인다.
+ *
+ * <p>마커가 전부 같은 좌표거나 하나뿐이면 거리가 전부 0(또는 계산 자체가 없음)이라 그대로
+ * {@link markerBounds} 와 같은 넓이 0 사각형이 나온다 — 따로 분기하지 않아도 자연스럽게
+ * 같아진다.
+ */
+export function coreBounds(markers: PublicMapMarker[]): MarkerBounds | undefined {
+  const coords = markers
+    .filter((marker) => isCoord(marker.latitude) && isCoord(marker.longitude))
+    .map((marker) => ({ lat: Number(marker.latitude), lng: Number(marker.longitude) }));
+  if (coords.length === 0) return undefined;
+  if (coords.length < CORE_MIN_COUNT) return markerBounds(markers);
+
+  const medianLat = median(coords.map((c) => c.lat));
+  const medianLng = median(coords.map((c) => c.lng));
+  const lngWeight = Math.cos((medianLat * Math.PI) / 180);
+
+  const distances = coords.map((c) => {
+    const dLat = c.lat - medianLat;
+    const dLng = (c.lng - medianLng) * lngWeight;
+    return Math.sqrt(dLat * dLat + dLng * dLng);
+  });
+
+  // 가장 가까운 ceil(95%) 개를 남긴다 — 나머지(최대 5%, 최소 1개)가 사각형 밖으로 빠진다.
+  const sortedDistances = [...distances].sort((a, b) => a - b);
+  const keepCount = Math.ceil((CORE_PERCENTILE / 100) * sortedDistances.length);
+  const threshold = sortedDistances[keepCount - 1];
+
+  let minLat = Infinity;
+  let maxLat = -Infinity;
+  let minLng = Infinity;
+  let maxLng = -Infinity;
+  coords.forEach((c, i) => {
+    if (distances[i] > threshold) return;
+    minLat = Math.min(minLat, c.lat);
+    maxLat = Math.max(maxLat, c.lat);
+    minLng = Math.min(minLng, c.lng);
+    maxLng = Math.max(maxLng, c.lng);
+  });
+  return { minLat, maxLat, minLng, maxLng };
+}
