@@ -2,16 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Suspense } from 'react';
-import {
-  ArrowLeft,
-  MapPin,
-  Calendar,
-  Tag,
-  Clock,
-  Flame,
-  MessageSquare,
-  Footprints,
-} from 'lucide-react';
+import { ArrowLeft, MapPin, Calendar, Tag, Clock, Flame, Footprints } from 'lucide-react';
 
 import LocaleSwitcher from '@/components/LocaleSwitcher';
 import { landingSeason } from '@/lib/landingSeason';
@@ -31,6 +22,7 @@ import { walkGroups } from '@/lib/walkGroups';
 import { isProvenOutsideSeoul } from '@/lib/seoulGuard';
 import { loadPublicMarkers } from '@/lib/emergencyPopupData';
 import { CalendarButton } from '@/features/landing/CalendarButton';
+import { FeedbackNoteCard } from '@/features/feedback/FeedbackNoteCard';
 import {
   getPeriods,
   CATEGORIES,
@@ -1385,36 +1377,22 @@ function SliceIcon({ kind }: { kind: Slice['kind'] }) {
 }
 
 /**
- * 정정 창구 — 검색으로 들어온 사람이 "찾던 게 없다 / 정보가 틀렸다" 를 바로 알릴 수 있게.
+ * 정정 창구 — 검색으로 들어온 사람이 "찾던 게 없다 / 정보가 틀렸다" 를 그 자리에서 바로 알릴 수 있게.
  *
  * <p>이 페이지의 목록은 크롤러 자동 수집물이라 누락·오기가 생긴다. 그걸 가장 먼저 알아채는 사람이
- * 바로 그 키워드로 검색해 들어온 방문자인데, 지금까지 이 화면엔 알릴 방법이 없었다(푸터 링크뿐).
- *
- * <p>새 폼을 만들지 않고 기존 {@code /feedback} 페이지로 보낸다 — 게스트도 그대로 작성 가능.
- * 목록 아래·회유 링크 위에 둬서 지도 CTA(전환 본선)와 경쟁하지 않게 하고, 스타일도 CrossSell 칩과
- * 같은 아웃라인 계열로 낮춘다. {@code prefetch=false} 인 이유는 대부분의 방문자가 누르지 않는
- * 링크를 랜딩 160여 개에서 미리 받아올 이유가 없어서다(/feedback 은 noindex 라 SEO 영향도 없다).
+ * 바로 그 키워드로 검색해 들어온 방문자인데, 전에는 {@code /feedback} 으로 내보내는 링크뿐이었다
+ * — 이 함수는 그 자리를 채우는 실제 폼({@code FeedbackNoteCard}, {@code 'use client'})으로 언어별
+ * 문안({@code copy})만 문자열로 넘기는 얇은 다리다. 폼 자체가 {@code useLocale()} 을 쓰므로 렌더
+ * 위치가 {@code LocaleProvider} 안이어야 하는데, 루트 레이아웃이 앱 전체를 감싸고 {@code /en}·
+ * {@code /ja} 는 그 안에 한 겹 더(초기 로케일 고정) 감싸 항상 안쪽이다.
  */
 function FeedbackNote({ copy }: { copy: LandingCopy }) {
   return (
-    <section className="mt-10 rounded-2xl border border-gray-200 bg-white px-5 py-4 shadow-lg shadow-black/5 dark:border-white/10 dark:bg-[#17181c] dark:shadow-black/30 md:px-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="min-w-0">
-          <h3 className="flex items-center gap-2 text-sm font-bold md:text-base">
-            <MessageSquare size={15} className="shrink-0 text-lime-500" />
-            {copy.feedbackHeading}
-          </h3>
-          <p className="mt-1 text-xs text-muted-foreground md:text-sm">{copy.feedbackNote}</p>
-        </div>
-        <Link
-          href="/feedback"
-          prefetch={false}
-          className="inline-flex shrink-0 items-center justify-center rounded-pill border border-gray-200 bg-white px-4 py-2 text-xs font-bold text-gray-900 transition hover:border-lime-300 hover:bg-lime-50 md:text-sm dark:border-white/10 dark:bg-white/5 dark:text-white dark:hover:border-lime-300/40 dark:hover:bg-lime-300/10"
-        >
-          {copy.feedbackCta}
-        </Link>
-      </div>
-    </section>
+    <FeedbackNoteCard
+      heading={copy.feedbackHeading}
+      note={copy.feedbackNote}
+      cta={copy.feedbackCta}
+    />
   );
 }
 
