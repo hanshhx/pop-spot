@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { mappable, markerBounds } from './mappable';
+import { mappable, markerBounds, openMappable } from './mappable';
 import type { PublicMapMarker } from './mapMarkers';
 import { isProvenOutsideSeoul } from './seoulGuard';
 
@@ -61,6 +61,67 @@ describe('mappable', () => {
       m({ id: 2, latitude: '37.6', longitude: '127.1' }),
     ]);
     expect(got.shown.map((x) => x.id)).toEqual([9, 2]);
+  });
+});
+
+/**
+ * {@link openMappable} — 지도가 실제로 찍는 것과 페이지가 세는 것을 같은 기준으로 묶는다.
+ *
+ * <p>랜딩 페이지의 {@code filtered} 는 아직 열지 않은 팝업도 남긴다("곧 열리는 팝업" 절이 따로
+ * 쓰기 때문이다). 그런데 지도를 그리는 {@code InteractiveMap} 은 받은 마커를 자기 안에서
+ * {@code isOpenNow} 로 한 번 더 걸러 지금 열려 있는 것만 핀으로 찍는다. {@code mappable()} 만
+ * 쓰면(v2.44 이전 버그의 재발) 서울 안·좌표 있음까지는 통과했지만 아직 시작 전인 팝업이 개수
+ * (M)에는 들어가는데 지도에는 찍히지 않는다 — this-week 실측 393(문구) vs 376(핀), seongsu
+ * 119 vs 113 으로 갈렸다. {@code openMappable} 은 {@code mappable()} 앞에 같은
+ * {@code isOpenNow} 를 먼저 걸어 이 어긋남을 막는다.
+ */
+describe('openMappable — 서울 안이고 좌표가 있어도 아직 열지 않았으면 shown·total 양쪽에서 뺀다', () => {
+  const today = new Date(2026, 7, 24); // 고정된 "오늘" — 실제 kstTodayStart() 는 페이지가 넘긴다.
+
+  it('시작일이 미래인 서울 마커는 좌표가 있어도 shown 과 total 모두에서 빠진다', () => {
+    const notYetOpen = m({
+      id: 1,
+      latitude: '37.5446',
+      longitude: '127.0559',
+      startDate: '2026-09-01',
+      endDate: '2026-09-30',
+    });
+    const got = openMappable([notYetOpen], today);
+    expect(got.shown).toEqual([]);
+    expect(got.total).toBe(0);
+  });
+
+  it('지금 열려 있는 서울 마커는 그대로 shown 과 total 에 남는다', () => {
+    const openNow = m({
+      id: 2,
+      latitude: '37.5446',
+      longitude: '127.0559',
+      startDate: '2026-08-01',
+      endDate: '2026-08-31',
+    });
+    const got = openMappable([openNow], today);
+    expect(got.shown.map((x) => x.id)).toEqual([2]);
+    expect(got.total).toBe(1);
+  });
+
+  it('열린 것과 아직 안 연 것이 섞이면 연 것만 남기고 total 도 그만큼만 센다', () => {
+    const openNow = m({
+      id: 2,
+      latitude: '37.5446',
+      longitude: '127.0559',
+      startDate: '2026-08-01',
+      endDate: '2026-08-31',
+    });
+    const notYetOpen = m({
+      id: 1,
+      latitude: '37.55',
+      longitude: '127.05',
+      startDate: '2026-09-01',
+      endDate: '2026-09-30',
+    });
+    const got = openMappable([openNow, notYetOpen], today);
+    expect(got.shown.map((x) => x.id)).toEqual([2]);
+    expect(got.total).toBe(1);
   });
 });
 
