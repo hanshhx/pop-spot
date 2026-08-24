@@ -29,6 +29,7 @@ import { notify, confirmAction } from '@/lib/notify';
 import { useLocale } from '@/lib/i18n';
 import { localizedPath } from '@/lib/localePath';
 import { bilingual } from '@/lib/bilingual';
+import { walkInfo } from '@/lib/walkGroups';
 
 interface MarkerData {
   id: string;
@@ -186,23 +187,6 @@ const fetchRealRoute = async (start: MarkerData, end: MarkerData) => {
   }
 };
 
-// 거리/시간 계산 로직 (Haversine 공식 적용)
-const calculateRouteInfo = (lat1: number, lng1: number, lat2: number, lng2: number) => {
-  const R = 6371;
-  const dLat = (lat2 - lat1) * (Math.PI / 180);
-  const dLon = (lng2 - lng1) * (Math.PI / 180);
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  const distKm = R * c;
-  const walkingDist = distKm * 1.3;
-  const minutes = Math.round((walkingDist * 1000) / 67);
-  const distStr =
-    walkingDist < 1 ? `${Math.round(walkingDist * 1000)}m` : `${walkingDist.toFixed(1)}km`;
-  return { dist: distStr, time: minutes };
-};
-
 export default function PlanningPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -225,7 +209,7 @@ export default function PlanningPage() {
   const totalTime = markers.reduce((acc, curr, idx) => {
     if (idx === 0) return 0;
     const prev = markers[idx - 1];
-    return acc + calculateRouteInfo(prev.lat, prev.lng, curr.lat, curr.lng).time;
+    return acc + walkInfo(prev.lat, prev.lng, curr.lat, curr.lng).time;
   }, 0);
 
   // 마커 변경 시 경로 데이터 업데이트 효과
@@ -650,7 +634,7 @@ export default function PlanningPage() {
                 let routeInfo = null;
                 if (idx < markers.length - 1) {
                   const nextM = markers[idx + 1];
-                  routeInfo = calculateRouteInfo(m.lat, m.lng, nextM.lat, nextM.lng);
+                  routeInfo = walkInfo(m.lat, m.lng, nextM.lat, nextM.lng);
                 }
                 return (
                   <div key={m.id} className="relative">
