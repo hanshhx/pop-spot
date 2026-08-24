@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { mappable, markerBounds } from './mappable';
 import type { PublicMapMarker } from './mapMarkers';
+import { isProvenOutsideSeoul } from './seoulGuard';
 
 /**
  * 지도에 찍을 수 있는 것만 고른다.
@@ -170,5 +171,81 @@ describe('markerBounds', () => {
   it('찍을 마커가 하나도 없으면 undefined 다', () => {
     expect(markerBounds([])).toBeUndefined();
     expect(markerBounds([m({ id: 1 })])).toBeUndefined();
+  });
+});
+
+/**
+ * 카메라 사각형 — 부산 팝업 한 건이 서울 지도를 한반도로 넓히던 자리.
+ *
+ * <p>예전엔 별도 함수 {@code seoulCameraBounds} (seoulGuard.ts) 가 있었는데, 이미 {@link mappable}
+ * 이 서울 밖 좌표를 {@code shown} 에서 빼 놓은 뒤라 그 안에서 다시 걸러 봐야 아무것도 바뀌지
+ * 않았다 — {@code markerBounds(mappable(...).shown)} 과 완전히 같은 값이면서 순환 참조
+ * (seoulGuard → mappable → seoulGuard)까지 만들고 있었다. 그래서 지우고, 실제 서비스 경로
+ * ({@code markerBounds(mappable(markers).shown)})를 그대로 실행하는 테스트만 남긴다.
+ *
+ * <p>입력은 전부 라이브 {@code /api/map/markers} 실측값이다.
+ */
+const pin = (
+  id: number,
+  latitude: string,
+  longitude: string,
+  location: string,
+): PublicMapMarker => ({
+  id,
+  name: `팝업 ${id}`,
+  location,
+  latitude,
+  longitude,
+  category: null,
+  startDate: null,
+  endDate: null,
+});
+
+const SEONGSU = pin(1, '37.5446', '127.0559', '서울 성동구 연무장길');
+const GANGNAM = pin(2, '37.4979', '127.0276', '서울 강남구 강남대로');
+// 실측 3003 — 부산 서면. this-week 사각형의 남쪽 끝과 동쪽 끝을 혼자 정하던 마커.
+const BUSAN = pin(3003, '35.1557085419427', '129.05846119682', '서울 서면');
+
+describe('markerBounds(mappable(...).shown) — 서울 밖 마커가 카메라를 넓히지 않는다', () => {
+  it('부산 팝업 한 건이 서울 화면을 한반도로 넓히지 않는다', () => {
+    const got = markerBounds(mappable([SEONGSU, GANGNAM, BUSAN]).shown);
+    expect(got).toEqual({
+      minLat: 37.4979,
+      maxLat: 37.5446,
+      minLng: 127.0276,
+      maxLng: 127.0559,
+    });
+  });
+
+  it('실측 네 극단을 넣어도 사각형은 서울 경계 안이다', () => {
+    const got = markerBounds(
+      mappable([
+        SEONGSU,
+        BUSAN,
+        pin(3910, '37.41668435615771', '126.68401236414716', '서울 연수구'), // 인천
+        pin(3106, '37.267038390760796', '126.96178554756972', '서울 수원시'), // 수원
+        pin(1257, '34.94139970471998', '127.50930110415489', '서울 순천시'), // 순천
+      ]).shown,
+    )!;
+    expect(got.minLat).toBeGreaterThanOrEqual(37.4);
+    expect(got.maxLat).toBeLessThanOrEqual(37.72);
+    expect(got.minLng).toBeGreaterThanOrEqual(126.73);
+    expect(got.maxLng).toBeLessThanOrEqual(127.22);
+  });
+
+  it('표기만 서울 밖인 것은 사각형을 좁히지 않는다 — 좌표가 서울이면 화면 안에 둔다', () => {
+    // 실측 3735 "서울 부산광역시" 는 좌표가 서초 한복판이다. 배지는 붙지만 카메라는 무시하면 안 된다.
+    const mislabelled = pin(3735, '37.4846504739722', '127.031724192797', '서울 부산광역시');
+    expect(isProvenOutsideSeoul(mislabelled)).toBe(true);
+    const got = markerBounds(mappable([SEONGSU, mislabelled]).shown)!;
+    expect(got.minLat).toBeLessThanOrEqual(37.4846504739722);
+    expect(got.minLng).toBeLessThanOrEqual(127.031724192797);
+  });
+
+  it('전부 서울 밖이면 shown 이 비고, total 도 0 이다 — page.tsx 는 이럴 때 지도 섹션 자체를 그린다', () => {
+    const outside = [BUSAN, pin(1257, '34.94139970471998', '127.50930110415489', '서울 순천시')];
+    const got = mappable(outside);
+    expect(got.shown).toEqual([]);
+    expect(got.total).toBe(0);
   });
 });
