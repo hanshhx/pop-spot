@@ -1,4 +1,5 @@
 import type { PublicMapMarker } from './mapMarkers';
+import { isCoordOutsideSeoul } from './seoulGuard';
 
 /** {@link mappable} 이 돌려주는 결과. */
 export interface Mappable {
@@ -29,12 +30,22 @@ function isCoord(value: string | null): boolean {
  * 비고 대서양에 핀이 뭉친다 — 빈 값보다 나쁜 종류의 거짓말이라, <b>trim 을 먼저</b> 하고
  * {@code Number.isFinite} 로 거른다.
  *
+ * <p>좌표가 서울 경계 사각형({@code SEOUL_BOX}, seoulGuard) 밖으로 증명된 마커는 shown 뿐
+ * 아니라 <b>total 계산 전에</b> 통째로 뺀다. {@code public/seoul.pmtiles} 가 서울 언저리만 담고
+ * 있어 그 밖 좌표는 애초에 지도에 유의미하게 찍을 방법이 없다(부산 팝업 한 건이 this-week 화면을
+ * 한반도 전체로 넓히던 사례 — {@link markerBounds} 문서 참고). 여기서는
+ * {@link isCoordOutsideSeoul}(좌표만 보는 절반)만 쓰고 {@code isProvenOutsideSeoul}(주소 표기
+ * 규칙까지 더한 전체)은 쓰지 않는다 — 판교 8건처럼 표기는 서울 밖인데 좌표는 37.51(서울 한복판)로
+ * 잘못 지오코딩된 행은 우리 타일 위에 멀쩡히 찍히므로 지도 계산에서 뺄 이유가 없다. 목록의
+ * "서울 밖" 배지는 이 함수와 무관하게 그대로 남는다 — 밝히지 않는 건 지도뿐, 목록이 아니다.
+ *
  * <p>순서는 다시 정하지 않는다. 호출한 쪽이 이미 정한 순서를 그대로 두고 걸러내기만 한다.
  */
 export function mappable(markers: PublicMapMarker[]): Mappable {
+  const inSeoulBox = markers.filter((marker) => !isCoordOutsideSeoul(marker));
   return {
-    shown: markers.filter((marker) => isCoord(marker.latitude) && isCoord(marker.longitude)),
-    total: markers.length,
+    shown: inSeoulBox.filter((marker) => isCoord(marker.latitude) && isCoord(marker.longitude)),
+    total: inSeoulBox.length,
   };
 }
 
