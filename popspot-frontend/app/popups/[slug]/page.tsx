@@ -2,7 +2,16 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Suspense } from 'react';
-import { ArrowLeft, MapPin, Calendar, Tag, Clock, Flame, MessageSquare } from 'lucide-react';
+import {
+  ArrowLeft,
+  MapPin,
+  Calendar,
+  Tag,
+  Clock,
+  Flame,
+  MessageSquare,
+  Footprints,
+} from 'lucide-react';
 
 import LocaleSwitcher from '@/components/LocaleSwitcher';
 import { landingSeason } from '@/lib/landingSeason';
@@ -18,6 +27,7 @@ import { localizedPath } from '@/lib/localePath';
 import { CRAWL_REFRESH_BY_LOCALE } from '@/lib/siteCopy';
 import { searchLandingTitle } from '@/lib/searchLandingTitle';
 import { groupSameEvent } from '@/lib/groupSameEvent';
+import { walkGroups } from '@/lib/walkGroups';
 import { isProvenOutsideSeoul } from '@/lib/seoulGuard';
 import { loadPublicMarkers } from '@/lib/emergencyPopupData';
 import { CalendarButton } from '@/features/landing/CalendarButton';
@@ -296,6 +306,21 @@ function ddayOf(endDate: string | null, today: Date): number | null {
   return Math.round((startOfDay(end).getTime() - today.getTime()) / 86400000);
 }
 
+/**
+ * 걸어서 묶기용 좌표 변환.
+ *
+ * <p>{@code latitude}/{@code longitude} 는 {@code PublicMapMarker} 처럼 문자열이거나 없다.
+ * {@code Number(null)} 은 조용히 0 이 되고 {@code Number.isFinite(0)} 은 참이라, null 을 그대로
+ * {@code Number()} 에 넣으면 좌표 없는 팝업이 적도·아프리카 서해안(0, 0)으로 떨어져 다른 깨진
+ * 행과 한 묶음이 된다. 그래서 변환 전에 null/빈 문자열을 먼저 걸러 낸다.
+ */
+function markerCoord(m: Marker): { lat: number; lng: number } | null {
+  if (!m.latitude || !m.longitude) return null;
+  const lat = Number(m.latitude);
+  const lng = Number(m.longitude);
+  return Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null;
+}
+
 /** 상태 → 배지(문구·색). 종료·상시는 무배지. */
 function ddayBadge(status: LandingStatus, copy: LandingCopy): { text: string; cls: string } | null {
   // 아직 안 연 것에 '진행 중' 을 달던 자리다. 색도 라임(가도 된다)이 아니라 중립으로 둔다.
@@ -511,6 +536,25 @@ const LIST_LIMIT = 60;
 const UPCOMING_LIMIT = 6;
 
 /**
+ * "걸어서 묶어 보기" 섹션에 보여줄 최대 묶음 수.
+ *
+ * <p>실측(스냅샷 709곳 좌표 보유, 15분 기준) — 묶음이 가장 큰 동네(성수동) 하나에서 96곳짜리
+ * 묶음이 나온다. 동네가 실제로 그만큼 촘촘해서지 계산이 잘못된 게 아니다. 그렇다고 묶음을 다
+ * 보여주면 이 보조 섹션이 본문 목록(LIST_LIMIT)보다 커진다. "지금 고른다면"(3장, 큐레이션)과
+ * 같은 크기로 잡아, 결정 다음의 실행을 거들 뿐 본문을 밀어내지 않게 한다.
+ */
+const WALK_GROUP_LIMIT = 3;
+
+/**
+ * 한 묶음 안에서 실제로 나열할 최대 팝업 수.
+ *
+ * <p>위와 같은 실측에서 묶음 하나가 96곳까지 간다 — 다 나열하면 카드 하나가 본문 목록만큼
+ * 길어진다. "곧 열리는 팝업"(UPCOMING_LIMIT=6)과 같은 선으로 잡아 스크롤 없이 훑을 수 있게
+ * 하고, 넘는 수는 본문 목록 아래에 이미 쓰는 moreCount 문구를 그대로 재사용해 지도로 보낸다.
+ */
+const WALK_GROUP_MEMBER_LIMIT = 6;
+
+/**
  * ItemList 에 담을 실제 팝업 이름.
  *
  * <p>Google Event 는 행사마다 고유한 상세 URL에서 그 행사 하나만 다뤄야 한다. 목록 페이지에서 여러
@@ -723,6 +767,20 @@ export async function SliceLandingPage({ slug, locale }: { slug: string; locale:
   const minDday = Number.isFinite(soonest) ? soonest : null;
 
   const topPicks = nowPicks(filtered, todayStart);
+
+  /**
+   * 걸어서 묶기 — "지금 고른다면" 다음, 본문 목록 위에 놓는 실행 단계 정보.
+   *
+   * <p>{@code sorted}(마감임박순)를 그대로 입력 순서로 써서, 묶음의 anchor(각 묶음의 첫 항목)가
+   * 그 안에서 가장 급한 팝업이 되게 한다 — "이거 보러 가는 김에 걸어서 갈 수 있는 곳" 이라는
+   * 맥락이 화면 설명 없이도 순서만으로 선다. 좌표 없는 팝업은 {@link markerCoord} 가 null 을
+   * 돌려줘 {@code walkGroups} 가 알아서 뺀다 — 본문 목록(sorted/filtered)은 이 결과와 무관하게
+   * 그대로 전부 그린다.
+   */
+  const walkClusters = walkGroups(
+    sorted.map((s) => s.m),
+    markerCoord,
+  ).slice(0, WALK_GROUP_LIMIT);
 
   /**
    * 곧 열리는 팝업 — sorted 에서 status 만 다시 걸러 쓴다. 두 번째 시계를 만들지 않는다: 여기 쓰는
@@ -941,6 +999,62 @@ export async function SliceLandingPage({ slug, locale }: { slug: string; locale:
                 </ul>
                 {/* 무엇을 기준으로 골랐는지 밝힌다. 안 밝히면 광고로 읽힌다. */}
                 <p className="mt-3 text-xs text-muted-foreground">{copy.pickNote}</p>
+              </section>
+            )}
+
+            {/* 걸어서 묶기 — "고른다면"(위) 다음의 실행 단계라 본문 목록 위에 둔다. 다만 내용은
+                가볍다: 묶이면 좋은 보조 정보일 뿐 고르는 근거가 아니고, 좌표가 없으면 아예 안
+                묶이므로 항상 뜨는 것도 아니다. 그래서 목록·"고른다면"과 같은 h2/text-lg 가 아니라
+                "곧 열리는 팝업"과 같은 h3/text-sm 로 가볍게 얹는다. 묶음이 하나도 없으면 그리지
+                않는다. */}
+            {walkClusters.length > 0 && (
+              <section className="mb-6 rounded-2xl border border-gray-200 bg-white px-5 py-4 shadow-lg shadow-black/5 dark:border-white/10 dark:bg-[#17181c] dark:shadow-black/30 md:px-6 md:py-5">
+                <h3 className="flex items-center gap-2 text-sm font-bold md:text-base">
+                  <Footprints size={15} className="shrink-0 text-lime-500" />
+                  {copy.walkHeading}
+                </h3>
+                <div className="mt-3 space-y-4">
+                  {walkClusters.map((group) => {
+                    // members[0] 이 anchor 다(walkGroups 의 정의). 목록 맨 앞에 그대로 두어,
+                    // "여기서부터 N분" 이라는 뜻을 문구를 늘리지 않고 순서로만 전달한다.
+                    const anchorId = group.members[0].id;
+                    const shown = group.members.slice(0, WALK_GROUP_MEMBER_LIMIT);
+                    const restCount = group.members.length - shown.length;
+                    return (
+                      <div key={anchorId}>
+                        <span className="inline-flex items-center rounded-pill bg-black/5 px-2 py-0.5 text-[11px] font-black text-muted-foreground dark:bg-white/10">
+                          {copy.walkGroupLabel(group.minutes)}
+                        </span>
+                        <ul className="mt-2 space-y-2">
+                          {shown.map((m) => {
+                            const shownName = bilingual(
+                              m.name,
+                              locale === 'en' ? m.nameEn : locale === 'ja' ? m.nameJa : null,
+                            );
+                            return (
+                              <li key={m.id} className="relative flex items-center gap-2 text-sm">
+                                <Link
+                                  href={localizedPath(`/popup/${m.id}`, locale)}
+                                  aria-label={copy.detailAria(shownName.display ?? m.name)}
+                                  className="absolute inset-0 z-10 rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lime-500"
+                                />
+                                <MapPin size={13} className="shrink-0 text-gray-400" />
+                                <span className="min-w-0 flex-1 truncate font-bold">
+                                  {shownName.display}
+                                </span>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                        {restCount > 0 && (
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {copy.moreCount(restCount)}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               </section>
             )}
 
