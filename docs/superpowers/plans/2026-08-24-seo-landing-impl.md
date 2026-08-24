@@ -29,28 +29,25 @@
 ```ts
 // src/lib/mapMarkers.ts:3 — 랜딩이 다루는 팝업의 실제 모양
 export interface PublicMapMarker {
-  id: number
-  name: string
-  location: string | null
-  latitude: string | null // ← 문자열이다. Number() 로 바꿔 쓴다
-  longitude: string | null
-  category: string | null
-  startDate: string | null
-  endDate: string | null
-  nameEn?: string | null
-  nameJa?: string | null
-  locationEn?: string | null
-  locationJa?: string | null
+  id: number;
+  name: string;
+  location: string | null;
+  latitude: string | null; // ← 문자열이다. Number() 로 바꿔 쓴다
+  longitude: string | null;
+  category: string | null;
+  startDate: string | null;
+  endDate: string | null;
+  nameEn?: string | null;
+  nameJa?: string | null;
+  locationEn?: string | null;
+  locationJa?: string | null;
 }
 ```
 
 ```ts
 // app/popups/[slug]/page.tsx:292 — 지금의 버그
-function ddayOf(endDate: string | null, today: Date): number | null // 종료일만 본다
-function ddayBadge(
-  dday: number | null,
-  copy: LandingCopy
-): { text: string; cls: string } | null
+function ddayOf(endDate: string | null, today: Date): number | null; // 종료일만 본다
+function ddayBadge(dday: number | null, copy: LandingCopy): { text: string; cls: string } | null;
 // dday > 7 이면 라임색 copy.ddayOngoing('진행 중')
 ```
 
@@ -58,8 +55,8 @@ function ddayBadge(
 // app/planning/page.tsx:190 — 옮겨올 산수. 모듈 상수라 밖에서 못 쓴다.
 const calculateRouteInfo = (lat1, lng1, lat2, lng2) => {
   /* 하버사인 → distKm; walkingDist = distKm * 1.3; minutes = round(walkingDist*1000/67) */
-  return { dist: string, time: number }
-}
+  return { dist: string, time: number };
+};
 ```
 
 `FeedbackForm` (`src/features/feedback/FeedbackForm.tsx:45`) 는 `{ userId, onSubmitted }` 를 받고 `userId: null` 이면 게스트 모드다. `POST /api/feedback` 은 공개라 **백엔드 변경이 필요 없다.**
@@ -99,9 +96,9 @@ const calculateRouteInfo = (lat1, lng1, lat2, lng2) => {
 `src/lib/landingStatus.ts` 는 아직 없다. 먼저 테스트를 쓴다.
 
 ```ts
-import { describe, expect, it } from "vitest"
+import { describe, expect, it } from 'vitest';
 
-import { landingStatus } from "./landingStatus"
+import { landingStatus } from './landingStatus';
 
 /**
  * 랜딩 목록의 팝업이 지금 어떤 상태인가.
@@ -112,64 +109,64 @@ import { landingStatus } from "./landingStatus"
  *
  * <p>날짜를 두 개 다 보면 세 가지로 갈린다. 그 경계를 여기서 고정한다.
  */
-const TODAY = new Date("2026-08-24")
+const TODAY = new Date('2026-08-24');
 
-describe("landingStatus", () => {
-  it("아직 열지 않았으면 upcoming 이고 며칠 남았는지 함께 준다", () => {
-    expect(landingStatus("2026-08-29", "2026-09-23", TODAY)).toEqual({
-      kind: "upcoming",
+describe('landingStatus', () => {
+  it('아직 열지 않았으면 upcoming 이고 며칠 남았는지 함께 준다', () => {
+    expect(landingStatus('2026-08-29', '2026-09-23', TODAY)).toEqual({
+      kind: 'upcoming',
       opensIn: 5,
-    })
-  })
+    });
+  });
 
-  it("오늘 여는 것은 upcoming 이 아니라 ongoing 이다 — 오늘부터 갈 수 있다", () => {
-    expect(landingStatus("2026-08-24", "2026-09-23", TODAY)).toEqual({
-      kind: "ongoing",
+  it('오늘 여는 것은 upcoming 이 아니라 ongoing 이다 — 오늘부터 갈 수 있다', () => {
+    expect(landingStatus('2026-08-24', '2026-09-23', TODAY)).toEqual({
+      kind: 'ongoing',
       dday: 30,
-    })
-  })
+    });
+  });
 
-  it("이미 열려 있으면 ongoing 이고 마감까지 남은 날을 준다", () => {
-    expect(landingStatus("2026-08-01", "2026-08-26", TODAY)).toEqual({
-      kind: "ongoing",
+  it('이미 열려 있으면 ongoing 이고 마감까지 남은 날을 준다', () => {
+    expect(landingStatus('2026-08-01', '2026-08-26', TODAY)).toEqual({
+      kind: 'ongoing',
       dday: 2,
-    })
-  })
+    });
+  });
 
-  it("마감일이 지났으면 ended 다", () => {
-    expect(landingStatus("2026-08-01", "2026-08-23", TODAY)).toEqual({
-      kind: "ended",
-    })
-  })
+  it('마감일이 지났으면 ended 다', () => {
+    expect(landingStatus('2026-08-01', '2026-08-23', TODAY)).toEqual({
+      kind: 'ended',
+    });
+  });
 
-  it("시작일을 모르면 열려 있는 것으로 본다 — 목록에 있다는 것 자체가 진행 중이라는 뜻이다", () => {
-    expect(landingStatus(null, "2026-09-23", TODAY)).toEqual({
-      kind: "ongoing",
+  it('시작일을 모르면 열려 있는 것으로 본다 — 목록에 있다는 것 자체가 진행 중이라는 뜻이다', () => {
+    expect(landingStatus(null, '2026-09-23', TODAY)).toEqual({
+      kind: 'ongoing',
       dday: 30,
-    })
-  })
+    });
+  });
 
-  it("종료일을 모르면 ongoing 이되 남은 날은 null 이다 — 상시 운영이 이렇게 들어온다", () => {
-    expect(landingStatus("2026-08-01", null, TODAY)).toEqual({
-      kind: "ongoing",
+  it('종료일을 모르면 ongoing 이되 남은 날은 null 이다 — 상시 운영이 이렇게 들어온다', () => {
+    expect(landingStatus('2026-08-01', null, TODAY)).toEqual({
+      kind: 'ongoing',
       dday: null,
-    })
-  })
+    });
+  });
 
-  it("둘 다 모르면 ongoing 이다", () => {
+  it('둘 다 모르면 ongoing 이다', () => {
     expect(landingStatus(null, null, TODAY)).toEqual({
-      kind: "ongoing",
+      kind: 'ongoing',
       dday: null,
-    })
-  })
+    });
+  });
 
-  it("읽을 수 없는 날짜는 없는 것으로 친다 — 크롤링 원문이 그대로 들어온다", () => {
-    expect(landingStatus("내일부터", "2026-09-23", TODAY)).toEqual({
-      kind: "ongoing",
+  it('읽을 수 없는 날짜는 없는 것으로 친다 — 크롤링 원문이 그대로 들어온다', () => {
+    expect(landingStatus('내일부터', '2026-09-23', TODAY)).toEqual({
+      kind: 'ongoing',
       dday: 30,
-    })
-  })
-})
+    });
+  });
+});
 ```
 
 - [ ] **Step 2: 실패를 확인한다**
@@ -185,7 +182,7 @@ Expected: FAIL — `Failed to resolve import "./landingStatus"`
 `src/lib/landingStatus.ts`:
 
 ```ts
-import { parseDate, startOfDay } from "./popupSlices"
+import { parseDate, startOfDay } from './popupSlices';
 
 /**
  * 랜딩 목록의 한 팝업이 지금 어떤 상태인가.
@@ -194,17 +191,15 @@ import { parseDate, startOfDay } from "./popupSlices"
  * 때문이다(오늘 마감은 빨강, 사흘 이내는 주황, 그 밖은 라임). 상시 운영이면 셀 것이 없어 null 이다.
  */
 export type LandingStatus =
-  | { kind: "upcoming"; opensIn: number }
-  | { kind: "ongoing"; dday: number | null }
-  | { kind: "ended" }
+  | { kind: 'upcoming'; opensIn: number }
+  | { kind: 'ongoing'; dday: number | null }
+  | { kind: 'ended' };
 
 /** 두 날짜 사이의 일수. 읽을 수 없으면 null. */
 function daysBetween(value: string | null, today: Date): number | null {
-  const parsed = parseDate(value)
-  if (!parsed) return null
-  return Math.round(
-    (startOfDay(parsed).getTime() - today.getTime()) / 86_400_000
-  )
+  const parsed = parseDate(value);
+  if (!parsed) return null;
+  return Math.round((startOfDay(parsed).getTime() - today.getTime()) / 86_400_000);
 }
 
 /**
@@ -220,16 +215,15 @@ function daysBetween(value: string | null, today: Date): number | null {
 export function landingStatus(
   startDate: string | null,
   endDate: string | null,
-  today: Date
+  today: Date,
 ): LandingStatus {
-  const toEnd = daysBetween(endDate, today)
-  if (toEnd !== null && toEnd < 0) return { kind: "ended" }
+  const toEnd = daysBetween(endDate, today);
+  if (toEnd !== null && toEnd < 0) return { kind: 'ended' };
 
-  const toStart = daysBetween(startDate, today)
-  if (toStart !== null && toStart > 0)
-    return { kind: "upcoming", opensIn: toStart }
+  const toStart = daysBetween(startDate, today);
+  if (toStart !== null && toStart > 0) return { kind: 'upcoming', opensIn: toStart };
 
-  return { kind: "ongoing", dday: toEnd }
+  return { kind: 'ongoing', dday: toEnd };
 }
 ```
 
@@ -247,7 +241,7 @@ Expected: PASS — 8 tests
 
 ```ts
 /** 아직 열지 않은 팝업의 배지. 며칠 뒤에 여는지. */
-ddayOpensIn: (days: number) => string
+ddayOpensIn: (days: number) => string;
 ```
 
 그리고 세 테이블 모두에, 각자의 `ddayOngoing` 바로 아래에:
@@ -273,28 +267,22 @@ cd popspot-frontend && npm run typecheck
 
 ```ts
 /** 상태 → 배지(문구·색). 종료·상시는 무배지. */
-function ddayBadge(
-  status: LandingStatus,
-  copy: LandingCopy
-): { text: string; cls: string } | null {
+function ddayBadge(status: LandingStatus, copy: LandingCopy): { text: string; cls: string } | null {
   // 아직 안 연 것에 '진행 중' 을 달던 자리다. 색도 라임(가도 된다)이 아니라 중립으로 둔다.
-  if (status.kind === "upcoming")
+  if (status.kind === 'upcoming')
     return {
       text: copy.ddayOpensIn(status.opensIn),
-      cls: "bg-gray-200 text-gray-700",
-    }
-  if (status.kind === "ended") return null
-  const dday = status.dday
-  if (dday === null) return null
-  if (dday === 0) return { text: copy.ddayToday, cls: "bg-red-500 text-white" }
-  if (dday === 1)
-    return { text: copy.ddayTomorrow, cls: "bg-red-500 text-white" }
+      cls: 'bg-gray-200 text-gray-700',
+    };
+  if (status.kind === 'ended') return null;
+  const dday = status.dday;
+  if (dday === null) return null;
+  if (dday === 0) return { text: copy.ddayToday, cls: 'bg-red-500 text-white' };
+  if (dday === 1) return { text: copy.ddayTomorrow, cls: 'bg-red-500 text-white' };
   // 'D-3' 표기는 한국에서만 통한다. 영어권은 '3d', 일본은 'あと3日' 로 읽는다.
-  if (dday <= 3)
-    return { text: copy.ddayValue(dday), cls: "bg-orange-500 text-white" }
-  if (dday <= 7)
-    return { text: copy.ddayValue(dday), cls: "bg-amber-400 text-ink-900" }
-  return { text: copy.ddayOngoing, cls: "bg-lime-300 text-ink-900" }
+  if (dday <= 3) return { text: copy.ddayValue(dday), cls: 'bg-orange-500 text-white' };
+  if (dday <= 7) return { text: copy.ddayValue(dday), cls: 'bg-amber-400 text-ink-900' };
+  return { text: copy.ddayOngoing, cls: 'bg-lime-300 text-ink-900' };
 }
 ```
 
@@ -338,9 +326,9 @@ Task 1 이 없으면 이 섹션은 **본문 목록과 모순된다** — 같은 
 
 ```ts
 /** 곧 열리는 팝업 섹션의 제목. */
-upcomingHeading: string
+upcomingHeading: string;
 /** 그 섹션의 한 줄 설명. */
-upcomingNote: string
+upcomingNote: string;
 ```
 
 ```ts
@@ -399,9 +387,9 @@ git add -A && git commit -m "feat(landing): show what has not opened yet, in ope
 - [ ] **Step 1: 실패하는 테스트를 쓴다**
 
 ```ts
-import { describe, expect, it } from "vitest"
+import { describe, expect, it } from 'vitest';
 
-import { walkGroups, walkInfo } from "./walkGroups"
+import { walkGroups, walkInfo } from './walkGroups';
 
 /**
  * 걸어서 묶기.
@@ -419,73 +407,69 @@ import { walkGroups, walkInfo } from "./walkGroups"
  * 분속 67m 로 약 11분이다 — 20분 한도 안에 들어온다. 성수와 홍대는 직선 약 11.7km 라
  * 도보 15.3km, 228분이 되어 어떤 한도로도 묶이지 않는다.
  */
-const 성수 = { lat: 37.5446, lng: 127.0559 }
-const 성수옆 = { lat: 37.5496, lng: 127.0559 } // 북쪽으로 0.005° ≈ 556m
-const 홍대 = { lat: 37.5563, lng: 126.9236 }
-const 홍대옆 = { lat: 37.5613, lng: 126.9236 }
+const 성수 = { lat: 37.5446, lng: 127.0559 };
+const 성수옆 = { lat: 37.5496, lng: 127.0559 }; // 북쪽으로 0.005° ≈ 556m
+const 홍대 = { lat: 37.5563, lng: 126.9236 };
+const 홍대옆 = { lat: 37.5613, lng: 126.9236 };
 
-describe("walkInfo", () => {
-  it("1km 를 넘지 않으면 미터로 말한다", () => {
-    const near = walkInfo(성수.lat, 성수.lng, 성수옆.lat, 성수옆.lng)
+describe('walkInfo', () => {
+  it('1km 를 넘지 않으면 미터로 말한다', () => {
+    const near = walkInfo(성수.lat, 성수.lng, 성수옆.lat, 성수옆.lng);
     // endsWith('m') 로는 '2.1km' 도 통과한다. 단위 자리를 통째로 본다.
-    expect(near.dist).toMatch(/^\d+m$/)
-    expect(near.time).toBeGreaterThan(0)
-  })
+    expect(near.dist).toMatch(/^\d+m$/);
+    expect(near.time).toBeGreaterThan(0);
+  });
 
-  it("1km 를 넘으면 킬로미터로 말한다", () => {
-    expect(walkInfo(성수.lat, 성수.lng, 홍대.lat, 홍대.lng).dist).toMatch(
-      /^\d+\.\dkm$/
-    )
-  })
+  it('1km 를 넘으면 킬로미터로 말한다', () => {
+    expect(walkInfo(성수.lat, 성수.lng, 홍대.lat, 홍대.lng).dist).toMatch(/^\d+\.\dkm$/);
+  });
 
-  it("같은 자리는 0분이다", () => {
-    expect(walkInfo(37.5, 127.0, 37.5, 127.0)).toEqual({ dist: "0m", time: 0 })
-  })
+  it('같은 자리는 0분이다', () => {
+    expect(walkInfo(37.5, 127.0, 37.5, 127.0)).toEqual({ dist: '0m', time: 0 });
+  });
 
-  it("작전지도와 같은 값을 낸다 — 1.3 배와 분속 67m", () => {
+  it('작전지도와 같은 값을 낸다 — 1.3 배와 분속 67m', () => {
     // 위도 1도 = 6371km × π/180 = 111.1949km. × 1.3 = 144.5534km = 144553.4m.
     // 144553.4 / 67 = 2157.51 → 반올림 2158. 이 숫자가 두 상수를 동시에 붙잡는다.
-    expect(walkInfo(37.0, 127.0, 38.0, 127.0).time).toBe(2158)
-  })
-})
+    expect(walkInfo(37.0, 127.0, 38.0, 127.0).time).toBe(2158);
+  });
+});
 
-describe("walkGroups", () => {
-  const coord = (p: { lat: number; lng: number } | null) => p
+describe('walkGroups', () => {
+  const coord = (p: { lat: number; lng: number } | null) => p;
 
-  it("걸어갈 만한 것끼리 한 묶음이 된다", () => {
-    const groups = walkGroups([성수, 성수옆], coord, 20)
-    expect(groups).toHaveLength(1)
-    expect(groups[0].members).toEqual([성수, 성수옆])
-  })
+  it('걸어갈 만한 것끼리 한 묶음이 된다', () => {
+    const groups = walkGroups([성수, 성수옆], coord, 20);
+    expect(groups).toHaveLength(1);
+    expect(groups[0].members).toEqual([성수, 성수옆]);
+  });
 
-  it("걸어갈 수 없는 거리면 묶이지 않는다", () => {
+  it('걸어갈 수 없는 거리면 묶이지 않는다', () => {
     // 성수↔홍대는 도보 228분이다. 20분 한도에서 둘 다 혼자 남으므로 묶음이 하나도 없다.
-    expect(walkGroups([성수, 홍대], coord, 20)).toEqual([])
-  })
+    expect(walkGroups([성수, 홍대], coord, 20)).toEqual([]);
+  });
 
-  it("좌표가 없는 것은 어느 묶음에도 안 들어간다 — 지어내지 않는다", () => {
-    const groups = walkGroups([성수, null, 성수옆], coord, 20)
-    expect(groups.flatMap((g) => g.members)).toEqual([성수, 성수옆])
-  })
+  it('좌표가 없는 것은 어느 묶음에도 안 들어간다 — 지어내지 않는다', () => {
+    const groups = walkGroups([성수, null, 성수옆], coord, 20);
+    expect(groups.flatMap((g) => g.members)).toEqual([성수, 성수옆]);
+  });
 
   it('혼자인 것은 묶음이 되지 않는다 — "걸어서 묶기" 는 둘 이상일 때만 뜻이 있다', () => {
-    expect(walkGroups([성수], coord, 20)).toEqual([])
-  })
+    expect(walkGroups([성수], coord, 20)).toEqual([]);
+  });
 
-  it("한도를 넘기면 갈라진다 — 경계가 실제로 작동한다", () => {
+  it('한도를 넘기면 갈라진다 — 경계가 실제로 작동한다', () => {
     // 성수↔성수옆은 약 11분이다. 한도를 10분으로 낮추면 갈라져 묶음이 사라진다.
-    expect(walkGroups([성수, 성수옆], coord, 20)).toHaveLength(1)
-    expect(walkGroups([성수, 성수옆], coord, 10)).toEqual([])
-  })
+    expect(walkGroups([성수, 성수옆], coord, 20)).toHaveLength(1);
+    expect(walkGroups([성수, 성수옆], coord, 10)).toEqual([]);
+  });
 
-  it("묶어도 항목이 사라지거나 겹치지 않는다", () => {
-    const members = walkGroups([성수, 성수옆, 홍대, 홍대옆], coord, 20).flatMap(
-      (g) => g.members
-    )
-    expect(members).toHaveLength(4)
-    expect(new Set(members).size).toBe(4)
-  })
-})
+  it('묶어도 항목이 사라지거나 겹치지 않는다', () => {
+    const members = walkGroups([성수, 성수옆, 홍대, 홍대옆], coord, 20).flatMap((g) => g.members);
+    expect(members).toHaveLength(4);
+    expect(new Set(members).size).toBe(4);
+  });
+});
 ```
 
 - [ ] **Step 2: 실패를 확인한다**
@@ -554,9 +538,9 @@ git add -A && git commit -m "refactor(walk): lift the walking-time arithmetic ou
 
 ```ts
 /** 도보 묶음 제목. 예: "걸어서 12분" */
-walkGroupLabel: (minutes: number) => string
+walkGroupLabel: (minutes: number) => string;
 /** 묶기 섹션의 제목. */
-walkHeading: string
+walkHeading: string;
 ```
 
 ```ts
