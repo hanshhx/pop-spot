@@ -310,15 +310,20 @@ function ddayOf(endDate: string | null, today: Date): number | null {
  * 걸어서 묶기용 좌표 변환.
  *
  * <p>{@code latitude}/{@code longitude} 는 {@code PublicMapMarker} 처럼 문자열이거나 없다.
- * {@code Number(null)} 은 조용히 0 이 되고 {@code Number.isFinite(0)} 은 참이라, null 을 그대로
+ * {@code Number(null)} 은 조용히 0 이 되고 {@code Number(' ')} 도 공백을 잘라내고 0 이 되는데,
+ * {@code Number.isFinite(0)} 은 둘 다 참이다 — null 이든 공백뿐인 문자열이든 그대로
  * {@code Number()} 에 넣으면 좌표 없는 팝업이 적도·아프리카 서해안(0, 0)으로 떨어져 다른 깨진
- * 행과 한 묶음이 된다. 그래서 변환 전에 null/빈 문자열을 먼저 걸러 낸다.
+ * 행과 한 묶음이 된다. 그래서 변환 전에 trim 한 뒤 null/빈 문자열을 먼저 걸러 낸다.
  */
 function markerCoord(m: Marker): { lat: number; lng: number } | null {
-  if (!m.latitude || !m.longitude) return null;
-  const lat = Number(m.latitude);
-  const lng = Number(m.longitude);
-  return Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null;
+  const lat = m.latitude?.trim();
+  const lng = m.longitude?.trim();
+  if (!lat || !lng) return null;
+  const parsedLat = Number(lat);
+  const parsedLng = Number(lng);
+  return Number.isFinite(parsedLat) && Number.isFinite(parsedLng)
+    ? { lat: parsedLat, lng: parsedLng }
+    : null;
 }
 
 /** 상태 → 배지(문구·색). 종료·상시는 무배지. */
@@ -771,14 +776,20 @@ export async function SliceLandingPage({ slug, locale }: { slug: string; locale:
   /**
    * 걸어서 묶기 — "지금 고른다면" 다음, 본문 목록 위에 놓는 실행 단계 정보.
    *
-   * <p>{@code sorted}(마감임박순)를 그대로 입력 순서로 써서, 묶음의 anchor(각 묶음의 첫 항목)가
-   * 그 안에서 가장 급한 팝업이 되게 한다 — "이거 보러 가는 김에 걸어서 갈 수 있는 곳" 이라는
-   * 맥락이 화면 설명 없이도 순서만으로 선다. 좌표 없는 팝업은 {@link markerCoord} 가 null 을
-   * 돌려줘 {@code walkGroups} 가 알아서 뺀다 — 본문 목록(sorted/filtered)은 이 결과와 무관하게
-   * 그대로 전부 그린다.
+   * <p>이 섹션은 <b>이 목록을 걸어서 묶은 것</b>이다 — 그래서 입력을 {@code sorted} 전체가 아니라
+   * 목록이 실제로 그리는 {@code sorted.slice(0, LIST_LIMIT)} 로 좁힌다. 전체를 넣으면 목록에
+   * 안 보이는 60위 밖의 팝업이 좌표만 있으면 묶여서 이름이 뜰 수 있다 — 읽는 사람이 스크롤해
+   * 내려가도 그 이름을 못 찾는 오류가 된다. 지금은 성수·이번달·강남·잠실·홍대 다섯 곳 모두 묶이는
+   * 팝업이 상위 60위 안에서만 나와 우연히 안 터졌을 뿐, 근거 없이 우연에 기대지 않는다.
+   *
+   * <p>같은 풀 안에서 {@code sorted}(마감임박순) 순서를 그대로 입력 순서로 써서, 묶음의
+   * anchor(각 묶음의 첫 항목)가 그 안에서 가장 급한 팝업이 되게 한다 — "이거 보러 가는 김에
+   * 걸어서 갈 수 있는 곳" 이라는 맥락이 화면 설명 없이도 순서만으로 선다. 좌표 없는 팝업은
+   * {@link markerCoord} 가 null 을 돌려줘 {@code walkGroups} 가 알아서 뺀다 — 본문 목록
+   * (sorted/filtered) 은 이 결과와 무관하게 그대로 전부 그린다.
    */
   const walkClusters = walkGroups(
-    sorted.map((s) => s.m),
+    sorted.slice(0, LIST_LIMIT).map((s) => s.m),
     markerCoord,
   ).slice(0, WALK_GROUP_LIMIT);
 
