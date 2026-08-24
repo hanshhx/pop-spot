@@ -5,8 +5,11 @@ import { Suspense } from 'react';
 import { ArrowLeft, MapPin, Calendar, Tag, Clock, Flame, Footprints } from 'lucide-react';
 
 import LocaleSwitcher from '@/components/LocaleSwitcher';
+import DeferredInteractiveMap from '@/components/Map/DeferredInteractiveMap';
 import { landingSeason } from '@/lib/landingSeason';
 import { landingStatus, type LandingStatus } from '@/lib/landingStatus';
+import { mappable } from '@/lib/mappable';
+import type { PublicMapMarker } from '@/lib/mapMarkers';
 import { REGIONS, classifyRegion, regionBySlug } from '@/lib/regions';
 import { LANDING_COPY, type LandingCopy, type MetaPick, type PickReason } from '@/lib/landingCopy';
 import { localizedLabel } from '@/lib/localeLabel';
@@ -316,6 +319,38 @@ function markerCoord(m: Marker): { lat: number; lng: number } | null {
   return Number.isFinite(parsedLat) && Number.isFinite(parsedLng)
     ? { lat: parsedLat, lng: parsedLng }
     : null;
+}
+
+/**
+ * {@link mappable} 이 받는 {@code PublicMapMarker[]} 로 좁힌다.
+ *
+ * <p>이 페이지의 {@code Marker} 는 {@code latitude}/{@code longitude} 가 선택 필드(있을 수도,
+ * 없을 수도)인데 {@code PublicMapMarker} 는 두 필드가 <b>필수</b>다(값 자체는 null 이어도 된다).
+ * HomeClient 의 {@code popupToMapMarker} 와 같은 이유로, 값 판정은 여기서 하지 않고 없는 필드만
+ * {@code null} 로 채운다 — 좌표가 있는지 없는지는 {@code mappable} 이 다시 본다.
+ */
+function toPublicMapMarkers(markers: Marker[]): PublicMapMarker[] {
+  return markers.map((m) => ({
+    ...m,
+    latitude: m.latitude ?? null,
+    longitude: m.longitude ?? null,
+  }));
+}
+
+/**
+ * 지도 초기 중심 — 찍히는 마커들의 좌표 평균.
+ *
+ * <p>{@code InteractiveMap} 은 {@code initialMarkers} 만 받으면 마커에 맞춰 스스로 카메라를
+ * 옮기지 않는다(고정된 성수 시작 위치 그대로) — {@code center} 를 받아야 그쪽으로 panTo 한다.
+ * 안 넘기면 성수가 아닌 지역 슬라이스는 핀이 화면 밖에 있어 빈 지도로 보인다.
+ */
+function markersCenter(markers: PublicMapMarker[]): { lat: number; lng: number } | undefined {
+  if (markers.length === 0) return undefined;
+  const sum = markers.reduce(
+    (acc, m) => ({ lat: acc.lat + Number(m.latitude), lng: acc.lng + Number(m.longitude) }),
+    { lat: 0, lng: 0 },
+  );
+  return { lat: sum.lat / markers.length, lng: sum.lng / markers.length };
 }
 
 /** 상태 → 배지(문구·색). 종료·상시는 무배지. */
@@ -766,6 +801,14 @@ export async function SliceLandingPage({ slug, locale }: { slug: string; locale:
   const topPicks = nowPicks(filtered, todayStart);
 
   /**
+   * 지도 — "지금 고른다면" 다음, "걸어서 묶어 보기" 바로 위. {@code filtered} 전체(목록이 자르는
+   * LIST_LIMIT 이전 값)를 넣는다. 지도는 이름을 나열하지 않고 위치만 찍으므로, 61번째 이후 팝업도
+   * 좌표가 있으면 찍힌다 — "N곳 중 M곳" 의 N 이 실제 총 건수({@code count})와 같아야 하기 때문이다.
+   */
+  const mapMarkers = mappable(toPublicMapMarkers(filtered));
+  const mapCenter = markersCenter(mapMarkers.shown);
+
+  /**
    * 걸어서 묶기 — "지금 고른다면" 다음, 본문 목록 위에 놓는 실행 단계 정보.
    *
    * <p>이 섹션은 <b>이 목록을 걸어서 묶은 것</b>이다 — 그래서 입력을 {@code sorted} 전체가 아니라
@@ -1002,6 +1045,30 @@ export async function SliceLandingPage({ slug, locale }: { slug: string; locale:
                 </ul>
                 {/* 무엇을 기준으로 골랐는지 밝힌다. 안 밝히면 광고로 읽힌다. */}
                 <p className="mt-3 text-xs text-muted-foreground">{copy.pickNote}</p>
+              </section>
+            )}
+
+            {/* 지도 — "걸어서 묶어 보기" 바로 위. 읽는 순서가 "여기 모여 있다 → 걸어서 묶으면
+                이렇다" 로 이어진다. 첫 화면이 아니므로 LCP 를 잡지 않는다 — DeferredInteractiveMap
+                이 이 섹션이 스크롤로 들어오기 전에는 지도 번들도 pmtiles 타일도 받지 않는다.
+                좌표가 있는 팝업만 찍는다(mappable) — 못 찍는 나머지는 지우지 않고 본문 목록에
+                그대로 남는다. 찍을 것이 하나도 없으면 섹션 자체를 그리지 않는다(빈 지도는 서울
+                전체를 보여주는 사진일 뿐 아무것도 답하지 않는다). 무게는 걸어서 묶기·곧 열리는
+                팝업과 같은 h3/text-sm 다 — 본문을 돕는 보조 섹션이라 h2/text-lg 를 쓰지 않는다. */}
+            {mapMarkers.shown.length > 0 && (
+              <section className="mb-6 rounded-2xl border border-gray-200 bg-white px-5 py-4 shadow-lg shadow-black/5 dark:border-white/10 dark:bg-[#17181c] dark:shadow-black/30 md:px-6 md:py-5">
+                <h3 className="flex items-center gap-2 text-sm font-bold md:text-base">
+                  <MapPin size={15} className="shrink-0 text-lime-500" />
+                  {copy.mapHeading}
+                </h3>
+                <div className="mt-3 h-[280px] overflow-hidden rounded-xl md:h-[380px]">
+                  <DeferredInteractiveMap initialMarkers={mapMarkers.shown} center={mapCenter} />
+                </div>
+                {/* 개수 문구는 지도 아래. 지도를 먼저 보고 나서 "다 있는 건 아니구나" 를 읽는
+                    순서가, 문구를 먼저 읽고 지도를 보는 것보다 자연스럽다. */}
+                <p className="mt-2 text-xs text-muted-foreground">
+                  {copy.mapShownOf(mapMarkers.shown.length, mapMarkers.total)}
+                </p>
               </section>
             )}
 
