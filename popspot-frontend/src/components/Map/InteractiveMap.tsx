@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { MapGL, MapMarker, MapPolyline } from './MapGL';
+import { isClusteringDisabled } from './clusterGate';
 import { zoomFromLevel } from './mapStyle';
 import { useMapReady } from './useMapReady';
 import {
@@ -75,6 +76,35 @@ export interface InteractiveMapProps {
    * 직후 카메라를 다시 당김) 둘 중 하나만 쓴다.
    */
   fitBounds?: { minLat: number; maxLat: number; minLng: number; maxLng: number };
+  /**
+   * 클러스터링을 <b>뷰포트 폭과 무관하게</b> 적용한다. 원래 클러스터링은 모바일 폭에서만 켜진다 —
+   * 홈 지도 탭 · /map · 작전지도 같은 전체 화면 지도는 데스크톱에서도 넓어서 마커마다 이름표를
+   * 그대로 띄워도 괜찮다는 전제였다. 그런데 랜딩 페이지의 지도는 655×370 정도의 작은 카드다.
+   * 성수처럼 마커 112개가 몰린 슬라이스를 그 카드에 그대로 펼치면 이름표끼리 겹쳐 뭉개진다
+   * (실측 — 「샷포로 프리미엄 비」·「뷰오리 드림니트」·「앙스타 팝…」이 같은 몇 픽셀에 쌓인다).
+   * 모바일에서는 같은 페이지가 깔끔한 클러스터 6개로 보인다 — 그 동작을 폭과 무관하게 쓴다.
+   *
+   * <p>선택값이고, <b>없으면 클러스터링 조건은 지금과 한 글자도 다르지 않다</b>({@link
+   * isClusteringDisabled} 참고) — 모바일 폭 조건만 그대로 남는다. 줌 16 이상에서 낱개로 푸는
+   * 탈출구, showPath·PLAN 모드에서 클러스터링을 안 쓰는 규칙은 이 prop 과 무관하게 그대로 있다.
+   */
+  forceCluster?: boolean;
+  /**
+   * 카테고리 필터 칩과 「팝업 목록」 버튼/패널을 DOM 에서 아예 뺀다(CSS 로 숨기기만 하지 않는다).
+   *
+   * <p>둘 다 전체 화면 지도(홈 지도 탭 · /map · 작전지도)를 전제로 만들어졌다. 랜딩 페이지의 작은
+   * 카드(370px 높이)에서는 카테고리 칩이 카드 상단 띠를 가리는 데다, 랜딩 페이지 자체가 이미
+   * 카테고리별로 나뉜 슬라이스라 칩이 페이지 기능과 그대로 겹친다. 「팝업 목록」 패널은 지도
+   * 바로 아래에 있는 목록과 중복일 뿐 아니라 — 그보다 심각하게 — 그 버튼이 카드 하단의 핀 위에
+   * 겹쳐 있어 Playwright 로 확인했을 때 <b>버튼이 그 아래 핀의 클릭을 가로챘다</b>
+   * (`<button aria-label="Pop-up list"> … intercepts pointer events`). 일부 핀을 아예 열 수
+   * 없는 버그였고, CSS 로 숨기기만 하면(display:none 이 아니라 보이지 않게만) 이 가로채기는
+   * 남을 수 있어 DOM 에서 제거한다.
+   *
+   * <p>선택값이고, <b>없으면 지금과 한 글자도 다르지 않다</b> — 동네 바로가기·범례 패널과
+   * 확대/축소·나침반은 이 prop 과 무관하게 그대로 남는다(요청받지 않았다).
+   */
+  hideChrome?: boolean;
 }
 
 interface MapMarkerData {
@@ -365,6 +395,8 @@ export default function InteractiveMap({
   filterIds,
   fitReq,
   fitBounds,
+  forceCluster = false,
+  hideChrome = false,
 }: InteractiveMapProps) {
   const { t, locale } = useLocale();
 
@@ -551,7 +583,7 @@ export default function InteractiveMap({
   }, [markers, renderedMarkers]);
 
   const markerClusters = useMemo<MarkerCluster[]>(() => {
-    if (!isMobileViewport || zoomLevel >= 16 || showPath || mode === 'PLAN') {
+    if (isClusteringDisabled({ isMobileViewport, forceCluster, zoomLevel, showPath, mode })) {
       return renderedMarkers.map((marker) => ({
         key: String(marker.popupId),
         markers: [marker],
@@ -581,7 +613,7 @@ export default function InteractiveMap({
         groupedMarkers.reduce((sum, marker) => sum + parseFloat(marker.longitude), 0) /
         groupedMarkers.length,
     }));
-  }, [isMobileViewport, mode, renderedMarkers, showPath, zoomLevel]);
+  }, [forceCluster, isMobileViewport, mode, renderedMarkers, showPath, zoomLevel]);
 
   useEffect(() => {
     if (!map) return;
@@ -815,24 +847,28 @@ export default function InteractiveMap({
       {!showPath && mode !== 'PLAN' && (
         <>
           {/* 상단 카테고리 필터 (반응형 패딩, 폰트 조절). pr-12: 우측 상단 '탐색' 버튼 자리 확보. */}
-          <div className="absolute top-3 md:top-4 left-3 md:left-4 right-3 md:right-4 z-20 flex gap-1.5 md:gap-2 overflow-x-auto custom-scrollbar pb-1.5 md:pb-2 pl-10 md:pl-0 pr-12 md:pr-14 transition-all">
-            {CATEGORIES.map((cat) => (
-              <button
-                key={`cat-btn-${cat}`}
-                onClick={() => {
-                  setActiveCategory(cat);
-                  setSelectedMarker(null);
-                }}
-                className={`px-3 py-1 md:px-4 md:py-1.5 rounded-full text-[9px] md:text-[10px] font-bold backdrop-blur-md border transition-all whitespace-nowrap ${
-                  activeCategory === cat
-                    ? 'bg-primary text-black border-primary shadow-[0_0_10px_rgba(var(--primary-rgb),0.5)]'
-                    : 'bg-black/40 text-white/70 border-white/10 hover:bg-white/10'
-                }`}
-              >
-                {CATEGORY_LABEL_KEY[cat] ? t(CATEGORY_LABEL_KEY[cat]) : cat}
-              </button>
-            ))}
-          </div>
+          {/* hideChrome — 랜딩 카드는 이미 카테고리별 슬라이스라 칩이 페이지 기능과 겹친다.
+              CSS 로 숨기지 않고 DOM 에서 아예 뺀다(InteractiveMapProps.hideChrome 주석 참고). */}
+          {!hideChrome && (
+            <div className="absolute top-3 md:top-4 left-3 md:left-4 right-3 md:right-4 z-20 flex gap-1.5 md:gap-2 overflow-x-auto custom-scrollbar pb-1.5 md:pb-2 pl-10 md:pl-0 pr-12 md:pr-14 transition-all">
+              {CATEGORIES.map((cat) => (
+                <button
+                  key={`cat-btn-${cat}`}
+                  onClick={() => {
+                    setActiveCategory(cat);
+                    setSelectedMarker(null);
+                  }}
+                  className={`px-3 py-1 md:px-4 md:py-1.5 rounded-full text-[9px] md:text-[10px] font-bold backdrop-blur-md border transition-all whitespace-nowrap ${
+                    activeCategory === cat
+                      ? 'bg-primary text-black border-primary shadow-[0_0_10px_rgba(var(--primary-rgb),0.5)]'
+                      : 'bg-black/40 text-white/70 border-white/10 hover:bg-white/10'
+                  }`}
+                >
+                  {CATEGORY_LABEL_KEY[cat] ? t(CATEGORY_LABEL_KEY[cat]) : cat}
+                </button>
+              ))}
+            </div>
+          )}
 
           {/* 우측 상단 — 동네 바로가기 + 범례 토글 */}
           <div className="absolute top-3 md:top-4 right-3 md:right-4 z-30">
@@ -899,121 +935,134 @@ export default function InteractiveMap({
             </AnimatePresence>
           </div>
 
-          {/* 사이드바 목록 (반응형 너비 조절) */}
-          <AnimatePresence>
-            {isListOpen && (
-              <motion.div
-                initial={{ y: 80, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                exit={{ y: 80, opacity: 0 }}
-                transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-                className={`absolute inset-x-0 bottom-0 z-30 flex flex-col rounded-t-[1.75rem] border-t border-white/10 bg-black/90 shadow-2xl backdrop-blur-xl transition-[height] duration-300 md:inset-y-0 md:right-auto md:w-[280px] md:rounded-none md:border-r md:border-t-0 ${
-                  isListExpanded ? 'h-[76%]' : 'h-[40%]'
-                } md:h-auto`}
-              >
-                <div className="border-b border-white/10 p-3 md:p-4">
-                  <button
-                    type="button"
-                    onClick={() => setIsListExpanded((current) => !current)}
-                    className="mx-auto mb-2 block h-1.5 w-12 rounded-full bg-white/35 md:hidden"
-                    aria-label={isListExpanded ? 'Collapse popup list' : 'Expand popup list'}
-                  />
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-white font-bold text-base md:text-lg flex items-center gap-1.5 md:gap-2">
-                      <List size={16} className="text-primary md:w-[18px] md:h-[18px]" /> POPUP LIST
-                    </h3>
-                    <button
-                      onClick={() => setIsListOpen(false)}
-                      className="p-1 hover:bg-white/10 rounded-full transition-colors"
-                    >
-                      <X
-                        size={16}
-                        className="text-muted hover:text-white md:w-[18px] md:h-[18px]"
+          {/* 사이드바 목록 + 리스트 컨트롤러 버튼.
+              hideChrome — 지도 바로 아래 목록과 중복인 데다, 이 버튼이 카드 하단 핀 위에 겹쳐
+              Playwright 로 핀 클릭을 가로채는 게 확인됐다(InteractiveMapProps.hideChrome 주석).
+              CSS 로 숨기지 않고 DOM 에서 아예 뺀다 — 숨기기만 하면 포인터 이벤트 가로채기가 남는다. */}
+          {!hideChrome && (
+            <>
+              {/* 사이드바 목록 (반응형 너비 조절) */}
+              <AnimatePresence>
+                {isListOpen && (
+                  <motion.div
+                    initial={{ y: 80, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    exit={{ y: 80, opacity: 0 }}
+                    transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                    className={`absolute inset-x-0 bottom-0 z-30 flex flex-col rounded-t-[1.75rem] border-t border-white/10 bg-black/90 shadow-2xl backdrop-blur-xl transition-[height] duration-300 md:inset-y-0 md:right-auto md:w-[280px] md:rounded-none md:border-r md:border-t-0 ${
+                      isListExpanded ? 'h-[76%]' : 'h-[40%]'
+                    } md:h-auto`}
+                  >
+                    <div className="border-b border-white/10 p-3 md:p-4">
+                      <button
+                        type="button"
+                        onClick={() => setIsListExpanded((current) => !current)}
+                        className="mx-auto mb-2 block h-1.5 w-12 rounded-full bg-white/35 md:hidden"
+                        aria-label={isListExpanded ? 'Collapse popup list' : 'Expand popup list'}
                       />
-                    </button>
-                  </div>
-                </div>
-
-                <div className="flex-1 overflow-y-auto custom-scrollbar p-2 md:p-3 space-y-1.5 md:space-y-2">
-                  {listMarkers.length > 0 ? (
-                    listMarkers.map((marker, index) => {
-                      const shown = shownName(marker);
-                      return (
-                        <div
-                          key={`sidebar-item-${marker.popupId || index}`}
-                          onClick={() => moveToMarker(marker)}
-                          role="button"
-                          tabIndex={0}
-                          aria-label={`${shown.display}${t('map.markerAria')}`}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' || e.key === ' ') {
-                              e.preventDefault();
-                              moveToMarker(marker);
-                            }
-                          }}
-                          className={`p-2.5 md:p-3 rounded-xl border cursor-pointer transition-all hover:translate-x-1 focus:outline-none focus:ring-2 focus:ring-primary/60 ${
-                            selectedMarker?.popupId === marker.popupId
-                              ? 'bg-white/10 border-primary/50 shadow-[0_0_10px_rgba(var(--primary-rgb),0.2)]'
-                              : 'bg-transparent border-white/5 hover:bg-white/5 hover:border-white/20'
-                          }`}
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-white font-bold text-base md:text-lg flex items-center gap-1.5 md:gap-2">
+                          <List size={16} className="text-primary md:w-[18px] md:h-[18px]" /> POPUP
+                          LIST
+                        </h3>
+                        <button
+                          onClick={() => setIsListOpen(false)}
+                          className="p-1 hover:bg-white/10 rounded-full transition-colors"
                         >
-                          {/* 목록은 자리가 있다 — 번역명 아래에 한국어 원문을 작게 붙여
-                            간판·지도앱과 대조할 수 있게 남긴다. 번역이 없으면 원문만 나온다. */}
-                          <h4
-                            className={`font-bold text-xs md:text-sm ${shown.original ? '' : 'mb-1'} ${selectedMarker?.popupId === marker.popupId ? 'text-primary' : 'text-white'}`}
-                          >
-                            {shown.display}
-                          </h4>
-                          {shown.original && (
-                            <p className="mb-1 truncate text-[10px] text-muted">{shown.original}</p>
-                          )}
-                          <p className="text-[10px] md:text-xs text-muted flex items-center gap-1 truncate">
-                            <MapPin size={10} className="shrink-0" /> {marker.address}
-                          </p>
-                        </div>
-                      );
-                    })
-                  ) : (
-                    <div className="text-center text-muted text-[10px] md:text-xs py-8 md:py-10">
-                      {t('map.emptyLine1')}
-                      <br />
-                      {t('map.emptyLine2')}
+                          <X
+                            size={16}
+                            className="text-muted hover:text-white md:w-[18px] md:h-[18px]"
+                          />
+                        </button>
+                      </div>
                     </div>
-                  )}
-                </div>
 
-                <div className="p-2.5 md:p-3 border-t border-white/10 text-center">
-                  <span className="text-[10px] md:text-xs text-muted">
-                    Total <strong className="text-white">{markers.length}</strong> Locations
-                  </span>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+                    <div className="flex-1 overflow-y-auto custom-scrollbar p-2 md:p-3 space-y-1.5 md:space-y-2">
+                      {listMarkers.length > 0 ? (
+                        listMarkers.map((marker, index) => {
+                          const shown = shownName(marker);
+                          return (
+                            <div
+                              key={`sidebar-item-${marker.popupId || index}`}
+                              onClick={() => moveToMarker(marker)}
+                              role="button"
+                              tabIndex={0}
+                              aria-label={`${shown.display}${t('map.markerAria')}`}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                  e.preventDefault();
+                                  moveToMarker(marker);
+                                }
+                              }}
+                              className={`p-2.5 md:p-3 rounded-xl border cursor-pointer transition-all hover:translate-x-1 focus:outline-none focus:ring-2 focus:ring-primary/60 ${
+                                selectedMarker?.popupId === marker.popupId
+                                  ? 'bg-white/10 border-primary/50 shadow-[0_0_10px_rgba(var(--primary-rgb),0.2)]'
+                                  : 'bg-transparent border-white/5 hover:bg-white/5 hover:border-white/20'
+                              }`}
+                            >
+                              {/* 목록은 자리가 있다 — 번역명 아래에 한국어 원문을 작게 붙여
+                            간판·지도앱과 대조할 수 있게 남긴다. 번역이 없으면 원문만 나온다. */}
+                              <h4
+                                className={`font-bold text-xs md:text-sm ${shown.original ? '' : 'mb-1'} ${selectedMarker?.popupId === marker.popupId ? 'text-primary' : 'text-white'}`}
+                              >
+                                {shown.display}
+                              </h4>
+                              {shown.original && (
+                                <p className="mb-1 truncate text-[10px] text-muted">
+                                  {shown.original}
+                                </p>
+                              )}
+                              <p className="text-[10px] md:text-xs text-muted flex items-center gap-1 truncate">
+                                <MapPin size={10} className="shrink-0" /> {marker.address}
+                              </p>
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <div className="text-center text-muted text-[10px] md:text-xs py-8 md:py-10">
+                          {t('map.emptyLine1')}
+                          <br />
+                          {t('map.emptyLine2')}
+                        </div>
+                      )}
+                    </div>
 
-          {/* 우측 하단 리스트 컨트롤러 (반응형 여백/크기 조절) */}
-          <div className="absolute bottom-4 md:bottom-6 right-3 md:right-4 z-20 flex flex-col gap-2">
-            <button
-              onClick={() => setIsListOpen(!isListOpen)}
-              aria-label={t('map.listAria')}
-              aria-expanded={isListOpen}
-              className={`flex min-h-11 items-center gap-2 rounded-full border px-4 py-2 text-xs font-black text-white shadow-lg backdrop-blur-md transition-all md:rounded-xl md:p-2.5 ${
-                isListOpen
-                  ? 'bg-primary text-black border-primary'
-                  : 'bg-black/80 border-white/20 hover:text-primary hover:border-primary'
-              }`}
-            >
-              <List size={16} className="md:w-[18px] md:h-[18px]" />
-              <span className="md:sr-only">{t('map.listAria')}</span>
-            </button>
-          </div>
+                    <div className="p-2.5 md:p-3 border-t border-white/10 text-center">
+                      <span className="text-[10px] md:text-xs text-muted">
+                        Total <strong className="text-white">{markers.length}</strong> Locations
+                      </span>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* 우측 하단 리스트 컨트롤러 (반응형 여백/크기 조절) */}
+              <div className="absolute bottom-4 md:bottom-6 right-3 md:right-4 z-20 flex flex-col gap-2">
+                <button
+                  onClick={() => setIsListOpen(!isListOpen)}
+                  aria-label={t('map.listAria')}
+                  aria-expanded={isListOpen}
+                  className={`flex min-h-11 items-center gap-2 rounded-full border px-4 py-2 text-xs font-black text-white shadow-lg backdrop-blur-md transition-all md:rounded-xl md:p-2.5 ${
+                    isListOpen
+                      ? 'bg-primary text-black border-primary'
+                      : 'bg-black/80 border-white/20 hover:text-primary hover:border-primary'
+                  }`}
+                >
+                  <List size={16} className="md:w-[18px] md:h-[18px]" />
+                  <span className="md:sr-only">{t('map.listAria')}</span>
+                </button>
+              </div>
+            </>
+          )}
         </>
       )}
 
-      {/* 공통 컨트롤러 (위치, 줌) - 반응형 여백 조절 */}
+      {/* 공통 컨트롤러 (위치, 줌) - 반응형 여백 조절.
+          hideChrome 일 때는 그 아래 64px 여백이 없는 리스트 버튼을 위해 비워둔 자리라, 카드
+          하단에 빈 틈만 남는다 — hideChrome 이면 그 여백 없이 16px 로 붙인다. */}
       <div
         className="absolute right-3 md:right-4 z-20 flex flex-col gap-1.5 md:gap-2"
-        style={{ bottom: showPath || mode === 'PLAN' ? '16px' : '64px' }}
+        style={{ bottom: showPath || mode === 'PLAN' || hideChrome ? '16px' : '64px' }}
       >
         <button
           onClick={handleMyLocation}
@@ -1201,7 +1250,7 @@ export default function InteractiveMap({
                         </span>
                         <span
                           className={`font-bold text-[10px] md:text-xs ${
-                            isMobileViewport && zoomLevel < 15.5 ? 'hidden' : ''
+                            (isMobileViewport || forceCluster) && zoomLevel < 15.5 ? 'hidden' : ''
                           }`}
                         >
                           {truncateForPin(shownName(marker).display, locale)}
