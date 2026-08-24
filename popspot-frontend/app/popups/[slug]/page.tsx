@@ -5,10 +5,10 @@ import { Suspense } from 'react';
 import { ArrowLeft, MapPin, Calendar, Tag, Clock, Flame, Footprints } from 'lucide-react';
 
 import LocaleSwitcher from '@/components/LocaleSwitcher';
-import DeferredInteractiveMap from '@/components/Map/DeferredInteractiveMap';
+import LandingMap from '@/components/Map/LandingMap';
 import { landingSeason } from '@/lib/landingSeason';
 import { landingStatus, type LandingStatus } from '@/lib/landingStatus';
-import { mappable, markerBounds } from '@/lib/mappable';
+import { markerBounds, openMappable } from '@/lib/mappable';
 import type { PublicMapMarker } from '@/lib/mapMarkers';
 import { REGIONS, classifyRegion, regionBySlug } from '@/lib/regions';
 import { LANDING_COPY, type LandingCopy, type MetaPick, type PickReason } from '@/lib/landingCopy';
@@ -787,9 +787,23 @@ export async function SliceLandingPage({ slug, locale }: { slug: string; locale:
   /**
    * 지도 — "지금 고른다면" 다음, "걸어서 묶어 보기" 바로 위. {@code filtered} 전체(목록이 자르는
    * LIST_LIMIT 이전 값)를 넣는다. 지도는 이름을 나열하지 않고 위치만 찍으므로, 61번째 이후 팝업도
-   * 좌표가 있으면 찍힌다 — "N곳 중 M곳" 의 N 이 실제 총 건수({@code count})와 같아야 하기 때문이다.
+   * 좌표가 있으면 찍힌다.
+   *
+   * <p>{@code filtered} 는 아직 열지 않은 팝업도 남긴다 — 이 페이지의 "곧 열리는 팝업" 절이 그걸
+   * 따로 쓰기 때문이다. 반면 지도({@code InteractiveMap})는 받은 마커를 자기 안에서
+   * {@code isOpenNow} 로 한 번 더 걸러 <b>지금 열려 있는 것만</b> 핀으로 찍는다(홈·랭킹과 같은
+   * 기준 — {@link isOpenNow} 문서의 "홈 659곳 / 지도 623곳" 사례가 이 어긋남 자체다). 그래서
+   * {@code mappable()} 앞에 같은 {@code isOpenNow} 를 먼저 걸지 않으면, 여기서 세는 개수(M)에는
+   * 아직 시작 전인 팝업이 들어가는데 정작 지도에는 그 핀이 없다 — 문구와 화면이 서로 다른 수를
+   * 말한다. {@link openMappable} 이 그 필터와 집계를 한곳에 묶어, 핀과 개수가 항상 같은 집합에서
+   * 나오게 한다.
+   *
+   * <p><b>따라서 N({@code mapMarkers.total})은 이제 이 슬라이스의 총 건수({@code count})보다
+   * 작을 수 있다.</b> {@code count} 는 슬라이스에 속하는 모든 팝업을 센 값이고, N 은 그중
+   * "서울 안 + 지금 열려 있는" 것만 남긴 값이기 때문이다 — 의도된 차이다. 지도 아래 문구의 N 은
+   * 지도가 실제로 그리는 모집단이어야지, 페이지 헤더의 총 건수와 같을 필요는 없다.
    */
-  const mapMarkers = mappable(toPublicMapMarkers(filtered));
+  const mapMarkers = openMappable(toPublicMapMarkers(filtered), todayStart);
   /**
    * {@code InteractiveMap} 은 {@code initialMarkers} 만 받으면 마커에 맞춰 스스로 카메라를 옮기지
    * 않는다(고정된 성수 시작 위치·줌 그대로) — {@code fitBounds} 를 받아야 그 사각형이 다 보이도록
@@ -1041,7 +1055,11 @@ export async function SliceLandingPage({ slug, locale }: { slug: string; locale:
 
             {/* 지도 — "걸어서 묶어 보기" 바로 위. 읽는 순서가 "여기 모여 있다 → 걸어서 묶으면
                 이렇다" 로 이어진다. 첫 화면이 아니므로 LCP 를 잡지 않는다 — DeferredInteractiveMap
-                이 이 섹션이 스크롤로 들어오기 전에는 지도 번들도 pmtiles 타일도 받지 않는다.
+                은 이 섹션이 뷰포트 320px 앞(IntersectionObserver rootMargin)에 들어오면 지도
+                번들과 pmtiles 타일을 미리 받기 시작한다. 본문이 짧은 슬러그(교차 조합형 페이지가
+                대부분이다)에서는 그 320px 범위가 스크롤 0인 첫 화면 안에 들어와, 실제로는 스크롤
+                없이도 곧장 받기 시작할 수 있다 — 그래도 지도 자체는 아래쪽 보조 섹션이라 LCP를
+                재는 요소는 아니다.
                 좌표가 있는 팝업만 찍는다(mappable) — 못 찍는 나머지는 지우지 않고 본문 목록에
                 그대로 남는다. 찍을 것이 하나도 없으면 섹션 자체를 그리지 않는다(빈 지도는 서울
                 전체를 보여주는 사진일 뿐 아무것도 답하지 않는다). 무게는 걸어서 묶기·곧 열리는
@@ -1053,7 +1071,11 @@ export async function SliceLandingPage({ slug, locale }: { slug: string; locale:
                   {copy.mapHeading}
                 </h3>
                 <div className="mt-3 h-[280px] overflow-hidden rounded-xl md:h-[380px]">
-                  <DeferredInteractiveMap initialMarkers={mapMarkers.shown} fitBounds={mapBounds} />
+                  <LandingMap
+                    initialMarkers={mapMarkers.shown}
+                    fitBounds={mapBounds}
+                    localePrefix={home === '/' ? '' : home}
+                  />
                 </div>
                 {/* 개수 문구는 지도 아래. 지도를 먼저 보고 나서 "다 있는 건 아니구나" 를 읽는
                     순서가, 문구를 먼저 읽고 지도를 보는 것보다 자연스럽다. */}
