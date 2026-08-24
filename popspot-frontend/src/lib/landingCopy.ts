@@ -134,6 +134,10 @@ export type LandingCopy = {
   ddayOngoing: string;
   /** 아직 열지 않은 팝업의 배지. 며칠 뒤에 여는지. */
   ddayOpensIn: (days: number) => string;
+  /** 곧 열리는 팝업 섹션의 제목. */
+  upcomingHeading: string;
+  /** 그 섹션의 한 줄 설명. */
+  upcomingNote: string;
   todayMark: (md: string) => string;
   feedbackHeading: string;
   feedbackNote: string;
@@ -289,6 +293,8 @@ const ko: LandingCopy = {
   ddayTomorrow: '내일 마감',
   ddayOngoing: '진행 중',
   ddayOpensIn: (d) => `${d}일 뒤 오픈`,
+  upcomingHeading: '곧 열리는 팝업',
+  upcomingNote: '아직 열지 않았습니다. 여는 날 순서입니다.',
   todayMark: (md) => `${md}(오늘)`,
   feedbackHeading: '이 목록에 빠졌거나 틀린 팝업이 있나요?',
   feedbackNote:
@@ -463,6 +469,8 @@ const en: LandingCopy = {
   ddayTomorrow: 'Closes tomorrow',
   ddayOngoing: 'Open',
   ddayOpensIn: (d) => `Opens in ${d}d`,
+  upcomingHeading: 'Opening soon',
+  upcomingNote: 'Not open yet — sorted by opening day.',
   todayMark: (md) => `${md} (today)`,
   feedbackHeading: 'Something missing or wrong in this list?',
   feedbackNote:
@@ -622,6 +630,8 @@ const ja: LandingCopy = {
   ddayTomorrow: '明日終了',
   ddayOngoing: '開催中',
   ddayOpensIn: (d) => `あと${d}日で開始`,
+  upcomingHeading: 'まもなく開催',
+  upcomingNote: 'まだ開いていません。開始日順です。',
   todayMark: (md) => `${md}（本日）`,
   feedbackHeading: 'この一覧に漏れや誤りがありますか？',
   feedbackNote:

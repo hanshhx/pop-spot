@@ -502,6 +502,15 @@ function jsonLd(obj: unknown): string {
 const LIST_LIMIT = 60;
 
 /**
+ * "곧 열리는 팝업" 섹션에 보여줄 최대 개수.
+ *
+ * <p>본문 목록(LIST_LIMIT=60)처럼 다 보여줄 필요가 없다 — 이 섹션은 본문 아래에 얹는 부차 정보라,
+ * 길어지면 오히려 본문을 훑고 나가려는 사람을 여기서 또 붙잡는 꼴이 된다. "지금 고른다면"(3장,
+ * 큐레이션)과 본문 목록(60, 전수) 사이 어딘가로, 한 화면에서 스크롤 없이 훑을 수 있는 선을 잡았다.
+ */
+const UPCOMING_LIMIT = 6;
+
+/**
  * ItemList 에 담을 실제 팝업 이름.
  *
  * <p>Google Event 는 행사마다 고유한 상세 URL에서 그 행사 하나만 다뤄야 한다. 목록 페이지에서 여러
@@ -714,6 +723,21 @@ export async function SliceLandingPage({ slug, locale }: { slug: string; locale:
   const minDday = Number.isFinite(soonest) ? soonest : null;
 
   const topPicks = nowPicks(filtered, todayStart);
+
+  /**
+   * 곧 열리는 팝업 — sorted 에서 status 만 다시 걸러 쓴다. 두 번째 시계를 만들지 않는다: 여기 쓰는
+   * status 는 위 sorted 를 만들 때 이미 todayStart 하나로 계산해 둔 값이다.
+   *
+   * <p><b>여는 날 오름차순.</b> 본문 목록은 마감(D-day) 기준이지만, 아직 열지도 않은 팝업에게
+   * 마감 기준은 의미가 없다. 이 섹션이 답하는 질문은 "언제 갈 수 있나" 지 "언제 닫나" 가 아니다.
+   */
+  const upcoming = sorted
+    .filter(
+      (s): s is typeof s & { status: Extract<LandingStatus, { kind: 'upcoming' }> } =>
+        s.status.kind === 'upcoming',
+    )
+    .sort((a, b) => a.status.opensIn - b.status.opensIn)
+    .slice(0, UPCOMING_LIMIT);
 
   // 0곳일 때 대신 보여 줄 것 — 지금 열려 있는 아무 팝업이나 마감 임박순으로.
   //
@@ -1082,6 +1106,55 @@ export async function SliceLandingPage({ slug, locale }: { slug: string; locale:
                 </ul>
               </div>
             )}
+          </section>
+        )}
+
+        {/* 곧 열리는 팝업 — 본문 목록 아래, 정정 창구 위. 본문(위)이 이 페이지의 본선이라 그 앞을
+            가로막지 않는다. count===0 이어도 뜰 수 있다: "지금 열린 곳은 없지만 곧 열릴 곳은
+            있다"는 이 슬라이스에서 그 자체로 유효한 답이라, 위 두 블록 중 어느 쪽이 떴는지와
+            무관하게 독립적으로 판단한다. 한 건도 없으면 섹션 자체를 그리지 않는다 — 빈 제목만
+            남기지 않는다. */}
+        {upcoming.length > 0 && (
+          <section className="mt-10 rounded-2xl border border-gray-200 bg-white px-5 py-4 shadow-lg shadow-black/5 dark:border-white/10 dark:bg-[#17181c] dark:shadow-black/30 md:px-6 md:py-5">
+            <h2 className="flex items-center gap-2 text-sm font-bold md:text-base">
+              <Calendar size={15} className="shrink-0 text-gray-400" />
+              {copy.upcomingHeading}
+            </h2>
+            <p className="mt-1 text-xs text-muted-foreground md:text-sm">{copy.upcomingNote}</p>
+            <ul className="mt-3 space-y-2">
+              {upcoming.map(({ m, status }) => {
+                const badge = ddayBadge(status, copy);
+                const shownName = bilingual(
+                  m.name,
+                  locale === 'en' ? m.nameEn : locale === 'ja' ? m.nameJa : null,
+                );
+                const shownPlace = bilingual(
+                  m.location,
+                  locale === 'en' ? m.locationEn : locale === 'ja' ? m.locationJa : null,
+                );
+                return (
+                  <li key={m.id} className="relative flex items-center gap-2 text-sm">
+                    <Link
+                      href={localizedPath(`/popup/${m.id}`, locale)}
+                      aria-label={copy.detailAria(shownName.display ?? m.name)}
+                      className="absolute inset-0 z-10 rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lime-500"
+                    />
+                    <MapPin size={13} className="shrink-0 text-gray-400" />
+                    <span className="min-w-0 flex-1 truncate font-bold">{shownName.display}</span>
+                    {badge && (
+                      <span
+                        className={`shrink-0 rounded-pill px-2 py-0.5 text-[11px] font-black ${badge.cls}`}
+                      >
+                        {badge.text}
+                      </span>
+                    )}
+                    <span className="hidden shrink-0 text-[11px] text-muted-foreground sm:block">
+                      {shownPlace.display || copy.noLocation}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
           </section>
         )}
 
