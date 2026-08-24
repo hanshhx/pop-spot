@@ -1110,16 +1110,18 @@ export async function SliceLandingPage({ slug, locale }: { slug: string; locale:
         )}
 
         {/* 곧 열리는 팝업 — 본문 목록 아래, 정정 창구 위. 본문(위)이 이 페이지의 본선이라 그 앞을
-            가로막지 않는다. count===0 이어도 뜰 수 있다: "지금 열린 곳은 없지만 곧 열릴 곳은
-            있다"는 이 슬라이스에서 그 자체로 유효한 답이라, 위 두 블록 중 어느 쪽이 떴는지와
-            무관하게 독립적으로 판단한다. 한 건도 없으면 섹션 자체를 그리지 않는다 — 빈 제목만
-            남기지 않는다. */}
+            가로막지 않는다. count===0 과 무관하게 독립 조건(upcoming.length > 0)으로 그린다 —
+            지금은 upcoming 이 sorted 의 부분집합이라 count===0 이면 upcoming 도 항상 0 이 되지만
+            (그 반대 경로는 지금 코드로는 열리지 않는다), 이 배치는 그 우연에 기대지 않는다.
+            alternatives 처럼 upcoming 도 나중에 슬라이스 밖까지 보는 폴백을 갖게 되면 count 와
+            무관해질 수 있어서, 처음부터 두 블록 중 어느 쪽이 떴는지와 상관없이 독립적으로 판단해
+            둔다. 한 건도 없으면 섹션 자체를 그리지 않는다 — 빈 제목만 남기지 않는다. */}
         {upcoming.length > 0 && (
           <section className="mt-10 rounded-2xl border border-gray-200 bg-white px-5 py-4 shadow-lg shadow-black/5 dark:border-white/10 dark:bg-[#17181c] dark:shadow-black/30 md:px-6 md:py-5">
-            <h2 className="flex items-center gap-2 text-sm font-bold md:text-base">
+            <h3 className="flex items-center gap-2 text-sm font-bold md:text-base">
               <Calendar size={15} className="shrink-0 text-gray-400" />
               {copy.upcomingHeading}
-            </h2>
+            </h3>
             <p className="mt-1 text-xs text-muted-foreground md:text-sm">{copy.upcomingNote}</p>
             <ul className="mt-3 space-y-2">
               {upcoming.map(({ m, status }) => {
