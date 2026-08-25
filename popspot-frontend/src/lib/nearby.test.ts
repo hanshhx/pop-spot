@@ -52,3 +52,37 @@ describe('nearbyWithin', () => {
     expect(nearbyWithin(ANCHOR, [FAR], 15, 3)).toEqual([]);
   });
 });
+
+// 실측 사례: /popup/4399(T1 암행천문 팝업스토어) 상세에 좌표가 완전히 같은 다른 id(4150,
+// "T1 암행천문")가 "도보 0분" 으로 떴다 — selfId 는 4399 만 잡고 4150 은 못 잡는다. 1,181행
+// 피드 전체를 좌표로 묶으면 164그룹 672행(57%)이 이런 중복을 갖고 있어 드문 사례가 아니다.
+describe('nearbyWithin — 좌표 중복 방어', () => {
+  const REAL_ANCHOR = { lat: 37.5448580004466, lng: 127.050553043931 };
+  // 앵커와 좌표가 완전히 같은 다른 id — 같은 자리의 중복 행이다.
+  const SAME_SPOT_AS_ANCHOR = pin(4150, 'T1 암행천문', '37.5448580004466', '127.050553043931');
+  // 앵커와 좌표가 다른, 진짜 걸어갈 수 있는 이웃(실측 도보 2분).
+  const REAL_NEIGHBOR = pin(
+    3824,
+    '어뮤즈 성수 플래그십 스토어',
+    '37.5438137552044',
+    '127.050522918312',
+  );
+
+  it('앵커와 좌표가 같은 다른 id 는 뺀다 — selfId 로는 못 잡는 중복 행이다', () => {
+    const got = nearbyWithin(REAL_ANCHOR, [SAME_SPOT_AS_ANCHOR], 15, 3, 4399);
+    expect(got).toEqual([]);
+  });
+
+  it('살아남은 이웃끼리 좌표가 겹치면 먼저 들어온 것만 남긴다', () => {
+    // 같은 건물의 중복 행 두 개. 앵커와는 다른 좌표라 앵커 중복 규칙에는 안 걸린다.
+    const first = pin(101, '먼저 들어온 곳', '37.5436', '127.0561');
+    const second = pin(102, '나중 들어온 곳(중복 행)', '37.5436', '127.0561');
+    const got = nearbyWithin(ANCHOR, [first, second], 15, 3);
+    expect(got.map((n) => n.marker.id)).toEqual([101]);
+  });
+
+  it('앵커와 좌표가 다른 진짜 이웃은 그대로 남는다', () => {
+    const got = nearbyWithin(REAL_ANCHOR, [SAME_SPOT_AS_ANCHOR, REAL_NEIGHBOR], 15, 3, 4399);
+    expect(got.map((n) => n.marker.id)).toEqual([3824]);
+  });
+});
