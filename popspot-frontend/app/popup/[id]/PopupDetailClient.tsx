@@ -42,6 +42,7 @@ import { showsVisitActions } from '@/lib/detailActions';
 import { kstTodayStart } from '@/lib/popupSlices';
 import type { Nearby } from '@/lib/nearby';
 import { toCourseSeed } from '@/lib/courseSeed';
+import { nearestStation } from '@/lib/nearestStation';
 
 declare global {
   interface Window {
@@ -474,6 +475,15 @@ export default function PopupDetailClient({
   // 그대로 두면 ".../to/이름,NaN,NaN" 이 되어 지도 앱이 엉뚱한 데를 열거나 아무 데도 안 간다.
   // 이름으로 찾게 하면 적어도 사용자가 직접 고를 수 있다.
   const hasCoords = Number.isFinite(lat) && Number.isFinite(lng);
+  // 주소 아래 「가는 법」 한 줄 — 가장 가까운 역 + 도보 분만 쓴다(출구 번호는 안 쓴다,
+  // nearestStation.ts 문서 참고). 좌표가 없거나 15분 밖이면 null 이라 그리지 않는다 — 성수동
+  // 폴백을 없앤 것과 같은 규칙: 모르면 지어내지 않고 숨긴다.
+  const nearest = hasCoords ? nearestStation(lat, lng) : null;
+  const stationLine = nearest
+    ? t('detail.stationLine')
+        .replace('{name}', nearest.name)
+        .replace('{minutes}', String(nearest.minutes))
+    : null;
   const directionsUrl = hasCoords
     ? `https://map.kakao.com/link/to/${encodeURIComponent(popup.name)},${lat},${lng}`
     : `https://map.kakao.com/link/search/${encodeURIComponent(popup.address || popup.name)}`;
@@ -659,6 +669,7 @@ export default function PopupDetailClient({
           {shownPlace.original && (
             <p className="ml-5 mt-0.5 text-[11px] text-white/60">{shownPlace.original}</p>
           )}
+          {stationLine && <p className="ml-5 mt-0.5 text-[11px] text-white/60">{stationLine}</p>}
         </div>
       </div>
 

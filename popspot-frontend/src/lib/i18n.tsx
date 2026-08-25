@@ -682,6 +682,9 @@ const DICT = {
     'detail.reportTitle': '신고 · 삭제 요청',
     'detail.reportDesc': '정보가 부정확하거나 권리 침해가 있다면 알려주세요. 확인 후 조치합니다.',
     'detail.reportAction': '정보 삭제·수정 요청',
+    // {name}·{minutes} 를 문자열 치환으로 채운다 — nearestStation.ts 문서 참고. 출구 번호는
+    // 안 넣는다(pmtiles 의 출구 2,140개 중 92개만 번호가 있어, 나머지 역엔 엉뚱한 번호가 튄다).
+    'detail.stationLine': '{name}역에서 도보 {minutes}분',
     'detail.nearbyTitle': '여기까지 왔으면',
     'detail.nearbyWalkPrefix': '도보 ',
     'detail.nearbyWalkSuffix': '분',
@@ -1470,6 +1473,9 @@ const DICT = {
     'detail.reportDesc':
       'Tell us if the information is wrong or infringes your rights. We will review it.',
     'detail.reportAction': 'Request a correction or removal',
+    // 역 이름(name)은 한국어 원문 그대로 둔다 — 팝업 이름과 같은 이유(i18n.tsx 상단 문서)로,
+    // 현지에서 표지판·지도 앱과 대조할 때 한국어 원문이 오히려 더 쓸모 있다.
+    'detail.stationLine': '{minutes} min walk from {name} Station',
     'detail.nearbyTitle': 'While you’re here',
     'detail.nearbyWalkPrefix': '',
     'detail.nearbyWalkSuffix': ' min walk',
@@ -2259,6 +2265,7 @@ const DICT = {
     'detail.reportTitle': '通報・削除依頼',
     'detail.reportDesc': '情報の誤りや権利侵害がある場合はお知らせください。確認後に対応します。',
     'detail.reportAction': '修正・削除を依頼',
+    'detail.stationLine': '{name}駅から徒歩{minutes}分',
     'detail.nearbyTitle': 'ここまで来たなら',
     'detail.nearbyWalkPrefix': '徒歩',
     'detail.nearbyWalkSuffix': '分',
