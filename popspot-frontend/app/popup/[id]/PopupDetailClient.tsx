@@ -24,7 +24,7 @@ import ChatRoom from '../../../src/components/ChatRoom';
 import NowWait from '@/components/popup/NowWait';
 import MusicForPopup from '../../../src/components/music/MusicForPopup';
 import { apiFetch } from '../../../src/lib/api';
-import { notify, notifyError } from '@/lib/notify';
+import { notify, notifyError, confirmAction } from '@/lib/notify';
 import { trackVisitEvent } from '@/lib/visitEvent';
 import { popupCoverUrl } from '@/lib/popupCover';
 import { PhotoDisclosure } from '@/components/popup/PhotoDisclosure';
@@ -150,6 +150,9 @@ export default function PopupDetailClient({
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [user, setUser] = useState<User | null>(null);
   const [takedownOpen, setTakedownOpen] = useState(false);
+  // "N곳 코스로 작전지도 열기" 클릭 후 응답을 기다리는 동안 버튼을 잠근다 — 없으면 두 번 빠르게
+  // 누른 사용자가 방을 두 개 만들고, 두 번째 방에만 코스가 시딩된다(첫 방은 빈 채로 남는다).
+  const [isBuildingCourse, setIsBuildingCourse] = useState(false);
   const trackedDetailId = useRef<number | null>(null);
 
   const TEST_USER_ID = 'test_user';
@@ -517,20 +520,52 @@ export default function PopupDetailClient({
     })),
   ]);
 
-  // 방 생성은 HomeClient.handleCreateRoom 과 같은 패턴을 그대로 따른다 — 다만 로그인
-  // 게이트는 걸지 않는다. POST /api/planning/create 는 @PreAuthorize 가 없고
-  // (PlanningController.java:58), 상세 페이지의 유입은 딥링크·직접 방문이 대부분이라
-  // 로그인 전 도착이 흔하다. 여기서 로그인 벽을 세우면 이 버튼은 도착 즉시 죽는다.
+  // 방 생성은 HomeClient.handleCreateRoom 과 같은 패턴을 그대로 따른다 — 로그인 게이트를
+  // 포함해서다. 처음엔 "POST /api/planning/create 에 @PreAuthorize 가 없다"만 보고 게이트를
+  // 뺐는데, 그건 API 계층만 본 것이고 진짜 문이 있는 곳은 프론트다: /planning 이 마운트되면
+  // localStorage.user 를 확인해 없으면 그 자리에서 /login 으로 튕긴다(app/planning/page.tsx
+  // :300-303). 그 문은 없애면 안 된다 — 방은 참가자를 닉네임으로 식별하는 협업 공간이라
+  // 로그인된 신원이 실제로 필요하다. 대신 이 버튼이 "코스를 연다"고 말해 놓고 말없이 로그인
+  // 폼으로 순간이동시키는 게 문제였으므로, 클릭 시점에 먼저 사실대로 말한다.
+  //
+  // 버튼 자체는 숨기지 않는다(로그인 여부와 무관하게 courseSeed.length > 1 이면 보인다) —
+  // 상세 페이지 유입은 딥링크·직접 방문이 대부분이라 로그인 전 도착이 흔하고, 여기서 버튼을
+  // 숨기면 이 기능을 보는 사람 거의 전부에게서 감춰진다. HomeClient 의 "작전 회의실 만들기"
+  // 버튼도 같은 이유로 항상 보이고, 클릭 시점에만 로그인을 묻는다 — 그 패턴을 그대로 따른다.
   const handleBuildCourse = async () => {
+    if (!user) {
+      // 로그인하지 않은 사람에게 방을 만들어 주지 않는다 — /planning 이 어차피 튕겨낸다.
+      // 대신 왜 필요한지 먼저 말하고, 응하면 로그인으로 보낸다. sessionStorage 는 쓰지 않는다
+      // — 여기서 쓰면 나중에 로그인해서 아무 방이나 열 때 이 코스가 엉뚱하게 재생된다.
+      if (
+        await confirmAction({
+          title: t('home.loginRequired'),
+          text: t('home.roomMemberOnly'),
+          confirmText: t('nav.login'),
+        })
+      ) {
+        router.push(localizedPath('/login', locale));
+      }
+      return;
+    }
+    if (isBuildingCourse) return; // 응답을 기다리는 중 다시 눌러도 방을 또 만들지 않는다.
+    setIsBuildingCourse(true);
     try {
       const res = await apiFetch('/api/planning/create', { method: 'POST' });
+      // HomeClient.handleCreateRoom 을 그대로 복제하며 res.ok 확인을 빠뜨렸던 것을 여기서
+      // 고친다 — 확인하지 않으면 실패 응답의 오류 본문이 그대로 roomId 로 쓰여 깨진 방으로
+      // 이동한다.
+      if (!res.ok) throw new Error(`planning/create failed: ${res.status}`);
       const roomId = await res.text();
-      // 방 생성 응답을 받은 뒤에 sessionStorage 를 쓴다 — 생성이 실패했는데 먼저 써 두면,
+      // 방 생성이 성공을 확인한 뒤에만 sessionStorage 를 쓴다 — 실패했는데 먼저 써 두면,
       // 사용자가 나중에 아무 방이나 열 때 이 코스가 엉뚱하게 재생된다.
       sessionStorage.setItem('planningSeedCourse', JSON.stringify(courseSeed));
       router.push(localizedPath(`/planning?room=${roomId}`, locale));
+      // 성공 경로에서는 isBuildingCourse 를 되돌리지 않는다 — 곧 다른 라우트로 이동하므로
+      // 이 컴포넌트가 다시 인터랙션을 받을 일이 없고, 언마운트 이후 setState 를 피한다.
     } catch (e) {
       notifyError(t('home.serverFail'));
+      setIsBuildingCourse(false);
     }
   };
 
@@ -845,7 +880,8 @@ export default function PopupDetailClient({
                   <button
                     type="button"
                     onClick={handleBuildCourse}
-                    className="flex w-full items-center justify-center gap-2 rounded-2xl border border-gray-300 bg-white py-3.5 text-sm font-bold text-foreground transition hover:border-lime-400 dark:border-white/15 dark:bg-white/5 md:text-base"
+                    disabled={isBuildingCourse}
+                    className="flex w-full items-center justify-center gap-2 rounded-2xl border border-gray-300 bg-white py-3.5 text-sm font-bold text-foreground transition hover:border-lime-400 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/15 dark:bg-white/5 md:text-base"
                   >
                     <Route size={18} className="shrink-0" />
                     {t('detail.courseSeedPrefix')}
