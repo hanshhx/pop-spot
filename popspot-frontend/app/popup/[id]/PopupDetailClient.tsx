@@ -449,7 +449,7 @@ export default function PopupDetailClient({
   const ended = isPopupEnded(popup.status, popup.closeDate);
   const displayStatus = popup.emergencySnapshot
     ? snapshotCopy.status
-    : detailStatusLabel(popup.status, ended, t);
+    : detailStatusLabel(popup.status, ended, popup.openDate, popup.closeDate, t);
   // 배지를 라임(운영중)으로 켜는 것은 "열려 있다고 확인됐을 때"뿐이다. 저장된 정보(스냅샷)·종료·
   // 상태 미상·혼잡도 값(여유/보통/혼잡) 은 모두 중립으로 둔다 — status.open 텍스트와 실제로
   // 같은지만 보고, popupLocale 의 매핑을 다시 베끼지 않는다.
