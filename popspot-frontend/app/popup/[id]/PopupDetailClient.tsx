@@ -42,7 +42,6 @@ import { showsVisitActions } from '@/lib/detailActions';
 import { kstTodayStart } from '@/lib/popupSlices';
 import type { Nearby } from '@/lib/nearby';
 import { toCourseSeed } from '@/lib/courseSeed';
-import { nearestStation } from '@/lib/nearestStation';
 
 declare global {
   interface Window {
@@ -131,6 +130,7 @@ export default function PopupDetailClient({
   id,
   initial,
   nearby = [],
+  station = null,
 }: {
   id: string;
   initial: PopupDetail | null;
@@ -139,6 +139,19 @@ export default function PopupDetailClient({
    * 목록(355KB)을 여기서 다시 받으면 안 된다(loadNearbyPopups 문서 참고).
    */
   nearby?: Nearby[];
+  /**
+   * 주소 아래 「가는 법」 한 줄의 재료 — 가장 가까운 역 + 도보 분. 서버(page.tsx, loadNearestStation)가
+   * 이미 계산해 넘긴다. 여기서 {@code nearestStation} 을 직접 부르면 역 509곳짜리 JSON(39KB)이
+   * 이 컴포넌트('use client') 를 통해 모든 방문자의 브라우저로 내려간다 — 정작 쓰는 값은
+   * {@code { name, minutes } } 뿐인데 그걸 만들려고 원본 39KB 를 통째로 실어 보내는 셈이다.
+   *
+   * <p>{@code initial} 이 {@code null} 이라 서버가 팝업을 못 받았을 때(아래 useEffect 의 재조회
+   * 분기)도 이 값은 계속 {@code null} 이다 — {@code nearby} 와 같은 처지다. 재조회로 좌표는
+   * 클라이언트에 새로 도착하지만, 그걸로 다시 역을 계산하려면 이 무거운 JSON 을 클라이언트에
+   * 다시 끌어와야 하므로 하지 않는다. 그 경로는 이미 서버 렌더 콘텐츠를 잃은 열화 경로이므로,
+   * 「가는 법」 줄이 거기서만 안 보이는 것은 받아들일 수 있는 손실이다.
+   */
+  station?: { name: string; minutes: number } | null;
 }) {
   const router = useRouter();
   const { locale, t } = useLocale();
@@ -476,13 +489,14 @@ export default function PopupDetailClient({
   // 이름으로 찾게 하면 적어도 사용자가 직접 고를 수 있다.
   const hasCoords = Number.isFinite(lat) && Number.isFinite(lng);
   // 주소 아래 「가는 법」 한 줄 — 가장 가까운 역 + 도보 분만 쓴다(출구 번호는 안 쓴다,
-  // nearestStation.ts 문서 참고). 좌표가 없거나 15분 밖이면 null 이라 그리지 않는다 — 성수동
-  // 폴백을 없앤 것과 같은 규칙: 모르면 지어내지 않고 숨긴다.
-  const nearest = hasCoords ? nearestStation(lat, lng) : null;
-  const stationLine = nearest
+  // nearestStation.ts 문서 참고). station 은 서버(page.tsx)가 이미 계산해 넘긴 prop 이다 —
+  // 여기서 nearestStation() 을 직접 부르지 않는다(station prop 문서 참고: 역 509곳 JSON 을
+  // 클라이언트 번들에 실지 않기 위해서다). null 이면(좌표가 없거나 15분 밖) 그리지 않는다 —
+  // 성수동 폴백을 없앤 것과 같은 규칙: 모르면 지어내지 않고 숨긴다.
+  const stationLine = station
     ? t('detail.stationLine')
-        .replace('{name}', nearest.name)
-        .replace('{minutes}', String(nearest.minutes))
+        .replace('{name}', station.name)
+        .replace('{minutes}', String(station.minutes))
     : null;
   const directionsUrl = hasCoords
     ? `https://map.kakao.com/link/to/${encodeURIComponent(popup.name)},${lat},${lng}`
