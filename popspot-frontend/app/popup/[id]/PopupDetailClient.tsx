@@ -34,6 +34,7 @@ import { localizedPath } from '@/lib/localePath';
 import { bilingual } from '@/lib/bilingual';
 import { daysUntilEnd } from '@/lib/dday';
 import { isPopupStamped, stampErrorMessageKey, type StampRow } from '@/lib/stamps';
+import { periodText } from '@/lib/periodText';
 import { detailStatusLabel, isPopupEnded } from '@/lib/popupDetailStatus';
 
 declare global {
@@ -578,11 +579,7 @@ export default function PopupDetailClient({
         <div className="relative z-10 -mt-6 grid grid-cols-2 divide-x divide-gray-200 rounded-2xl border border-gray-200 bg-white shadow-lg dark:divide-white/10 dark:border-white/10 dark:bg-[#111]">
           <div className="px-3 py-4 text-center">
             <p className="text-[10px] font-bold text-muted-foreground">{t('detail.period')}</p>
-            <p className="mt-1 text-sm font-bold">
-              {popup.closeDate
-                ? `${popup.openDate ? `${popup.openDate.slice(5)} ~ ` : '~'}${popup.closeDate.slice(5)}`
-                : '-'}
-            </p>
+            <p className="mt-1 text-sm font-bold">{periodText(popup.openDate, popup.closeDate)}</p>
           </div>
           <div className="px-3 py-4 text-center">
             <p className="text-[10px] font-bold text-muted-foreground">{t('detail.closing')}</p>
