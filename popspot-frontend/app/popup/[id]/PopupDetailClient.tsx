@@ -36,6 +36,8 @@ import { daysUntilEnd } from '@/lib/dday';
 import { isPopupStamped, stampErrorMessageKey, type StampRow } from '@/lib/stamps';
 import { periodText } from '@/lib/periodText';
 import { detailStatusLabel, isPopupEnded } from '@/lib/popupDetailStatus';
+import { showsVisitActions } from '@/lib/detailActions';
+import { kstTodayStart } from '@/lib/popupSlices';
 
 declare global {
   interface Window {
@@ -471,6 +473,18 @@ export default function PopupDetailClient({
     endDate: popup.closeDate,
   };
   const canAddCalendar = toCalendarEvent(calendarInput) !== null;
+  // 끝난 팝업에는 방문 전제 액션(길찾기 · 방문 인증 · 캘린더)을 두지 않는다 — 닫힌 곳으로
+  // 보내는 버튼이기 때문이다. 날짜를 모르면 보여주는 쪽으로 기운다(showsVisitActions 문서 참고).
+  const canVisit = showsVisitActions(
+    popup.openDate ?? null,
+    popup.closeDate ?? null,
+    kstTodayStart(),
+  );
+  // 하단 빠른 실행 바가 빈 껍데기로만 뜨지 않게 한다. 바 안 버튼 셋 중 캘린더는 canVisit 에
+  // 종속(canVisit && canAddCalendar)이라 별도로 셀 필요가 없고, 남는 것은 길찾기(canVisit)와
+  // 찜(!emergencySnapshot) 뿐이다. 이 둘이 동시에 거짓일 때(끝났고 + 스냅샷)만 바가 완전히
+  // 비므로, 그때는 바 자체를 그리지 않는다.
+  const showQuickActionBar = canVisit || !popup.emergencySnapshot;
 
   return (
     <main className="min-h-screen bg-background pb-36 text-foreground md:pb-24">
@@ -593,15 +607,19 @@ export default function PopupDetailClient({
 
         {/* CTA — 길찾기(주) · 방문 인증(보조). 찜은 히어로 우상단. */}
         <div className="mt-4 flex gap-2.5">
-          <a
-            href={directionsUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex flex-[2] items-center justify-center gap-2 rounded-2xl bg-lime-300 py-3.5 font-bold text-ink-900 shadow-md transition hover:bg-lime-400"
-          >
-            <Navigation size={18} /> {t('detail.directions')}
-          </a>
-          {!popup.emergencySnapshot && (
+          {/* 끝난 팝업은 닫힌 곳이다 — 길찾기를 없앤다. 세 CTA를 하나로 묶어 감싸지 않고
+              각각 감싼다(감싸면 flex-[2]/flex-1 같은 레이아웃 클래스가 함께 사라진다). */}
+          {canVisit && (
+            <a
+              href={directionsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex flex-[2] items-center justify-center gap-2 rounded-2xl bg-lime-300 py-3.5 font-bold text-ink-900 shadow-md transition hover:bg-lime-400"
+            >
+              <Navigation size={18} /> {t('detail.directions')}
+            </a>
+          )}
+          {canVisit && !popup.emergencySnapshot && (
             <button
               onClick={handleStamp}
               disabled={isStamped}
@@ -618,8 +636,9 @@ export default function PopupDetailClient({
         </div>
 
         {/* 캘린더 추가 — 시작·종료일이 둘 다 검증된 경우에만 노출(날짜 없는 팝업은 숨김).
-            iOS 는 .ics, Android·데스크톱은 Google Calendar 웹 딥링크(Android 는 .ics import 불가). */}
-        {canAddCalendar ? (
+            iOS 는 .ics, Android·데스크톱은 Google Calendar 웹 딥링크(Android 는 .ics import 불가).
+            끝난 팝업은 캘린더에 담을 대상이 아니므로 canVisit 도 함께 본다. */}
+        {canVisit && canAddCalendar ? (
           <button
             onClick={() => addToCalendar(calendarInput)}
             className="mt-2.5 flex w-full items-center justify-center gap-2 rounded-2xl border border-gray-300 bg-white py-3 text-sm font-bold text-foreground transition hover:border-lime-400 dark:border-white/15 dark:bg-white/5"
@@ -787,46 +806,54 @@ export default function PopupDetailClient({
         )}
       </div>
 
-      <nav
-        aria-label={
-          locale === 'ko' ? '빠른 실행' : locale === 'ja' ? 'クイック操作' : 'Quick actions'
-        }
-        className="fixed inset-x-3 z-50 mx-auto flex max-w-md gap-2 rounded-2xl border border-black/10 bg-white/95 p-2 shadow-2xl backdrop-blur-xl md:hidden dark:border-white/10 dark:bg-[#111]/95"
-        style={{ bottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
-      >
-        <a
-          href={directionsUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex min-h-12 flex-1 items-center justify-center gap-1.5 rounded-xl bg-lime-300 px-2 text-xs font-black text-ink-900 active:scale-[0.98]"
+      {/* 세 버튼이 전부 조건부라 다 꺼지면 빈 껍데기 바만 남는다 — canVisit || !emergencySnapshot
+          로 그 경우를 걸러 바 자체를 그리지 않는다(showQuickActionBar 정의부 주석 참고). */}
+      {showQuickActionBar && (
+        <nav
+          aria-label={
+            locale === 'ko' ? '빠른 실행' : locale === 'ja' ? 'クイック操作' : 'Quick actions'
+          }
+          className="fixed inset-x-3 z-50 mx-auto flex max-w-md gap-2 rounded-2xl border border-black/10 bg-white/95 p-2 shadow-2xl backdrop-blur-xl md:hidden dark:border-white/10 dark:bg-[#111]/95"
+          style={{ bottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
         >
-          <Navigation size={17} aria-hidden /> {t('detail.directions')}
-        </a>
-        {canAddCalendar ? (
-          <button
-            type="button"
-            onClick={() => addToCalendar(calendarInput)}
-            className="flex min-h-12 flex-1 items-center justify-center gap-1.5 rounded-xl bg-gray-100 px-2 text-xs font-black text-gray-900 active:scale-[0.98] dark:bg-white/10 dark:text-white"
-          >
-            <CalendarPlus size={17} aria-hidden /> {t('detail.addCalendar')}
-          </button>
-        ) : null}
-        {!popup.emergencySnapshot && (
-          <button
-            type="button"
-            onClick={handleToggleLike}
-            aria-pressed={isLiked}
-            className={`flex min-h-12 flex-1 items-center justify-center gap-1.5 rounded-xl px-2 text-xs font-black active:scale-[0.98] ${
-              isLiked
-                ? 'bg-hot-400 text-white'
-                : 'bg-gray-100 text-gray-900 dark:bg-white/10 dark:text-white'
-            }`}
-          >
-            <Heart size={17} className={isLiked ? 'fill-current' : ''} aria-hidden />
-            {t('common.wishlist')}
-          </button>
-        )}
-      </nav>
+          {/* 끝난 팝업은 닫힌 곳이다 — 길찾기를 없앤다. */}
+          {canVisit && (
+            <a
+              href={directionsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex min-h-12 flex-1 items-center justify-center gap-1.5 rounded-xl bg-lime-300 px-2 text-xs font-black text-ink-900 active:scale-[0.98]"
+            >
+              <Navigation size={17} aria-hidden /> {t('detail.directions')}
+            </a>
+          )}
+          {canVisit && canAddCalendar ? (
+            <button
+              type="button"
+              onClick={() => addToCalendar(calendarInput)}
+              className="flex min-h-12 flex-1 items-center justify-center gap-1.5 rounded-xl bg-gray-100 px-2 text-xs font-black text-gray-900 active:scale-[0.98] dark:bg-white/10 dark:text-white"
+            >
+              <CalendarPlus size={17} aria-hidden /> {t('detail.addCalendar')}
+            </button>
+          ) : null}
+          {/* 찜하기는 남긴다 — 끝난 팝업을 찜하는 것도 기록으로서 유효하다. */}
+          {!popup.emergencySnapshot && (
+            <button
+              type="button"
+              onClick={handleToggleLike}
+              aria-pressed={isLiked}
+              className={`flex min-h-12 flex-1 items-center justify-center gap-1.5 rounded-xl px-2 text-xs font-black active:scale-[0.98] ${
+                isLiked
+                  ? 'bg-hot-400 text-white'
+                  : 'bg-gray-100 text-gray-900 dark:bg-white/10 dark:text-white'
+              }`}
+            >
+              <Heart size={17} className={isLiked ? 'fill-current' : ''} aria-hidden />
+              {t('common.wishlist')}
+            </button>
+          )}
+        </nav>
+      )}
 
       {!popup.emergencySnapshot && (
         <TakedownModal
