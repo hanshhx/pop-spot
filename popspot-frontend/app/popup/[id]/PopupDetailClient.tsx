@@ -676,8 +676,12 @@ export default function PopupDetailClient({
         )}
 
         {/* 지금 어때요? — 원터치 대기 제보. 실시간 채팅과 달리 혼자 눌러도 다음 방문자에게 남는 신호라
-            방문자가 적어도 작동한다(로그인 불필요 = 참여 문턱 최소). */}
-        {!popup.emergencySnapshot && <NowWait popupId={popup.id} />}
+            방문자가 적어도 작동한다(로그인 불필요 = 참여 문턱 최소).
+
+            끝난 팝업에는 그리지 않는다(canVisit). 닫힌 곳의 대기 시간을 묻는 것은 길찾기와 같은
+            종류의 무의미한 권유이고, 더 나쁘게는 <b>데이터를 오염시킨다</b> — 문 닫은 가게 앞에서
+            '바로 입장' 을 누른 기록이 쌓이면 그 팝업의 혼잡 신호가 통째로 못 쓰게 된다. */}
+        {canVisit && !popup.emergencySnapshot && <NowWait popupId={popup.id} />}
 
         {/* 소개 */}
         <section className="mt-8">
