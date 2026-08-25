@@ -29,6 +29,10 @@ export default function DetailMap({ latitude, longitude }: DetailMapProps) {
   const valid = Number.isFinite(latitude) && Number.isFinite(longitude);
 
   return (
+    // min-h 는 PopupDetailClient.tsx 의 지도 wrapper 높이(h-[250px] md:h-[350px])와 항상
+    // 같아야 한다 — 어긋나면 wrapper 의 overflow-hidden 이 attribution 을 잘라낸다. 상세가
+    // lg 에서 두 칸으로 나뉘어 이 지도가 더 좁은 칸에 들어가게 됐지만, 최소 1.67:1 비율은
+    // 유지되어 두 값을 그대로 뒀다(상세 쪽 주석 참고).
     <div className="w-full h-full min-h-[250px] md:min-h-[350px] bg-ink-800 relative rounded-2xl md:rounded-3xl overflow-hidden">
       {mounted && valid ? (
         <MapGL

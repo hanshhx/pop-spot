@@ -579,235 +579,261 @@ export default function PopupDetailClient({
         </div>
       </div>
 
-      <div className="mx-auto max-w-3xl px-4 md:px-6">
+      {/* 1440 에서 max-w-3xl 한 칸은 좌우 336px 씩을 버린다. lg 이상에서만 두 칸으로 펴고,
+          md(768–1023) 구간은 한 칸 그대로 두되 하단 바(아래 nav, lg:hidden)가 살아 있어
+          액션이 사라지지 않는다. */}
+      <div className="mx-auto max-w-3xl px-4 md:px-6 lg:grid lg:max-w-6xl lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-8">
         {popup.emergencySnapshot && (
-          <div className="mt-4 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-semibold leading-relaxed text-amber-950 dark:border-amber-300/30 dark:bg-amber-300/10 dark:text-amber-100">
+          <div className="mt-4 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-semibold leading-relaxed text-amber-950 dark:border-amber-300/30 dark:bg-amber-300/10 dark:text-amber-100 lg:col-span-2">
             {snapshotCopy.notice}
           </div>
         )}
-        {/* 정보 바 — 우리가 <b>실제로 아는 것</b>만 둔다.
+
+        {/* 오른쪽 레일 — 정보 바 · CTA · 캘린더 · 공식 링크 · NowWait.
+            데스크탑(lg)에서는 하단 빠른 실행 바가 사라지므로(lg:hidden) 방문 액션이 여기서
+            항상 보여야 한다. 이 다섯 블록은 오늘 DOM 에서도 원래 소개보다 먼저 붙어 있던
+            것 그대로다 — lg 미만에서는 이 grid 자체가 꺼져 순수 block 스택이 되므로 DOM
+            순서가 곧 화면 순서다(375/768/900 은 오늘과 동일). lg 에서만 order-2 로 오른쪽에
+            두고, 아래 본문 칸을 order-1 로 왼쪽에 둔다 — DOM 은 그대로 두고 시각 순서만
+            grid order 로 뒤집는다. */}
+        <aside className="lg:order-2 lg:sticky lg:top-6 lg:self-start">
+          {/* 정보 바 — 우리가 <b>실제로 아는 것</b>만 둔다.
             예전엔 '운영 11:00~20:00' 칸이 있었는데, openTime/closeTime 은 백엔드에 존재하지도
             않는 필드라 폴백이 그대로 찍혔다. 즉 팝업 3,225곳 전부가 같은 영업시간을 내걸고
             있었다. 시간 맞춰 갔다가 닫혀 있으면 그 사람은 다시 오지 않는다.
             빈 칸을 만드느니 칸을 없애고, 남은 자리는 진짜 값(시작일)에 쓴다. */}
-        <div className="relative z-10 -mt-6 grid grid-cols-2 divide-x divide-gray-200 rounded-2xl border border-gray-200 bg-white shadow-lg dark:divide-white/10 dark:border-white/10 dark:bg-[#111]">
-          <div className="px-3 py-4 text-center">
-            <p className="text-[10px] font-bold text-muted-foreground">{t('detail.period')}</p>
-            <p className="mt-1 text-sm font-bold">{periodText(popup.openDate, popup.closeDate)}</p>
+          <div className="relative z-10 -mt-6 grid grid-cols-2 divide-x divide-gray-200 rounded-2xl border border-gray-200 bg-white shadow-lg dark:divide-white/10 dark:border-white/10 dark:bg-[#111]">
+            <div className="px-3 py-4 text-center">
+              <p className="text-[10px] font-bold text-muted-foreground">{t('detail.period')}</p>
+              <p className="mt-1 text-sm font-bold">
+                {periodText(popup.openDate, popup.closeDate)}
+              </p>
+            </div>
+            <div className="px-3 py-4 text-center">
+              <p className="text-[10px] font-bold text-muted-foreground">{t('detail.closing')}</p>
+              <p
+                className={`mt-1 text-sm font-black ${dday === t('detail.ended') ? 'text-muted-foreground' : 'text-hot-400'}`}
+              >
+                {dday || '-'}
+              </p>
+            </div>
           </div>
-          <div className="px-3 py-4 text-center">
-            <p className="text-[10px] font-bold text-muted-foreground">{t('detail.closing')}</p>
-            <p
-              className={`mt-1 text-sm font-black ${dday === t('detail.ended') ? 'text-muted-foreground' : 'text-hot-400'}`}
-            >
-              {dday || '-'}
-            </p>
-          </div>
-        </div>
 
-        {/* CTA — 길찾기(주) · 방문 인증(보조). 찜은 히어로 우상단. */}
-        <div className="mt-4 flex gap-2.5">
-          {/* 끝난 팝업은 닫힌 곳이다 — 길찾기를 없앤다. 세 CTA를 하나로 묶어 감싸지 않고
+          {/* CTA — 길찾기(주) · 방문 인증(보조). 찜은 히어로 우상단. */}
+          <div className="mt-4 flex gap-2.5">
+            {/* 끝난 팝업은 닫힌 곳이다 — 길찾기를 없앤다. 세 CTA를 하나로 묶어 감싸지 않고
               각각 감싼다(감싸면 flex-[2]/flex-1 같은 레이아웃 클래스가 함께 사라진다). */}
-          {canVisit && (
-            <a
-              href={directionsUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex flex-[2] items-center justify-center gap-2 rounded-2xl bg-lime-300 py-3.5 font-bold text-ink-900 shadow-md transition hover:bg-lime-400"
-            >
-              <Navigation size={18} /> {t('detail.directions')}
-            </a>
-          )}
-          {canVisit && !popup.emergencySnapshot && (
-            <button
-              onClick={handleStamp}
-              disabled={isStamped}
-              className={`flex flex-1 items-center justify-center gap-1.5 rounded-2xl border py-3.5 font-bold transition ${
-                isStamped
-                  ? 'cursor-not-allowed border-gray-200 bg-gray-50 text-gray-400 dark:border-white/10 dark:bg-white/5 dark:text-white/30'
-                  : 'border-gray-300 bg-white text-foreground hover:border-lime-400 dark:border-white/15 dark:bg-white/5'
-              }`}
-            >
-              {isStamped ? <CheckCircle size={16} /> : <Ticket size={16} />}
-              {isStamped ? t('detail.verified') : t('detail.visitVerify')}
-            </button>
-          )}
-        </div>
+            {canVisit && (
+              <a
+                href={directionsUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex flex-[2] items-center justify-center gap-2 rounded-2xl bg-lime-300 py-3.5 font-bold text-ink-900 shadow-md transition hover:bg-lime-400"
+              >
+                <Navigation size={18} /> {t('detail.directions')}
+              </a>
+            )}
+            {canVisit && !popup.emergencySnapshot && (
+              <button
+                onClick={handleStamp}
+                disabled={isStamped}
+                className={`flex flex-1 items-center justify-center gap-1.5 rounded-2xl border py-3.5 font-bold transition ${
+                  isStamped
+                    ? 'cursor-not-allowed border-gray-200 bg-gray-50 text-gray-400 dark:border-white/10 dark:bg-white/5 dark:text-white/30'
+                    : 'border-gray-300 bg-white text-foreground hover:border-lime-400 dark:border-white/15 dark:bg-white/5'
+                }`}
+              >
+                {isStamped ? <CheckCircle size={16} /> : <Ticket size={16} />}
+                {isStamped ? t('detail.verified') : t('detail.visitVerify')}
+              </button>
+            )}
+          </div>
 
-        {/* 캘린더 추가 — 시작·종료일이 둘 다 검증된 경우에만 노출(날짜 없는 팝업은 숨김).
+          {/* 캘린더 추가 — 시작·종료일이 둘 다 검증된 경우에만 노출(날짜 없는 팝업은 숨김).
             iOS 는 .ics, Android·데스크톱은 Google Calendar 웹 딥링크(Android 는 .ics import 불가).
             끝난 팝업은 캘린더에 담을 대상이 아니므로 canVisit 도 함께 본다. */}
-        {canVisit && canAddCalendar ? (
-          <button
-            onClick={() => addToCalendar(calendarInput)}
-            className="mt-2.5 flex w-full items-center justify-center gap-2 rounded-2xl border border-gray-300 bg-white py-3 text-sm font-bold text-foreground transition hover:border-lime-400 dark:border-white/15 dark:bg-white/5"
-          >
-            <CalendarPlus size={18} /> {t('detail.addCalendar')}
-          </button>
-        ) : null}
+          {canVisit && canAddCalendar ? (
+            <button
+              onClick={() => addToCalendar(calendarInput)}
+              className="mt-2.5 flex w-full items-center justify-center gap-2 rounded-2xl border border-gray-300 bg-white py-3 text-sm font-bold text-foreground transition hover:border-lime-400 dark:border-white/15 dark:bg-white/5"
+            >
+              <CalendarPlus size={18} /> {t('detail.addCalendar')}
+            </button>
+          ) : null}
 
-        {/* 방문 결정을 돕는 공식 링크는 소개보다 먼저 보여준다. 검증된 URL이 있을 때만 노출한다. */}
-        {(popup.reservationUrl || popup.officialUrl) && (
-          <div className="mt-3 flex flex-wrap gap-2.5">
-            {popup.reservationUrl && (
-              <a
-                href={popup.reservationUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => trackVisitEvent('outbound_click', { popupId: popup.id })}
-                className="inline-flex min-h-12 flex-1 items-center justify-center gap-1.5 rounded-xl bg-lime-500 px-4 py-3 text-sm font-bold text-ink-900 transition hover:bg-lime-400"
-              >
-                {t('detail.reserve')} <ExternalLink size={14} className="shrink-0" />
-              </a>
-            )}
-            {popup.officialUrl && (
-              <a
-                href={popup.officialUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => trackVisitEvent('outbound_click', { popupId: popup.id })}
-                className="inline-flex min-h-12 flex-1 items-center justify-center gap-1.5 rounded-xl border border-gray-300 px-4 py-3 text-sm font-bold text-foreground transition hover:bg-black/[0.03] dark:border-white/15 dark:hover:bg-white/[0.05]"
-              >
-                {t('detail.official')} <ExternalLink size={14} className="shrink-0" />
-              </a>
-            )}
-          </div>
-        )}
+          {/* 방문 결정을 돕는 공식 링크는 소개보다 먼저 보여준다. 검증된 URL이 있을 때만 노출한다. */}
+          {(popup.reservationUrl || popup.officialUrl) && (
+            <div className="mt-3 flex flex-wrap gap-2.5">
+              {popup.reservationUrl && (
+                <a
+                  href={popup.reservationUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => trackVisitEvent('outbound_click', { popupId: popup.id })}
+                  className="inline-flex min-h-12 flex-1 items-center justify-center gap-1.5 rounded-xl bg-lime-500 px-4 py-3 text-sm font-bold text-ink-900 transition hover:bg-lime-400"
+                >
+                  {t('detail.reserve')} <ExternalLink size={14} className="shrink-0" />
+                </a>
+              )}
+              {popup.officialUrl && (
+                <a
+                  href={popup.officialUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => trackVisitEvent('outbound_click', { popupId: popup.id })}
+                  className="inline-flex min-h-12 flex-1 items-center justify-center gap-1.5 rounded-xl border border-gray-300 px-4 py-3 text-sm font-bold text-foreground transition hover:bg-black/[0.03] dark:border-white/15 dark:hover:bg-white/[0.05]"
+                >
+                  {t('detail.official')} <ExternalLink size={14} className="shrink-0" />
+                </a>
+              )}
+            </div>
+          )}
 
-        {/* 지금 어때요? — 원터치 대기 제보. 실시간 채팅과 달리 혼자 눌러도 다음 방문자에게 남는 신호라
+          {/* 지금 어때요? — 원터치 대기 제보. 실시간 채팅과 달리 혼자 눌러도 다음 방문자에게 남는 신호라
             방문자가 적어도 작동한다(로그인 불필요 = 참여 문턱 최소).
 
             끝난 팝업에는 그리지 않는다(canVisit). 닫힌 곳의 대기 시간을 묻는 것은 길찾기와 같은
             종류의 무의미한 권유이고, 더 나쁘게는 <b>데이터를 오염시킨다</b> — 문 닫은 가게 앞에서
             '바로 입장' 을 누른 기록이 쌓이면 그 팝업의 혼잡 신호가 통째로 못 쓰게 된다. */}
-        {canVisit && !popup.emergencySnapshot && <NowWait popupId={popup.id} />}
+          {canVisit && !popup.emergencySnapshot && <NowWait popupId={popup.id} />}
+        </aside>
 
-        {/* 소개 */}
-        <section className="mt-8">
-          <h2 className="mb-3 text-lg font-black">{t('detail.intro')}</h2>
-          <div className="whitespace-pre-line rounded-2xl border border-gray-200 bg-white p-5 text-sm font-medium leading-relaxed text-foreground/80 dark:border-white/10 dark:bg-[#111] md:p-6 md:text-base">
-            {locale !== 'ko' && popup.content && (
-              <p className="mb-3 text-xs font-semibold text-muted-foreground">
-                {t('detail.originalKorean')}
-              </p>
-            )}
-            {popup.emergencySnapshot ? snapshotCopy.intro : renderContentWithLinks(popup.content)}
-          </div>
-        </section>
+        {/* 왼쪽 칸 — 소개 · 위치 · 어울리는 곡 · 방문 팁 · 출처/신고.
+            lg 에서 order-1 로 왼쪽에 둔다(위 레일 주석 참고 — DOM 순서는 그대로, 시각 순서만
+            grid order 로 뒤집는다). */}
+        <div className="lg:order-1 min-w-0">
+          {/* 소개 */}
+          <section className="mt-8">
+            <h2 className="mb-3 text-lg font-black">{t('detail.intro')}</h2>
+            <div className="whitespace-pre-line rounded-2xl border border-gray-200 bg-white p-5 text-sm font-medium leading-relaxed text-foreground/80 dark:border-white/10 dark:bg-[#111] md:p-6 md:text-base">
+              {locale !== 'ko' && popup.content && (
+                <p className="mb-3 text-xs font-semibold text-muted-foreground">
+                  {t('detail.originalKorean')}
+                </p>
+              )}
+              {popup.emergencySnapshot ? snapshotCopy.intro : renderContentWithLinks(popup.content)}
+            </div>
+          </section>
 
-        {/* 위치 */}
-        <section className="mt-8">
-          <h2 className="mb-3 text-lg font-black">{t('detail.location')}</h2>
-          {/*
+          {/* 위치 */}
+          <section className="mt-8">
+            <h2 className="mb-3 text-lg font-black">{t('detail.location')}</h2>
+            {/*
             높이를 DetailMap 이 요구하는 값과 맞춘다. 이 칸은 md 에서 320 이었는데 안의 지도는
             {@code md:min-h-[350px]} 라, 넓은 화면에서 지도 아래 30px 이 잘려 나갔다.
             거기에 MapLibre 의 저작자 표시(attributionControl)가 들어간다 — 지도 데이터는
             출처를 보이게 두어야 하므로 화면 문제만이 아니다.
+
+            lg 에서 이 칸은 오른쪽 360px 레일 때문에 좁아진다(1024px 뷰포트 기준 약 584px,
+            1152px 이상에서는 약 712px) — 그래도 가로:세로가 최소 1.67:1 이라 여전히 landscape
+            비율이라 높이 값은 바꾸지 않았다. 바꾸게 되면 DetailMap.tsx 의 min-h 도 반드시
+            같이 바꿔야 한다(안 그러면 위 30px 잘림이 재발한다).
           */}
-          <div className="relative h-[250px] overflow-hidden rounded-2xl border border-gray-200 dark:border-white/10 md:h-[350px]">
-            <DetailMap latitude={lat} longitude={lng} />
-            <div className="absolute bottom-4 left-1/2 z-40 flex w-[90%] -translate-x-1/2 items-center gap-1.5 overflow-hidden whitespace-nowrap rounded-full border border-white/20 bg-black/85 px-4 py-2 text-[11px] font-bold text-white backdrop-blur-xl md:w-auto md:bottom-6">
-              <MapPin size={12} className="shrink-0 animate-bounce text-lime-400" />
-              <span className="truncate">{displayPlace}</span>
+            <div className="relative h-[250px] overflow-hidden rounded-2xl border border-gray-200 dark:border-white/10 md:h-[350px]">
+              <DetailMap latitude={lat} longitude={lng} />
+              <div className="absolute bottom-4 left-1/2 z-40 flex w-[90%] -translate-x-1/2 items-center gap-1.5 overflow-hidden whitespace-nowrap rounded-full border border-white/20 bg-black/85 px-4 py-2 text-[11px] font-bold text-white backdrop-blur-xl md:w-auto md:bottom-6">
+                <MapPin size={12} className="shrink-0 animate-bounce text-lime-400" />
+                <span className="truncate">{displayPlace}</span>
+              </div>
             </div>
-          </div>
-        </section>
-
-        {/* 어울리는 곡 — 하단 보조 위젯 */}
-        {!popup.emergencySnapshot && (
-          <section className="mt-8">
-            <MusicForPopup popupId={popup.id} />
           </section>
-        )}
 
-        {/* 방문 팁 — '실시간 톡'은 동시 접속자가 있어야 성립해 빈 방으로 보였다.
+          {/* 어울리는 곡 — 하단 보조 위젯 */}
+          {!popup.emergencySnapshot && (
+            <section className="mt-8">
+              <MusicForPopup popupId={popup.id} />
+            </section>
+          )}
+
+          {/* 방문 팁 — '실시간 톡'은 동시 접속자가 있어야 성립해 빈 방으로 보였다.
             남긴 글이 쌓여 다음 방문자에게 남는 비동기 팁으로 성격을 바꾼다. */}
-        {!popup.emergencySnapshot && (
-          <section className="mt-8">
-            <h2 className="mb-1 text-lg font-black">{t('detail.tipsTitle')}</h2>
-            <p className="mb-4 text-xs text-muted-foreground">{t('detail.tipsDesc')}</p>
-            <ChatRoom roomId={popup.id} nickname={user?.nickname || t('detail.anonymous')} />
-          </section>
-        )}
+          {!popup.emergencySnapshot && (
+            <section className="mt-8">
+              <h2 className="mb-1 text-lg font-black">{t('detail.tipsTitle')}</h2>
+              <p className="mb-4 text-xs text-muted-foreground">{t('detail.tipsDesc')}</p>
+              <ChatRoom roomId={popup.id} nickname={user?.nickname || t('detail.anonymous')} />
+            </section>
+          )}
 
-        {/* 출처 / 신고 */}
-        {!popup.emergencySnapshot && (
-          <section className="mt-8 space-y-4 rounded-2xl border border-gray-200 bg-white p-5 dark:border-white/10 dark:bg-[#111] md:p-6">
-            {hasSourceInformation && (
-              <div className="flex items-start gap-3">
-                <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-sky-300/30 bg-sky-300/10 text-sky-500">
-                  <Sparkles size={16} />
+          {/* 출처 / 신고 */}
+          {!popup.emergencySnapshot && (
+            <section className="mt-8 space-y-4 rounded-2xl border border-gray-200 bg-white p-5 dark:border-white/10 dark:bg-[#111] md:p-6">
+              {hasSourceInformation && (
+                <div className="flex items-start gap-3">
+                  <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-sky-300/30 bg-sky-300/10 text-sky-500">
+                    <Sparkles size={16} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[11px] font-bold text-muted-foreground">
+                      {t(isCrawledSource ? 'detail.sourceTitle' : 'detail.reportedSourceTitle')}
+                    </p>
+                    <p className="mt-0.5 text-xs leading-relaxed text-foreground/70 md:text-sm">
+                      {isCrawledSource ? (
+                        <>
+                          {t('detail.sourceDesc1')} (
+                          {popup.sourceName || t('detail.externalSource')}){' '}
+                          {t('detail.sourceDesc2')}
+                        </>
+                      ) : (
+                        t('detail.reportedSourceDesc')
+                      )}
+                    </p>
+                    {popup.informationCheckedAt && (
+                      <p className="mt-1 text-[11px] text-muted-foreground">
+                        {t('detail.informationChecked')} {popup.informationCheckedAt.slice(0, 10)}
+                      </p>
+                    )}
+                    {popup.sourceUrl && (
+                      <a
+                        href={popup.sourceUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        /*
+                         * 이 페이지에서 <b>실제로 작동하는 유일한 이탈 경로</b>다. 공식·예약 버튼에도
+                         * 같은 이벤트가 달려 있지만 그 둘은 진행 중 588건 전부 URL 이 비어 있어 한 번도
+                         * 그려진 적이 없다 — 3주간 outbound_click 이 0건이었던 이유가 클릭이 없어서가
+                         * 아니라 버튼이 없어서였다.
+                         *
+                         * 여기 붙여야 "상세를 보고 더 알아보러 떠났는가" 를 처음으로 셀 수 있다.
+                         */
+                        onClick={() => trackVisitEvent('outbound_click', { popupId: popup.id })}
+                        /*
+                         * 글자만 있는 링크는 높이가 글자 높이(16px)라 손가락으로 정확히 누르기 어렵다.
+                         * 글자 크기는 그대로 두고 위아래 여백으로 누를 면적만 44px 로 넓힌다 —
+                         * 겉모습을 키우면 본문 흐름이 흐트러진다.
+                         */
+                        className="mt-1 inline-flex min-h-11 items-center gap-1.5 py-2 text-xs font-semibold text-lime-600 underline dark:text-lime-400 md:text-sm"
+                      >
+                        {t('detail.viewSource')} <ExternalLink size={12} className="shrink-0" />
+                      </a>
+                    )}
+                  </div>
+                </div>
+              )}
+              <div
+                className={`flex items-start gap-3 ${hasSourceInformation ? 'border-t border-gray-100 pt-4 dark:border-white/5' : ''}`}
+              >
+                <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-red-300/30 bg-red-300/10 text-red-500">
+                  <ShieldAlert size={16} />
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-[11px] font-bold text-muted-foreground">
-                    {t(isCrawledSource ? 'detail.sourceTitle' : 'detail.reportedSourceTitle')}
+                    {t('detail.reportTitle')}
                   </p>
-                  <p className="mt-0.5 text-xs leading-relaxed text-foreground/70 md:text-sm">
-                    {isCrawledSource ? (
-                      <>
-                        {t('detail.sourceDesc1')} ({popup.sourceName || t('detail.externalSource')}){' '}
-                        {t('detail.sourceDesc2')}
-                      </>
-                    ) : (
-                      t('detail.reportedSourceDesc')
-                    )}
+                  <p className="mb-2 mt-0.5 text-xs leading-relaxed text-foreground/70 md:text-sm">
+                    {t('detail.reportDesc')}
                   </p>
-                  {popup.informationCheckedAt && (
-                    <p className="mt-1 text-[11px] text-muted-foreground">
-                      {t('detail.informationChecked')} {popup.informationCheckedAt.slice(0, 10)}
-                    </p>
-                  )}
-                  {popup.sourceUrl && (
-                    <a
-                      href={popup.sourceUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      /*
-                       * 이 페이지에서 <b>실제로 작동하는 유일한 이탈 경로</b>다. 공식·예약 버튼에도
-                       * 같은 이벤트가 달려 있지만 그 둘은 진행 중 588건 전부 URL 이 비어 있어 한 번도
-                       * 그려진 적이 없다 — 3주간 outbound_click 이 0건이었던 이유가 클릭이 없어서가
-                       * 아니라 버튼이 없어서였다.
-                       *
-                       * 여기 붙여야 "상세를 보고 더 알아보러 떠났는가" 를 처음으로 셀 수 있다.
-                       */
-                      onClick={() => trackVisitEvent('outbound_click', { popupId: popup.id })}
-                      /*
-                       * 글자만 있는 링크는 높이가 글자 높이(16px)라 손가락으로 정확히 누르기 어렵다.
-                       * 글자 크기는 그대로 두고 위아래 여백으로 누를 면적만 44px 로 넓힌다 —
-                       * 겉모습을 키우면 본문 흐름이 흐트러진다.
-                       */
-                      className="mt-1 inline-flex min-h-11 items-center gap-1.5 py-2 text-xs font-semibold text-lime-600 underline dark:text-lime-400 md:text-sm"
-                    >
-                      {t('detail.viewSource')} <ExternalLink size={12} className="shrink-0" />
-                    </a>
-                  )}
+                  <button
+                    onClick={() => setTakedownOpen(true)}
+                    className="inline-flex min-h-11 items-center gap-1.5 py-2 text-xs font-semibold text-red-500 underline hover:text-red-400 md:text-sm"
+                  >
+                    {t('detail.reportAction')} <ShieldAlert size={12} />
+                  </button>
                 </div>
               </div>
-            )}
-            <div
-              className={`flex items-start gap-3 ${hasSourceInformation ? 'border-t border-gray-100 pt-4 dark:border-white/5' : ''}`}
-            >
-              <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-red-300/30 bg-red-300/10 text-red-500">
-                <ShieldAlert size={16} />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-[11px] font-bold text-muted-foreground">
-                  {t('detail.reportTitle')}
-                </p>
-                <p className="mb-2 mt-0.5 text-xs leading-relaxed text-foreground/70 md:text-sm">
-                  {t('detail.reportDesc')}
-                </p>
-                <button
-                  onClick={() => setTakedownOpen(true)}
-                  className="inline-flex min-h-11 items-center gap-1.5 py-2 text-xs font-semibold text-red-500 underline hover:text-red-400 md:text-sm"
-                >
-                  {t('detail.reportAction')} <ShieldAlert size={12} />
-                </button>
-              </div>
-            </div>
-          </section>
-        )}
+            </section>
+          )}
+        </div>
       </div>
 
       {/* 세 버튼이 전부 조건부라 다 꺼지면 빈 껍데기 바만 남는다 — canVisit || !emergencySnapshot
@@ -817,7 +843,7 @@ export default function PopupDetailClient({
           aria-label={
             locale === 'ko' ? '빠른 실행' : locale === 'ja' ? 'クイック操作' : 'Quick actions'
           }
-          className="fixed inset-x-3 z-50 mx-auto flex max-w-md gap-2 rounded-2xl border border-black/10 bg-white/95 p-2 shadow-2xl backdrop-blur-xl md:hidden dark:border-white/10 dark:bg-[#111]/95"
+          className="fixed inset-x-3 z-50 mx-auto flex max-w-md gap-2 rounded-2xl border border-black/10 bg-white/95 p-2 shadow-2xl backdrop-blur-xl lg:hidden dark:border-white/10 dark:bg-[#111]/95"
           style={{ bottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
         >
           {/* 끝난 팝업은 닫힌 곳이다 — 길찾기를 없앤다. */}
