@@ -1,4 +1,5 @@
-import { isExpired, kstTodayStart } from './popupSlices';
+import { isExpired, kstTodayStart, parseDate } from './popupSlices';
+import { landingStatus } from './landingStatus';
 import { popupStatusLabel } from './popupLocale';
 import type { MessageKey } from './i18n';
 
@@ -40,18 +41,43 @@ export function isPopupEnded(
  * 우선한다.
  *
  * <p>안 끝났고 {@code status} 값이 있으면 {@link popupStatusLabel} 에 맡긴다 — OPEN/영업중/운영중/
- * EXPIRED/종료/혼잡도 값을 이미 안다. 여기서 같은 매핑을 다시 만들지 않는다.
+ * EXPIRED/종료/혼잡도 값을 이미 안다. 여기서 같은 매핑을 다시 만들지 않는다. <b>여기가
+ * "명시적 status 가 날짜보다 우선한다"는 규칙이 지켜지는 지점이다</b> — 날짜는 이 분기 다음에야
+ * 등장하는 폴백일 뿐, status 를 뒤집는 근거로 쓰지 않는다.
  *
- * <p>{@code status} 자체가 없으면(빈 문자열·null·undefined) <b>'영업중'으로 넘겨짚지 않는다.</b>
- * 예전 코드는 이 자리에 {@code t('status.open')} 을 기본값으로 뒀는데, 그러면 상태를 전혀 모르는
- * 팝업도 "운영 중"이라고 단정해 보여줬다 — 근거 없이 확신하는 쪽이 아무 말 안 하는 쪽보다 나쁘다.
+ * <p>{@code status} 자체가 없으면(빈 문자열·null·undefined), 곧바로 '정보 없음'으로 넘어가지
+ * 않는다. 먼저 {@code openDate}/{@code closeDate} 로 {@link landingStatus} 에 물어본다 — 실측
+ * 마커 피드에서 1181건 중 619건이 종료일조차 없고 {@code status} 도 비어 있는 채로 시작일·종료일은
+ * 멀쩡한 경우가 흔하다. 이 페이지는 "T1 암행천문(07-22~08-31)"처럼 마감 D-day 를 이미 날짜로
+ * 계산해서 보여주면서, 바로 위 배지만 "모른다"고 말하면 <b>한 화면이 스스로와 모순</b>된다.
+ *
+ * <p>{@link landingStatus} 를 그대로 재사용하되 <b>날짜가 하나도 없을 때만은 예외로 다룬다.</b>
+ * {@link landingStatus} 자신의 문서에 있듯 그 함수는 "날짜를 모르는 쪽은 열려 있는 것으로 본다"는
+ * 전제를 깔고 있는데, 그 전제는 이미 필터를 통과한 목록(랜딩 페이지)에서만 성립한다 — 상세
+ * 페이지는 어떤 팝업이든 URL 하나로 직접 열 수 있어 그 전제가 없다. 그래서 {@link parseDate} 로
+ * 날짜가 <b>하나라도</b> 읽히는지부터 확인하고, 하나도 없을 때만 '정보 없음'을 최후의 수단으로
+ * 쓴다 — 상태도 날짜도 없는 팝업은 실제로 존재한다(마커 피드 실측 기준).
  */
 export function detailStatusLabel(
   status: string | null | undefined,
   ended: boolean,
+  openDate: string | null | undefined,
+  closeDate: string | null | undefined,
   t: Translate,
+  today: Date = kstTodayStart(),
 ): string {
   if (ended) return t('misc.cardEnded');
   if (status?.trim()) return popupStatusLabel(status, t);
+
+  const hasUsableDates = Boolean(parseDate(openDate) || parseDate(closeDate));
+  if (hasUsableDates) {
+    const derived = landingStatus(openDate ?? null, closeDate ?? null, today);
+    if (derived.kind === 'upcoming') return t('status.upcoming');
+    if (derived.kind === 'ended') return t('misc.cardEnded'); // 방어적 분기 — ended 가 이미 이 경우를
+    // 걸렀어야 정상이다(isExpired 와 같은 산수). 그래도 여기 남겨 두는 편이 '영업중'으로
+    // 잘못 새는 것보다 안전하다.
+    return t('status.open'); // 'ongoing'
+  }
+
   return t('status.unknown');
 }
