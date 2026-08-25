@@ -33,6 +33,8 @@ import { useLocale, type MessageKey } from '@/lib/i18n';
 import { localizedPath } from '@/lib/localePath';
 import { bilingual } from '@/lib/bilingual';
 import { daysUntilEnd } from '@/lib/dday';
+import { isPopupStamped, stampErrorMessageKey, type StampRow } from '@/lib/stamps';
+import { detailStatusLabel, isPopupEnded } from '@/lib/popupDetailStatus';
 
 declare global {
   interface Window {
@@ -291,17 +293,8 @@ export default function PopupDetailClient({
     try {
       const res = await apiFetch(`/api/stamps/my?userId=${userIdToCheck}`);
       if (res.ok) {
-        interface StampRow {
-          stampDate?: string;
-          popupStore: { popupId: number };
-        }
         const myStamps: StampRow[] = await res.json();
-        const todayString = new Date().toISOString().split('T')[0];
-        const hasStampToday = myStamps.some((s) => {
-          const dbDate = s.stampDate?.split('T')[0];
-          return s.popupStore.popupId === popupId && dbDate === todayString;
-        });
-        setIsStamped(hasStampToday);
+        setIsStamped(isPopupStamped(myStamps, popupId));
       }
     } catch (e) {
       console.error(e);
@@ -337,7 +330,11 @@ export default function PopupDetailClient({
         setIsStamped(true);
         notify(t('detail.stampDone'));
       } else {
-        notifyError(t('detail.stampFailed'));
+        // 서버가 400 본문에 정확한 사유를 담아 준다(StampController#addStamp). 그 문구를
+        // 그대로 띄우면 이 사이트가 ko/en/ja 를 모두 서비스하는데 한국어 문장이 영어 화면에도
+        // 뜬다 — stampErrorMessageKey 가 알려진 두 사유만 안전하게 번역해서 연결한다.
+        const body = await res.text().catch(() => '');
+        notifyError(t(stampErrorMessageKey(body)));
       }
     } catch (e) {
       notifyError(t('detail.failed'));
@@ -446,11 +443,17 @@ export default function PopupDetailClient({
             notice: `서비스 일시 중단으로 ${popup.emergencyCapturedAt?.slice(0, 10) ?? '2026-08-11'}에 마지막으로 확인한 정보를 표시하고 있음.`,
             intro: '사진·소개·예약 링크·실시간 기능은 서버 복구 후 다시 표시됨.',
           };
+  // 끝났는지는 status 문자열이 아니라 날짜로 먼저 판단한다 — status=EXPIRED 전환은 스케줄러가
+  // 하루 1회만 돌리므로(popupDetailStatus.ts 주석) 종료일이 지나고도 최대 24시간은 status 가
+  // 여전히 "영업중"일 수 있다.
+  const ended = isPopupEnded(popup.status, popup.closeDate);
   const displayStatus = popup.emergencySnapshot
     ? snapshotCopy.status
-    : popup.status === '영업중' || popup.status === '운영중' || popup.status === 'OPEN'
-      ? t('status.open')
-      : popup.status || t('status.open');
+    : detailStatusLabel(popup.status, ended, t);
+  // 배지를 라임(운영중)으로 켜는 것은 "열려 있다고 확인됐을 때"뿐이다. 저장된 정보(스냅샷)·종료·
+  // 상태 미상·혼잡도 값(여유/보통/혼잡) 은 모두 중립으로 둔다 — status.open 텍스트와 실제로
+  // 같은지만 보고, popupLocale 의 매핑을 다시 베끼지 않는다.
+  const isConfirmedOpen = !popup.emergencySnapshot && !ended && displayStatus === t('status.open');
   // 좌표를 모르면 <b>길안내가 아니라 검색</b>으로 보낸다. 예전 폴백(성수동)을 없앤 뒤 이 링크를
   // 그대로 두면 ".../to/이름,NaN,NaN" 이 되어 지도 앱이 엉뚱한 데를 열거나 아무 데도 안 간다.
   // 이름으로 찾게 하면 적어도 사용자가 직접 고를 수 있다.
@@ -524,8 +527,28 @@ export default function PopupDetailClient({
                 {category}
               </span>
             )}
-            <span className="inline-flex items-center gap-1 rounded-pill bg-lime-300 px-2.5 py-1 text-[11px] font-bold text-ink-900">
-              <span className="h-1.5 w-1.5 rounded-full bg-green-600" /> {displayStatus}
+            {/* 색은 "확인됐다"는 근거가 있을 때만 라임(go 신호)을 켠다. 종료·상태 미상·저장된
+                정보는 전부 중립이다 — 예전엔 조건 없이 항상 라임+초록 점이라, 끝난 팝업도
+                운영 중과 같은 색으로 보여줬다. */}
+            <span
+              className={`inline-flex items-center gap-1 rounded-pill px-2.5 py-1 text-[11px] font-bold ${
+                popup.emergencySnapshot
+                  ? 'bg-amber-300 text-ink-900'
+                  : isConfirmedOpen
+                    ? 'bg-lime-300 text-ink-900'
+                    : 'bg-gray-800/80 text-white'
+              }`}
+            >
+              <span
+                className={`h-1.5 w-1.5 rounded-full ${
+                  popup.emergencySnapshot
+                    ? 'bg-amber-600'
+                    : isConfirmedOpen
+                      ? 'bg-green-600'
+                      : 'bg-gray-300'
+                }`}
+              />{' '}
+              {displayStatus}
             </span>
           </div>
           <h1 className="text-2xl font-black leading-tight md:text-4xl">{displayName}</h1>
