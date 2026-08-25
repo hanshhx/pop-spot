@@ -1,6 +1,9 @@
 import PopupDetailClient from './PopupDetailClient';
 import { buildPopupEventJsonLd, serializeJsonLd } from '@/lib/popupEventJsonLd';
-import { fetchPopupForServer, kstToday, shouldIndexDetail } from './serverData';
+import { fetchPopupForServer, kstToday, shouldIndexDetail, type ServerPopup } from './serverData';
+import { loadPublicMarkers } from '@/lib/emergencyPopupData';
+import { isOpenNow, kstTodayStart } from '@/lib/popupSlices';
+import { nearbyWithin, type Nearby } from '@/lib/nearby';
 
 /**
  * 팝업 상세 — <b>서버가 내용을 그린다.</b>
@@ -22,6 +25,36 @@ type PopupDetailPageProps = {
 };
 
 /**
+ * 도보 12분 안의 열려 있는 이웃 최대 3곳을 서버에서 계산한다.
+ *
+ * <p><b>클라이언트가 아니라 여기서 계산하는 이유.</b> 마커 전체 목록은 355KB 다. 그걸 그대로
+ * {@code PopupDetailClient} 에 넘기면 상세 페이지마다(=크롤러가 보는 모든 문서에) 그 전체가
+ * RSC 페이로드에 실린다. 여기서 최대 3곳만 추려 그 결과만 내려보낸다.
+ *
+ * <p><b>종료된 팝업을 거른다.</b> {@code /api/map/markers} 는 서버에서 날짜 필터를 하지 않는다
+ * (`PopupStoreService.java:196-200`). 걸러내지 않으면 닫힌 곳을 "여기까지 왔으면" 추천에 올리게
+ * 되는데, 그건 이 브랜치의 앞선 두 커밋이 막 없앤 것과 같은 결함이다.
+ *
+ * <p>실패해도 페이지를 막지 않는다 — 좌표가 없거나 {@code loadPublicMarkers} 가 실패하면 빈
+ * 배열을 돌려주고, 그러면 블록 자체가 그려지지 않는다({@code PopupDetailClient} 쪽 조건).
+ */
+async function loadNearbyPopups(popup: ServerPopup | null): Promise<Nearby[]> {
+  if (!popup) return [];
+  const lat = popup.latitude ? parseFloat(popup.latitude) : NaN;
+  const lng = popup.longitude ? parseFloat(popup.longitude) : NaN;
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return [];
+
+  try {
+    const { markers } = await loadPublicMarkers();
+    const today = kstTodayStart();
+    const openMarkers = markers.filter((m) => isOpenNow(m.startDate, m.endDate, today));
+    return nearbyWithin({ lat, lng }, openMarkers, 12, 3, popup.id);
+  } catch {
+    return [];
+  }
+}
+
+/**
  * 상세 본문을 언어 경로에서도 함께 쓰되, 검색에 노출하지 않는 번역 경로에는 Event 데이터를 넣지 않는다.
  */
 export async function PopupDetailPageContent({
@@ -32,6 +65,7 @@ export async function PopupDetailPageContent({
   // 실패하면 null 이 넘어가고, 클라이언트가 예전처럼 스스로 가져온다. 서버가 못 받았다고
   // 페이지를 못 쓰게 만들지 않는다.
   const initial = await fetchPopupForServer(id);
+  const nearby = await loadNearbyPopups(initial);
   const canonical = `https://popspot.co.kr/popup/${id}`;
   const eventJsonLd =
     includeEventJsonLd && /^\d+$/.test(id) && shouldIndexDetail(initial)
@@ -40,7 +74,7 @@ export async function PopupDetailPageContent({
 
   return (
     <>
-      <PopupDetailClient id={id} initial={initial} />
+      <PopupDetailClient id={id} initial={initial} nearby={nearby} />
       {eventJsonLd && (
         <script
           type="application/ld+json"
