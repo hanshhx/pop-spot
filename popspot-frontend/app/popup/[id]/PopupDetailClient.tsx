@@ -15,6 +15,7 @@ import {
   Sparkles,
   Navigation,
   CalendarPlus,
+  Route,
 } from 'lucide-react';
 import { TakedownModal } from '../../../src/features/popup/TakedownModal';
 
@@ -40,6 +41,7 @@ import { detailStatusLabel, isPopupEnded } from '@/lib/popupDetailStatus';
 import { showsVisitActions } from '@/lib/detailActions';
 import { kstTodayStart } from '@/lib/popupSlices';
 import type { Nearby } from '@/lib/nearby';
+import { toCourseSeed } from '@/lib/courseSeed';
 
 declare global {
   interface Window {
@@ -494,6 +496,44 @@ export default function PopupDetailClient({
   // 비므로, 그때는 바 자체를 그리지 않는다.
   const showQuickActionBar = canVisit || !popup.emergencySnapshot;
 
+  // 「여기까지 왔으면」 아래 붙는 "묶어 코스로" 버튼의 재료. 앵커(이 팝업)를 배열 맨 앞에
+  // 넣는다 — "여기, 그리고 이 근처들"이 사용자의 멘탈모델이라 내가 서 있는 곳을 빼면
+  // 이상한 코스가 된다(toCourseSeed 는 순서를 보존하므로 여기서 넣은 순서가 곧 방에
+  // 채워지는 순서다). nearby 는 항상 이름 그대로(원문 한국어)를 쓴다 — HomeClient 의
+  // handleAddPlace 와 같은 이유로, 화면 언어에 저장 값을 묶으면 나중에 다른 언어로 열었을
+  // 때 남의 말이 섞여 나온다.
+  //
+  // nearby 가 비어 있으면(=이 블록 자체가 안 그려지면) 이 배열은 앵커 하나뿐이라
+  // courseSeed.length 가 1 이하가 되고, 버튼 렌더 조건(courseSeed.length > 1)이 함께
+  // 막는다. 아래에서 hasCoords 를 다시 묻지 않는 이유: nearby.length > 0 인 시점에
+  // 도달했다는 것 자체가 loadNearbyPopups(page.tsx)가 이미 앵커 좌표를 검증했다는
+  // 뜻이다(좌표가 없으면 그 함수가 빈 배열을 돌려준다).
+  const courseSeed = toCourseSeed([
+    { name: popup.name, lat, lng },
+    ...nearby.map((n) => ({
+      name: n.marker.name,
+      lat: Number(n.marker.latitude),
+      lng: Number(n.marker.longitude),
+    })),
+  ]);
+
+  // 방 생성은 HomeClient.handleCreateRoom 과 같은 패턴을 그대로 따른다 — 다만 로그인
+  // 게이트는 걸지 않는다. POST /api/planning/create 는 @PreAuthorize 가 없고
+  // (PlanningController.java:58), 상세 페이지의 유입은 딥링크·직접 방문이 대부분이라
+  // 로그인 전 도착이 흔하다. 여기서 로그인 벽을 세우면 이 버튼은 도착 즉시 죽는다.
+  const handleBuildCourse = async () => {
+    try {
+      const res = await apiFetch('/api/planning/create', { method: 'POST' });
+      const roomId = await res.text();
+      // 방 생성 응답을 받은 뒤에 sessionStorage 를 쓴다 — 생성이 실패했는데 먼저 써 두면,
+      // 사용자가 나중에 아무 방이나 열 때 이 코스가 엉뚱하게 재생된다.
+      sessionStorage.setItem('planningSeedCourse', JSON.stringify(courseSeed));
+      router.push(localizedPath(`/planning?room=${roomId}`, locale));
+    } catch (e) {
+      notifyError(t('home.serverFail'));
+    }
+  };
+
   return (
     <main className="min-h-screen bg-background pb-36 text-foreground md:pb-24">
       {/* 사진 히어로 — 실제 커버 이미지(없으면 카테고리 그라디언트) + 제목 오버레이 */}
@@ -795,6 +835,30 @@ export default function PopupDetailClient({
                   );
                 })}
               </div>
+
+              {/* 세 곳 묶어 코스로 — 이미 있던 시드 리더(app/planning/page.tsx:408)에 쓰는
+                쪽을 붙인다. 앵커가 courseSeed 맨 앞에 있으므로 리스트가 비어도(toCourseSeed
+                가 항목을 걸러내) 1곳만 남을 수 있어 courseSeed.length > 1 로 다시 가드한다 —
+                혼자인 "코스"는 이 버튼이 답하려는 질문 자체가 성립하지 않는다. */}
+              {courseSeed.length > 1 && (
+                <div className="mt-4">
+                  <button
+                    type="button"
+                    onClick={handleBuildCourse}
+                    className="flex w-full items-center justify-center gap-2 rounded-2xl border border-gray-300 bg-white py-3.5 text-sm font-bold text-foreground transition hover:border-lime-400 dark:border-white/15 dark:bg-white/5 md:text-base"
+                  >
+                    <Route size={18} className="shrink-0" />
+                    {t('detail.courseSeedPrefix')}
+                    {courseSeed.length}
+                    {t('detail.courseSeedSuffix')}
+                  </button>
+                  {/* 방은 3시간 뒤 사라진다(PlanningController.java:43, ROOM_TTL_HOURS=3).
+                    말없이 사라지는 "코스"를 쥐여주지 않으려고 짧게 적어 둔다. */}
+                  <p className="mt-1.5 text-center text-[11px] text-muted-foreground">
+                    {t('detail.courseSeedTtl')}
+                  </p>
+                </div>
+              )}
             </section>
           )}
 
