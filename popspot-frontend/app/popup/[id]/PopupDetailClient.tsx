@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import {
   ArrowLeft,
   MapPin,
@@ -38,6 +39,7 @@ import { periodText } from '@/lib/periodText';
 import { detailStatusLabel, isPopupEnded } from '@/lib/popupDetailStatus';
 import { showsVisitActions } from '@/lib/detailActions';
 import { kstTodayStart } from '@/lib/popupSlices';
+import type { Nearby } from '@/lib/nearby';
 
 declare global {
   interface Window {
@@ -125,9 +127,15 @@ function ddayLabel(
 export default function PopupDetailClient({
   id,
   initial,
+  nearby = [],
 }: {
   id: string;
   initial: PopupDetail | null;
+  /**
+   * 도보 12분 안의 열려 있는 이웃 최대 3곳. 서버(page.tsx)가 이미 계산해 넘긴다 — 마커 전체
+   * 목록(355KB)을 여기서 다시 받으면 안 된다(loadNearbyPopups 문서 참고).
+   */
+  nearby?: Nearby[];
 }) {
   const router = useRouter();
   const { locale, t } = useLocale();
@@ -752,6 +760,41 @@ export default function PopupDetailClient({
               <h2 className="mb-1 text-lg font-black">{t('detail.tipsTitle')}</h2>
               <p className="mb-4 text-xs text-muted-foreground">{t('detail.tipsDesc')}</p>
               <ChatRoom roomId={popup.id} nickname={user?.nickname || t('detail.anonymous')} />
+            </section>
+          )}
+
+          {/* 여기까지 왔으면 — 상세를 종점이 아니라 경유지로 만드는 블록. 도보 12분 안의 이웃을
+            서버가 이미 계산해 최대 3곳만 넘긴다(nearby prop, page.tsx 의 loadNearbyPopups).
+            좌표가 없거나 이웃이 0곳이면 섹션 자체를 그리지 않는다 — 빈 껍데기·플레이스홀더 없음.
+            다른 보조 섹션(h2)보다 가벼운 무게로 <h3> 를 쓴다. */}
+          {nearby.length > 0 && (
+            <section className="mt-8">
+              <h3 className="mb-3 text-sm font-black md:text-base">{t('detail.nearbyTitle')}</h3>
+              <div className="divide-y divide-gray-200 overflow-hidden rounded-2xl border border-gray-200 bg-white dark:divide-white/10 dark:border-white/10 dark:bg-[#111]">
+                {nearby.map((n) => {
+                  const nearbyName = bilingual(
+                    n.marker.name,
+                    locale === 'en' ? n.marker.nameEn : locale === 'ja' ? n.marker.nameJa : null,
+                  );
+                  const nearbyDisplayName = nearbyName.display || n.marker.name;
+                  return (
+                    <Link
+                      key={n.marker.id}
+                      href={localizedPath(`/popup/${n.marker.id}`, locale)}
+                      className="flex items-center justify-between gap-3 px-4 py-3 text-sm transition hover:bg-black/[0.03] dark:hover:bg-white/[0.05] md:px-5 md:text-base"
+                    >
+                      <span className="min-w-0 flex-1 truncate font-semibold text-foreground">
+                        {nearbyDisplayName}
+                      </span>
+                      <span className="shrink-0 text-xs font-bold text-muted-foreground md:text-sm">
+                        {t('detail.nearbyWalkPrefix')}
+                        {n.minutes}
+                        {t('detail.nearbyWalkSuffix')}
+                      </span>
+                    </Link>
+                  );
+                })}
+              </div>
             </section>
           )}
 
