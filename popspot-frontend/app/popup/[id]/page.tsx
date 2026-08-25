@@ -4,6 +4,7 @@ import { fetchPopupForServer, kstToday, shouldIndexDetail, type ServerPopup } fr
 import { loadPublicMarkers } from '@/lib/emergencyPopupData';
 import { isOpenNow, kstTodayStart } from '@/lib/popupSlices';
 import { nearbyWithin, type Nearby } from '@/lib/nearby';
+import { nearestStation } from '@/lib/nearestStation';
 
 /**
  * 팝업 상세 — <b>서버가 내용을 그린다.</b>
@@ -55,6 +56,24 @@ async function loadNearbyPopups(popup: ServerPopup | null): Promise<Nearby[]> {
 }
 
 /**
+ * 주소 아래 「가는 법」 한 줄의 재료 — 가장 가까운 역 + 도보 분.
+ *
+ * <p><b>클라이언트가 아니라 여기서 계산하는 이유.</b> {@code nearestStation} 은 역 509곳
+ * (JSON 파일 기준 39KB)을 통째로 순회한다. {@code PopupDetailClient}(`'use client'`)에서
+ * 그 함수를 부르면 이 JSON 이 모든 방문자의 클라이언트 번들에 실린다 — 정작 화면에 쓰는 값은
+ * {@code { name, minutes } } 30바이트 남짓인데, 그걸 만들려고 39KB 를 내려보내는 셈이다.
+ * {@link loadNearbyPopups} 가 마커 355KB 를 서버에만 두는 것과 같은 이유로, 여기서 계산해
+ * 결과값만 내려보낸다.
+ */
+function loadNearestStation(popup: ServerPopup | null): { name: string; minutes: number } | null {
+  if (!popup) return null;
+  const lat = popup.latitude ? parseFloat(popup.latitude) : NaN;
+  const lng = popup.longitude ? parseFloat(popup.longitude) : NaN;
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  return nearestStation(lat, lng);
+}
+
+/**
  * 상세 본문을 언어 경로에서도 함께 쓰되, 검색에 노출하지 않는 번역 경로에는 Event 데이터를 넣지 않는다.
  */
 export async function PopupDetailPageContent({
@@ -66,6 +85,7 @@ export async function PopupDetailPageContent({
   // 페이지를 못 쓰게 만들지 않는다.
   const initial = await fetchPopupForServer(id);
   const nearby = await loadNearbyPopups(initial);
+  const station = loadNearestStation(initial);
   const canonical = `https://popspot.co.kr/popup/${id}`;
   const eventJsonLd =
     includeEventJsonLd && /^\d+$/.test(id) && shouldIndexDetail(initial)
@@ -74,7 +94,7 @@ export async function PopupDetailPageContent({
 
   return (
     <>
-      <PopupDetailClient id={id} initial={initial} nearby={nearby} />
+      <PopupDetailClient id={id} initial={initial} nearby={nearby} station={station} />
       {eventJsonLd && (
         <script
           type="application/ld+json"
