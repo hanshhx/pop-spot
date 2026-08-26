@@ -18,6 +18,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 import { loadMapMarkers, type PublicMapMarker } from '@/lib/mapMarkers';
 import { localizedPath } from '@/lib/localePath';
+import { saveHomeReturnState } from '@/lib/homeReturnScroll';
 import { REGIONS, classifyRegion, type RegionCode } from '@/lib/regions';
 import {
   getPeriods,
@@ -357,6 +358,8 @@ function SliceModal({ slice, onClose }: { slice: ActiveSlice; onClose: () => voi
   }, [onClose]);
 
   function goToDetail(id: number) {
+    // 홈 → 상세 경로라 다른 홈 카드들과 같은 스크롤 복원 규칙을 따른다.
+    saveHomeReturnState();
     onClose();
     router.push(localizedPath(`/popup/${id}`, locale));
   }
