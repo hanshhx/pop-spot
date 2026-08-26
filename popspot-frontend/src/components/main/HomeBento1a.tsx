@@ -58,7 +58,9 @@ export default function HomeBento1a({ popups, total, onOpenRanking, onNavigate }
   // key 는 한국어 그대로 둔다 — 위 filtered 의 분기 조건이라 바꾸면 필터가 통째로 깨진다.
   // 화면에 보이는 label 만 언어에 맞춰 고른다.
   const chips: { key: ChipKey; label: string }[] = [
-    { key: '전체', label: `${t('chip.all')} ${total || popups.length}` },
+    // `total || popups.length` 였다. 그러면 진짜로 0 곳일 때 폴백이 걸려 "전체 8"(이 카드가 받은
+    // 목록 길이)이 나온다 — 없는데 있다고 말하는 셈이다. 0 은 0 으로 보여 준다.
+    { key: '전체', label: `${t('chip.all')} ${total ?? popups.length}` },
     { key: '이번 주', label: t('chip.thisWeek') },
     { key: '마감임박', label: t('chip.closing') },
     { key: '혼잡', label: t('chip.crowded') },
