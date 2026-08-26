@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { Heart, MapPin, Shirt, Coffee, Palette, Star, Sparkles, Cpu, Store } from 'lucide-react';
+import { Heart, MapPin } from 'lucide-react';
+import { categoryVisual } from '@/components/main/categoryVisual';
 import { cn } from '@/lib/utils';
 import { popupCoverUrl } from '@/lib/popupCover';
 import { PhotoDisclosure } from '@/components/popup/PhotoDisclosure';
@@ -38,20 +39,6 @@ const CATEGORY_LABEL_KEY: Record<string, MessageKey> = {
   BEAUTY: 'misc.catBeauty',
   TECH: 'misc.catTech',
   ETC: 'misc.catEtc',
-};
-
-/**
- * 사진이 없을 때(자동수집 팝업 대부분)의 플레이스홀더 스타일. 카테고리별 브랜드 그라디언트 + 아이콘 —
- * 잘못된 사진을 붙이는 대신 "의도된 디자인"으로 보이게. 색은 소스에 문자열 리터럴로 박아 Tailwind JIT 가 인식.
- */
-const CATEGORY_STYLE: Record<string, { grad: string; Icon: typeof MapPin }> = {
-  FASHION: { grad: 'from-pink-200 to-rose-300', Icon: Shirt },
-  FOOD: { grad: 'from-amber-200 to-orange-300', Icon: Coffee },
-  CULTURE: { grad: 'from-violet-200 to-indigo-300', Icon: Palette },
-  CHARACTER: { grad: 'from-lime-200 to-emerald-300', Icon: Star },
-  BEAUTY: { grad: 'from-fuchsia-200 to-pink-300', Icon: Sparkles },
-  TECH: { grad: 'from-sky-200 to-cyan-300', Icon: Cpu },
-  ETC: { grad: 'from-gray-200 to-gray-300', Icon: Store },
 };
 
 export interface PopupCardProps {
@@ -103,7 +90,7 @@ export function PopupCard({ popup, onClick, onWish, wished, className, seen }: P
   );
   const region =
     (shownPlace.display || '').split(' ').slice(0, 3).join(' ') || t('misc.cardRegionSeoul');
-  const catStyle = CATEGORY_STYLE[popup.category?.toUpperCase() ?? 'ETC'] ?? CATEGORY_STYLE.ETC;
+  const catStyle = categoryVisual(popup.category);
   const coverUrl = popupCoverUrl(popup);
 
   return (
