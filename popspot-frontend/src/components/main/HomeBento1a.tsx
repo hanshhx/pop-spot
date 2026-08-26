@@ -1,205 +1,144 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import type { ComponentType } from 'react';
 import Link from 'next/link';
-import { Flame, Ticket, CalendarDays, ArrowRight, Store } from 'lucide-react';
-import type { PopupStore } from '@/types/popup';
-import { useLocale } from '@/lib/i18n';
+import {
+  Ticket,
+  CalendarDays,
+  ArrowRight,
+  Store,
+  MapPin,
+  Tag,
+  CalendarRange,
+  Compass,
+} from 'lucide-react';
+import type { CatalogDoor } from '@/lib/catalogDoors';
+import { regionBySlug } from '@/lib/regions';
+import { categoryBySlug, brandBySlug, periodBySlug } from '@/lib/popupSlices';
+import { localizedLabel, useLocale, type Locale } from '@/lib/i18n';
 import { localizedPath } from '@/lib/localePath';
-import { bilingual } from '@/lib/bilingual';
-import { detailStatusLabel, isPopupEnded } from '@/lib/popupDetailStatus';
-import { isPexelsPhoto, popupCoverUrl } from '@/lib/popupCover';
-import { daysUntilEnd } from '@/lib/dday';
 
 /**
  * 홈 하단 발견 존 — 1a안 (히어로 + 서브 타일).
  *
- * <p>6칸 벤토를 3칸으로: 실시간 랭킹을 큰 히어로로, 나의 기록(여권)·언제 갈까(일정)를 사이드 타일로.
- * 필터 칩(이번 주·마감임박·혼잡)은 실제로 랭킹을 필터한다. 서브 타일은 <b>유저별로 다른 값을 하드코딩하지 않고</b>
- * 기능 설명 + 일반 일러스트만 둔다(실제 카운트가 필요하면 로그인 데이터를 별도로 배선).
+ * <p>6칸 벤토를 3칸으로: 850곳으로 들어가는 문 넷을 큰 히어로로, 나의 기록(여권)·언제 갈까(일정)를
+ * 사이드 타일로. 서브 타일은 <b>유저별로 다른 값을 하드코딩하지 않고</b> 기능 설명 + 일반 일러스트만
+ * 둔다(실제 카운트가 필요하면 로그인 데이터를 별도로 배선).
+ *
+ * <p>v2.54 — 여기 있던 실시간 랭킹(칩 4개 + 인기 상위 4)을 뺐다. POP-LOOK(1+7칸)이 이미 유일한
+ * 랭킹을 맡고 있어 이 자리는 같은 여덟 곳 중 상위 4개를 다시 보여주는 두 번째 랭킹이었다 —
+ * 그 칩 중 「마감임박」·「혼잡」은 눌러도 항상 0건이었다(status 가 실측상 늘 비어 있어서). 소유자가
+ * 가장 중요하다고 한 것 — "몇백 건에 다양하게 들어갈 수 있어야 한다" — 을 위해 이 자리를 850곳
+ * 전체로 들어가는 문 4개로 바꿨다({@link catalogDoors}). 각 문은 이미 있는 {@code /popups/[slug]}
+ * SEO 랜딩으로 보낸다.
  */
+
+/** 문의 축(key 의 "축:슬러그" 앞부분)에 따라 다른 아이콘을 쓴다 — 넷이 서로 다른 종류임을 눈으로도 보여준다. */
+const AXIS_ICON: Record<string, ComponentType<{ size?: number; className?: string }>> = {
+  region: MapPin,
+  category: Tag,
+  period: CalendarRange,
+  brand: Store,
+};
 
 /**
- * 상태 배지 색.
+ * 문의 key({@code "축:슬러그"})를 화면 언어 라벨로 바꾼다.
  *
- * <p>혼잡도 값(혼잡/여유)은 백엔드 원문 status 를 그대로 본다 — 지금은 status 가 실측상 항상
- * 비어 있어 이 두 분기가 죽어 있지만, 백엔드가 채우기 시작하면 바로 맞는 색이 나오게 남겨 둔다.
- *
- * <p>그 외에는 <b>날짜로 확인된 "열려 있음"</b>(isOpen)일 때만 라임을 켜고, 나머지(끝났음·상태
- * 미상)는 중립(회색)으로 둔다 — 상세 페이지 배지(`PopupDetailClient.tsx`)와 같은 규칙이다.
- * 예전엔 status 를 못 받은 모든 경우가 amber 기본값이었는데, 그 시절 이 카드는 status 가 항상
- * null 이라 근거 없이 "영업중"을 amber 로 단정하고 있었다 — 그게 이 태스크가 고치는 버그다.
- * 끝난 팝업까지 amber(열린 것처럼)로 보이면 안 되니, 색은 반드시 라벨이 실제로 하는 말과
- * 맞아야 한다.
+ * <p>{@link catalogDoors} 는 사전을 모른다(순수 함수라 i18n 컨텍스트가 없다) — 라벨은 부르는 쪽인
+ * 여기서, 그 축의 정의(REGIONS/CATEGORIES/BRANDS/getPeriods)를 같은 슬러그로 다시 찾아 만든다.
+ * 정의를 못 찾는 경우(있을 수 없지만)는 슬러그를 그대로 보여준다 — 빈 라벨보다는 낫다.
  */
-function statusTone(status: string | undefined, isOpen: boolean): string {
-  if (status === '혼잡') return 'text-hot-500 dark:text-hot-400';
-  if (status === '여유') return 'text-lime-600 dark:text-lime-400';
-  return isOpen ? 'text-lime-600 dark:text-lime-400' : 'text-ink-400 dark:text-cream-200/40';
+function doorLabel(door: CatalogDoor, locale: Locale): string {
+  const [axis, slug] = door.key.split(':');
+  if (axis === 'region') {
+    const def = regionBySlug(slug);
+    return def ? localizedLabel(def, locale) : slug;
+  }
+  if (axis === 'category') {
+    const def = categoryBySlug(slug);
+    return def ? localizedLabel(def, locale) : slug;
+  }
+  if (axis === 'brand') {
+    const def = brandBySlug(slug);
+    return def ? localizedLabel(def, locale) : slug;
+  }
+  if (axis === 'period') {
+    const def = periodBySlug(slug);
+    return def ? localizedLabel(def, locale) : slug;
+  }
+  return slug;
 }
 
-type ChipKey = '전체' | '이번 주' | '마감임박' | '혼잡';
-
 interface Props {
-  popups: PopupStore[];
+  doors: CatalogDoor[];
   total: number;
-  onOpenRanking: () => void;
   onNavigate: (tab: string) => void;
 }
 
-export default function HomeBento1a({ popups, total, onOpenRanking, onNavigate }: Props) {
+export default function HomeBento1a({ doors, total, onNavigate }: Props) {
   const { t, locale } = useLocale();
-  const [chip, setChip] = useState<ChipKey>('전체');
-
-  const filtered = useMemo(() => {
-    if (chip === '마감임박')
-      return popups.filter((p) => {
-        const d = daysUntilEnd(p.endDate);
-        return d !== null && d >= 0 && d <= 3;
-      });
-    if (chip === '이번 주')
-      return popups.filter((p) => {
-        const d = daysUntilEnd(p.endDate);
-        return d !== null && d >= 0 && d <= 7;
-      });
-    if (chip === '혼잡') return popups.filter((p) => p.status === '혼잡');
-    return popups;
-  }, [popups, chip]);
-
-  const top = filtered.slice(0, 4);
-
-  // key 는 한국어 그대로 둔다 — 위 filtered 의 분기 조건이라 바꾸면 필터가 통째로 깨진다.
-  // 화면에 보이는 label 만 언어에 맞춰 고른다.
-  const chips: { key: ChipKey; label: string }[] = [
-    // `total || popups.length` 였다. 그러면 진짜로 0 곳일 때 폴백이 걸려 "전체 8"(이 카드가 받은
-    // 목록 길이)이 나온다 — 없는데 있다고 말하는 셈이다. 0 은 0 으로 보여 준다.
-    { key: '전체', label: `${t('chip.all')} ${total ?? popups.length}` },
-    { key: '이번 주', label: t('chip.thisWeek') },
-    { key: '마감임박', label: t('chip.closing') },
-    { key: '혼잡', label: t('chip.crowded') },
-  ];
 
   return (
     <section
       aria-label={t('bento.aria')}
       className="mb-10 grid grid-cols-1 gap-4 lg:grid-cols-3 lg:grid-rows-2"
     >
-      {/* 실시간 랭킹 히어로 — 라이트=흰 카드/진한 글씨, 다크=딥카드(기존 유지) */}
+      {/* 850곳으로 들어가는 문 4개 — 라이트=흰 카드/진한 글씨, 다크=딥카드(기존 유지) */}
       <div className="flex flex-col rounded-[2rem] border border-black/[0.06] bg-white p-5 text-ink-900 shadow-pop md:p-6 lg:col-span-2 lg:row-span-2 dark:border-transparent dark:bg-ink-900 dark:text-cream-200">
-        <div className="mb-4 flex flex-wrap gap-2">
-          {chips.map((c) => (
-            <button
-              key={c.key}
-              type="button"
-              onClick={() => setChip(c.key)}
-              aria-pressed={chip === c.key}
-              className={`rounded-pill px-3 py-1 text-[11px] font-bold transition ${
-                chip === c.key
-                  ? 'bg-lime-300 text-ink-900'
-                  : 'border border-black/15 text-ink-500 hover:text-ink-900 dark:border-ink-700 dark:text-cream-200/60 dark:hover:text-cream-200'
-              }`}
-            >
-              {c.label}
-            </button>
-          ))}
-        </div>
-
-        <header className="mb-3 flex items-center gap-2">
-          <Flame size={18} className="animate-pulse text-hot-400" />
-          <h3 className="text-lg font-black">{t('section.ranking')}</h3>
+        <header className="mb-1 flex items-center gap-2">
+          <Compass size={18} className="text-lime-600 dark:text-lime-300" />
+          {/* 숫자는 문구 안에 박아 두지 않는다 — total(mappablePopupCount) 이 유일한 출처다.
+              박아 두면 이 문구가 옆 자리의 실시간 숫자와 따로 놀게 된다(플랜을 쓸 당시엔 850이었지만
+              지금은 이미 그보다 많다). */}
+          <h3 className="text-lg font-black">
+            {total}
+            {t('bento.catalogTitleSuffix')}
+          </h3>
         </header>
+        <p className="mb-4 text-xs text-ink-500 dark:text-cream-200/55">{t('bento.catalogDesc')}</p>
 
-        <div className="flex-1 space-y-1">
-          {popups.length === 0 ? (
-            [...Array(4)].map((_, i) => (
-              <div key={i} className="flex animate-pulse items-center gap-3 p-2">
-                <div className="h-4 w-4 rounded bg-black/10 dark:bg-white/10" />
-                <div className="h-11 w-11 rounded-xl bg-black/10 dark:bg-white/10" />
-                <div className="flex-1 space-y-1.5">
-                  <div className="h-3 w-2/3 rounded bg-black/10 dark:bg-white/10" />
-                  <div className="h-2 w-1/3 rounded bg-black/10 dark:bg-white/10" />
+        <div className="flex-1 space-y-2">
+          {doors.length === 0
+            ? [...Array(4)].map((_, i) => (
+                <div key={i} className="flex animate-pulse items-center gap-3 p-2">
+                  <div className="h-10 w-10 rounded-xl bg-black/10 dark:bg-white/10" />
+                  <div className="flex-1 space-y-1.5">
+                    <div className="h-3 w-2/3 rounded bg-black/10 dark:bg-white/10" />
+                    <div className="h-2 w-1/3 rounded bg-black/10 dark:bg-white/10" />
+                  </div>
                 </div>
-              </div>
-            ))
-          ) : top.length === 0 ? (
-            <p className="py-8 text-center text-sm text-ink-400 dark:text-cream-200/40">
-              {t('ranking.empty')}
-            </p>
-          ) : (
-            top.map((p, i) => {
-              const coverUrl = popupCoverUrl(p, 200);
-              const isStyledPhoto = isPexelsPhoto(p);
-              const shownName = bilingual(
-                p.name,
-                locale === 'en' ? p.nameEn : locale === 'ja' ? p.nameJa : null,
-              );
-              const shownPlace = bilingual(
-                p.location,
-                locale === 'en' ? p.locationEn : locale === 'ja' ? p.locationJa : null,
-              );
-              // status 가 실측상 항상 비어 있어(마커 API 엔 필드 자체가 없고 상세 표본도 전부
-              // null), 예전처럼 "모르면 영업중"을 찍으면 근거가 없다. 상세 페이지와 같은 근거로
-              // — 날짜에서 다시 판정한다. 이 자리(hotPopups)는 keepOpenNow 로 이미 걸러진 풀이라
-              // 대부분 "영업중"으로 나오겠지만, 그 값이 이제는 날짜가 뒷받침한다.
-              const ended = isPopupEnded(p.status, p.endDate);
-              const displayStatus = detailStatusLabel(p.status, ended, p.startDate, p.endDate, t);
-              const isConfirmedOpen = !ended && displayStatus === t('status.open');
-              return (
-                // v2.44 — 카드는 그 팝업의 상세로 간다. 예전엔 어느 카드를 눌러도 랭킹 모달이 떠서,
-                // 3위가 궁금해 눌러도 목록이 다시 뜰 뿐 그 팝업 정보로는 갈 수 없었다.
-                // button 대신 Link 를 쓰는 것은 홈의 다른 팝업 카드(레일·캘린더)와 같은 방식이라
-                // 새 탭 열기·주소 복사 같은 링크 동작이 그대로 되기 때문이다.
-                <Link
-                  key={p.id}
-                  href={localizedPath(`/popup/${p.id}`, locale)}
-                  className="flex w-full items-center gap-3 rounded-2xl p-2 text-left transition hover:bg-black/5 dark:hover:bg-white/5"
-                >
-                  <span
-                    className={`w-4 shrink-0 text-center text-sm font-black ${i === 0 ? 'text-lime-600 dark:text-lime-300' : 'text-ink-400 dark:text-cream-200/40'}`}
+              ))
+            : doors.map((door) => {
+                const axis = door.key.split(':')[0];
+                const Icon = AXIS_ICON[axis] ?? Store;
+                return (
+                  // 랜딩 SEO 슬러그는 로케일과 무관하다(page.tsx 주석 참고) — localizedPath 가
+                  // /en, /ja 접두사를 붙여준다.
+                  <Link
+                    key={door.key}
+                    href={localizedPath(door.href, locale)}
+                    className="flex w-full items-center gap-3 rounded-2xl border border-black/[0.05] p-3 text-left transition hover:border-lime-300 hover:bg-black/5 dark:border-white/10 dark:hover:bg-white/5"
                   >
-                    {i + 1}
-                  </span>
-                  <div className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-xl bg-gradient-to-br from-lime-200 to-emerald-300 dark:from-lime-900 dark:to-emerald-950">
-                    {coverUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={coverUrl} alt="" className="h-full w-full object-cover" />
-                    ) : (
-                      <Store size={18} className="text-ink-700/55 dark:text-lime-200/60" />
-                    )}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <strong className="block truncate text-sm font-bold">
-                      {shownName.display || p.name}
-                    </strong>
-                    <span className="block truncate text-[11px] text-ink-500 dark:text-cream-200/45">
-                      {(shownPlace.display || '').split(' ').slice(0, 3).join(' ')}
-                      {/* displayStatus 가 비어 있을 일은 지금은 없지만(detailStatusLabel 이 최후
-                          수단으로 "정보 없음"까지 보장한다), 구분점만 남고 뒤에 아무 것도 없는
-                          "장소 · " 를 만들지 않도록 표시할 것이 있을 때만 구분점을 붙인다. */}
-                      {displayStatus && (
-                        <>
-                          {' · '}
-                          <span className={statusTone(p.status, isConfirmedOpen)}>
-                            {displayStatus}
-                          </span>
-                        </>
-                      )}
-                      {isStyledPhoto && ` · ${t('card.styledPhoto')}`}
+                    <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-lime-300/20 text-lime-700 dark:bg-lime-300/10 dark:text-lime-300">
+                      <Icon size={18} />
                     </span>
-                  </div>
-                </Link>
-              );
-            })
-          )}
+                    <div className="min-w-0 flex-1">
+                      <strong className="block truncate text-sm font-bold">
+                        {doorLabel(door, locale)}
+                      </strong>
+                      <span className="block text-[11px] text-ink-500 dark:text-cream-200/45">
+                        {door.count}
+                        {t('slice.countUnit')}
+                      </span>
+                    </div>
+                    <ArrowRight
+                      size={16}
+                      className="shrink-0 text-ink-400 dark:text-cream-200/40"
+                    />
+                  </Link>
+                );
+              })}
         </div>
-
-        <button
-          type="button"
-          onClick={onOpenRanking}
-          className="mt-3 w-full rounded-xl bg-lime-400/15 py-2.5 text-center text-xs font-bold text-lime-700 transition hover:bg-lime-400/25 dark:bg-lime-300/15 dark:text-lime-300 dark:hover:bg-lime-300/25"
-        >
-          {t('ranking.viewAll')}
-        </button>
       </div>
 
       {/* 나의 기록 (여권) — 유저별 값 없이 기능 설명만 */}
