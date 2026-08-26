@@ -7,7 +7,7 @@ import type { PopupStore } from '@/types/popup';
 import { useLocale } from '@/lib/i18n';
 import { localizedPath } from '@/lib/localePath';
 import { bilingual } from '@/lib/bilingual';
-import { popupStatusLabel } from '@/lib/popupLocale';
+import { detailStatusLabel, isPopupEnded } from '@/lib/popupDetailStatus';
 import { isPexelsPhoto, popupCoverUrl } from '@/lib/popupCover';
 import { daysUntilEnd } from '@/lib/dday';
 
@@ -19,10 +19,23 @@ import { daysUntilEnd } from '@/lib/dday';
  * 기능 설명 + 일반 일러스트만 둔다(실제 카운트가 필요하면 로그인 데이터를 별도로 배선).
  */
 
-function statusTone(status?: string): string {
+/**
+ * 상태 배지 색.
+ *
+ * <p>혼잡도 값(혼잡/여유)은 백엔드 원문 status 를 그대로 본다 — 지금은 status 가 실측상 항상
+ * 비어 있어 이 두 분기가 죽어 있지만, 백엔드가 채우기 시작하면 바로 맞는 색이 나오게 남겨 둔다.
+ *
+ * <p>그 외에는 <b>날짜로 확인된 "열려 있음"</b>(isOpen)일 때만 라임을 켜고, 나머지(끝났음·상태
+ * 미상)는 중립(회색)으로 둔다 — 상세 페이지 배지(`PopupDetailClient.tsx`)와 같은 규칙이다.
+ * 예전엔 status 를 못 받은 모든 경우가 amber 기본값이었는데, 그 시절 이 카드는 status 가 항상
+ * null 이라 근거 없이 "영업중"을 amber 로 단정하고 있었다 — 그게 이 태스크가 고치는 버그다.
+ * 끝난 팝업까지 amber(열린 것처럼)로 보이면 안 되니, 색은 반드시 라벨이 실제로 하는 말과
+ * 맞아야 한다.
+ */
+function statusTone(status: string | undefined, isOpen: boolean): string {
   if (status === '혼잡') return 'text-hot-500 dark:text-hot-400';
   if (status === '여유') return 'text-lime-600 dark:text-lime-400';
-  return 'text-amber-500 dark:text-amber-300';
+  return isOpen ? 'text-lime-600 dark:text-lime-400' : 'text-ink-400 dark:text-cream-200/40';
 }
 
 type ChipKey = '전체' | '이번 주' | '마감임박' | '혼잡';
@@ -124,6 +137,13 @@ export default function HomeBento1a({ popups, total, onOpenRanking, onNavigate }
                 p.location,
                 locale === 'en' ? p.locationEn : locale === 'ja' ? p.locationJa : null,
               );
+              // status 가 실측상 항상 비어 있어(마커 API 엔 필드 자체가 없고 상세 표본도 전부
+              // null), 예전처럼 "모르면 영업중"을 찍으면 근거가 없다. 상세 페이지와 같은 근거로
+              // — 날짜에서 다시 판정한다. 이 자리(hotPopups)는 keepOpenNow 로 이미 걸러진 풀이라
+              // 대부분 "영업중"으로 나오겠지만, 그 값이 이제는 날짜가 뒷받침한다.
+              const ended = isPopupEnded(p.status, p.endDate);
+              const displayStatus = detailStatusLabel(p.status, ended, p.startDate, p.endDate, t);
+              const isConfirmedOpen = !ended && displayStatus === t('status.open');
               return (
                 // v2.44 — 카드는 그 팝업의 상세로 간다. 예전엔 어느 카드를 눌러도 랭킹 모달이 떠서,
                 // 3위가 궁금해 눌러도 목록이 다시 뜰 뿐 그 팝업 정보로는 갈 수 없었다.
@@ -152,8 +172,18 @@ export default function HomeBento1a({ popups, total, onOpenRanking, onNavigate }
                       {shownName.display || p.name}
                     </strong>
                     <span className="block truncate text-[11px] text-ink-500 dark:text-cream-200/45">
-                      {(shownPlace.display || '').split(' ').slice(0, 3).join(' ')} ·{' '}
-                      <span className={statusTone(p.status)}>{popupStatusLabel(p.status, t)}</span>
+                      {(shownPlace.display || '').split(' ').slice(0, 3).join(' ')}
+                      {/* displayStatus 가 비어 있을 일은 지금은 없지만(detailStatusLabel 이 최후
+                          수단으로 "정보 없음"까지 보장한다), 구분점만 남고 뒤에 아무 것도 없는
+                          "장소 · " 를 만들지 않도록 표시할 것이 있을 때만 구분점을 붙인다. */}
+                      {displayStatus && (
+                        <>
+                          {' · '}
+                          <span className={statusTone(p.status, isConfirmedOpen)}>
+                            {displayStatus}
+                          </span>
+                        </>
+                      )}
                       {isStyledPhoto && ` · ${t('card.styledPhoto')}`}
                     </span>
                   </div>

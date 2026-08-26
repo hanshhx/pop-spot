@@ -107,4 +107,13 @@ describe('detailStatusLabel', () => {
       'translated:status.unknown',
     );
   });
+
+  it('공백뿐인 상태는 popupStatusLabel 이 null 을 돌려줘도 정보 없음으로 끊기지 않고 날짜 파생으로 이어진다', () => {
+    // popupStatusLabel('   ', t) 는 null 이다 — 그 null 이 여기서 단정으로 되살아나지 않고
+    // 아래 날짜 파생 분기로 흘러가야 한다(restructure 의 핵심).
+    const ended = isPopupEnded('   ', '2026-08-31', TODAY);
+    expect(detailStatusLabel('   ', ended, '2026-07-22', '2026-08-31', t, TODAY)).toBe(
+      'translated:status.open',
+    );
+  });
 });
