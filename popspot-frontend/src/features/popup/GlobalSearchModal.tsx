@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/dialog';
 import { useLocale } from '@/lib/i18n';
 import { localizedPath } from '@/lib/localePath';
+import { saveHomeReturnState } from '@/lib/homeReturnScroll';
 import type { PopupStore } from '@/types/popup';
 
 import { SearchZone } from './SearchBox';
@@ -52,6 +53,8 @@ export function GlobalSearchModal({ open, onOpenChange, popups }: GlobalSearchMo
         <SearchZone
           popups={popups}
           onSelectPopup={(hit) => {
+            // 홈 → 상세 경로라 다른 홈 카드들과 같은 스크롤 복원 규칙을 따른다.
+            saveHomeReturnState();
             onOpenChange(false);
             router.push(localizedPath(`/popup/${hit.objectID}`, locale));
           }}
