@@ -494,6 +494,16 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
     [allPopups, fallbackCoordKeys],
   );
 
+  /**
+   * 화면이 말하는 팝업 수는 <b>이 하나</b>다.
+   *
+   * <p>{@code allPopups}(오늘 열려 있는 전부)와 다르다 — 실측 1,002 대 850. 차이 152 곳은
+   * 열려 있지만 좌표가 없거나 지역 중심점에 뭉쳐 있어 <b>눌러도 지도에서 찾을 수 없다.</b>
+   * 그래서 <b>셀 수 있는 것이 아니라 갈 수 있는 것을 센다.</b>
+   *
+   * <p>예전엔 벤토 칩만 {@code allPopups.length} 를 써서 한 화면에 "전체" 가 두 숫자로 나왔고,
+   * 그 칩의 전체보기가 여는 모달은 정작 {@code mappablePopups} 라 850 짜리였다.
+   */
   const mappablePopupCount = mappablePopups.length;
 
   /**
@@ -1623,9 +1633,13 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
             </div>
 
             {/* 홈 하단 발견 존 — 1a안 (랭킹 히어로 + 나의 기록 + 같이 갈 사람). 혼잡도는 위 바로, 캘린더·음악은 이 존 제외. */}
+            {/* total 은 히어로·POP-LOOK 과 같은 mappablePopupCount 를 쓴다. 예전엔 여기만
+                allPopups.length 라 한 화면에서 "전체" 가 1,002 와 850 두 숫자로 나왔고, 정작
+                이 칩의 전체보기가 여는 모달은 850 짜리(mappablePopups)였다 — 광고한 수와
+                여는 수가 달랐다. */}
             <HomeBento1a
               popups={hotPopups}
-              total={allPopups.length}
+              total={mappablePopupCount}
               onOpenRanking={handleOpenModal}
               onNavigate={handleTabChange}
             />
