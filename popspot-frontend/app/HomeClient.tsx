@@ -107,6 +107,12 @@ import {
   startGuestMode,
 } from '@/lib/guestMode';
 import { canAccessTab } from '@/lib/tabAccess';
+import {
+  HOME_RETURN_STATE_KEY,
+  isPopupDetailPath,
+  resolveHomeReturnScroll,
+  saveHomeReturnState,
+} from '@/lib/homeReturnScroll';
 import { SearchZone } from '@/features/popup/SearchBox';
 import { SectionLogo } from '@/components/layout/BrandLogos';
 import { ReportPopupModal } from '@/features/popup/ReportPopupModal';
@@ -140,7 +146,6 @@ import type {
 } from '@/types/popup';
 
 const INITIAL_MY_COURSE: CourseItem[] = [];
-const MAP_RETURN_STATE_KEY = 'popspot:map-return-state';
 const EMPTY_POPUPS: PopupStore[] = [];
 
 function popupToMapMarker(popup: PopupStore): PublicMapMarker {
@@ -957,38 +962,62 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
   const handleOpenModal = () => setIsModalOpen(true);
 
   const handleMarkerClickToDetail = (popupId: number | string) => {
-    try {
-      window.sessionStorage.setItem(
-        MAP_RETURN_STATE_KEY,
-        JSON.stringify({
-          scrollY: window.scrollY,
-          search: window.location.search,
-          savedAt: Date.now(),
-        }),
-      );
-    } catch {
-      // Private browsing may block session storage; navigation should still work.
-    }
+    saveHomeReturnState();
     router.push(localizedPath(`/popup/${popupId}`, locale));
   };
 
+  /**
+   * 홈 → 상세로 가는 링크(<a href>) 클릭을 전부 잡아서 스크롤 위치를 저장한다.
+   *
+   * <p><b>왜 캡처 단계 document 리스너인가.</b> 홈에서 상세로 가는 실제 경로 중 상당수는
+   * {@code router.push} 가 아니라 순수 {@code <Link href>}다 — 레일·POP-LOOK·최근 본 팝업뿐
+   * 아니라 벤토 랭킹(HomeBento1a)·캘린더(PopupCalendar, 화면·모달 양쪽)·라이브 티커·일정
+   * 탭(MySchedule)처럼 <b>이 파일 밖의 자식 컴포넌트</b>가 그리는 링크도 있다. 그 컴포넌트마다
+   * 저장 함수를 prop 으로 꽂아 넣으면 놓치는 곳이 반드시 생긴다 — 실제로 이 조사 중에도 처음
+   * 계획에 없던 두 경로(PopupCalendar, HomeBento1a)를 찾았다. 클릭을 캡처 단계에서 한 번만
+   * 가로채면 앞으로 새 링크가 추가돼도 따로 손댈 필요가 없다.
+   *
+   * <p>캡처 단계라 Link 자신의 클릭 처리보다 먼저 실행되고, {@code preventDefault}·
+   * {@code stopPropagation} 을 하지 않으므로 실제 이동은 그대로 Link 가 처리한다 — 여기서는
+   * 관찰만 한다.
+   *
+   * <p>{@code router.push} 로 직접 이동하는 곳(버튼 onClick 등, 실제 <a> 가 없는 곳)은 이
+   * 리스너로 못 잡는다 — 그런 곳은 각 호출부에서 {@link saveHomeReturnState} 를 직접 부른다.
+   */
   useEffect(() => {
-    let saved: { scrollY?: number; search?: string; savedAt?: number } | null = null;
+    const onAnchorClickCapture = (e: MouseEvent) => {
+      const el = e.target instanceof Element ? e.target.closest('a[href]') : null;
+      if (el instanceof HTMLAnchorElement && isPopupDetailPath(el.pathname)) {
+        saveHomeReturnState();
+      }
+    };
+    document.addEventListener('click', onAnchorClickCapture, true);
+    return () => document.removeEventListener('click', onAnchorClickCapture, true);
+  }, []);
+
+  useEffect(() => {
+    let raw: unknown = null;
     try {
-      saved = JSON.parse(window.sessionStorage.getItem(MAP_RETURN_STATE_KEY) ?? 'null');
-      window.sessionStorage.removeItem(MAP_RETURN_STATE_KEY);
+      raw = JSON.parse(window.sessionStorage.getItem(HOME_RETURN_STATE_KEY) ?? 'null');
     } catch {
       return;
     }
-    if (
-      !saved ||
-      typeof saved.scrollY !== 'number' ||
-      saved.search !== window.location.search ||
-      Date.now() - (saved.savedAt ?? 0) > 30 * 60_000
-    ) {
-      return;
-    }
-    const timer = window.setTimeout(() => window.scrollTo({ top: saved.scrollY }), 120);
+    const scrollY = resolveHomeReturnScroll(raw, window.location.search, Date.now());
+    if (scrollY === null) return;
+    // 지우는 시점은 스크롤을 <b>실제로 적용한 뒤</b>다 — 검증만 마친 시점에 바로 지우면(예전
+    // 버그이자, 고치는 과정에서 실측으로 다시 걸린 버그) 두 가지가 같은 증상을 낸다.
+    //   1) locale 전환·React StrictMode 재마운트로 이 effect 가 한 번 더 돌 때, 아직 유효한
+    //      항목을 먼저 지워 버려서 그 뒤에 오는 진짜 뒤로가기가 아무것도 못 찾는다.
+    //   2) StrictMode 개발 모드는 이 effect 를 (마운트 → 정리 → 재마운트) 순서로 두 번 부른다.
+    //      검증 직후 지우면 <b>첫 번째</b> 실행이 이미 지워 버리고, cleanup 이 그 타이머를
+    //      취소한 뒤 <b>두 번째</b> 실행은 항목이 없어 아무 것도 예약하지 못한다 — 스크롤이
+    //      영영 안 걸린다(실제로 이 순서로 재현해서 확인했다).
+    // 지우기를 setTimeout 콜백 안으로 옮기면, 취소된 실행은 아무것도 지우지 않고 그대로
+    // 살아남은 마지막 실행만 지우면서 스크롤한다 — 두 문제 다 같은 수정으로 없어진다.
+    const timer = window.setTimeout(() => {
+      window.sessionStorage.removeItem(HOME_RETURN_STATE_KEY);
+      window.scrollTo({ top: scrollY });
+    }, 120);
     return () => window.clearTimeout(timer);
   }, []);
 
@@ -1471,6 +1500,8 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
                             key={p.id}
                             type="button"
                             onClick={() => {
+                              // handleTabChange 가 스크롤을 맨 위로 되돌리므로, 저장은 반드시 그 전에.
+                              saveHomeReturnState();
                               handleTabChange('MAP');
                               router.push(localizedPath(`/popup/${p.id}`, locale));
                             }}
@@ -1777,6 +1808,8 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
                         <PopupCard
                           popup={p}
                           onClick={() => {
+                            // handleTabChange 가 스크롤을 맨 위로 되돌리므로, 저장은 반드시 그 전에.
+                            saveHomeReturnState();
                             handleTabChange('MAP');
                             router.push(localizedPath(`/popup/${p.id}`, locale));
                           }}
@@ -1834,12 +1867,15 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
                     role="button"
                     tabIndex={0}
                     onClick={() => {
+                      // handleTabChange 가 스크롤을 맨 위로 되돌리므로, 저장은 반드시 그 전에.
+                      saveHomeReturnState();
                       handleTabChange('MAP');
                       router.push(localizedPath(`/popup/${featuredPopup.id}`, locale));
                     }}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' || e.key === ' ') {
                         e.preventDefault();
+                        saveHomeReturnState();
                         handleTabChange('MAP');
                         router.push(localizedPath(`/popup/${featuredPopup.id}`, locale));
                       }
@@ -1899,6 +1935,8 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
                             key={p.id}
                             type="button"
                             onClick={() => {
+                              // handleTabChange 가 스크롤을 맨 위로 되돌리므로, 저장은 반드시 그 전에.
+                              saveHomeReturnState();
                               handleTabChange('MAP');
                               router.push(localizedPath(`/popup/${p.id}`, locale));
                             }}
@@ -2128,6 +2166,8 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
             <MusicTab
               popups={allPopups}
               onOpenPopup={(id) => {
+                // handleTabChange 가 스크롤을 맨 위로 되돌리므로, 저장은 반드시 그 전에.
+                saveHomeReturnState();
                 handleTabChange('MAP');
                 router.push(localizedPath(`/popup/${id}`, locale));
               }}
@@ -2322,7 +2362,10 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
                           <button
                             type="button"
                             className="flex-1 pb-4 text-left lg:pb-6"
-                            onClick={() => router.push(localizedPath(`/popup/${item.id}`, locale))}
+                            onClick={() => {
+                              saveHomeReturnState();
+                              router.push(localizedPath(`/popup/${item.id}`, locale));
+                            }}
                           >
                             <div className="p-4 rounded-md border border-[var(--color-border)] transition-colors bg-cream-300 dark:bg-ink-800 hover:border-lime-300/60">
                               <div className="flex justify-between items-center mb-1">
