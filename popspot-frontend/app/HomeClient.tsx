@@ -106,6 +106,7 @@ import {
   isGuestExpired,
   startGuestMode,
 } from '@/lib/guestMode';
+import { canAccessTab } from '@/lib/tabAccess';
 import { SearchZone } from '@/features/popup/SearchBox';
 import { SectionLogo } from '@/components/layout/BrandLogos';
 import { ReportPopupModal } from '@/features/popup/ReportPopupModal';
@@ -161,30 +162,12 @@ function popupToMapMarker(popup: PopupStore): PublicMapMarker {
 
 /* -------------------------------------------------------------------------- */
 /* 탭 접근 정책 — 한 곳에서 관리해 게이트 / sessionStorage 복원 / ?tab= 쿼리 어디서든   */
-/* 동일 규칙이 적용된다.                                                          */
-/*                                                                            */
-/*  - 로그인 사용자 : 모든 탭                                                    */
-/*  - 게스트 활성  : v2.13.1 부터 모든 탭 통과 — "7일 동안 전체 기능 둘러보기"        */
-/*                  의 약속을 실제로 지키기 위함. 만료 후엔 회원가입 유도            */
-/*  - 비로그인+비게스트 : MAP / PASSPORT / MY / FEEDBACK 만 통과                  */
+/* 동일 규칙이 적용된다. 규칙 자체(USER_ONLY_TABS · canAccessTab)는 src/lib/tabAccess.ts */
+/* 로 옮겼다 — 상세 페이지(PopupDetailClient)의 "AI 코스 만들기" 버튼도 같은 COURSE 탭   */
+/* 접근 여부를 판정해야 하는데, 여기서만 정의하면 상세 페이지가 규칙을 베껴 두 곳이 어긋날  */
+/* 위험이 생긴다.                                                                */
 /* -------------------------------------------------------------------------- */
 const DEFAULT_TAB = 'MAP';
-/**
- * 게스트 모드를 시작하지 않았거나 로그인하지 않았으면 잠기는 탭.
- *
- * <p>지도(MAP)만 빠져 있다. 검색·SNS 로 들어온 사람이 <b>메인 화면은 그대로 보게</b> 하되, 그
- * 밖의 기능은 "게스트로 둘러보기" 를 누르거나 로그인해야 열린다.
- *
- * <p>예전엔 여권·MY 가 이 목록에 없어서 아무나 열 수 있었고, 게다가 홈에 들어오기만 하면 게스트
- * 7일이 <b>자동으로</b> 시작돼 사실상 모든 탭이 처음부터 열려 있었다. 사용자가 자기가 무엇을
- * 시작했는지 모르는 채 카운터가 돌았다는 뜻이다 — {@code guestMode.ts} 의 설계 문서는 원래
- * "명시적으로 눌러야 시작" 이라고 적어 두었는데 구현이 그것과 어긋나 있었다.
- */
-/*
- * 일정(SCHEDULE)은 여기 없다. 전체 팝업 달력이라 이력도 계정도 필요 없고, 처음 온 사람에게
- * 바로 내용이 찬다 — 로그인 벽을 세우면 동행이 비어 있던 자리를 또 빈 화면으로 채우는 셈이다.
- */
-const USER_ONLY_TABS = new Set<string>(['COURSE', 'MUSIC', 'PASSPORT', 'MY']);
 
 /**
  * 홈이 한 번에 보여 주는 팝업 수.
@@ -291,13 +274,6 @@ function keepOpenNow(list: PopupStore[]): PopupStore[] {
  * 검색 이동에서 제외한다. InteractiveMap 의 같은 이름 상수와 값을 맞춘다(수백 개가 링처럼 뭉치던 문제).
  */
 const FALLBACK_CLUSTER_MIN = 40;
-
-/** 현재 세션에서 해당 탭에 진입할 수 있는가. */
-function canAccessTab(tab: string, hasUser: boolean, isGuestActive: boolean): boolean {
-  if (hasUser) return true;
-  if (isGuestActive) return true; // 게스트는 7일 동안 모든 탭 자유 이용
-  return !USER_ONLY_TABS.has(tab);
-}
 
 /**
  * USER_ONLY 탭을 게스트 만료 / 비로그인 사용자가 노크했을 때 보여줄 안내 문구의 <b>키</b>.
