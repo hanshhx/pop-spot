@@ -92,6 +92,7 @@ import {
   type CategoryCode,
 } from '../src/lib/popupSlices';
 import { groupSameEvent } from '@/lib/groupSameEvent';
+import { homeSurfaces } from '@/lib/homeSurfaces';
 import { Header } from '../src/components/layout/Header';
 import { Footer } from '../src/components/layout/Footer';
 import { BottomDock, type DockTab } from '../src/components/layout/BottomDock';
@@ -192,6 +193,13 @@ const DEFAULT_TAB = 'MAP';
  * 그 카드가 무너진다. 그 자리는 "이런 게 있다" 를 보여 주는 곳이고, 폭은 아래 추천 목록과 레일이 낸다.
  */
 const HOT_POPUP_COUNT = 8;
+
+/**
+ * 게스트 히어로 2×2 미리보기 칸 수. 위 문단대로 280px 카드 안에 고정된 격자라 이 값을 늘리면
+ * 카드가 무너진다. 내용은 POP-LOOK(랭킹)과 겹치지 않는 <b>마감 임박</b> — {@link homeSurfaces}
+ * 가 랭킹이 먼저 가져간 곳을 뺀 나머지에서 고른다.
+ */
+const GUEST_HERO_COUNT = 4;
 
 /** 목록 레일이 보여 주는 수. 카테고리·정렬을 바꿔 가며 훑는 자리라 인기 자리보다 넉넉하게. */
 const RAIL_POPUP_COUNT = 30;
@@ -352,8 +360,15 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
    */
   const [catalogPopups, setCatalogPopups] = useState<PopupStore[]>(initialPopups);
   const initialMapMarkers = useMemo(() => initialPopups.map(popupToMapMarker), [initialPopups]);
-  // "지금 뜨는 팝업" 레일 정렬/필터. 전체(allPopups)에서 파생한다.
-  const [railSort, setRailSort] = useState<'popular' | 'deadline' | 'latest'>('popular');
+  /*
+   * 레일 정렬/필터. 전체(allPopups)에서 파생한다.
+   *
+   * 기본값은 최신순이다 — 예전엔 인기순이 기본이라 이 30칸의 상위 8곳이 POP-LOOK·벤토와
+   * 그대로 겹쳤다(같은 viewCount desc). 칩은 그대로 셋 다 남아 있어 인기순으로 되돌릴 수
+   * 있다. 왜 '지금 뜨는' 이라는 이름을 쓰지 않는지는 section.trending 자리를 보라 — 진짜
+   * 트렌딩 신호(visit_event)는 아직 공개 API가 없다.
+   */
+  const [railSort, setRailSort] = useState<'popular' | 'deadline' | 'latest'>('latest');
   const [railCat, setRailCat] = useState<CategoryCode | 'all'>('all');
   /* 계절 한정 필터 — 계절에만 존재하는 칩이다. 없던 버튼이 생기는 것이 색보다 세게 걸린다. */
   const rail = useDragScroll<HTMLDivElement>();
@@ -398,7 +413,7 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
   const [mapFit, setMapFit] = useState<{ pts: [number, number][]; nonce: number } | null>(null);
 
   /**
-   * "지금 뜨는 팝업" 레일에 실제로 렌더할 목록 — 전체(allPopups)에 카테고리 필터 + 정렬 적용.
+   * "최근 오픈한 팝업" 레일에 실제로 렌더할 목록 — 전체(allPopups)에 카테고리 필터 + 정렬 적용.
    * POP-LOOK 랭킹은 아래에서 지도 노출 가능 팝업만 다시 거르므로, 이 레일과 목록 범위가 다를 수 있다.
    */
   /**
@@ -512,29 +527,35 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
   const mappablePopupCount = mappablePopups.length;
 
   /**
-   * POP-LOOK — 상세 페이지가 실제로 열린 횟수(viewCount) 순.
+   * POP-LOOK(랭킹)과 게스트 히어로(마감 임박) — 서로 겹치지 않게 한 번에 나눈다({@link homeSurfaces}).
    *
-   * <p>상세 API가 열릴 때마다 서버에서 1씩 증가하므로 고정 추천이나 이름순이 아니다. 지도에 핀이 없는
-   * 팝업은 사용자가 순위에서 눌러도 지도에서 찾을 수 없으므로 랭킹과 전체 목록 양쪽에서 제외한다.
-   * 동점은 새로 수집된 팝업(id가 큰 것)을 먼저 보여준다.
+   * <p>POP-LOOK 은 상세 페이지가 실제로 열린 횟수(viewCount) 순이다. 상세 API가 열릴 때마다
+   * 서버에서 1씩 증가하므로 고정 추천이나 이름순이 아니다. 지도에 핀이 없는 팝업은 사용자가
+   * 순위에서 눌러도 지도에서 찾을 수 없으므로 랭킹과 전체 목록 양쪽에서 제외한다. 동점은 새로
+   * 수집된 팝업(id가 큰 것)을 먼저 보여준다.
+   *
+   * <p>게스트 히어로는 마감 임박이고, 랭킹이 이미 가져간 곳은 다시 넣지 않는다 — 로그아웃
+   * 첫 화면에서 POP-LOOK 과 같은 팝업을 두 번 보여주지 않기 위해서다. 레일(RAIL_POPUP_COUNT)은
+   * 여기 안 낀다 — 레일은 카테고리·정렬 칩으로 몇백 곳을 직접 훑는 자리라 고정 목록을 먹이면
+   * 그 힘이 죽는다. 랭킹·마감임박과 겹쳐도 되는 유일한 자리다.
    */
-  const hotPopups = useMemo(
+  const { ranking, closing } = useMemo(
     () =>
-      dedupedPopups
-        .filter(hasRealMapLocation)
-        .sort((a, b) => (b.viewCount || 0) - (a.viewCount || 0) || b.id - a.id)
-        .slice(0, HOT_POPUP_COUNT),
+      homeSurfaces(dedupedPopups.filter(hasRealMapLocation), kstTodayStart(), {
+        ranking: HOT_POPUP_COUNT,
+        closing: GUEST_HERO_COUNT,
+      }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [dedupedPopups, fallbackCoordKeys],
   );
 
-  // pop-look → "오늘의 추천 팝업": 실제 인기순 상위(랜덤 아님). hotPopups 가 이미 viewCount desc 정렬.
-  const featuredPopup = hotPopups[0];
+  // pop-look → "오늘의 추천 팝업": 실제 인기순 상위(랜덤 아님). ranking 이 이미 viewCount desc 정렬.
+  const featuredPopup = ranking[0];
   /*
    * 1위를 뺀 나머지 전부. 예전에는 여기서 다시 3개로 잘라, 목록을 늘려도 화면은 그대로였다.
    * 세로로 쌓이는 행 목록이라 늘어나도 배치가 무너지지 않는다.
    */
-  const featuredRunnerUps = hotPopups.slice(1);
+  const featuredRunnerUps = ranking.slice(1);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -1492,10 +1513,11 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
                       </div>
                     </div>
 
-                    {/* 팝업 정보 클러스터 — 실제 사진이 없으면 이름·장소를 우선 표시. */}
-                    {hotPopups.length > 0 && (
+                    {/* 팝업 정보 클러스터 — 실제 사진이 없으면 이름·장소를 우선 표시.
+                        마감 임박(closing) — POP-LOOK 이 가져간 곳과 겹치지 않는다. */}
+                    {closing.length > 0 && (
                       <div className="grid w-full min-w-0 shrink-0 grid-cols-2 gap-2 md:w-[280px]">
-                        {hotPopups.slice(0, 4).map((p, i) => (
+                        {closing.map((p, i) => (
                           <button
                             key={p.id}
                             type="button"
@@ -1668,14 +1690,18 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
                 allPopups.length 라 한 화면에서 "전체" 가 1,002 와 850 두 숫자로 나왔고, 정작
                 이 칩의 전체보기가 여는 모달은 850 짜리(mappablePopups)였다 — 광고한 수와
                 여는 수가 달랐다. */}
+            {/* 랭킹 상위 4 — POP-LOOK 과 같은 목록에서 자른다(축 자체를 바꾸는 건 Task 6).
+                예전엔 8개를 넘겨 컴포넌트 내부(filtered.slice(0,4))가 다시 잘랐다 — HOT_POPUP_COUNT
+                주석이 못 박은 "렌더 쪽에서 또 자르지 않는다" 원칙을 벤토만 어기고 있었다. */}
             <HomeBento1a
-              popups={hotPopups}
+              popups={ranking.slice(0, 4)}
               total={mappablePopupCount}
               onOpenRanking={handleOpenModal}
               onNavigate={handleTabChange}
             />
 
-            {/* 지금 뜨는 팝업 — 사진 카드 레일 (디자인 진단서 P0: 팝업 사진 카드로 코어 뷰잉 강화). */}
+            {/* 최근 오픈한 팝업 — 사진 카드 레일 (디자인 진단서 P0: 팝업 사진 카드로 코어 뷰잉 강화).
+                기본 정렬은 최신순(startDate desc) — 정렬 칩으로 인기순·마감임박순도 고를 수 있다. */}
             <motion.section
               id="trending-rail"
               aria-label={t('section.trending')}
