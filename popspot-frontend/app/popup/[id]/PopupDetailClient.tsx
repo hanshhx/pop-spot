@@ -16,6 +16,7 @@ import {
   Navigation,
   CalendarPlus,
   Route,
+  Loader2,
 } from 'lucide-react';
 import { TakedownModal } from '../../../src/features/popup/TakedownModal';
 
@@ -41,7 +42,9 @@ import { detailStatusLabel, isPopupEnded } from '@/lib/popupDetailStatus';
 import { showsVisitActions } from '@/lib/detailActions';
 import { kstTodayStart } from '@/lib/popupSlices';
 import type { Nearby } from '@/lib/nearby';
-import { toCourseSeed } from '@/lib/courseSeed';
+import { canAccessTab } from '@/lib/tabAccess';
+import { isGuestActive } from '@/lib/guestMode';
+import { popupVibe } from '@/lib/popupVibe';
 
 declare global {
   interface Window {
@@ -164,8 +167,10 @@ export default function PopupDetailClient({
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [user, setUser] = useState<User | null>(null);
   const [takedownOpen, setTakedownOpen] = useState(false);
-  // "N곳 코스로 작전지도 열기" 클릭 후 응답을 기다리는 동안 버튼을 잠근다 — 없으면 두 번 빠르게
-  // 누른 사용자가 방을 두 개 만들고, 두 번째 방에만 코스가 시딩된다(첫 방은 빈 채로 남는다).
+  // "AI 코스 만들기" 클릭 후 응답을 기다리는 동안 버튼을 잠근다(HomeClient.handleAiRecommend 의
+  // isAiLoading 과 같은 역할) — 없으면 두 번 빠르게 누른 사용자가 추천 요청을 두 번 보내고,
+  // sessionStorage.aiCourseData 를 나중 응답이 덮어써 앞선 요청은 그냥 낭비된다. 로딩 중
+  // 버튼 라벨/아이콘도 이 값으로 바꾼다.
   const [isBuildingCourse, setIsBuildingCourse] = useState(false);
   const trackedDetailId = useRef<number | null>(null);
 
@@ -523,48 +528,40 @@ export default function PopupDetailClient({
   // 비므로, 그때는 바 자체를 그리지 않는다.
   const showQuickActionBar = canVisit || !popup.emergencySnapshot;
 
-  // 「여기까지 왔으면」 아래 붙는 "묶어 코스로" 버튼의 재료. 앵커(이 팝업)를 배열 맨 앞에
-  // 넣는다 — "여기, 그리고 이 근처들"이 사용자의 멘탈모델이라 내가 서 있는 곳을 빼면
-  // 이상한 코스가 된다(toCourseSeed 는 순서를 보존하므로 여기서 넣은 순서가 곧 방에
-  // 채워지는 순서다). nearby 는 항상 이름 그대로(원문 한국어)를 쓴다 — HomeClient 의
-  // handleAddPlace 와 같은 이유로, 화면 언어에 저장 값을 묶으면 나중에 다른 언어로 열었을
-  // 때 남의 말이 섞여 나온다.
-  //
-  // nearby 가 비어 있으면(=이 블록 자체가 안 그려지면) 이 배열은 앵커 하나뿐이라
-  // courseSeed.length 가 1 이하가 되고, 버튼 렌더 조건(courseSeed.length > 1)이 함께
-  // 막는다. 아래에서 hasCoords 를 다시 묻지 않는 이유: nearby.length > 0 인 시점에
-  // 도달했다는 것 자체가 loadNearbyPopups(page.tsx)가 이미 앵커 좌표를 검증했다는
-  // 뜻이다(좌표가 없으면 그 함수가 빈 배열을 돌려준다).
-  const courseSeed = toCourseSeed([
-    { name: popup.name, lat, lng },
-    ...nearby.map((n) => ({
-      name: n.marker.name,
-      lat: Number(n.marker.latitude),
-      lng: Number(n.marker.longitude),
-    })),
-  ]);
-
-  // 방 생성은 HomeClient.handleCreateRoom 과 같은 패턴을 그대로 따른다 — 로그인 게이트를
-  // 포함해서다. 처음엔 "POST /api/planning/create 에 @PreAuthorize 가 없다"만 보고 게이트를
-  // 뺐는데, 그건 API 계층만 본 것이고 진짜 문이 있는 곳은 프론트다: /planning 이 마운트되면
-  // localStorage.user 를 확인해 없으면 그 자리에서 /login 으로 튕긴다(app/planning/page.tsx
-  // :300-303). 그 문은 없애면 안 된다 — 방은 참가자를 닉네임으로 식별하는 협업 공간이라
-  // 로그인된 신원이 실제로 필요하다. 대신 이 버튼이 "코스를 연다"고 말해 놓고 말없이 로그인
-  // 폼으로 순간이동시키는 게 문제였으므로, 클릭 시점에 먼저 사실대로 말한다.
-  //
-  // 버튼 자체는 숨기지 않는다(로그인 여부와 무관하게 courseSeed.length > 1 이면 보인다) —
-  // 상세 페이지 유입은 딥링크·직접 방문이 대부분이라 로그인 전 도착이 흔하고, 여기서 버튼을
-  // 숨기면 이 기능을 보는 사람 거의 전부에게서 감춰진다. HomeClient 의 "작전 회의실 만들기"
-  // 버튼도 같은 이유로 항상 보이고, 클릭 시점에만 로그인을 묻는다 — 그 패턴을 그대로 따른다.
-  const handleBuildCourse = async () => {
-    if (!user) {
-      // 로그인하지 않은 사람에게 방을 만들어 주지 않는다 — /planning 이 어차피 튕겨낸다.
-      // 대신 왜 필요한지 먼저 말하고, 응하면 로그인으로 보낸다. sessionStorage 는 쓰지 않는다
-      // — 여기서 쓰면 나중에 로그인해서 아무 방이나 열 때 이 코스가 엉뚱하게 재생된다.
+  /**
+   * 「여기까지 왔으면」 아래 붙는 "AI 코스 만들기" 버튼의 핸들러.
+   *
+   * <p><b>작전지도(/planning)는 폐기된 기능이다</b> — 대표가 직접 확인해 준 사실이다. 이 버튼은
+   * 원래 앵커(이 팝업)+이웃 좌표로 시드를 만들어 POST /api/planning/create 로 방을 만들고 그
+   * 방으로 보냈다. 그 경로는 지금도 API 로서는 멀쩡히 동작하지만("작동한다"가 "쓰이고 있다"의
+   * 증거는 아니다), 대표가 실제로 쓰는 것은 홈 화면 COURSE 탭의 AI 추천
+   * ({@code HomeClient.handleAiRecommend})이다. 다음에 이 페이지를 만지는 사람이 다시 작전지도로
+   * 연결하지 않도록 이유를 남겨 둔다.
+   *
+   * <p>순서는 둘 중 하나만 밟는다 — <b>탭 접근 확인 → (막히면) 안내 → 로그인 → 끝</b>이거나,
+   * <b>API 호출 → 성공 확인 → sessionStorage 기록 → 이동</b>이거나. 막힐 수 있는 경로(로그인
+   * 필요)에서는 sessionStorage 에 아무것도 쓰지 않는다 — 예전 작전지도 버전은 시드를 먼저 쓰고
+   * 방 생성이 나중에 실패하면 그 시드가 사용자가 나중에 아무 방이나 열 때 엉뚱하게 재생됐다.
+   * 같은 모양의 실수를 반복하지 않는다.
+   *
+   * <p>탭 접근 판정은 {@code HomeClient}와 같은 규칙({@code src/lib/tabAccess.ts})을 쓴다 —
+   * 게스트 모드가 켜져 있으면(7일) COURSE 탭은 홈에서 이미 열려 있으므로, 그런 사용자에게
+   * 로그인을 또 묻지 않는다. 판정을 이 페이지에서 따로 만들면(예: 단순히 {@code !user}만 보는
+   * 규칙) 게스트가 홈에서는 되는데 상세 페이지에서는 막히는 모순이 생긴다.
+   *
+   * <p>버튼 자체는 숨기지 않는다(로그인·게스트 여부와 무관하게 보인다) — 상세 페이지 유입은
+   * 딥링크·직접 방문이 대부분이라 로그인 전 도착이 흔하고, 여기서 버튼을 숨기면 이 기능을 보는
+   * 사람 거의 전부에게서 감춰진다. 클릭 시점에만 접근 가능 여부를 묻는다.
+   */
+  const handleAiCourse = async () => {
+    if (!canAccessTab('COURSE', !!user, isGuestActive())) {
+      // 막힌 사람에게 먼저 사실대로 말한다("AI 코스 추천은 가입 후 이용해주세요" — HomeClient
+      // 가 COURSE 탭 자체를 막을 때 쓰는 문구와 같다). 응하면 로그인으로 보내고, 응하지 않으면
+      // sessionStorage 에 아무것도 쓰지 않은 채 그대로 둔다.
       if (
         await confirmAction({
           title: t('home.loginRequired'),
-          text: t('home.roomMemberOnly'),
+          text: t('home.hintCourse'),
           confirmText: t('nav.login'),
         })
       ) {
@@ -572,23 +569,32 @@ export default function PopupDetailClient({
       }
       return;
     }
-    if (isBuildingCourse) return; // 응답을 기다리는 중 다시 눌러도 방을 또 만들지 않는다.
+    if (isBuildingCourse) return; // 응답을 기다리는 중 다시 눌러도 요청을 또 보내지 않는다.
     setIsBuildingCourse(true);
     try {
-      const res = await apiFetch('/api/planning/create', { method: 'POST' });
-      // HomeClient.handleCreateRoom 을 그대로 복제하며 res.ok 확인을 빠뜨렸던 것을 여기서
-      // 고친다 — 확인하지 않으면 실패 응답의 오류 본문이 그대로 roomId 로 쓰여 깨진 방으로
-      // 이동한다.
-      if (!res.ok) throw new Error(`planning/create failed: ${res.status}`);
-      const roomId = await res.text();
-      // 방 생성이 성공을 확인한 뒤에만 sessionStorage 를 쓴다 — 실패했는데 먼저 써 두면,
-      // 사용자가 나중에 아무 방이나 열 때 이 코스가 엉뚱하게 재생된다.
-      sessionStorage.setItem('planningSeedCourse', JSON.stringify(courseSeed));
-      router.push(localizedPath(`/planning?room=${roomId}`, locale));
+      // vibe 는 이 팝업에서 고른다(popupVibe 문서 참고) — 화면 언어와 무관하게 한국어로
+      // 고정한다. HomeClient.handleAiRecommend 와 동일한 메커니즘: 응답 그대로
+      // sessionStorage.aiCourseData 에 담아 두면 홈이 마운트 시 그것을 읽어 COURSE 탭에 그린다.
+      const vibe = popupVibe(popup);
+      const res = await apiFetch(`/api/courses/recommend?vibe=${encodeURIComponent(vibe)}`);
+      // HomeClient.handleAiRecommend 는 res.ok 를 보지 않고 바로 파싱한다(실패를 JSON.parse 가
+      // 던지는 예외에 기대어 알아채는 셈이라, 오류 본문이 우연히도 유효한 JSON 이면 그 조용한
+      // 안전망마저 없다). 여기서는 파싱하기 전에 먼저 확인한다.
+      if (!res.ok) throw new Error(`courses/recommend failed: ${res.status}`);
+      const jsonString = await res.text();
+      const result = JSON.parse(jsonString);
+      // AiCourseService 는 LLM 응답 파싱에 실패하면 예외 대신 <b>빈 배열을 200 으로</b> 돌려준다
+      // (AiCourseService.parseResponse 의 catch 분기). res.ok 만 보면 이 경우를 놓쳐 빈 코스
+      // 탭으로 이동하게 된다 — 배열이 비었으면 같은 실패로 취급한다.
+      if (!Array.isArray(result) || result.length === 0) {
+        throw new Error('empty AI course result');
+      }
+      sessionStorage.setItem('aiCourseData', JSON.stringify({ vibe, course: result }));
+      router.push(localizedPath('/?tab=COURSE', locale));
       // 성공 경로에서는 isBuildingCourse 를 되돌리지 않는다 — 곧 다른 라우트로 이동하므로
       // 이 컴포넌트가 다시 인터랙션을 받을 일이 없고, 언마운트 이후 setState 를 피한다.
     } catch (e) {
-      notifyError(t('home.serverFail'));
+      notifyError(t('home.aiFail'));
       setIsBuildingCourse(false);
     }
   };
@@ -896,30 +902,30 @@ export default function PopupDetailClient({
                 })}
               </div>
 
-              {/* 세 곳 묶어 코스로 — 이미 있던 시드 리더(app/planning/page.tsx:408)에 쓰는
-                쪽을 붙인다. 앵커가 courseSeed 맨 앞에 있으므로 리스트가 비어도(toCourseSeed
-                가 항목을 걸러내) 1곳만 남을 수 있어 courseSeed.length > 1 로 다시 가드한다 —
-                혼자인 "코스"는 이 버튼이 답하려는 질문 자체가 성립하지 않는다. */}
-              {courseSeed.length > 1 && (
-                <div className="mt-4">
-                  <button
-                    type="button"
-                    onClick={handleBuildCourse}
-                    disabled={isBuildingCourse}
-                    className="flex w-full items-center justify-center gap-2 rounded-2xl border border-gray-300 bg-white py-3.5 text-sm font-bold text-foreground transition hover:border-lime-400 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/15 dark:bg-white/5 md:text-base"
-                  >
+              {/* AI 코스 만들기 — 이 섹션이 그려지는 조건(nearby.length > 0)을 그대로 재사용한다:
+                도보권에 갈 곳이 있는 상세 페이지에서만 "더 둘러보고 싶다"는 동기가 자연스럽다.
+                다만 AI 추천(HomeClient.handleAiRecommend 와 같은 엔드포인트)은 이 팝업의 좌표나
+                nearby 목록을 재료로 쓰지 않는다 — vibe 키워드 하나로 서버가 통째로 새 코스를
+                만들어 준다. 그래서 예전처럼 courseSeed 개수로 다시 가드하지 않는다(courseSeed
+                자체가 이제 없다 — popupVibe.ts 문서 참고). */}
+              <div className="mt-4">
+                <button
+                  type="button"
+                  onClick={handleAiCourse}
+                  disabled={isBuildingCourse}
+                  className="flex w-full items-center justify-center gap-2 rounded-2xl border border-gray-300 bg-white py-3.5 text-sm font-bold text-foreground transition hover:border-lime-400 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/15 dark:bg-white/5 md:text-base"
+                >
+                  {isBuildingCourse ? (
+                    <Loader2 size={18} className="shrink-0 animate-spin" />
+                  ) : (
                     <Route size={18} className="shrink-0" />
-                    {t('detail.courseSeedPrefix')}
-                    {courseSeed.length}
-                    {t('detail.courseSeedSuffix')}
-                  </button>
-                  {/* 방은 3시간 뒤 사라진다(PlanningController.java:43, ROOM_TTL_HOURS=3).
-                    말없이 사라지는 "코스"를 쥐여주지 않으려고 짧게 적어 둔다. */}
-                  <p className="mt-1.5 text-center text-[11px] text-muted-foreground">
-                    {t('detail.courseSeedTtl')}
-                  </p>
-                </div>
-              )}
+                  )}
+                  {isBuildingCourse ? t('detail.aiCourseLoading') : t('detail.aiCourseButton')}
+                </button>
+                <p className="mt-1.5 text-center text-[11px] text-muted-foreground">
+                  {t('detail.aiCourseHint')}
+                </p>
+              </div>
             </section>
           )}
 
