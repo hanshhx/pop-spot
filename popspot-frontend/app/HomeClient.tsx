@@ -93,6 +93,7 @@ import {
 } from '../src/lib/popupSlices';
 import { groupSameEvent } from '@/lib/groupSameEvent';
 import { homeSurfaces } from '@/lib/homeSurfaces';
+import { catalogDoors } from '@/lib/catalogDoors';
 import { Header } from '../src/components/layout/Header';
 import { Footer } from '../src/components/layout/Footer';
 import { BottomDock, type DockTab } from '../src/components/layout/BottomDock';
@@ -203,6 +204,9 @@ const GUEST_HERO_COUNT = 4;
 
 /** 목록 레일이 보여 주는 수. 카테고리·정렬을 바꿔 가며 훑는 자리라 인기 자리보다 넉넉하게. */
 const RAIL_POPUP_COUNT = 30;
+
+/** 벤토 히어로 — 850곳으로 들어가는 문 수. 격자·카드 크기가 이 값(4)에 맞춰져 있다. */
+const CATALOG_DOOR_COUNT = 4;
 
 /**
  * 검색엔진과 사용자가 함께 쓰는 랜딩 디렉터리.
@@ -525,6 +529,20 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
    * 그 칩의 전체보기가 여는 모달은 정작 {@code mappablePopups} 라 850 짜리였다.
    */
   const mappablePopupCount = mappablePopups.length;
+
+  /**
+   * 벤토 히어로 — 850곳으로 들어가는 문 4개({@link catalogDoors}).
+   *
+   * <p>{@code mappablePopupCount} 와 <b>같은 풀</b>({@code mappablePopups})로 센다 — 다른 풀을
+   * 쓰면 문에 적힌 개수가 화면이 말하는 "전체 850" 과 어긋난다(그게 이 계획 Task 1이 고친 종류의
+   * 버그다). 아래 랭킹·마감임박과 겹쳐도 된다 — 문은 특정 팝업이 아니라 <b>지역·카테고리·시점·
+   * 브랜드로 들어가는 통로</b>라서, 랭킹에 뜬 팝업이 그 문 뒤에도 있는 건 자연스럽다. 세 자리가
+   * 같은 "인기 팝업 8곳" 을 나눠 먹던 예전 중복과는 다른 종류다.
+   */
+  const doors = useMemo(
+    () => catalogDoors(mappablePopups, kstTodayStart(), CATALOG_DOOR_COUNT),
+    [mappablePopups],
+  );
 
   /**
    * POP-LOOK(랭킹)과 게스트 히어로(마감 임박) — 서로 겹치지 않게 한 번에 나눈다({@link homeSurfaces}).
@@ -1685,20 +1703,17 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
               <RecentVisitsCard standalone />
             </div>
 
-            {/* 홈 하단 발견 존 — 1a안 (랭킹 히어로 + 나의 기록 + 같이 갈 사람). 혼잡도는 위 바로, 캘린더·음악은 이 존 제외. */}
+            {/* 홈 하단 발견 존 — 1a안 (850곳으로 들어가는 문 4개 + 나의 기록 + 언제 갈까).
+                혼잡도는 위 바로, 캘린더·음악은 이 존 제외. */}
             {/* total 은 히어로·POP-LOOK 과 같은 mappablePopupCount 를 쓴다. 예전엔 여기만
                 allPopups.length 라 한 화면에서 "전체" 가 1,002 와 850 두 숫자로 나왔고, 정작
                 이 칩의 전체보기가 여는 모달은 850 짜리(mappablePopups)였다 — 광고한 수와
                 여는 수가 달랐다. */}
-            {/* 랭킹 상위 4 — POP-LOOK 과 같은 목록에서 자른다(축 자체를 바꾸는 건 Task 6).
-                예전엔 8개를 넘겨 컴포넌트 내부(filtered.slice(0,4))가 다시 잘랐다 — HOT_POPUP_COUNT
-                주석이 못 박은 "렌더 쪽에서 또 자르지 않는다" 원칙을 벤토만 어기고 있었다. */}
-            <HomeBento1a
-              popups={ranking.slice(0, 4)}
-              total={mappablePopupCount}
-              onOpenRanking={handleOpenModal}
-              onNavigate={handleTabChange}
-            />
+            {/* Task 6 — 인기 상위 4(POP-LOOK 과 중복이던 두 번째 랭킹)를 850곳으로 들어가는 문
+                4개로 바꿨다({@link catalogDoors}). onOpenRanking 은 여기서 없앴다 — POP-LOOK
+                전체보기(:1874 근처)가 이미 그 모달을 여는 유일한 랭킹 진입점이라 이 자리에
+                더는 필요 없다. */}
+            <HomeBento1a doors={doors} total={mappablePopupCount} onNavigate={handleTabChange} />
 
             {/* 최근 오픈한 팝업 — 사진 카드 레일 (디자인 진단서 P0: 팝업 사진 카드로 코어 뷰잉 강화).
                 기본 정렬은 최신순(startDate desc) — 정렬 칩으로 인기순·마감임박순도 고를 수 있다. */}
