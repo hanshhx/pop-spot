@@ -67,7 +67,10 @@ export function detailStatusLabel(
   today: Date = kstTodayStart(),
 ): string {
   if (ended) return t('misc.cardEnded');
-  if (status?.trim()) return popupStatusLabel(status, t);
+  // popupStatusLabel 은 이제 status 가 비어 있으면 null 을 돌려준다(근거 없는 "영업중" 단정을
+  // 멈췄기 때문) — 그 null 을 여기서 단정으로 되살리지 않고 아래 날짜 파생 분기로 흘려보낸다.
+  const label = status?.trim() ? popupStatusLabel(status, t) : null;
+  if (label) return label;
 
   const hasUsableDates = Boolean(parseDate(openDate) || parseDate(closeDate));
   if (hasUsableDates) {
