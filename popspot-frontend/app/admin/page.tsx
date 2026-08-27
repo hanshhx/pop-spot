@@ -399,24 +399,44 @@ export default function AdminPage() {
       const res = await apiFetch('/api/admin/popups/backfill-photos?limit=150', { method: 'POST' });
       if (res.ok) {
         const data = await res.json();
-        const assigned = Number(data.assigned ?? 0);
         /*
-         * 0건은 <b>성공이 아니다.</b>
+         * 0건은 <b>성공이 아니다.</b> 그리고 0건에도 이유가 셋이라 서로 다른 말을 해야 한다.
          *
-         * <p>예전엔 0건에도 "커버 0개 배정 완료" 라는 성공 알림이 떴다. 서버는 Pexels 키가 없어도
-         * 200 에 {@code assigned:0} 을 돌려주므로, 화면만 보면 <b>키가 빠진 것과 채울 것이 없는
-         * 것이 똑같아 보인다.</b> 실제로 사진 없는 팝업이 수백 건인데 0건이 뜨는 것을 보고서야
-         * 기능이 안 도는 줄 알았다.
+         * <p>예전엔 서버가 배정 개수만 돌려줘서 "커버 0개 배정 완료" 라는 성공 알림이 떴다.
+         * Pexels 키가 없어도 200 에 {@code assigned:0} 이라, 화면만 보면 <b>키가 빠진 것과 채울
+         * 것이 없는 것이 똑같아 보였다.</b> 사진 없는 팝업이 수백 건인데 0건이 뜨니 기능이 죽은
+         * 줄 알 수밖에 없었다.
          *
-         * <p>서버가 이유를 돌려주기 전까지는 여기서 <b>0건을 경고로</b> 띄워 최소한 "성공했다"
-         * 고 말하지는 않는다.
+         * <p>{@code configured}/{@code photoless}/{@code searchEmpty} 는 그 구분을 위해 서버에
+         * 새로 실은 값이다. 아직 안 올라간 서버(옛 배포)는 이 값들이 없으므로 undefined 가 되고,
+         * 그때는 "0건이면 경고" 라는 최소한의 정직함만 남는다.
          */
-        if (assigned === 0) {
+        const assigned = Number(data.assigned ?? 0);
+        const photoless = data.photoless as number | undefined;
+        const configured = data.configured as boolean | undefined;
+        const searchEmpty = Number(data.searchEmpty ?? 0);
+        const scanned = Number(data.scanned ?? 0);
+
+        if (configured === false) {
           notifyError(
-            '배정된 커버가 0건입니다. 서버의 PEXELS_API_KEY 설정과 로그를 확인해 주세요.',
+            `서버에 PEXELS_API_KEY 가 설정돼 있지 않습니다. 사진 없는 팝업 ${photoless ?? '?'}건은 그대로입니다.`,
           );
+        } else if (photoless === 0) {
+          notifySuccess('사진 없는 팝업이 없습니다. 채울 것이 없어요.');
+        } else if (assigned === 0 && scanned > 0 && searchEmpty === scanned) {
+          // 시도한 전부가 후보를 못 받았다 = 코드가 아니라 키·쿼터 문제다.
+          notifyError(
+            'Pexels 검색이 한 건도 응답하지 않았습니다. 키 만료·쿼터 초과를 확인해 주세요.',
+          );
+        } else if (assigned === 0) {
+          notifyError('배정된 커버가 0건입니다. 서버 로그(PopupPhotoService)를 확인해 주세요.');
         } else {
-          notifySuccess(`커버 ${assigned}개 배정 완료`);
+          const left = photoless === undefined ? 0 : photoless - assigned;
+          notifySuccess(
+            left > 0
+              ? `커버 ${assigned}개 배정 — ${left}건 남음(다시 눌러 주세요)`
+              : `커버 ${assigned}개 배정 완료`,
+          );
         }
         loadAllPopups();
       } else {
