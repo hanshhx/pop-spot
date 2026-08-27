@@ -138,6 +138,7 @@ import { devMockPopups } from '@/lib/devMockPopups';
 import type { PublicMapMarker } from '@/lib/mapMarkers';
 import FeatureSections from '@/components/main/FeatureSections';
 import HomeBento1a from '@/components/main/HomeBento1a';
+import PopAllPreview from '@/components/main/PopAllPreview';
 import type {
   User,
   PopupStore,
@@ -572,7 +573,7 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
    * "인기 팝업 8곳" 을 나눠 먹던 예전 중복과는 다른 종류다.
    */
   const previewRows = useMemo(
-    () => popAllPreviewRows(popAllPopups, kstTodayStart()),
+    () => popAllPreviewRows(popAllPopups, kstTodayStart(), { rowCount: CATEGORIES.length }),
     [popAllPopups],
   );
 
@@ -1755,16 +1756,29 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
                 allPopups.length 라 한 화면에서 "전체" 가 1,002 와 850 두 숫자로 나왔고, 정작
                 전체보기가 여는 모달은 850 짜리(mappablePopups)였다 — 광고한 수와 여는 수가
                 달랐다. */}
-            <HomeBento1a
-              rows={previewRows}
-              total={mappablePopupCount}
-              onOpenAll={openPopAll}
-              onOpenPopup={(id) => {
-                saveHomeReturnState();
-                router.push(localizedPath(`/popup/${id}`, locale));
-              }}
-              onNavigate={handleTabChange}
-            />
+            {/* POP-ALL — 폭을 다 쓰는 제 섹션. 예전엔 벤토 한 칸이었는데, 카테고리 넷이 좁은
+                폭을 나눠 써서 줄마다 열 곳 중 대여섯만 보였다. POP-LOOK 과 같은 급의 자리로
+                올려 열 곳이 다 들어가게 하고, 카테고리는 좌우 화살표로 전부 넘겨볼 수 있다. */}
+            <motion.section
+              aria-label={t('popall.title')}
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, margin: '-80px' }}
+              variants={sectionVariants}
+              className="mb-10"
+            >
+              <PopAllPreview
+                rows={previewRows}
+                total={mappablePopupCount}
+                onOpenAll={openPopAll}
+                onOpenPopup={(id: number) => {
+                  saveHomeReturnState();
+                  router.push(localizedPath(`/popup/${id}`, locale));
+                }}
+              />
+            </motion.section>
+
+            <HomeBento1a onNavigate={handleTabChange} />
 
             {/* 최근 오픈한 팝업 — 사진 카드 레일 (디자인 진단서 P0: 팝업 사진 카드로 코어 뷰잉 강화).
                 기본 정렬은 최신순(startDate desc) — 정렬 칩으로 인기순·마감임박순도 고를 수 있다. */}
