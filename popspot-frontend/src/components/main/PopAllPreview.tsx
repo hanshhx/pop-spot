@@ -32,6 +32,30 @@ interface Props {
   onOpenPopup: (id: number) => void;
 }
 
+/**
+ * Pexels CDN 주소를 미리보기 칸 크기로 줄인다.
+ *
+ * <p>원본은 {@code w=800} 인데 이 칸은 80px 이다 — 열 배 큰 그림을 받아 열 배로 줄여 그리는
+ * 셈이고, 한 타일에 마흔 장이니 그 낭비가 마흔 배가 된다. Pexels CDN 이 {@code w}/{@code h}
+ * 파라미터로 서버에서 줄여 주므로 받는 바이트 자체를 줄인다.
+ *
+ * <p>Pexels 가 아닌 주소는 손대지 않는다 — 다른 호스트가 이 파라미터를 어떻게 해석할지 모른다.
+ */
+function previewSized(url: string): string {
+  try {
+    const u = new URL(url);
+    if (u.hostname.toLowerCase() !== 'images.pexels.com') return url;
+    // w 만 바꾸고 h 를 남겨 두면 안 된다. 원본 주소에는 h=1200 이 붙어 있어서, w 만 160 으로
+    // 줄이면 fit=crop 과 만나 160x1200 이라는 실없는 비율을 요청하게 된다(실제로 그렇게 만들었다가
+    // 마흔 장이 전부 응답을 못 받았다). 칸이 4:5 이므로 둘을 같이 그 비율로 맞춘다.
+    u.searchParams.set('w', '160');
+    if (u.searchParams.has('h')) u.searchParams.set('h', '200');
+    return u.toString();
+  } catch {
+    return url;
+  }
+}
+
 export default function PopAllPreview({ rows, total, onOpenAll, onOpenPopup }: Props) {
   const { t, locale } = useLocale();
   const reduce = useReducedMotion();
@@ -62,6 +86,8 @@ export default function PopAllPreview({ rows, total, onOpenAll, onOpenPopup }: P
             ))
           : rows.map((row, rowIdx) => {
               const def = CATEGORIES.find((c) => c.code === row.code);
+              // 이 줄에 연출 이미지가 한 장이라도 있으면 줄 머리에 고지를 한 번 붙인다.
+              const hasStyled = row.popups.some((p) => isPexelsPhoto(p));
               return (
                 <motion.div
                   key={row.code}
@@ -73,17 +99,29 @@ export default function PopAllPreview({ rows, total, onOpenAll, onOpenPopup }: P
                     ease: 'easeOut',
                   }}
                 >
-                  <button
-                    type="button"
-                    onClick={() => onOpenAll(row.code)}
-                    className="group/head mb-1 flex items-center gap-0.5 text-[11px] font-bold text-ink-600 transition hover:text-lime-600 dark:text-cream-200/70 dark:hover:text-lime-300"
-                  >
-                    {def ? localizedLabel(def, locale) : row.code}
-                    <ChevronRight
-                      size={12}
-                      className="transition-transform group-hover/head:translate-x-0.5"
-                    />
-                  </button>
+                  <div className="mb-1 flex items-baseline justify-between gap-2">
+                    <button
+                      type="button"
+                      onClick={() => onOpenAll(row.code)}
+                      className="group/head flex items-center gap-0.5 text-[11px] font-bold text-ink-600 transition hover:text-lime-600 dark:text-cream-200/70 dark:hover:text-lime-300"
+                    >
+                      {def ? localizedLabel(def, locale) : row.code}
+                      <ChevronRight
+                        size={12}
+                        className="transition-transform group-hover/head:translate-x-0.5"
+                      />
+                    </button>
+                    {/* 연출 이미지 고지 — 칸마다 붙이면 80px 안에서 읽을 수 없고 한 타일에 마흔
+                        개가 된다. 줄에 한 번 두면 그 줄의 사진 전부를 덮으면서 읽을 수 있다.
+                        문구는 카드가 쓰는 것과 <b>같은 키</b>다 — 같은 고지가 화면마다 다른
+                        말로 나오면 고지로서 신뢰를 잃는다. 촬영자 크레딧은 카드 목록과 마찬가지로
+                        여기서 생략하고, 눌러서 들어간 상세 페이지가 출처와 함께 보여준다. */}
+                    {hasStyled && (
+                      <span className="shrink-0 text-[9px] font-medium text-ink-400 dark:text-cream-200/35">
+                        {t('photo.styledTooltip')}
+                      </span>
+                    )}
+                  </div>
                   {/* 가로 스크롤 — 열 곳을 다 보여주려면 접거나 넘겨야 하는데, 접으면 "더 있다"
                       는 사실이 숨고 넘기면 자리를 두 배로 먹는다. 옆으로 미는 것이 둘 다 피한다. */}
                   <div className="flex snap-x gap-2 overflow-x-auto pb-1">
@@ -93,18 +131,13 @@ export default function PopAllPreview({ rows, total, onOpenAll, onOpenPopup }: P
                         locale === 'en' ? p.nameEn : locale === 'ja' ? p.nameJa : null,
                       );
                       /*
-                       * 사진은 <b>그 팝업을 실제로 찍은 것</b>일 때만 쓴다.
+                       * 사진이 있으면 사진을, 없으면 카테고리 그라디언트를 쓴다.
                        *
-                       * <p>Pexels 연출 이미지는 이 사이트 규칙상 「연출 이미지」 고지와 출처를
-                       * 함께 보여야 하는데({@link PhotoDisclosure}), 80px 칸에는 읽을 수 있는
-                       * 크기로 들어가지 않는다. 한 타일에 마흔 칸이니 고지도 마흔 개가 된다.
-                       *
-                       * <p>그래서 고지를 붙일 수 없는 사진은 아예 쓰지 않고, 카드가 이미 쓰는
-                       * 카테고리 그라디언트로 대신한다 — 무관한 스톡 사진보다 <b>이 팝업이
-                       * 무엇에 속하는지</b>를 더 정확히 말한다.
+                       * <p>연출 이미지(Pexels)도 보여준다 — 고지는 줄 머리에 한 번 붙는다.
+                       * 실측상 이 사이트 팝업의 67%가 연출 이미지이고 실제 현장 사진은 아직
+                       * 0장이라, 연출 이미지를 빼면 이 자리는 사진이 없는 자리가 된다.
                        */
                       const cover = popupCoverUrl(p);
-                      const showPhoto = cover !== null && !isPexelsPhoto(p);
                       const visual = categoryVisual(p.category);
                       return (
                         <button
@@ -115,14 +148,16 @@ export default function PopAllPreview({ rows, total, onOpenAll, onOpenPopup }: P
                           className="w-20 shrink-0 snap-start text-left transition hover:-translate-y-0.5"
                         >
                           <div className="relative aspect-[4/5] overflow-hidden rounded-xl bg-cream-300 dark:bg-ink-800">
-                            {showPhoto ? (
+                            {cover ? (
                               // 크롤링 imageUrl 은 임의 호스트라 next/image 를 쓸 수 없다(도메인
                               // 화이트리스트 불가). PopupCard 와 같은 이유로 순수 img 를 쓴다.
                               // eslint-disable-next-line @next/next/no-img-element
                               <img
-                                src={cover}
+                                src={previewSized(cover)}
                                 alt=""
                                 loading="lazy"
+                                decoding="async"
+                                fetchPriority="low"
                                 className="h-full w-full object-cover"
                               />
                             ) : (
