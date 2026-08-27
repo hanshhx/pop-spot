@@ -99,7 +99,6 @@ export const SEASON_COPY: Record<Season, SeasonCopy> = {
     upper: 'SPRING',
     months: '3 · 4 · 5월',
     lead: '벚꽃 시즌이 시작됐어요',
-    body: '3월 말부터 꽃 피는 골목에 팝업이 몰립니다. 봄에 열린 팝업 상당수가 5월 안에 문을 닫습니다.',
   },
   summer: {
     word: '여름',
@@ -112,14 +111,12 @@ export const SEASON_COPY: Record<Season, SeasonCopy> = {
     upper: 'AUTUMN',
     months: '9 · 10 · 11월',
     lead: '가을이 시작됐어요',
-    body: '야외 팝업이 가장 좋은 두 달입니다. 한강·성수 옥상 라인이 9월 첫 주에 한꺼번에 문을 엽니다.',
   },
   winter: {
     word: '겨울',
     upper: 'WINTER',
     months: '12 · 1 · 2월',
     lead: '겨울이 시작됐어요',
-    body: '12월은 실내로 전부 들어갑니다. 홀리데이 팝업은 대부분 1월 첫 주에 닫으니 날짜를 놓치기 쉽습니다.',
   },
 };
 
