@@ -124,8 +124,13 @@ public class PopupCrawlScheduler {
         }
         log.info("[PopupCrawlScheduler] === 팝업 커버 백필 시작 ===");
         try {
-            int filled = popupPhotoService.backfillMissingPhotos(photoBackfillLimit);
-            log.info("[PopupCrawlScheduler] 팝업 커버 백필 완료 — {}개 배정", filled);
+            var report = popupPhotoService.backfillMissingPhotos(photoBackfillLimit);
+            // 키가 빠져 있으면 매번 0 만 찍혀 원인을 알 수 없었다 — 이제 로그가 이유를 말한다.
+            log.info(
+                    "[PopupCrawlScheduler] 팝업 커버 백필 완료 — {}개 배정 (키={}, 남은 사진없음={}건)",
+                    report.assigned(),
+                    report.configured() ? "설정됨" : "미설정",
+                    report.photoless());
         } catch (Exception e) {
             log.error("[PopupCrawlScheduler] 커버 백필 실패", e);
         }
