@@ -33,35 +33,77 @@ public class PopupPhotoService {
     private final PexelsPhotoService pexelsPhotoService;
 
     /**
-     * 이미지가 없는 공개 팝업에 Pexels 커버를 최대 {@code limit} 개 배정하고, 실제 배정한 개수를 반환한다. Pexels 키 미설정이면 0. 개별 실패는
-     * 건너뛴다(방어적).
+     * 커버 백필 한 번의 결과 — <b>0건이 왜 0건인지</b>까지 담는다.
+     *
+     * <p>예전에는 배정 개수(int)만 돌려줬다. 그런데 0 이 나오는 길이 셋인데 셋 다 똑같이 0 으로 보였다 — 키가 없어서, Pexels 호출이 실패해서, 정말
+     * 채울 것이 없어서. 관리자 화면에서는 <b>키가 빠진 것과 할 일이 없는 것이 구별되지 않아</b> 기능이 죽은 줄 알고도 그냥 성공 알림이 떴다.
+     *
+     * @param configured Pexels 키가 설정돼 있는가. false 면 아무 것도 하지 않았다는 뜻이다.
+     * @param photoless 사진이 하나도 없는 공개 팝업 <b>전체</b> 수. {@code limit} 과 무관하다 — 몇 번 더 눌러야 하는지 알 수 있다.
+     * @param scanned 이번에 실제로 시도한 수({@code min(photoless, limit)}).
+     * @param assigned 사진이 붙은 수.
+     * @param searchEmpty Pexels 검색이 <b>후보를 한 장도</b> 돌려주지 않은 팝업 수. 이 값이 scanned 와 같으면 키가 만료됐거나 쿼터가 찬
+     *     것이다(코드 문제가 아니다).
+     */
+    public record BackfillReport(
+            boolean configured, int photoless, int scanned, int assigned, int searchEmpty) {}
+
+    /**
+     * 이미지가 없는 공개 팝업에 Pexels 커버를 최대 {@code limit} 개 배정한다. 개별 실패는 건너뛴다(방어적).
+     *
+     * @return 무엇을 왜 했는지 담은 {@link BackfillReport}
      */
     @Transactional
-    public int backfillMissingPhotos(int limit) {
-        if (!pexelsPhotoService.isConfigured()) {
-            log.warn("[PopupPhotoService] Pexels 키 미설정 — 커버 백필 스킵");
-            return 0;
-        }
-        List<PopupStore> targets =
+    public BackfillReport backfillMissingPhotos(int limit) {
+        List<PopupStore> photoless =
                 popupStoreRepository.findAllPublic().stream()
                         .filter(p -> p.getImages() == null || p.getImages().isEmpty())
-                        .limit(Math.max(0, limit))
                         .toList();
 
+        if (!pexelsPhotoService.isConfigured()) {
+            log.warn(
+                    "[PopupPhotoService] Pexels 키 미설정 — 커버 백필 스킵 (사진 없는 팝업 {}건)", photoless.size());
+            return new BackfillReport(false, photoless.size(), 0, 0, 0);
+        }
+
+        List<PopupStore> targets = photoless.stream().limit(Math.max(0, limit)).toList();
         Set<Long> usedPhotoIds = new HashSet<>(popupImageRepository.findAllUsedPexelsPhotoIds());
         Set<String> usedImageUrls =
                 new HashSet<>(popupImageRepository.findAllUsedPexelsImageUrls());
         Map<String, List<PhotoCandidate>> requestCache = new HashMap<>();
         int assigned = 0;
+        int searchEmpty = 0;
         for (PopupStore p : targets) {
             try {
                 if (assignUniquePhoto(p, usedPhotoIds, usedImageUrls, requestCache)) assigned++;
+                else if (noCandidateAtAll(p, requestCache)) searchEmpty++;
             } catch (Exception e) {
                 log.warn("[PopupPhotoService] id={} 커버 배정 실패 err={}", p.getId(), e.toString());
             }
         }
-        log.info("[PopupPhotoService] 커버 백필 완료 — {}/{}개 배정", assigned, targets.size());
-        return assigned;
+        log.info(
+                "[PopupPhotoService] 커버 백필 완료 — {}/{}개 배정 (사진 없는 팝업 {}건, 검색결과 빈 팝업 {}건)",
+                assigned,
+                targets.size(),
+                photoless.size(),
+                searchEmpty);
+        return new BackfillReport(true, photoless.size(), targets.size(), assigned, searchEmpty);
+    }
+
+    /**
+     * 이 팝업의 검색이 <b>후보를 한 장도</b> 못 받았는가.
+     *
+     * <p>배정 실패의 이유를 둘로 가른다 — 후보는 왔는데 전부 이미 쓴 사진이라 못 붙인 경우(정상적인 고갈)와, 애초에 Pexels 가 아무것도 안 준 경우(키
+     * 만료·쿼터 초과·차단). 뒤쪽이면 사람이 손볼 것이 있다.
+     *
+     * <p>{@code requestCache} 를 다시 읽을 뿐 네트워크를 새로 부르지 않는다 — 방금 {@link #assignUniquePhoto} 가 채워 둔
+     * 값이다.
+     */
+    private boolean noCandidateAtAll(
+            PopupStore popup, Map<String, List<PhotoCandidate>> requestCache) {
+        String cacheKey = popup.getCategory() + "|" + photoQueryBucket(popup.getName()) + "|1";
+        List<PhotoCandidate> first = requestCache.get(cacheKey);
+        return first != null && first.isEmpty();
     }
 
     /** 신규 수집 팝업 저장 직후 사진 한 장을 배정한다. 실패 시 빈 상태로 두며 다음 정기 백필에서 다시 시도한다. */

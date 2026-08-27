@@ -86,14 +86,31 @@ public class AdminController {
     }
 
     /**
-     * 이미지 없는 공개 팝업에 Pexels 커버를 수동으로 배정(백필). {@code limit} 으로 배치 크기를 제한한다. Pexels 키 미설정이면 0 을 반환한다.
+     * 이미지 없는 공개 팝업에 Pexels 커버를 수동으로 배정(백필). {@code limit} 으로 배치 크기를 제한한다.
+     *
+     * <p><b>0 건일 때 왜 0 인지까지 돌려준다.</b> 예전에는 배정 개수만 실어 보내서, 키가 없어 아무 일도 안 한 경우와 정말 채울 것이 없는 경우가 화면에서
+     * 똑같아 보였다 — 둘 다 200 에 {@code assigned:0} 이었다. 사진 없는 팝업이 수백 건인데 "0개 배정 완료" 가 뜨니 기능이 죽은 줄 알 수밖에
+     * 없었다.
      */
     @PostMapping("/popups/backfill-photos")
     public ResponseEntity<Map<String, Object>> backfillPhotos(
             @RequestParam(defaultValue = "150") int limit, HttpServletRequest request) {
-        int assigned = popupPhotoService.backfillMissingPhotos(limit);
-        AdminAuditInterceptor.addDetail(request, "배정=" + assigned);
-        return ResponseEntity.ok(Map.of("assigned", assigned));
+        PopupPhotoService.BackfillReport r = popupPhotoService.backfillMissingPhotos(limit);
+        AdminAuditInterceptor.addDetail(
+                request,
+                "배정="
+                        + r.assigned()
+                        + " 대상="
+                        + r.photoless()
+                        + " 키="
+                        + (r.configured() ? "O" : "X"));
+        return ResponseEntity.ok(
+                Map.of(
+                        "assigned", r.assigned(),
+                        "configured", r.configured(),
+                        "photoless", r.photoless(),
+                        "scanned", r.scanned(),
+                        "searchEmpty", r.searchEmpty()));
     }
 
     /**
