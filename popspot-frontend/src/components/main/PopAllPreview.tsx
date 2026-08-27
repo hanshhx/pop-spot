@@ -41,9 +41,15 @@ interface Props {
   seenIds?: ReadonlySet<number>;
 }
 
-/** 유리판 — 라이트는 시안 값 그대로, 다크는 같은 뜻(뒤가 비치는 판)을 어두운 쪽에서 만든 값이다. */
-const GLASS =
-  'rounded-[24px] border border-white/60 bg-[linear-gradient(180deg,rgba(13,21,23,.10),rgba(13,21,23,0)_15%,rgba(13,21,23,0)_85%,rgba(13,21,23,.10)),rgba(255,255,255,.48)] shadow-[0_16px_40px_rgba(10,10,10,.10)] backdrop-blur-[16px] backdrop-saturate-[1.08] md:rounded-[32px] dark:border-white/12 dark:bg-[linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,0)_15%,rgba(255,255,255,0)_85%,rgba(255,255,255,.06)),rgba(13,21,23,.46)]';
+/**
+ * 판 — 흰 카드.
+ *
+ * <p>시안은 반투명 유리(흰색 48% + blur 16)였다. 뒤의 계절 배경이 비쳐 섹션이 페이지에서 떠
+ * 있지 않게 하려는 장치였는데, 소유자 판단으로 <b>불투명 흰 면</b>으로 되돌렸다. 홈의 다른
+ * 카드들(벤토·레일)이 전부 불투명이라 이 자리만 비치면 오히려 그쪽이 튄다.
+ */
+const PANEL =
+  'rounded-[24px] border border-black/[0.06] bg-white shadow-pop md:rounded-[32px] dark:border-transparent dark:bg-ink-900';
 
 export default function PopAllPreview({ rows, total, onOpenAll, onOpenPopup, seenIds }: Props) {
   const { t } = useLocale();
@@ -90,7 +96,7 @@ export default function PopAllPreview({ rows, total, onOpenAll, onOpenPopup, see
         </div>
       </header>
 
-      <div className={`${GLASS} px-3.5 pb-3 pt-0.5 md:px-6 md:pb-4 md:pt-1.5`}>
+      <div className={`${PANEL} px-3.5 pb-3 pt-0.5 md:px-6 md:pb-4 md:pt-1.5`}>
         {rows.length === 0
           ? [...Array(5)].map((_, i) => (
               <div key={i} className="border-t border-[#0d1517]/10 py-4 dark:border-white/10">
