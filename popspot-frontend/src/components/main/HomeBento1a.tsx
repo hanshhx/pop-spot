@@ -1,51 +1,41 @@
 'use client';
 
 import { Ticket, CalendarDays, ArrowRight } from 'lucide-react';
-import PopAllPreview from '@/components/main/PopAllPreview';
-import type { PreviewRow } from '@/lib/popAllPreview';
-import type { CategoryCode } from '@/lib/popupSlices';
 import { useLocale } from '@/lib/i18n';
 
 /**
- * 홈 하단 발견 존 — 히어로 + 서브 타일.
+ * 홈 하단 발견 존 — 나의 기록 · 언제 갈까.
  *
- * <p>3칸 벤토: 큰 히어로 하나(POP-ALL 미리보기)와 사이드 타일 둘(나의 기록 · 언제 갈까).
- * 서브 타일은 <b>유저별로 다른 값을 하드코딩하지 않고</b> 기능 설명만 둔다.
+ * <p>두 타일 모두 <b>유저별로 다른 값을 하드코딩하지 않고</b> 기능 설명만 둔다(실제 카운트가
+ * 필요하면 로그인 데이터를 별도로 배선).
  *
  * <p>v2.54 — 여기 있던 실시간 랭킹(칩 4개 + 인기 상위 4)을 뺐다. POP-LOOK 이 이미 유일한 랭킹을
  * 맡고 있어 이 자리는 같은 여덟 곳 중 상위 4개를 다시 보여주는 두 번째 랭킹이었다.
  *
  * <p>v2.55 — 그 자리를 채웠던 「N곳으로 들어가는 문」 4개도 뺐다. 문 넷은 각각 이미 있는
  * {@code /popups/[slug]} SEO 랜딩으로 보냈는데, 그건 <b>새 화면을 만든 것이 아니라 링크를 놓은
- * 것</b>이다. 소유자의 표현으로는 재탕. 지금은 {@link PopAllPreview} 가 카테고리마다 한 줄씩,
- * 줄마다 열 곳을 사진과 제목으로 보여주고, 어디를 누르든 이 사이트 안에서 끝난다.
+ * 것</b>이다. 소유자의 표현으로는 재탕.
+ *
+ * <p>v2.56 — 그 뒤를 이었던 POP-ALL 미리보기도 여기서 나갔다. 벤토 한 칸에 넣으니 카테고리 넷이
+ * 좁은 폭을 나눠 써서 <b>줄마다 열 곳 중 대여섯만</b> 보였다. POP-LOOK 처럼 폭을 다 쓰는 제
+ * 섹션으로 옮겨, 열 곳이 다 들어가고 좌우 화살표로 카테고리 전부를 넘겨볼 수 있게 했다.
+ * 이 파일에는 이제 사이드 타일 둘만 남는다.
  */
 
 interface Props {
-  /** 카테고리별 미리보기 줄. popAllPreviewRows 가 만든다. */
-  rows: PreviewRow[];
-  /** 화면이 말하는 전체 곳 수. */
-  total: number;
-  onOpenAll: (category?: CategoryCode) => void;
-  onOpenPopup: (id: number) => void;
   onNavigate: (tab: string) => void;
 }
 
-export default function HomeBento1a({ rows, total, onOpenAll, onOpenPopup, onNavigate }: Props) {
+export default function HomeBento1a({ onNavigate }: Props) {
   const { t } = useLocale();
 
   return (
-    <section
-      aria-label={t('bento.aria')}
-      className="mb-10 grid grid-cols-1 gap-4 lg:grid-cols-3 lg:grid-rows-2"
-    >
-      <PopAllPreview rows={rows} total={total} onOpenAll={onOpenAll} onOpenPopup={onOpenPopup} />
-
+    <section aria-label={t('bento.aria')} className="mb-10 grid grid-cols-1 gap-4 md:grid-cols-2">
       {/* 나의 기록 (여권) — 유저별 값 없이 기능 설명만 */}
       <button
         type="button"
         onClick={() => onNavigate('PASSPORT')}
-        className="group relative overflow-hidden rounded-[2rem] border border-black/[0.06] bg-white p-5 text-left text-ink-900 shadow-pop transition hover:scale-[1.02] md:p-6 lg:col-span-1 dark:border-transparent dark:bg-ink-900 dark:text-cream-200"
+        className="group relative overflow-hidden rounded-[2rem] border border-black/[0.06] bg-white p-5 text-left text-ink-900 shadow-pop transition hover:scale-[1.02] md:p-6 dark:border-transparent dark:bg-ink-900 dark:text-cream-200"
       >
         <div
           aria-hidden
@@ -79,7 +69,7 @@ export default function HomeBento1a({ rows, total, onOpenAll, onOpenPopup, onNav
       <button
         type="button"
         onClick={() => onNavigate('SCHEDULE')}
-        className="group relative overflow-hidden rounded-[2rem] border border-black/[0.06] bg-white p-5 text-left text-ink-900 shadow-pop transition hover:scale-[1.02] md:p-6 lg:col-span-1 dark:border-transparent dark:bg-ink-900 dark:text-cream-200"
+        className="group relative overflow-hidden rounded-[2rem] border border-black/[0.06] bg-white p-5 text-left text-ink-900 shadow-pop transition hover:scale-[1.02] md:p-6 dark:border-transparent dark:bg-ink-900 dark:text-cream-200"
       >
         <div
           aria-hidden
