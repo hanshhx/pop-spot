@@ -937,3 +937,51 @@ li {
     opacity: 1;
   }
 }
+
+/*
+ * POP-ALL 섹션 — 시안(POP-ALL 1c 확정)의 움직임 셋.
+ *
+ * reveal  줄이 차례로 떠오른다(줄마다 70ms 씩 늦춰 부른다).
+ * open    펼친 내용이 위에서 내려온다.
+ * dot     「전체 보기」의 라임 점이 숨쉰다 — 이 섹션이 살아 있다는 유일한 상시 신호다.
+ */
+@keyframes popall-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes popall-open {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes popall-dot {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1.35);
+    opacity: 0.35;
+  }
+}
+
+/* 움직임을 줄여 달라고 한 사용자에게는 셋 다 멈춘다 — 숨쉬는 점은 특히 시선을 계속 끈다. */
+@media (prefers-reduced-motion: reduce) {
+  [class*='animate-popall'],
+  .popall-dot {
+    animation: none !important;
+  }
+}

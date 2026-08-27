@@ -11,6 +11,9 @@ const MIN_ROW_SIZE = 3;
 
 export interface PreviewRow {
   code: CategoryCode;
+  /** 그 분야의 <b>전체</b> 곳수. 곳수 칩이 말하는 수이고, 사진 유무와 무관하다. */
+  total: number;
+  /** 줄에 깔 사진 카드. 사진이 있는 것만 담는다. */
   popups: PopupStore[];
 }
 
@@ -59,38 +62,42 @@ export function popAllPreviewRows(
   const rowCount = options.rowCount ?? PREVIEW_ROW_COUNT;
   const perRow = options.perRow ?? PREVIEW_PER_ROW;
 
-  const byCategory = new Map<CategoryCode, PopupStore[]>();
+  /*
+   * 두 가지를 따로 센다.
+   *
+   * <p>{@code total} 은 <b>그 분야의 전체 곳수</b>다 — 곳수 칩("148곳")이 말하는 수이고, 사진이
+   * 있든 없든 전부 센다. 사진 없는 곳도 「전체 보기」로 들어가면 나오므로, 칩이 사진 있는 수만
+   * 세면 눌러서 들어간 화면과 숫자가 어긋난다.
+   *
+   * <p>{@code withPhoto} 는 줄에 실제로 깔 사진 카드다 — 이 자리의 약속이 "사진과 제목" 이라서
+   * 사진 없는 곳은 카드로 만들지 않는다.
+   */
+  const totals = new Map<CategoryCode, number>();
+  const withPhoto = new Map<CategoryCode, PopupStore[]>();
   for (const p of popups) {
-    if (!popupCoverUrl(p)) continue;
     const code = classifyCategory(p.category);
-    // 'other' 를 줄로 만들지 않는 <b>진짜</b> 방어선은 아래 candidates 다 — CATEGORIES 에
-    // 'other' 항목이 없어서 후보로 뽑힐 길이 없다. 여기서 미리 거르는 것은 쓰지도 않을
-    // 수백 개짜리 버킷을 만들지 않기 위한 것이지 정확성을 위한 것이 아니다.
+    // 'other' 는 사람이 읽을 줄 제목이 없다 — 축이 아니라 나머지 통이다.
     if (code === 'other') continue;
-    const bucket = byCategory.get(code);
+    totals.set(code, (totals.get(code) ?? 0) + 1);
+    if (!popupCoverUrl(p)) continue;
+    const bucket = withPhoto.get(code);
     if (bucket) bucket.push(p);
-    else byCategory.set(code, [p]);
+    else withPhoto.set(code, [p]);
   }
 
-  // CATEGORIES 순서를 따라 후보를 세운다 — Map 삽입 순서(=데이터 도착 순서)에 기대면
-  // 백엔드 정렬이 바뀔 때 화면이 조용히 따라 바뀐다.
-  const candidates = CATEGORIES.map((c) => c.code).filter((code) => {
-    const bucket = byCategory.get(code);
-    return bucket !== undefined && bucket.length >= MIN_ROW_SIZE;
-  });
+  // CATEGORIES 순서를 따라 세운다 — Map 삽입 순서(=데이터 도착 순서)에 기대면 백엔드 정렬이
+  // 바뀔 때 화면이 조용히 따라 바뀐다.
+  const candidates = CATEGORIES.map((c) => c.code).filter(
+    (code) => (withPhoto.get(code)?.length ?? 0) >= MIN_ROW_SIZE,
+  );
   if (candidates.length === 0) return [];
 
   const seed = daySeed(today);
-  const rows: PreviewRow[] = [];
-  for (let i = 0; i < Math.min(rowCount, candidates.length); i += 1) {
-    // (seed + i) % n 은 i 가 서로 다르면 결과도 서로 다르다(i < n 이므로) — 한 카테고리가
-    // 두 줄을 차지하는 일이 없다.
-    const code = candidates[(seed + i) % candidates.length];
+  return candidates.slice(0, rowCount).map((code) => {
     // <b>id 내림차순 정렬은 장식이 아니다.</b> 이것이 없으면 순서가 /api/popups 가 준
     // 순서에 그대로 매이고, 그 순서는 응답마다 바뀔 수 있다 — 그러면 "같은 날은 같은 열 곳"
     // 이라는 약속이 조용히 깨진다. 정렬이 그 약속의 유일한 근거다.
-    const bucket = [...(byCategory.get(code) ?? [])].sort((a, b) => b.id - a.id);
-    rows.push({ code, popups: cyclicSlice(bucket, seed, perRow) });
-  }
-  return rows;
+    const bucket = [...(withPhoto.get(code) ?? [])].sort((a, b) => b.id - a.id);
+    return { code, total: totals.get(code) ?? 0, popups: cyclicSlice(bucket, seed, perRow) };
+  });
 }

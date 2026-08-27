@@ -124,7 +124,10 @@ describe('popAllPreviewRows', () => {
     expect(after).not.toEqual(before);
   });
 
-  it('하루가 지나면 보여주는 카테고리 조합도 달라진다', () => {
+  it('분야 순서는 날짜와 무관하게 고정이다', () => {
+    // 아코디언은 일곱 줄을 <b>전부</b> 내놓고 한 줄만 펼친다. 그러면 "오늘은 어느 분야가
+    // 보이나" 라는 문제 자체가 없어지므로 순서까지 흔들 이유가 없다 — 어제 셋째 줄에 있던
+    // 분야가 오늘 첫째 줄에 있으면 손이 기억하는 자리가 매일 달라진다.
     const pool = [
       ...many(0, '패션', 12),
       ...many(100, '뷰티', 12),
@@ -132,9 +135,29 @@ describe('popAllPreviewRows', () => {
       ...many(300, '디저트', 12),
       ...many(400, '아트', 12),
     ];
-    const before = popAllPreviewRows(pool, TODAY).map((r) => r.code);
-    const after = popAllPreviewRows(pool, TOMORROW).map((r) => r.code);
-    expect(after).not.toEqual(before);
+    expect(popAllPreviewRows(pool, TOMORROW).map((r) => r.code)).toEqual(
+      popAllPreviewRows(pool, TODAY).map((r) => r.code),
+    );
+  });
+
+  it('분야 순서는 CATEGORIES 정의 순서를 따른다', () => {
+    const pool = [...many(0, '패션', 12), ...many(100, '캐릭터', 12), ...many(200, '뷰티', 12)];
+    // CATEGORIES 는 캐릭터 · 패션 · 뷰티 순으로 정의돼 있다.
+    expect(popAllPreviewRows(pool, TODAY).map((r) => r.code)).toEqual([
+      'character',
+      'fashion',
+      'beauty',
+    ]);
+  });
+
+  it('곳수는 사진이 없는 것까지 전부 센다', () => {
+    // 칩이 말하는 수는 그 분야의 전체 곳수다. 사진 있는 것만 세면 눌러서 들어간
+    // 「전체 보기」의 결과 수와 어긋난다.
+    const withPhoto = many(0, '패션', 5);
+    const noPhoto = many(100, '패션', 7).map((p) => ({ ...p, imageUrl: undefined }));
+    const rows = popAllPreviewRows([...withPhoto, ...noPhoto], TODAY);
+    expect(rows[0].total).toBe(12);
+    expect(rows[0].popups).toHaveLength(5);
   });
 
   it('빈 목록에는 줄을 만들지 않는다', () => {
