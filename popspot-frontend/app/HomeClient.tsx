@@ -519,16 +519,47 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
   );
 
   /**
+   * POP-ALL 이 보여주는 목록 — <b>갈 수 있고, 같은 행사를 한 번만 세는</b> 것.
+   *
+   * <p>{@code mappablePopups} 를 {@link groupSameEvent} 로 한 번 더 묶는다. 안 묶으면 같은 행사가
+   * 이름만 조금씩 다른 여러 줄로 들어와 24칸짜리 한 페이지에서 여러 칸을 혼자 먹는다. 몇백 곳을
+   * 다양하게 보여주는 것이 이 화면의 목적인데 정반대가 된다.
+   *
+   * <p>조회수는 합산한다 — 네 줄로 쪼개졌던 행사를 대표 한 줄의 조회수로만 평가하면 인기순에서
+   * 부당하게 밀린다(레일이 쓰는 {@code dedupedPopups} 와 같은 이유).
+   *
+   * <p><b>한계.</b> {@link groupSameEvent} 는 이름을 정규화해 묶으므로 표현이 아주 다른 두 줄
+   * (예: "빅뱅 20주년 팝업스토어" 와 "빅뱅의 20주년을 직접 만나보는 시간")은 못 잡는다. 실측으로
+   * 확인한 사실이다 — 이름이 아니라 장소·기간까지 보는 판정이 필요한데, 그건 이 화면이 아니라
+   * 수집 단계의 일이다.
+   */
+  const popAllPopups = useMemo(
+    () =>
+      groupSameEvent(mappablePopups).map((g) => {
+        if (g.duplicates.length === 0) return g.lead;
+        const merged = g.duplicates.reduce(
+          (sum, d) => sum + (d.viewCount || 0),
+          g.lead.viewCount || 0,
+        );
+        return { ...g.lead, viewCount: merged };
+      }),
+    [mappablePopups],
+  );
+
+  /**
    * 화면이 말하는 팝업 수는 <b>이 하나</b>다.
    *
-   * <p>{@code allPopups}(오늘 열려 있는 전부)와 다르다 — 실측 1,002 대 850. 차이 152 곳은
-   * 열려 있지만 좌표가 없거나 지역 중심점에 뭉쳐 있어 <b>눌러도 지도에서 찾을 수 없다.</b>
-   * 그래서 <b>셀 수 있는 것이 아니라 갈 수 있는 것을 센다.</b>
+   * <p>세 번 걸러낸 값이다 — <b>오늘 열려 있고</b>({@code allPopups}), <b>지도에서 찾을 수 있고</b>
+   * ({@code mappablePopups}), <b>같은 행사를 한 번만 센</b>({@code popAllPopups}) 것.
    *
-   * <p>예전엔 벤토 칩만 {@code allPopups.length} 를 써서 한 화면에 "전체" 가 두 숫자로 나왔고,
-   * 그 칩의 전체보기가 여는 모달은 정작 {@code mappablePopups} 라 850 짜리였다.
+   * <p>두 번째 조건은 갈 수 없는 곳을 세지 않기 위해서다 — 좌표가 없거나 지역 중심점에 뭉쳐
+   * 있으면 눌러도 지도에서 찾을 수 없다. 세 번째는 v2.55 에 더했다. 같은 행사가 이름만 다른 여러
+   * 줄로 들어와 있으면 "갈 수 있는 곳" 을 여러 곳으로 세는 셈인데, 실제로 갈 수 있는 곳은 한 곳이다.
+   *
+   * <p>그래서 이 숫자는 예전보다 작다. <b>셀 수 있는 것이 아니라 갈 수 있는 것을 센다</b>는
+   * 원칙의 연장이다.
    */
-  const mappablePopupCount = mappablePopups.length;
+  const mappablePopupCount = popAllPopups.length;
 
   /**
    * 벤토 히어로 — POP-ALL 미리보기의 카테고리별 줄({@link popAllPreviewRows}).
@@ -541,8 +572,8 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
    * "인기 팝업 8곳" 을 나눠 먹던 예전 중복과는 다른 종류다.
    */
   const previewRows = useMemo(
-    () => popAllPreviewRows(mappablePopups, kstTodayStart()),
-    [mappablePopups],
+    () => popAllPreviewRows(popAllPopups, kstTodayStart()),
+    [popAllPopups],
   );
 
   const [popAllOpen, setPopAllOpen] = useState(false);
@@ -1755,9 +1786,12 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
                     {t('trending.desc')}
                   </p>
                 </div>
+                {/* 이 레일의 「전체보기」는 <b>POP-ALL</b> 을 연다. 예전엔 랭킹 모달을 열었는데,
+                    레일 제목은 「최근 오픈한 팝업」이고 열리는 화면은 조회수 순위라 이름과 내용이
+                    달랐다. 레일이 정렬 칩으로 훑던 것이 바로 전체이므로 이쪽이 이름과 맞는다. */}
                 <button
                   type="button"
-                  onClick={handleOpenModal}
+                  onClick={() => openPopAll()}
                   className="shrink-0 text-xs font-semibold text-primary hover:underline"
                 >
                   {t('common.viewAll')}
@@ -2828,12 +2862,15 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
       <BottomDock currentTab={currentTab as DockTab} onTabChange={(t) => handleTabChange(t)} />
 
       {/* Modals — 새 Dialog 컴포넌트(Radix) 사용. 포커스 트랩·ESC·스크롤 잠금 자동. */}
-      <AllTrendingModal open={isModalOpen} onOpenChange={setIsModalOpen} popups={mappablePopups} />
+      {/* 랭킹 모달도 같은 풀({@code popAllPopups})을 쓴다 — 이걸 여는 POP-LOOK 버튼이
+          {@code mappablePopupCount} 를 광고하기 때문이다. 다른 풀을 넘기면 "전체 N곳" 이라고
+          적힌 버튼이 N보다 많은 카드를 여는 옛 버그가 그대로 되살아난다. */}
+      <AllTrendingModal open={isModalOpen} onOpenChange={setIsModalOpen} popups={popAllPopups} />
 
       <PopAllModal
         open={popAllOpen}
         onOpenChange={setPopAllOpen}
-        popups={mappablePopups}
+        popups={popAllPopups}
         initialCategory={popAllCategory}
       />
       <ReportPopupModal open={isReportPopupOpen} onOpenChange={setIsReportPopupOpen} />
