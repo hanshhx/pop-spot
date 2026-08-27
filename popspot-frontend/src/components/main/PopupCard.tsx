@@ -105,7 +105,16 @@ export function PopupCard({ popup, onClick, onWish, wished, className, seen }: P
         }
       }}
       className={cn(
-        'group relative flex w-full min-w-0 cursor-pointer flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white text-left shadow-sm transition hover:-translate-y-1 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-400 sm:w-[220px] sm:shrink-0 dark:border-white/10 dark:bg-white/[0.04]',
+        /*
+         * 폭은 <b>부르는 쪽이 정한다.</b> 카드 자신은 언제나 제 자리를 채운다({@code w-full}).
+         *
+         * 예전엔 여기 {@code sm:w-[220px] sm:shrink-0} 가 박혀 있었다. 레일 때문에 넣은 값인데
+         * 정작 레일은 감싸개(HomeClient 의 {@code w-[168px] sm:w-[220px]})가 폭을 정하고 있어서
+         * 쓰이지도 않았고, <b>격자에서는 셀보다 좁게 굳어</b> 칸마다 빈틈을 만들었다. 부르는 쪽이
+         * {@code className="w-full"} 로 채우라고 해도 같은 브레이크포인트가 아니라 이기지 못했다
+         * (1600px 에서 셀 234px 대 카드 220px, 넓은 화면일수록 더 벌어졌다).
+         */
+        'group relative flex w-full min-w-0 cursor-pointer flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white text-left shadow-sm transition hover:-translate-y-1 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-400 dark:border-white/10 dark:bg-white/[0.04]',
         // 흐리게만 하고 끝내면 "고장난 카드" 로 읽힌다. hover 에서 원래대로 돌아오게 해서
         // <b>못 쓰는 것이 아니라 이미 본 것</b>임을 알린다.
         seen && 'opacity-60 saturate-[0.6] hover:opacity-100 hover:saturate-100',
