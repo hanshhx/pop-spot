@@ -121,6 +121,7 @@ import { ReportPopupModal } from '@/features/popup/ReportPopupModal';
 import { PopupCalendarModal } from '@/features/popup/PopupCalendarModal';
 import { PopupCalendar } from '@/features/popup/PopupCalendar';
 import { AllTrendingModal } from '@/features/popup/AllTrendingModal';
+import { PopAllModal } from '@/features/popup/PopAllModal';
 import { AddPlaceModal } from '@/features/popup/AddPlaceModal';
 import { GlobalSearchModal, useGlobalSearchHotkey } from '@/features/popup/GlobalSearchModal';
 import { OnboardingModal, ONBOARDING_TRIGGER_EVENT } from '@/features/onboarding/OnboardingModal';
@@ -544,14 +545,18 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
     [mappablePopups],
   );
 
+  const [popAllOpen, setPopAllOpen] = useState(false);
+  const [popAllCategory, setPopAllCategory] = useState<CategoryCode | null>(null);
+
   /**
-   * 「전체 보기」를 연다. 카테고리를 주면 그 조건이 걸린 채로 열린다.
+   * 「전체 보기」를 연다. 분야를 주면 그 조건이 걸린 채로 열린다(미리보기의 줄 제목에서 온다).
    *
-   * <p>지금은 기존 랭킹 모달을 연다 — POP-ALL 모달(검색·필터·페이지네이션)이 아직 없어서다.
-   * 다음 작업이 이 자리를 그 모달로 바꾼다. 그때 {@code category} 인자가 초기 필터가 된다.
+   * <p>랭킹 모달({@link AllTrendingModal})과 다른 모달이다 — 그쪽은 POP-LOOK 의 조회수 순위를
+   * 보여주는 자리이고, 이쪽은 <b>전부를 검색·필터로 훑는</b> 자리다.
    */
-  const openPopAll = useCallback((_category?: CategoryCode) => {
-    setIsModalOpen(true);
+  const openPopAll = useCallback((category?: CategoryCode) => {
+    setPopAllCategory(category ?? null);
+    setPopAllOpen(true);
   }, []);
 
   /**
@@ -2824,6 +2829,13 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
 
       {/* Modals — 새 Dialog 컴포넌트(Radix) 사용. 포커스 트랩·ESC·스크롤 잠금 자동. */}
       <AllTrendingModal open={isModalOpen} onOpenChange={setIsModalOpen} popups={mappablePopups} />
+
+      <PopAllModal
+        open={popAllOpen}
+        onOpenChange={setPopAllOpen}
+        popups={mappablePopups}
+        initialCategory={popAllCategory}
+      />
       <ReportPopupModal open={isReportPopupOpen} onOpenChange={setIsReportPopupOpen} />
       <GlobalSearchModal
         open={isGlobalSearchOpen}
