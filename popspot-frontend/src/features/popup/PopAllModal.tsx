@@ -15,6 +15,7 @@ import { PopupCard } from '@/components/main/PopupCard';
 import { PopAllFilterBar } from '@/features/popup/PopAllFilterBar';
 import { PopAllRecentPanel } from '@/features/popup/PopAllRecentPanel';
 import { useHistoryBackedModal } from '@/features/popup/useHistoryBackedModal';
+import { usePopAllKeyboard } from '@/features/popup/usePopAllKeyboard';
 import {
   EMPTY_POP_ALL_QUERY,
   runPopAllQuery,
@@ -130,6 +131,7 @@ export function PopAllModal({ open, onOpenChange, popups, initialCategory }: Pop
         </DialogHeader>
         <PopAllBody
           key={openSeq}
+          open={open}
           popups={popups}
           initialCategory={initialCategory}
           onClose={() => onOpenChange(false)}
@@ -154,11 +156,14 @@ export function PopAllModal({ open, onOpenChange, popups, initialCategory }: Pop
  * 안전하다.
  */
 function PopAllBody({
+  open,
   popups,
   initialCategory,
   onClose,
   onNavigateAway,
 }: {
+  /** 단축키를 켤지 정한다 — 닫힌 뒤에도 이 컴포넌트가 잠시(또는 숨은 탭에서는 계속) 살아 있다. */
+  open: boolean;
   popups: PopupStore[];
   initialCategory?: CategoryCode | null;
   onClose: () => void;
@@ -222,6 +227,17 @@ function PopAllBody({
     },
     [onNavigateAway, onClose, router, locale],
   );
+
+  // 몇백 곳을 훑는 화면이라 손이 마우스를 떠나지 않는 편이 빠르다. 판단은 popAllKeyAction 이,
+  // 여기서는 그 판단을 페이지 이동에 잇기만 한다. 범위를 벗어나는 이동은 여기서 막는다 —
+  // runPopAllQuery 가 당겨 주긴 하지만 그건 안전망이지 의도가 아니다.
+  const onPrevPage = useCallback(() => {
+    if (result.page > 1) goPage(result.page - 1);
+  }, [result.page, goPage]);
+  const onNextPage = useCallback(() => {
+    if (result.page < result.totalPages) goPage(result.page + 1);
+  }, [result.page, result.totalPages, goPage]);
+  usePopAllKeyboard({ enabled: open, searchRef, onPrevPage, onNextPage });
 
   return (
     <>
@@ -332,6 +348,10 @@ function PopAllBody({
               >
                 <ChevronRight size={16} />
               </button>
+              {/* 있는 줄 모르는 단축키는 없는 것과 같다. 키보드를 쓸 만한 넓은 화면에서만 띄운다. */}
+              <span className="ml-2 hidden text-[11px] text-muted-foreground lg:inline">
+                {t('popall.kbdHint')}
+              </span>
             </nav>
           )}
         </div>
