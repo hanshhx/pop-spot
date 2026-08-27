@@ -399,7 +399,25 @@ export default function AdminPage() {
       const res = await apiFetch('/api/admin/popups/backfill-photos?limit=150', { method: 'POST' });
       if (res.ok) {
         const data = await res.json();
-        notifySuccess(`커버 ${data.assigned ?? 0}개 배정 완료`);
+        const assigned = Number(data.assigned ?? 0);
+        /*
+         * 0건은 <b>성공이 아니다.</b>
+         *
+         * <p>예전엔 0건에도 "커버 0개 배정 완료" 라는 성공 알림이 떴다. 서버는 Pexels 키가 없어도
+         * 200 에 {@code assigned:0} 을 돌려주므로, 화면만 보면 <b>키가 빠진 것과 채울 것이 없는
+         * 것이 똑같아 보인다.</b> 실제로 사진 없는 팝업이 수백 건인데 0건이 뜨는 것을 보고서야
+         * 기능이 안 도는 줄 알았다.
+         *
+         * <p>서버가 이유를 돌려주기 전까지는 여기서 <b>0건을 경고로</b> 띄워 최소한 "성공했다"
+         * 고 말하지는 않는다.
+         */
+        if (assigned === 0) {
+          notifyError(
+            '배정된 커버가 0건입니다. 서버의 PEXELS_API_KEY 설정과 로그를 확인해 주세요.',
+          );
+        } else {
+          notifySuccess(`커버 ${assigned}개 배정 완료`);
+        }
         loadAllPopups();
       } else {
         notifyError('커버 배정 실패 (Pexels 키 설정 여부 확인)');
