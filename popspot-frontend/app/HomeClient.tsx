@@ -573,7 +573,12 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
    * "인기 팝업 8곳" 을 나눠 먹던 예전 중복과는 다른 종류다.
    */
   const previewRows = useMemo(
-    () => popAllPreviewRows(popAllPopups, kstTodayStart(), { rowCount: CATEGORIES.length }),
+    () =>
+      popAllPreviewRows(popAllPopups, kstTodayStart(), {
+        rowCount: CATEGORIES.length,
+        // 한 줄에 열여덟 곳. 넓은 화면에서도 다 들어가지 않는 수라야 줄 화살표가 할 일이 있다.
+        perRow: 18,
+      }),
     [popAllPopups],
   );
 

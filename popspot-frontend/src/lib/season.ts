@@ -82,8 +82,15 @@ export interface SeasonCopy {
   months: string;
   /** 전환 배너 제목. 계절당 딱 한 번 뜬다. */
   lead: string;
-  /** 전환 배너 본문. 왜 지금인지를 날짜로 말한다. */
-  body: string;
+  /**
+   * 전환 배너 본문. <b>없으면 아예 그리지 않는다.</b>
+   *
+   * <p>선택으로 둔 이유가 있다. 이 자리에 쓰기 쉬운 문장은 "냉방 팝업과 해변 시즌 스토어가 같은
+   * 주에 몰려 있습니다" 같은 것인데, 그런 문장은 <b>확인된 사실이 아니라 그럴듯한 추측</b>이다.
+   * 우리 데이터로 셀 수 없는 것을 단정하면 사이트 전체의 말이 가벼워진다. 셀 수 있는 것만 쓰고,
+   * 쓸 것이 없으면 비워 둔다.
+   */
+  body?: string;
 }
 
 export const SEASON_COPY: Record<Season, SeasonCopy> = {
@@ -99,7 +106,6 @@ export const SEASON_COPY: Record<Season, SeasonCopy> = {
     upper: 'SUMMER',
     months: '6 · 7 · 8월',
     lead: '여름이 시작됐어요',
-    body: '8월 말까지가 성수기입니다. 냉방 팝업과 해변 시즌 스토어가 같은 주에 몰려 있습니다.',
   },
   autumn: {
     word: '가을',

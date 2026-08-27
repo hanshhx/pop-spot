@@ -111,10 +111,13 @@ export default function SeasonBanner({ onExplore }: { onExplore?: () => void }) 
             {copy.upper} {new Date().getFullYear()}
           </span>
           <h2 className="mt-2.5 text-lg font-black tracking-tight md:text-2xl">{copy.lead}</h2>
-          {/* 계절을 실감하게 하는 건 색이 아니라 마감이다 — 본문이 날짜를 말한다. */}
+          {/* 본문은 있을 때만 그린다 — 쓸 말이 없는 계절은 비워 둔다({@link SeasonCopy}).
+              빈 문단을 남기면 제목 아래 공백만 벌어져 무언가 빠진 것처럼 보인다. */}
           {/* opacity 는 90 이 하한이다. 80 으로 흐리면 라이트 겨울(4.07:1)과 라이트 가을
               (4.27:1)이 AA 아래로 떨어진다 — 만채도 면 위에서는 약간의 흐림도 크게 먹는다. */}
-          <p className="mt-1.5 text-xs leading-relaxed opacity-90 md:text-sm">{copy.body}</p>
+          {copy.body && (
+            <p className="mt-1.5 text-xs leading-relaxed opacity-90 md:text-sm">{copy.body}</p>
+          )}
         </div>
         {onExplore && (
           <button
