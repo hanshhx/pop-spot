@@ -597,6 +597,26 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
   }, []);
 
   /**
+   * 이미 상세를 열어 본 팝업들 — POP-ALL 카드에 「본 팝업」을 덮는 데 쓴다.
+   *
+   * <p>{@code localStorage} 는 서버에 없다. 렌더 중에 읽으면 서버가 그린 HTML(빈 집합)과
+   * 하이드레이션 뒤가 어긋나므로 effect 에서 읽는다. 모듈을 동적으로 부르는 것은 이 파일의
+   * {@code RecentVisitsCard} 가 이미 쓰는 방식이다 — 첫 번들에 방문 기록 코드를 싣지 않는다.
+   */
+  const [seenPopupIds, setSeenPopupIds] = useState<ReadonlySet<number>>(() => new Set<number>());
+  useEffect(() => {
+    let alive = true;
+    import('@/lib/recentVisits')
+      .then(({ readVisits }) => {
+        if (alive) setSeenPopupIds(new Set(readVisits().map((v) => v.popupId)));
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  /**
    * POP-LOOK(랭킹)과 게스트 히어로(마감 임박) — 서로 겹치지 않게 한 번에 나눈다({@link homeSurfaces}).
    *
    * <p>POP-LOOK 은 상세 페이지가 실제로 열린 횟수(viewCount) 순이다. 상세 API가 열릴 때마다
@@ -1761,27 +1781,19 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
                 allPopups.length 라 한 화면에서 "전체" 가 1,002 와 850 두 숫자로 나왔고, 정작
                 전체보기가 여는 모달은 850 짜리(mappablePopups)였다 — 광고한 수와 여는 수가
                 달랐다. */}
-            {/* POP-ALL — 폭을 다 쓰는 제 섹션. 예전엔 벤토 한 칸이었는데, 카테고리 넷이 좁은
-                폭을 나눠 써서 줄마다 열 곳 중 대여섯만 보였다. POP-LOOK 과 같은 급의 자리로
-                올려 열 곳이 다 들어가게 하고, 카테고리는 좌우 화살표로 전부 넘겨볼 수 있다. */}
-            <motion.section
-              aria-label={t('popall.title')}
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true, margin: '-80px' }}
-              variants={sectionVariants}
-              className="mb-10"
-            >
-              <PopAllPreview
-                rows={previewRows}
-                total={mappablePopupCount}
-                onOpenAll={openPopAll}
-                onOpenPopup={(id: number) => {
-                  saveHomeReturnState();
-                  router.push(localizedPath(`/popup/${id}`, locale));
-                }}
-              />
-            </motion.section>
+            {/* POP-ALL — 폭을 다 쓰는 제 섹션(시안 「POP-ALL 1c 확정」). 줄 진입 애니메이션을
+                제 안에서 줄마다 70ms 씩 늦춰 부르므로 여기서 sectionVariants 로 한 번 더 감싸지
+                않는다. 두 겹으로 걸면 안쪽 애니메이션이 바깥의 opacity 전환에 묻힌다. */}
+            <PopAllPreview
+              rows={previewRows}
+              total={mappablePopupCount}
+              seenIds={seenPopupIds}
+              onOpenAll={openPopAll}
+              onOpenPopup={(id: number) => {
+                saveHomeReturnState();
+                router.push(localizedPath(`/popup/${id}`, locale));
+              }}
+            />
 
             <HomeBento1a onNavigate={handleTabChange} />
 
