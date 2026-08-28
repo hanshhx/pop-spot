@@ -2,6 +2,16 @@ import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 
+/**
+ * 서울에서 실행한다. 근거는 {@code app/api/[...path]/route.ts} 의 같은 설정과 동일하다 —
+ * 기본값 {@code iad1}(미국) 이면 한국의 백엔드를 확인하러 태평양을 건넜다 온다.
+ *
+ * <p>여기서는 그 왕복이 <b>세 번</b> 일어난다(actuator · 목록 · 상세). 확인에 걸린 제한시간이
+ * 4~5초라 왕복 비용만으로 한도에 닿았고, 연속 3회 실패는 "서버 연결이 일시적으로 중단됨" 배너와
+ * 그 탭의 API 전면 차단으로 이어진다 — 서버는 멀쩡한데.
+ */
+export const preferredRegion = ['icn1'];
+
 const NO_STORE_HEADERS = { 'Cache-Control': 'no-store, max-age=0' };
 
 /**
