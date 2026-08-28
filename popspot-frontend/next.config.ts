@@ -55,8 +55,20 @@ const nextConfig: NextConfig = {
     ],
   },
 
+  /**
+   * {@code /api/*} 리라이트를 걷어냈다. 그 일은 이제 {@code app/api/[...path]/route.ts} 가 한다.
+   *
+   * <p>리라이트는 <b>Vercel 엣지</b>에서 실행되는데, 엣지의 리졸버가 백엔드 호스트명(ts.net)을
+   * 못 푼다. 실측(2026-08-28) 20회 중 14회가 502 였고 실패는 전부
+   * {@code X-Vercel-Error: DNS_HOSTNAME_EMPTY / DNS_HOSTNAME_NOT_FOUND} 였다. 그리고 엣지가
+   * 만든 502 에는 <b>우리가 재시도를 걸 수 없다</b>. 같은 시각 Node 런타임에서 같은 백엔드를
+   * 부르면 호출당 실패가 약 4% 였고, 거기서는 다시 보낼 수 있다.
+   *
+   * <p>둘을 같이 두지 않는 이유: 라우트 핸들러가 이기므로 리라이트는 죽은 설정이 되고, 죽은 설정은
+   * 나중에 읽는 사람을 속인다.
+   */
   async rewrites() {
-    return [{ source: '/api/:path*', destination: `${API_URL}/api/:path*` }];
+    return [];
   },
 
   async redirects() {
