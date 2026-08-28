@@ -220,6 +220,20 @@ export const apiFetch = async (endpoint: string, options: FetchOptions = {}): Pr
     }
     return response;
   } catch (error) {
+    // 직행이 네트워크 단계에서 죽었다면, 이 브라우저는 ts.net 을 못 쓴다는 뜻이다(차단·DNS).
+    // 백엔드가 죽은 게 아니라 우리 경로가 막힌 것이므로 장애로 기록하지 않는다 — 여기서
+    // setServiceAvailability('unavailable') 를 부르면 멀쩡한 서버를 두고 배너가 뜨고 탭이 잠긴다.
+    if (typeof window !== 'undefined' && !options.signal?.aborted && isDirectBackendUrl(url)) {
+      directBackendUsable = false;
+      console.warn(`백엔드 직행이 막혀 리라이트로 되돌립니다: ${endpoint}`);
+      // 막힌 요청은 한 바이트도 나가지 않아 서버가 본 적이 없다. 다만 그것이 증명되는 것은
+      // 전송 전에 죽었을 때뿐이고 브라우저는 그 둘을 구분해 주지 않는다. 그래서 멱등 메서드만
+      // 자동으로 다시 보내고, 나머지는 판정만 남긴다 — 다음 요청부터 리라이트를 탄다.
+      if (IDEMPOTENT_METHODS.has((options.method ?? 'GET').toUpperCase())) {
+        return apiFetch(endpoint, options);
+      }
+      throw error;
+    }
     if (typeof window !== 'undefined' && !options.signal?.aborted) {
       setServiceAvailability('unavailable');
     }
@@ -399,9 +413,34 @@ const DIRECT_BACKEND_HOSTS = new Set(['popspot.co.kr']);
 export const shouldUseDirectBackend = (hostname: string, disableFlag?: string): boolean =>
   disableFlag !== '0' && DIRECT_BACKEND_HOSTS.has(hostname);
 
+/**
+ * 이 브라우저에서 직행이 실제로 통하는가.
+ *
+ * <p><b>이건 빌드 시점에 정할 수 없는 값이다.</b> 답이 사용자마다 다르기 때문이다. 어떤 사용자는
+ * 엣지 리라이트가 83% 실패하고(Vercel 이 ts.net 을 못 푼다), 어떤 사용자는 브라우저·확장·회사
+ * 네트워크가 ts.net 을 통째로 막는다. 실제로 확인 중에 후자를 만났다 — 교차 출처 자체는 멀쩡한데
+ * ({@code protomaps.github.io} 는 응답이 왔다) ts.net 만 {@code ERR_BLOCKED_BY_CLIENT} 로
+ * 죽었고, CORS 를 건너뛰는 {@code mode:'no-cors'} 조차 실패했다(전송 0바이트).
+ *
+ * <p>그래서 낙관적으로 시작하고, 한 번 막히면 그 세션 동안 리라이트로 되돌린다. 판정은 로그인보다
+ * 훨씬 먼저 끝난다 — 화면 하나가 GET 을 여러 개 부르므로, 사람이 로그인 버튼을 누를 때쯤이면
+ * 이 값은 이미 정해져 있다.
+ */
+let directBackendUsable = true;
+
+/** 테스트가 세션 판정을 되돌릴 때만 쓴다. */
+export function resetDirectBackendForTest(): void {
+  directBackendUsable = true;
+}
+
 const directBackendEnabled = (): boolean =>
+  directBackendUsable &&
   typeof window !== 'undefined' &&
   shouldUseDirectBackend(window.location.hostname, process.env.NEXT_PUBLIC_API_DIRECT);
+
+/** 이 URL 이 백엔드 직행인가(= 리라이트로 되돌릴 여지가 있는가). */
+const isDirectBackendUrl = (url: string): boolean =>
+  directBackendUsable && !!API_BASE_URL && url.startsWith(API_BASE_URL);
 
 /**
  * 요청 URL 결정.
