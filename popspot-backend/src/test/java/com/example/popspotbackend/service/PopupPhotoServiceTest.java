@@ -1,10 +1,12 @@
 package com.example.popspotbackend.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -40,7 +42,7 @@ class PopupPhotoServiceTest {
         when(pexels.isConfigured()).thenReturn(true);
         when(imageRepository.findAllUsedPexelsPhotoIds()).thenReturn(List.of(10L));
         when(imageRepository.findAllUsedPexelsImageUrls()).thenReturn(List.of());
-        when(pexels.searchCandidates(anyString(), eq("CULTURE"), eq(1)))
+        when(pexels.searchCandidates(anyString(), eq("CULTURE"), eq(1), eq(true)))
                 .thenReturn(List.of(used, unused));
         when(imageRepository.insertMainPexelsImageIfUnused(
                         eq(2L), eq(11L), anyString(), anyString(), anyString(), anyString()))
@@ -74,7 +76,7 @@ class PopupPhotoServiceTest {
         when(imageRepository.findAllUsedPexelsPhotoIds()).thenReturn(List.of());
         when(imageRepository.findAllUsedPexelsImageUrls())
                 .thenReturn(List.of(duplicatedUrl.imageUrl()));
-        when(pexels.searchCandidates(anyString(), eq("CULTURE"), eq(1)))
+        when(pexels.searchCandidates(anyString(), eq("CULTURE"), eq(1), eq(true)))
                 .thenReturn(List.of(duplicatedUrl, unused));
         when(imageRepository.insertMainPexelsImageIfUnused(
                         eq(2L), eq(11L), anyString(), anyString(), anyString(), anyString()))
@@ -144,7 +146,8 @@ class PopupPhotoServiceTest {
         when(imageRepository.findAllUsedPexelsPhotoIds()).thenReturn(List.of());
         when(imageRepository.findAllUsedPexelsImageUrls()).thenReturn(List.of());
         // 검색이 아무것도 못 준 상태 — 키가 만료됐을 때의 모습이다.
-        when(pexels.searchCandidates(anyString(), anyString(), anyInt())).thenReturn(List.of());
+        when(pexels.searchCandidates(anyString(), anyString(), anyInt(), anyBoolean()))
+                .thenReturn(List.of());
 
         PopupPhotoService.BackfillReport r = service.backfillMissingPhotos(2);
 
@@ -153,6 +156,73 @@ class PopupPhotoServiceTest {
         assertThat(r.assigned()).isZero();
         // 시도한 둘 다 후보를 못 받았다 = 사람이 손볼 것이 있다는 신호.
         assertThat(r.searchEmpty()).isEqualTo(2);
+    }
+
+    @Test
+    @DisplayName("세로 사진이 전부 소진되면 방향 제약을 풀어 새 사진을 찾아낸다")
+    void assignPhotoIfMissing_fallsBackWhenPortraitExhausted() {
+        PopupStoreRepository popupStoreRepository = mock(PopupStoreRepository.class);
+        PopupImageRepository imageRepository = mock(PopupImageRepository.class);
+        PexelsPhotoService pexels = mock(PexelsPhotoService.class);
+        PopupPhotoService service =
+                new PopupPhotoService(popupStoreRepository, imageRepository, pexels);
+        PopupStore popup =
+                PopupStore.builder()
+                        .id(2L)
+                        .name("테스트 팝업")
+                        .category("CULTURE")
+                        .images(new ArrayList<>())
+                        .build();
+        PhotoCandidate usedPortrait = candidate(10L);
+        PhotoCandidate freshAnyOrientation = candidate(99L);
+
+        when(pexels.isConfigured()).thenReturn(true);
+        // 2026-08-28 실측 상황의 재현: 세로 결과가 전부 이미 쓴 사진이었다.
+        when(imageRepository.findAllUsedPexelsPhotoIds()).thenReturn(List.of(10L));
+        when(imageRepository.findAllUsedPexelsImageUrls()).thenReturn(List.of());
+        when(pexels.searchCandidates(anyString(), eq("CULTURE"), anyInt(), eq(true)))
+                .thenReturn(List.of(usedPortrait));
+        // 방향 제약을 풀면 결과 집합이 달라져 한 번도 안 쓴 사진이 나온다.
+        when(pexels.searchCandidates(anyString(), eq("CULTURE"), eq(1), eq(false)))
+                .thenReturn(List.of(freshAnyOrientation));
+        when(imageRepository.insertMainPexelsImageIfUnused(
+                        eq(2L), eq(99L), anyString(), anyString(), anyString(), anyString()))
+                .thenReturn(1);
+
+        assertThat(service.assignPhotoIfMissing(popup)).isTrue();
+        verify(imageRepository)
+                .insertMainPexelsImageIfUnused(
+                        eq(2L), eq(99L), anyString(), anyString(), anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("세로에 쓸 사진이 남아 있으면 방향 제약을 풀지 않는다")
+    void assignPhotoIfMissing_prefersPortrait() {
+        PopupStoreRepository popupStoreRepository = mock(PopupStoreRepository.class);
+        PopupImageRepository imageRepository = mock(PopupImageRepository.class);
+        PexelsPhotoService pexels = mock(PexelsPhotoService.class);
+        PopupPhotoService service =
+                new PopupPhotoService(popupStoreRepository, imageRepository, pexels);
+        PopupStore popup =
+                PopupStore.builder()
+                        .id(2L)
+                        .name("테스트 팝업")
+                        .category("CULTURE")
+                        .images(new ArrayList<>())
+                        .build();
+
+        when(pexels.isConfigured()).thenReturn(true);
+        when(imageRepository.findAllUsedPexelsPhotoIds()).thenReturn(List.of());
+        when(imageRepository.findAllUsedPexelsImageUrls()).thenReturn(List.of());
+        when(pexels.searchCandidates(anyString(), eq("CULTURE"), eq(1), eq(true)))
+                .thenReturn(List.of(candidate(11L)));
+        when(imageRepository.insertMainPexelsImageIfUnused(
+                        eq(2L), eq(11L), anyString(), anyString(), anyString(), anyString()))
+                .thenReturn(1);
+
+        assertThat(service.assignPhotoIfMissing(popup)).isTrue();
+        // 카드가 4:5 이므로 세로가 먼저다 — 두 번째 우물은 열리지 않아야 한다.
+        verify(pexels, never()).searchCandidates(anyString(), anyString(), anyInt(), eq(false));
     }
 
     private static PopupStore photoless(long id) {
