@@ -101,7 +101,9 @@ public class PopupPhotoService {
      */
     private boolean noCandidateAtAll(
             PopupStore popup, Map<String, List<PhotoCandidate>> requestCache) {
-        String cacheKey = popup.getCategory() + "|" + photoQueryBucket(popup.getName()) + "|1";
+        // 첫 우물(세로)의 1페이지 키. assignUniquePhoto 가 만드는 키와 <b>같은 모양</b>이어야 한다 —
+        // 형식이 어긋나면 조회가 늘 null 이라 이 진단이 조용히 죽는다.
+        String cacheKey = popup.getCategory() + "|" + photoQueryBucket(popup.getName()) + "|1|p";
         List<PhotoCandidate> first = requestCache.get(cacheKey);
         return first != null && first.isEmpty();
     }
@@ -121,40 +123,64 @@ public class PopupPhotoService {
         return assignUniquePhoto(popup, usedPhotoIds, usedImageUrls, new HashMap<>());
     }
 
+    /**
+     * 이 팝업에 <b>아직 아무도 안 쓴</b> 사진 한 장을 찾아 붙인다.
+     *
+     * <p><b>세로를 다 쓰면 방향 제약을 푼다.</b> 2026-08-28 에 백필이 150건 전부 실패했다. 원인은 키도 네트워크도 아니었다 — 세로 한정 1페이지
+     * 80장이 <b>80장 모두 이미 사용됨</b>이었다(DB 대조로 확인). 쿼리 문구는 열세 개뿐인데 팝업은 계속 쌓이니, 쿼리당 후보가 {@code
+     * MAX_SEARCH_PAGES x 80} 으로 고정된 이상 언젠가 반드시 마른다.
+     *
+     * <p>그래서 우물을 둘로 나눴다. 먼저 세로만 훑고(카드가 4:5 이라 세로가 제일 잘 맞는다), 그래도 없으면 같은 문구를 방향 제약 없이 다시 훑는다. 결과 집합
+     * 자체가 달라지므로 <b>1페이지부터 새 사진</b>이 나온다 — 요청 수를 크게 늘리지 않고 후보를 몇 배로 넓히는 길이다.
+     *
+     * <p>Pexels 무료 한도는 시간당 200요청이다. 한 번의 백필에서 (분류 x 페이지) 조합마다 한 번만 부르도록 {@code requestCache} 가 막고
+     * 있고, 두 번째 우물은 첫 우물이 마른 뒤에야 열린다.
+     */
     private boolean assignUniquePhoto(
             PopupStore popup,
             Set<Long> usedPhotoIds,
             Set<String> usedImageUrls,
             Map<String, List<PhotoCandidate>> requestCache) {
-        for (int page = 1; page <= MAX_SEARCH_PAGES; page++) {
-            String cacheKey =
-                    popup.getCategory() + "|" + photoQueryBucket(popup.getName()) + "|" + page;
-            int searchPage = page;
-            List<PhotoCandidate> candidates =
-                    requestCache.computeIfAbsent(
-                            cacheKey,
-                            ignored ->
-                                    pexelsPhotoService.searchCandidates(
-                                            popup.getName(), popup.getCategory(), searchPage));
-            if (candidates.isEmpty()) break;
+        for (boolean portraitOnly : new boolean[] {true, false}) {
+            for (int page = 1; page <= MAX_SEARCH_PAGES; page++) {
+                String cacheKey =
+                        popup.getCategory()
+                                + "|"
+                                + photoQueryBucket(popup.getName())
+                                + "|"
+                                + page
+                                + "|"
+                                + (portraitOnly ? "p" : "any");
+                int searchPage = page;
+                List<PhotoCandidate> candidates =
+                        requestCache.computeIfAbsent(
+                                cacheKey,
+                                ignored ->
+                                        pexelsPhotoService.searchCandidates(
+                                                popup.getName(),
+                                                popup.getCategory(),
+                                                searchPage,
+                                                portraitOnly));
+                if (candidates.isEmpty()) break;
 
-            int start = (int) Math.floorMod(popup.getId(), candidates.size());
-            for (int offset = 0; offset < candidates.size(); offset++) {
-                PhotoCandidate candidate = candidates.get((start + offset) % candidates.size());
-                if (usedPhotoIds.contains(candidate.id())
-                        || usedImageUrls.contains(candidate.imageUrl())) continue;
+                int start = (int) Math.floorMod(popup.getId(), candidates.size());
+                for (int offset = 0; offset < candidates.size(); offset++) {
+                    PhotoCandidate candidate = candidates.get((start + offset) % candidates.size());
+                    if (usedPhotoIds.contains(candidate.id())
+                            || usedImageUrls.contains(candidate.imageUrl())) continue;
 
-                int inserted =
-                        popupImageRepository.insertMainPexelsImageIfUnused(
-                                popup.getId(),
-                                candidate.id(),
-                                candidate.imageUrl(),
-                                candidate.photoPageUrl(),
-                                candidate.photographerName(),
-                                candidate.photographerUrl());
-                usedPhotoIds.add(candidate.id());
-                usedImageUrls.add(candidate.imageUrl());
-                if (inserted == 1) return true;
+                    int inserted =
+                            popupImageRepository.insertMainPexelsImageIfUnused(
+                                    popup.getId(),
+                                    candidate.id(),
+                                    candidate.imageUrl(),
+                                    candidate.photoPageUrl(),
+                                    candidate.photographerName(),
+                                    candidate.photographerUrl());
+                    usedPhotoIds.add(candidate.id());
+                    usedImageUrls.add(candidate.imageUrl());
+                    if (inserted == 1) return true;
+                }
             }
         }
         log.warn("[PopupPhotoService] id={}에 배정할 미사용 Pexels 사진이 없음", popup.getId());
