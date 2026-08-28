@@ -78,3 +78,43 @@ describe('apiFetch 인증 만료 처리', () => {
     expect(getServiceAvailability()).toBe('checking');
   });
 });
+
+describe('배달되지 않은 502의 재시도', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    sessionStorage.clear();
+    resetServiceAvailabilityForTest();
+  });
+
+  /** Vercel 엣지가 호스트명을 못 풀었을 때 실제로 오는 응답. */
+  const dnsFailure = () =>
+    new Response(null, { status: 502, headers: { 'x-vercel-error': 'DNS_HOSTNAME_EMPTY' } });
+
+  it('POST라도 백엔드에 닿지 못한 502면 다시 보내고, 붙으면 성공으로 끝난다', async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(dnsFailure())
+      .mockResolvedValueOnce(new Response('{"ok":true}', { status: 200 }));
+
+    const response = await apiFetch('/api/v1/auth/login/totp', { method: 'POST' });
+
+    expect(response.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(getServiceAvailability()).toBe('available');
+  });
+
+  /**
+   * 이게 이 기능의 <b>경계</b>다. 헤더가 없는 502 는 서버가 이미 처리했을 수 있다 — 로그인을
+   * 두 번 보내면 세션이, 제보를 두 번 보내면 글이 두 개 생긴다. 증명될 때만 넓어져야 한다.
+   */
+  it('까닭을 알 수 없는 502에서는 POST를 다시 보내지 않는다', async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(new Response(null, { status: 502 }));
+
+    const response = await apiFetch('/api/v1/reports', { method: 'POST' });
+
+    expect(response.status).toBe(502);
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+});
