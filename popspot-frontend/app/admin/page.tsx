@@ -408,8 +408,9 @@ export default function AdminPage() {
          * 줄 알 수밖에 없었다.
          *
          * <p>{@code configured}/{@code photoless}/{@code searchEmpty} 는 그 구분을 위해 서버에
-         * 새로 실은 값이다. 아직 안 올라간 서버(옛 배포)는 이 값들이 없으므로 undefined 가 되고,
-         * 그때는 "0건이면 경고" 라는 최소한의 정직함만 남는다.
+         * 새로 실은 값이다. 이 값들이 <b>통째로 없으면</b> 서버가 아직 옛 버전이라는 뜻이고,
+         * 그것도 하나의 상태로 따로 말한다 — 배포하면 풀리는 일을 로그 뒤지기로 오해시키지
+         * 않기 위해서다.
          */
         const assigned = Number(data.assigned ?? 0);
         const photoless = data.photoless as number | undefined;
@@ -417,7 +418,17 @@ export default function AdminPage() {
         const searchEmpty = Number(data.searchEmpty ?? 0);
         const scanned = Number(data.scanned ?? 0);
 
-        if (configured === false) {
+        if (configured === undefined) {
+          /*
+           * 새 필드가 아예 없다 = <b>서버가 아직 옛 버전</b>이다.
+           *
+           * <p>이 갈래가 없으면 "0건입니다, 로그를 보세요" 라는 막연한 말로 떨어진다. 그런데
+           * 이때의 0 은 원인을 알 수 없는 0 이 아니라 <b>물어볼 수 없는 0</b> 이다 — 서버가
+           * 이유를 실어 보내는 코드를 아직 들고 있지 않다. 할 일이 로그 뒤지기가 아니라 배포라는
+           * 것을 화면이 말해 줘야 한다.
+           */
+          notifyError('서버가 아직 이전 버전입니다. 백엔드를 배포하면 0건의 이유를 알려 줍니다.');
+        } else if (configured === false) {
           notifyError(
             `서버에 PEXELS_API_KEY 가 설정돼 있지 않습니다. 사진 없는 팝업 ${photoless ?? '?'}건은 그대로입니다.`,
           );
