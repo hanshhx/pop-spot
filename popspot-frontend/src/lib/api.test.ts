@@ -2,7 +2,7 @@
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { apiFetch, AUTH_EXPIRED_EVENT } from './api';
+import { apiFetch, AUTH_EXPIRED_EVENT, shouldUseDirectBackend } from './api';
 import {
   getServiceAvailability,
   resetServiceAvailabilityForTest,
@@ -116,5 +116,26 @@ describe('배달되지 않은 502의 재시도', () => {
 
     expect(response.status).toBe(502);
     expect(fetchMock).toHaveBeenCalledOnce();
+  });
+});
+
+describe('운영 출처에서 백엔드 직행', () => {
+  it('운영 도메인에서는 직행한다', () => {
+    expect(shouldUseDirectBackend('popspot.co.kr', undefined)).toBe(true);
+  });
+
+  /**
+   * 백엔드 app.allowed-origins 가 허용하는 출처에서만 직행해야 한다. 프리뷰 배포와 로컬은
+   * 허용 목록에 없어서, 직행하면 CORS 로 전부 막힌다 — 리라이트보다 나쁜 상태가 된다.
+   */
+  it('프리뷰·로컬에서는 직행하지 않는다', () => {
+    expect(shouldUseDirectBackend('popspot-git-main.vercel.app', undefined)).toBe(false);
+    expect(shouldUseDirectBackend('localhost', undefined)).toBe(false);
+    expect(shouldUseDirectBackend('www.popspot.co.kr', undefined)).toBe(false);
+  });
+
+  /** 되돌리는 길. 코드 수정 없이 Vercel 환경변수만으로 예전 동작으로 돌아갈 수 있어야 한다. */
+  it('NEXT_PUBLIC_API_DIRECT=0 이면 운영 도메인에서도 직행하지 않는다', () => {
+    expect(shouldUseDirectBackend('popspot.co.kr', '0')).toBe(false);
   });
 });

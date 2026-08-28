@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { MessageCircle } from 'lucide-react';
 import Link from 'next/link';
+import { apiUrl } from '@/lib/api';
 import { useLocale } from '@/lib/i18n';
 import { localizedPath } from '@/lib/localePath';
 // GET 호출은 apiFetch 의 Content-Type 헤더가 preflight 를 일으켜서
@@ -23,9 +24,10 @@ export default function LiveChatTicker() {
   // 1. 최신 채팅 데이터 가져오기 — Simple Request 로 보내야 preflight 회피
   const fetchRecentChats = async () => {
     try {
-      // 상대 경로 → 동일 출처 리라이트. 10초 폴링이라 크로스오리진일 때는 매번 백엔드와
-      // 별도 커넥션을 유지해야 했다. 동일 출처면 페이지 커넥션을 그대로 재사용한다.
-      const url = `/api/chat/ticker?t=${Date.now()}`;
+      // 주소 결정은 apiFetch 와 같은 규칙(apiUrl)을 쓴다. 평소에는 상대 경로 → 동일 출처
+      // 리라이트라 페이지 커넥션을 재사용하고, 리라이트가 깨진 운영 출처에서만 백엔드로 직행한다.
+      // 쿼리스트링뿐인 GET 이라 크로스오리진이어도 preflight 는 생기지 않는다.
+      const url = apiUrl(`/api/chat/ticker?t=${Date.now()}`);
       const res = await fetch(url, { credentials: 'include' });
 
       if (res.ok) {

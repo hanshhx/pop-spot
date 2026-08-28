@@ -365,11 +365,53 @@ const FORCE_ABSOLUTE_PREFIXES = [
 ] as const;
 
 /**
+ * 리라이트를 건너뛰고 백엔드를 직접 부를 출처.
+ *
+ * <p>여기에 있는 호스트에서만 직접 호출로 돌린다. 백엔드의 {@code app.allowed-origins} 가 허용하는
+ * 출처와 <b>정확히 같아야</b> 하기 때문이다 — 프리뷰 배포({@code *.vercel.app})나 로컬은 허용 목록에
+ * 없어서 직접 부르면 CORS 로 전부 막힌다. 실측으로 확인한 값만 넣는다(2026-08-28: 이 출처로
+ * {@code Access-Control-Allow-Origin: https://popspot.co.kr} 와 preflight 200 을 받았다).
+ */
+const DIRECT_BACKEND_HOSTS = new Set(['popspot.co.kr']);
+
+/**
+ * 이 요청을 백엔드로 직접 보낼 것인가.
+ *
+ * <p><b>왜 이런 것이 생겼나.</b> 운영에서 브라우저가 {@code /api/*} 를 부르면 Vercel 엣지가
+ * {@code rewrites()} 로 백엔드에 넘긴다. 그런데 <b>Vercel 의 리졸버가 백엔드 호스트명(ts.net)을
+ * 못 푼다.</b> 실측(2026-08-28): popspot.co.kr 경유 12번 중 10번이 502 였고 실패는 전부
+ * {@code X-Vercel-Error: DNS_HOSTNAME_EMPTY / DNS_HOSTNAME_NOT_FOUND} 였다. 같은 시각 같은
+ * 백엔드를 브라우저와 같은 자격으로 직접 부르면 <b>5번 중 5번 200</b>, 응답 0.19초였다.
+ * 즉 백엔드도 터널도 멀쩡하고, 못 푸는 것은 Vercel 하나다.
+ *
+ * <p>브라우저는 이 이름을 잘 푼다. 그래서 엣지를 빼면 문제가 사라진다. 이미 부분적으로 그러고
+ * 있기도 하다 — 업로드 2종은 {@link FORCE_ABSOLUTE_PREFIXES} 로, 채팅 소켓은
+ * {@code wss://*.ts.net} 으로 원래 직접 붙는다.
+ *
+ * <p><b>공짜는 아니다.</b> 동일 출처를 버리므로 TLS 핸드셰이크와 preflight 가 늘고(백엔드가
+ * {@code Access-Control-Max-Age: 3600} 을 주므로 preflight 는 한 시간에 한 번이다), 사용자
+ * 네트워크가 ts.net 을 막으면 그 사용자는 사이트 전체를 잃는다(전에는 채팅·업로드만 잃었다).
+ * 리라이트가 83% 실패하는 상태보다는 낫지만, <b>이건 임시 우회다.</b> 백엔드를 Vercel 이 잘 푸는
+ * 이름으로 옮기면 되돌려야 한다.
+ *
+ * <p>되돌리는 법: Vercel 환경변수 {@code NEXT_PUBLIC_API_DIRECT=0} 후 재배포. 코드 수정이 필요 없다.
+ */
+export const shouldUseDirectBackend = (hostname: string, disableFlag?: string): boolean =>
+  disableFlag !== '0' && DIRECT_BACKEND_HOSTS.has(hostname);
+
+const directBackendEnabled = (): boolean =>
+  typeof window !== 'undefined' &&
+  shouldUseDirectBackend(window.location.hostname, process.env.NEXT_PUBLIC_API_DIRECT);
+
+/**
  * 요청 URL 결정.
  *
- * <p>브라우저에서는 상대 경로를 그대로 둬서 next.config 의 {@code /api/:path*} 리라이트(동일 출처)를
- * 타게 한다. 백엔드로 가는 별도 TLS 핸드셰이크(≈190ms)와 CORS preflight 가 사라지고, 페이지를 받아온
- * 커넥션을 그대로 재사용한다. apiFetch 의 모든 endpoint 가 {@code /api/} 로 시작함을 전수 확인했다.
+ * <p>기본은 상대 경로다. next.config 의 {@code /api/:path*} 리라이트(동일 출처)를 타면 백엔드로 가는
+ * 별도 TLS 핸드셰이크(≈190ms)와 CORS preflight 가 사라지고, 페이지를 받아온 커넥션을 그대로
+ * 재사용한다. apiFetch 의 모든 endpoint 가 {@code /api/} 로 시작함을 전수 확인했다.
+ *
+ * <p>다만 그 리라이트가 지금 운영에서 깨져 있어({@link directBackendEnabled} 참고) 운영 출처에서는
+ * 절대 URL 로 우회한다.
  *
  * <p>서버(SSR/ISR/route handler)에서는 상대 경로를 fetch 할 수 없으므로 절대 URL 을 유지한다.
  * 현재 apiFetch 를 부르는 서버 실행 경로는 없지만, 향후 추가될 때 조용히 깨지지 않도록 둔다.
@@ -381,8 +423,18 @@ const buildUrl = (endpoint: string, options: FetchOptions = {}): string => {
   if (options.body instanceof FormData) return `${API_BASE_URL}${endpoint}`;
   if (FORCE_ABSOLUTE_PREFIXES.some((p) => endpoint.startsWith(p)))
     return `${API_BASE_URL}${endpoint}`;
+  if (directBackendEnabled()) return `${API_BASE_URL}${endpoint}`;
   return endpoint;
 };
+
+/**
+ * {@link apiFetch} 를 거치지 않고 직접 {@code fetch} 하는 곳이 쓸 주소 헬퍼.
+ *
+ * <p>티커·혼잡도·방문기록은 인증도 재시도도 필요 없어서 순수 {@code fetch} 를 쓴다. 그래도 주소를
+ * 고르는 규칙만은 같아야 한다 — 안 그러면 이 셋만 깨진 리라이트에 남아, 로그인은 되는데 화면 일부가
+ * 계속 비는 상태가 된다. 실제로 그랬다(콘솔에 {@code Ticker API 502}, {@code /api/congestion} 502).
+ */
+export const apiUrl = (endpoint: string): string => buildUrl(endpoint);
 
 /**
  * 우리 백엔드(API_BASE_URL) 로 가는 요청인지 판정.

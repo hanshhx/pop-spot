@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import { usePathname } from 'next/navigation';
+import { apiUrl } from '@/lib/api';
 import { getAuthToken } from '@/lib/authStorage';
 import { getVisitorId } from '@/lib/visitorId';
 
@@ -124,9 +125,13 @@ export default function VisitTracker() {
     });
 
     try {
-      // 상대 경로 → 동일 출처 리라이트. 전역 마운트 + JSON POST 라 유일하게 매 페이지
-      // preflight 를 유발하던 호출이었다. 동일 출처가 되면 preflight 자체가 사라진다.
-      void fetch(`/api/visits`, {
+      // 주소 결정은 apiFetch 와 같은 규칙(apiUrl)을 쓴다. 동일 출처면 preflight 가 없고,
+      // 리라이트가 깨진 운영 출처에서만 직행한다 — 그때는 JSON POST 라 preflight 가 붙지만
+      // 백엔드가 Access-Control-Max-Age: 3600 을 주므로 한 시간에 한 번이다.
+      //
+      // 이 호출은 조용히 실패하도록 되어 있어(.catch) 깨져도 화면에 아무 증상이 없다.
+      // 방문 수만 0 이 된다 — 가장 늦게 발견되는 종류의 고장이라 여기를 빠뜨리면 안 됐다.
+      void fetch(apiUrl('/api/visits'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body,
