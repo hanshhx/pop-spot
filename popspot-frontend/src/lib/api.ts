@@ -91,6 +91,27 @@ const jittered = (ms: number) => ms + Math.floor(Math.random() * ms * 0.4);
 const IDEMPOTENT_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
 /**
+ * <b>요청이 백엔드에 닿기도 전에</b> Vercel 이 포기했음을 뜻하는 오류.
+ *
+ * <p>Vercel 은 실패 이유를 {@code X-Vercel-Error} 헤더로 알려준다. 값이 {@code DNS_HOSTNAME_*} 이면
+ * 넘길 주소를 풀지 못한 것이라, 요청은 <b>엣지 밖으로 나간 적이 없다</b>.
+ *
+ * <p>이 구분이 중요한 이유는 POST 때문이다. 보통 POST 는 다시 보내지 않는다 — "서버는 처리했는데
+ * 응답만 못 돌아온" 502 에서 찜·제보가 두 개 만들어지기 때문이다. 하지만 DNS 단계에서 죽은 요청은
+ * 서버가 본 적이 없으니 중복될 것이 없다. <b>로그인이 세 번, 네 번 만에 되던 것</b>이 정확히 이
+ * 경우였다 — GET 은 이미 재시도로 가려져 있었고 POST 만 맨몸이었다.
+ */
+const NOT_DELIVERED_ERRORS = /^DNS_HOSTNAME_/i;
+
+/**
+ * 이 응답은 "백엔드가 못 받았다" 가 증명되는가.
+ *
+ * <p>증명되지 않으면 false 다 — 애매하면 다시 보내지 않는 쪽이 안전하다.
+ */
+const provablyNotDelivered = (response: Response): boolean =>
+  NOT_DELIVERED_ERRORS.test(response.headers.get('x-vercel-error') ?? '');
+
+/**
  * 요청 하나가 끝나기를 기다리는 최대 시간.
  *
  * <p>이게 없으면 터널이 붙잡고 놓지 않을 때 화면이 <b>영원히 로딩</b>이다. 사용자는 무엇이
@@ -259,7 +280,9 @@ const fetchWithRetry = async (
         credentials: 'include',
         signal: options.signal ?? AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       });
-      if (!canRetry || !GATEWAY_STATUSES.has(response.status)) return response;
+      if (!GATEWAY_STATUSES.has(response.status)) return response;
+      // 멱등 메서드가 아니어도, 백엔드가 받은 적이 없음이 증명되면 다시 보낸다.
+      if (!canRetry && !provablyNotDelivered(response)) return response;
       if (attempt >= RETRY_DELAYS_MS.length || outOfTime()) return response;
       console.warn(
         `게이트웨이 ${response.status} — ${RETRY_DELAYS_MS[attempt]}ms 뒤 재시도 (${attempt + 1}/${RETRY_DELAYS_MS.length}): ${url}`,
