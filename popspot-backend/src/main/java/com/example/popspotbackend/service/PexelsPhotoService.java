@@ -51,21 +51,35 @@ public class PexelsPhotoService {
     /**
      * 팝업 이름/카테고리에 어울리는 Pexels 후보를 한 페이지 가져온다. 어떤 사진을 실제로 배정할지는 DB의 기존 사진 ID와 대조하는 {@link
      * PopupPhotoService}가 결정한다.
+     *
+     * <p>세로 사진만 받는다. 카드가 4:5 이라 세로가 가장 잘 맞는다.
      */
     public List<PhotoCandidate> searchCandidates(String name, String category, int requestedPage) {
+        return searchCandidates(name, category, requestedPage, true);
+    }
+
+    /**
+     * 방향 제약을 고를 수 있는 검색.
+     *
+     * <p><b>{@code portraitOnly=false} 는 고갈됐을 때의 두 번째 우물이다.</b> 같은 문구라도 방향 필터를 떼면 결과 집합 자체가 달라져, 추가
+     * 요청 없이도 <b>한 번도 쓰지 않은</b> 사진을 만난다. 실측(2026-08-28): 세로 한정 1페이지 80장이 80장 모두 이미 사용된 상태였는데, 쿼리
+     * 전체로는 8,000장이 있었다.
+     *
+     * <p>세로가 아닌 사진은 4:5 칸에서 좌우가 잘린다. 그래서 <b>먼저 세로를 다 쓰고 나서만</b> 여기로 온다.
+     */
+    public List<PhotoCandidate> searchCandidates(
+            String name, String category, int requestedPage, boolean portraitOnly) {
         if (!isConfigured()) return List.of();
         String query = buildQuery(name, category);
         int page = Math.max(1, requestedPage);
         try {
-            URI uri =
+            UriComponentsBuilder builder =
                     UriComponentsBuilder.fromUriString(SEARCH_URL)
                             .queryParam("query", query)
                             .queryParam("per_page", PER_PAGE)
-                            .queryParam("page", page)
-                            .queryParam("orientation", "portrait")
-                            .build()
-                            .encode()
-                            .toUri();
+                            .queryParam("page", page);
+            if (portraitOnly) builder.queryParam("orientation", "portrait");
+            URI uri = builder.build().encode().toUri();
             HttpHeaders headers = new HttpHeaders();
             headers.set("Authorization", apiKey);
             @SuppressWarnings("rawtypes")
@@ -74,7 +88,11 @@ public class PexelsPhotoService {
                             uri, HttpMethod.GET, new HttpEntity<>(headers), Map.class);
             return parseCandidates(res.getBody());
         } catch (Exception e) {
-            log.warn("[PexelsPhotoService] 검색 실패 query='{}' err={}", query, e.toString());
+            log.warn(
+                    "[PexelsPhotoService] 검색 실패 query='{}' portrait={} err={}",
+                    query,
+                    portraitOnly,
+                    e.toString());
             return List.of();
         }
     }
