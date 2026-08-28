@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { X, Thermometer, Users, Clock, MapPin, RefreshCw, CloudRain } from 'lucide-react';
 import CongestionChart from './CongestionChart';
+import { apiUrl } from '@/lib/api';
 import { useLocale, localizedStatus, type MessageKey } from '@/lib/i18n';
 
 import type { CongestionData } from '@/types/popup';
@@ -49,7 +50,7 @@ export default function AIReportModal({ data: initialData, onClose }: Props) {
 
     setLoading(true);
     // 상대 경로 → 동일 출처 리라이트(별도 TLS 핸드셰이크·preflight 회피)
-    fetch(`/api/congestion?area=${activeTab}`)
+    fetch(apiUrl(`/api/congestion?area=${activeTab}`))
       .then((res) => res.json())
       .then((result) => {
         setReportData(result);
