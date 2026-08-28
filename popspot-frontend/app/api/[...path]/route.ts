@@ -29,6 +29,20 @@ import type { NextRequest } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 
+/**
+ * 이 함수를 서울에서 실행한다.
+ *
+ * <p>Vercel 서버리스의 기본 리전은 {@code iad1}(미국 워싱턴)이다. 그대로 두면 사용자도 백엔드도
+ * 한국에 있는데 <b>경로가 태평양을 두 번 건넌다</b> — 브라우저(한국) → 엣지(서울) → 함수(미국) →
+ * 백엔드(한국). 실측(2026-08-28)으로 {@code /api/popups} 한 건이 5.7~7.4초였다. 같은 요청을
+ * 백엔드에 직접 부르면 0.2초다.
+ *
+ * <p>응답 헤더가 이걸 그대로 보여준다: {@code X-Vercel-Id: icn1::iad1::...} 는
+ * "서울로 들어와 미국에서 실행됐다" 는 뜻이다. 예전 리라이트는 엣지에서 처리돼 이 문제가 없었으니,
+ * 프록시로 옮기면서 <b>새로 생긴 비용</b>이다. 리전을 맞춰 없앤다.
+ */
+export const preferredRegion = ['icn1'];
+
 const BACKEND = (process.env.NEXT_PUBLIC_API_URL ?? '').replace(/\/+$/, '');
 
 /**
@@ -112,8 +126,17 @@ function forwardRequestHeaders(request: NextRequest): Headers {
 function forwardResponseHeaders(upstream: Response): Headers {
   const headers = new Headers();
   upstream.headers.forEach((value, key) => {
-    if (!DROP_RESPONSE_HEADERS.has(key.toLowerCase())) headers.append(key, value);
+    const name = key.toLowerCase();
+    if (DROP_RESPONSE_HEADERS.has(name)) return;
+    // Set-Cookie 는 아래에서 따로 옮긴다. forEach 는 여러 줄을 쉼표 하나로 합쳐 주는데,
+    // 쿠키 값에는 쉼표가 들어갈 수 있어(Expires=Wed, 01 Jan ...) 합치면 전부 깨진다.
+    if (name === 'set-cookie') return;
+    headers.append(key, value);
   });
+  // 지금 백엔드는 쿠키를 내려주지 않는다(전부 Bearer 토큰이다). 그래도 여기서 처리해 둔다 —
+  // 프록시가 전송을 그대로 옮기지 못하면, 나중에 쿠키를 쓰는 엔드포인트가 생겼을 때
+  // "로그인이 가끔 안 풀린다" 같은 형태로 조용히 어긋난다.
+  for (const cookie of upstream.headers.getSetCookie()) headers.append('set-cookie', cookie);
   return headers;
 }
 
