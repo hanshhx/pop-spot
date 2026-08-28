@@ -2,7 +2,12 @@
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { apiFetch, AUTH_EXPIRED_EVENT, shouldUseDirectBackend } from './api';
+import {
+  apiFetch,
+  AUTH_EXPIRED_EVENT,
+  resetDirectBackendForTest,
+  shouldUseDirectBackend,
+} from './api';
 import {
   getServiceAvailability,
   resetServiceAvailabilityForTest,
@@ -137,5 +142,39 @@ describe('운영 출처에서 백엔드 직행', () => {
   /** 되돌리는 길. 코드 수정 없이 Vercel 환경변수만으로 예전 동작으로 돌아갈 수 있어야 한다. */
   it('NEXT_PUBLIC_API_DIRECT=0 이면 운영 도메인에서도 직행하지 않는다', () => {
     expect(shouldUseDirectBackend('popspot.co.kr', '0')).toBe(false);
+  });
+});
+
+describe('직행이 막힌 브라우저에서의 되돌림', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    resetDirectBackendForTest();
+    resetServiceAvailabilityForTest();
+  });
+
+  /**
+   * 확인 중에 실제로 만난 상황이다. 교차 출처 자체는 멀쩡한데 ts.net 만
+   * ERR_BLOCKED_BY_CLIENT 로 죽는 브라우저가 있다(전송 0바이트).
+   *
+   * 그때 백엔드는 멀쩡하다 — 막힌 것은 우리 경로다. 이걸 장애로 기록하면 멀쩡한 서버를 두고
+   * "서버 연결이 일시적으로 중단됨" 배너가 뜨고 그 탭의 API 가 전부 503 으로 차단된다.
+   */
+  it('직행이 막혀도 서버 장애로 기록하지 않는다', async () => {
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new TypeError('Failed to fetch'));
+
+    await expect(
+      apiFetch('/api/chat/upload', { method: 'POST', body: new FormData() }),
+    ).rejects.toThrow();
+
+    expect(getServiceAvailability()).not.toBe('unavailable');
+  });
+
+  /** 반대쪽 경계 — 직행이 아닌 요청의 네트워크 오류는 예전대로 장애로 본다. */
+  it('직행이 아닌 요청의 네트워크 오류는 장애로 기록한다', async () => {
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new TypeError('Failed to fetch'));
+
+    await expect(apiFetch('/api/popups', { method: 'POST' })).rejects.toThrow();
+
+    expect(getServiceAvailability()).toBe('unavailable');
   });
 });
