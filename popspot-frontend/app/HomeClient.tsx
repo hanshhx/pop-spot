@@ -1933,11 +1933,18 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
                       <div key={p.id} className="w-[168px] shrink-0 snap-start sm:w-[220px]">
                         <PopupCard
                           popup={p}
+                          /*
+                           * 이동은 앵커가 한다. 예전엔 onClick 안의 router.push 가 전부였는데,
+                           * 그러면 화면은 똑같이 동작해도 <b>주소가 HTML 에 없다</b> — 실측
+                           * (2026-08-29) 홈이 내보내는 HTML 의 href="/popup/숫자" 가 0개였다.
+                           * 사이트에서 가장 강한 페이지가 상세로 권한을 한 방울도 안 흘렸다.
+                           */
+                          href={localizedPath(`/popup/${p.id}`, locale)}
                           onClick={() => {
                             // handleTabChange 가 스크롤을 맨 위로 되돌리므로, 저장은 반드시 그 전에.
+                            // 여기서 router.push 를 또 하면 앵커와 겹쳐 두 번 이동한다.
                             saveHomeReturnState();
                             handleTabChange('MAP');
-                            router.push(localizedPath(`/popup/${p.id}`, locale));
                           }}
                         />
                       </div>
