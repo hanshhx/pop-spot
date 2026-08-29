@@ -30,18 +30,20 @@ import type { NextRequest } from 'next/server';
 export const dynamic = 'force-dynamic';
 
 /**
- * 이 함수를 서울에서 실행한다.
+ * <b>실행 리전은 여기가 아니라 {@code vercel.json} 의 {@code regions} 가 정한다.</b>
  *
  * <p>Vercel 서버리스의 기본 리전은 {@code iad1}(미국 워싱턴)이다. 그대로 두면 사용자도 백엔드도
- * 한국에 있는데 <b>경로가 태평양을 두 번 건넌다</b> — 브라우저(한국) → 엣지(서울) → 함수(미국) →
- * 백엔드(한국). 실측(2026-08-28)으로 {@code /api/popups} 한 건이 5.7~7.4초였다. 같은 요청을
- * 백엔드에 직접 부르면 0.2초다.
+ * 한국에 있는데 경로가 태평양을 두 번 건넌다 — 브라우저(한국) → 엣지(서울) → 함수(미국) →
+ * 백엔드(한국). 응답 헤더 {@code X-Vercel-Id: icn1::iad1::...} 가 그것을 그대로 보여준다
+ * (앞이 들어온 곳, 뒤가 실행된 곳). 실측(2026-08-28) {@code /api/popups} 한 건이 2.3~7.4초였고,
+ * 같은 요청을 백엔드에 직접 부르면 0.2초다. 예전 리라이트는 엣지에서 처리돼 이 비용이 없었으니
+ * 프록시로 옮기면서 새로 생긴 것이다.
  *
- * <p>응답 헤더가 이걸 그대로 보여준다: {@code X-Vercel-Id: icn1::iad1::...} 는
- * "서울로 들어와 미국에서 실행됐다" 는 뜻이다. 예전 리라이트는 엣지에서 처리돼 이 문제가 없었으니,
- * 프록시로 옮기면서 <b>새로 생긴 비용</b>이다. 리전을 맞춰 없앤다.
+ * <p>처음에는 Next.js 의 {@code export const preferredRegion} 을 썼는데 <b>적용되지 않았다</b> —
+ * 배포 11시간 뒤에도 {@code icn1::iad1::} 그대로였다. 그 설정은 Node 런타임 서버리스 함수에는
+ * 걸리지 않는다. Vercel 문서가 지시하는 길은 프로젝트 설정 또는 {@code vercel.json} 이다.
+ * 여기에 다시 쓰지 말 것 — 조용히 무시된다.
  */
-export const preferredRegion = ['icn1'];
 
 const BACKEND = (process.env.NEXT_PUBLIC_API_URL ?? '').replace(/\/+$/, '');
 

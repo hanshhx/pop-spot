@@ -44,10 +44,21 @@ export default function LiveChatTicker() {
     }
   };
 
+  /**
+   * 갱신 주기.
+   *
+   * <p>10초였다가 늘렸다. {@code /api/*} 가 Vercel 리라이트에서 라우트 핸들러로 옮겨가면서 이 폴링
+   * 하나하나가 <b>서버리스 함수 호출</b>이 됐기 때문이다. 탭 하나가 열려 있는 동안 시간당 360회이고,
+   * 하루 1,000명이 되면 티커만으로 월 90만 회 규모다. Hobby 한도가 100만 회라 그 자체로 위험하다.
+   *
+   * <p>인프라 비용 0원이 이 프로젝트의 절대 조건이라, 한도를 넘기면 요금이 아니라 <b>배포가
+   * 멈춘다</b>. 30초면 호출이 1/3 이 되고, 흘러가는 채팅 문구에서 사람이 알아챌 차이는 아니다.
+   */
+  const REFRESH_MS = 30_000;
+
   useEffect(() => {
     fetchRecentChats();
-    // 10초마다 갱신 (폴링 방식)
-    const interval = setInterval(fetchRecentChats, 10000);
+    const interval = setInterval(fetchRecentChats, REFRESH_MS);
     return () => clearInterval(interval);
   }, []);
 
