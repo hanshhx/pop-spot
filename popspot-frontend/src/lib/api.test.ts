@@ -124,24 +124,30 @@ describe('배달되지 않은 502의 재시도', () => {
   });
 });
 
-describe('운영 출처에서 백엔드 직행', () => {
-  it('운영 도메인에서는 직행한다', () => {
-    expect(shouldUseDirectBackend('popspot.co.kr', undefined)).toBe(true);
+describe('백엔드 직행은 비상 레버다', () => {
+  /**
+   * 기본은 동일 출처(= app/api/[...path] 프록시)여야 한다.
+   *
+   * 직행은 proxy.ts 미들웨어를 건너뛰어 서명된 x-edge-ip 가 빠지고, 그러면 백엔드가 IP 를
+   * remoteAddr 로 강등해 전 사용자가 레이트리밋 바구니 하나를 공유한다(인증메일 시간당 5회가
+   * 전체 합산). 실수로 켜진 채 배포되면 화면에는 아무 증상이 없어서 오래 못 알아챈다.
+   */
+  it('환경변수가 없으면 운영 도메인에서도 직행하지 않는다', () => {
+    expect(shouldUseDirectBackend('popspot.co.kr', undefined)).toBe(false);
+  });
+
+  it('NEXT_PUBLIC_API_DIRECT=1 일 때만 켜진다', () => {
+    expect(shouldUseDirectBackend('popspot.co.kr', '1')).toBe(true);
   });
 
   /**
-   * 백엔드 app.allowed-origins 가 허용하는 출처에서만 직행해야 한다. 프리뷰 배포와 로컬은
-   * 허용 목록에 없어서, 직행하면 CORS 로 전부 막힌다 — 리라이트보다 나쁜 상태가 된다.
+   * 켜더라도 백엔드 app.allowed-origins 가 허용하는 출처에서만이다. 프리뷰 배포와 로컬은
+   * 허용 목록에 없어서, 직행하면 CORS 로 전부 막힌다 — 프록시보다 나쁜 상태가 된다.
    */
-  it('프리뷰·로컬에서는 직행하지 않는다', () => {
-    expect(shouldUseDirectBackend('popspot-git-main.vercel.app', undefined)).toBe(false);
-    expect(shouldUseDirectBackend('localhost', undefined)).toBe(false);
-    expect(shouldUseDirectBackend('www.popspot.co.kr', undefined)).toBe(false);
-  });
-
-  /** 되돌리는 길. 코드 수정 없이 Vercel 환경변수만으로 예전 동작으로 돌아갈 수 있어야 한다. */
-  it('NEXT_PUBLIC_API_DIRECT=0 이면 운영 도메인에서도 직행하지 않는다', () => {
-    expect(shouldUseDirectBackend('popspot.co.kr', '0')).toBe(false);
+  it('켜져 있어도 프리뷰·로컬에서는 직행하지 않는다', () => {
+    expect(shouldUseDirectBackend('popspot-git-main.vercel.app', '1')).toBe(false);
+    expect(shouldUseDirectBackend('localhost', '1')).toBe(false);
+    expect(shouldUseDirectBackend('www.popspot.co.kr', '1')).toBe(false);
   });
 });
 
