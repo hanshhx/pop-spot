@@ -587,6 +587,18 @@ function itemListElements(markers: Marker[], locale: Locale) {
         '@type': 'Thing',
         name: name.display,
         ...(name.original ? { alternateName: name.original } : {}),
+        /*
+         * 항목이 어디 사는지 알려 준다.
+         *
+         * <p>예전엔 이름만 있었다. 그러면 검색엔진은 "이 목록에 이런 것들이 있다"는 것만 알고
+         * <b>어디로 가야 그것을 볼 수 있는지는 모른다</b> — 목록과 상세를 잇는 지도가 없는 셈이다.
+         * 실측(2026-08-29): 색인 자격을 갖춘 상세가 465건인데 검색에 나타난 것은 59개뿐이었고,
+         * 구글은 461개를 "발견했지만 색인하지 않음" 으로 쥐고 있었다.
+         *
+         * <p>화면의 카드도 같은 주소로 링크하므로(아래 목록의 {@code Link href}) 구조화 데이터와
+         * 사람이 보는 것이 어긋나지 않는다.
+         */
+        url: `${SITE_URL}${localizedPath(`/popup/${m.id}`, locale)}`,
       },
     };
   });

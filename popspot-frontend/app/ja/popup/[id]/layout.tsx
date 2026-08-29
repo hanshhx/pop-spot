@@ -1,3 +1,4 @@
+import { detailRobots } from '@/lib/indexableDetail';
 import type { Metadata } from 'next';
 
 export async function generateMetadata({
@@ -8,7 +9,9 @@ export async function generateMetadata({
   const { id } = await params;
   if (!/^\d+$/.test(id)) return { robots: { index: false, follow: false } };
   return {
-    robots: { index: false, follow: false },
+    // 근거는 영문판(app/en/popup/[id]/layout.tsx)과 같다 — 색인은 막되 길은 열어 둔다.
+    // 일문 랜딩 176장이 이 주소로 링크하므로, 여기서 끊으면 그만큼이 막다른 골목이 된다.
+    robots: detailRobots(false),
     alternates: {
       canonical: `https://popspot.co.kr/ja/popup/${id}`,
       languages: {
