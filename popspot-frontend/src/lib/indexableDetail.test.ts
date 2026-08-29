@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { isIndexableDetail, judgeIndexable } from './indexableDetail';
+import { detailRobots, isIndexableDetail, judgeIndexable } from './indexableDetail';
 
 /**
  * 자격 판정의 <b>양쪽 실패</b>를 막는다.
@@ -135,5 +135,24 @@ describe('경계', () => {
     for (const location of ['서울 성수', '서울 판교', '서울 방배']) {
       expect(isIndexableDetail({ name: 'x', location, endDate: '2026-09-01' }, TODAY)).toBe(false);
     }
+  });
+});
+
+describe('detailRobots', () => {
+  it('색인 자격이 있으면 index·follow 둘 다 연다', () => {
+    expect(detailRobots(true)).toEqual({ index: true, follow: true });
+  });
+
+  /**
+   * 이 테스트가 지키는 것은 follow 다.
+   *
+   * noindex + nofollow 로 두면 그 페이지 안의 '주변 팝업' 링크가 크롤러에게 전달되지 않아
+   * 상세끼리 이어지는 길이 끊긴다. 실측(2026-08-29) 색인 자격 465건 중 검색에 나타난 상세는
+   * 59개뿐이었고 구글은 461개를 "발견했지만 색인하지 않음" 으로 쥐고 있었다.
+   *
+   * follow 를 다시 false 로 되돌리는 변경은 화면에 아무 증상이 없어서 조용히 통과한다.
+   */
+  it('색인 자격이 없어도 길은 막지 않는다', () => {
+    expect(detailRobots(false)).toEqual({ index: false, follow: true });
   });
 });

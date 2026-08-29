@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 
 import { fetchPopupForServer, shouldIndexDetail } from './serverData';
+import { detailRobots } from '@/lib/indexableDetail';
 import { popupDetailTitle } from '@/lib/detailTitle';
 import { verifiedPopupImage } from '@/lib/popupEventJsonLd';
 
@@ -57,9 +58,8 @@ export async function generateMetadata({
   if (!marker) return base;
 
   // 약관 §14-4와 같은 판정. 사이트맵도 serverData.ts의 같은 함수를 사용한다.
-  const robots = shouldIndexDetail(marker)
-    ? { index: true, follow: true }
-    : { index: false, follow: false };
+  // follow 를 자격과 무관하게 여는 근거는 detailRobots 주석에 있다.
+  const robots = detailRobots(shouldIndexDetail(marker));
 
   const when = period(marker);
   const where = marker.address?.trim() ?? '';

@@ -76,3 +76,24 @@ export function judgeIndexable(m: IndexableCandidate, today: string): IndexVerdi
 export function isIndexableDetail(m: IndexableCandidate, today: string): boolean {
   return judgeIndexable(m, today).ok;
 }
+
+/**
+ * 실재하는 팝업 상세가 검색엔진에 줄 robots 값.
+ *
+ * <p><b>follow 는 자격과 무관하게 항상 열어 둔다.</b> {@code noindex} 는 "이 페이지를 검색 결과에
+ * 올리지 마라" 이지 "여기서 더 가지 마라" 가 아니다. 둘을 같이 끄면 이 페이지 안의 '주변 팝업'
+ * 링크가 크롤러에게 전달되지 않아, 상세끼리 이어지는 길이 통째로 끊긴다.
+ *
+ * <p>그 대가가 실측으로 보였다(2026-08-29). 팝업 1,463건 중 색인 자격은 465건인데 검색에 실제로
+ * 나타난 상세는 <b>59개</b>뿐이었고, 구글은 <b>461개</b>를 "발견했지만 색인하지 않음" 으로 쥐고
+ * 있었다. 자격 있는 상세로 가는 길의 상당수가 자격 없는 상세를 거쳐 가는데 그 길이 막혀 있었다.
+ *
+ * <p>영문·일문 상세는 {@code indexable} 이 무엇이든 색인하지 않는다(이름이 대부분 한국어 원문이라
+ * 같은 내용이 세 벌 올라갈 뿐이다). 그 경우에도 이 함수를 {@code false} 로 부르면 길은 열린다 —
+ * 그쪽 랜딩 176장씩이 상세로 링크하므로, 끊으면 그만큼이 막다른 골목이 된다.
+ *
+ * <p>숫자가 아닌 쓰레기 주소는 이 함수를 쓰지 마라. 그건 실재하는 팝업이 아니라서 따라갈 링크도 없다.
+ */
+export function detailRobots(indexable: boolean): { index: boolean; follow: boolean } {
+  return { index: indexable, follow: true };
+}
