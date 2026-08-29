@@ -198,7 +198,9 @@ const ko: LandingCopy = {
   mapCtaPrimary: (l) => `지도에서 ${l} 팝업 위치·마감일 보기 →`,
   mapCtaSecondary: (l) => `지도에서 ${l} 팝업 보기 →`,
   freeAutoNote: (r) => `가입 없이 확인 · ${r} 자동 갱신`,
-  moreCount: (n) => `외 ${n}곳 더 — 메인 지도에서 전체 확인`,
+  // 예전엔 "메인 지도에서 전체 확인" 이었다. 이제 그 목록이 바로 아래 있으므로 말과 화면이
+  // 어긋나지 않게 고친다 — 다른 데로 보내는 문장이 아니라 아래를 가리키는 문장이어야 한다.
+  moreCount: (n) => `외 ${n}곳 — 이름을 누르면 상세로 갑니다`,
   emptyHeading: (l) => `${l} 팝업은 지금 잠시 쉬어가는 중이에요`,
   emptyBody: (r) =>
     `서울 전체는 지금도 열려 있어요. 새 팝업은 ${r}에 자동 수집됩니다 — 지금 진행 중인 팝업부터 지도에서 둘러보세요.`,
@@ -365,7 +367,7 @@ const en: LandingCopy = {
   mapCtaPrimary: (l) => `See ${l} pop-ups on the map →`,
   mapCtaSecondary: (l) => `View ${l} pop-ups on the map →`,
   freeAutoNote: (r) => `No sign-up · updated ${r}`,
-  moreCount: (n) => `+${n} more — see them all on the map`,
+  moreCount: (n) => `${n} more — open any name for details`,
   emptyHeading: (l) => `Nothing running in ${l} right now`,
   emptyBody: (r) =>
     `The rest of Seoul is still open. New pop-ups are collected ${r} — start with what's running now on the map.`,
@@ -543,7 +545,7 @@ const ja: LandingCopy = {
   mapCtaPrimary: (l) => `${l}のポップアップをマップで見る →`,
   mapCtaSecondary: (l) => `${l}のポップアップをマップで →`,
   freeAutoNote: (r) => `登録不要・${r}に自動更新`,
-  moreCount: (n) => `ほか${n}件 — マップですべて見る`,
+  moreCount: (n) => `ほか${n}件 — 名前を選ぶと詳細へ`,
   emptyHeading: (l) => `${l}のポップアップは現在お休み中です`,
   emptyBody: (r) =>
     `ソウル全体では今も開催中です。新しいポップアップは${r}に自動収集されます — まずは開催中のものをマップでご覧ください。`,
