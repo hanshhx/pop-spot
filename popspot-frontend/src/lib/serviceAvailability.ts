@@ -12,6 +12,35 @@ export const SERVICE_AVAILABILITY_EVENT = 'popspot:service-availability';
 let current: ServiceAvailability = 'checking';
 const listeners = new Set<() => void>();
 
+/**
+ * 장애 판정이 스스로 풀리기까지의 시간.
+ *
+ * <p><b>이 값이 없을 때 무슨 일이 있었나.</b> 예전에는 {@code 'unavailable'} 이 <b>한 번 걸리면 그
+ * 탭에서 영영 안 풀렸다</b>. 고리가 닫혀 있었기 때문이다 —
+ *
+ * <ol>
+ *   <li>{@code apiFetch} 가 502 를 받으면 여기를 {@code 'unavailable'} 로 바꾼다.
+ *   <li>그 뒤로 {@code apiFetch} 는 맨 위에서 즉시 503 을 돌려주고 <b>요청을 아예 안 보낸다.</b>
+ *   <li>그런데 판정을 푸는 코드는 "응답이 500 미만이면 available" 이다. 요청을 안 보내니 응답이
+ *       올 수 없고, 따라서 풀릴 수 없다.
+ * </ol>
+ *
+ * <p>빠져나올 길은 {@link shouldRunHealthCheck} 의 폴링 하나였는데 그것은 2026-08-21 에 꺼졌다
+ * (아래 주석 참고). 실측(2026-08-30)으로도 확인했다 — 홈을 열었을 때 나가는 API 는
+ * {@code chat/ticker}·{@code congestion}·{@code spotify/me} 뿐이고 {@code /service-health} 는 없다.
+ *
+ * <p>그래서 관리자 화면처럼 요청을 한꺼번에 여러 개 보내는 곳이 제일 먼저, 그리고 통째로 잠겼다.
+ * 서버는 멀쩡한데 새로고침 전까지 아무것도 안 되는 상태가 된다.
+ *
+ * <p>유효기간을 두면 원래 목적은 지키면서 그 고리가 열린다 — 장애가 몰아치는 30초 동안은 게이트웨이를
+ * 두들기지 않고, 그 뒤에는 다시 시도해 본다. 서버가 살아났으면 첫 성공이 {@code 'available'} 로
+ * 되돌리고, 아직 죽어 있으면 다시 30초 잠긴다.
+ */
+const UNAVAILABLE_TTL_MS = 30_000;
+
+/** 유효기간 타이머. 판정이 바뀔 때마다 정리한다. */
+let unavailableTimer: ReturnType<typeof setTimeout> | undefined;
+
 export function getServiceAvailability(): ServiceAvailability {
   return current;
 }
@@ -28,6 +57,22 @@ export function subscribeServiceAvailability(listener: () => void): () => void {
 export function setServiceAvailability(next: ServiceAvailability): void {
   if (current === next) return;
   current = next;
+
+  /*
+   * 시간이 지나면 저절로 풀리게 한다. 근거는 UNAVAILABLE_TTL_MS 주석에 있다.
+   *
+   * 값을 읽는 쪽이 시계를 보게 하지 않고 <b>진짜 상태 전이</b>로 푼다 — 배너가
+   * useSyncExternalStore 로 이 값을 읽는데, 알림 없이 반환값만 달라지면 React 가 스냅샷이
+   * 흔들린다고 보고 어긋난 화면을 그린다.
+   */
+  if (unavailableTimer) {
+    clearTimeout(unavailableTimer);
+    unavailableTimer = undefined;
+  }
+  if (next === 'unavailable' && typeof window !== 'undefined') {
+    unavailableTimer = setTimeout(() => setServiceAvailability('checking'), UNAVAILABLE_TTL_MS);
+  }
+
   for (const listener of listeners) listener();
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent(SERVICE_AVAILABILITY_EVENT, { detail: next }));
@@ -106,4 +151,11 @@ export function serviceUnavailableResponse(): Response {
 export function resetServiceAvailabilityForTest(): void {
   current = 'checking';
   listeners.clear();
+  if (unavailableTimer) {
+    clearTimeout(unavailableTimer);
+    unavailableTimer = undefined;
+  }
 }
+
+/** 유효기간 값. 테스트가 시계를 그만큼 돌리는 데 쓴다. */
+export const UNAVAILABLE_TTL_MS_FOR_TEST = UNAVAILABLE_TTL_MS;
