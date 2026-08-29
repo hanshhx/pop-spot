@@ -1,4 +1,6 @@
 import PopupDetailClient from './PopupDetailClient';
+import { Breadcrumb, type Crumb } from '@/components/seo/Breadcrumb';
+import { classifyRegion, REGIONS } from '@/lib/regions';
 import { buildPopupEventJsonLd, serializeJsonLd } from '@/lib/popupEventJsonLd';
 import { fetchPopupForServer, kstToday, shouldIndexDetail, type ServerPopup } from './serverData';
 import { loadPublicMarkers } from '@/lib/emergencyPopupData';
@@ -76,6 +78,29 @@ function loadNearestStation(popup: ServerPopup | null): { name: string; minutes:
 /**
  * 상세 본문을 언어 경로에서도 함께 쓰되, 검색에 노출하지 않는 번역 경로에는 Event 데이터를 넣지 않는다.
  */
+/**
+ * 이 팝업이 속한 자리 — 홈 › 지역 › 팝업명.
+ *
+ * <p>가운데 칸이 이 작업의 목적이다. 상세에서 랜딩으로 가는 링크가 <b>0개</b>였다(2026-08-30
+ * 실측). 검색으로 들어온 사람이 팝업 하나를 보고 나면 "성수에 다른 것도 있나" 로 갈 방법이 없었고,
+ * 크롤러에게도 상세가 막다른 골목이었다.
+ *
+ * <p>지역을 못 알아보는 팝업(주소가 모호하거나 서울 밖)은 <b>이번 달 목록</b>으로 보낸다. 가운데
+ * 칸을 비우면 이 페이지는 다시 막다른 골목이 되는데, 어느 팝업이든 "이번 달" 에는 속하므로 그쪽이
+ * 늘 참인 길이다.
+ */
+function detailCrumbs(popup: ServerPopup | null): Crumb[] {
+  const home: Crumb = { name: '홈', href: '/' };
+  if (!popup) return [home];
+
+  const region = REGIONS.find((r) => r.code === classifyRegion(popup.address));
+  const middle: Crumb = region
+    ? { name: region.label, href: `/popups/${region.slug}` }
+    : { name: '이번 달 팝업', href: '/popups/this-month' };
+
+  return [home, middle, { name: popup.name }];
+}
+
 export async function PopupDetailPageContent({
   params,
   includeEventJsonLd = true,
@@ -94,6 +119,7 @@ export async function PopupDetailPageContent({
 
   return (
     <>
+      <Breadcrumb items={detailCrumbs(initial)} />
       <PopupDetailClient id={id} initial={initial} nearby={nearby} station={station} />
       {eventJsonLd && (
         <script
