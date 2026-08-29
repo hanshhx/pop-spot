@@ -408,10 +408,22 @@ const DIRECT_BACKEND_HOSTS = new Set(['popspot.co.kr']);
  * 리라이트가 83% 실패하는 상태보다는 낫지만, <b>이건 임시 우회다.</b> 백엔드를 Vercel 이 잘 푸는
  * 이름으로 옮기면 되돌려야 한다.
  *
- * <p>되돌리는 법: Vercel 환경변수 {@code NEXT_PUBLIC_API_DIRECT=0} 후 재배포. 코드 수정이 필요 없다.
+ * <p><b>지금은 꺼져 있다.</b> 리라이트가 무너졌을 때 급히 켰던 우회로이고, 그 자리는 이제
+ * {@code app/api/[...path]/route.ts} 프록시가 맡는다. 프록시는 동일 출처라 아래 두 대가를 치르지
+ * 않는다.
+ *
+ * <ul>
+ *   <li><b>레이트리밋.</b> 직행은 {@code proxy.ts} 미들웨어를 건너뛰어 서명된 {@code x-edge-ip} 가
+ *       빠진다. 그러면 백엔드가 IP 를 {@code remoteAddr} 로 강등해 <b>전 사용자가 바구니 하나</b>를
+ *       공유한다(인증메일 시간당 5회가 전체 합산이 된다).
+ *   <li><b>도달성.</b> 어떤 브라우저는 ts.net 을 통째로 막는다.
+ * </ul>
+ *
+ * <p>켜는 법(비상용): Vercel 환경변수 {@code NEXT_PUBLIC_API_DIRECT=1} 후 재배포. 프록시가
+ * 통째로 고장 났는데 백엔드는 멀쩡할 때만 쓴다 — 코드 수정 없이 경로를 갈아탈 수 있다.
  */
-export const shouldUseDirectBackend = (hostname: string, disableFlag?: string): boolean =>
-  disableFlag !== '0' && DIRECT_BACKEND_HOSTS.has(hostname);
+export const shouldUseDirectBackend = (hostname: string, enableFlag?: string): boolean =>
+  enableFlag === '1' && DIRECT_BACKEND_HOSTS.has(hostname);
 
 /**
  * 이 브라우저에서 직행이 실제로 통하는가.
