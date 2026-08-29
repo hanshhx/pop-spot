@@ -1248,10 +1248,46 @@ export async function SliceLandingPage({ slug, locale }: { slug: string; locale:
                   );
                 })}
               </ul>
-              {filtered.length > LIST_LIMIT && (
-                <p className="text-xs text-muted-foreground mt-3">
-                  {copy.moreCount(filtered.length - LIST_LIMIT)}
-                </p>
+              {/*
+                61번째부터는 <b>말만 하고 길이 없었다.</b> "N곳 더 있습니다" 라는 문장 하나가
+                전부라, 사람도 크롤러도 그 팝업들에 닿을 방법이 사이트 안에 0개였다(사이트맵에는
+                있으니 구글은 주소를 아는데, 들어갈 링크가 없어 "발견됨 - 색인 안 됨" 에 그대로
+                남는다).
+
+                새 주소를 만들지 않고 여는 쪽을 골랐다. 페이지를 나누면 URL 재고가 늘지만 지금
+                병목은 재고가 아니라 <b>이미 만든 것을 구글이 안 넣는 것</b>이고(2026-08-29 기준
+                461건), 얇은 페이지를 더 만들면 사이트 평가만 나빠진다. 이름만 있는 가벼운 목록이면
+                한 페이지 안에서 전부 닿는다.
+              */}
+              {sorted.length > LIST_LIMIT && (
+                <div className="mt-4 border-t border-gray-100 pt-4 dark:border-white/5">
+                  <p className="text-xs text-muted-foreground">
+                    {copy.moreCount(sorted.length - LIST_LIMIT)}
+                  </p>
+                  {/*
+                    칸으로 그린다. 처음엔 이름만 줄줄이 놓았는데 화면에서 <b>목록인지 문장인지
+                    구분이 안 됐다</b> — 링크가 백 개 넘게 이어지면 글줄처럼 읽힌다. 테두리를 줘서
+                    "고를 수 있는 것들" 임을 눈으로 먼저 알게 한다.
+                  */}
+                  <ul className="mt-2.5 flex flex-wrap gap-1.5">
+                    {sorted.slice(LIST_LIMIT).map(({ m }) => {
+                      const name = bilingual(
+                        m.name,
+                        locale === 'en' ? m.nameEn : locale === 'ja' ? m.nameJa : null,
+                      );
+                      return (
+                        <li key={m.id}>
+                          <Link
+                            href={localizedPath(`/popup/${m.id}`, locale)}
+                            className="inline-flex min-h-9 max-w-full items-center truncate rounded-pill border border-gray-200 px-3 py-1.5 text-xs text-muted-foreground transition hover:border-lime-400 hover:text-foreground dark:border-white/10 dark:hover:border-lime-400"
+                          >
+                            {name.display ?? m.name}
+                          </Link>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
               )}
             </section>
 
