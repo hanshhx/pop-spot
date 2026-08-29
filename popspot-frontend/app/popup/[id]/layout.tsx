@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
 
+import { SiteChrome } from '@/components/layout/SiteChrome';
+
 import { fetchPopupForServer, shouldIndexDetail } from './serverData';
 import { detailRobots } from '@/lib/indexableDetail';
 import { popupDetailTitle } from '@/lib/detailTitle';
@@ -95,6 +97,12 @@ export async function generateMetadata({
   };
 }
 
+/**
+ * 상세도 검색 랜딩과 같은 사이트 껍데기를 입는다.
+ *
+ * <p>여기까지 오는 사람도 홈을 거치지 않는다 — 검색 결과에서 바로 떨어진다. 예전엔 헤더도 푸터도
+ * 없어서, 이 팝업 하나를 보고 나면 사이트의 나머지로 가는 길이 없었다.
+ */
 export default function PopupDetailLayout({ children }: { children: React.ReactNode }) {
-  return <>{children}</>;
+  return <SiteChrome>{children}</SiteChrome>;
 }

@@ -16,7 +16,14 @@ import { useLocale, type MessageKey } from '@/lib/i18n';
 export type DockTab = 'MAP' | 'COURSE' | 'MUSIC' | 'PASSPORT' | 'MY' | 'SCHEDULE' | 'FEEDBACK';
 
 interface BottomDockProps {
-  currentTab: DockTab;
+  /**
+   * 지금 보고 있는 탭. <b>없어도 된다.</b>
+   *
+   * <p>홈 밖(검색 랜딩·팝업 상세)에서는 어느 탭도 "지금" 이 아니다. 그때 아무 값이나 넣으면
+   * 있지도 않은 곳이 켜져 보이므로, 비워서 아무것도 강조하지 않는다. 아래 비교가 전부 동등
+   * 검사라 {@code undefined} 면 자연히 다 꺼진다.
+   */
+  currentTab?: DockTab;
   onTabChange: (tab: DockTab) => void;
 }
 
