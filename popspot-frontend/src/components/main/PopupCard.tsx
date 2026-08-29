@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { Heart, MapPin } from 'lucide-react';
 import { categoryVisual } from '@/components/main/categoryVisual';
 import { cn } from '@/lib/utils';
@@ -41,11 +42,9 @@ const CATEGORY_LABEL_KEY: Record<string, MessageKey> = {
   ETC: 'misc.catEtc',
 };
 
-export interface PopupCardProps {
+interface PopupCardBase {
   popup: PopupStore;
   onClick?: () => void;
-  onWish?: () => void;
-  wished?: boolean;
   className?: string;
   /**
    * 이 사용자가 이미 상세를 열어 본 팝업인가. 몇백 곳을 훑는 화면(POP-ALL)에서만 넘긴다 —
@@ -54,7 +53,33 @@ export interface PopupCardProps {
   seen?: boolean;
 }
 
-export function PopupCard({ popup, onClick, onWish, wished, className, seen }: PopupCardProps) {
+/**
+ * 카드의 두 모습.
+ *
+ * <p><b>{@code href} 를 주면 카드가 진짜 링크가 된다.</b> 검색엔진이 따라갈 수 있고, 가운데 클릭·
+ * 새 탭·주소 복사가 브라우저 기본 동작으로 된다. 실측(2026-08-29): 홈이 내보내는 HTML 에
+ * {@code href="/popup/숫자"} 가 <b>0개</b>였다 — 사이트에서 가장 강한 페이지가 상세로 권한을 한
+ * 방울도 흘리지 않고 있었다(같은 시각 랜딩 한 장은 66개를 냈다).
+ *
+ * <p>{@code href} 와 {@code onWish} 는 <b>함께 쓸 수 없다.</b> 앵커 안에 버튼을 넣으면 잘못된
+ * HTML 이라 브라우저가 마음대로 구조를 고친다. 타입으로 막아 둔다 — 주석은 언젠가 안 읽히지만
+ * 컴파일러는 매번 읽는다. 둘 다 필요해지면 'stretched link' 로 다시 짜야 한다.
+ */
+export type PopupCardProps = PopupCardBase &
+  (
+    | { href: string; onWish?: never; wished?: never }
+    | { href?: undefined; onWish?: () => void; wished?: boolean }
+  );
+
+export function PopupCard({
+  popup,
+  onClick,
+  onWish,
+  wished,
+  className,
+  seen,
+  href,
+}: PopupCardProps) {
   /**
    * 카드가 눌렸다 — 어떤 팝업이 실제로 관심을 받는지 남긴다.
    *
@@ -93,34 +118,25 @@ export function PopupCard({ popup, onClick, onWish, wished, className, seen }: P
   const catStyle = categoryVisual(popup.category);
   const coverUrl = popupCoverUrl(popup);
 
-  return (
-    <div
-      role="button"
-      tabIndex={0}
-      onClick={handleOpen}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          handleOpen();
-        }
-      }}
-      className={cn(
-        /*
-         * 폭은 <b>부르는 쪽이 정한다.</b> 카드 자신은 언제나 제 자리를 채운다({@code w-full}).
-         *
-         * 예전엔 여기 {@code sm:w-[220px] sm:shrink-0} 가 박혀 있었다. 레일 때문에 넣은 값인데
-         * 정작 레일은 감싸개(HomeClient 의 {@code w-[168px] sm:w-[220px]})가 폭을 정하고 있어서
-         * 쓰이지도 않았고, <b>격자에서는 셀보다 좁게 굳어</b> 칸마다 빈틈을 만들었다. 부르는 쪽이
-         * {@code className="w-full"} 로 채우라고 해도 같은 브레이크포인트가 아니라 이기지 못했다
-         * (1600px 에서 셀 234px 대 카드 220px, 넓은 화면일수록 더 벌어졌다).
-         */
-        'group relative flex w-full min-w-0 cursor-pointer flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white text-left shadow-sm transition hover:-translate-y-1 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-400 dark:border-white/10 dark:bg-white/[0.04]',
-        // 흐리게만 하고 끝내면 "고장난 카드" 로 읽힌다. hover 에서 원래대로 돌아오게 해서
-        // <b>못 쓰는 것이 아니라 이미 본 것</b>임을 알린다.
-        seen && 'opacity-60 saturate-[0.6] hover:opacity-100 hover:saturate-100',
-        className,
-      )}
-    >
+  const cardClassName = cn(
+    /*
+     * 폭은 <b>부르는 쪽이 정한다.</b> 카드 자신은 언제나 제 자리를 채운다({@code w-full}).
+     *
+     * 예전엔 여기 {@code sm:w-[220px] sm:shrink-0} 가 박혀 있었다. 레일 때문에 넣은 값인데
+     * 정작 레일은 감싸개(HomeClient 의 {@code w-[168px] sm:w-[220px]})가 폭을 정하고 있어서
+     * 쓰이지도 않았고, <b>격자에서는 셀보다 좁게 굳어</b> 칸마다 빈틈을 만들었다. 부르는 쪽이
+     * {@code className="w-full"} 로 채우라고 해도 같은 브레이크포인트가 아니라 이기지 못했다
+     * (1600px 에서 셀 234px 대 카드 220px, 넓은 화면일수록 더 벌어졌다).
+     */
+    'group relative flex w-full min-w-0 cursor-pointer flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white text-left shadow-sm transition hover:-translate-y-1 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-400 dark:border-white/10 dark:bg-white/[0.04]',
+    // 흐리게만 하고 끝내면 "고장난 카드" 로 읽힌다. hover 에서 원래대로 돌아오게 해서
+    // <b>못 쓰는 것이 아니라 이미 본 것</b>임을 알린다.
+    seen && 'opacity-60 saturate-[0.6] hover:opacity-100 hover:saturate-100',
+    className,
+  );
+
+  const content = (
+    <>
       <div className="relative aspect-[16/10] w-full overflow-hidden bg-gray-100 sm:aspect-[4/5] dark:bg-white/5">
         {coverUrl && !imgError ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -198,6 +214,43 @@ export function PopupCard({ popup, onClick, onWish, wished, className, seen }: P
           </span>
         )}
       </div>
+    </>
+  );
+
+  /*
+   * 주소가 있으면 진짜 링크로 그린다.
+   *
+   * <p>{@code role="button"} 을 쓰던 예전 방식은 화면상 똑같이 보이지만 <b>주소가 없다</b> —
+   * 검색엔진이 따라갈 수 없고, 가운데 클릭·새 탭·주소 복사도 안 된다. 앵커로 바꾸면 그 넷이
+   * 브라우저 기본 동작으로 딸려 오므로 {@code tabIndex}·{@code onKeyDown} 도 필요 없어진다.
+   *
+   * <p>{@code prefetch={false}} 인 이유는 비용이다. Next 는 화면에 들어온 링크를 미리 당겨오는데,
+   * 레일 한 줄이 카드 스무 장이면 상세 페이지를 스무 번 미리 부른다. {@code /api} 가 라우트
+   * 핸들러로 옮겨간 뒤로 그 하나하나가 서버리스 함수 호출이고, 이 프로젝트는 인프라 비용 0원이
+   * 절대 조건이다. 사람이 실제로 누른 것만 부른다.
+   */
+  if (href) {
+    return (
+      <Link href={href} prefetch={false} onClick={handleOpen} className={cardClassName}>
+        {content}
+      </Link>
+    );
+  }
+
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={handleOpen}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          handleOpen();
+        }
+      }}
+      className={cardClassName}
+    >
+      {content}
     </div>
   );
 }
