@@ -1,6 +1,8 @@
 import { detailRobots } from '@/lib/indexableDetail';
 import type { Metadata } from 'next';
 
+import { SiteChrome } from '@/components/layout/SiteChrome';
+
 export async function generateMetadata({
   params,
 }: {
@@ -31,5 +33,6 @@ export async function generateMetadata({
 }
 
 export default function EnPopupDetailLayout({ children }: { children: React.ReactNode }) {
-  return <>{children}</>;
+  // 근거는 한국어판(app/popup/[id]/layout.tsx) 주석에 있다.
+  return <SiteChrome>{children}</SiteChrome>;
 }
