@@ -9,6 +9,7 @@ import { View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import 'react-native-url-polyfill/auto';
 
+import { useSocialLoginListener } from '@/features/auth/useSocialLogin';
 import { RootNavigator } from '@/navigation/RootNavigator';
 import { ThemeProvider, useTheme } from '@/theme/ThemeProvider';
 
@@ -58,6 +59,11 @@ export default function App() {
  */
 function Shell() {
   const { t, dark } = useTheme();
+
+  /* 소셜 로그인의 딥링크(popspot://auth?code=…)를 듣는 <b>단 한 곳</b>.
+     로그인 화면에 두면 안 된다 — 브라우저에 다녀오는 동안 안드로이드가 메모리가 모자라 앱을
+     죽이면, 돌아왔을 때 그 화면은 없고 코드를 받을 사람도 없다. */
+  useSocialLoginListener();
 
   const navTheme: Theme = {
     ...DefaultTheme,

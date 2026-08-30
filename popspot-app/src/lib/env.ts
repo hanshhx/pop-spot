@@ -18,8 +18,19 @@
  */
 const OVERRIDE = process.env.EXPO_PUBLIC_API_BASE;
 
+/**
+ * 웹 사이트 주소 — <b>덮어쓰지 않는다.</b>
+ *
+ * <p>소셜 로그인이 {@code /oauth/start/{provider}} 를 여는데, 그 라우트는 백엔드가 아니라
+ * <b>웹 프런트에만</b> 있다. 위 {@code OVERRIDE} 로 API 를 LAN 백엔드로 돌려 놓은 기기에서
+ * {@code apiUrl} 로 그 주소를 만들면 존재하지 않는 곳을 열어 404 가 난다.
+ *
+ * <p>그래서 둘을 가른다 — API 는 덮을 수 있고, 웹 화면 주소는 언제나 운영이다.
+ */
 export const env = {
   apiUrl: OVERRIDE || 'https://popspot.co.kr',
+  webUrl: 'https://popspot.co.kr',
 } as const;
 
 export const API_BASE_URL = env.apiUrl;
+export const WEB_BASE_URL = env.webUrl;
