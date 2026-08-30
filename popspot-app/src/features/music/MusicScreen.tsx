@@ -8,7 +8,7 @@ import { BottomDock, DOCK_INSET } from '@/components/layout/BottomDock';
 import { PopupCard } from '@/components/main/PopupCard';
 import { Icon } from '@/components/ui/Icon';
 import { T } from '@/components/ui/Text';
-import { openPopups, usePopups } from '@/features/popup/usePopups';
+import { usePopups } from '@/features/popup/usePopups';
 import { MOODS, matchesMood, moodById } from '@/lib/moods';
 import { kstTodayStart } from '@/lib/popupSlices';
 import { useTheme } from '@/theme/ThemeProvider';
@@ -48,13 +48,12 @@ export default function MusicScreen() {
   const { t } = useTheme();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { popups } = usePopups();
+  const { open } = usePopups();
 
   const [moodId, setMoodId] = useState(MOODS[0].id);
   const mood = moodById(moodId);
 
   const today = useMemo(() => kstTodayStart(), []);
-  const open = useMemo(() => openPopups(popups, today), [popups, today]);
 
   /* 무드에 드는 것을 앞에, 나머지를 뒤에. 웹 MusicTab 과 같은 순서다 — 무드에 드는 것이 적어도
      화면이 비지 않는다. */

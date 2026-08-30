@@ -17,12 +17,19 @@ export type RootStackParamList = {
   FindAccount: undefined;
 
   Home: undefined;
-  PopAll: undefined;
+  /**
+   * 전체보기. 검색 화면에서 검색어를 실어 보낼 수 있다 — 웹 PopAllModal 이 initialCategory 를
+   * 받는 것과 같은 자리다. 예전에는 undefined 라, 검색하다 「나머지 N곳 보기」를 누르면 검색어가
+   * 사라진 전체 목록이 열렸다.
+   */
+  PopAll: { keyword?: string; category?: string } | undefined;
   Search: undefined;
   /** 목록에서 고른 팝업. 상세만 다시 받아오지 않도록 통째로 넘긴다(웹도 같은 목록을 공유한다). */
   Detail: { id: number };
 
   Course: undefined;
+  /** 일정 — 내가 본 팝업 + 전체 팝업 달력. 웹 홈의 SCHEDULE 탭과 같은 내용. */
+  Schedule: undefined;
   Planner: undefined;
   /** 길찾기 주행. */
   Guide: undefined;

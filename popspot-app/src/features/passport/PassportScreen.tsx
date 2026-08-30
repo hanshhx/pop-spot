@@ -37,7 +37,7 @@ export default function PassportScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const auth = useAuth();
-  const { popups } = usePopups();
+  const { catalog: popups } = usePopups();
 
   const stamps = useStamps(auth.userId);
 

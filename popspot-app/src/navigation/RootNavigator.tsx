@@ -10,6 +10,7 @@ import PassportScreen from '@/features/passport/PassportScreen';
 import MyScreen from '@/features/profile/MyScreen';
 import HomeScreen from '@/features/map/HomeScreen';
 import PlannerScreen from '@/features/planning/PlannerScreen';
+import ScheduleScreen from '@/features/schedule/ScheduleScreen';
 import DetailScreen from '@/features/popup/DetailScreen';
 import SearchScreen from '@/features/popup/SearchScreen';
 import PopAllScreen from '@/features/popup/PopAllScreen';
@@ -43,6 +44,7 @@ export function RootNavigator() {
       <Stack.Screen name="Search" component={SearchScreen} />
       <Stack.Screen name="Detail" component={DetailScreen} />
       <Stack.Screen name="Course" component={CourseScreen} />
+      <Stack.Screen name="Schedule" component={ScheduleScreen} />
       <Stack.Screen name="Planner" component={PlannerScreen} />
       <Stack.Screen name="Guide" component={GuideScreen} />
       <Stack.Screen name="Notifications" component={NotificationCenterScreen} />

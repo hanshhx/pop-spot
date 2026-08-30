@@ -1,4 +1,4 @@
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Image } from 'expo-image';
 import { useMemo, useState } from 'react';
@@ -62,10 +62,17 @@ export default function PopAllScreen() {
   const { t } = useTheme();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { popups } = usePopups();
+  const { popAll: popups } = usePopups();
   const recent = useRecentPopups();
 
-  const [query, setQuery] = useState<PopAllQuery>(EMPTY_POP_ALL_QUERY);
+  /* 검색 화면에서 넘어온 조건으로 시작한다. 조건 없이 열면 「나머지 N곳 보기」를 눌렀을 때
+     검색어가 사라진 전체 목록이 나온다 — 누른 것과 열린 것이 다르다. */
+  const params = useRoute<RouteProp<RootStackParamList, 'PopAll'>>().params;
+  const [query, setQuery] = useState<PopAllQuery>(() => ({
+    ...EMPTY_POP_ALL_QUERY,
+    keyword: params?.keyword ?? EMPTY_POP_ALL_QUERY.keyword,
+    category: (params?.category as PopAllQuery['category']) ?? EMPTY_POP_ALL_QUERY.category,
+  }));
   const today = useMemo(() => kstTodayStart(), []);
   const result = useMemo(() => runPopAllQuery(popups, query, today), [popups, query, today]);
 
@@ -78,7 +85,6 @@ export default function PopAllScreen() {
     .slice(0, 8);
 
   const open = (id: number) => {
-    recent.push(id);
     navigation.navigate('Detail', { id });
   };
 
@@ -133,6 +139,14 @@ export default function PopAllScreen() {
               onPress={() => patch({ category: c.code as CategoryCode })}
             />
           ))}
+          {/* 분야도 마찬가지 — CATEGORIES 에 없는 'other' 를 손으로 넣는다. */}
+          <Chip
+            label="기타"
+            height={30}
+            fontSize={11.5}
+            on={query.category === 'other'}
+            onPress={() => patch({ category: 'other' })}
+          />
         </ScrollView>
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
@@ -147,6 +161,15 @@ export default function PopAllScreen() {
               onPress={() => patch({ region: r.code as RegionCode })}
             />
           ))}
+          {/* REGIONS 에 없는 유일한 유효 코드. 이게 빠지면 지역이 'other' 인 팝업(실측 43%)이
+              지역 필터로는 닿지 않는 곳이 된다. 웹 PopAllFilterBar 도 손으로 하나 더 넣는다. */}
+          <Chip
+            label="기타"
+            height={30}
+            fontSize={11.5}
+            on={query.region === 'other'}
+            onPress={() => patch({ region: 'other' })}
+          />
         </ScrollView>
 
         <View style={styles.filterRow}>
@@ -172,7 +195,7 @@ export default function PopAllScreen() {
           {SORTS.map((s) => (
             <Pressable
               key={s.key}
-              onPress={() => setQuery((q) => ({ ...q, sort: s.key }))}
+              onPress={() => patch({ sort: s.key })}
               style={[styles.sortBtn, query.sort === s.key && { backgroundColor: t.ik }]}
             >
               <T size={11} weight={700} color={query.sort === s.key ? t.bg : t.mu}>

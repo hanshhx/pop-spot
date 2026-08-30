@@ -3,9 +3,9 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Svg, { Circle, Path, Text as SvgText } from 'react-native-svg';
 
 import { BottomDock, DOCK_INSET } from '@/components/layout/BottomDock';
+import { CourseMap } from '@/components/Map/CourseMap';
 import { Icon, type IconName } from '@/components/ui/Icon';
 import { PillButton } from '@/components/ui/PillButton';
 import { T } from '@/components/ui/Text';
@@ -245,7 +245,11 @@ export default function CourseScreen() {
               AI가 제안하는 최적의 동선입니다.
             </T>
 
-            <RouteMap course={course} />
+            {/* 진짜 지도 위에 동선을 그린다. 예전에는 여기에 좌표를 상자에 편 SVG 도식이
+                있었다 — 점과 점선뿐이라 어디인지 알 수 없었다. */}
+            <View style={styles.map}>
+              <CourseMap stops={course} />
+            </View>
 
             <View>
               {course.map((item, i) => (
@@ -337,57 +341,6 @@ const VIBE_ICON: Record<string, IconName> = {
   힐링: 'sun',
 };
 
-/** 코스 좌표를 상자에 펴서 순서를 보여준다. */
-function RouteMap({ course }: { course: CourseItem[] }) {
-  const { t } = useTheme();
-  const W = 340;
-  const H = 200;
-  const PAD = 30;
-
-  const lats = course.map((c) => c.lat);
-  const lngs = course.map((c) => c.lng);
-  const spanLat = Math.max(Math.max(...lats) - Math.min(...lats), 0.001);
-  const spanLng = Math.max(Math.max(...lngs) - Math.min(...lngs), 0.001);
-
-  const pts = course.map((c) => ({
-    x: PAD + ((c.lng - Math.min(...lngs)) / spanLng) * (W - PAD * 2),
-    y: PAD + ((Math.max(...lats) - c.lat) / spanLat) * (H - PAD * 2),
-  }));
-  const path = pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
-
-  return (
-    <View style={[styles.map, { backgroundColor: t.mp, borderColor: t.ln }]}>
-      <Svg width="100%" height="100%" viewBox={`0 0 ${W} ${H}`}>
-        <Path
-          d={path}
-          fill="none"
-          stroke={t.l5}
-          strokeWidth={4}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeDasharray="14 8"
-        />
-        {pts.map((p, i) => (
-          <Circle key={`c${i}`} cx={p.x} cy={p.y} r={13} fill={i === pts.length - 1 ? t.ac : t.ik} />
-        ))}
-        {pts.map((p, i) => (
-          <SvgText
-            key={`n${i}`}
-            x={p.x}
-            y={p.y + 4}
-            textAnchor="middle"
-            fontSize={11}
-            fontWeight="700"
-            fill={i === pts.length - 1 ? '#fff' : t.l3}
-          >
-            {String(i + 1)}
-          </SvgText>
-        ))}
-      </Svg>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   root: { flex: 1 },
   grow: { flex: 1 },
@@ -473,7 +426,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   cardSub: { marginTop: 4 },
-  map: { height: 280, borderRadius: 16, borderWidth: 1, overflow: 'hidden', marginTop: 20, marginBottom: 24 },
+  map: { marginTop: 20, marginBottom: 24 },
 
   stopRow: { flexDirection: 'row', gap: 14 },
   stopRail: { alignItems: 'center' },
