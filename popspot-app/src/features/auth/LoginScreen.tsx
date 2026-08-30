@@ -83,8 +83,8 @@ export default function LoginScreen() {
       return;
     }
     if (socialResult.kind === 'totp') {
-      /* 2단계 인증 화면이 아직 없다. 토큰 없이 홈으로 보내면 로그인된 줄 알고 도는 것이 더 나쁘다. */
-      setError('이 계정은 2단계 인증이 켜져 있어요. 지금은 웹에서 로그인해 주세요.');
+      /* 이메일 로그인과 <b>같은</b> 화면으로 간다. 웹도 두 경로가 TotpChallenge 하나를 공유한다. */
+      navigation.navigate('Totp', { challengeToken: socialResult.challengeToken });
       return;
     }
     setError(socialResult.message);
@@ -103,11 +103,11 @@ export default function LoginScreen() {
       return;
     }
     if (result.kind === 'totp') {
-      /* 2단계 인증 화면은 아직 없다. 토큰 없이 홈으로 보내면 로그인된 줄 알고 도는 것이 더 나쁘다. */
-      setError('이 계정은 2단계 인증이 켜져 있어요. 지금은 웹에서 로그인해 주세요.');
-    } else {
-      setError(result.message);
+      navigation.navigate('Totp', { challengeToken: result.challengeToken });
+      setBusy(false);
+      return;
     }
+    setError(result.message);
     setBusy(false);
   };
 

@@ -50,6 +50,18 @@ export type SocialProvider = 'kakao' | 'naver' | 'google';
 /** 브라우저가 앱을 깨울 때 쓰는 주소. 웹 {@code lib/oauthAppFlow.ts} 와 같은 값이어야 한다. */
 export const AUTH_DEEP_LINK_PREFIX = 'popspot://auth';
 
+/**
+ * 같은 뜻의 <b>검증된 https 링크</b>(Android App Links).
+ *
+ * <p>커스텀 스킴은 독점이 아니라 다른 앱도 {@code popspot://} 를 등록할 수 있다. 반면 이 주소는
+ * {@code .well-known/assetlinks.json} 에 우리 서명 지문이 올라가 있어야만 앱이 받을 수 있다 —
+ * <b>가로챌 수 없다.</b>
+ *
+ * <p>지금 깔린 빌드에는 이 인텐트 필터가 없어서 아직 앱으로 오지 않는다. 그래도 여기서 받아 두는
+ * 이유는, 다음 네이티브 빌드가 나가는 순간 <b>앱 JS 를 고치지 않고</b> 바로 동작하게 하기 위해서다.
+ */
+export const AUTH_APP_LINK_PREFIX = 'https://popspot.co.kr/app/auth';
+
 /** 딥링크에서 읽어 낸 것. 코드가 오거나, 실패 사유가 오거나, 우리 주소가 아니거나. */
 export type AuthDeepLink =
   | { kind: 'code'; code: string; nonce: string | null }
@@ -128,7 +140,8 @@ export async function readPendingNonce(): Promise<string | null> {
  * 동작까지 보장되지는 않는다), 여기서 틀리면 로그인이 통째로 안 된다.
  */
 export function parseAuthDeepLink(url: string): AuthDeepLink {
-  if (!url || !url.startsWith(AUTH_DEEP_LINK_PREFIX)) return null;
+  if (!url) return null;
+  if (!url.startsWith(AUTH_DEEP_LINK_PREFIX) && !url.startsWith(AUTH_APP_LINK_PREFIX)) return null;
 
   const queryStart = url.indexOf('?');
   if (queryStart < 0) return { kind: 'error', reason: 'no_code', nonce: null };
