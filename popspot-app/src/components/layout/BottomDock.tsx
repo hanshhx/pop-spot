@@ -17,7 +17,7 @@ import { T } from '../ui/Text';
 const TABS: { key: DockTab; label: string; icon: IconName; to: keyof RootStackParamList }[] = [
   { key: 'map', label: '지도', icon: 'pin', to: 'Home' },
   { key: 'course', label: '코스', icon: 'course', to: 'Course' },
-  { key: 'plan', label: '일정', icon: 'calendar', to: 'Planner' },
+  { key: 'plan', label: '일정', icon: 'calendar', to: 'Schedule' },
   { key: 'my', label: '마이', icon: 'user', to: 'My' },
   { key: 'more', label: '더보기', icon: 'more', to: 'Music' },
 ];

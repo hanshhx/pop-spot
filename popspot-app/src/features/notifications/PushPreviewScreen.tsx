@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Symbol } from '@/components/layout/Symbol';
 import { Icon } from '@/components/ui/Icon';
 import { T } from '@/components/ui/Text';
-import { openPopups, usePopups } from '@/features/popup/usePopups';
+import { usePopups } from '@/features/popup/usePopups';
 import { daysUntilEnd } from '@/lib/dday';
 import { type NotifyDecision, type NotifyKind } from '@/lib/notifyRules';
 import { kstTodayStart } from '@/lib/popupSlices';
@@ -55,14 +55,13 @@ export default function PushPreviewScreen() {
   const { t } = useTheme();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { popups } = usePopups();
+  const { open } = usePopups();
   const notify = useNotifyStore((s) => s.notify);
 
   const [kind, setKind] = useState<NotifyKind>('wishClosing');
   const [result, setResult] = useState<string | null>(null);
 
   const today = useMemo(() => kstTodayStart(), []);
-  const open = useMemo(() => openPopups(popups, today), [popups, today]);
 
   /** 마감이 가장 가까운 곳 — 찜 알림이 실제로 가리킬 팝업. */
   const closing = useMemo(() => {

@@ -15,6 +15,7 @@ import { classifyCategory } from '@/lib/popupSlices';
 import { useTheme } from '@/theme/ThemeProvider';
 import type { PopupStore } from '@/types/popup';
 import { basemapTileUrl, buildBaseStyle } from './mapStyle';
+import { spreadOverlappingMarkers } from './spreadMarkers';
 
 /**
  * 지도 — MapLibre 로 진짜 지도를 그린다. 웹과 같은 타일, 같은 스타일.
@@ -76,7 +77,9 @@ export function MapCanvas({
   const collection = useMemo(
     () => ({
       type: 'FeatureCollection' as const,
-      features: popups.flatMap((p) => {
+      /* 같은 좌표에 겹친 핀을 5m 원으로 흩는다 — 웹 InteractiveMap 이 하는 일이고, 안 하면 같은
+         건물의 팝업 다섯 곳이 지도에 한 점으로 보인다. 지역 중심점(40개 초과)은 여기서 빠진다. */
+      features: spreadOverlappingMarkers(popups).flatMap((p) => {
         const lat = Number(String(p.latitude ?? '').trim());
         const lng = Number(String(p.longitude ?? '').trim());
         if (!Number.isFinite(lat) || !Number.isFinite(lng)) return [];

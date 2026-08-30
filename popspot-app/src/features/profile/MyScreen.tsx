@@ -47,7 +47,7 @@ export default function MyScreen() {
   const planStops = usePlanStore((s) => s.stops);
   const inbox = useNotifyStore((s) => s.inbox);
   const settings = useNotifyStore((s) => s.settings);
-  const { popups } = usePopups();
+  const { catalog: popups } = usePopups();
   const wishlist = useWishlist(auth.userId);
 
   const today = useMemo(() => kstTodayStart(), []);

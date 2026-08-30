@@ -32,7 +32,7 @@ export default function SearchScreen() {
   const { t } = useTheme();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { popups } = usePopups();
+  const { open: popups } = usePopups();
   const recentSearches = useRecentSearches();
   const recentPopups = useRecentPopups();
 
@@ -48,7 +48,6 @@ export default function SearchScreen() {
 
   const open = (id: number) => {
     if (typed) recentSearches.push(keyword);
-    recentPopups.push(id);
     navigation.navigate('Detail', { id });
   };
 
@@ -161,7 +160,7 @@ export default function SearchScreen() {
 
                 {result.total > result.items.length ? (
                   <Pressable
-                    onPress={() => navigation.navigate('PopAll')}
+                    onPress={() => navigation.navigate('PopAll', { keyword })}
                     style={[styles.moreBtn, { borderColor: t.ln }]}
                   >
                     <T size={12} weight={700} color={t.mu}>

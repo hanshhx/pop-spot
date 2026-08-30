@@ -2,7 +2,7 @@ import { useNavigation, useRoute, type RouteProp } from '@react-navigation/nativ
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, Share, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -23,6 +23,7 @@ import { useTheme } from '@/theme/ThemeProvider';
 import type { RootStackParamList } from '@/types/navigation';
 import { congestionBars, quietestHour, useCongestion } from './useCongestion';
 import { usePopups } from './usePopups';
+import { useRecentPopups } from './useRecentPopups';
 import { ReportSheet, type ReportMode } from './ReportSheet';
 import { WAIT_LEVELS, useWaitReport } from './useWaitReport';
 import { useWishlist } from './useWishlist';
@@ -51,8 +52,21 @@ export default function DetailScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { id } = useRoute<RouteProp<RootStackParamList, 'Detail'>>().params;
 
-  const { popups } = usePopups();
+  const { catalog: popups } = usePopups();
   const popup = popups.find((p) => p.id === id);
+
+  /* 「최근 본 팝업」은 <b>여기서</b> 남긴다. 예전에는 전체보기·검색이 각자 눌린 순간에 남겼는데,
+     그러면 홈 지도의 핀이나 하단 카드로 들어온 방문이 통째로 빠진다 — 실제로 앱에서 가장 흔한
+     경로가 그 둘이었다. 웹도 같은 이유로 상세 화면에서만 남긴다(PopupDetailClient).
+
+     이름·사진을 함께 저장하는 것도 웹과 같다. id 만 두면 그 팝업이 목록에서 빠진 뒤(기간 종료
+     등) 카드에 그릴 것이 없어 기록이 있는데도 화면에서 사라진다. */
+  const recent = useRecentPopups();
+  const pushVisit = recent.push;
+  useEffect(() => {
+    if (!popup) return;
+    pushVisit({ popupId: popup.id, popupName: popup.name, popupImage: popup.imageUrl });
+  }, [popup?.id, popup?.name, popup?.imageUrl, pushVisit]);
 
   const today = useMemo(() => kstTodayStart(), []);
   const wait = useWaitReport(id);
