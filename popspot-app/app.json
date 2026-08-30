@@ -25,7 +25,6 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-video",
       [
         "expo-font",
         {
@@ -38,7 +37,20 @@
         }
       ],
       "expo-secure-store",
-      "@maplibre/maplibre-react-native"
+      "@maplibre/maplibre-react-native",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/android-icon-monochrome.png",
+          "color": "#c2f970"
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "가까운 팝업을 찾고 최단 동선의 출발점을 잡는 데 씁니다. 위치는 기기 안에서만 계산합니다."
+        }
+      ]
     ]
   }
 }
