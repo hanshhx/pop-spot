@@ -5,6 +5,7 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BottomDock, DOCK_INSET } from '@/components/layout/BottomDock';
+import { CourseMap } from '@/components/Map/CourseMap';
 import { Icon } from '@/components/ui/Icon';
 import { PillButton } from '@/components/ui/PillButton';
 import { T } from '@/components/ui/Text';
@@ -154,6 +155,14 @@ export default function PlannerScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.body}>
+        {/* 동선 지도 — 웹 작전지도(/planning)도 화면의 절반이 지도다. 목록의 순번과 지도의 번호가
+            같아서, 순서를 바꾸면 선이 함께 다시 그려진다. 담은 곳이 없으면 스스로 안 그린다. */}
+        {stops.length > 0 ? (
+          <View style={styles.planMap}>
+            <CourseMap stops={stops} height={240} />
+          </View>
+        ) : null}
+
         {mode !== 'walk' ? (
           <View style={[styles.warn, { backgroundColor: t.sft }]}>
             <Icon name="clock" size={14} color={t.l7} />
@@ -345,6 +354,7 @@ function FlagRow({
 }
 
 const styles = StyleSheet.create({
+  planMap: { marginBottom: 16 },
   root: { flex: 1 },
   grow: { flex: 1 },
 
