@@ -8,11 +8,14 @@ POP-SPOT 안드로이드·iOS 앱. React Native + Expo (SDK 54).
 
 ```bash
 npm install
-npx expo start        # 폰의 Expo Go 로 QR 스캔
+npx expo run:android  # 개발 빌드 설치 후 실행
 npm test              # 순수 로직 테스트
 npx tsc --noEmit      # 타입
-npm run web           # 브라우저에서 렌더 확인(실 API 는 CORS 로 막힌다 — 폰은 됨)
 ```
+
+> **Expo Go 로는 더 이상 안 돈다.** 지도(MapLibre)가 네이티브 모듈이라 Expo Go 에 들어 있지 않다.
+> 한 번 `npx expo run:android` 로 개발 빌드를 폰/에뮬레이터에 설치하면, 그 뒤로는 `npx expo start` 만
+> 해도 그 앱이 붙는다. 원격 기기라면 `eas build --profile development -p android` 로 apk 를 받는다.
 
 ## 구조 — 웹과 같은 자리에 같은 것
 
@@ -31,6 +34,18 @@ npm run web           # 브라우저에서 렌더 확인(실 API 는 CORS 로 �
 
 앱에서 새로 만든 것: `optimizeRoute`(웹 `planning/page.tsx` 의 최근접이웃을 모듈로 승격) ·
 `routing`(OSRM) · `notifyRules` · `moods` · `i18n`(ko 축소판).
+
+## 지도
+
+`components/Map/MapCanvas.tsx` — MapLibre 로 웹과 **같은 타일**을 그린다.
+`popspot.co.kr/seoul.pmtiles`(59MB, Protomaps basemap v4)를 `pmtiles://` 로 직접 읽는다.
+MapLibre Native 가 그 스킴을 네이티브로 지원해서(Android 11.7.0+ / iOS 6.10.0+) 타일 서버가 따로 필요 없고
+비용도 0원 그대로다. 스타일은 `components/Map/mapStyle.ts` — 웹에서 그대로 옮겼고 다른 곳은 타입 import 와
+`window.location.origin` → `API_BASE_URL` 두 줄뿐이다.
+
+핀은 `<Marker>` 가 아니라 GeoJSON 소스 + 레이어로 그린다. 지금 열려 있는 팝업이 1,268곳이라 그만큼의
+네이티브 뷰는 지도를 움직일 때마다 다시 자리를 잡아 스크롤이 멈춘다. 멀리서는 묶어서 개수로 보여 주고
+(`cluster`), 확대하면 낱개와 이름이 나온다.
 
 ## 밟으면 아픈 곳
 
@@ -65,7 +80,5 @@ npm run web           # 브라우저에서 렌더 확인(실 API 는 CORS 로 �
   (`OAuth2SuccessHandler.java`), 그 값이 웹 주소다. 앱이 받으려면 백엔드가 앱 스킴
   (`popspot://auth`)을 허용 목록에 추가해야 한다. **백엔드 변경이 선행 조건이라 앱만 고쳐서는
   안 된다.**
-- **진짜 지도** — 지금은 `components/main/MapCanvas.tsx` 가 도로·블록을 그린 바닥이다. 핀 위치는
-  실제 좌표로 계산하므로, 이 파일 안만 MapLibre 로 바꾸면 핀 코드는 그대로 산다.
 - **2단계 인증(TOTP)** — 로그인 응답이 `totpRequired` 를 주면 지금은 "웹에서 로그인해 주세요" 로
   안내한다.
