@@ -15,6 +15,13 @@ export type RootStackParamList = {
   Login: undefined;
   Signup: undefined;
   FindAccount: undefined;
+  /**
+   * 로그인 2단계 — 인증 앱 6자리.
+   *
+   * <p>이메일 로그인과 소셜 로그인이 <b>같은</b> 화면으로 온다. 따로 만들면 한쪽만 고치는 사고가
+   * 난다 — 백엔드가 실제로 그렇게 뚫린 적이 있다.
+   */
+  Totp: { challengeToken: string };
 
   Home: undefined;
   /**
