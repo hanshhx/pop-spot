@@ -83,6 +83,19 @@ async function withAuth(init: RequestInit): Promise<RequestInit> {
   return { ...init, headers };
 }
 
+/**
+ * 요청 하나의 성격.
+ *
+ * <p>{@code anonymous} 는 <b>토큰을 붙이지 말라</b>는 뜻이다. 로그인 자체를 하는 요청에 필요하다 —
+ * 백엔드 {@code JwtAuthenticationFilter} 는 {@code Authorization} 헤더가 있는데 그 토큰이 만료·무효면
+ * <b>공개 경로라도</b> 컨트롤러에 닿기 전에 401 을 쏜다. 그래서 예전에 로그인했다가 토큰이 만료된
+ * 기기에서는 소셜 로그인 교환이 <b>매번</b> 401 이고, 다시 눌러도 같은 토큰이 다시 붙어 영영 안
+ * 풀린다. 화면에는 "코드가 만료되었다" 로 보여서 원인을 찾기도 어렵다.
+ */
+export interface ApiOptions {
+  anonymous?: boolean;
+}
+
 /** 한 번 보내고 타임아웃을 건다. */
 async function once(path: string, init: RequestInit): Promise<Response> {
   const controller = new AbortController();
@@ -101,10 +114,14 @@ async function once(path: string, init: RequestInit): Promise<Response> {
  * 만들어진다. 웹은 {@code X-Vercel-Error: DNS_HOSTNAME_*} 으로 "요청이 백엔드에 닿은 적 없음" 을
  * 증명할 수 있을 때만 POST 도 재시도하는데, 그 헤더 판정은 앱에 POST 화면이 생길 때 함께 옮긴다.
  */
-export async function apiFetch(path: string, init: RequestInit = {}): Promise<Response> {
+export async function apiFetch(
+  path: string,
+  init: RequestInit = {},
+  options: ApiOptions = {},
+): Promise<Response> {
   const method = (init.method ?? 'GET').toUpperCase();
   const retryable = IDEMPOTENT_METHODS.has(method);
-  const authed = await withAuth(init);
+  const authed = options.anonymous ? init : await withAuth(init);
 
   for (let attempt = 0; ; attempt += 1) {
     try {

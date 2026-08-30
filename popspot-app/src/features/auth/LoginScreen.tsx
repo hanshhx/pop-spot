@@ -13,6 +13,8 @@ import { T } from '@/components/ui/Text';
 import { useTheme } from '@/theme/ThemeProvider';
 import type { RootStackParamList } from '@/types/navigation';
 import { login } from './authApi';
+import type { SocialProvider } from './socialAuth';
+import { RESULT_FRESH_MS, useSocialLoginStore } from './useSocialLogin';
 
 /**
  * 로그인 — 시안 03. 웹 {@code app/login/page.tsx} 와 같은 엔드포인트를 부른다.
@@ -23,9 +25,13 @@ import { login } from './authApi';
  *
  * <h3>소셜 로그인 버튼</h3>
  *
- * <p>모양은 시안대로 그리되 <b>동작은 아직 붙이지 않았다.</b> 카카오·네이버·구글은 각각 네이티브
- * SDK 와 앱 등록(패키지명·키 해시·리다이렉트 URI)이 필요하고, 그건 이 화면의 일이 아니라 별건이다.
- * 눌렀을 때 조용히 아무 일도 안 일어나면 고장으로 보이므로, 무엇이 남았는지 말해 준다.
+ * <p>브라우저를 열어 웹을 한 번 거쳐 돌아온다({@code socialAuth.ts} 주석에 흐름이 있다).
+ * 네이티브 SDK 를 붙이지 않은 이유는 그것이 <b>새 빌드</b>를 요구하고, 세 제공자마다 앱 등록·키
+ * 해시·심사가 따로 필요하기 때문이다. 지금 방식은 백엔드도 앱 빌드도 건드리지 않는다.
+ *
+ * <p>진행 상태를 이 화면이 들고 있지 않는 것에 주의. 브라우저에 다녀오는 동안 안드로이드가 앱을
+ * 죽일 수 있어서, 듣는 곳은 앱 뿌리이고 이 화면은 결과를 <b>구경만</b> 한다
+ * ({@link useSocialLoginStore}).
  */
 
 /** 웹과 같은 키를 쓴다 — 아이디 저장은 계정이 아니라 편의 기능이라 평문 저장소로 충분하다. */
@@ -53,6 +59,36 @@ export default function LoginScreen() {
       })
       .catch(() => {});
   }, []);
+
+  const socialPending = useSocialLoginStore((s) => s.pending);
+  const socialResult = useSocialLoginStore((s) => s.result);
+  const socialResultAt = useSocialLoginStore((s) => s.resultAt);
+  const startSocial = useSocialLoginStore((s) => s.start);
+  const consumeSocial = useSocialLoginStore((s) => s.consume);
+
+  /**
+   * 소셜 로그인의 결과를 화면에 옮긴다.
+   *
+   * <p>토큰 저장은 이미 뿌리에서 끝났다. 여기서 하는 일은 <b>이동과 안내</b>뿐이다 — 성공했으면
+   * 이메일 로그인과 <b>같은 자리</b>로 보낸다. 두 경로가 다른 곳으로 가면 나중에 한쪽만 고치게 된다.
+   */
+  useEffect(() => {
+    if (!socialResult) return;
+    consumeSocial();
+    /* 콜드 스타트로 로그인이 끝났다면 이 화면은 그때 없었다. 한참 뒤에 로그인 화면을 연 사람에게
+       그때의 결과로 화면을 움직이면 이유 없이 튕긴 것으로 보인다. */
+    if (Date.now() - socialResultAt > RESULT_FRESH_MS) return;
+    if (socialResult.kind === 'ok') {
+      navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
+      return;
+    }
+    if (socialResult.kind === 'totp') {
+      /* 2단계 인증 화면이 아직 없다. 토큰 없이 홈으로 보내면 로그인된 줄 알고 도는 것이 더 나쁘다. */
+      setError('이 계정은 2단계 인증이 켜져 있어요. 지금은 웹에서 로그인해 주세요.');
+      return;
+    }
+    setError(socialResult.message);
+  }, [socialResult, socialResultAt, consumeSocial, navigation]);
 
   const submit = async () => {
     if (busy) return;
@@ -169,15 +205,21 @@ export default function LoginScreen() {
           {SOCIALS.map((s) => (
             <Pressable
               key={s.key}
-              onPress={() => setNotice(`${s.label} 로그인은 앱 심사 등록이 끝나면 켜집니다.`)}
+              disabled={busy || socialPending !== null}
+              onPress={() => {
+                setError(null);
+                setNotice(null);
+                void startSocial(s.key);
+              }}
               style={[
                 styles.social,
                 { backgroundColor: s.bg },
                 s.border ? { borderWidth: 1, borderColor: 'rgba(10,10,10,.12)' } : null,
+                socialPending !== null && socialPending !== s.key ? styles.dim : null,
               ]}
             >
               <T size={13.5} weight={700} color={s.fg}>
-                {s.label}로 시작하기
+                {socialPending === s.key ? `${s.label} 로그인 중…` : `${s.label}로 시작하기`}
               </T>
             </Pressable>
           ))}
@@ -218,7 +260,7 @@ export default function LoginScreen() {
 }
 
 /** 브랜드 색은 각 사의 가이드 값이라 토큰을 쓰지 않는다. */
-const SOCIALS = [
+const SOCIALS: { key: SocialProvider; label: string; bg: string; fg: string; border: boolean }[] = [
   { key: 'kakao', label: '카카오', bg: '#FEE500', fg: '#0a0a0a', border: false },
   { key: 'naver', label: '네이버', bg: '#03C75A', fg: '#ffffff', border: false },
   { key: 'google', label: 'Google', bg: '#ffffff', fg: '#0a0a0a', border: true },
@@ -246,6 +288,7 @@ const styles = StyleSheet.create({
   line: { flex: 1, height: 1 },
 
   socials: { gap: 9, marginBottom: 22 },
+  dim: { opacity: 0.45 },
   social: { minHeight: 46, borderRadius: 999, alignItems: 'center', justifyContent: 'center' },
 
   guest: {
