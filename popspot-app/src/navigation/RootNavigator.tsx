@@ -3,6 +3,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import FindAccountScreen from '@/features/auth/FindAccountScreen';
 import LoginScreen from '@/features/auth/LoginScreen';
 import SignupScreen from '@/features/auth/SignupScreen';
+import TotpScreen from '@/features/auth/TotpScreen';
 import CourseScreen from '@/features/course/CourseScreen';
 import GuideScreen from '@/features/guide/GuideScreen';
 import MusicScreen from '@/features/music/MusicScreen';
@@ -40,6 +41,7 @@ export function RootNavigator() {
       <Stack.Screen name="Login" component={LoginScreen} />
       <Stack.Screen name="Signup" component={SignupScreen} />
       <Stack.Screen name="FindAccount" component={FindAccountScreen} />
+      <Stack.Screen name="Totp" component={TotpScreen} />
       <Stack.Screen name="PopAll" component={PopAllScreen} />
       <Stack.Screen name="Search" component={SearchScreen} />
       <Stack.Screen name="Detail" component={DetailScreen} />

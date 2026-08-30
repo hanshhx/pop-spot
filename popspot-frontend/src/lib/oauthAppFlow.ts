@@ -39,8 +39,18 @@ export const APP_FLOW_COOKIE_PATH = '/';
  */
 export const APP_FLOW_COOKIE_MAX_AGE_SECONDS = 1800;
 
-/** 앱이 돌아갈 주소의 스킴. 앱 {@code socialAuth.ts} 의 같은 상수와 맞아야 한다. */
+/** 앱이 돌아갈 커스텀 스킴. 앱 {@code socialAuth.ts} 의 같은 상수와 맞아야 한다. */
 export const APP_RETURN_SCHEME = 'popspot://auth';
+
+/**
+ * 콜백이 실제로 넘기는 주소 — <b>검증된 https 링크</b>(Android App Links).
+ *
+ * <p>App Links 가 검증된 기기에서는 안드로이드가 이 주소를 <b>열지 않고 앱에 바로 넘긴다.</b>
+ * 커스텀 스킴과 달리 다른 앱이 등록해 가로챌 수 없다. 아직 그 인텐트 필터가 없는 빌드에서는
+ * 이 주소가 그냥 열리고, 그 페이지({@code app/app/auth/route.ts})가 {@code popspot://} 로 넘긴다 —
+ * <b>지금도 되고, 다음 빌드에서 저절로 더 안전해진다.</b>
+ */
+export const APP_RETURN_LINK = 'https://popspot.co.kr/app/auth';
 
 /**
  * 이 브라우저 흐름을 앱이 시작했는가 — 시작했으면 앱이 준 난수를 돌려준다.
@@ -86,5 +96,5 @@ export function appReturnUrl(params: Record<string, string | null>): string {
     .filter((entry): entry is [string, string] => entry[1] !== null && entry[1] !== '')
     .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
     .join('&');
-  return query ? `${APP_RETURN_SCHEME}?${query}` : APP_RETURN_SCHEME;
+  return query ? `${APP_RETURN_LINK}?${query}` : APP_RETURN_LINK;
 }
