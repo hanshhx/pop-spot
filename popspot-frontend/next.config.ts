@@ -178,6 +178,29 @@ const nextConfig: NextConfig = {
         source: '/:all*(mp4|webm)',
         headers: [{ key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }],
       },
+      {
+        /**
+         * 베이스맵 pmtiles 에 1년 불변 캐시.
+         *
+         * <p>바로 위 영상과 같은 이유로 시작하지만, 이쪽은 <b>앱을 죽인다.</b> 기본값
+         * {@code max-age=0, must-revalidate} 는 pmtiles 의 range 요청마다 재검증을 강제하고, 서버는
+         * <b>본문 없는 304</b> 를 돌려준다. MapLibre Native 의 PMTilesFileSource 가 그 응답을 처리하다
+         * 널 포인터로 죽는다 — 안드로이드 실측(2026-08-30, Galaxy S25):
+         *
+         * <pre>
+         * F libc: Fatal signal 11 (SIGSEGV) ... in tid (PMTilesFileSour), pid (kr.co.popspot)
+         * #00 libmaplibre.so (std::__ndk1::basic_string&lt;...   ← null 로 문자열 생성
+         * </pre>
+         *
+         * <p>같은 앱에서 타일 소스만 {@code demotiles.maplibre.org}(max-age=86400)로 바꾸면 크래시가
+         * 사라진다. 파일 자체는 멀쩡하다 — pmtiles v3 · MVT · 줌 0~15 · 타일 3,909개로 읽힌다.
+         *
+         * <p>{@code immutable} 이 안전한 이유는 영상과 같다. 파일을 갈아끼우면 {@code ?v=} 의 ETag 해시가
+         * 바뀌어 주소 자체가 달라진다({@code mapStyle.ts} 의 {@code basemapTileUrl}).
+         */
+        source: '/:all*(pmtiles)',
+        headers: [{ key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }],
+      },
     ];
   },
 
