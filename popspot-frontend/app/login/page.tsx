@@ -2,17 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import {
-  AlertTriangle,
-  ArrowLeft,
-  Mail,
-  Lock,
-  MessageCircle,
-  Eye,
-  EyeOff,
-  Check,
-  Clock,
-} from 'lucide-react';
+import { ArrowLeft, Mail, Lock, MessageCircle, Eye, EyeOff, Check, Clock } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { Logo } from '@/components/layout/Logo';
@@ -27,30 +17,13 @@ import { useLocale } from '@/lib/i18n';
 import { appReturnUrl, clearAppFlowCookie, startedByApp } from '@/lib/oauthAppFlow';
 import { localizedPath } from '@/lib/localePath';
 import { TotpChallenge } from '@/features/auth/TotpChallenge';
-import { useServiceAvailability } from '@/components/ServiceStatusBanner';
 import { useTheme } from 'next-themes';
 import { useSeason } from '@/lib/seasonContext';
 import { seasonBgVideo } from '@/lib/seasonVideo';
 
-const OUTAGE_COPY = {
-  ko: {
-    title: '서버 연결 중단',
-    text: '현재 로그인을 진행할 수 없음. 서버가 복구되면 버튼이 자동으로 다시 활성화됨.',
-  },
-  en: {
-    title: 'Server connection unavailable',
-    text: 'Login is temporarily unavailable. The buttons will be enabled automatically after recovery.',
-  },
-  ja: {
-    title: 'サーバーに接続できません',
-    text: '現在ログインできません。復旧後、ボタンは自動的に再び有効になります。',
-  },
-} as const;
-
 export default function LoginPage() {
   const router = useRouter();
   const { t, locale } = useLocale();
-  const serviceStatus = useServiceAvailability();
 
   /* 배경 영상은 홈과 같은 규칙을 따른다 — 계절 × 라이트/다크.
      resolvedTheme 은 마운트 전 undefined 라 그때는 다크로 본다. 여기서는 홈처럼 게이트를 두지
@@ -59,8 +32,6 @@ export default function LoginPage() {
   const { resolvedTheme } = useTheme();
   const season = useSeason();
   const bgVideo = seasonBgVideo(season, resolvedTheme !== 'light');
-  const serviceUnavailable = serviceStatus === 'unavailable';
-  const outageCopy = OUTAGE_COPY[locale];
 
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [showPassword, setShowPassword] = useState(false);
@@ -103,11 +74,20 @@ export default function LoginPage() {
     if (e.key === 'Enter') handleLogin();
   };
 
+  /*
+   * 장애 판정을 이유로 <b>미리 막지 않는다.</b> 눌렀으면 보낸다.
+   *
+   * <p>예전에는 여기서 시도 자체를 거부했다. 그런데 그 판정은 502 한 번으로 걸리고, 그 502 의 원인은
+   * 서버가 아니라 Vercel 함수가 백엔드 주소를 못 푸는 몇 분짜리 구간이었다. 그 사이 사용자는
+   * 서버에 닿아 보지도 못한 채 "지금은 안 됩니다" 만 받았다 — 실제로 "인증 거부가 자꾸 뜬다" 는
+   * 신고가 이것이었다.
+   *
+   * <p>보내 보면 셋 중 하나로 끝난다. 성공하거나, 진짜 인증 실패를 받거나, 게이트웨이 오류를 받는다.
+   * 셋 다 지금 상태를 근거로 미리 단정하는 것보다 정확하다. 끊긴 구간이라면 api.ts 가 즉시 끊어
+   * 주므로 오래 기다리지도 않는다.
+   */
   const handleLogin = async () => {
-    if (submitting || serviceUnavailable) {
-      if (serviceUnavailable) notifyError(outageCopy);
-      return;
-    }
+    if (submitting) return;
     setSubmitting(true);
     try {
       const res = await apiFetch('/api/v1/auth/login', {
@@ -162,10 +142,8 @@ export default function LoginPage() {
    * "살아 있음" 과 구분되지 않는다.
    */
   const handleSocialLogin = async (provider: string) => {
-    if (serviceUnavailable) {
-      notifyError(outageCopy);
-      return;
-    }
+    // 여기도 장애 판정으로 미리 막지 않는다(근거는 handleLogin 주석). 바로 아래에서 공개
+    // 엔드포인트를 한 번 두드려 보므로, 정말 못 닿는 상태면 그 결과로 알게 된다 — 추측이 아니라.
     setSubmitting(true);
     try {
       const res = await apiFetch('/api/popups/trending');
@@ -254,19 +232,6 @@ export default function LoginPage() {
           <Logo className="h-7 md:h-8 text-foreground" />
         </h1>
         <p className="text-center text-muted-foreground text-sm mb-8">{t('login.welcome')}</p>
-
-        {serviceUnavailable && (
-          <div
-            role="status"
-            className="mb-5 flex items-start gap-2.5 rounded-lg border border-amber-400/35 bg-amber-400/10 p-3 text-amber-100"
-          >
-            <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-300" aria-hidden />
-            <div>
-              <p className="text-sm font-bold">{outageCopy.title}</p>
-              <p className="mt-1 text-xs leading-relaxed text-amber-100/75">{outageCopy.text}</p>
-            </div>
-          </div>
-        )}
 
         {/* 2단계 인증이 남았으면 카드 안을 6자리 화면으로 바꾼다 — 페이지를 옮기지 않는 이유는
             표가 5분짜리라 뒤로가기·새로고침으로 잃기 쉽기 때문이다. */}
@@ -358,14 +323,7 @@ export default function LoginPage() {
               </Link>
             </div>
 
-            <Button
-              variant="primary"
-              size="lg"
-              block
-              onClick={handleLogin}
-              loading={submitting}
-              disabled={serviceUnavailable}
-            >
+            <Button variant="primary" size="lg" block onClick={handleLogin} loading={submitting}>
               {t('login.submit')}
             </Button>
 
@@ -381,7 +339,6 @@ export default function LoginPage() {
               <button
                 type="button"
                 onClick={() => handleSocialLogin('kakao')}
-                disabled={serviceUnavailable}
                 className="w-full h-11 rounded-pill font-semibold bg-[#FEE500] text-ink-900 hover:bg-[#FDD835] transition-colors flex items-center justify-center gap-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FEE500] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface)] disabled:cursor-not-allowed disabled:opacity-45"
               >
                 <MessageCircle className="size-4" fill="currentColor" aria-hidden />
@@ -391,7 +348,6 @@ export default function LoginPage() {
               <button
                 type="button"
                 onClick={() => handleSocialLogin('naver')}
-                disabled={serviceUnavailable}
                 className="w-full h-11 rounded-pill font-semibold bg-[#03C75A] text-white hover:bg-[#02b351] transition-colors flex items-center justify-center gap-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#03C75A] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface)] disabled:cursor-not-allowed disabled:opacity-45"
               >
                 <span className="font-extrabold text-lg" aria-hidden>
@@ -403,7 +359,6 @@ export default function LoginPage() {
               <button
                 type="button"
                 onClick={() => handleSocialLogin('google')}
-                disabled={serviceUnavailable}
                 className="w-full h-11 rounded-pill font-semibold bg-white text-ink-900 hover:bg-cream-300 transition-colors flex items-center justify-center gap-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-surface)] disabled:cursor-not-allowed disabled:opacity-45"
               >
                 <svg className="size-4" viewBox="0 0 24 24" aria-hidden>
