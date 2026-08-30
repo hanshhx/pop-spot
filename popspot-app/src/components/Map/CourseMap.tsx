@@ -33,8 +33,22 @@ import { basemapTileUrl, buildBaseStyle } from './mapStyle';
 const SOURCE = 'course-stops';
 const LINE_SOURCE = 'course-line';
 
-/** 지도가 한 화면에 담을 때 남기는 여백(도 단위). 정류장이 화면 끝에 붙지 않게 한다. */
-const FIT_MARGIN_DEG = 0.004;
+/**
+ * 카메라 여백 — 코스가 차지하는 넓이의 비율로 잡는다.
+ *
+ * <p>고정값(예: 0.004도 ≈ 400m)을 쓰면 성수 안에서 다섯 곳을 도는 코스처럼 <b>좁은 코스일수록
+ * 여백이 코스보다 커진다</b>. 실측에서 그 코스의 핀 다섯 개가 화면 한가운데 손톱만 하게 뭉쳐
+ * 번호를 읽을 수 없었다. 넓은 코스는 반대로 400m 가 모자란다.
+ */
+const FIT_MARGIN_RATIO = 0.18;
+
+/**
+ * 그래도 이만큼은 띄운다(도 단위, 약 60m).
+ *
+ * <p>정류장이 전부 같은 건물이면 넓이가 0 이라 비율만으로는 여백도 0 이 된다 — 핀이 화면 테두리에
+ * 딱 붙는다.
+ */
+const FIT_MARGIN_MIN_DEG = 0.0006;
 
 /** 정류장이 하나뿐일 때의 배율. 웹 {@code easeTo({zoom: 15})} 와 같은 값. */
 const SINGLE_ZOOM = 15;
@@ -107,13 +121,23 @@ export function CourseMap({ stops, height = 280 }: CourseMapProps) {
     }
     const lats = points.map((p) => p.lat);
     const lngs = points.map((p) => p.lng);
+    const minLat = Math.min(...lats);
+    const maxLat = Math.max(...lats);
+    const minLng = Math.min(...lngs);
+    const maxLng = Math.max(...lngs);
+
+    /* 가로·세로 중 <b>넓은 쪽</b>으로 여백을 잡는다. 각 축을 따로 재면 한 줄로 늘어선 코스에서
+       짧은 축의 여백이 거의 0 이 되어 핀이 위아래 테두리에 붙는다. */
+    const span = Math.max(maxLat - minLat, maxLng - minLng);
+    const margin = Math.max(span * FIT_MARGIN_RATIO, FIT_MARGIN_MIN_DEG);
+
     return {
-      bounds: [
-        Math.min(...lngs) - FIT_MARGIN_DEG,
-        Math.min(...lats) - FIT_MARGIN_DEG,
-        Math.max(...lngs) + FIT_MARGIN_DEG,
-        Math.max(...lats) + FIT_MARGIN_DEG,
-      ] as [number, number, number, number],
+      bounds: [minLng - margin, minLat - margin, maxLng + margin, maxLat + margin] as [
+        number,
+        number,
+        number,
+        number,
+      ],
     };
   }, [points]);
 
