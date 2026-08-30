@@ -111,8 +111,18 @@ export interface PopupReportPayload {
 
 export interface CongestionForecast {
   time: string;
-  level: string;
   population: number;
+  /**
+   * 그 시각의 혼잡 단계.
+   *
+   * <p><b>이 칸이 있으면 진짜 예측</b>이라는 신호이기도 하다. 백엔드는 서울시 API 에서 예측을 못
+   * 꺼내면 난수로 만든 값을 대신 주는데, 그 경로는 {@code time}·{@code population} 둘만 담는다
+   * ({@code CongestionService.demoForecasts}). 판정은 {@code useCongestion.isForecastReal}.
+   *
+   * <p>예전에 이 칸 이름을 {@code level} 로 적어 두었는데 서버는 {@code congestion} 으로 준다 —
+   * 그래서 항상 undefined 였고, 아무도 그것을 눈치채지 못했다(쓰는 곳이 없었으므로).
+   */
+  congestion?: string;
 }
 
 export interface CongestionData {

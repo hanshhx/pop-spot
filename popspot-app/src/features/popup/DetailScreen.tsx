@@ -41,7 +41,14 @@ import { useWishlist } from './useWishlist';
  * <p>"예상 대기 12분" 도 마찬가지다. 예측 모델이 없고, 있는 것은 방문자 제보 3단계다
  * ({@code useWaitReport}). 없는 숫자를 적어 두면 그 팝업 앞에 선 사람이 그 숫자로 판단한다.
  *
- * <p>혼잡도 막대는 <b>실제 데이터가 맞다</b>. 다만 지역 단위라 서버가 준 지역 이름을 함께 적는다.
+ * <p>혼잡도는 <b>절반만 진짜다.</b> 지금 단계·인원·지역명·날씨는 서울시 실시간 도시데이터에서 온
+ * 진짜지만, <b>12시간 예측 막대는 서버가 못 꺼내면 난수로 채워 보낸다</b>
+ * ({@code CongestionService.demoForecasts} — 13~24시 고정, 인구 10,000+rand). 실측 2026-08-30 에
+ * 오는 것은 전부 그 난수였다. 그래서 {@code congestionBars} 가 진짜일 때만 값을 주고, 아니면 카드에
+ * 그래프 없이 단계와 문구만 남는다 — 지어낸 숫자 위에 LIVE 배지를 붙이면 그 시간에 찾아가는
+ * 사람이 생긴다.
+ *
+ * <p>그리고 이건 <b>지역</b> 단위다. 팝업 하나의 혼잡도가 아니므로 지역 이름을 함께 적는다.
  *
  * <p>목록을 다시 부르지 않고 {@code usePopups} 가 들고 있는 것에서 찾는다 — 웹도 같은 이유로
  * 상세에서 목록 API 를 다시 부르지 않는다.
@@ -293,12 +300,16 @@ https://popspot.co.kr/popup/${popup.id}`,
             </T>
           </Card>
 
-          {bars.length > 0 ? (
+          {/* 카드는 <b>지금 혼잡도</b>가 있으면 그린다. 그 값(단계·인원·지역명)은 서울시 실시간
+              도시데이터에서 온 진짜다. 반면 12시간 예측은 서버가 못 꺼내면 난수로 채워 보내므로
+              ({@code CongestionService.demoForecasts}) 진짜일 때만 그래프를 그린다 —
+              예전에는 그 난수 위에 LIVE 배지가 붙어 있었다. */}
+          {congestion?.level ? (
             <Card>
               <View style={styles.cardHead}>
                 <View style={styles.liveRow}>
                   <T size={13.5} weight={800}>
-                    {congestion?.areaName ?? '이 지역'} 혼잡도
+                    {congestion.areaName ?? '이 지역'} 혼잡도
                   </T>
                   <View style={[styles.liveTag, { backgroundColor: t.hi }]}>
                     <T size={9.5} weight={700} color={t.hif}>
@@ -307,37 +318,47 @@ https://popspot.co.kr/popup/${popup.id}`,
                   </View>
                 </View>
                 <T size={10} color={t.mu} dim={0.6} numeric>
-                  {congestion?.level}
+                  {congestion.level}
                 </T>
               </View>
 
-              <View style={styles.bars}>
-                {bars.map((b, i) => (
-                  <View
-                    key={`${b.time}-${i}`}
-                    style={[
-                      styles.bar,
-                      {
-                        height: `${b.height * 100}%`,
-                        backgroundColor: b.time === quiet ? t.l5 : t.mp,
-                      },
-                    ]}
-                  />
-                ))}
-              </View>
-              <View style={styles.barAxis}>
-                <T size={9.5} weight={600} color={t.mu} dim={0.55} numeric>
-                  {bars[0]?.time}
+              {congestion.message ? (
+                <T size={11.5} color={t.mu} leading={1.55} style={styles.congestionMessage}>
+                  {congestion.message}
                 </T>
-                <T size={9.5} weight={600} color={t.mu} dim={0.55} numeric>
-                  {bars[bars.length - 1]?.time}
-                </T>
-              </View>
+              ) : null}
 
-              {quiet ? (
-                <T size={11.5} color={t.mu} leading={1.55} style={[styles.congestionNote, { borderTopColor: t.ln }]}>
-                  오늘은 <T size={11.5} weight={700}>{quiet}</T>가 가장 한산해요.
-                </T>
+              {bars.length > 0 ? (
+                <>
+                  <View style={styles.bars}>
+                    {bars.map((b, i) => (
+                      <View
+                        key={`${b.time}-${i}`}
+                        style={[
+                          styles.bar,
+                          {
+                            height: `${b.height * 100}%`,
+                            backgroundColor: b.time === quiet ? t.l5 : t.mp,
+                          },
+                        ]}
+                      />
+                    ))}
+                  </View>
+                  <View style={styles.barAxis}>
+                    <T size={9.5} weight={600} color={t.mu} dim={0.55} numeric>
+                      {bars[0]?.time}
+                    </T>
+                    <T size={9.5} weight={600} color={t.mu} dim={0.55} numeric>
+                      {bars[bars.length - 1]?.time}
+                    </T>
+                  </View>
+
+                  {quiet ? (
+                    <T size={11.5} color={t.mu} leading={1.55} style={[styles.congestionNote, { borderTopColor: t.ln }]}>
+                      오늘은 <T size={11.5} weight={700}>{quiet}</T>가 가장 한산해요.
+                    </T>
+                  ) : null}
+                </>
               ) : null}
             </Card>
           ) : null}
@@ -432,6 +453,7 @@ const styles = StyleSheet.create({
   bars: { flexDirection: 'row', alignItems: 'flex-end', gap: 3, height: 46 },
   bar: { flex: 1, borderTopLeftRadius: 2, borderTopRightRadius: 2 },
   barAxis: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 },
+  congestionMessage: { marginBottom: 12 },
   congestionNote: { marginTop: 11, paddingTop: 11, borderTopWidth: 1 },
 
   moodCard: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 16, padding: 14 },
