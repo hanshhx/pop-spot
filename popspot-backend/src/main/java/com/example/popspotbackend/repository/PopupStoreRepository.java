@@ -2,17 +2,19 @@ package com.example.popspotbackend.repository;
 
 // 🔥 [임의 수정] 한 번의 쿼리로 연관된 데이터를 가져오기 위한 어노테이션 추가
 import com.example.popspotbackend.entity.PopupStore;
-import java.time.LocalDate;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
-import java.util.List;
-import java.util.Optional;
+
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.List;
+import java.util.Optional;
 
 // ✅ ID 타입을 String -> Long으로 변경하여 에러 해결
 public interface PopupStoreRepository extends JpaRepository<PopupStore, Long> {
@@ -199,13 +201,18 @@ public interface PopupStoreRepository extends JpaRepository<PopupStore, Long> {
     List<PopupStore> findCrawledMissingCoordinates();
 
     /**
-     * 시작일이 비어있는 자동수집 row 중 이름·위치가 일치하는 것 — 날짜 점진 보강용.
+     * 날짜가 <b>한쪽이라도</b> 비어있는 자동수집 row 중 이름·위치가 일치하는 것 — 날짜 점진 보강용.
      *
      * <p>왜 external_id 가 아니라 이름·위치인가: null-date row 의 external_id 는 {@code hash(name|location|"")}
      * 인데, 재크롤이 유효 startDate 를 뽑으면 external_id 가 {@code hash(name|location|날짜)} 로 바뀌어 {@link
      * #findByExternalId} 를 빗나간다(= 지금까지 중복 row 를 만들던 원인). 이름 기준으로 원본 row 를 되찾아 null 인 날짜만 채워
      * in-place 로 갱신한다. 정규화(trim + lower)는 크롤러의 external_id 계산·dedup 정책과 맞춘다. external_id 가 unique 라
      * 매칭은 사실상 1건이지만 방어적으로 List.
+     *
+     * <p><b>왜 startDate 만 보다가 endDate 까지 보게 됐나.</b> 예전 조건은 {@code startDate IS NULL} 하나였다. 그래서
+     * "시작일은 있고 종료일만 없는" 행은 여기에 <b>걸리지도 않았다</b> — 재크롤이 종료일을 새로 알아내도 기존 행을 채우는 대신 같은 이름·위치의 <b>중복
+     * 행</b>을 하나 더 만들었고, 원래 행의 종료일은 영영 빈 채로 남았다. 실측에서 종료일 없는 행이 절반을 넘던 것의 한 갈래다. 채우는 쪽은 {@code
+     * PopupCrawlOrchestrator#backfillMissingDates} 가 <b>빈 칸만</b> 건드리므로, 대상을 넓혀도 이미 있는 날짜를 덮어쓰지 않는다.
      */
     @Query(
             """
@@ -213,9 +220,10 @@ public interface PopupStoreRepository extends JpaRepository<PopupStore, Long> {
             WHERE p.sourceType = 'CRAWLED'
               AND LOWER(TRIM(p.name)) = :name
               AND LOWER(TRIM(p.location)) = :location
-              AND (p.startDate IS NULL OR p.startDate = '')
+              AND (p.startDate IS NULL OR p.startDate = ''
+                   OR p.endDate IS NULL OR p.endDate = '')
            """)
-    List<PopupStore> findCrawledMissingStartDate(
+    List<PopupStore> findCrawledMissingAnyDate(
             @Param("name") String name, @Param("location") String location);
 
     /** 날짜가 하나라도 비어 있고 원본 URL이 남아 있는 자동수집 팝업. 기존 데이터 재정규화 대상을 제한된 배치로 고르는 용도다. */

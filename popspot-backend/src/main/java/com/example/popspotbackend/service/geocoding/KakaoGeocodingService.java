@@ -1,12 +1,15 @@
 package com.example.popspotbackend.service.geocoding;
 
 import com.example.popspotbackend.service.KakaoApiService;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+import org.springframework.stereotype.Service;
+
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
 
 /**
  * Kakao 로컬 키워드 검색 기반 지오코딩.
@@ -28,6 +31,16 @@ public class KakaoGeocodingService implements GeocodingService {
     private static final String FIELD_LONGITUDE = "x";
     private static final String FIELD_LATITUDE = "y";
     private static final String FIELD_DOCUMENTS = "documents";
+
+    /**
+     * 카카오가 좌표와 함께 주는 주소 칸. 도로명이 먼저다.
+     *
+     * <p>도로명주소({@code road_address_name})가 사람이 찾아가기 쉽고, 우리 지역 분류 ({@code regions.ts})도 도로명·동 이름으로
+     * 걸러낸다. 신축 건물처럼 도로명이 비어 있을 때만 지번 ({@code address_name})으로 내려간다.
+     */
+    private static final String FIELD_ROAD_ADDRESS = "road_address_name";
+
+    private static final String FIELD_ADDRESS = "address_name";
 
     private final KakaoApiService kakaoApiService;
 
@@ -79,8 +92,15 @@ public class KakaoGeocodingService implements GeocodingService {
             Object latitude = firstDoc.get(FIELD_LATITUDE);
             if (longitude == null || latitude == null) return Optional.empty();
 
+            // 좌표와 함께 온 주소도 들고 간다. 그전까지 여기서 버렸고, 그래서 위치가 "서울" 한 마디뿐인
+            // 행을 고칠 재료를 매번 받아 놓고 폐기하고 있었다(Coordinates 주석에 경위).
             return Optional.of(
-                    new Coordinates(String.valueOf(latitude), String.valueOf(longitude)));
+                    new Coordinates(
+                            String.valueOf(latitude),
+                            String.valueOf(longitude),
+                            firstNonBlank(
+                                    firstDoc.get(FIELD_ROAD_ADDRESS),
+                                    firstDoc.get(FIELD_ADDRESS))));
         } catch (Exception e) {
             throw new GeocodingUnavailableException("지오코딩 API 호출 실패: " + query, e);
         }
@@ -88,5 +108,15 @@ public class KakaoGeocodingService implements GeocodingService {
 
     private String safeTrim(String s) {
         return s == null ? "" : s.trim();
+    }
+
+    /** 앞의 것부터 보고 비어 있지 않은 첫 값. 전부 비면 null — 빈 문자열을 주소인 척 넘기지 않는다. */
+    private String firstNonBlank(Object... values) {
+        for (Object v : values) {
+            if (v == null) continue;
+            String s = String.valueOf(v).trim();
+            if (!s.isBlank()) return s;
+        }
+        return null;
     }
 }

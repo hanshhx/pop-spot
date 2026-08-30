@@ -8,10 +8,18 @@ import com.example.popspotbackend.service.ai.LlmUsageTracker;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
+
 import dev.langchain4j.data.message.AiMessage;
 import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.model.output.Response;
 import dev.langchain4j.model.output.TokenUsage;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -25,10 +33,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Service;
 
 /**
  * 검색 API 결과(snippet 들)를 LLM 에 넘겨 구조화된 {@link NormalizedPopup} 목록으로 정규화.
@@ -123,7 +127,11 @@ public class PopupNormalizationService {
                  ※ 한국어 이름은 한글로만 적어. 히라가나·가타카나를 섞지 마.
                    예) "AK 플라ザ"(X) → "AK 플라자"(O),  "ニュ발란ス"(X) → "뉴발란스"(O)
                    원래 이름이 통째로 일본어인 브랜드는 그대로 둬도 된다 — 섞는 것만 금지다.
-               - location (string): 서울 내 주소. 모르면 "서울"만.
+               - location (string): 서울 내 주소. snippet 에 적힌 것 중 <가장 좁은 것>을 그대로 옮겨 적어.
+                 좁은 순서: 도로명주소 > 건물·시설명 > 동 > 구.
+                   예) "성동구 연무장길 14"(O), "더현대 서울"(O), "성수동"(O), "성동구"(O)
+                 ※ 지어내지 마. snippet 에 동네가 한 마디도 없으면 그때만 "서울".
+                   ("서울"만 적힌 팝업은 지역별 목록에서 빠지므로, 적혀 있는 것을 놓치지 않는 게 중요하다.)
                - category (string): FASHION / FOOD / CULTURE / CHARACTER / BEAUTY / TECH / ETC 중 하나.
                - startDate (string): YYYY-MM-DD. 모르면 null.
                - endDate (string): YYYY-MM-DD. 모르면 null.
