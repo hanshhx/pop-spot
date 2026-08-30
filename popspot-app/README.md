@@ -1,50 +1,71 @@
-# 팝스팟 앱 (popspot-app)
+# popspot-app
 
-popspot 서울 팝업스토어 서비스의 **React Native + Expo** 모바일 앱.
-기존 Spring Boot 백엔드(API)를 그대로 재사용한다. 목표: **Google Play 스토어 배포**.
+POP-SPOT 안드로이드·iOS 앱. React Native + Expo (SDK 54).
 
-## 실행 (폰에서 바로 보기)
+시안 `Popspot Mobile App Design2.zip` 의 17개 화면을 옮긴 것이고, **기술 구조는 `popspot-frontend`(웹)와 같게 맞춰 두었다.**
+
+## 실행
 
 ```bash
-cd popspot-app
-npm install            # 최초 1회 (이미 설치돼 있으면 생략)
-npx expo start         # QR 코드가 뜸
+npm install
+npx expo start        # 폰의 Expo Go 로 QR 스캔
+npm test              # 순수 로직 테스트
+npx tsc --noEmit      # 타입
+npm run web           # 브라우저에서 렌더 확인(실 API 는 CORS 로 막힌다 — 폰은 됨)
 ```
 
-1. 폰에 **Expo Go** 앱 설치 (Play 스토어 / App Store)
-2. 터미널의 **QR 코드**를 Expo Go(안드로이드) / 카메라(아이폰)로 스캔
-3. 폰에서 앱이 바로 실행됨 (코드 저장하면 즉시 리로드)
+## 구조 — 웹과 같은 자리에 같은 것
 
-> 안드로이드 에뮬레이터: `npm run android` · 웹 미리보기(지도 등 일부 미지원): `npm run web`
+| 폴더 | 무엇 |
+|---|---|
+| `src/lib` | 순수 로직 + 동명 테스트. **웹 `src/lib` 에서 그대로 가져온 것이 14개** |
+| `src/features/<도메인>` | 화면과 그 화면만 쓰는 훅·API |
+| `src/components/{layout,ui,main}` | 공용 컴포넌트 |
+| `src/store` | zustand |
+| `src/types` | 도메인 타입(`popup.ts` 는 웹과 동일 파일) |
+| `src/theme` | 웹의 `globals.css` 가 하던 일 |
 
-## 구조
+웹에서 **무수정 이식**한 모듈: `popupSlices` `regions` `popAllQuery` `popupBadges` `landingStatus`
+`popupCover` `colorMix` `season` `seasonPalette` `dday` `stamps` `walkGroups` `periodText` `policyVersions`.
+이 파일들은 웹과 `diff` 가 나면 안 된다 — 한쪽만 고치면 "웹엔 있는데 앱엔 없는 팝업" 이 생긴다.
 
-```
-App.tsx              내비게이션(목록 ↔ 상세, native-stack)
-src/
-  api.ts             백엔드 호출 (API_BASE 상수만 바꾸면 서버 전환)
-  types.ts           Marker 타입 · 내비 파라미터
-  lib.ts             카테고리 라벨 · D-day · 지역 축약 헬퍼
-  theme.ts           브랜드 컬러(라임/잉크/크림)
-  screens/
-    ListScreen.tsx   팝업 목록 (마감 임박 순, 당겨서 새로고침)
-    DetailScreen.tsx 팝업 상세 (+ 지도 앱 열기)
-```
+앱에서 새로 만든 것: `optimizeRoute`(웹 `planning/page.tsx` 의 최근접이웃을 모듈로 승격) ·
+`routing`(OSRM) · `notifyRules` · `moods` · `i18n`(ko 축소판).
 
-현재 MVP: `/api/map/markers`(진행 중 팝업 121곳)를 불러와 **목록 → 상세**. 백엔드는 재작업 0.
+## 밟으면 아픈 곳
 
-## 플레이스토어까지 로드맵
+- **`zustand/middleware` 를 가져오지 말 것.** `persist` 만 써도 devtools 가 딸려 오고 그 안의
+  `import.meta.env` 가 **웹 번들을 통째로 깨뜨린다**. 네이티브는 멀쩡해서 안드로이드만 빌드하면
+  끝까지 안 보인다. 영속은 `src/store/persist.ts` 로 붙인다.
+- **OSRM 공개 서버는 프로필을 무시한다.** `/foot/` 이든 `/driving/` 이든 자동차 속도를 준다
+  (실측: 779m → 123초 = 시속 22.8km). `duration` 을 쓰지 말고 거리에서 직접 센다
+  (`src/lib/routing.ts`).
+- **글꼴은 굵기마다 파일이 다르다.** 안드로이드는 `fontFamily` + `fontWeight` 를 함께 주면 굵기를
+  무시하고 시스템 폰트로 떨어진다. `theme/typography.ts` 의 `font()` 를 쓴다.
+- **JetBrains Mono 는 굵기별 하위 경로로 가져온다.** 패키지 루트에서 가져오면 16종 1.9MB 가
+  전부 번들에 실린다.
 
-- [x] **1. MVP** — 팝업 목록 · 상세 (지금 여기)
-- [ ] **2. 지도** — `react-native-maps`로 팝업 위치 지도
-- [ ] **3. 위시 + 마감 푸시 알림** — `expo-notifications`. 위시한 팝업 D-3 알림 → 앱의 킬러 기능
-- [ ] **4. 로그인** — 기존 JWT 인증 재사용
-- [ ] **5. 음악/AI 검색** — 웹 기능 이식
-- [ ] **6. EAS 빌드** — `eas build -p android` → `.aab` (클라우드 빌드, 안드로이드 스튜디오 불필요)
-- [ ] **7. 스토어 출시** — Google Play Console 개발자 등록($25, 1회) → 내부 테스트 → 프로덕션 심사 → 출시
+## 앱이 수집·전송하는 것 (개인정보 처리방침 반영 필요)
 
-## 메모
+웹 방침(`popspot-frontend/app/privacy/page.tsx`)에 **없는 항목이 있다.** 스토어 심사 전에 확인이 필요하다.
 
-- 백엔드 API 베이스는 `src/api.ts`의 `API_BASE`. 지금은 GCP VM 직접 호출.
-- Android 패키지: `kr.co.popspot` (스토어 등록 식별자).
-- 아이콘/스플래시는 `assets/`의 기본 이미지 → 출시 전 브랜드 이미지로 교체 필요.
+| 항목 | 어디로 | 웹 방침에 있나 |
+|---|---|---|
+| 기기 현재 위치(GPS) — 최단 동선 출발점, 길찾기 | 기기 안에서만 계산. 서버로 보내지 않음 | **없음** — 웹은 "사용자가 *선택한* 좌표" 만 적혀 있고, 앱은 기기 위치를 읽는다. 위치정보법 대상이라 문구가 필요하다 |
+| 출발·도착 좌표 | FOSSGIS e.V. OSRM 공개 서버(독일) | 있음 |
+| 알림 권한 | 로컬 알림만. 서버 푸시 토큰은 아직 안 씀 | **없음** |
+| 로그인 토큰·프로필 | 기기 `SecureStore`(암호화) | 해당 |
+| 찜·스탬프 | popspot 백엔드 | 있음 |
+| 최근 본 팝업·검색어 | **기기 안에만.** 서버로 보내지 않음 | 해당 없음 |
+
+## 아직 안 되는 것
+
+- **소셜 로그인(카카오·네이버·구글)** — 화면은 시안대로 있지만 동작하지 않는다.
+  백엔드가 OAuth2 성공 후 `app.oauth2.redirect-uri` **한 곳으로만** 리다이렉트하는데
+  (`OAuth2SuccessHandler.java`), 그 값이 웹 주소다. 앱이 받으려면 백엔드가 앱 스킴
+  (`popspot://auth`)을 허용 목록에 추가해야 한다. **백엔드 변경이 선행 조건이라 앱만 고쳐서는
+  안 된다.**
+- **진짜 지도** — 지금은 `components/main/MapCanvas.tsx` 가 도로·블록을 그린 바닥이다. 핀 위치는
+  실제 좌표로 계산하므로, 이 파일 안만 MapLibre 로 바꾸면 핀 코드는 그대로 산다.
+- **2단계 인증(TOTP)** — 로그인 응답이 `totpRequired` 를 주면 지금은 "웹에서 로그인해 주세요" 로
+  안내한다.

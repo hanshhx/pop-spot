@@ -6,7 +6,7 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "kr.co.popspot"
@@ -14,7 +14,7 @@
     "android": {
       "package": "kr.co.popspot",
       "adaptiveIcon": {
-        "backgroundColor": "#84cc16",
+        "backgroundColor": "#c2f970",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -25,7 +25,19 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-video"
+      "expo-video",
+      [
+        "expo-font",
+        {
+          "fonts": [
+            "./assets/fonts/WantedSans-Regular.ttf",
+            "./assets/fonts/WantedSans-SemiBold.ttf",
+            "./assets/fonts/WantedSans-Bold.ttf",
+            "./assets/fonts/WantedSans-ExtraBold.ttf"
+          ]
+        }
+      ],
+      "expo-secure-store"
     ]
   }
 }
