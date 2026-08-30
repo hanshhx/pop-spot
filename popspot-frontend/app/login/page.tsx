@@ -24,6 +24,7 @@ import { Input, Field } from '@/components/ui/input';
 import { notify, notifyError, notifySuccess } from '@/lib/notify';
 import { GUEST_GRACE_PERIOD_DAYS, startGuestMode } from '@/lib/guestMode';
 import { useLocale } from '@/lib/i18n';
+import { appReturnUrl, clearAppFlowCookie, startedByApp } from '@/lib/oauthAppFlow';
 import { localizedPath } from '@/lib/localePath';
 import { TotpChallenge } from '@/features/auth/TotpChallenge';
 import { useServiceAvailability } from '@/components/ServiceStatusBanner';
@@ -65,6 +66,22 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [saveId, setSaveId] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  /**
+   * 앱에서 시작한 소셜 로그인이 <b>실패해서</b> 여기로 온 경우 — 앱에 알려 주고 끝낸다.
+   *
+   * <p>백엔드는 성공만 {@code /oauth/callback} 으로 보낸다. 사용자가 카카오 동의 화면에서 취소하거나
+   * 토큰 교환이 실패하면 스프링의 {@code failureUrl} 이 <b>이 페이지</b>로 보낸다
+   * ({@code SecurityConfig.buildOAuthFailureUrl} → {@code /login?error}). 그러면 앱은 브라우저를
+   * 열어 둔 채 영영 아무 소식도 못 듣는다 — 화면에 "로그인 중" 만 돈다.
+   *
+   * <p>앱 표시가 없으면 <b>아무 일도 하지 않는다.</b> 웹 로그인은 한 글자도 달라지지 않는다.
+   */
+  useEffect(() => {
+    if (!startedByApp()) return;
+    clearAppFlowCookie();
+    window.location.replace(appReturnUrl({ error: 'denied' }));
+  }, []);
 
   // 저장된 아이디 자동 입력
   useEffect(() => {
@@ -159,6 +176,9 @@ export default function LoginPage() {
       return;
     }
     localStorage.setItem('popspot:oauth-locale', locale);
+    /* 앱에서 시작하다 만 흐름의 표시가 남아 있으면 이 웹 로그인이 앱으로 튕긴다. 여기서 지운다
+       (콜백도 읽자마자 지우지만, 콜백까지 못 간 채 끝난 경우가 있다). */
+    clearAppFlowCookie();
     window.location.href = `${API_BASE_URL}/oauth2/authorization/${provider}`;
   };
 

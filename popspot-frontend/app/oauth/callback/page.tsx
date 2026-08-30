@@ -8,6 +8,7 @@ import { setAuthToken, setRefreshToken } from '../../../src/lib/authStorage';
 import { useLocale } from '@/lib/i18n';
 import { localizedPath } from '@/lib/localePath';
 import { TotpChallenge } from '@/features/auth/TotpChallenge';
+import { appFlowNonce, appReturnUrl, clearAppFlowCookie } from '@/lib/oauthAppFlow';
 
 const COPY = {
   ko: {
@@ -20,6 +21,8 @@ const COPY = {
     denied: (status: number) => `인증이 거부되었습니다 (${status}).`,
     network: '서버에 연결하지 못했습니다.',
     fallback: '인증 정보를 확인 중입니다...',
+    toApp: "앱으로 돌아가는 중…",
+    toAppManual: "앱이 열리지 않으면 여기를 누르세요",
   },
   en: {
     processing: 'Signing you in…',
@@ -31,6 +34,8 @@ const COPY = {
     denied: (status: number) => `Sign-in was denied (${status}).`,
     network: 'Could not connect to the server.',
     fallback: 'Checking your sign-in…',
+    toApp: "Returning to the app…",
+    toAppManual: "Tap here if the app doesn't open",
   },
   ja: {
     processing: 'ログイン処理中…',
@@ -42,6 +47,8 @@ const COPY = {
     denied: (status: number) => `ログインが拒否されました（${status}）。`,
     network: 'サーバーに接続できませんでした。',
     fallback: 'ログイン情報を確認中…',
+    toApp: "アプリに戻っています…",
+    toAppManual: "アプリが開かない場合はこちら",
   },
 } as const;
 
@@ -50,6 +57,14 @@ const COPY = {
 const AUTH_SUCCESS_REDIRECT_MS = 500;
 const AUTH_ERROR_REDIRECT_MS = 2000;
 const AUTH_FAILURE_REDIRECT_MS = 3000;
+
+/**
+ * 앱으로 넘기기 전에 화면을 한 번 그리는 시간.
+ *
+ * <p>0 이 아니라 한 프레임 이상이어야 한다 — 그래야 대비 화면(수동 링크)이 실제로 페인트된다.
+ * 사용자에게는 느껴지지 않는 길이다.
+ */
+const HANDOFF_PAINT_DELAY_MS = 120;
 
 function CallbackContent() {
   const router = useRouter();
@@ -60,11 +75,52 @@ function CallbackContent() {
   const hasFetched = useRef(false); // React StrictMode 이중 호출 방지용
   /** 2단계 인증이 남았을 때 받은 단기 표. */
   const [totpChallenge, setTotpChallenge] = useState<string | null>(null);
+  /**
+   * 앱으로 넘길 주소. 이게 있으면 이 페이지는 <b>아무것도 교환하지 않는다.</b>
+   *
+   * <p>교환 코드는 1회성이다(Redis 60초, 한 번 쓰면 사라진다). 브라우저가 먼저 써 버리면 앱은
+   * 같은 코드로 아무것도 받지 못한다 — 그래서 앱에서 온 흐름이면 <b>손대지 않고 넘긴다.</b>
+   */
+  const [appHandoff, setAppHandoff] = useState<string | null>(null);
 
   useEffect(() => {
     // 이미 한 번 요청을 보냈다면 중복 실행 방지
     if (hasFetched.current) return;
     hasFetched.current = true;
+
+    /* 앱에서 시작한 흐름이면 여기서 끝낸다. 교환은 앱이 한다.
+
+       실패로 돌아온 경우(?error=no_email · ?error=inactive)도 그대로 앱에 넘긴다 — 앱이 브라우저를
+       열어 두고 기다리고 있으므로, 여기서 웹 로그인 화면으로 보내면 앱은 영영 아무 소식도 못 듣는다.
+
+       난수(n)를 함께 되돌린다. 앱은 자기가 시작할 때 만든 값과 다르면 코드를 버린다 — 커스텀
+       스킴은 독점이 아니라서, 이게 없으면 남이 만든 딥링크 하나로 피해자가 공격자 계정에
+       로그인된다(이 파일이 아래에서 ?token= 경로를 지운 것과 같은 위협이다). */
+    const nonce = appFlowNonce();
+    if (nonce !== null) {
+      clearAppFlowCookie();
+      const code = searchParams.get('code');
+      const error = searchParams.get('error');
+      const target = appReturnUrl({
+        code,
+        error: code ? null : error || 'no_code',
+        n: nonce,
+      });
+      setAppHandoff(target);
+      /* 주소에서 코드를 지운 뒤 넘긴다 — 브라우저 히스토리·뒤로가기에 1회성 코드가 남지 않게. */
+      window.history.replaceState({}, '', localizedPath('/oauth/callback', locale));
+      /* <b>그리고 나서</b> 넘긴다. 같은 틱에 바로 이동하면 아래 대비 화면이 그려질 기회가 없는데,
+         앱이 지워졌거나 브라우저가 커스텀 스킴 이동을 막으면 크롬은 ERR_UNKNOWN_URL_SCHEME 오류
+         페이지로 덮어 버린다 — 준비해 둔 "여기를 누르세요" 링크가 화면에 선 적조차 없게 된다.
+         한 프레임 뒤에 움직이면, 실패해도 사용자가 뒤로 눌러 이 화면으로 돌아올 수 있다.
+
+         {@code replace} 가 아니라 {@code href} 인 것도 같은 이유다 — replace 는 이 페이지를
+         히스토리에서 지워 뒤로 가기로도 못 돌아온다. 코드는 이미 주소에서 지웠으므로 남겨도 안전하다. */
+      window.setTimeout(() => {
+        window.location.href = target;
+      }, HANDOFF_PAINT_DELAY_MS);
+      return;
+    }
 
     const fetchUserInfo = async () => {
       try {
@@ -152,6 +208,27 @@ function CallbackContent() {
 
     fetchUserInfo();
   }, [router, searchParams, locale, copy]);
+
+  /* 앱으로 넘기는 중. `location.replace` 가 곧 앱을 띄우지만 항상 성공하는 것은 아니다 —
+     앱이 지워졌거나, 브라우저가 스킴 이동을 사용자 제스처 없이 막는 경우가 있다. 그때 흰 화면만
+     남으면 사용자는 무엇이 잘못됐는지 알 수 없으므로, 직접 누를 수 있는 링크를 함께 둔다. */
+  if (appHandoff) {
+    return (
+      <div className="flex flex-col items-center gap-3 px-4 text-center md:gap-4">
+        <Loader2 className="w-8 h-8 animate-spin text-lime-500 md:w-12 md:h-12" />
+        <h2 className="text-lg font-bold text-white md:text-xl">{copy.toApp}</h2>
+        {/* 작은 글씨가 아니라 <b>버튼</b>이다. 자동 이동이 막히는 경우(앱 삭제, 브라우저가 제스처
+            없는 스킴 이동을 차단, 카카오·네이버 인앱 브라우저)가 드물지 않아서, 이건 예외 안내가
+            아니라 사실상의 두 번째 기본 수단이다. */}
+        <a
+          href={appHandoff}
+          className="mt-1 rounded-full bg-lime-300 px-6 py-3 text-sm font-bold text-ink-900 transition-colors hover:bg-lime-200"
+        >
+          {copy.toAppManual}
+        </a>
+      </div>
+    );
+  }
 
   // 2단계 인증 — 이메일 로그인과 <b>같은</b> 화면을 쓴다.
   if (totpChallenge) {
