@@ -49,6 +49,10 @@ MapLibre Native 가 그 스킴을 네이티브로 지원해서(Android 11.7.0+ /
 
 ## 밟으면 아픈 곳
 
+- **`.pmtiles` 는 `immutable` 로 서빙해야 한다.** 웹은 견디지만 **MapLibre Native 는 앱을 강제종료시킨다.**
+  `max-age=0, must-revalidate` 면 Range 요청마다 재검증 → 본문 없는 304 → `PMTilesFileSource` 스레드에서
+  SIGSEGV. 지도가 뜨는 순간 앱이 닫힌다. `popspot-frontend/next.config.ts` 의 `/:all*(pmtiles)` 헤더가
+  그것을 막고 있으니 지우지 말 것. 대신 **타일 파일을 갱신할 땐 파일명을 바꿔야 한다**(1년 불변 캐시).
 - **`zustand/middleware` 를 가져오지 말 것.** `persist` 만 써도 devtools 가 딸려 오고 그 안의
   `import.meta.env` 가 **웹 번들을 통째로 깨뜨린다**. 네이티브는 멀쩡해서 안드로이드만 빌드하면
   끝까지 안 보인다. 영속은 `src/store/persist.ts` 로 붙인다.
