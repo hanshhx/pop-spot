@@ -12,6 +12,13 @@ import com.example.popspotbackend.service.geocoding.Coordinates;
 import com.example.popspotbackend.service.geocoding.GeocodingService;
 import com.example.popspotbackend.service.geocoding.GeocodingUnavailableException;
 import com.example.popspotbackend.service.seo.IndexNowService;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
@@ -25,10 +32,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Service;
 
 /**
  * 자동수집 파이프라인 — 검색 API → LLM 정규화 → 신뢰도 검증 → DB 저장.
@@ -905,11 +908,15 @@ public class PopupCrawlOrchestrator {
             return;
         }
 
-        // 날짜 점진 보강: 이 결과가 유효 startDate 를 담았는데(= 위 external_id 조회를 빗나간 케이스), 같은 이름·위치의
-        // 기존 null-date row 가 있으면 새 row 를 만들지 말고 그 row 의 빈 날짜만 채운다. external_id 가 startDate 를
-        // 포함해, 예전엔 이 경우가 중복 row 를 만들고 dedup 이 dated row 를 숨겨 날짜를 유실시켰다. 추측은 없다 —
+        // 날짜 점진 보강: 이 결과가 날짜를 하나라도 담았는데(= 위 external_id 조회를 빗나간 케이스), 같은 이름·위치의
+        // 기존 row 에 빈 날짜가 있으면 새 row 를 만들지 말고 그 칸만 채운다. external_id 가 startDate 를 포함해,
+        // 예전엔 이 경우가 중복 row 를 만들고 dedup 이 dated row 를 숨겨 날짜를 유실시켰다. 추측은 없다 —
         // result 의 날짜는 STRICT 파싱 + 역전검증을 통과한 값이다.
-        if (result.getStartDate() != null && backfillMissingDates(result, externalId)) {
+        //
+        // 조건이 startDate 하나였을 때는 "종료일만 없는" 행이 이 경로에 아예 안 들어와, 재크롤이 종료일을
+        // 알아내도 중복 행만 늘고 원래 행은 계속 비어 있었다.
+        if ((result.getStartDate() != null || result.getEndDate() != null)
+                && backfillMissingDates(result, externalId)) {
             stats.datesBackfilled++;
             return;
         }
@@ -981,38 +988,84 @@ public class PopupCrawlOrchestrator {
      */
     private boolean backfillMissingDates(NormalizedPopup result, String newExternalId) {
         List<PopupStore> targets =
-                popupStoreRepository.findCrawledMissingStartDate(
+                popupStoreRepository.findCrawledMissingAnyDate(
                         normalizePart(result.getName()), normalizePart(result.getLocation()));
         if (targets.isEmpty()) return false;
 
         PopupStore existing = targets.get(0);
-        String newStart = result.getStartDate();
-        String finalEnd =
-                isBlank(existing.getEndDate()) ? result.getEndDate() : existing.getEndDate();
-        if (isInverted(newStart, finalEnd)) {
+
+        // 빈 칸만 채운다. 이미 들어 있는 날짜는 건드리지 않는다 — 어느 쪽이 맞는지 알 수 없고,
+        // 기존 값은 적어도 한 번 역전검증을 통과한 값이다.
+        boolean fillsStart = isBlank(existing.getStartDate()) && result.getStartDate() != null;
+        boolean fillsEnd = isBlank(existing.getEndDate()) && result.getEndDate() != null;
+        if (!fillsStart && !fillsEnd) return false;
+
+        String finalStart = fillsStart ? result.getStartDate() : existing.getStartDate();
+        String finalEnd = fillsEnd ? result.getEndDate() : existing.getEndDate();
+        if (isInverted(finalStart, finalEnd)) {
             log.warn(
-                    "[DateBackfill] 역전 감지 — 백필 건너뜀 id={} newStart={} end={}",
+                    "[DateBackfill] 역전 감지 — 백필 건너뜀 id={} start={} end={}",
                     existing.getId(),
-                    newStart,
+                    finalStart,
                     finalEnd);
             return false;
         }
 
-        existing.setStartDate(newStart);
-        if (isBlank(existing.getEndDate()) && result.getEndDate() != null) {
-            existing.setEndDate(result.getEndDate());
+        if (fillsStart) {
+            existing.setStartDate(finalStart);
+            // external_id 는 startDate 를 품는다. 시작일을 실제로 채웠을 때만 새 id 로 바꿔야
+            // 다음 재크롤이 markDuplicateAsSeen 경로로 매치된다. 종료일만 채운 경우에 바꾸면
+            // 날짜 없는 해시로 덮어써서 오히려 매치를 깨뜨린다.
+            existing.setExternalId(newExternalId);
         }
-        existing.setExternalId(newExternalId);
+        if (fillsEnd) existing.setEndDate(finalEnd);
         existing.setLastSeenAt(LocalDateTime.now());
 
         PopupStore saved = popupStoreRepository.save(existing);
         reindexQuietly(saved);
         log.info(
-                "[DateBackfill] 기존 row 날짜 채움 id={} {} ~ {}",
+                "[DateBackfill] 기존 row 날짜 채움 id={} {} ~ {} (start={} end={})",
                 saved.getId(),
                 saved.getStartDate(),
-                saved.getEndDate());
+                saved.getEndDate(),
+                fillsStart,
+                fillsEnd);
         return true;
+    }
+
+    /**
+     * 화면에 적을 위치를 고른다 — LLM 이 적은 것이 먼저, 비어 있을 때만 카카오 주소.
+     *
+     * <p>프롬프트는 snippet 에서 동네를 읽지 못하면 {@code "서울"} 만 적으라고 지시한다. 지어내지 않는다는 점에서 옳은 지시지만, 그렇게 저장된 값은
+     * <b>지역 분류에서 통째로 탈락한다</b> — 프런트 {@code classifyRegion} 은 동네·도로명으로 거르므로 {@code "서울"} 은 {@code
+     * other} 로 떨어지고, 그러면 지역 랜딩에도 지역 필터에도 잡히지 않는다.
+     *
+     * <p>그런데 우리는 그 팝업의 좌표를 <b>이미 카카오에서 받았고</b>, 그 응답에 도로명주소가 함께 들어 있다. 같은 한 번의 호출에서 온 값이라 새 비용도 없다.
+     *
+     * <p><b>덮어쓰지는 않는다.</b> LLM 이 "성수동 연무장길" 이라고 적었다면 그게 그 팝업의 위치이고, 카카오 주소는 <b>검색어로 찾은 첫 장소</b>의
+     * 주소라 같은 브랜드의 다른 지점일 수 있다. 비어 있을 때만 채우는 이유가 그것이다.
+     */
+    private String preciseLocation(String llmLocation, Optional<Coordinates> coordinates) {
+        String written = llmLocation == null ? "" : llmLocation.trim();
+        if (!isVagueLocation(written)) return written;
+
+        String address = coordinates.map(Coordinates::address).orElse(null);
+        if (address == null || address.isBlank()) return written;
+
+        log.debug("[Geocode] 위치 보강 '{}' → '{}'", written, address);
+        return address;
+    }
+
+    /**
+     * 이 위치 문자열이 "어디인지 말해 주지 않는" 값인가.
+     *
+     * <p>빈 값과 광역 단위 한 마디만 해당한다. {@code "서울 성동구"} 처럼 구가 붙으면 지역 분류가 되므로 건드리지 않는다 — 고쳐야 할 것은 <b>분류가
+     * 불가능한 값</b>뿐이다.
+     */
+    private boolean isVagueLocation(String location) {
+        if (location == null || location.isBlank()) return true;
+        String squashed = location.replace(" ", "");
+        return squashed.equals("서울") || squashed.equals("서울시") || squashed.equals("서울특별시");
     }
 
     /** 검색 인덱스 갱신 — 실패해도 크롤 흐름을 막지 않는다(다음 주기 동기화가 다시 시도). */
@@ -1081,7 +1134,7 @@ public class PopupCrawlOrchestrator {
         PopupStore newPopup =
                 PopupStore.builder()
                         .name(result.getName())
-                        .location(result.getLocation())
+                        .location(preciseLocation(result.getLocation(), coordinates))
                         .category(safeCategory(result.getCategory()))
                         .description(result.getDescription())
                         .content(result.getContent())
