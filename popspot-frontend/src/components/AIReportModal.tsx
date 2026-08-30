@@ -204,21 +204,28 @@ export default function AIReportModal({ data: initialData, onClose }: Props) {
                     {reportData.rainChance}%
                   </div>
                 </div>
-                <div className="p-3 md:p-4 rounded-xl md:rounded-2xl border border-gray-100 dark:border-white/5 bg-lime-300/10/50 dark:bg-ink-800/50">
-                  <div className="flex items-center gap-1.5 md:gap-2 mb-1.5 md:mb-2 text-lime-500 font-bold text-xs md:text-sm">
-                    <Users className="w-3.5 h-3.5 md:w-4 md:h-4" /> {t('airep.topAge')}
+                {/* 연령대는 서버가 서울시 응답에서 읽어 낼 때만 온다. 예전에는 못 읽어도 난수로
+                    채워 보냈고(CongestionService.applyAgeRates 가 Random 이었다) 그래서 같은 순간에
+                    두 번 물으면 다른 답이 나왔다. 이제 없으면 아예 안 오므로, 그때는 이 칸을
+                    그리지 않는다 — "undefined%" 를 보여주느니 칸을 없앤다. */}
+                {reportData.ageRates?.['20s'] !== undefined &&
+                reportData.ageRates?.['30s'] !== undefined ? (
+                  <div className="p-3 md:p-4 rounded-xl md:rounded-2xl border border-gray-100 dark:border-white/5 bg-lime-300/10/50 dark:bg-ink-800/50">
+                    <div className="flex items-center gap-1.5 md:gap-2 mb-1.5 md:mb-2 text-lime-500 font-bold text-xs md:text-sm">
+                      <Users className="w-3.5 h-3.5 md:w-4 md:h-4" /> {t('airep.topAge')}
+                    </div>
+                    <p className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">
+                      {/* '20s' · '30s' 는 백엔드 응답의 키다 — 표시 문구만 사전에서 꺼낸다. */}
+                      {reportData.ageRates['20s'] > reportData.ageRates['30s']
+                        ? t('airep.age20s')
+                        : t('airep.age30s')}
+                    </p>
+                    <p className="text-[10px] md:text-xs text-gray-500 mt-1.5 md:mt-2">
+                      {t('airep.age20s')} {reportData.ageRates['20s']}%, {t('airep.age30s')}{' '}
+                      {reportData.ageRates['30s']}%
+                    </p>
                   </div>
-                  <p className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">
-                    {/* '20s' · '30s' 는 백엔드 응답의 키다 — 표시 문구만 사전에서 꺼낸다. */}
-                    {reportData.ageRates?.['20s'] > reportData.ageRates?.['30s']
-                      ? t('airep.age20s')
-                      : t('airep.age30s')}
-                  </p>
-                  <p className="text-[10px] md:text-xs text-gray-500 mt-1.5 md:mt-2">
-                    {t('airep.age20s')} {reportData.ageRates?.['20s']}%, {t('airep.age30s')}{' '}
-                    {reportData.ageRates?.['30s']}%
-                  </p>
-                </div>
+                ) : null}
               </div>
 
               {/* 3. 시간대별 혼잡도 예측 그래프 */}
