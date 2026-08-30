@@ -29,7 +29,9 @@ npx tsc --noEmit      # 타입
 | `src/theme` | 웹의 `globals.css` 가 하던 일 |
 
 웹에서 **무수정 이식**한 모듈: `popupSlices` `regions` `popAllQuery` `popupBadges` `landingStatus`
-`popupCover` `colorMix` `season` `seasonPalette` `dday` `stamps` `walkGroups` `periodText` `policyVersions`.
+`popupCover` `colorMix` `season` `seasonPalette` `dday` `stamps` `walkGroups` `periodText` `policyVersions`
+`mappable` `seoulGuard` `locationPrecision` `groupSameEvent` `homeSurfaces` `popAllPreview` `nearby`
+`nearestStation` `rank` `boost` `popupVibe` `visitedAgo` `dayBuckets` `useMySchedule`.
 이 파일들은 웹과 `diff` 가 나면 안 된다 — 한쪽만 고치면 "웹엔 있는데 앱엔 없는 팝업" 이 생긴다.
 
 앱에서 새로 만든 것: `optimizeRoute`(웹 `planning/page.tsx` 의 최근접이웃을 모듈로 승격) ·
@@ -46,6 +48,42 @@ MapLibre Native 가 그 스킴을 네이티브로 지원해서(Android 11.7.0+ /
 핀은 `<Marker>` 가 아니라 GeoJSON 소스 + 레이어로 그린다. 지금 열려 있는 팝업이 1,268곳이라 그만큼의
 네이티브 뷰는 지도를 움직일 때마다 다시 자리를 잡아 스크롤이 멈춘다. 멀리서는 묶어서 개수로 보여 주고
 (`cluster`), 확대하면 낱개와 이름이 나온다.
+
+## 목록은 한 곳에서만 거른다
+
+`usePopups()` 가 웹 `HomeClient` 의 네 단계를 그대로 계산해서 **이름 붙은 결과**로 준다.
+화면은 자기에게 맞는 것을 고르기만 하고, **거르는 코드를 따로 쓰지 않는다.**
+
+| 무엇 | 규칙 | 쓰는 곳 | 실측(2026-08-30) |
+|---|---|---|---|
+| `catalog` | 원본 그대로 | 달력·상세·여권·찜 | 1,455 |
+| `open` | `isOpenNow` | 검색·서치존·음악·일정 | 1,268 |
+| `mappable` | 좌표 있음 + 가짜위치 제외 + 서울박스 | 지도 핀 | 1,077 |
+| `popAll` | 같은 행사 합침 | 전체보기 · **화면이 말하는 개수** | 1,001 |
+
+예전에는 `openPopups()` 를 내주고 화면마다 부르게 했다. 홈만 불렀고 전체보기·검색·상세·여권·
+마이 다섯 곳이 빠져서, 홈은 1,268곳인데 전체보기에는 2023년 팝업까지 1,455곳이 있었다.
+웹이 `isOpenNow` 문서에 적어 둔 "홈 659곳 / 지도 623곳" 과 같은 병이다 — **거르는 책임을
+소비자에게 나눠 주면 언젠가 한 곳이 빠진다.**
+
+`isOpenNow` 가 빼는 것은 넷이다: 이미 종료 · 아직 시작 전 · 날짜가 아예 없음 · 종료일 없이
+시작일만 90일 지남(`isStale`). **종료일만 없는 팝업은 안 뺀다** — 웹도 안 뺀다(상시 운영이거나
+종료일만 못 뽑은 경우이고, 적어도 "문을 열었다" 는 근거는 있다).
+
+**웹과 다른 곳은 하나뿐이다.** `mappable` 에 서울박스(`isCoordOutsideSeoul`)를 건다 —
+웹 홈은 안 건다(웹 1,036 / 앱 1,001). 우리 타일이 서울만 담고 있어 수원·판교 좌표의 핀은
+아무것도 없는 회색 위에 찍히고, 그건 "지도에서 찾을 수 있는 곳" 이 아니다. 웹도 같은 판정을
+`mappable.ts` 에 만들어 두고 랜딩에는 쓴다 — 홈에만 안 걸려 있다.
+
+## 화면과 웹의 대응
+
+| 앱 화면 | 웹에서 온 것 |
+|---|---|
+| 홈 서치존 | `SearchBox.tsx` 의 `SearchZone` — 로컬 후보 6개(이름·장소 6칸) + AI 검색 |
+| 홈 혼잡도·캘린더 타일 | 웹 지도 아래 두 칸짜리 지름길 |
+| 홈 「최근 오픈한 팝업」 | 웹 레일 — 기본 최신순(`startDate` 내림차순), 정렬 3종 |
+| 일정 탭 | 웹 SCHEDULE 탭 = `MySchedule` + `PopupCalendar` |
+| 코스 탭 지도 | 웹 COURSE 탭의 `InteractiveMap showPath` — 회색 점선, 순번 핀 |
 
 ## 밟으면 아픈 곳
 
