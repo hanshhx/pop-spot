@@ -5,6 +5,7 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -132,8 +133,8 @@ public class CongestionService {
             result.put("maxPop", livePopulation.optInt("AREA_PPLTN_MAX", 0));
 
             applyWeather(result, cityData);
-            applyForecasts(result, cityData);
-            applyAgeRates(result);
+            applyForecasts(result, livePopulation);
+            applyAgeRates(result, livePopulation);
             return result;
         } catch (Exception e) {
             log.error("[Congestion] 데이터 가공 에러: {}", e.getMessage());
@@ -169,8 +170,15 @@ public class CongestionService {
         result.put("sky", sky);
     }
 
-    private void applyForecasts(Map<String, Object> result, JSONObject cityData) {
-        List<Map<String, Object>> forecasts = parseForecasts(cityData);
+    /**
+     * 12시간 예측.
+     *
+     * <p><b>{@code FCST_PPLTN} 은 {@code LIVE_PPLTN_STTS} <i>안</i>에 있다.</b> 예전에는 응답 루트에서 찾아서 <b>한 번도
+     * 맞은 적이 없었고</b>, 그래서 항상 아래 난수 예측이 나갔다. 앱·웹 그래프에 LIVE 배지를 달고 지어낸 숫자를 그리고 있었다(실측 2026-08-30 08:56
+     * 에 받은 예측이 13~24시 고정에 호출마다 인원이 달랐다).
+     */
+    private void applyForecasts(Map<String, Object> result, JSONObject livePopulation) {
+        List<Map<String, Object>> forecasts = parseForecasts(livePopulation);
         if (forecasts.isEmpty()) forecasts = demoForecasts();
         result.put("forecasts", forecasts);
     }
@@ -209,12 +217,25 @@ public class CongestionService {
         return timeStr;
     }
 
-    private void applyAgeRates(Map<String, Object> result) {
-        Map<String, Integer> ageRates = new HashMap<>();
-        int twenties = 40 + new Random().nextInt(20);
-        ageRates.put("20s", twenties);
-        ageRates.put("30s", 100 - twenties - 10);
-        result.put("ageRates", ageRates);
+    /**
+     * 연령대 비율.
+     *
+     * <p>예전에는 {@code 40 + new Random().nextInt(20)} 이었다 — <b>응답을 보지도 않고 지어냈다.</b> 서울시 API 가 {@code
+     * PPLTN_RATE_20} 처럼 연령대별 비율을 그대로 주는데도 그랬고, 그래서 같은 순간에 두 번 물으면 다른 답이 나왔다.
+     *
+     * <p>못 읽으면 <b>칸을 비운다</b>. 지어낸 숫자를 채우면 화면은 그것을 사실로 그린다.
+     */
+    private void applyAgeRates(Map<String, Object> result, JSONObject livePopulation) {
+        Map<String, Integer> ageRates = new LinkedHashMap<>();
+        putRate(ageRates, livePopulation, "20s", "PPLTN_RATE_20");
+        putRate(ageRates, livePopulation, "30s", "PPLTN_RATE_30");
+        if (!ageRates.isEmpty()) result.put("ageRates", ageRates);
+    }
+
+    /** 비율 한 칸. 0 이거나 없으면 넣지 않는다 — 0% 와 "모름" 은 다르다. */
+    private void putRate(Map<String, Integer> target, JSONObject source, String key, String field) {
+        int rate = (int) Math.round(source.optDouble(field, 0));
+        if (rate > 0) target.put(key, rate);
     }
 
     /* ============================== 데모 데이터 ============================== */
