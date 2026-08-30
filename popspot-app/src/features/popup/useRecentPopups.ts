@@ -1,19 +1,18 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 
-import {
-  clearVisits,
-  readVisits,
-  recordVisit,
-  removeVisit,
-  type RecentVisit,
-} from '@/lib/recentVisits';
+import type { RecentVisit } from '@/lib/recentVisits';
+import { useRecentStore } from '@/store/useRecentStore';
 
 /**
  * 최근 본 팝업 — 전체보기의 가로 레일, 홈의 「최근 본 팝업」, "본 곳" 흐리기, 그리고 일정 탭의
  * 「내가 본 팝업」이 함께 읽는 하나의 출처.
  *
- * <p>규칙은 전부 {@code lib/recentVisits.ts} 에 있고 웹과 같다. 이 훅은 그것을 화면에서 쓸 수 있게
- * 감싸기만 한다.
+ * <p>규칙은 전부 {@code lib/recentVisits.ts} 에 있고 웹과 같다. 목록을 들고 있는 곳은
+ * {@code store/useRecentStore.ts} 이고, 이 훅은 그 둘을 화면에서 쓸 수 있게 감싸기만 한다.
+ *
+ * <p><b>상태를 훅 안에 두지 않는 이유</b>는 스토어 파일 주석에 있다. 요약하면, 스택 내비게이션에서
+ * 홈은 상세를 열어도 살아 있어서 다시 마운트되지 않는다 — 훅마다 상태를 들면 상세에서 남긴 기록이
+ * 홈에 영영 닿지 않는다.
  *
  * <p><b>예전 판본과 저장 키가 다르다.</b> 예전에는 id 배열만 20개까지 담았고
  * ({@code popspot-recent-popups}), 지금은 웹과 같은 모양({@code popspot:recent-visits})으로 이름·
@@ -36,31 +35,16 @@ export interface RecentPopups {
 }
 
 export function useRecentPopups(): RecentPopups {
-  const [visits, setVisits] = useState<RecentVisit[]>([]);
+  const visits = useRecentStore((s) => s.visits);
+  const hydrate = useRecentStore((s) => s.hydrate);
+  const push = useRecentStore((s) => s.push);
+  const remove = useRecentStore((s) => s.remove);
+  const clear = useRecentStore((s) => s.clear);
 
+  /* 저장소 읽기는 스토어가 한 번만 한다 — 여러 화면이 동시에 불러도 안전하다. */
   useEffect(() => {
-    let alive = true;
-    readVisits().then((rows) => {
-      if (alive) setVisits(rows);
-    });
-    return () => {
-      alive = false;
-    };
-  }, []);
-
-  const push = useCallback((visit: Omit<RecentVisit, 'visitedAt'>) => {
-    /* 저장이 끝나기를 기다렸다가 그 결과로 화면을 맞춘다 — 화면만 먼저 고치면 저장이 실패했을 때
-       다음 실행에서 조용히 되돌아가고, 사용자는 기록이 사라진 이유를 알 수 없다. */
-    recordVisit(visit).then(setVisits);
-  }, []);
-
-  const remove = useCallback((id: number) => {
-    removeVisit(id).then(setVisits);
-  }, []);
-
-  const clear = useCallback(() => {
-    clearVisits().then(() => setVisits([]));
-  }, []);
+    hydrate();
+  }, [hydrate]);
 
   const ids = useMemo(() => visits.map((v) => v.popupId), [visits]);
   const has = useCallback((id: number) => ids.includes(id), [ids]);
