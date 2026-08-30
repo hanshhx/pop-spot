@@ -52,6 +52,14 @@ async function write(key: string, value: string | null): Promise<void> {
   }
 }
 
+/**
+ * 진행 중인 소셜 로그인의 1회용 난수.
+ *
+ * <p>비밀이라서가 아니라 <b>토큰과 같은 곳</b>에 두려고 여기 있다 — 로그아웃이 저장소를 비울 때
+ * 이것만 남아 다음 로그인을 헷갈리게 하는 일이 없도록. 쓰임은 {@code features/auth/socialAuth.ts}.
+ */
+const OAUTH_NONCE_KEY = 'popspot-oauth-nonce';
+
 export const getAuthToken = () => read(TOKEN_KEY);
 export const getRefreshToken = () => read(REFRESH_KEY);
 export const setAuthToken = (token: string | null) => write(TOKEN_KEY, token);
@@ -73,5 +81,13 @@ export const setStoredUser = (user: User | null) =>
 
 /** 로그아웃 — 셋 다 지운다. 하나만 지우면 다음 실행에 반쪽 상태로 되살아난다. */
 export async function clearAuthToken(): Promise<void> {
-  await Promise.all([write(TOKEN_KEY, null), write(REFRESH_KEY, null), write(USER_KEY, null)]);
+  await Promise.all([
+    write(TOKEN_KEY, null),
+    write(REFRESH_KEY, null),
+    write(USER_KEY, null),
+    write(OAUTH_NONCE_KEY, null),
+  ]);
 }
+
+export const getPendingNonce = () => read(OAUTH_NONCE_KEY);
+export const setPendingNonce = (value: string | null) => write(OAUTH_NONCE_KEY, value);
