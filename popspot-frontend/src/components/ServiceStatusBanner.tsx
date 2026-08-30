@@ -147,7 +147,25 @@ export default function ServiceStatusBanner() {
     };
   }, []);
 
-  if (status !== 'unavailable') return null;
+  /*
+   * 배너는 <b>운영자가 장애를 선언했을 때만</b> 뜬다.
+   *
+   * <p>예전에는 {@code apiFetch} 가 502 를 한 번 받기만 해도 떴다. 그런데 그 502 의 실제 원인은
+   * 서버가 아니었다 — 백엔드도 터널도 200 을 돌려주는데 <b>Vercel 함수의 리졸버만</b> 백엔드
+   * 호스트명(ts.net)을 못 푸는 구간이 몇 분씩 있다(2026-08-30 실측 2회: 약 3분, 6분 이상).
+   *
+   * <p>그 몇 분 동안 화면은 "현재 서버 <b>전원 장애</b>로…" 라고 말했다. 사실이 아니고, 사장님
+   * 서비스가 실제보다 나빠 보이게 만드는 문장이다. 원인을 모르는 채 겁주는 것보다 조용한 편이 낫다.
+   *
+   * <p>지우지 않고 스위치 뒤에 둔 이유는 이 배너가 원래 풀던 문제가 진짜이기 때문이다 — 서버 전원이
+   * 정말 나가면 사용자에게 알려야 한다. {@link shouldRunHealthCheck} 는 이미 그 상황을 위한
+   * 운영자 스위치이므로({@code NEXT_PUBLIC_SERVICE_HEALTH_ENABLED}), 배너도 같은 스위치에 건다.
+   * 상태 확인과 안내가 늘 함께 켜지고 함께 꺼진다.
+   *
+   * <p>요청을 즉시 끊는 동작({@code api.ts})은 그대로 둔다. 그건 보이지 않고, 끊긴 구간에서
+   * 재시도를 다 기다린 뒤 실패하는 것보다 바로 실패하는 편이 낫다.
+   */
+  if (!shouldRunHealthCheck() || status !== 'unavailable') return null;
   const copy = COPY[locale];
 
   const toggleCollapsed = () => {
