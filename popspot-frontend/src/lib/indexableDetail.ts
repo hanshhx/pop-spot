@@ -13,6 +13,8 @@
  * 쓰고 색인은 안 되는 URL 이 생긴다(v2.42 에 실제로 겪은 사고다).
  */
 
+import { groupSameEvent, type EventGroup, type GroupableEvent } from './groupSameEvent';
+
 export type IndexableCandidate = {
   name?: string | null;
   location?: string | null;
@@ -75,6 +77,29 @@ export function judgeIndexable(m: IndexableCandidate, today: string): IndexVerdi
 /** 판정만 필요할 때. */
 export function isIndexableDetail(m: IndexableCandidate, today: string): boolean {
   return judgeIndexable(m, today).ok;
+}
+
+/**
+ * 사이트맵에 실을 상세 <b>그룹</b>.
+ *
+ * <p><b>왜 묶는가.</b> 같은 행사가 출처마다 다른 이름·주소로 두 줄 이상 들어오는 일이 흔하다.
+ * 랜딩({@code app/popups/[slug]/page.tsx})은 이미 {@link groupSameEvent} 로 묶어 <b>대표만</b>
+ * 링크하는데, 사이트맵은 묶지 않고 전부 올렸다. 그래서 사이트가 크롤러에게 서로 다른 말을 했다 —
+ * 목록에서는 한 곳인데 사이트맵에서는 두 곳이고, 두 URL 이 각자 자기를 canonical 이라 말한다.
+ *
+ * <p><b>순서가 전부다.</b> 색인 자격으로 <b>먼저</b> 거르고, 그 안에서 묶는다. 뒤집으면(묶고 나서
+ * 대표만 판정) 대표가 자격 없는 그룹에서 <b>자격 있는 나머지 줄까지 통째로</b> 사라진다 —
+ * 대표는 "주소가 가장 긴 것" 으로 뽑히지 색인 자격으로 뽑히지 않기 때문이다.
+ *
+ * <p>여기서 canonical 은 건드리지 않는다. 사이트맵에서 빼는 것은 되돌릴 수 있는 약한 신호지만,
+ * canonical 을 남의 URL 로 돌리는 것은 <b>능동적인 색인 제거</b>다. 대표 선정 기준이 주소 문자열
+ * 길이인 채로 그것까지 맡길 수는 없다.
+ */
+export function indexableDetailGroups<T extends GroupableEvent & IndexableCandidate>(
+  live: T[],
+  today: string,
+): EventGroup<T>[] {
+  return groupSameEvent(live.filter((m) => isIndexableDetail(m, today)));
 }
 
 /**
