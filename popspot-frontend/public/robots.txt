@@ -17,6 +17,25 @@ Disallow: /planning/
 Disallow: /music/passport
 Disallow: /music/passport/
 
+# 다국어 상세는 크롤하지 않는다 — 색인될 수 없는데 크롤 예산만 먹는다.
+#
+# /en/popup/*, /ja/popup/* 은 <meta name="robots" content="noindex, follow"> 를 내보낸다
+# (2026-08-04 부터. 실측으로 확인). 즉 아무리 크롤해도 색인되지 않는다. 그런데 한국어 상세의
+# 언어 전환 링크가 그리로 이어져 있어(/popup/1 에 href="/en/popup/1" · "/ja/popup/1") 크롤러가
+# 계속 따라 들어간다. 링크 자체는 사용자에게 필요하므로 여기서 막는다.
+#
+# 규모: 팝업 1,486건 × 3언어 = 상세 URL 4,458개. 이 두 줄로 2,972개가 크롤 대상에서 빠지고
+# 남는 예산이 색인 자격 있는 한국어 상세로 간다. 사이트맵에는 원래 0건이라 잃을 것이 없다.
+#
+# 순서 주의: noindex 를 먼저 깔고 구글이 그것을 읽어 색인에서 뺀 <b>뒤에</b> 막아야 한다.
+# 색인된 채로 막으면 구글이 noindex 를 못 읽어 그 상태로 얼어붙는다. 2026-08-04 부터 4주간
+# noindex 였으므로 그 조건은 채워졌다고 보고 막는다. GSC 에서 "robots.txt 에 의해 차단됨"
+# 항목이 늘면 되돌릴 것 — 이 두 줄을 지우면 끝이다.
+#
+# 한국어 /popup/ 은 절대 막지 말 것. 사이트맵의 418건이 거기 있다.
+Disallow: /en/popup/
+Disallow: /ja/popup/
+
 Sitemap: https://popspot.co.kr/sitemap.xml
 
 # RSS 도 함께 선언한다. /feed.xml 은 예전부터 200 으로 살아 있었는데 어디서도 링크되지 않아
