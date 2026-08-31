@@ -1,7 +1,7 @@
 import type { MetadataRoute } from 'next';
 
 import { REGIONS, classifyRegion } from '@/lib/regions';
-import { isIndexableDetail } from '@/lib/indexableDetail';
+import { indexableDetailGroups } from '@/lib/indexableDetail';
 import { loadPublicMarkers } from '@/lib/emergencyPopupData';
 import { TERMS_EFFECTIVE_DATE, kstToday } from './popup/[id]/serverData';
 import {
@@ -90,6 +90,15 @@ function latestModified(markers: Marker[], now: Date): Date | undefined {
  *
  * <p>백엔드가 응답하지 않으면 공통 로더의 2026-08-11 공개 스냅샷을 사용한다. 현재 날짜에 끝난 행과
  * 운영에서 숨긴 중복은 다시 노출하지 않으며, 서버가 복구되면 별도 배포 없이 최신 응답이 우선한다.
+ *
+ * <p><b>이 파일에 {@code export const revalidate} 를 넣지 말 것.</b> 이 라우트의 갱신 주기(3600초)는
+ * 아래 {@code loadPublicMarkers(3600)} 이 넘기는 fetch 의 revalidate 에서 이미 나온다. 넣은 빌드와
+ * 안 넣은 빌드의 산출물이 바이트 단위로 같고, 응답의
+ * {@code Cache-Control: public, max-age=0, must-revalidate} 는 Next 의 메타데이터 라우트 로더가
+ * 상수로 박아 넣는 값이라 export 로 바뀌지 않는다(2026-08-31 확인).
+ *
+ * <p>다만 <b>여기서 fetch 를 걷어내면</b>(DB 직접 조회 등) 라우트가 조용히 무기한 캐시로 바뀐다.
+ * 그때는 이 파일에 revalidate 를 넣어야 한다.
  */
 async function liveMarkers(): Promise<Marker[]> {
   const { markers, source, capturedAt } = await loadPublicMarkers(3600);
@@ -347,16 +356,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const detailPages: MetadataRoute.Sitemap =
     today < TERMS_EFFECTIVE_DATE
       ? []
-      : live
-          .filter((m) => isIndexableDetail(m, today))
-          .map((m) => ({
-            url: `${SITE_URL}/popup/${m.id}`,
-            lastModified: latestModified([m], now),
-            // 팝업은 기간이 끝나면 자격을 잃고 목록에서 빠진다. 매일 확인할 값어치가 있다.
-            changeFrequency: 'daily' as const,
-            // 랜딩(0.5~0.8)보다 낮게 둔다. 크롤 예산이 한정되면 목록을 먼저 도는 편이 낫다.
-            priority: 0.4,
-          }));
+      : indexableDetailGroups(live, today).map((g) => ({
+          url: `${SITE_URL}/popup/${g.lead.id}`,
+          // 묶인 줄 중 하나라도 바뀌면 이 행사의 내용이 바뀐 것이다.
+          lastModified: latestModified([g.lead, ...g.duplicates], now),
+          // 팝업은 기간이 끝나면 자격을 잃고 목록에서 빠진다. 매일 확인할 값어치가 있다.
+          changeFrequency: 'daily' as const,
+          // 랜딩(0.5~0.8)보다 낮게 둔다. 크롤 예산이 한정되면 목록을 먼저 도는 편이 낫다.
+          priority: 0.4,
+        }));
 
   return [...staticPages, ...localizedStatic, ...sliceLandings, ...localized, ...detailPages];
 }

@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { detailRobots, isIndexableDetail, judgeIndexable } from './indexableDetail';
+import {
+  detailRobots,
+  indexableDetailGroups,
+  isIndexableDetail,
+  judgeIndexable,
+} from './indexableDetail';
 
 /**
  * 자격 판정의 <b>양쪽 실패</b>를 막는다.
@@ -154,5 +159,100 @@ describe('detailRobots', () => {
    */
   it('색인 자격이 없어도 길은 막지 않는다', () => {
     expect(detailRobots(false)).toEqual({ index: false, follow: true });
+  });
+});
+
+/**
+ * 사이트맵에 실을 그룹.
+ *
+ * <p>여기서 지켜야 할 것은 두 가지다. 같은 행사를 두 번 올리지 않는 것, 그리고 <b>묶다가 자격
+ * 있는 줄을 잃지 않는 것</b>. 뒤엣것이 이 함수에서 유일하게 틀리기 쉬운 지점이다.
+ */
+describe('indexableDetailGroups', () => {
+  const base = {
+    location: '서울 성동구 연무장길 5',
+    startDate: '2026-08-01',
+    endDate: '2026-09-30',
+  };
+
+  it('같은 행사는 한 줄로 묶는다', () => {
+    const groups = indexableDetailGroups(
+      [
+        { id: 1, name: '짱구 팝업스토어', ...base },
+        { id: 2, name: '짱구 팝업', ...base, location: '서울 성동구 연무장길 5-1' },
+      ],
+      TODAY,
+    );
+    expect(groups).toHaveLength(1);
+    // 대표는 주소가 더 자세한 쪽이다.
+    expect(groups[0].lead.id).toBe(2);
+    expect(groups[0].duplicates.map((d) => d.id)).toEqual([1]);
+  });
+
+  it('다른 행사는 묶지 않는다', () => {
+    const groups = indexableDetailGroups(
+      [
+        { id: 1, name: '짱구 팝업', ...base },
+        { id: 2, name: '니케 팝업', ...base },
+      ],
+      TODAY,
+    );
+    expect(groups).toHaveLength(2);
+  });
+
+  it('색인 자격이 없는 것은 애초에 빼고 묶는다', () => {
+    const groups = indexableDetailGroups(
+      [
+        { id: 1, name: '짱구 팝업', ...base },
+        // 종료일이 없어 자격 미달
+        { id: 2, name: '니케 팝업', ...base, endDate: null },
+      ],
+      TODAY,
+    );
+    expect(groups.map((g) => g.lead.id)).toEqual([1]);
+  });
+
+  /*
+   * 이 시험이 이 블록의 존재 이유다.
+   *
+   * 대표는 <b>주소가 가장 긴 것</b>으로 뽑힌다 — 색인 자격과 아무 상관이 없다. 그래서 묶고 나서
+   * 대표만 판정하면, 대표가 자격 미달인 그룹에서 자격 있는 나머지 줄까지 통째로 사라진다.
+   * 아래에서 id 2 는 주소가 더 길지만 종료일이 없어 자격이 없고, id 1 은 자격이 있다.
+   * 순서를 뒤집은 구현에서는 결과가 0건이 된다.
+   */
+  it('대표가 자격 미달이어도 자격 있는 줄을 잃지 않는다', () => {
+    const groups = indexableDetailGroups(
+      [
+        { id: 1, name: '짱구 팝업', ...base },
+        {
+          id: 2,
+          name: '짱구 팝업스토어',
+          ...base,
+          location: '서울 성동구 연무장길 5-1길 2층',
+          endDate: null,
+        },
+      ],
+      TODAY,
+    );
+    expect(groups).toHaveLength(1);
+    expect(groups[0].lead.id).toBe(1);
+  });
+
+  /* lastModified 를 대표만 보고 정하면 묶인 줄의 최신 변경이 사이트맵에 안 실린다. */
+  it('묶인 줄을 버리지 않는다', () => {
+    const groups = indexableDetailGroups(
+      [
+        { id: 1, name: '짱구 팝업', ...base },
+        { id: 2, name: '짱구 팝업', ...base, location: '서울 성동구 연무장길 5-1' },
+        { id: 3, name: '짱구 팝업', ...base, location: '서울 성동구 연무장길 5-1-1' },
+      ],
+      TODAY,
+    );
+    expect(groups).toHaveLength(1);
+    expect(groups[0].duplicates).toHaveLength(2);
+  });
+
+  it('빈 입력은 빈 결과', () => {
+    expect(indexableDetailGroups([], TODAY)).toEqual([]);
   });
 });
