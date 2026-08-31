@@ -133,12 +133,20 @@ export function availabilityAfterFailure(consecutiveFailures: number): ServiceAv
  */
 export const FAILURE_COUNT_TO_DECLARE_DOWN = 3;
 
+/**
+ * 사전 차단이 만들어 내는 응답.
+ *
+ * <p>예전에는 여기서 "서버 <b>전원 장애</b>" 라고 말했다. 사실이 아니었다 — 그 순간 백엔드도
+ * 터널도 200 을 돌려주고, 못 닿는 것은 Vercel 함수의 리졸버가 백엔드 이름을 못 푸는 구간이었다
+ * (2026-08-31 실측 30분). 원인을 모르는 채 겁주는 문장은 서비스를 실제보다 나빠 보이게 만든다.
+ *
+ * <p>지금은 아는 만큼만 말한다 — 못 닿았고, 곧 다시 해 본다.
+ */
 export function serviceUnavailableResponse(): Response {
   return new Response(
     JSON.stringify({
       error: 'Service Unavailable',
-      message:
-        '현재 서버 전원 장애로 일부 기능을 사용할 수 없습니다. 복구되면 자동으로 연결됩니다.',
+      message: '서버에 연결하지 못했습니다. 잠시 후 자동으로 다시 시도합니다.',
     }),
     {
       status: 503,
