@@ -754,7 +754,10 @@ export async function SliceLandingPage({ slug, locale }: { slug: string; locale:
 
   // 이미 끝난 팝업은 제외한다. 백엔드 만료 스케줄러가 지연·실패해도 사용자에게는 종료된 팝업이
   // 보이지 않아야 한다("성수 팝업" 으로 들어왔는데 닫힌 곳이 나오는 신뢰 문제). 이 페이지는
-  // revalidate=3600 SSG 라 백엔드만 고치면 최대 1시간 지연이 생기므로 렌더 시점에도 한 겹 더 거른다.
+  // 이 페이지는 지금 SSG 가 아니다 — 아래 :135 revalidate 와 :136 dynamicParams 는 둘 다 죽어 있다.
+  // 원인은 app/layout.tsx 의 cookies()·headers() 로, 루트 레이아웃이 요청 시점 API 를 쓰면 하위
+  // 전 라우트가 동적이 된다(실측 2026-08-31: 없는 슬러그가 404 아닌 200, X-Vercel-Cache 항상 MISS).
+  // 다만 fetch 데이터 캐시는 3600초라 백엔드를 고쳐도 최대 1시간 지연이 남으므로 여기서 한 겹 더 거른다.
   const todayStart = kstTodayStart();
   // generateMetadata 와 같은 순서로 묶는다. 두 곳이 어긋나면 검색 결과의 건수와 화면의 건수가
   // 달라져, 눌러 들어온 사람이 "다른 페이지인가?" 하고 되돌아간다.
