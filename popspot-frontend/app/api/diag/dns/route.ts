@@ -1,5 +1,7 @@
 import { promises as dns } from 'node:dns';
+import { request as httpsRequest } from 'node:https';
 
+import { createBackendLookup, resolvePublicIpv4 } from '@/lib/backendDns';
 import { env } from '@/lib/env';
 
 /**
@@ -24,7 +26,9 @@ function describe(error: unknown): string {
   return e?.code ?? e?.cause?.code ?? e?.message ?? String(error);
 }
 
-async function attempt<T>(run: () => Promise<T>): Promise<{ ok: boolean; value?: T; error?: string }> {
+async function attempt<T>(
+  run: () => Promise<T>,
+): Promise<{ ok: boolean; value?: T; error?: string }> {
   const started = Date.now();
   try {
     const value = await run();
@@ -74,8 +78,56 @@ export async function GET(): Promise<Response> {
       })
     : { ok: false, error: 'resolve4 실패로 시도 못 함' };
 
+  /*
+   * 여기부터가 <b>우회로 검증</b>이다.
+   *
+   * <p>위 네 줄로 밝혀진 것: 이 함수 안에서는 getaddrinfo 도 c-ares 도 이 이름을 못 푼다.
+   * 그런데 <b>같은 순간에도</b> 다른 인스턴스는 200 을 준다 — 즉 상하는 것은 사이트가 아니라
+   * <b>인스턴스</b>다. 그래서 우회로가 "멀쩡한 인스턴스에서 되는 것"은 증명이 아니다.
+   * <b>상한 인스턴스에서 되는지</b>를 봐야 한다.
+   *
+   * <p>{@code doh} 가 그 갈림길이다. DoH 도 결국 {@code dns.google} 을 풀어야 하고 그것도 같은
+   * 리졸버를 쓴다. 여기가 실패하면 우리 우회로는 상한 인스턴스에서 무력하다 — 그러면 남는 길은
+   * ts.net 밖으로 나가는 것뿐이다. 성공하면 리졸버는 <b>이 이름에 대해서만</b> 상한 것이고
+   * 우회로가 통한다.
+   */
+  const doh = await attempt(() => resolvePublicIpv4(host));
+
+  const viaDoh = await attempt(
+    () =>
+      new Promise<number>((resolve, reject) => {
+        const req = httpsRequest(
+          {
+            hostname: host,
+            port: 443,
+            path: '/actuator/health',
+            method: 'GET',
+            lookup: createBackendLookup(host),
+            agent: false,
+            signal: AbortSignal.timeout(6000),
+          },
+          (res) => {
+            res.resume();
+            res.on('end', () => resolve(res.statusCode ?? 0));
+          },
+        );
+        req.on('error', reject);
+        req.end();
+      }),
+  );
+
   return Response.json(
-    { host, lookup, resolve4, resolve6, servers, fetchByName: byName, fetchByIp: byIp },
+    {
+      host,
+      lookup,
+      resolve4,
+      resolve6,
+      servers,
+      fetchByName: byName,
+      fetchByIp: byIp,
+      doh,
+      viaDoh,
+    },
     { headers: { 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex' } },
   );
 }
