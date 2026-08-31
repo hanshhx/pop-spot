@@ -57,6 +57,15 @@ export async function GET(): Promise<Response> {
   const resolve6 = await attempt(() => dns.resolve6(host));
   const servers = await attempt(async () => dns.getServers());
 
+  /*
+   * <b>이것이 갈림길이다.</b> 이 리졸버가 "이 이름만" 못 푸는지 "아무것도" 못 푸는지 가른다.
+   *
+   * <p>앞의 것이면 DoH 우회로가 통한다 — dns.google 은 풀리니까. 뒤의 것이면 DoH 도 같이 죽고,
+   * 우리 쪽에서 할 수 있는 일은 없다(남는 길은 ts.net 밖으로 나가는 것뿐이다).
+   * 상한 인스턴스를 잡았을 때 이 줄만 보면 된다.
+   */
+  const lookupOther = await attempt(() => dns.lookup('dns.google', { all: true }));
+
   /* 실제 요청. 이름으로 한 번, resolve4 가 준 IP 로 한 번(SNI 는 이름 그대로 유지). */
   const byName = await attempt(async () => {
     const res = await fetch(`${base}/actuator/health`, {
@@ -123,6 +132,7 @@ export async function GET(): Promise<Response> {
       resolve4,
       resolve6,
       servers,
+      lookupOther,
       fetchByName: byName,
       fetchByIp: byIp,
       doh,
