@@ -15,10 +15,24 @@ export interface CoverInput {
   photoCreditUrl?: string | null;
 }
 
+/**
+ * 우리가 그릴 수 있는 그림 주소인가.
+ *
+ * <p><b>같은 출처의 경로도 받는다.</b> 예전에는 {@code new URL(url)} 이 통하는 절대 주소만
+ * 받았는데, {@code '/partner/a.webp'} 처럼 우리가 public/ 에서 서빙하는 경로는 base 없이
+ * 파싱하면 예외가 나 <b>사진이 없는 것으로</b> 판정됐다. 실제로 제휴처가 보낸 포스터를 대표
+ * 이미지로 넣었더니 상세 히어로가 카테고리 그라데이션으로 떨어졌다(2026-09-01 운영 확인).
+ *
+ * <p>{@code '//host/x'} 는 프로토콜 생략 형태라 남의 도메인이다 — {@code '/x'} 와 한 글자
+ * 차이라서 앞 글자만 보는 구현은 여기서 뚫린다.
+ */
 function isHttpImage(url?: string | null): url is string {
-  if (!url?.trim()) return false;
+  const value = url?.trim();
+  if (!value) return false;
+  if (value.startsWith('//')) return false;
+  if (value.startsWith('/')) return true;
   try {
-    const parsed = new URL(url.trim());
+    const parsed = new URL(value);
     return parsed.protocol === 'http:' || parsed.protocol === 'https:';
   } catch {
     return false;
