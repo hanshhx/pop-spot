@@ -20,6 +20,7 @@ import { LOCALE_PATH, slugAlternates } from '@/lib/localeRoutes';
 import { localizedPath } from '@/lib/localePath';
 import { CRAWL_REFRESH_BY_LOCALE } from '@/lib/siteCopy';
 import { searchLandingTitle } from '@/lib/searchLandingTitle';
+import { orderForMetaDescription } from '@/lib/metaPickOrder';
 import { groupSameEvent } from '@/lib/groupSameEvent';
 import { walkGroups } from '@/lib/walkGroups';
 import { isProvenOutsideSeoul } from '@/lib/seoulGuard';
@@ -437,25 +438,45 @@ function widthFor(locale: Locale, base: number): number {
 }
 
 /**
- * 검색 결과 설명에 넣을 상위 몇 곳 — <b>목록과 같은 순서</b>(마감 임박순)로 고른다.
+ * 검색 설명에 넣기 전에 요구하는 최소 잔여일.
+ *
+ * <p>검색 결과의 설명은 <b>우리가 쓰는 순간이 아니라 사용자가 보는 순간</b>에 판정된다. 구글은
+ * 이 문장을 받아 두고 며칠씩 보여 주므로, 오늘 마감인 팝업을 적으면 그 설명은 내일부터 거짓이다.
+ * 일주일은 그 간격을 덮는 최소치다.
+ */
+const META_MIN_DAYS_LEFT = 7;
+
+/**
+ * 검색 결과 설명에 넣을 상위 몇 곳 — <b>목록과 같은 순서</b>(마감 임박순)로 고르되,
+ * <b>곧 죽을 것은 건너뛴다.</b>
  *
  * <p>순서를 따로 두면 설명에 적힌 팝업이 정작 목록 맨 위에 없어서, 눌러 들어온 사람이 못 찾는다.
+ * 그래서 정렬은 그대로 둔다.
+ *
+ * <p><b>그런데 그 정렬이 "가장 먼저 죽을 두 곳"을 뽑는다.</b> 실측(2026-09-01)으로
+ * {@code /popups/jamsil} 의 설명 첫 줄이 그날 마감인 팝업이었다 — 구글이 그 문장을 캐시하는
+ * 순간부터 거짓이 확정된다. 그 상태로 검색 결과에 서 있으면 눌러 들어온 사람이 끝난 팝업을 본다.
+ *
+ * <p><b>"오래 남은 순" 으로 뒤집으면 안 된다.</b> 그러면 상설에 가까운 매장만 뽑혀 설명이 밋밋해지고,
+ * 마감 임박이라는 누를 이유도 사라진다. 임박순은 지키고 {@link META_MIN_DAYS_LEFT} 미만만 뒤로
+ * 미룬다 — 남은 것이 모자라면 그때만 임박한 것으로 채운다(빈 설명보다는 낫다).
  */
 function metaPicks(markers: Marker[], locale: Locale, n: number): MetaPick[] {
   const today = kstTodayStart();
   const copy = LANDING_COPY[locale];
-  return markers
-    .map((m) => {
-      const end = parseDate(m.endDate);
-      const valid = end && startOfDay(end).getTime() >= today.getTime();
-      return { m, end: valid ? end : null };
-    })
-    .sort((a, b) => (a.end?.getTime() ?? Infinity) - (b.end?.getTime() ?? Infinity))
+
+  const dated = markers.map((m) => {
+    const end = parseDate(m.endDate);
+    const valid = end && startOfDay(end).getTime() >= today.getTime();
+    return { item: m, end: valid ? end : null };
+  });
+
+  return orderForMetaDescription(dated, today.getTime(), META_MIN_DAYS_LEFT)
     .slice(0, n)
-    .map(({ m, end }) => ({
-      name: displayName(m, locale),
+    .map(({ item, end }) => ({
+      name: displayName(item, locale),
       deadline: end ? copy.shortDate(end) : '',
-      location: shortLocation(m, locale),
+      location: shortLocation(item, locale),
     }));
 }
 
