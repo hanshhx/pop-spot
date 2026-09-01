@@ -54,7 +54,7 @@ export default function GalleryPreviewPage() {
 
       <Case
         title="1. 자료 8장"
-        note="주최측이 보낸 카드뉴스. 화살표로 한 장씩 넘긴다(모바일에서는 스와이프)."
+        note="주최측이 보낸 카드뉴스. 화살표로 한 장씩 넘기고(모바일은 스와이프), 눌러서 화면 가득 키운다."
       >
         <PopupGallery images={SAMPLES} popupName="2026 제주 로컬브랜드 팝업스토어" />
       </Case>
