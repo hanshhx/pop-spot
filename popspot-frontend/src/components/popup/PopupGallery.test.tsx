@@ -1,15 +1,18 @@
 // @vitest-environment jsdom
 
-import { act } from 'react';
+import { StrictMode, act } from 'react';
 import { createRoot } from 'react-dom/client';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@/lib/i18n', () => ({
   useLocale: () => ({
     t: (key: string) =>
-      ({ 'detail.galleryTitle': '주최측 제공 자료', 'detail.galleryProvidedBy': '자료 제공' })[
-        key
-      ] ?? key,
+      ({
+        'detail.galleryTitle': '주최측 제공 자료',
+        'detail.galleryProvidedBy': '자료 제공',
+        'gallery.prev': '이전 자료',
+        'gallery.next': '다음 자료',
+      })[key] ?? key,
   }),
 }));
 
@@ -21,6 +24,11 @@ import type { GalleryImage } from '@/lib/galleryImages';
  * 상태가 되는데, 그건 아무 테스트도 안 잡는다.
  */
 
+/* jsdom 에는 요소 스크롤이 없다. 없으면 화살표를 누르는 순간 터진다. */
+beforeAll(() => {
+  Element.prototype.scrollTo = Element.prototype.scrollTo ?? (() => {});
+});
+
 let container: HTMLDivElement | null = null;
 
 function render(images: GalleryImage[] | null | undefined) {
@@ -28,7 +36,16 @@ function render(images: GalleryImage[] | null | undefined) {
   document.body.appendChild(container);
   const root = createRoot(container);
   act(() => {
-    root.render(<PopupGallery images={images} popupName="제주 로컬브랜드 팝업스토어" />);
+    /*
+     * StrictMode 로 감싼다. React 가 상태 갱신 함수를 일부러 두 번 불러 순수한지 검사하는데,
+     * Next 개발 서버도 같은 모드로 돈다. 감싸지 않으면 <b>갱신 함수 안에 부수효과를 넣은 실수</b>가
+     * 검사에서는 안 보이고 개발 화면에서만 두 칸씩 넘어간다 — 실제로 그렇게 겪었다.
+     */
+    root.render(
+      <StrictMode>
+        <PopupGallery images={images} popupName="2026 제주 로컬브랜드 팝업스토어" />
+      </StrictMode>,
+    );
   });
   return container;
 }
@@ -43,12 +60,15 @@ const image = (imageUrl: string, extra: Partial<GalleryImage> = {}): GalleryImag
   ...extra,
 });
 
+const eight = Array.from({ length: 8 }, (_, i) => image(`/partner/jeju-2026/0${i + 1}.webp`));
+
 describe('PopupGallery', () => {
   it('받은 자료를 순서대로 그린다', () => {
-    const el = render([image('/partner/jeju-01.webp'), image('/partner/jeju-02.webp')]);
+    const el = render(eight);
 
-    const srcs = [...el.querySelectorAll('img')].map((img) => img.getAttribute('src'));
-    expect(srcs).toEqual(['/partner/jeju-01.webp', '/partner/jeju-02.webp']);
+    expect([...el.querySelectorAll('img')].map((i) => i.getAttribute('src'))).toEqual(
+      eight.map((i) => i.imageUrl),
+    );
     expect(el.textContent).toContain('주최측 제공 자료');
   });
 
@@ -65,8 +85,9 @@ describe('PopupGallery', () => {
   it('CSP 가 막을 주소는 화면에 걸지 않는다', () => {
     const el = render([image('https://cdn.partner.co.kr/a.jpg'), image('/partner/ok.webp')]);
 
-    const srcs = [...el.querySelectorAll('img')].map((img) => img.getAttribute('src'));
-    expect(srcs).toEqual(['/partner/ok.webp']);
+    expect([...el.querySelectorAll('img')].map((i) => i.getAttribute('src'))).toEqual([
+      '/partner/ok.webp',
+    ]);
   });
 
   it('제공처를 묶음 아래 한 번 적는다', () => {
@@ -81,25 +102,146 @@ describe('PopupGallery', () => {
 
   /* 화면에 안 보이는 사람에게 이 그림이 무엇인지 알려 주는 유일한 통로다. */
   it('대체 텍스트에 팝업 이름과 몇 번째인지가 들어간다', () => {
-    const el = render([image('/a.webp'), image('/b.webp')]);
+    const alts = [...render(eight).querySelectorAll('img')].map((i) => i.getAttribute('alt'));
 
-    const alts = [...el.querySelectorAll('img')].map((img) => img.getAttribute('alt'));
-    expect(alts[0]).toBe('제주 로컬브랜드 팝업스토어 — 주최측 제공 자료 1');
-    expect(alts[1]).toBe('제주 로컬브랜드 팝업스토어 — 주최측 제공 자료 2');
+    expect(alts[0]).toBe('2026 제주 로컬브랜드 팝업스토어 — 주최측 제공 자료 1');
+    expect(alts[7]).toBe('2026 제주 로컬브랜드 팝업스토어 — 주최측 제공 자료 8');
   });
 
-  /* 카드뉴스는 글이 얹힌 그림이다. object-cover 로 맞추면 읽어야 할 글이 잘린다. */
-  it('비율을 자르지 않는다 — 카드뉴스의 글이 잘리면 안 된다', () => {
-    const el = render([image('/a.webp')]);
-    const img = el.querySelector('img');
+  /*
+   * 카드뉴스는 글이 얹힌 그림이다. object-cover 로 맞추면 읽어야 할 글이 잘린다.
+   * contain 이면 어떤 비율이 와도 한 조각도 안 잘린다.
+   */
+  it('한 조각도 자르지 않는다', () => {
+    const img = render(eight).querySelector('img');
 
-    expect(img?.className).toContain('h-auto');
+    expect(img?.className).toContain('object-contain');
     expect(img?.className).not.toContain('object-cover');
   });
 
-  it('느리게 불러온다 — 여덟 장이 첫 화면을 막지 않는다', () => {
-    const el = render([image('/a.webp')]);
+  /* 첫 장은 바로 보이는 자리다. 미루면 빈 칸을 먼저 보게 된다. */
+  it('첫 장은 바로 부르고 나머지는 미룬다', () => {
+    const loading = [...render(eight).querySelectorAll('img')].map((i) =>
+      i.getAttribute('loading'),
+    );
 
-    expect(el.querySelector('img')?.getAttribute('loading')).toBe('lazy');
+    expect(loading[0]).toBe('eager');
+    expect(loading.slice(1)).toEqual(Array(7).fill('lazy'));
+  });
+});
+
+describe('넘기기', () => {
+  const arrows = (el: HTMLElement) =>
+    [...el.querySelectorAll('button')].map((b) => b.getAttribute('aria-label'));
+
+  it('여러 장이면 앞뒤 화살표가 있다', () => {
+    expect(arrows(render(eight))).toEqual(['이전 자료', '다음 자료']);
+  });
+
+  /* 한 장뿐인데 화살표가 있으면 눌러도 아무 일이 없다 — 고장 난 것처럼 보인다. */
+  it('한 장뿐이면 화살표를 안 그린다', () => {
+    const el = render([image('/only.webp')]);
+
+    expect(el.querySelectorAll('button')).toHaveLength(0);
+    expect(el.textContent).not.toContain('1 / 1');
+  });
+
+  /* 첫 장에서 '이전' 은 갈 곳이 없다. 눌리면 아무 일 없는 버튼이 된다. */
+  it('첫 장에서는 이전이 막혀 있다', () => {
+    const [prev, next] = [...render(eight).querySelectorAll('button')];
+
+    expect(prev.disabled).toBe(true);
+    expect(next.disabled).toBe(false);
+  });
+
+  /* 끝이 어디인지 모르면 계속 넘겨 봐야 한다. */
+  it('몇 장 중 몇 번째인지 알려 준다', () => {
+    expect(render(eight).textContent).toContain('1 / 8');
+  });
+
+  /*
+   * 여기부터가 이 파일에서 가장 값이 나가는 부분이다. 처음에는 화살표가 스크롤 이벤트를 기다려
+   * 번호를 갱신받았는데, 그 이벤트가 안 오는 자리에서는 <b>한 칸에서 멈췄다</b>. 이제 화살표가
+   * 자기 상태를 직접 옮기므로 브라우저 없이도 확인된다 — 예전 방식이면 이 검사 자체가 불가능했다.
+   */
+  const click = (el: HTMLElement, which: 0 | 1) => {
+    act(() => {
+      [...el.querySelectorAll('button')][which].dispatchEvent(
+        new MouseEvent('click', { bubbles: true }),
+      );
+    });
+  };
+
+  it('다음을 누를 때마다 한 장씩 넘어간다', () => {
+    const el = render(eight);
+
+    click(el, 1);
+    expect(el.textContent).toContain('2 / 8');
+    click(el, 1);
+    expect(el.textContent).toContain('3 / 8');
+    click(el, 1);
+    expect(el.textContent).toContain('4 / 8');
+  });
+
+  it('이전을 누르면 되돌아간다', () => {
+    const el = render(eight);
+
+    click(el, 1);
+    click(el, 1);
+    click(el, 0);
+    expect(el.textContent).toContain('2 / 8');
+  });
+
+  /*
+   * 손가락으로 쓸어 넘겼는데 scroll 이벤트가 아직 안 온 상태. 상태(0)를 믿고 계산하면 3번 장을
+   * 보는 사람이 다음을 눌렀을 때 2번으로 <b>되돌아간다.</b> 실제 스크롤 위치를 읽으면 그런 일이
+   * 없다. 이 검사가 그 차이를 잡는다.
+   */
+  it('쓸어 넘긴 뒤 눌러도 되돌아가지 않는다', () => {
+    const el = render(eight);
+    const track = el.querySelector('.overflow-x-auto') as HTMLElement;
+    Object.defineProperty(track, 'clientWidth', { value: 400, configurable: true });
+    Object.defineProperty(track, 'scrollLeft', { value: 800, writable: true, configurable: true });
+
+    click(el, 1);
+
+    expect(el.textContent).toContain('4 / 8');
+  });
+
+  /*
+   * 스크롤이 실제로 따라오는 환경. 갱신 함수 안에 스크롤 명령을 넣으면 React 의 이중 호출이
+   * 두 번째에 이미 옮겨진 위치를 읽어 <b>한 번 눌러도 두 칸</b> 간다. 여기서 그것이 잡힌다.
+   */
+  it('한 번 누르면 정확히 한 칸만 간다', () => {
+    const el = render(eight);
+    const track = el.querySelector('.overflow-x-auto') as HTMLElement;
+    let pos = 0;
+    Object.defineProperty(track, 'clientWidth', { value: 400, configurable: true });
+    Object.defineProperty(track, 'scrollLeft', {
+      get: () => pos,
+      set: (v: number) => {
+        pos = v;
+      },
+      configurable: true,
+    });
+    track.scrollTo = ((options: ScrollToOptions) => {
+      pos = options.left ?? pos;
+    }) as typeof track.scrollTo;
+
+    click(el, 1);
+
+    expect(pos).toBe(400);
+    expect(el.textContent).toContain('2 / 8');
+  });
+
+  /* 끝에서 더 눌러도 넘어가지 않는다. 넘어가면 빈 칸이 보인다. */
+  it('마지막을 넘어가지 않는다', () => {
+    const el = render(eight);
+
+    for (let i = 0; i < 12; i++) click(el, 1);
+
+    expect(el.textContent).toContain('8 / 8');
+    expect([...el.querySelectorAll('button')][1].disabled).toBe(true);
+    expect([...el.querySelectorAll('button')][0].disabled).toBe(false);
   });
 });
