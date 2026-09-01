@@ -516,19 +516,19 @@ export default function PopupDetailClient({
     locale === 'en'
       ? {
           status: 'Stored information',
-          notice: `The service is temporarily unavailable. This information was last checked on ${popup.emergencyCapturedAt?.slice(0, 10) ?? '2026-08-11'}.`,
+          notice: `The service is temporarily unavailable. This information was last checked on ${popup.emergencyCapturedAt?.slice(0, 10) ?? '2026-09-01'}.`,
           intro:
             'Photos, descriptions, booking links, and live features will return after the server recovers.',
         }
       : locale === 'ja'
         ? {
             status: '保存済み情報',
-            notice: `サービス一時停止中のため、${popup.emergencyCapturedAt?.slice(0, 10) ?? '2026-08-11'}に最終確認した情報を表示しています。`,
+            notice: `サービス一時停止中のため、${popup.emergencyCapturedAt?.slice(0, 10) ?? '2026-09-01'}に最終確認した情報を表示しています。`,
             intro: '写真・紹介・予約リンク・リアルタイム機能はサーバー復旧後に再表示されます。',
           }
         : {
             status: '저장된 정보',
-            notice: `서비스 일시 중단으로 ${popup.emergencyCapturedAt?.slice(0, 10) ?? '2026-08-11'}에 마지막으로 확인한 정보를 표시하고 있음.`,
+            notice: `서비스 일시 중단으로 ${popup.emergencyCapturedAt?.slice(0, 10) ?? '2026-09-01'}에 마지막으로 확인한 정보를 표시하고 있음.`,
             intro: '사진·소개·예약 링크·실시간 기능은 서버 복구 후 다시 표시됨.',
           };
   // 끝났는지는 status 문자열이 아니라 날짜로 먼저 판단한다 — status=EXPIRED 전환은 스케줄러가

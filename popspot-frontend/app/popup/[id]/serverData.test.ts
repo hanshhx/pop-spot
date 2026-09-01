@@ -90,7 +90,7 @@ describe('상세 페이지 비상 스냅샷', () => {
 
     const popup = await fetchPopupForServer('1890');
     expect(popup).toMatchObject({ id: 1890, emergencySnapshot: true });
-    expect(popup?.emergencyCapturedAt).toContain('2026-08-11');
+    expect(popup?.emergencyCapturedAt).toContain('2026-09-01');
   });
 
   it('정상 서버의 404는 삭제·비공개 결정으로 보고 스냅샷으로 되살리지 않는다', async () => {
