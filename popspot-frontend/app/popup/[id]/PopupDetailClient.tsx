@@ -869,6 +869,18 @@ export default function PopupDetailClient({
             lg 에서 order-1 로 왼쪽에 둔다(위 레일 주석 참고 — DOM 순서는 그대로, 시각 순서만
             grid order 로 뒤집는다). */}
         <div className="lg:order-1 min-w-0">
+          {/* 주최측 제공 자료 — 소개보다 <b>먼저</b> 둔다.
+              주최측이 만든 안내는 우리가 옮겨 적은 소개글보다 정확하고 최신이다. 카드뉴스에는
+              시간·구성·현장 이벤트까지 들어 있는데, 그것을 소개글 아래로 내리면 스크롤 한 번을
+              더 해야 닿는다. 원본이 있으면 원본을 먼저 보여주는 것이 맞다.
+
+              자료가 있을 때만 그려진다(PopupGallery 내부에서 판단). 장애 스냅샷일 때는 숨긴다 —
+              그때 화면은 "사진·소개·예약 링크는 서버 복구 후 다시 표시됨" 이라고 약속하고 있어서,
+              자료만 남아 있으면 그 문구와 어긋난다. */}
+          {!popup.emergencySnapshot && (
+            <PopupGallery images={popup.images} popupName={displayName || popup.name} />
+          )}
+
           {/* 소개 */}
           <section className="mt-8">
             <h2 className="mb-3 text-lg font-black">{t('detail.intro')}</h2>
@@ -881,13 +893,6 @@ export default function PopupDetailClient({
               {popup.emergencySnapshot ? snapshotCopy.intro : renderContentWithLinks(popup.content)}
             </div>
           </section>
-
-          {/* 주최측 제공 자료 — 자료가 있을 때만 그려진다(PopupGallery 내부에서 판단).
-              장애 스냅샷일 때는 숨긴다. 그때 화면은 "사진·소개·예약 링크는 서버 복구 후 다시
-              표시됨" 이라고 약속하고 있으므로, 자료만 남아 있으면 그 문구와 어긋난다. */}
-          {!popup.emergencySnapshot && (
-            <PopupGallery images={popup.images} popupName={displayName || popup.name} />
-          )}
           {/* 위치 */}
           <section className="mt-8">
             <h2 className="mb-3 text-lg font-black">{t('detail.location')}</h2>
