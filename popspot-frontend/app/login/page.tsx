@@ -30,7 +30,7 @@ import { TotpChallenge } from '@/features/auth/TotpChallenge';
 import { useServiceAvailability } from '@/components/ServiceStatusBanner';
 import { useTheme } from 'next-themes';
 import { useSeason } from '@/lib/seasonContext';
-import { seasonBgVideo } from '@/lib/seasonVideo';
+import { seasonBackground } from '@/lib/seasonVideo';
 
 const OUTAGE_COPY = {
   ko: {
@@ -58,7 +58,7 @@ export default function LoginPage() {
      로그인 화면은 첫 페인트가 늦어지는 편이 더 나쁘기 때문이다. */
   const { resolvedTheme } = useTheme();
   const season = useSeason();
-  const bgVideo = seasonBgVideo(season, resolvedTheme !== 'light');
+  const bg = seasonBackground(season, resolvedTheme !== 'light');
   const serviceUnavailable = serviceStatus === 'unavailable';
   const outageCopy = OUTAGE_COPY[locale];
 
@@ -201,25 +201,37 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-background">
-      {/* 배경 비디오 — 홈과 같은 계절 영상을 쓴다.
+      {/* 배경 — 홈과 같은 계절 자료를 쓴다.
           예전에는 야경 한 편이 박혀 있어서, 라이트로 바꿔도 이 화면만 한밤중이었다.
-          key 를 주는 이유: <source> 의 src 만 갈아 끼우면 브라우저가 다시 읽지 않는다. */}
-      <video
-        key={bgVideo.src}
-        autoPlay
-        loop
-        muted
-        playsInline
-        preload="metadata"
-        aria-hidden
-        className="absolute inset-0 w-full h-full object-cover z-0 opacity-60 motion-reduce:hidden"
-      >
-        <source
-          src={bgVideo.src}
-          type="video/mp4"
-          media="(min-width: 768px) and (prefers-reduced-motion: no-preference)"
+          계절에 따라 영상일 수도 정지 화면일 수도 있다(가름은 lib/seasonVideo.ts 의 STILL_PATTERN).
+          key 를 주는 이유: src 만 갈아 끼우면 브라우저가 다시 읽지 않는다. */}
+      {bg.still ? (
+        // eslint-disable-next-line @next/next/no-img-element -- 화면을 채우는 장식 배경이라 next/image 의 레이아웃·최적화가 필요 없다
+        <img
+          key={bg.src}
+          src={bg.src}
+          alt=""
+          aria-hidden
+          className="absolute inset-0 z-0 hidden h-full w-full object-cover opacity-60 md:block"
         />
-      </video>
+      ) : (
+        <video
+          key={bg.src}
+          autoPlay
+          loop
+          muted
+          playsInline
+          preload="metadata"
+          aria-hidden
+          className="absolute inset-0 w-full h-full object-cover z-0 opacity-60 motion-reduce:hidden"
+        >
+          <source
+            src={bg.src}
+            type="video/mp4"
+            media="(min-width: 768px) and (prefers-reduced-motion: no-preference)"
+          />
+        </video>
+      )}
 
       {/* 영상 위 베일. 색이 계절 바탕색이라 라이트에서는 밝게, 다크에서는 어둡게 덮인다 —
           한 값으로 두면 라이트 화면에 검은 막이 씌워진다. */}
