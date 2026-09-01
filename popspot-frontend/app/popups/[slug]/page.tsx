@@ -1078,7 +1078,19 @@ export async function SliceLandingPage({ slug, locale }: { slug: string; locale:
                           href={localizedPath(`/popup/${m.id}`, locale)}
                           aria-label={copy.detailAria(shownName.display ?? m.name)}
                           className="absolute inset-0 z-10 rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lime-500"
-                        />
+                        >
+                          {/*
+                            앵커 텍스트. 카드 전체를 덮는 링크라 이름은 바깥 h3 에 있고, 그래서
+                            검색엔진이 보는 링크는 <b>비어 있었다</b> — 실측(2026-09-01) 성수 랜딩의
+                            상세 링크 184개 중 81개(44%)가 그랬다. 구글은 앵커 텍스트로 도착지가
+                            무엇에 관한 페이지인지 판단하는데, 상세가 전 유형 중 순위가 가장 좋은데도
+                            (평균 5.83) 우리가 그쪽으로 한 글자도 안 보내고 있었다.
+
+                            sr-only 라 화면은 그대로다. 읽어 주는 것도 그대로다 — aria-label 이
+                            있으면 스크린리더는 그것을 쓰고 안쪽 텍스트는 읽지 않는다.
+                          */}
+                          <span className="sr-only">{shownName.display ?? m.name}</span>
+                        </Link>
                         {/* 왜 이걸 골랐는지 먼저 적는다. 이유가 없으면 그냥 또 하나의 목록이다. */}
                         <p className="text-[11px] font-black text-lime-600 dark:text-lime-300">
                           {copy.pickReasons[reason]}
@@ -1180,7 +1192,10 @@ export async function SliceLandingPage({ slug, locale }: { slug: string; locale:
                                   href={localizedPath(`/popup/${m.id}`, locale)}
                                   aria-label={copy.detailAria(shownName.display ?? m.name)}
                                   className="absolute inset-0 z-10 rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lime-500"
-                                />
+                                >
+                                  {/* 앵커 텍스트 — 근거는 위 rounded-xl 오버레이의 주석. */}
+                                  <span className="sr-only">{shownName.display ?? m.name}</span>
+                                </Link>
                                 <MapPin size={13} className="shrink-0 text-gray-400" />
                                 <span className="min-w-0 flex-1 truncate font-bold">
                                   {shownName.display}
@@ -1229,7 +1244,10 @@ export async function SliceLandingPage({ slug, locale }: { slug: string; locale:
                         href={localizedPath(`/popup/${m.id}`, locale)}
                         aria-label={copy.detailAria(shownName.display ?? m.name)}
                         className="absolute inset-0 z-10 rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lime-500"
-                      />
+                      >
+                        {/* 앵커 텍스트 — 근거는 위 rounded-xl 오버레이의 주석. */}
+                        <span className="sr-only">{shownName.display ?? m.name}</span>
+                      </Link>
                       <span className="text-lime-500 mt-1">
                         <MapPin size={14} />
                       </span>
@@ -1378,7 +1396,10 @@ export async function SliceLandingPage({ slug, locale }: { slug: string; locale:
                           href={localizedPath(`/popup/${m.id}`, locale)}
                           aria-label={copy.detailAria(shownName.display ?? m.name)}
                           className="absolute inset-0 z-10 rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lime-500"
-                        />
+                        >
+                          {/* 앵커 텍스트 — 근거는 위 rounded-xl 오버레이의 주석. */}
+                          <span className="sr-only">{shownName.display ?? m.name}</span>
+                        </Link>
                         <MapPin size={13} className="shrink-0 text-lime-500" />
                         <span className="min-w-0 flex-1 truncate font-bold">
                           {shownName.display}
@@ -1433,7 +1454,10 @@ export async function SliceLandingPage({ slug, locale }: { slug: string; locale:
                       href={localizedPath(`/popup/${m.id}`, locale)}
                       aria-label={copy.detailAria(shownName.display ?? m.name)}
                       className="absolute inset-0 z-10 rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lime-500"
-                    />
+                    >
+                      {/* 앵커 텍스트 — 근거는 위 rounded-xl 오버레이의 주석. */}
+                      <span className="sr-only">{shownName.display ?? m.name}</span>
+                    </Link>
                     <MapPin size={13} className="shrink-0 text-gray-400" />
                     <span className="min-w-0 flex-1 truncate font-bold">{shownName.display}</span>
                     {badge && (
