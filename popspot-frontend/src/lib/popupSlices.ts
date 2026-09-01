@@ -724,6 +724,32 @@ export const BRANDS: BrandDef[] = [
     keywords: ['명조', 'wuthering'],
   },
   {
+    /*
+     * 구글 트렌드 2026-08 급상승(Breakout). 진행 중인 팝업이 둘이고 <b>종료일이 11월 말</b>까지라
+     * 색인 조건을 통과한다 — 오늘 재보니 색인을 막는 가장 큰 이유가 종료일 부재(44.7%)였는데,
+     * 이 둘은 거기에 걸리지 않는다.
+     *
+     * <p>키워드에 '코난' 만 넣어도 안전하다. 매칭은 팝업 <b>이름·위치</b>에만 걸리고(본문 아님),
+     * 실측한 4건이 전부 코난 관련이었다.
+     */
+    slug: 'detective-conan',
+    label: '명탐정 코난',
+    labelEn: 'Detective Conan',
+    labelJa: '名探偵コナン',
+    keywords: ['명탐정 코난', '코난', 'detective conan', 'conan'],
+  },
+  {
+    /*
+     * 구글 트렌드에서 1일 +80% · 7일 +30% · 30일 Breakout 으로 <b>세 구간 모두 상승</b>이다.
+     * 지금 잡히는 팝업은 09-06 에 끝나 색인 창이 짧지만, 슬러그는 다음 행사에도 그대로 쓰인다.
+     */
+    slug: 'fangamer',
+    label: '팬게이머',
+    labelEn: 'Fangamer',
+    labelJa: 'Fangamer' /* 공식 표기 미확인 — 통용 표기 */,
+    keywords: ['팬게이머', '팬 게이머', 'fangamer'],
+  },
+  {
     slug: 'chiikawa',
     label: '치이카와',
     labelEn: 'Chiikawa',
