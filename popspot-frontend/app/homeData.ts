@@ -1,3 +1,4 @@
+import { fetchBackend } from '@/lib/backendSsrFetch';
 import type { PopupStore } from '@/types/popup';
 import { emergencyMarkerToPopup, loadPublicMarkers } from '@/lib/emergencyPopupData';
 
@@ -47,9 +48,7 @@ export async function fetchHomePopups(): Promise<PopupStore[]> {
   }
 
   try {
-    const res = await fetch(`${apiBase}/api/popups`, {
-      next: { revalidate: REVALIDATE_SECONDS },
-    });
+    const res = await fetchBackend(`${apiBase}/api/popups`, REVALIDATE_SECONDS);
     if (!res.ok) throw new Error(`popup list ${res.status}`);
     const raw = await res.json();
     if (Array.isArray(raw) && raw.length > 0) return raw as PopupStore[];
