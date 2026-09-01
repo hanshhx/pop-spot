@@ -35,6 +35,8 @@ import { notify, notifyError, confirmAction } from '@/lib/notify';
 import { trackVisitEvent } from '@/lib/visitEvent';
 import { popupCoverUrl } from '@/lib/popupCover';
 import { PhotoDisclosure } from '@/components/popup/PhotoDisclosure';
+import { PopupGallery } from '@/components/popup/PopupGallery';
+import type { GalleryImage } from '@/lib/galleryImages';
 import LocaleSwitcher from '@/components/LocaleSwitcher';
 import { addToCalendar, toCalendarEvent } from '@/lib/calendar';
 import type { User } from '@/types/popup';
@@ -78,6 +80,8 @@ interface PopupDetail {
   photoSourceUrl?: string;
   photoCreditName?: string;
   photoCreditUrl?: string;
+  /** 소개 아래 갤러리에 그릴 주최측 제공 자료. 비어 있으면 블록 자체가 안 그려진다. */
+  images?: GalleryImage[];
   // [V4] 자동수집/검수/저작권 메타
   sourceType?: string;
   sourceUrl?: string;
@@ -877,6 +881,12 @@ export default function PopupDetailClient({
             </div>
           </section>
 
+          {/* 주최측 제공 자료 — 자료가 있을 때만 그려진다(PopupGallery 내부에서 판단).
+              장애 스냅샷일 때는 숨긴다. 그때 화면은 "사진·소개·예약 링크는 서버 복구 후 다시
+              표시됨" 이라고 약속하고 있으므로, 자료만 남아 있으면 그 문구와 어긋난다. */}
+          {!popup.emergencySnapshot && (
+            <PopupGallery images={popup.images} popupName={displayName || popup.name} />
+          )}
           {/* 위치 */}
           <section className="mt-8">
             <h2 className="mb-3 text-lg font-black">{t('detail.location')}</h2>
