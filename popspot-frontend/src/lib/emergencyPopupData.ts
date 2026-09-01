@@ -1,3 +1,5 @@
+import { fetchBackend } from './backendSsrFetch';
+
 import snapshotJson from '@/data/emergency/popups-2026-08-11.json';
 import snapshotMeta from '@/data/emergency/popups-2026-08-11.meta.json';
 import { isExpired, isStale, kstTodayStart } from '@/lib/popupSlices';
@@ -75,7 +77,7 @@ export async function loadPublicMarkers(revalidate = 3600): Promise<PublicMarker
   const apiBase = process.env.NEXT_PUBLIC_API_URL;
   if (apiBase && /^https?:\/\//.test(apiBase)) {
     try {
-      const response = await fetch(`${apiBase}/api/map/markers`, { next: { revalidate } });
+      const response = await fetchBackend(`${apiBase}/api/map/markers`, revalidate);
       if (response.ok) {
         const live = normalizedLiveMarkers(await response.json());
         if (live) return { markers: live, source: 'live' };
