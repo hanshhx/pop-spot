@@ -5,6 +5,7 @@ import { SiteChrome } from '@/components/layout/SiteChrome';
 import { fetchPopupForServer, shouldIndexDetail } from './serverData';
 import { detailRobots } from '@/lib/indexableDetail';
 import { popupDetailTitle } from '@/lib/detailTitle';
+import { shareCardFor } from '@/lib/seasonOgImage';
 import { verifiedPopupImage } from '@/lib/popupEventJsonLd';
 
 /**
@@ -86,13 +87,14 @@ export async function generateMetadata({
       url: canonical,
       siteName: 'POP-SPOT',
       type: 'website',
-      images: socialImage ? [socialImage] : undefined,
+      // 비면 카톡·네이버 공유 카드가 통째로 빈다. 근거는 shareCardFor 주석.
+      images: [shareCardFor(socialImage)],
     },
     twitter: {
-      card: socialImage ? 'summary_large_image' : 'summary',
+      card: 'summary_large_image',
       title: ogTitle,
       description,
-      images: socialImage ? [socialImage] : undefined,
+      images: [shareCardFor(socialImage)],
     },
   };
 }
