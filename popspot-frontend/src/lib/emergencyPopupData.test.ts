@@ -19,18 +19,18 @@ describe('비상 공개 팝업 스냅샷', () => {
     vi.unstubAllEnvs();
   });
 
-  it('원본 949건과 공개 필드 통계를 변형 없이 보존한다', () => {
+  it('원본 1,786건과 공개 필드 통계를 변형 없이 보존한다', () => {
     const rows = allEmergencyMarkers();
-    expect(rows).toHaveLength(949);
-    expect(new Set(rows.map((row) => row.id)).size).toBe(949);
-    expect(rows.filter((row) => row.latitude && row.longitude)).toHaveLength(709);
-    expect(rows.filter((row) => row.endDate)).toHaveLength(585);
-    expect(rows.filter((row) => row.nameJa)).toHaveLength(368);
+    expect(rows).toHaveLength(1786);
+    expect(new Set(rows.map((row) => row.id)).size).toBe(1786);
+    expect(rows.filter((row) => row.latitude && row.longitude)).toHaveLength(1545);
+    expect(rows.filter((row) => row.endDate)).toHaveLength(988);
+    expect(rows.filter((row) => row.nameJa)).toHaveLength(511);
     expect(EMERGENCY_SNAPSHOT_META.sha256).toBe(
-      '3ca45c49ecf7528c2fe03f2682aa2cb9de043567e5197ff0c75e0ea2b5640149',
+      'b9eb8d48fb12e7585dcdbead56664d65e3235b891900850b34a5ff721209c882',
     );
     const rawSnapshot = readFileSync(
-      path.join(process.cwd(), 'src/data/emergency/popups-2026-08-11.json'),
+      path.join(process.cwd(), 'src/data/emergency/popups-2026-09-01.json'),
     );
     expect(createHash('sha256').update(rawSnapshot).digest('hex')).toBe(
       EMERGENCY_SNAPSHOT_META.sha256,
@@ -68,6 +68,6 @@ describe('비상 공개 팝업 스냅샷', () => {
     const result = await loadPublicMarkers();
     expect(result.source).toBe('snapshot');
     expect(result.markers.length).toBeGreaterThan(0);
-    expect(result.capturedAt).toContain('2026-08-11');
+    expect(result.capturedAt).toContain('2026-09-01');
   });
 });
