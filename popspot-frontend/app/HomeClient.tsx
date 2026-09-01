@@ -60,6 +60,7 @@ function fixedRegionLabel(code: RegionCode, locale: Locale): string {
   return region ? localizedRegionLabel(region, locale) : code;
 }
 import LocaleSwitcher from '@/components/LocaleSwitcher';
+import { FeaturedPopupBanner } from '@/components/main/FeaturedPopupBanner';
 import { PhotoDisclosure } from '@/components/popup/PhotoDisclosure';
 import { useDragScroll } from '@/hooks/useDragScroll';
 
@@ -1565,6 +1566,12 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
             viewport={{ once: true }}
             variants={sectionVariants}
           >
+            {/* 주목 팝업 — 제휴로 들어온 건을 홈 맨 위 한 줄로 알린다. 띄울 것이 없거나 이미
+                끝났으면 스스로 아무것도 그리지 않는다(featuredBanner.activeFeatured).
+                자기 소개(아래 히어로)보다 위에 두되 한 줄로 얇게 둔다 — 두껍게 두면 좁은 화면에서
+                "오늘 서울에 N곳" 이 화면 밖으로 밀려 홈이 광고판처럼 읽힌다. */}
+            <FeaturedPopupBanner />
+
             {/* 언어 전환 — 히어로 <b>밖</b>, 자기 줄에 둔다.
                 예전엔 히어로 카드 안에 absolute right-4 top-4 로 띄웠는데 두 가지가 깨졌다.
                 (1) 좁은 화면에서 "오늘의 서울 팝업" 배지와 겹쳤다. 카드 폭이 줄어도 배지는
