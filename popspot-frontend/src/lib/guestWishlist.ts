@@ -76,6 +76,19 @@ export function toggleGuestWishlist(popupId: number): boolean {
 }
 
 /**
+ * 목록에서 뺀다. 없으면 아무 일도 없다.
+ *
+ * <p>{@link toggleGuestWishlist} 로 대신하지 않는 이유는, 목록 화면의 "빼기" 는 담겨 있다는 전제
+ * 아래 눌리는데 토글은 <b>없으면 담아 버리기</b> 때문이다. 화면과 저장소가 어긋난 순간
+ * 빼기 버튼이 담기 버튼으로 둔갑한다.
+ */
+export function removeGuestWishlist(popupId: number): void {
+  const current = read();
+  if (!current.includes(popupId)) return;
+  write(current.filter((id) => id !== popupId));
+}
+
+/**
  * 목록을 <b>꺼내면서 비운다.</b> 로그인 직후 서버로 옮길 때 쓴다.
  *
  * <p>비우는 것까지 한 번에 하는 이유는, 꺼내 놓고 옮기다 실패했을 때 <b>같은 것을 두 번 올리는</b>
