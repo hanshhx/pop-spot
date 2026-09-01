@@ -2,13 +2,11 @@ package com.example.popspotbackend.dto;
 
 import com.example.popspotbackend.entity.PopupImage;
 import com.example.popspotbackend.entity.PopupStore;
-
-import lombok.Builder;
-import lombok.Data;
-
 import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
+import lombok.Builder;
+import lombok.Data;
 
 /**
  * 상세 화면 '제공 자료' 갤러리에 그리는 사진 한 장.
