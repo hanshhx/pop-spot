@@ -1,0 +1,10 @@
+{
+  "capturedAt": "2026-09-01T23:40:38+09:00",
+  "sourceUrl": "https://popspot.co.kr/ (서버 렌더 페이로드에서 건짐 — 백엔드 장애 중)",
+  "sha256": "b9eb8d48fb12e7585dcdbead56664d65e3235b891900850b34a5ff721209c882",
+  "itemCount": 1786,
+  "coordinateCount": 1545,
+  "endDateCount": 988,
+  "japaneseNameCount": 511,
+  "mergedFrom": "popups-2026-08-11.json (끝난 팝업 상세가 404 가 되지 않도록 합침)"
+}
