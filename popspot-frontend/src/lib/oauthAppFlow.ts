@@ -62,9 +62,7 @@ export const APP_RETURN_LINK = 'https://popspot.co.kr/app/auth';
  */
 export function appFlowNonce(): string | null {
   if (typeof document === 'undefined') return null;
-  const hit = document.cookie
-    .split('; ')
-    .find((c) => c.startsWith(`${APP_FLOW_COOKIE}=`));
+  const hit = document.cookie.split('; ').find((c) => c.startsWith(`${APP_FLOW_COOKIE}=`));
   if (!hit) return null;
   const value = hit.slice(APP_FLOW_COOKIE.length + 1);
   return value || null;
