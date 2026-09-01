@@ -37,6 +37,26 @@ export function ogImageFor(season: Season): string {
   return AVAILABLE[season] ? seasonOgPath(season) : DEFAULT_OG_IMAGE;
 }
 
+/**
+ * 팝업 상세·랜딩이 내보낼 공유 카드 — <b>절대 비지 않는다.</b>
+ *
+ * <p>실측(2026-09-01): 홈에만 {@code og:image} 가 있고 상세·랜딩에는 <b>한 장도 없었다.</b>
+ * Next 의 metadata 는 자식의 {@code openGraph} 가 부모 것을 <b>통째로 대체</b>하므로, 자식이
+ * {@code images} 를 안 쓰면 루트의 카드까지 같이 사라진다. 그래서 카톡·네이버 공유 카드가 빈 채로
+ * 나갔다.
+ *
+ * <p><b>팝업 사진을 쓰지 않는 이유.</b> 살아 있는 팝업 1,405건의 {@code photoOrigin} 이
+ * PEXELS(1,184) 아니면 PLACEHOLDER(221)다 — <b>실제 팝업 사진이 한 장도 없다.</b> 화면에서는
+ * "연출 이미지 · 실제 팝업 현장 아님" 을 붙여 두지만 공유 카드에는 그 고지를 붙일 자리가 없다.
+ * 스톡 사진을 그 팝업의 사진인 것처럼 내보내는 것은 거짓이므로, 브랜드 카드로 간다.
+ *
+ * <p>나중에 진짜 사진이 들어오면({@code photoOrigin} 이 CRAWLED·USER) 그것이 우선한다 —
+ * 판정은 {@code verifiedPopupImage} 가 이미 하고 있다.
+ */
+export function shareCardFor(verifiedImage: string | null | undefined): string {
+  return verifiedImage?.trim() ? verifiedImage.trim() : DEFAULT_OG_IMAGE;
+}
+
 /** 이 계절 카드가 준비돼 있는가 — 관리자 화면에서 빈 곳을 보여주는 데 쓴다. */
 export function hasSeasonOgImage(season: Season): boolean {
   return Boolean(AVAILABLE[season]);
