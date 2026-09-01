@@ -21,8 +21,8 @@ const COPY = {
     denied: (status: number) => `인증이 거부되었습니다 (${status}).`,
     network: '서버에 연결하지 못했습니다.',
     fallback: '인증 정보를 확인 중입니다...',
-    toApp: "앱으로 돌아가는 중…",
-    toAppManual: "앱이 열리지 않으면 여기를 누르세요",
+    toApp: '앱으로 돌아가는 중…',
+    toAppManual: '앱이 열리지 않으면 여기를 누르세요',
   },
   en: {
     processing: 'Signing you in…',
@@ -34,7 +34,7 @@ const COPY = {
     denied: (status: number) => `Sign-in was denied (${status}).`,
     network: 'Could not connect to the server.',
     fallback: 'Checking your sign-in…',
-    toApp: "Returning to the app…",
+    toApp: 'Returning to the app…',
     toAppManual: "Tap here if the app doesn't open",
   },
   ja: {
@@ -47,8 +47,8 @@ const COPY = {
     denied: (status: number) => `ログインが拒否されました（${status}）。`,
     network: 'サーバーに接続できませんでした。',
     fallback: 'ログイン情報を確認中…',
-    toApp: "アプリに戻っています…",
-    toAppManual: "アプリが開かない場合はこちら",
+    toApp: 'アプリに戻っています…',
+    toAppManual: 'アプリが開かない場合はこちら',
   },
 } as const;
 
