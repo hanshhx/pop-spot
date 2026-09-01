@@ -15,6 +15,8 @@ import {
  */
 
 /** 화면이 쓰는 모양. PopupDetailClient 의 {@code PopupDetail} 과 같은 필드를 채운다. */
+import type { GalleryImage } from '@/lib/galleryImages';
+
 export type ServerPopup = {
   id: number;
   name: string;
@@ -35,6 +37,8 @@ export type ServerPopup = {
   photoSourceUrl?: string;
   photoCreditName?: string;
   photoCreditUrl?: string;
+  /** 소개 아래 갤러리에 그릴 주최측 제공 자료. 없으면 갤러리 자체가 안 그려진다. */
+  images?: GalleryImage[];
   sourceType?: string;
   sourceUrl?: string;
   sourceName?: string;
@@ -117,6 +121,9 @@ export async function fetchPopupForServer(id: string): Promise<ServerPopup | nul
       photoSourceUrl: d.photoSourceUrl ?? undefined,
       photoCreditName: d.photoCreditName ?? undefined,
       photoCreditUrl: d.photoCreditUrl ?? undefined,
+      // 여기는 필드를 하나씩 옮겨 적는 관문이라, 백엔드가 새 필드를 보내도 적지 않으면 조용히
+      // 사라진다. 실제로 갤러리가 그렇게 사라졌다 — API 는 8장을 주는데 화면은 비어 있었다.
+      images: Array.isArray(d.images) ? d.images : undefined,
       sourceType: d.sourceType ?? undefined,
       sourceUrl: d.sourceUrl ?? undefined,
       sourceName: d.sourceName ?? undefined,

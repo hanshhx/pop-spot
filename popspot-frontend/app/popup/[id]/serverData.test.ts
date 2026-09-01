@@ -111,3 +111,70 @@ describe('상세 페이지 비상 스냅샷', () => {
     expect(shouldIndexDetailOn(popup, '2026-08-14')).toBe(false);
   });
 });
+
+/**
+ * 이 파일의 매핑은 <b>필드를 하나씩 옮겨 적는 관문</b>이다. 백엔드가 새 필드를 보내도 여기에 적지
+ * 않으면 조용히 사라지고, 화면은 "원래 그런 것" 처럼 멀쩡히 그려진다.
+ *
+ * <p>실제로 그렇게 잃었다(2026-09-01). 백엔드 DTO 를 열어 갤러리 8장을 내보내게 했는데 상세에는
+ * 아무것도 안 붙었다 — API 응답에는 8장이 그대로 있었다. 관문이 백엔드 DTO 말고 <b>여기에도</b>
+ * 있다는 것을 못 봤기 때문이다.
+ */
+describe('백엔드가 보낸 것을 화면까지 옮긴다', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+  });
+
+  const respond = (data: Record<string, unknown>) =>
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response(JSON.stringify({ data }), {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          }),
+      ),
+    );
+
+  const jeju = {
+    id: 5619,
+    name: '2026 제주 로컬브랜드 팝업스토어',
+    location: '서울 성동구 KT&G 상상플래닛',
+  };
+
+  it('주최측 제공 자료를 흘리지 않는다', async () => {
+    vi.stubEnv('NEXT_PUBLIC_API_URL', 'https://backend.example.com');
+    respond({
+      ...jeju,
+      images: [
+        { imageUrl: '/partner/jeju-2026/01.webp', photoOrigin: 'USER' },
+        { imageUrl: '/partner/jeju-2026/02.webp', photoOrigin: 'USER' },
+      ],
+    });
+
+    const popup = await fetchPopupForServer('5619');
+
+    expect(popup?.images).toHaveLength(2);
+    expect(popup?.images?.map((i) => i.imageUrl)).toEqual([
+      '/partner/jeju-2026/01.webp',
+      '/partner/jeju-2026/02.webp',
+    ]);
+  });
+
+  /* 옛 백엔드는 이 필드를 아예 안 보낸다. 빈 배열이 아니라 없음이어야 갤러리가 안 그려진다. */
+  it('자료를 안 보내면 undefined 다', async () => {
+    vi.stubEnv('NEXT_PUBLIC_API_URL', 'https://backend.example.com');
+    respond(jeju);
+
+    expect((await fetchPopupForServer('5619'))?.images).toBeUndefined();
+  });
+
+  it('배열이 아닌 값이 와도 터지지 않는다', async () => {
+    vi.stubEnv('NEXT_PUBLIC_API_URL', 'https://backend.example.com');
+    respond({ ...jeju, images: '여덟 장' });
+
+    expect((await fetchPopupForServer('5619'))?.images).toBeUndefined();
+  });
+});
