@@ -1,9 +1,12 @@
 package com.example.popspotbackend.dto;
 
 import com.example.popspotbackend.entity.PopupStore;
-import java.time.LocalDateTime;
+
 import lombok.Builder;
 import lombok.Data;
+
+import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * 무인증 공개 상세({@code GET /api/popups/{id}}) 응답 DTO.
@@ -12,9 +15,12 @@ import lombok.Data;
  * 추가하면 그 순간 무인증 공개 API 의 스펙이 같이 늘어났다 — 아무도 그런 의도로 필드를 넣지 않는데도. 노출을 게이트가 아니라 화이트리스트로 고정한다.
  *
  * <p><b>뺀 필드.</b> crawledAt / lastSeenAt 원본 / confidenceScore / reviewStatus / externalId /
- * reporterId / partnerId / apiPopupId / isActive / images 원본 배열. 전부 수집·검수용 내부 값이고, 프론트 상세 화면
- * ({@code app/popup/[id]/page.tsx})에서 화면에 그려지는 곳이 없다({@code reviewStatus} 는 state 에 담기기만 하고 렌더에 쓰이지
- * 않는다).
+ * reporterId / partnerId / apiPopupId / isActive. 전부 수집·검수용 내부 값이고, 프론트 상세 화면 ({@code
+ * app/popup/[id]/page.tsx})에서 화면에 그려지는 곳이 없다({@code reviewStatus} 는 state 에 담기기만 하고 렌더에 쓰이지 않는다).
+ *
+ * <p><b>{@code images} 는 뺀 필드였다가 들어왔다.</b> 뺀 이유가 "화면에 그려지는 곳이 없다" 였고, 이제 그리는 곳이 생겼다 — 주최측이 보내온
+ * 포스터·카드뉴스를 소개 아래 갤러리에 붙인다. 다만 엔티티의 원본 배열이 아니라 {@link PopupGalleryImageDto} 로 한 겹 걸러서 내보낸다. 화이트리스트의
+ * 규칙은 여전히 <b>그리는 것만, 그리는 데 필요한 만큼만</b> 이다.
  *
  * <p><b>sourceUrl / sourceName 은 남긴다.</b> 목록에서는 뺐지만 상세에서는 유지한다. (1) 이용약관 §10-2 가 "자동수집 정보에는 항상 원본
  * 출처 링크가 함께 표시되며, 상세페이지에서 이용자가 원문으로 이동할 수 있도록 출처 링크를 제공한다" 고 공표돼 있고, (2) 상세 화면의 'AI 자동수집 정보' 블록이
@@ -51,6 +57,12 @@ public class PopupPublicDetailDto {
     private String photoSourceUrl;
     private String photoCreditName;
     private String photoCreditUrl;
+
+    /**
+     * 소개 아래 갤러리에 그릴 사진들 — <b>대표가 아닌 실사진만.</b> 없으면 빈 배열이고, 오늘 살아 있는 팝업은 전부 여기에 해당한다. 선별 규칙과 그 이유는
+     * {@link PopupGalleryImageDto#galleryOf}.
+     */
+    private List<PopupGalleryImageDto> images;
 
     /** MANUAL / CRAWLED / USER_REPORT — 'AI 자동수집 정보' 고지 블록의 노출 조건. */
     private String sourceType;
@@ -93,6 +105,7 @@ public class PopupPublicDetailDto {
                 .photoSourceUrl(p.getPhotoSourceUrl())
                 .photoCreditName(p.getPhotoCreditName())
                 .photoCreditUrl(p.getPhotoCreditUrl())
+                .images(PopupGalleryImageDto.galleryOf(p))
                 .sourceType(p.getSourceType())
                 .sourceName(p.getSourceName())
                 .sourceUrl(p.getSourceUrl())
