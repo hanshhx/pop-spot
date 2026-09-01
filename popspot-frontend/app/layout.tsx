@@ -2,8 +2,9 @@ import type { Metadata, Viewport } from 'next';
 import { cookies, headers } from 'next/headers';
 import './globals.css';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { Analytics } from '@vercel/analytics/next';
 import { SpeedInsights } from '@vercel/speed-insights/next';
+
+import { SiteAnalytics } from '@/components/SiteAnalytics';
 import VisitTracker from '@/components/VisitTracker';
 import { Providers } from './Providers';
 import { LocaleProvider } from '@/lib/i18n';
@@ -157,7 +158,9 @@ export default async function RootLayout({
             SpeedInsights 는 실사용자 Core Web Vitals(LCP/CLS/INP) 실측 — 지도(MapLibre) 렌더
             성능 개선이 실제로 효과가 있었는지 합성 점수가 아닌 실측으로 확인하기 위해 붙인다. */}
         <VisitTracker />
-        <Analytics />
+        {/* Analytics 를 한 겹 감싼 이유는 SiteAnalytics 주석 참고 — 내 방문을 빼려면
+            beforeSend(함수)를 넘겨야 하는데, 서버 컴포넌트에서 함수는 못 건넌다. */}
+        <SiteAnalytics />
         <SpeedInsights />
 
         {/* v2.41 — Kakao Map SDK 로더 제거.
