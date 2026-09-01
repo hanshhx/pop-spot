@@ -1,12 +1,10 @@
 package com.example.popspotbackend.dto;
 
 import com.example.popspotbackend.entity.PopupStore;
-
-import lombok.Builder;
-import lombok.Data;
-
 import java.time.LocalDateTime;
 import java.util.List;
+import lombok.Builder;
+import lombok.Data;
 
 /**
  * 무인증 공개 상세({@code GET /api/popups/{id}}) 응답 DTO.
