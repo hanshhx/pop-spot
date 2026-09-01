@@ -46,31 +46,53 @@ export type SeasonBgManifest = Record<Season, { light: string | null; dark: stri
 export const SEASON_BG: SeasonBgManifest = {
   spring: { light: '/bg/spring-light.mp4', dark: '/bg/spring-dark.mp4' },
   summer: { light: '/bg/summer-light.mp4', dark: '/bg/summer-dark.mp4' },
-  autumn: { light: '/bg/autumn-light.mp4', dark: '/bg/autumn-dark.mp4' },
+  // 가을만 정지 화면이다. 아래 STILL_PATTERN 주석에 이유를 적어 두었다.
+  autumn: { light: '/bg/autumn-light.webp', dark: '/bg/autumn-dark.webp' },
   winter: { light: '/bg/winter-light.mp4', dark: '/bg/winter-dark.mp4' },
 };
 
-export interface SeasonBgVideo {
+/**
+ * 이 칸이 <b>정지 화면</b>인가를 확장자로 정한다.
+ *
+ * <p>따로 플래그를 두지 않는 이유는, 목록과 렌더 방식이 <b>어긋날 수 없게</b> 하기 위해서다.
+ * {@code still: true} 같은 칸을 두면 파일만 바꾸고 플래그를 안 고치는 날이 오고, 그러면 이미지를
+ * {@code <video>} 에 물려 배경이 통째로 빈다. 확장자는 파일 자체의 성질이라 잊을 수가 없다.
+ *
+ * <p><b>왜 가을만 정지인가.</b> 여덟 편 중 가을만 카메라가 숲 사이로 전진하며 훑는다. 가까운 줄기가
+ * 화면을 빠르게 가로지르고 뒤쪽은 천천히 움직이는 시차라, 글자 뒤에 깔리면 어지럽다는 신고가 있었다
+ * (2026-08-31). 위 §용량 문단이 "나뭇잎에 카메라까지 움직이는 그림은 벚꽃보다 일곱 배를 먹는다"
+ * 고 적어 둔 그 영상이다 — 같은 이유로 눈에도 가장 부담스러웠다.
+ *
+ * <p>영상에서 프레임 하나를 뽑아({@code hqdn3d} 로 그레인 제거, webp q60) 대신 깔았다.
+ * 다시 영상으로 되돌리려면 위 칸의 확장자를 {@code .mp4} 로 바꾸기만 하면 된다 — 파일은 남겨 뒀다.
+ */
+const STILL_PATTERN = /\.(webp|avif|png|jpe?g)$/i;
+
+export interface SeasonBackground {
   src: string;
+  /** 정지 이미지인가. 참이면 {@code rate} 는 의미가 없다. */
+  still: boolean;
   /**
    * 재생 속도. 라이트는 도심 불빛 반짝임이 커서 0.5 배속으로 차분하게 깔고, 다크(야경)는
    * 원속도를 유지한다 — 기존 두 편에서 쓰던 값을 그대로 이어받는다.
    */
   rate: number;
-  /** 계절 전용 영상이 실제로 걸렸는지. 계절 파일이 없어 기본 영상으로 떨어졌으면 false. */
+  /** 계절 전용 배경이 실제로 걸렸는지. 계절 파일이 없어 기본 영상으로 떨어졌으면 false. */
   seasonal: boolean;
 }
 
-/** 지금 화면이 깔아야 할 배경 영상. {@code manifest} 는 테스트에서만 갈아 끼운다. */
-export function seasonBgVideo(
+/** 지금 화면이 깔아야 할 배경. {@code manifest} 는 테스트에서만 갈아 끼운다. */
+export function seasonBackground(
   season: Season,
   dark: boolean,
   manifest: SeasonBgManifest = SEASON_BG,
-): SeasonBgVideo {
+): SeasonBackground {
   const mode = dark ? 'dark' : 'light';
   const seasonal = manifest[season][mode];
+  const src = seasonal ?? (dark ? BASE_DARK : BASE_LIGHT);
   return {
-    src: seasonal ?? (dark ? BASE_DARK : BASE_LIGHT),
+    src,
+    still: STILL_PATTERN.test(src),
     rate: dark ? 1 : 0.5,
     seasonal: seasonal != null,
   };

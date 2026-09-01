@@ -132,7 +132,7 @@ import { ProfileEditModal } from '@/features/profile/ProfileEditModal';
 import BrowseSection from '@/components/main/BrowseSection';
 import { PopupCard } from '@/components/main/PopupCard';
 import SeasonBanner from '@/components/main/SeasonBanner';
-import { seasonBgVideo } from '@/lib/seasonVideo';
+import { seasonBackground } from '@/lib/seasonVideo';
 import { useSeason } from '@/lib/seasonContext';
 import { devMockPopups } from '@/lib/devMockPopups';
 import type { PublicMapMarker } from '@/lib/mapMarkers';
@@ -335,7 +335,11 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
   //
   // 계절 영상이 들어오면 그 계절 편으로 갈아탄다. 아직 안 넣은 칸은 위 두 편으로 떨어진다 —
   // 넣는 방법과 이유는 lib/seasonVideo.ts 주석 참고.
-  const { src: bgVideoSrc, rate: bgVideoRate } = seasonBgVideo(season, resolvedTheme === 'dark');
+  const {
+    src: bgSrc,
+    rate: bgRate,
+    still: bgStill,
+  } = seasonBackground(season, resolvedTheme === 'dark');
 
   // 화면 문구 언어. 첫 렌더는 항상 한국어이고(서버 HTML 과 맞춰 깜빡임 방지),
   // 브라우저에서 저장값·브라우저 언어를 읽어 반영한다.
@@ -1414,7 +1418,22 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
             방법이 없어 따로 페이드한다(globals.css 의 theme-bg-fade). 바탕색·스크림까지 같이
             감싸면 그 둘은 이미 색으로 부드럽게 흐르는 중이라 두 번 흔들린 것처럼 보인다. */}
         <div className="theme-bg-fade absolute inset-0">
-          {themeReady && <LoopingBgVideo key={bgVideoSrc} src={bgVideoSrc} rate={bgVideoRate} />}
+          {themeReady &&
+            (bgStill ? (
+              /* 정지 배경은 영상 감시자·크로스페이드가 필요 없다. 좁은 화면에서 안 그리는 것만
+                 LoopingBgVideo 와 맞춘다(그 아래는 home-flat-bg 가 덮는다). 움직임을 줄이도록
+                 설정한 사람에게도 그린다 — 움직이지 않으니 가릴 이유가 없다. */
+              // eslint-disable-next-line @next/next/no-img-element -- 화면을 채우는 장식 배경이라 next/image 의 레이아웃·최적화가 필요 없다
+              <img
+                key={bgSrc}
+                src={bgSrc}
+                alt=""
+                aria-hidden
+                className="absolute inset-0 hidden h-full w-full object-cover md:block"
+              />
+            ) : (
+              <LoopingBgVideo key={bgSrc} src={bgSrc} rate={bgRate} />
+            ))}
         </div>
         {/* 좁은 화면 전용 배경 보강. 영상이 없는 구간에서만 그려지고 CSS 만 쓴다 — 규칙은
             globals.css 의 .home-flat-bg 주석 참고. 넓은 화면에서는 display:none 이라
