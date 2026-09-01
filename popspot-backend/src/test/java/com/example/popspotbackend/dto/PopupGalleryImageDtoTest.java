@@ -71,9 +71,15 @@ class PopupGalleryImageDtoTest {
                 .containsExactly("/a.webp", "/b.webp", "/c.webp");
     }
 
+    /**
+     * 대표 이미지도 갤러리에 들어간다.
+     *
+     * <p>처음에는 "히어로가 이미 그리니까" 뺐다. 그랬더니 대표로 올린 포스터를 <b>어디에서도 온전히 볼 수 없었다</b> — 히어로는 세로 포스터를 가로로 자르기
+     * 때문이다(2026-09-01 운영 확인). 보통 그 한 장에 정보가 가장 많다.
+     */
     @Test
-    @DisplayName("대표 이미지는 갤러리에서 빠진다 — 히어로가 이미 그린다")
-    void excludesMainImage() {
+    @DisplayName("대표 이미지도 갤러리에 들어간다 — 히어로에서는 잘려서 못 읽는다")
+    void includesMainImage() {
         PopupStore popup =
                 popupWith(
                         image(1L, "/cover.webp", PopupImage.ORIGIN_USER, "Y"),
@@ -81,7 +87,7 @@ class PopupGalleryImageDtoTest {
 
         assertThat(PopupGalleryImageDto.galleryOf(popup))
                 .extracting(PopupGalleryImageDto::getImageUrl)
-                .containsExactly("/second.webp");
+                .containsExactly("/cover.webp", "/second.webp");
     }
 
     @Test
