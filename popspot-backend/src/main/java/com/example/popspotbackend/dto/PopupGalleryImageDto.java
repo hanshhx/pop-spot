@@ -32,9 +32,6 @@ public class PopupGalleryImageDto {
     private static final Set<String> REAL_ORIGINS =
             Set.of(PopupImage.ORIGIN_CRAWLED, PopupImage.ORIGIN_USER);
 
-    /** 대표 이미지 표시. 이 값이 붙은 행은 히어로가 이미 그리므로 갤러리에서 뺀다. */
-    private static final String MAIN_FLAG = "Y";
-
     private String imageUrl;
 
     /** CRAWLED / USER. 화면이 출처 문구를 고르는 데 쓴다. */
@@ -56,8 +53,12 @@ public class PopupGalleryImageDto {
      * <p>아직 저장 안 된 엔티티는 {@code id} 가 {@code null} 이라 뒤로 보낸다. {@link List#sort} 는 안정 정렬이라 같은 값끼리는 원래
      * 순서를 지킨다.
      *
-     * <p><b>오늘 이 메서드는 모든 팝업에 빈 목록을 준다</b> — 1,405건이 전부 PEXELS·PLACEHOLDER 이고 한 장씩만 갖고 있으며 그 한 장이
-     * 대표다. 즉 이 변경으로 기존 화면은 한 곳도 바뀌지 않는다. 주최측 자료가 들어온 팝업에서만 갤러리가 생긴다.
+     * <p><b>대표 이미지도 뺀 목록이 아니다 — 전부 담는다.</b> 처음에는 "히어로가 이미 그리니까" 빼 뒀는데, 그러면 대표로 올린 포스터를 <b>어디에서도 온전히
+     * 볼 수 없다.</b> 히어로는 가로로 잘리기 때문이다(세로 포스터를 가로 띠에 넣으면 피할 수 없다). 그 한 장이 보통 가장 정보가 많은 장이라, 잘린 채로만
+     * 존재하게 되는 것은 손해가 크다. 히어로와 첫 장이 겹치지만 그 겹침은 표지가 자료의 일부인 것과 같다.
+     *
+     * <p><b>오늘 이 메서드는 모든 팝업에 빈 목록을 준다</b> — 1,405건이 전부 PEXELS·PLACEHOLDER 라 출처 검사에서 걸린다. 즉 이 변경으로
+     * 기존 화면은 한 곳도 바뀌지 않는다. 주최측 자료가 들어온 팝업에서만 갤러리가 생긴다.
      */
     public static List<PopupGalleryImageDto> galleryOf(PopupStore popup) {
         if (popup == null || popup.getImages() == null) return List.of();
@@ -73,7 +74,6 @@ public class PopupGalleryImageDto {
     private static boolean isGalleryImage(PopupImage image) {
         if (image == null) return false;
         if (image.getImageUrl() == null || image.getImageUrl().isBlank()) return false;
-        if (MAIN_FLAG.equalsIgnoreCase(image.getMainYn())) return false;
         String origin = image.getPhotoOrigin();
         return origin != null && REAL_ORIGINS.contains(origin.toUpperCase());
     }
