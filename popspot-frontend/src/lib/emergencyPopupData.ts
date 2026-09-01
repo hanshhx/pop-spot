@@ -1,7 +1,7 @@
 import { fetchBackend } from './backendSsrFetch';
 
-import snapshotJson from '@/data/emergency/popups-2026-08-11.json';
-import snapshotMeta from '@/data/emergency/popups-2026-08-11.meta.json';
+import snapshotJson from '@/data/emergency/popups-2026-09-01.json';
+import snapshotMeta from '@/data/emergency/popups-2026-09-01.meta.json';
 import { isExpired, isStale, kstTodayStart } from '@/lib/popupSlices';
 import type { PublicMapMarker } from '@/lib/mapMarkers';
 import type { PopupStore } from '@/types/popup';
