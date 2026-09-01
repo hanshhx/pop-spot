@@ -87,3 +87,10 @@ eslint-report*.tmp.json
 # 도구가 만드는 작업용 폴더. 산출물이 아니라 중간 파일이라 저장소에 둘 이유가 없다.
 /.codex-tmp/
 /tmp/
+
+# 제휴처가 보내온 원본 이미지(카카오톡 내려받기 그대로).
+#
+# 배포에 쓰이는 것은 여기서 뽑아낸 popspot-frontend/public/partner/**/*.webp 뿐이다
+# (원본 7.8MB → webp 898KB). 원본은 저장소에 둘 이유가 없고, 공개 저장소라 한 번 들어가면
+# 이력에서 지우기 어렵다.
+popspot-frontend/public/KakaoTalk_*.png
