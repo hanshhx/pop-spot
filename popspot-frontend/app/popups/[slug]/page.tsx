@@ -21,6 +21,7 @@ import { localizedPath } from '@/lib/localePath';
 import { CRAWL_REFRESH_BY_LOCALE } from '@/lib/siteCopy';
 import { searchLandingTitle } from '@/lib/searchLandingTitle';
 import { evergreenLabel } from '@/lib/evergreenLabel';
+import { DEFAULT_OG_IMAGE } from '@/lib/seasonOgImage';
 import { orderForMetaDescription } from '@/lib/metaPickOrder';
 import { groupSameEvent } from '@/lib/groupSameEvent';
 import { walkGroups } from '@/lib/walkGroups';
@@ -757,8 +758,16 @@ export async function sliceMetadata(slug: string, locale: Locale): Promise<Metad
     // 세 언어 판이 서로를 가리키게 한다. 한쪽만 선언하면 검색엔진이 연결을 무시해서, 주소를 나눈
     // 의미가 통째로 사라진다.
     alternates: slugAlternates(slice.slug, locale),
-    openGraph: { title: `${title} · POP-SPOT`, description, url, type: 'website' },
-    twitter: { card: 'summary_large_image', title, description },
+    // images 를 빼면 루트 레이아웃의 카드까지 같이 사라진다 — 자식 openGraph 가 부모를 통째로
+    // 대체하기 때문이다. 그래서 랜딩 176장이 전부 빈 공유 카드를 내보내고 있었다.
+    openGraph: {
+      title: `${title} · POP-SPOT`,
+      description,
+      url,
+      type: 'website',
+      images: [DEFAULT_OG_IMAGE],
+    },
+    twitter: { card: 'summary_large_image', title, description, images: [DEFAULT_OG_IMAGE] },
   };
 }
 
