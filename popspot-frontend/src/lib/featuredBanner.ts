@@ -32,8 +32,8 @@ export const SHOW_DAYS_BEFORE = 14;
 
 /** 지금 띄우는 건. 다음 제휴가 오면 이 값을 갈아 끼운다. */
 const FEATURED: FeaturedPopup = {
-  // 등록 SQL 을 돌린 뒤 나온 id 를 넣는다.
-  popupId: null,
+  // 2026-09-01 등록. popup_store_seq 가 준 번호다.
+  popupId: 5619,
   title: '2026 제주 로컬브랜드 팝업스토어',
   place: '성수 · KT&G 상상플래닛',
   imageUrl: '/partner/jeju-2026/01.webp',
