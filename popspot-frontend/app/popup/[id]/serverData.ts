@@ -1,3 +1,4 @@
+import { fetchBackend } from '@/lib/backendSsrFetch';
 import { judgeIndexable } from '@/lib/indexableDetail';
 import {
   EMERGENCY_SNAPSHOT_META,
@@ -88,7 +89,7 @@ export async function fetchPopupForServer(id: string): Promise<ServerPopup | nul
   if (!apiBase || !/^https?:\/\//.test(apiBase)) return emergencyPopup(id);
 
   try {
-    const res = await fetch(`${apiBase}/api/popups/${id}`, { next: { revalidate: 300 } });
+    const res = await fetchBackend(`${apiBase}/api/popups/${id}`, 300);
     // 정상 서버의 삭제·비공개 결정을 스냅샷이 되살리면 안 된다.
     if (res.status === 404 || res.status === 410) return null;
     if (!res.ok) return res.status >= 500 ? emergencyPopup(id) : null;
