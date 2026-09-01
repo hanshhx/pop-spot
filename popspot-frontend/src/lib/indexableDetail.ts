@@ -25,7 +25,35 @@ export type IndexableCandidate = {
 /** 판정 결과 — 왜 떨어졌는지 남긴다. 이유 없이 "안 됨" 만 알면 고칠 수가 없다. */
 export type IndexVerdict = { ok: true } | { ok: false; reason: IndexRejectReason };
 
-export type IndexRejectReason = 'NO_NAME' | 'NO_END_DATE' | 'ALREADY_ENDED' | 'VAGUE_LOCATION';
+export type IndexRejectReason =
+  'NO_NAME' | 'NO_END_DATE' | 'ALREADY_ENDED' | 'VAGUE_LOCATION' | 'OUTSIDE_SEOUL';
+
+/**
+ * 서울이 아님이 <b>확실한</b> 지명. "서울" 이 앞에 붙어 있어도 이게 있으면 색인하지 않는다.
+ *
+ * <p><b>왜 필요한가.</b> 수집기가 서울이 아닌 팝업에도 "서울" 을 붙인다(알려진 백엔드 버그 —
+ * 좌표는 맞고 표기만 틀린다). 그 결과가 색인까지 새어 나왔다. 실측(2026-09-01) 라이브 목록에서
+ * "서울" 과 비서울 지명이 함께 든 것이 <b>92건</b>이었다:
+ *
+ * <pre>
+ *   서울 판교현대백화점              ← HAS_VENUE 의 '현대백화점' 이 통과시킨다
+ *   서울 마포구 스타필드 수원 사당점   ← '스타필드' 가 통과시킨다
+ *   서울 영등포구 신세계 센텀시티점    ← '신세계' 가 통과시킨다
+ *   서울 제주국제공항 도착층 3번 게이트앞 ← 길이 검사만으로 통과한다
+ * </pre>
+ *
+ * <p>"서울 팝업" 을 검색한 사람에게 판교를 내보내는 것은 <b>헛걸음을 만드는</b> 일이다.
+ * {@code ALREADY_ENDED} 를 막는 이유와 같다.
+ *
+ * <p><b>이건 임시 방편이다.</b> 근본 수정은 수집기가 "서울" 을 함부로 붙이지 않게 하는 것이고
+ * 그건 백엔드다. 여기서는 잘못된 표기가 <b>검색 결과로 나가는 것만</b> 막는다.
+ *
+ * <p>목록은 <b>보수적으로</b> 골랐다. 서울에 같은 글자가 든 상호가 있을 수 있는 것은 뺐다 —
+ * 하남(하남돼지집)·고양(고양이)·성남·김포(김포공항은 강서구다). 잘못 막으면 멀쩡한 팝업이
+ * 검색에서 사라지는데, 그건 오염을 남기는 것보다 나쁘다.
+ */
+const NOT_SEOUL =
+  /(판교|분당|일산|동탄|송도|수원|용인|안양|과천|의정부|부산|센텀|해운대|대구|인천|대전|울산|제주|세종|천안|청주|전주|순천|창원|포항|여수|강릉|속초)/;
 
 /**
  * 주소가 <b>실제로 찾아갈 수 있는</b> 수준인가.
@@ -70,6 +98,10 @@ export function judgeIndexable(m: IndexableCandidate, today: string): IndexVerdi
   if (!m.endDate) return { ok: false, reason: 'NO_END_DATE' };
   // 끝난 팝업은 열지 않는다. 지금 갈 수 없는 곳을 검색 결과에 올리면 헛걸음을 만든다.
   if (m.endDate < today) return { ok: false, reason: 'ALREADY_ENDED' };
+  // 주소가 얼마나 구체적인지 따지기 <b>전에</b> 서울인지 먼저 본다. 순서를 뒤집으면
+  // "서울 부산 해운대구" 같은 것이 VAGUE_LOCATION 으로 떨어져, 진짜 이유(서울이 아님)가
+  // 가려진다 — 이 이유는 수집기 버그를 가리키는 단서라 정확해야 한다. 근거는 NOT_SEOUL 주석.
+  if (NOT_SEOUL.test(m.location ?? '')) return { ok: false, reason: 'OUTSIDE_SEOUL' };
   if (!hasUsefulLocation(m.location)) return { ok: false, reason: 'VAGUE_LOCATION' };
   return { ok: true };
 }
