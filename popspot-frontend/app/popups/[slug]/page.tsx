@@ -20,6 +20,7 @@ import { LOCALE_PATH, slugAlternates } from '@/lib/localeRoutes';
 import { localizedPath } from '@/lib/localePath';
 import { CRAWL_REFRESH_BY_LOCALE } from '@/lib/siteCopy';
 import { searchLandingTitle } from '@/lib/searchLandingTitle';
+import { evergreenLabel } from '@/lib/evergreenLabel';
 import { orderForMetaDescription } from '@/lib/metaPickOrder';
 import { groupSameEvent } from '@/lib/groupSameEvent';
 import { walkGroups } from '@/lib/walkGroups';
@@ -698,7 +699,12 @@ export async function sliceMetadata(slug: string, locale: Locale): Promise<Metad
 
   // 제목에는 건수만. 앞머리 키워드("니케 팝업스토어")를 건드리지 않도록 뒤에 붙인다 — 검색 결과에서
   // 숫자는 클릭을 끌지만 제목 앞부분은 순위에 쓰이므로 순서를 바꾸지 않는다.
-  const base = copy.titles[slice.kind](slice.label);
+  /*
+   * 제목에는 날짜 구간을 넣지 않는다. 화면 라벨은 매번 새로 그려져 낡지 않지만, 제목은
+   * 검색엔진이 받아 두고 오래 보여 준다 — 실측(2026-09-01)으로 네이버 웹문서 1위인
+   * hongdae-this-week 의 캐시가 3주 전 날짜를 달고 서 있었다. 근거는 evergreenLabel 주석.
+   */
+  const base = copy.titles[slice.kind](evergreenLabel(slice.label));
   const title =
     searchLandingTitle({
       locale,
