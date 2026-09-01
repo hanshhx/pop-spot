@@ -8,6 +8,7 @@ import {
   clearGuestWishlist,
   isGuestWished,
   readGuestWishlist,
+  removeGuestWishlist,
   restoreGuestWishlist,
   takeGuestWishlist,
   toggleGuestWishlist,
@@ -51,6 +52,30 @@ describe('담고 빼기', () => {
     expect(ids).toHaveLength(GUEST_WISHLIST_MAX);
     expect(ids).toContain(GUEST_WISHLIST_MAX + 3); // 방금 담은 것
     expect(ids).not.toContain(1); // 가장 오래된 것
+  });
+});
+
+describe('목록에서 빼기', () => {
+  it('담긴 것을 뺀다', () => {
+    toggleGuestWishlist(1);
+    toggleGuestWishlist(2);
+    removeGuestWishlist(1);
+    expect(readGuestWishlist()).toEqual([2]);
+  });
+
+  /*
+   * 이 시험이 이 함수가 따로 있는 이유다. toggle 로 대신하면 "없을 때 담아 버린다" —
+   * 화면과 저장소가 어긋난 순간 빼기 버튼이 담기 버튼으로 둔갑한다.
+   */
+  it('없는 것을 빼도 담기지 않는다', () => {
+    toggleGuestWishlist(1);
+    removeGuestWishlist(99);
+    expect(readGuestWishlist()).toEqual([1]);
+  });
+
+  it('빈 목록에서 빼도 죽지 않는다', () => {
+    removeGuestWishlist(1);
+    expect(readGuestWishlist()).toEqual([]);
   });
 });
 

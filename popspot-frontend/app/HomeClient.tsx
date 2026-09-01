@@ -108,6 +108,7 @@ import {
   isGuestExpired,
   startGuestMode,
 } from '@/lib/guestMode';
+import { readGuestWishlist, removeGuestWishlist } from '@/lib/guestWishlist';
 import { canAccessTab } from '@/lib/tabAccess';
 import {
   HOME_RETURN_STATE_KEY,
@@ -785,16 +786,56 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
     }
   };
 
+  /**
+   * 비회원이 브라우저에 담아 둔 찜을 MY 탭에 채운다.
+   *
+   * <p><b>탭 전환 핸들러가 아니라 효과로 두는 이유.</b> MY 탭에는 두 갈래로 들어온다 — 탭을 누르는
+   * 길과 {@code ?tab=MY} 주소로 바로 오는 길이다. 핸들러에만 넣으면 뒤쪽에서 빈 화면이 나온다
+   * (실제로 그렇게 만들었다가 확인했다). 그리고 카탈로그가 늦게 도착해도 여기서 다시 채워진다.
+   *
+   * <p>저장소에는 id 만 있다. 이름·사진은 <b>이미 받아 둔 카탈로그</b>에서 찾는다 — 서버를 다시
+   * 부르면 찜 한 건당 요청 하나가 나간다.
+   *
+   * <p>카탈로그에 없는 id 는 화면에서만 뺀다. 담아 둔 사이에 끝나 목록에서 빠진 팝업이다.
+   * 저장소에는 남겨 둔다 — 로그인하면 서버로 옮겨지고, 그쪽에는 지난 팝업도 남는다.
+   */
+  useEffect(() => {
+    if (currentTab !== 'MY' || user) return;
+    const byId = new Map(catalogPopups.map((p) => [Number(p.id), p]));
+    setMyWishlist(
+      readGuestWishlist()
+        .map((id) => byId.get(id))
+        .filter((p): p is PopupStore => Boolean(p))
+        .map((p) => ({
+          // 게스트에게는 서버가 준 wishlistId 가 없다. 화면에서 키로만 쓰므로 팝업 id 로 대신한다.
+          wishlistId: Number(p.id),
+          popupId: Number(p.id),
+          popupName: p.name,
+          popupImage: p.imageUrl ?? '',
+          location: p.location ?? '',
+          startDate: p.startDate ?? '',
+          endDate: p.endDate ?? '',
+        })),
+    );
+  }, [currentTab, user, catalogPopups]);
+
   const handleRemoveWishlist = async (e: React.MouseEvent, popupId: number) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!user) return;
     const confirmed = await confirmAction({
       title: t('home.wishRemove'),
       text: t('home.wishRemoveText'),
       destructive: true,
     });
     if (!confirmed) return;
+
+    // 비회원은 브라우저에서 뺀다. 토글이 아니라 제거를 쓰는 이유는 guestWishlist.ts 주석 참고.
+    if (!user) {
+      removeGuestWishlist(popupId);
+      setMyWishlist((prev) => prev.filter((item) => item.popupId !== popupId));
+      notifySuccess(t('home.removed'));
+      return;
+    }
     try {
       const res = await apiFetch(`/api/wishlist/${user.userId}/${popupId}`, { method: 'DELETE' });
       if (res.ok) {
@@ -910,6 +951,7 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
     // 스크롤 위치가 유지돼 새 탭의 하단이 먼저 보이던 문제 수정).
     if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'auto' });
 
+    // 비회원의 찜은 위 useEffect 가 채운다 — 주소로 바로 들어오는 길도 덮어야 하기 때문이다.
     if (tab === 'MY' && user) {
       fetchMyPageData(user.userId);
       fetchMyCourses(user.userId);
@@ -2628,7 +2670,9 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
                   <div className="bg-cream-300 dark:bg-ink-800 p-4 rounded-md text-center border border-[var(--color-border)]">
                     <Heart size={16} className="lg:w-5 lg:h-5 mx-auto mb-1 text-red-500" />
                     <div className="text-2xl font-extrabold text-foreground">
-                      {myPageInfo?.likeCount || 0}
+                      {/* 비회원의 찜은 서버가 모른다(myPageInfo 는 로그인해야 채워진다).
+                          아래 목록에는 2개가 떠 있는데 여기만 0 이면 화면이 스스로 모순된다. */}
+                      {(user ? myPageInfo?.likeCount : myWishlist.length) || 0}
                     </div>
                     <div className="text-xs text-muted-foreground mt-0.5">{t('my.wishlist')}</div>
                   </div>
