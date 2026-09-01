@@ -8,18 +8,10 @@ import com.example.popspotbackend.service.ai.LlmUsageTracker;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
-
 import dev.langchain4j.data.message.AiMessage;
 import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.model.output.Response;
 import dev.langchain4j.model.output.TokenUsage;
-
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Service;
-
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -33,6 +25,10 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
 
 /**
  * 검색 API 결과(snippet 들)를 LLM 에 넘겨 구조화된 {@link NormalizedPopup} 목록으로 정규화.
@@ -411,38 +407,116 @@ public class PopupNormalizationService {
      * <p>sourceIndex 는 프롬프트 기준 1-based 다. 범위를 벗어나거나 없으면 판정에서 뺀다 — 근거를 모르는 채로 어느 한쪽에 넣으면 그 수치가 오히려
      * 오판을 만든다.
      */
-    private void logDateExtraction(List<NormalizedPopup> results, List<PopupCrawlSource> snippets) {
-        if (results.isEmpty()) return;
+    /**
+     * 근거 스니펫에 <b>끝이 있다는 표현</b>이 있었는가.
+     *
+     * <p>{@link #DATE_HINT} 와 다르다. "8월 1일" 은 날짜지만 종료일이 적혀 있다는 뜻은 아니다. 여기서 찾는 것은 기간의 <b>끝</b>을 가리키는
+     * 표현이다 — 물결표·까지·동안·N일간.
+     *
+     * <p>느슨하게 잡는다. 여기서 놓치면 "원문에 끝이 안 적혀 있었다" 로 집계돼, 실제로는 고칠 수 있는 문제인데 <b>손댈 수 없는 것으로 오진</b>하고 조사를
+     * 멈추게 된다. 과하게 잡히면 들여다볼 대상이 늘 뿐이다.
+     */
+    private static final Pattern END_HINT =
+            Pattern.compile(
+                    "[~〜]" // 7.22~8.3
+                            + "|\\d\\s*[-–—]\\s*\\d" // 7.22-8.3 (날짜 사이의 붙임표만)
+                            + "|까지" // 8월 3일까지
+                            + "|동안" // 이틀 동안
+                            + "|\\d+\\s*(일|주|주일|개월)\\s*(간|동안)" // 3일간 / 2주간
+                            + "|종료|마감|폐점|철수"); // 8월 3일 종료
 
-        int extracted = 0;
-        int missedWithHint = 0;
-        int missedNoHint = 0;
-        int unknownSource = 0;
+    /** 한 팝업이 날짜에 대해 어느 처지인가. 셋은 겹치지 않는다. */
+    enum DateOutcome {
+        /** 종료일이 있다 — 색인 후보. */
+        HAS_END,
+        /** 시작일만 있다 — 저장은 되지만 약관 §14-4 상 색인되지 않는다. <b>지금의 병목.</b> */
+        START_ONLY,
+        /** 둘 다 없다 — v2.45 이후 버려진다. */
+        NO_DATE
+    }
+
+    /** 못 뽑은 것들을 "원문에 힌트가 있었나" 로 가른다. 이 구분이 없으면 대책이 계속 추측이 된다. */
+    record HintSplit(int withHint, int noHint, int unknownSource) {
+        int total() {
+            return withHint + noHint + unknownSource;
+        }
+    }
+
+    /** 한 배치의 날짜 추출 성적. 계산과 로그 문구를 나눠 두면 계산만 따로 검사할 수 있다. */
+    record DateStats(int total, int hasEnd, HintSplit startOnly, HintSplit noDate) {}
+
+    /**
+     * 날짜 추출 성적을 센다.
+     *
+     * <p><b>왜 종료일을 따로 세는가.</b> 예전에는 "시작일 <b>또는</b> 종료일이 있으면 추출 성공" 으로 셌다. 그 계기판의 목적은 v2.45 에서 시작한
+     * <b>날짜 없는 팝업 폐기</b>의 원인을 보는 것이었고, 거기에는 맞는 셈법이었다.
+     *
+     * <p>그런데 실측(2026-09-02) 결과 색인을 막는 가장 큰 원인은 <b>종료일만 없는 팝업 798건(44.7%)</b> 이었다. 그것들은 시작일이 있어서 옛
+     * 셈법에서는 전부 "추출 성공" 으로 잡혔다 — 계기판이 있는데 정작 우리 고장을 못 보는 자리에 달려 있었다.
+     *
+     * <p>{@code sourceIndex} 는 프롬프트 기준 1-based 다. 범위를 벗어나거나 없으면 판정에서 뺀다 — 근거를 모르는 채로 어느 한쪽에 넣으면 그
+     * 수치가 오히려 오판을 만든다.
+     */
+    static DateStats tallyDates(List<NormalizedPopup> results, List<PopupCrawlSource> snippets) {
+        List<PopupCrawlSource> sources = snippets == null ? List.of() : snippets;
+        int hasEnd = 0;
+        int[] startOnly = new int[3]; // withHint, noHint, unknownSource
+        int[] noDate = new int[3];
 
         for (NormalizedPopup p : results) {
-            if (!isBlank(p.getStartDate()) || !isBlank(p.getEndDate())) {
-                extracted++;
+            DateOutcome outcome = outcomeOf(p);
+            if (outcome == DateOutcome.HAS_END) {
+                hasEnd++;
                 continue;
             }
-            Integer idx = p.getSourceIndex();
-            if (idx == null || idx < 1 || idx > snippets.size()) {
-                unknownSource++;
+            int[] bucket = outcome == DateOutcome.START_ONLY ? startOnly : noDate;
+            String text = snippetTextFor(p, sources);
+            if (text == null) {
+                bucket[2]++;
                 continue;
             }
-            PopupCrawlSource src = snippets.get(idx - 1);
-            String text = safe(src.getTitle()) + " " + safe(src.getDescription());
-            if (DATE_HINT.matcher(text).find()) missedWithHint++;
-            else missedNoHint++;
+            Pattern hint = outcome == DateOutcome.START_ONLY ? END_HINT : DATE_HINT;
+            if (hint.matcher(text).find()) bucket[0]++;
+            else bucket[1]++;
         }
 
-        log.info(
-                "[DateStats] 팝업 {}개 — 추출 {} / 미추출 {} (스니펫에 날짜 있었음 {} = 추출실패, 없었음 {}, 출처불명 {})",
+        return new DateStats(
                 results.size(),
-                extracted,
-                results.size() - extracted,
-                missedWithHint,
-                missedNoHint,
-                unknownSource);
+                hasEnd,
+                new HintSplit(startOnly[0], startOnly[1], startOnly[2]),
+                new HintSplit(noDate[0], noDate[1], noDate[2]));
+    }
+
+    private static DateOutcome outcomeOf(NormalizedPopup p) {
+        if (!isBlank(p.getEndDate())) return DateOutcome.HAS_END;
+        return isBlank(p.getStartDate()) ? DateOutcome.NO_DATE : DateOutcome.START_ONLY;
+    }
+
+    /** 이 팝업의 근거 스니펫 본문. 근거를 못 찾으면 null — 판정에서 뺀다는 뜻이다. */
+    private static String snippetTextFor(NormalizedPopup p, List<PopupCrawlSource> snippets) {
+        Integer idx = p.getSourceIndex();
+        if (idx == null || idx < 1 || idx > snippets.size()) return null;
+        PopupCrawlSource src = snippets.get(idx - 1);
+        return safe(src.getTitle()) + " " + safe(src.getDescription());
+    }
+
+    private void logDateExtraction(List<NormalizedPopup> results, List<PopupCrawlSource> snippets) {
+        if (results.isEmpty()) return;
+        DateStats s = tallyDates(results, snippets);
+
+        log.info(
+                "[DateStats] 팝업 {}개 — 종료일있음 {} / 시작일만 {} (원문에 끝표현 있었음 {} = 추출실패,"
+                        + " 없었음 {}, 출처불명 {}) / 날짜없음 {} (있었음 {}, 없었음 {}, 출처불명 {})",
+                s.total(),
+                s.hasEnd(),
+                s.startOnly().total(),
+                s.startOnly().withHint(),
+                s.startOnly().noHint(),
+                s.startOnly().unknownSource(),
+                s.noDate().total(),
+                s.noDate().withHint(),
+                s.noDate().noHint(),
+                s.noDate().unknownSource());
     }
 
     private String buildPrompt(List<PopupCrawlSource> snippets) {
@@ -704,7 +778,7 @@ public class PopupNormalizationService {
         return isBlank(result.getStartDate()) && isBlank(result.getEndDate());
     }
 
-    private boolean isBlank(String s) {
+    private static boolean isBlank(String s) {
         return s == null || s.isBlank();
     }
 
@@ -824,7 +898,7 @@ public class PopupNormalizationService {
         return result;
     }
 
-    private String safe(String s) {
+    private static String safe(String s) {
         return s == null ? "" : s;
     }
 
