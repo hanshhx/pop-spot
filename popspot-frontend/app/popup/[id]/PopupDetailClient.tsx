@@ -1,5 +1,11 @@
 'use client';
 
+import {
+  isGuestWished,
+  restoreGuestWishlist,
+  takeGuestWishlist,
+  toggleGuestWishlist,
+} from '@/lib/guestWishlist';
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -337,7 +343,11 @@ export default function PopupDetailClient({
   };
 
   const checkWishlistStatus = async (popupId: number) => {
-    if (!user) return;
+    // 비회원은 브라우저에 담는다. 경위는 lib/guestWishlist.ts.
+    if (!user) {
+      setIsLiked(isGuestWished(popupId));
+      return;
+    }
     const userIdToCheck = user?.userId || TEST_USER_ID;
     try {
       const res = await apiFetch(`/api/wishlist/${userIdToCheck}`);
@@ -349,6 +359,34 @@ export default function PopupDetailClient({
       console.error(e);
     }
   };
+
+  /**
+   * 로그인하면 비회원 때 담아 둔 찜을 서버로 옮긴다.
+   *
+   * <p>이게 없으면 가입한 순간 모아 둔 것이 조용히 사라져, 가입이 손해처럼 느껴진다.
+   * 꺼내면서 비우므로({@link takeGuestWishlist}) 같은 것을 두 번 올리지 않고, 못 옮긴 것만
+   * 되돌려 놓아 다음 기회에 다시 시도한다.
+   */
+  useEffect(() => {
+    const userId = user?.userId;
+    if (!userId) return;
+    const pending = takeGuestWishlist();
+    if (pending.length === 0) return;
+
+    void (async () => {
+      const failed: number[] = [];
+      for (const id of pending) {
+        try {
+          const res = await apiFetch(`/api/wishlist/${userId}/${id}`, { method: 'POST' });
+          if (!res.ok) failed.push(id);
+        } catch {
+          failed.push(id);
+        }
+      }
+      // 화면이 사라졌더라도 되돌려 놓는다 — 여기서 버리면 그대로 소실이다.
+      restoreGuestWishlist(failed);
+    })();
+  }, [user?.userId]);
 
   const handleStamp = async () => {
     if (!popup) return;
@@ -376,11 +414,21 @@ export default function PopupDetailClient({
     }
   };
 
+  /**
+   * 찜 담기·빼기.
+   *
+   * <p><b>비회원을 로그인 화면으로 보내지 않는다.</b> 예전에는 그렇게 했고, 그래서 7일간 찜한
+   * 사람이 <b>0명</b>이었다 — 그 기간 방문자 1,561명 중 회원은 4명이라 99.7% 가 벽을 만났다.
+   * 게다가 그 벽은 방문을 끝냈다. 관심을 표시하려던 사람을 정확히 그 순간에 내보낸 셈이다.
+   *
+   * <p>이제 비회원은 브라우저에 담고, 로그인하면 위 {@code useEffect} 가 서버로 옮긴다.
+   */
   const handleToggleLike = async () => {
     if (!popup) return;
     if (!user) {
-      notify(t('common.loginRequired'));
-      router.push(localizedPath('/login', locale));
+      const nowLiked = toggleGuestWishlist(popup.id);
+      setIsLiked(nowLiked);
+      if (nowLiked) trackVisitEvent('wishlist_add', { popupId: popup.id });
       return;
     }
     const prevStatus = isLiked;
