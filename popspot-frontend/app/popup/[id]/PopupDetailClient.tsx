@@ -278,6 +278,7 @@ export default function PopupDetailClient({
           photoSourceUrl: data.photoSourceUrl,
           photoCreditName: data.photoCreditName,
           photoCreditUrl: data.photoCreditUrl,
+          images: Array.isArray(data.images) ? data.images : undefined,
           sourceType: data.sourceType,
           sourceUrl: data.sourceUrl,
           sourceName: data.sourceName,
