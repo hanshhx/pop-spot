@@ -52,7 +52,10 @@ export default function GalleryPreviewPage() {
         서비스 화면이 아니다. 상세 페이지의 소개 아래에 이 모양으로 붙는다.
       </p>
 
-      <Case title="1. 자료 8장" note="주최측이 보낸 카드뉴스. 눌러서 크게 볼 수 있다.">
+      <Case
+        title="1. 자료 8장"
+        note="주최측이 보낸 카드뉴스. 화살표로 한 장씩 넘긴다(모바일에서는 스와이프)."
+      >
         <PopupGallery images={SAMPLES} popupName="2026 제주 로컬브랜드 팝업스토어" />
       </Case>
 
