@@ -50,6 +50,11 @@ export const devVisitStats: AdminVisitStats = {
   todayGuests: 61,
   todayMembers: 26,
   weekVisitors: 540,
+  lastVisitAt: new Date(Date.now() - 12 * 60_000).toISOString(),
+  hourlyAverage: Array.from({ length: 24 }, (_, hour) => ({
+    hour,
+    perDay: hour < 6 ? 1 : 10,
+  })),
   daily: [
     { date: '07.04', visitors: 62 },
     { date: '07.05', visitors: 74 },

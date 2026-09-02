@@ -7,6 +7,7 @@ import {
   lastCompletedDay,
   SHORTFALL_ALERT,
 } from '@/features/admin/visitWindows';
+import { checkGap } from '@/features/admin/visitGap';
 
 type VisitsTabProps = {
   visitStats: AdminVisitStats;
@@ -23,6 +24,11 @@ export function VisitsTab({ visitStats, todayPaths, referrers, loadVisitStats }:
       {/* 둘 다 스스로 불러온다 — 기간을 자기가 관리하므로 부모를 거치면 상태가 두 곳에 나뉜다. */}
       <PopupOpensPanel />
       <CampaignsPanel />
+      <CollectionGapBanner
+        lastVisitAt={visitStats.lastVisitAt}
+        hourlyAverage={visitStats.hourlyAverage}
+      />
+
       <CompletedDaySummary daily={visitStats.daily} />
 
       {/*
@@ -249,6 +255,43 @@ function CompletedDaySummary({ daily }: { daily: AdminVisitStats['daily'] }) {
         Vercel 대시보드에서 <b>같은 날</b>을 열어 비교합니다. 차이가 ±
         {Math.round(SHORTFALL_ALERT * 100)}% 를 넘으면 우리 수집이 새고 있는 것이니, 방문 기록의
         공백부터 확인하세요.
+      </p>
+    </div>
+  );
+}
+
+/**
+ * <b>수집이 멎었을 때만</b> 뜨는 띠.
+ *
+ * <p>2026-08-13~19 에 방문 기록이 통째로 비었는데 아무 신호가 없었다. 그 구간을 나중에 보고
+ * "유입이 줄었네" 하고 엉뚱한 곳을 의심하게 된다.
+ *
+ * <p>판정은 {@link checkGap} 이 한다 — 고정 시간이 아니라 <b>그 구간의 평소치</b>와 견주므로,
+ * 새벽의 자연스러운 공백에는 조용하고 낮에 멎으면 운다. 근거가 없으면(백엔드가 아직 이 값을
+ * 안 줄 때) 아무것도 그리지 않는다.
+ */
+function CollectionGapBanner({
+  lastVisitAt,
+  hourlyAverage,
+}: Pick<AdminVisitStats, 'lastVisitAt' | 'hourlyAverage'>) {
+  const gap = checkGap(lastVisitAt, hourlyAverage);
+  if (!gap.alarming || gap.gapMinutes === null) return null;
+
+  const hours = Math.floor(gap.gapMinutes / 60);
+  const minutes = Math.round(gap.gapMinutes % 60);
+  const 경과 = hours > 0 ? `${hours}시간 ${minutes}분` : `${minutes}분`;
+
+  return (
+    <div
+      role="alert"
+      className="rounded-2xl border border-red-400/60 bg-red-50 p-4 dark:bg-red-500/10"
+    >
+      <p className="text-sm font-bold text-red-700 dark:text-red-300">
+        방문 기록이 {경과}째 없습니다
+      </p>
+      <p className="mt-1 text-xs leading-relaxed text-red-700/80 dark:text-red-300/80">
+        이 시간대라면 {Math.round(gap.expected ?? 0)}건쯤 들어왔어야 합니다. 수집이 멎었는지
+        확인하세요 — 백엔드가 살아 있는지, 비콘이 실패하고 있는지 순서로 봅니다.
       </p>
     </div>
   );
