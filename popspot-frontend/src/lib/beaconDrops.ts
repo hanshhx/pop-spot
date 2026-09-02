@@ -73,3 +73,23 @@ export function settleDropped(storage: WritableStorage | null | undefined, repor
     /* 위와 같다. */
   }
 }
+
+/**
+ * 이 실패를 <b>손실로 세야 하는가.</b>
+ *
+ * <p><b>왜 안 세는 경우가 있나.</b> {@code keepalive} 요청은 문서가 사라져도 브라우저가 전송을
+ * 끝낸다. 그런데 그 사이 문서가 없어지면 이쪽 promise 는 abort 로 거절된다 — <b>서버는 받았는데
+ * 화면은 잃었다고 세게 된다.</b> 카드를 눌러 상세로 넘어가는 순간이 정확히 이 상황이라, 그대로
+ * 두면 정상 이동마다 유실이 하나씩 쌓인다.
+ *
+ * <p>2026-09-02 배포 직후 운영에서 바로 나왔다 — 응답은 204 인데 네트워크 기록은
+ * {@code net::ERR_ABORTED} 였다. 없는 손실을 지어내면 멀쩡한 구간을 장애로 의심하게 되므로,
+ * 판단이 안 서면 <b>안 세는 쪽</b>으로 기운다.
+ *
+ * <p>서버가 500 을 돌려준 것은 다르다. 그건 페이지가 떠나든 말든 진짜 실패이므로 센다.
+ */
+export function countsAsDrop(error: unknown, unloading: boolean): boolean {
+  if (unloading) return false;
+  const name = (error as { name?: unknown } | null | undefined)?.name;
+  return name !== 'AbortError';
+}

@@ -1,5 +1,5 @@
 import { getAuthToken } from '@/lib/authStorage';
-import { bumpDropped, readDropped, settleDropped } from './beaconDrops';
+import { bumpDropped, countsAsDrop, readDropped, settleDropped } from './beaconDrops';
 import { getVisitorId } from '@/lib/visitorId';
 import { API_BASE_URL } from '@/lib/api';
 
@@ -71,6 +71,25 @@ function isOwnTraffic(path: string): boolean {
  * <p>화면 흐름을 절대 막지 않는다 — 통계가 한 건 빠지는 것보다 카드 클릭이 느려지는 쪽이 나쁘다.
  * 그래서 await 하지 않고, 페이지가 바뀌어도 전송이 끊기지 않게 {@code keepalive} 를 쓴다.
  */
+/**
+ * 페이지가 떠나는 중인가.
+ *
+ * <p>{@code keepalive} 요청은 문서가 사라져도 브라우저가 전송을 끝내지만, 그 사이 문서가 없어지면
+ * 이쪽 promise 는 abort 로 거절된다. 그것을 손실로 세면 <b>정상 이동마다 유실이 하나씩 쌓인다</b>.
+ *
+ * <p>{@code pagehide} 를 쓰는 이유 — 뒤로가기 캐시(bfcache)로 들어갈 때도 불린다. 그리고 캐시에서
+ * 되살아나면 {@code pageshow} 가 다시 열어 준다. 안 열면 그 탭은 그 뒤로 진짜 실패도 안 센다.
+ */
+let unloading = false;
+if (typeof window !== 'undefined') {
+  window.addEventListener('pagehide', () => {
+    unloading = true;
+  });
+  window.addEventListener('pageshow', () => {
+    unloading = false;
+  });
+}
+
 /** {@code localStorage} 접근 자체가 막힌 브라우저가 있다. 없으면 계수기는 조용히 쉰다. */
 function safeStorage(): Storage | null {
   try {
@@ -130,12 +149,15 @@ export function trackVisitEvent(
         if (res.ok) settleDropped(storage, dropped);
         else bumpDropped(storage);
       })
-      .catch(() => {
-        /* 사용자에게 알릴 일은 아니지만, 잃었다는 사실은 남긴다. */
-        bumpDropped(storage);
+      .catch((error: unknown) => {
+        /*
+         * 사용자에게 알릴 일은 아니지만 잃었다는 사실은 남긴다 — 페이지가 떠나면서 끊긴 것만
+         * 뺀다. 그건 서버가 이미 받았을 수 있다(countsAsDrop 에 경위).
+         */
+        if (countsAsDrop(error, unloading)) bumpDropped(storage);
       });
-  } catch {
+  } catch (error) {
     /* fetch 자체가 막힌 환경 */
-    bumpDropped(storage);
+    if (countsAsDrop(error, unloading)) bumpDropped(storage);
   }
 }
