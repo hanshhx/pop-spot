@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { FeaturedPopupBanner } from '@/components/main/FeaturedPopupBanner';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Suspense } from 'react';
@@ -978,6 +979,10 @@ export async function SliceLandingPage({ slug, locale }: { slug: string; locale:
             <LocaleSwitcher locale={locale} className="shrink-0" />
           </Suspense>
         </div>
+
+        {/* 제휴 배너 — 기간 밖이면 스스로 아무것도 안 그린다(featuredBanner). 검색으로 들어온
+            사람이 가장 먼저 보는 자리라, 제목 위 한 줄로만 둔다. */}
+        <FeaturedPopupBanner />
 
         {/* 배지 — 진행 중이면 라임 펄스 점 + 카운트로 '살아있는' 신호 */}
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mb-3">
