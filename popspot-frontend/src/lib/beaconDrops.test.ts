@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import { bumpDropped, DROPPED_KEY, MAX_DROPPED, readDropped, settleDropped } from './beaconDrops';
+import {
+  bumpDropped,
+  countsAsDrop,
+  DROPPED_KEY,
+  MAX_DROPPED,
+  readDropped,
+  settleDropped,
+} from './beaconDrops';
 
 /**
  * 이 계수기가 틀리면 <b>고장이 다시 조용해진다.</b>
@@ -147,5 +154,34 @@ describe('settleDropped', () => {
 
     expect(() => settleDropped(막힌저장소, 1)).not.toThrow();
     expect(() => settleDropped(막힌저장소, 3)).not.toThrow();
+  });
+});
+
+/**
+ * 배포 직후 운영에서 바로 오탐이 나왔다 — 응답 204 에 {@code net::ERR_ABORTED}. 서버는 받았는데
+ * 화면이 잃었다고 센 것이다. 손실을 세는 장치가 <b>없는 손실을 지어내면</b> 멀쩡한 구간을
+ * 장애로 의심하게 되므로, 그쪽이 흘리는 것보다 위험하다.
+ */
+describe('countsAsDrop', () => {
+  it('보통 실패는 센다', () => {
+    expect(countsAsDrop(new Error('offline'), false)).toBe(true);
+  });
+
+  /* 이 두 개가 이 함수의 존재 이유다. */
+  it('페이지가 떠나는 중이면 안 센다 — keepalive 는 그래도 전송된다', () => {
+    expect(countsAsDrop(new Error('offline'), true)).toBe(false);
+  });
+
+  it('중단된 요청은 안 센다', () => {
+    const abort = Object.assign(new Error('aborted'), { name: 'AbortError' });
+
+    expect(countsAsDrop(abort, false)).toBe(false);
+  });
+
+  it('오류가 아닌 것이 와도 터지지 않는다', () => {
+    expect(countsAsDrop(null, false)).toBe(true);
+    expect(countsAsDrop(undefined, false)).toBe(true);
+    expect(countsAsDrop('문자열', false)).toBe(true);
+    expect(countsAsDrop(null, true)).toBe(false);
   });
 });
