@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { rankSuggestions, SUGGEST_LIMIT, suggestScore } from './searchSuggest';
+import { keepSearchable, rankSuggestions, SUGGEST_LIMIT, suggestScore } from './searchSuggest';
 
 /**
  * 이 검사가 지키는 것은 <b>자르기 전에 정렬한다</b> 는 한 가지다.
@@ -111,5 +111,54 @@ describe('suggestScore', () => {
 
   it('빈 검색어는 0', () => {
     expect(suggestScore({ name: '제주 팝업' }, '')).toBe(0);
+  });
+});
+
+/**
+ * 검색이 보는 세계.
+ *
+ * <p>고장의 실제 모양은 이랬다 — 9/2 에 "제주" 를 쳤는데 9/5 에 여는 팝업이 추천에 없었다.
+ * 순서를 고쳐도 <b>목록에 없으면 못 뜬다</b>. 그래서 순서와 세계를 같이 지킨다.
+ */
+describe('keepSearchable', () => {
+  const 오늘 = new Date('2026-09-02T00:00:00+09:00');
+
+  const 제주팝업 = {
+    name: '2026 제주 로컬브랜드 팝업스토어',
+    startDate: '2026-09-05',
+    endDate: '2026-09-06',
+  };
+  const 열린팝업 = { name: '지금 여는 팝업', startDate: '2026-08-30', endDate: '2026-09-10' };
+  const 끝난팝업 = { name: '지난달 팝업', startDate: '2026-08-01', endDate: '2026-08-15' };
+  const 날짜미상 = { name: '날짜 모르는 팝업', startDate: null, endDate: null };
+
+  /* 이 검사가 이 블록의 존재 이유다 — 사람들은 주말에 갈 곳을 미리 찾는다. */
+  it('앞으로 열 팝업을 남긴다 — 오늘 안 열렸어도', () => {
+    expect(keepSearchable([제주팝업], 오늘)).toHaveLength(1);
+  });
+
+  it('오늘 열린 팝업을 남긴다', () => {
+    expect(keepSearchable([열린팝업], 오늘)).toHaveLength(1);
+  });
+
+  /* 지난달에 닫은 팝업이 검색에 뜨면 헛걸음을 만든다. */
+  it('끝난 팝업은 뺀다', () => {
+    expect(keepSearchable([끝난팝업], 오늘)).toEqual([]);
+  });
+
+  it('종료일을 모르면 남긴다 — 날짜 미상은 종료 근거가 아니다', () => {
+    expect(keepSearchable([날짜미상], 오늘)).toHaveLength(1);
+  });
+
+  it('섞여 있어도 끝난 것만 골라 뺀다', () => {
+    const 남은것 = keepSearchable([끝난팝업, 제주팝업, 열린팝업], 오늘).map((p) => p.name);
+
+    expect(남은것).toEqual(['2026 제주 로컬브랜드 팝업스토어', '지금 여는 팝업']);
+  });
+
+  it('목록이 없으면 빈 목록', () => {
+    expect(keepSearchable([], 오늘)).toEqual([]);
+    expect(keepSearchable(undefined, 오늘)).toEqual([]);
+    expect(keepSearchable(null, 오늘)).toEqual([]);
   });
 });
