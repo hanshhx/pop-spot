@@ -11,6 +11,7 @@ import com.example.popspotbackend.dto.FunnelDto;
 import com.example.popspotbackend.repository.VisitEventRepository;
 import com.example.popspotbackend.repository.VisitLogRepository;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -24,12 +25,21 @@ class VisitServiceTest {
     @Mock private VisitLogRepository visitLogRepository;
     @Mock private VisitEventRepository visitEventRepository;
 
+    /**
+     * 기대값을 만드는 존.
+     *
+     * <p>{@code created_at} 은 한국 벽시계로 저장되므로 잘라 낼 기준도 한국 시각이어야 한다. 예전에는 검사가 {@code
+     * LocalDateTime.now()}(JVM 기본)로 기대값을 만들었는데, 개발 PC 는 KST 라 통과하고 <b>CI 러너는 UTC 라 9시간 어긋나
+     * 실패</b>했다. 로컬에서 못 잡히는 부류라 존을 못 박아 둔다.
+     */
+    private static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
+
     @Test
     void 개인정보처리방침에_맞춰_90일_이전_방문로그를_삭제한다() {
         VisitService service = new VisitService(visitLogRepository, visitEventRepository);
         ReflectionTestUtils.setField(service, "retentionDays", 90);
-        LocalDateTime before = LocalDateTime.now().minusDays(90).minusSeconds(2);
-        LocalDateTime after = LocalDateTime.now().minusDays(90).plusSeconds(2);
+        LocalDateTime before = LocalDateTime.now(SEOUL).minusDays(90).minusSeconds(2);
+        LocalDateTime after = LocalDateTime.now(SEOUL).minusDays(90).plusSeconds(2);
         when(visitLogRepository.deleteByCreatedAtBefore(org.mockito.ArgumentMatchers.any()))
                 .thenReturn(3);
 
@@ -46,8 +56,8 @@ class VisitServiceTest {
         // 그 어긋남은 아무 데도 드러나지 않아서, 테스트로 묶어 둔다.
         VisitService service = new VisitService(visitLogRepository, visitEventRepository);
         ReflectionTestUtils.setField(service, "retentionDays", 90);
-        LocalDateTime before = LocalDateTime.now().minusDays(90).minusSeconds(2);
-        LocalDateTime after = LocalDateTime.now().minusDays(90).plusSeconds(2);
+        LocalDateTime before = LocalDateTime.now(SEOUL).minusDays(90).minusSeconds(2);
+        LocalDateTime after = LocalDateTime.now(SEOUL).minusDays(90).plusSeconds(2);
 
         service.deleteExpiredVisitLogs();
 
