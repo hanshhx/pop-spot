@@ -10,6 +10,7 @@ import com.example.popspotbackend.repository.VisitLogRepository;
 import java.net.URI;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -27,6 +28,15 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 @Slf4j
 public class VisitService {
+
+    /**
+     * 방문 통계의 하루 경계는 <b>한국 자정</b>이다.
+     *
+     * <p>예전에는 {@code LocalDate.now()} 였다 — JVM 기본 시간대에 기댄다는 뜻이다. 지금 운영 VM 이 KST 라 결과는 같았지만, 같은 저장소의
+     * {@code PopupStoreRepository.todayKst()} 는 존을 명시하고 있어서 <b>한쪽만 안 맞는 상태</b>였다. 서버를 옮기거나 컨테이너
+     * 기본값이 바뀌는 순간 통계의 '오늘' 과 색인의 '오늘' 이 아홉 시간 어긋나고, 그 어긋남은 숫자만 보고는 알아챌 수 없다.
+     */
+    private static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
 
     /** 우리 도메인 — 여기서 온 이동은 유입이 아니라 사이트 내 이동이다. */
     private static final Set<String> INTERNAL_HOSTS =
@@ -118,7 +128,7 @@ public class VisitService {
     @Transactional(readOnly = true)
     public List<Map<String, Object>> campaigns(int days) {
         int safeDays = days <= 0 ? 30 : Math.min(days, MAX_LOOKBACK_DAYS);
-        LocalDateTime since = LocalDate.now().minusDays(safeDays - 1L).atStartOfDay();
+        LocalDateTime since = LocalDate.now(SEOUL).minusDays(safeDays - 1L).atStartOfDay();
 
         return visitLogRepository.campaignsSince(since).stream()
                 .map(
@@ -139,7 +149,7 @@ public class VisitService {
     public List<Map<String, Object>> topOpenedPopups(int days, int limit) {
         int safeDays = days <= 0 ? 7 : Math.min(days, MAX_LOOKBACK_DAYS);
         int safeLimit = limit <= 0 ? 20 : Math.min(limit, 100);
-        LocalDateTime since = LocalDate.now().minusDays(safeDays - 1L).atStartOfDay();
+        LocalDateTime since = LocalDate.now(SEOUL).minusDays(safeDays - 1L).atStartOfDay();
 
         return visitEventRepository.topPopups(since, VisitEvent.TYPE_POPUP_OPEN, safeLimit).stream()
                 .map(
@@ -184,7 +194,7 @@ public class VisitService {
 
     @Transactional(readOnly = true)
     public VisitStatsDto getStats() {
-        LocalDateTime todayStart = LocalDate.now().atStartOfDay();
+        LocalDateTime todayStart = LocalDate.now(SEOUL).atStartOfDay();
         LocalDateTime weekStart = todayStart.minusDays(6);
 
         List<VisitStatsDto.DailyCount> daily =
@@ -209,7 +219,7 @@ public class VisitService {
     /** 오늘 방문 경로별 집계 — 경로 · 총 페이지뷰 · 회원 뷰 · 게스트/봇 뷰. 유입 진단용. */
     @Transactional(readOnly = true)
     public List<Map<String, Object>> getTodayPaths() {
-        LocalDateTime todayStart = LocalDate.now().atStartOfDay();
+        LocalDateTime todayStart = LocalDate.now(SEOUL).atStartOfDay();
         return visitLogRepository.pathBreakdownSince(todayStart).stream()
                 .map(
                         r -> {
@@ -247,7 +257,7 @@ public class VisitService {
         int safeDays = days <= 0 ? 7 : Math.min(days, MAX_LOOKBACK_DAYS);
         int safeSize = size <= 0 ? VISITORS_PAGE_DEFAULT : Math.min(size, VISITORS_PAGE_MAX);
         int safePage = Math.max(page, 0);
-        LocalDateTime since = LocalDate.now().minusDays(safeDays - 1L).atStartOfDay();
+        LocalDateTime since = LocalDate.now(SEOUL).minusDays(safeDays - 1L).atStartOfDay();
 
         List<Map<String, Object>> rows =
                 visitLogRepository.recentVisitors(since, safeSize, safePage * safeSize).stream()
@@ -294,7 +304,7 @@ public class VisitService {
     @Transactional(readOnly = true)
     public SessionStatsDto getSessionStats(int days) {
         int safeDays = Math.max(1, days);
-        LocalDateTime to = LocalDateTime.now();
+        LocalDateTime to = LocalDateTime.now(SEOUL);
         LocalDateTime from = to.minusDays(safeDays);
 
         Object[] totals = visitEventRepository.sessionTotals(from, to);
@@ -329,7 +339,7 @@ public class VisitService {
     @Transactional(readOnly = true)
     public FunnelDto getFunnel(int days) {
         int safeDays = days <= 0 ? 30 : Math.min(days, MAX_LOOKBACK_DAYS);
-        LocalDateTime since = LocalDate.now().minusDays(safeDays - 1L).atStartOfDay();
+        LocalDateTime since = LocalDate.now(SEOUL).minusDays(safeDays - 1L).atStartOfDay();
 
         Map<String, Long> byType = new LinkedHashMap<>();
         for (Object[] r : visitEventRepository.visitorsByType(since)) {
@@ -399,7 +409,7 @@ public class VisitService {
     @Transactional
     public void deleteExpiredVisitLogs() {
         int safeRetentionDays = Math.max(1, retentionDays);
-        LocalDateTime cutoff = LocalDateTime.now().minusDays(safeRetentionDays);
+        LocalDateTime cutoff = LocalDateTime.now(SEOUL).minusDays(safeRetentionDays);
         int deleted = visitLogRepository.deleteByCreatedAtBefore(cutoff);
         // 행동 기록도 같은 기준으로 지운다. 따로 두면 한쪽만 정리돼 방침의 90일 약속이
         // 반만 지켜진다 — 그 어긋남은 아무 데도 드러나지 않는다.
