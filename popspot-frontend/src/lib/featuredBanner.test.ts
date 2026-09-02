@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   daysUntilStart,
   pickFeatured,
+  pickForPage,
   SHOW_DAYS_BEFORE,
   type FeaturedPopup,
 } from './featuredBanner';
@@ -78,5 +79,39 @@ describe('daysUntilStart', () => {
   it('시작했으면 세지 않는다', () => {
     expect(daysUntilStart(ENTRY, at('2026-09-05'))).toBeNull();
     expect(daysUntilStart(ENTRY, at('2026-09-06'))).toBeNull();
+  });
+});
+
+/**
+ * 배너를 여러 화면에 띄우면서 생긴 규칙 — <b>자기 자신 위에는 안 뜬다.</b>
+ *
+ * <p>홈·랜딩·상세 어디에나 같은 배너가 뜨는데, 그 배너가 가리키는 상세에 들어간 순간에도
+ * 그대로 남으면 눌러도 화면이 안 바뀐다. 사용자에게는 링크가 죽은 것으로 보인다.
+ */
+describe('pickForPage', () => {
+  const 행사중 = at('2026-09-05');
+
+  it('다른 팝업 상세에서는 띄운다', () => {
+    expect(pickForPage(ENTRY, 9999, 행사중)).not.toBeNull();
+  });
+
+  it('자기 자신의 상세에서는 안 띄운다', () => {
+    expect(pickForPage(ENTRY, 1234, 행사중)).toBeNull();
+  });
+
+  /* 라우트 파라미터는 문자열, 객체 필드는 숫자로 온다. 둘 다 같은 답이어야 한다. */
+  it('id 가 문자열로 와도 같은 답을 낸다', () => {
+    expect(pickForPage(ENTRY, '1234', 행사중)).toBeNull();
+    expect(pickForPage(ENTRY, '9999', 행사중)).not.toBeNull();
+  });
+
+  it('id 를 안 주는 화면(홈·랜딩)에서는 그냥 띄운다', () => {
+    expect(pickForPage(ENTRY, null, 행사중)).not.toBeNull();
+    expect(pickForPage(ENTRY, undefined, 행사중)).not.toBeNull();
+  });
+
+  /* 기간 판정이 우선이다 — 자기 상세가 아니어도 끝났으면 안 뜬다. */
+  it('기간이 끝났으면 어느 화면에서도 안 띄운다', () => {
+    expect(pickForPage(ENTRY, 9999, at('2026-09-07'))).toBeNull();
   });
 });

@@ -3,7 +3,7 @@
 import { ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 
-import { activeFeatured, daysUntilStart } from '@/lib/featuredBanner';
+import { daysUntilStart, featuredForPage } from '@/lib/featuredBanner';
 import { useLocale } from '@/lib/i18n';
 
 /**
@@ -16,12 +16,21 @@ import { useLocale } from '@/lib/i18n';
  * <p><b>왜 그림 비율이 3:4 인가.</b> 포스터를 정사각형으로 자르면 아래쪽 제목이 잘려 무슨
  * 행사인지 알 수 없는 무늬가 된다. 원래 비율대로 두면 작아도 포스터로 읽힌다.
  *
- * <p>띄울지 말지는 {@link activeFeatured} 가 정한다 — 끝난 다음 날 저절로 사라진다.
+ * <p>띄울지 말지는 {@link featuredForPage} 가 정한다 — 끝난 다음 날 저절로 사라진다.
+ *
+ * <p><b>홈·랜딩·상세 어디에나 같은 배너가 뜬다.</b> 다만 이 배너가 가리키는 팝업의 상세에서는
+ * 안 뜬다 — 이미 그 화면에 와 있는 사람에게 같은 곳으로 가라고 권하면, 눌러도 화면이 안 바뀌어
+ * 링크가 죽은 것으로 보인다. 그 화면은 {@code hideOnPopupId} 로 자기 id 를 알려 준다.
  */
-export function FeaturedPopupBanner() {
+export function FeaturedPopupBanner({
+  hideOnPopupId,
+}: {
+  /** 지금 보고 있는 팝업 id. 이 배너가 가리키는 팝업과 같으면 안 띄운다. */
+  hideOnPopupId?: number | string | null;
+} = {}) {
   const { t } = useLocale();
 
-  const featured = activeFeatured();
+  const featured = featuredForPage(hideOnPopupId);
   if (!featured) return null;
 
   const untilStart = daysUntilStart(featured, new Date());
