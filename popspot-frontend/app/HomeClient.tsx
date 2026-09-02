@@ -118,6 +118,7 @@ import {
   saveHomeReturnState,
 } from '@/lib/homeReturnScroll';
 import { SearchZone } from '@/features/popup/SearchBox';
+import { keepSearchable } from '@/lib/searchSuggest';
 import { SectionLogo } from '@/components/layout/BrandLogos';
 import { ReportPopupModal } from '@/features/popup/ReportPopupModal';
 import { PopupCalendarModal } from '@/features/popup/PopupCalendarModal';
@@ -370,6 +371,21 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
    * 상태다 — 비어 보이는 것보다 낫고, 응답이 오면 온전해진다.
    */
   const [catalogPopups, setCatalogPopups] = useState<PopupStore[]>(initialPopups);
+
+  /**
+   * 검색창이 볼 목록 — <b>아직 안 끝난 것 전부</b>(오늘 열린 것 + 앞으로 열 것).
+   *
+   * <p>{@link keepOpenNow} 를 쓰면 안 된다. 9/2 에 "제주" 를 쳐도 9/5 에 여는 팝업이 안 뜬다.
+   * 달력이 바로 위에서 같은 함정을 밟았고, 검색창만 그 교훈에서 빠져 있었다.
+   *
+   * <p>같은 검색창의 두 경로가 서로 다른 세계를 보고 있던 것이 문제였다 — 즉시 추천은 "오늘
+   * 열린 것" 만, 서버의 AI 검색은 지도 마커 전체(예정 포함)를. 그래서 AI 검색은 찾아내는데
+   * 추천에는 없는 팝업이 생겼다. 지도 마커와 같은 기준(끝나지 않은 것)으로 맞춘다.
+   */
+  const searchablePopups = useMemo(
+    () => keepSearchable(catalogPopups, kstTodayStart()),
+    [catalogPopups],
+  );
   const initialMapMarkers = useMemo(() => initialPopups.map(popupToMapMarker), [initialPopups]);
   /*
    * 레일 정렬/필터. 전체(allPopups)에서 파생한다.
@@ -1710,7 +1726,7 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
               {/* Search Zone */}
               <div className="relative z-50 col-span-1 lg:col-span-12">
                 <SearchZone
-                  popups={allPopups}
+                  popups={searchablePopups}
                   onSelectPopup={(hit) => {
                     // AI 필터가 걸려 있으면 해제 — 그래야 고른 핀이 지도에 보인다.
                     setMapFilterIds(null);
@@ -1721,7 +1737,7 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
                     }));
                     // 그 팝업 좌표로 지도를 확대 이동. 단 진짜 위치가 있는 팝업만 — 지역 중심점(가짜 위치)에
                     // 몰린 팝업은 지도에 안 찍히므로 그쪽으로 확대하면 빈 곳/링만 보인다.
-                    const p = allPopups.find((x) => String(x.id) === String(hit.objectID));
+                    const p = searchablePopups.find((x) => String(x.id) === String(hit.objectID));
                     if (p && hasRealMapLocation(p)) {
                       setMapFit((prev) => ({
                         pts: [[parseFloat(p.longitude ?? ''), parseFloat(p.latitude ?? '')]],
