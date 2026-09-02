@@ -73,3 +73,31 @@ export function daysUntilStart(entry: FeaturedPopup, now: Date): number | null {
   const days = daysUntilEnd(entry.startDate, now);
   return days !== null && days > 0 ? days : null;
 }
+
+/**
+ * 이 화면에 띄울 것인가 — <b>제휴 팝업 자신의 상세에서는 안 띄운다.</b>
+ *
+ * <p>배너는 그 팝업의 상세로 보내는 링크다. 이미 그 화면에 와 있는 사람에게 같은 곳으로 가라고
+ * 권하는 배너는 자리만 차지하고, 눌러도 화면이 안 바뀌어 <b>고장으로 읽힌다</b>.
+ *
+ * <p>비교를 문자열로 하는 이유 — 팝업 id 가 화면마다 다른 모양으로 온다. 라우트 파라미터는
+ * 문자열이고 객체 필드는 숫자다. 어느 쪽이 와도 같은 답이 나와야 한다.
+ */
+export function pickForPage(
+  entry: FeaturedPopup,
+  currentPopupId: number | string | null | undefined,
+  now: Date,
+): FeaturedPopup | null {
+  const featured = pickFeatured(entry, now);
+  if (!featured) return null;
+  if (currentPopupId != null && String(currentPopupId) === String(featured.popupId)) return null;
+  return featured;
+}
+
+/** 화면이 부르는 쪽. {@code currentPopupId} 를 주면 그 팝업의 상세에서는 안 뜬다. */
+export function featuredForPage(
+  currentPopupId?: number | string | null,
+  now: Date = new Date(),
+): FeaturedPopup | null {
+  return pickForPage(FEATURED, currentPopupId, now);
+}

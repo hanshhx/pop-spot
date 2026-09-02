@@ -6,6 +6,7 @@ import {
   takeGuestWishlist,
   toggleGuestWishlist,
 } from '@/lib/guestWishlist';
+import { FeaturedPopupBanner } from '@/components/main/FeaturedPopupBanner';
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -744,6 +745,13 @@ export default function PopupDetailClient({
           )}
           {stationLine && <p className="ml-5 mt-0.5 text-[11px] text-white/60">{stationLine}</p>}
         </div>
+      </div>
+
+      {/* 제휴 배너 — 히어로 <b>아래</b> 본문 첫 자리다. 히어로 위에 얹으면 38vh 짜리 사진이
+          화면 밖으로 밀려 이 페이지가 무엇을 보여 주려는 것인지가 사라진다.
+          자기 자신의 상세에서는 안 뜬다(hideOnPopupId). */}
+      <div className="mx-auto max-w-3xl px-4 pt-4 md:px-6 lg:max-w-6xl">
+        <FeaturedPopupBanner hideOnPopupId={popup.id} />
       </div>
 
       {/* 1440 에서 max-w-3xl 한 칸은 좌우 336px 씩을 버린다. lg 이상에서만 두 칸으로 펴고,
