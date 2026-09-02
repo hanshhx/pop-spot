@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@/lib/authStorage', () => ({ getAuthToken: () => null }));
 vi.mock('@/lib/visitorId', () => ({ getVisitorId: () => 'visitor-1' }));
-vi.mock('@/lib/api', () => ({ API_BASE_URL: 'https://example.test' }));
+vi.mock('@/lib/api', () => ({ apiUrl: (endpoint: string) => `/proxied${endpoint}` }));
 
 import { DROPPED_KEY } from './beaconDrops';
 import { trackVisitEvent } from './visitEvent';
@@ -39,6 +39,20 @@ beforeEach(() => {
 });
 
 describe('trackVisitEvent', () => {
+  /*
+   * 이 검사가 가장 값비싼 고장을 막는다. 예전에는 주소를 백엔드 기본 주소에 직접 이어 붙였는데,
+   * 운영에서 그 값이 Tailscale 호스트라 tailnet 밖의 방문자에게는 언제나 실패했다 — 행동
+   * 이벤트가 몇 주째 한 건도 안 들어오고 있었고 아무 신호도 없었다.
+   */
+  it('주소를 직접 만들지 않고 apiUrl 이 정한 곳으로 보낸다', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true }));
+
+    trackVisitEvent('popup_open', { popupId: 1 });
+
+    await vi.waitFor(() => expect(globalThis.fetch).toHaveBeenCalled());
+    expect(vi.mocked(globalThis.fetch).mock.calls[0][0]).toBe('/proxied/api/visits/events');
+  });
+
   it('200 이면 잃은 것으로 세지 않는다', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true }));
 
