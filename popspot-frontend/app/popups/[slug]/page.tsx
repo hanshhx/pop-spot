@@ -2,10 +2,9 @@ import type { Metadata } from 'next';
 import { FeaturedPopupBanner } from '@/components/main/FeaturedPopupBanner';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { Suspense } from 'react';
-import { ArrowLeft, MapPin, Calendar, Tag, Clock, Flame, Footprints } from 'lucide-react';
+import { MapPin, Calendar, Tag, Clock, Flame, Footprints } from 'lucide-react';
 
-import LocaleSwitcher from '@/components/LocaleSwitcher';
+import { Breadcrumb } from '@/components/seo/Breadcrumb';
 import LandingMap from '@/components/Map/LandingMap';
 import { landingSeason } from '@/lib/landingSeason';
 import { landingStatus, type LandingStatus } from '@/lib/landingStatus';
@@ -567,6 +566,19 @@ function jsonLd(obj: unknown): string {
 const LIST_LIMIT = 60;
 
 /**
+ * 목록에서 <b>처음부터 펼쳐 두는</b> 개수. 나머지는 접어 둔다.
+ *
+ * <p><b>왜 접기인가.</b> 60곳이 한 번에 깔리면 스크롤이 길어 아래 절(지도·FAQ·관련 지역)까지
+ * 내려가는 사람이 줄어든다. 그렇다고 페이지를 나누면 안 된다 — 이 페이지는 검색으로 들어오라고
+ * 만든 것이고, 나누면 각 장이 얇아지는 데다 2페이지 이후는 사이트 안에서 들어가는 링크가 거의
+ * 없어 크롤러가 안 간다. 지금 병목은 URL 재고가 아니라 <b>만들어 둔 것을 구글이 안 넣는 것</b>이다.
+ *
+ * <p>접으면 둘 다 얻는다. {@code <details>} 안의 내용은 첫 HTML 에 그대로 있으므로 크롤러는 60곳을
+ * 다 보고, 사람은 12곳만 본다. 자바스크립트도 필요 없다.
+ */
+const LIST_VISIBLE = 12;
+
+/**
  * "곧 열리는 팝업" 섹션에 보여줄 최대 개수.
  *
  * <p>본문 목록(LIST_LIMIT=60)처럼 다 보여줄 필요가 없다 — 이 섹션은 본문 아래에 얹는 부차 정보라,
@@ -834,6 +846,89 @@ export async function SliceLandingPage({ slug, locale }: { slug: string; locale:
   const soonest = sorted.length > 0 ? rank(sorted[0].dday) : Infinity;
   const minDday = Number.isFinite(soonest) ? soonest : null;
 
+  /**
+   * 목록 한 줄. 펼쳐 둔 12곳과 접어 둔 나머지가 <b>같은 함수</b>를 쓴다 — 두 벌로 두면 한쪽만
+   * 고쳐지는 날이 온다.
+   */
+  const renderListItem = ({ m, status }: (typeof sorted)[number]) => {
+    const badge = ddayBadge(status, copy);
+    const shownName = bilingual(
+      m.name,
+      locale === 'en' ? m.nameEn : locale === 'ja' ? m.nameJa : null,
+    );
+    const shownPlace = bilingual(
+      m.location,
+      locale === 'en' ? m.locationEn : locale === 'ja' ? m.locationJa : null,
+    );
+    return (
+      <li
+        key={m.id}
+        className="relative flex items-start gap-3 py-2 border-b border-gray-100 dark:border-white/5 last:border-0 transition-colors hover:bg-black/[0.02] dark:hover:bg-white/[0.03]"
+      >
+        {/* 행 전체를 덮는 링크. 배지·기간 텍스트를 링크 본문에 넣으면 스크린리더가
+            "누데이크 팝업 D-3 서울 성동구 2026-07-01 ~ 2026-07-31 링크" 로 읽어
+            목록 훑기가 불가능해진다. aria-label 로 이름만 읽히게 한다. */}
+        <Link
+          href={localizedPath(`/popup/${m.id}`, locale)}
+          aria-label={copy.detailAria(shownName.display ?? m.name)}
+          className="absolute inset-0 z-10 rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lime-500"
+        >
+          {/* 앵커 텍스트 — 근거는 위 rounded-xl 오버레이의 주석. */}
+          <span className="sr-only">{shownName.display ?? m.name}</span>
+        </Link>
+        <span className="text-lime-500 mt-1">
+          <MapPin size={14} />
+        </span>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <h3 className="text-sm md:text-base font-bold truncate">{shownName.display}</h3>
+            {badge && (
+              <span className={`shrink-0 rounded-pill px-2 py-0.5 text-xs font-black ${badge.cls}`}>
+                {badge.text}
+              </span>
+            )}
+            {/* 묶었다는 사실을 밝힌다. 조용히 줄이면 "왜 빠졌지" 가 되고,
+                밝히면 "여러 곳에서 확인된 행사" 라는 신뢰 신호가 된다. */}
+            {(mergedCount.get(m.id) ?? 0) > 0 && (
+              <span className="shrink-0 rounded-pill bg-black/5 px-2 py-0.5 text-[11px] font-bold text-muted-foreground dark:bg-white/10">
+                {copy.mergedBadge((mergedCount.get(m.id) ?? 0) + 1)}
+              </span>
+            )}
+            {/* 좌표가 서울 밖이면 밝힌다. 목록에서 빼지 않는 이유는, 찾아온
+                사람에게는 그 팝업이 존재한다는 사실 자체가 정보이기 때문이다.
+                대신 "서울" 이라고 적힌 주소를 그대로 믿지 않게 표시한다. */}
+            {isProvenOutsideSeoul(m) && (
+              <span className="shrink-0 rounded-pill bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-700 dark:bg-amber-900/25 dark:text-amber-400">
+                {copy.outsideSeoulBadge}
+              </span>
+            )}
+          </div>
+          {/* 번역이 있을 때만 원문을 남긴다. 지도 앱에 넣거나 현장에서 물어볼 때
+              쓰는 것은 번역명이 아니라 이쪽이다. lang 을 붙여 스크린리더가
+              영어 문맥에서도 한국어로 읽게 한다. */}
+          {shownName.original && (
+            <p className="truncate text-xs text-muted-foreground/70" lang="ko">
+              {shownName.original}
+            </p>
+          )}
+          <p className="text-xs text-muted-foreground truncate">
+            {shownPlace.display ?? copy.noLocation}
+          </p>
+          {shownPlace.original && (
+            <p className="truncate text-xs text-muted-foreground/70" lang="ko">
+              {shownPlace.original}
+            </p>
+          )}
+          {(m.startDate || m.endDate) && (
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {formatPeriod(m.startDate, m.endDate, locale)}
+            </p>
+          )}
+        </div>
+      </li>
+    );
+  };
+
   const topPicks = nowPicks(filtered, todayStart);
 
   /**
@@ -963,22 +1058,27 @@ export async function SliceLandingPage({ slug, locale }: { slug: string; locale:
       <div aria-hidden="true" className="seo-landing-glow" />
       <div aria-hidden="true" className="seo-landing-grain" />
 
-      <div className="relative z-10 mx-auto max-w-3xl px-5 py-8 md:px-8 md:py-14">
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <Link
-            href={home}
-            /*
-             * 페이지 맨 위 되돌아가기. 글자 높이(16px)만큼밖에 안 돼 손가락으로 누르기 어려웠다.
-             * 글자 크기는 두고 위아래 여백으로 누를 면적만 넓힌다.
-             */
-            className="inline-flex min-h-11 items-center gap-1.5 py-2 text-xs text-muted-foreground transition hover:text-foreground md:text-sm"
-          >
-            <ArrowLeft size={14} /> {copy.backHome}
-          </Link>
-          <Suspense fallback={<span aria-hidden="true" className="h-11 w-[72px] shrink-0" />}>
-            <LocaleSwitcher locale={locale} className="shrink-0" />
-          </Suspense>
-        </div>
+      {/*
+        1440 에서 max-w-3xl 한 칸은 좌우 336px 씩을 버린다. 상세 페이지는 이미 lg 이상에서 6xl 로
+        펴고 있는데(같은 이유의 주석이 거기 있다) 랜딩만 빠져 있었다.
+
+        다만 <b>글은 넓히지 않는다.</b> 제목·설명·FAQ 는 글줄이 길어지면 읽기가 나빠지므로 안에서
+        다시 3xl 로 묶는다. 넓어지는 것은 카드·통계·목록처럼 격자로 놓이는 것들이다.
+      */}
+      <div className="relative z-10 mx-auto max-w-3xl px-5 py-8 md:px-8 md:py-14 lg:max-w-6xl">
+        {/*
+          되돌아가기 대신 빵부스러기.
+
+          위에 사이트 헤더가 붙으면서(SiteChrome) 로고가 이미 홈으로 가므로, "메인으로" 는 같은 일을
+          하는 두 번째 층이었다. 빵부스러기는 <b>어디인지와 어디로 갈 수 있는지를 함께</b> 말하고,
+          상세 페이지가 이미 쓰는 것과 모양이 같아 두 화면이 한 사이트로 읽힌다.
+
+          언어 전환은 헤더로 옮겼다 — 홈·랜딩·상세가 저마다 다른 자리에 같은 것을 두고 있었다.
+        */}
+        <Breadcrumb
+          items={[{ name: copy.homeCrumb, href: home }, { name: slice.label }]}
+          className="mb-4"
+        />
 
         {/* 제휴 배너 — 기간 밖이면 스스로 아무것도 안 그린다(featuredBanner). 검색으로 들어온
             사람이 가장 먼저 보는 자리라, 제목 위 한 줄로만 둔다. */}
@@ -1001,7 +1101,7 @@ export async function SliceLandingPage({ slug, locale }: { slug: string; locale:
           )}
         </div>
 
-        <h1 className="text-3xl md:text-5xl font-black mb-3 leading-tight">{heading}</h1>
+        <h1 className="mb-3 max-w-3xl text-3xl font-black leading-tight md:text-5xl">{heading}</h1>
 
         <p className="mb-5 max-w-2xl text-sm text-gray-600 md:text-base dark:text-white/70">
           {count > 0 ? subcopy : intro}
@@ -1226,90 +1326,19 @@ export async function SliceLandingPage({ slug, locale }: { slug: string; locale:
               <h2 className="text-lg md:text-xl font-bold mb-4 flex items-center gap-2">
                 <Clock size={16} className="text-orange-500" /> {copy.listHeading}
               </h2>
-              <ul className="space-y-3">
-                {sorted.slice(0, LIST_LIMIT).map(({ m, status }) => {
-                  const badge = ddayBadge(status, copy);
-                  const shownName = bilingual(
-                    m.name,
-                    locale === 'en' ? m.nameEn : locale === 'ja' ? m.nameJa : null,
-                  );
-                  const shownPlace = bilingual(
-                    m.location,
-                    locale === 'en' ? m.locationEn : locale === 'ja' ? m.locationJa : null,
-                  );
-                  return (
-                    <li
-                      key={m.id}
-                      className="relative flex items-start gap-3 py-2 border-b border-gray-100 dark:border-white/5 last:border-0 transition-colors hover:bg-black/[0.02] dark:hover:bg-white/[0.03]"
-                    >
-                      {/* 행 전체를 덮는 링크. 배지·기간 텍스트를 링크 본문에 넣으면 스크린리더가
-                          "누데이크 팝업 D-3 서울 성동구 2026-07-01 ~ 2026-07-31 링크" 로 읽어
-                          목록 훑기가 불가능해진다. aria-label 로 이름만 읽히게 한다. */}
-                      <Link
-                        href={localizedPath(`/popup/${m.id}`, locale)}
-                        aria-label={copy.detailAria(shownName.display ?? m.name)}
-                        className="absolute inset-0 z-10 rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lime-500"
-                      >
-                        {/* 앵커 텍스트 — 근거는 위 rounded-xl 오버레이의 주석. */}
-                        <span className="sr-only">{shownName.display ?? m.name}</span>
-                      </Link>
-                      <span className="text-lime-500 mt-1">
-                        <MapPin size={14} />
-                      </span>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <h3 className="text-sm md:text-base font-bold truncate">
-                            {shownName.display}
-                          </h3>
-                          {badge && (
-                            <span
-                              className={`shrink-0 rounded-pill px-2 py-0.5 text-xs font-black ${badge.cls}`}
-                            >
-                              {badge.text}
-                            </span>
-                          )}
-                          {/* 묶었다는 사실을 밝힌다. 조용히 줄이면 "왜 빠졌지" 가 되고,
-                              밝히면 "여러 곳에서 확인된 행사" 라는 신뢰 신호가 된다. */}
-                          {(mergedCount.get(m.id) ?? 0) > 0 && (
-                            <span className="shrink-0 rounded-pill bg-black/5 px-2 py-0.5 text-[11px] font-bold text-muted-foreground dark:bg-white/10">
-                              {copy.mergedBadge((mergedCount.get(m.id) ?? 0) + 1)}
-                            </span>
-                          )}
-                          {/* 좌표가 서울 밖이면 밝힌다. 목록에서 빼지 않는 이유는, 찾아온
-                              사람에게는 그 팝업이 존재한다는 사실 자체가 정보이기 때문이다.
-                              대신 "서울" 이라고 적힌 주소를 그대로 믿지 않게 표시한다. */}
-                          {isProvenOutsideSeoul(m) && (
-                            <span className="shrink-0 rounded-pill bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-700 dark:bg-amber-900/25 dark:text-amber-400">
-                              {copy.outsideSeoulBadge}
-                            </span>
-                          )}
-                        </div>
-                        {/* 번역이 있을 때만 원문을 남긴다. 지도 앱에 넣거나 현장에서 물어볼 때
-                            쓰는 것은 번역명이 아니라 이쪽이다. lang 을 붙여 스크린리더가
-                            영어 문맥에서도 한국어로 읽게 한다. */}
-                        {shownName.original && (
-                          <p className="truncate text-xs text-muted-foreground/70" lang="ko">
-                            {shownName.original}
-                          </p>
-                        )}
-                        <p className="text-xs text-muted-foreground truncate">
-                          {shownPlace.display ?? copy.noLocation}
-                        </p>
-                        {shownPlace.original && (
-                          <p className="truncate text-xs text-muted-foreground/70" lang="ko">
-                            {shownPlace.original}
-                          </p>
-                        )}
-                        {(m.startDate || m.endDate) && (
-                          <p className="text-xs text-muted-foreground mt-0.5">
-                            {formatPeriod(m.startDate, m.endDate, locale)}
-                          </p>
-                        )}
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
+              <ul className="space-y-3">{sorted.slice(0, LIST_VISIBLE).map(renderListItem)}</ul>
+
+              {/* 나머지는 접는다. 내용은 첫 HTML 에 그대로 있어 크롤러는 다 본다(LIST_VISIBLE 주석). */}
+              {sorted.length > LIST_VISIBLE && (
+                <details className="group mt-3">
+                  <summary className="inline-flex min-h-11 cursor-pointer list-none items-center rounded-pill border border-gray-200 bg-gray-50 px-4 py-2 text-xs font-bold transition hover:border-lime-300 dark:border-white/10 dark:bg-white/5">
+                    {copy.showRest(Math.min(sorted.length, LIST_LIMIT) - LIST_VISIBLE)}
+                  </summary>
+                  <ul className="mt-3 space-y-3">
+                    {sorted.slice(LIST_VISIBLE, LIST_LIMIT).map(renderListItem)}
+                  </ul>
+                </details>
+              )}
               {/*
                 61번째부터는 <b>말만 하고 길이 없었다.</b> "N곳 더 있습니다" 라는 문장 하나가
                 전부라, 사람도 크롤러도 그 팝업들에 닿을 방법이 사이트 안에 0개였다(사이트맵에는

@@ -11,7 +11,6 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
-  ArrowLeft,
   MapPin,
   Share2,
   Heart,
@@ -34,11 +33,10 @@ import MusicForPopup from '../../../src/components/music/MusicForPopup';
 import { apiFetch } from '../../../src/lib/api';
 import { notify, notifyError, confirmAction } from '@/lib/notify';
 import { trackVisitEvent } from '@/lib/visitEvent';
-import { popupCoverUrl } from '@/lib/popupCover';
+import { isPexelsPhoto, popupCoverUrl } from '@/lib/popupCover';
 import { PhotoDisclosure } from '@/components/popup/PhotoDisclosure';
 import { PopupGallery } from '@/components/popup/PopupGallery';
 import type { GalleryImage } from '@/lib/galleryImages';
-import LocaleSwitcher from '@/components/LocaleSwitcher';
 import { addToCalendar, toCalendarEvent } from '@/lib/calendar';
 import type { User } from '@/types/popup';
 import { useLocale, type MessageKey } from '@/lib/i18n';
@@ -103,16 +101,6 @@ const CATEGORY_KEY: Record<string, MessageKey> = {
   BEAUTY: 'category.beauty',
   TECH: 'category.tech',
   ETC: 'category.etc',
-};
-
-const CAT_GRAD: Record<string, string> = {
-  FASHION: 'from-pink-300 to-rose-400',
-  FOOD: 'from-amber-300 to-orange-400',
-  CULTURE: 'from-violet-300 to-indigo-400',
-  CHARACTER: 'from-lime-300 to-emerald-400',
-  BEAUTY: 'from-fuchsia-300 to-pink-400',
-  TECH: 'from-sky-300 to-cyan-400',
-  ETC: 'from-gray-300 to-gray-400',
 };
 
 function ddayLabel(
@@ -499,7 +487,6 @@ export default function PopupDetailClient({
 
   const catKey = popup.category?.toUpperCase() ?? 'ETC';
   const category = CATEGORY_KEY[catKey] ? t(CATEGORY_KEY[catKey]) : popup.category;
-  const catGrad = CAT_GRAD[catKey] ?? CAT_GRAD.ETC;
   const dday = ddayLabel(popup.closeDate, t('detail.ended'), t('detail.todayClosing'));
   const shownName = bilingual(
     popup.name,
@@ -561,6 +548,11 @@ export default function PopupDetailClient({
     ? `https://map.kakao.com/link/to/${encodeURIComponent(popup.name)},${lat},${lng}`
     : `https://map.kakao.com/link/search/${encodeURIComponent(popup.address || popup.name)}`;
   const coverUrl = popupCoverUrl(popup, 1200);
+  /**
+   * <b>그 팝업을 찍은 사진인가.</b> {@code popupCoverUrl} 은 PEXELS 스톡도 돌려주므로 그것만으로는
+   * 갈리지 않는다. 실측(2026-09-02) 1,343곳 중 PEXELS 82.4% · PLACEHOLDER 17.5% · 실제 사진 1곳.
+   */
+  const hasOwnPhoto = Boolean(coverUrl) && !isPexelsPhoto(popup);
   const calendarInput = {
     id: popup.id,
     name: popup.name,
@@ -655,34 +647,94 @@ export default function PopupDetailClient({
 
   return (
     <main className="min-h-screen bg-background pb-36 text-foreground md:pb-24">
-      {/* 사진 히어로 — 실제 커버 이미지(없으면 카테고리 그라디언트) + 제목 오버레이 */}
-      <div className="relative h-[38vh] min-h-[240px] max-h-[440px] w-full overflow-hidden">
-        <div className={`absolute inset-0 bg-gradient-to-br ${catGrad}`} />
-        {coverUrl && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={coverUrl}
-            alt={displayName}
-            className="absolute inset-0 h-full w-full object-cover"
-          />
-        )}
-        <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
+      {/*
+        표지는 <b>그 팝업의 사진이 있을 때만</b> 쓴다.
 
-        {/* 상단: 뒤로 / 공유 · 찜 */}
-        <div className="absolute inset-x-0 top-0 z-10 flex items-center justify-between p-4 md:p-5">
-          <button
-            onClick={() => router.back()}
-            aria-label={t('common.back')}
-            className="grid h-11 w-11 place-items-center rounded-full bg-black/40 text-white backdrop-blur-md transition hover:bg-black/60"
-          >
-            <ArrowLeft size={20} />
-          </button>
-          <div className="flex items-center gap-2">
-            <LocaleSwitcher locale={locale} className="shrink-0" />
+        실측(2026-09-02) 1,343곳 중 PEXELS 82.4% · PLACEHOLDER 17.5% · 실제 사진 1곳이다. 즉 거의
+        전부가 남의 사진인데, 화면 위 38% 를 써서 "이 팝업의 모습" 이라고 주장하고 있었다.
+        PhotoDisclosure("연출 이미지 · 실제 팝업 현장 아님")를 따로 만들어야 했던 것이 그 증거다 —
+        사진이 만든 오해를 글자로 되돌리고 있었다.
+
+        유입의 72%가 검색이고, 그들이 먼저 알고 싶은 것은 언제까지·어디서·지금 여는가다. 그래서
+        사실을 위로 올리고, 진짜 사진이 있을 때만 그 아래 본문으로 붙인다.
+
+        뒤로가기 단추도 뺐다. 위에 헤더와 빵부스러기가 있어 같은 일을 하는 층이 둘이었다.
+      */}
+      <header className="border-b border-[var(--color-border)] bg-surface">
+        <div className="mx-auto flex max-w-3xl items-start justify-between gap-3 px-4 py-5 md:px-6 md:py-6 lg:max-w-6xl">
+          <div className="min-w-0">
+            <div className="mb-2 flex flex-wrap items-center gap-2">
+              {category && (
+                <span className="rounded-pill bg-muted px-2.5 py-1 text-[11px] font-bold text-muted-foreground">
+                  {category}
+                </span>
+              )}
+              {/* 색은 "확인됐다"는 근거가 있을 때만 라임(go 신호)을 켠다. 종료·상태 미상·저장된
+                  정보는 전부 중립이다 — 끝난 팝업이 운영 중과 같은 색이면 안 된다. */}
+              <span
+                className={
+                  'inline-flex items-center gap-1 rounded-pill px-2.5 py-1 text-[11px] font-bold ' +
+                  (popup.emergencySnapshot
+                    ? 'bg-amber-200 text-amber-950'
+                    : isConfirmedOpen
+                      ? 'bg-lime-300 text-ink-900'
+                      : 'bg-muted text-muted-foreground')
+                }
+              >
+                <span
+                  className={
+                    'h-1.5 w-1.5 rounded-full ' +
+                    (popup.emergencySnapshot
+                      ? 'bg-amber-600'
+                      : isConfirmedOpen
+                        ? 'bg-green-600'
+                        : 'bg-gray-400')
+                  }
+                />{' '}
+                {displayStatus}
+              </span>
+            </div>
+
+            <h1 className="text-2xl font-black leading-tight md:text-4xl">{displayName}</h1>
+            {shownName.original && (
+              <p className="mt-1 text-xs font-semibold text-muted-foreground">
+                {shownName.original}
+              </p>
+            )}
+
+            <p className="mt-1.5 flex items-center gap-1 text-sm text-muted-foreground">
+              <MapPin size={14} className="shrink-0" /> {displayPlace}
+            </p>
+            {shownPlace.original && (
+              <p className="ml-5 mt-0.5 text-[11px] text-muted-foreground">{shownPlace.original}</p>
+            )}
+            {stationLine && (
+              <p className="ml-5 mt-0.5 text-[11px] text-muted-foreground">{stationLine}</p>
+            )}
+
+            {/* 기간·마감을 접힌 선 위로 올린다 — 검색으로 온 사람이 가장 먼저 확인하는 값이다. */}
+            <p className="mt-3 flex flex-wrap items-baseline gap-x-3 gap-y-1 text-sm">
+              <span className="font-semibold">{periodText(popup.openDate, popup.closeDate)}</span>
+              {dday && (
+                <span
+                  className={
+                    'font-black ' +
+                    (dday === t('detail.ended') ? 'text-muted-foreground' : 'text-hot-400')
+                  }
+                >
+                  {dday}
+                </span>
+              )}
+            </p>
+          </div>
+
+          <div className="flex shrink-0 items-center gap-2">
             <button
               onClick={handleShare}
               aria-label={t('common.share')}
-              className="grid h-11 w-11 place-items-center rounded-full bg-black/40 text-white backdrop-blur-md transition hover:bg-black/60"
+              className={
+                'grid h-11 w-11 place-items-center rounded-full border border-[var(--color-border)] bg-surface text-foreground transition hover:bg-muted'
+              }
             >
               <Share2 size={18} />
             </button>
@@ -690,66 +742,34 @@ export default function PopupDetailClient({
               <button
                 onClick={handleToggleLike}
                 aria-label={t('common.wishlist')}
-                className={`grid h-11 w-11 place-items-center rounded-full backdrop-blur-md transition ${
-                  isLiked ? 'bg-hot-400 text-white' : 'bg-black/40 text-white hover:bg-black/60'
-                }`}
+                className={
+                  'grid h-11 w-11 place-items-center rounded-full transition ' +
+                  (isLiked
+                    ? 'bg-hot-400 text-white'
+                    : 'border border-[var(--color-border)] bg-surface text-foreground hover:bg-muted')
+                }
               >
                 <Heart size={18} className={isLiked ? 'fill-current' : ''} />
               </button>
             )}
           </div>
         </div>
+      </header>
 
-        {/* 제목 오버레이 */}
-        <div className="absolute inset-x-0 bottom-0 z-10 p-5 text-white md:p-7">
-          <PhotoDisclosure popup={popup} showCredit className="mb-3" />
-          <div className="mb-2 flex items-center gap-2">
-            {category && (
-              <span className="rounded-pill bg-white/15 px-2.5 py-1 text-[11px] font-bold backdrop-blur">
-                {category}
-              </span>
-            )}
-            {/* 색은 "확인됐다"는 근거가 있을 때만 라임(go 신호)을 켠다. 종료·상태 미상·저장된
-                정보는 전부 중립이다 — 예전엔 조건 없이 항상 라임+초록 점이라, 끝난 팝업도
-                운영 중과 같은 색으로 보여줬다. */}
-            <span
-              className={`inline-flex items-center gap-1 rounded-pill px-2.5 py-1 text-[11px] font-bold ${
-                popup.emergencySnapshot
-                  ? 'bg-amber-300 text-ink-900'
-                  : isConfirmedOpen
-                    ? 'bg-lime-300 text-ink-900'
-                    : 'bg-gray-800/80 text-white'
-              }`}
-            >
-              <span
-                className={`h-1.5 w-1.5 rounded-full ${
-                  popup.emergencySnapshot
-                    ? 'bg-amber-600'
-                    : isConfirmedOpen
-                      ? 'bg-green-600'
-                      : 'bg-gray-300'
-                }`}
-              />{' '}
-              {displayStatus}
-            </span>
-          </div>
-          <h1 className="text-2xl font-black leading-tight md:text-4xl">{displayName}</h1>
-          {shownName.original && (
-            <p className="mt-1 text-xs font-semibold text-white/65">{shownName.original}</p>
-          )}
-          <p className="mt-1.5 flex items-center gap-1 text-sm text-white/80">
-            <MapPin size={14} className="shrink-0" /> {displayPlace}
-          </p>
-          {shownPlace.original && (
-            <p className="ml-5 mt-0.5 text-[11px] text-white/60">{shownPlace.original}</p>
-          )}
-          {stationLine && <p className="ml-5 mt-0.5 text-[11px] text-white/60">{stationLine}</p>}
+      {/* 진짜 사진일 때만. 오버레이가 아니라 본문 블록이라 글자가 사진 위에 얹히지 않는다. */}
+      {hasOwnPhoto && coverUrl && (
+        <div className="mx-auto max-w-3xl px-4 pt-4 md:px-6 lg:max-w-6xl">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={coverUrl}
+            alt={displayName}
+            className="max-h-[420px] w-full rounded-2xl object-cover"
+          />
+          <PhotoDisclosure popup={popup} showCredit className="mt-2" />
         </div>
-      </div>
+      )}
 
-      {/* 제휴 배너 — 히어로 <b>아래</b> 본문 첫 자리다. 히어로 위에 얹으면 38vh 짜리 사진이
-          화면 밖으로 밀려 이 페이지가 무엇을 보여 주려는 것인지가 사라진다.
-          자기 자신의 상세에서는 안 뜬다(hideOnPopupId). */}
+      {/* 제휴 배너 — 사실 헤더 아래 본문 첫 자리다. 자기 자신의 상세에서는 안 뜬다(hideOnPopupId). */}
       <div className="mx-auto max-w-3xl px-4 pt-4 md:px-6 lg:max-w-6xl">
         <FeaturedPopupBanner hideOnPopupId={popup.id} />
       </div>
@@ -772,27 +792,8 @@ export default function PopupDetailClient({
             두고, 아래 본문 칸을 order-1 로 왼쪽에 둔다 — DOM 은 그대로 두고 시각 순서만
             grid order 로 뒤집는다. */}
         <aside className="lg:order-2 lg:sticky lg:top-6 lg:self-start">
-          {/* 정보 바 — 우리가 <b>실제로 아는 것</b>만 둔다.
-            예전엔 '운영 11:00~20:00' 칸이 있었는데, openTime/closeTime 은 백엔드에 존재하지도
-            않는 필드라 폴백이 그대로 찍혔다. 즉 팝업 3,225곳 전부가 같은 영업시간을 내걸고
-            있었다. 시간 맞춰 갔다가 닫혀 있으면 그 사람은 다시 오지 않는다.
-            빈 칸을 만드느니 칸을 없애고, 남은 자리는 진짜 값(시작일)에 쓴다. */}
-          <div className="relative z-10 -mt-6 grid grid-cols-2 divide-x divide-gray-200 rounded-2xl border border-gray-200 bg-white shadow-lg dark:divide-white/10 dark:border-white/10 dark:bg-[#111]">
-            <div className="px-3 py-4 text-center">
-              <p className="text-[10px] font-bold text-muted-foreground">{t('detail.period')}</p>
-              <p className="mt-1 text-sm font-bold">
-                {periodText(popup.openDate, popup.closeDate)}
-              </p>
-            </div>
-            <div className="px-3 py-4 text-center">
-              <p className="text-[10px] font-bold text-muted-foreground">{t('detail.closing')}</p>
-              <p
-                className={`mt-1 text-sm font-black ${dday === t('detail.ended') ? 'text-muted-foreground' : 'text-hot-400'}`}
-              >
-                {dday || '-'}
-              </p>
-            </div>
-          </div>
+          {/* 기간·마감 칸은 사실 헤더로 올렸다 — 검색으로 온 사람이 가장 먼저 확인하는 값이라
+            접힌 선 위에 있어야 한다. 여기 남겨 두면 같은 숫자가 한 화면에 두 번 나온다. */}
 
           {/* CTA — 길찾기(주) · 방문 인증(보조). 찜은 히어로 우상단. */}
           <div className="mt-4 flex gap-2.5">
