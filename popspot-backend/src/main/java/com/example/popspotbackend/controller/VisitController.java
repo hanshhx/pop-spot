@@ -3,6 +3,7 @@ package com.example.popspotbackend.controller;
 import com.example.popspotbackend.service.VisitService;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -20,6 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
  * 걸러 기록하지 않는다. 실제 브라우저는 모두 UA 에 "mozilla" 를 담으므로 그게 없으면(스크립트/HTTP 라이브러리) 봇으로 간주한다. User-Agent 는 남은
  * 봇을 식별해 필터를 다듬을 수 있도록 기록해 둔다(개인 식별 불가).
  */
+@Slf4j
 @RestController
 @RequestMapping("/api/visits")
 @RequiredArgsConstructor
@@ -177,6 +179,7 @@ public class VisitController {
             @RequestBody(required = false) Map<String, Object> body,
             @RequestHeader(value = "User-Agent", required = false) String userAgent) {
         if (body != null && !isBot(userAgent)) {
+            logDroppedBeacons(body);
             visitService.recordEvent(
                     str(body.get("visitorId")),
                     str(body.get("sessionId")),
@@ -187,6 +190,21 @@ public class VisitController {
                     !Boolean.FALSE.equals(body.get("guest")));
         }
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * 브라우저가 못 보낸 비콘 수를 남긴다.
+     *
+     * <p>화면은 전송에 실패한 비콘을 세어 두었다가 <b>다음에 성공하는 요청에 얹어</b> 보낸다. 실패한 보고를 다시 서버로 보내는 것은 순환이라(서버가 죽어서 실패한
+     * 것이면 그 보고도 실패한다) 이렇게 한다. 그래서 이 줄이 찍히는 순간은 <b>장애가 끝난 직후</b>다 — 값은 그동안 잃은 양이다.
+     *
+     * <p><b>이 장치가 못 보는 것.</b> UA 가 봇으로 판정되면 이 분기에 아예 안 들어오는데, 서버는 그래도 204 를 돌려주므로 화면은 계수기를 비운다. 네이버
+     * 인앱처럼 판정이 아슬아슬한 브라우저에서 유실이 조용히 사라질 수 있다. 'Vercel 대비 DB 누락률' 이 그쪽을 잡는다.
+     */
+    private static void logDroppedBeacons(Map<String, Object> body) {
+        Object dropped = body.get("dropped");
+        if (dropped == null) return;
+        log.warn("[VisitBeacon] 유실 {}건 만회 보고 — path={}", dropped, str(body.get("path")));
     }
 
     private static String str(Object value) {
