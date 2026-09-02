@@ -89,4 +89,52 @@ class AiSearchCandidateTest {
     void ignoresSingleCharacterWords() {
         assertThat(AiSearchService.narrowByQuery("이 의 를", CATALOG, 10)).isEmpty();
     }
+
+    /**
+     * 이름으로 걸린 것이 <b>주소로만</b> 걸린 것을 이긴다.
+     *
+     * <p>2026-09-02 에 "제주" 검색에서 「2026 제주 로컬브랜드 팝업스토어」가 안 나왔다. 걸린 낱말 수만 세면 이름이 「제주…」인 팝업과 주소가 「서울
+     * 제주공항」인 지브리 팝업이 똑같이 1점이라, 순서가 후보 목록에 실린 차례로 정해졌다. 진짜 답이 목록 뒤쪽에 있으면 잘려 나간다.
+     */
+    @Test
+    @DisplayName("이름에 걸린 것이 주소에만 걸린 것보다 앞에 온다 — 목록 맨 뒤에 있어도")
+    void ranksNameMatchesAboveLocationMatches() {
+        List<PopupStore> 그날 =
+                List.of(
+                        popup("도토리숲 지브리 팝업스토어", "서울 제주국제공항 도착층 3번 게이트앞", "CHARACTER"),
+                        popup("스토시", "서울 제주특별자치도", "FASHION"),
+                        popup("스튜디오 지브리 팝업스토어", "서울 제주공항", "CHARACTER"),
+                        popup("2026 제주 로컬브랜드 팝업스토어", "서울 성동구 KT&G 상상플래닛", "FOOD"));
+
+        List<PopupStore> picked = AiSearchService.narrowByQuery("제주", 그날, 2);
+
+        assertThat(picked)
+                .extracting(PopupStore::getName)
+                .containsExactly("2026 제주 로컬브랜드 팝업스토어", "도토리숲 지브리 팝업스토어");
+    }
+
+    @Test
+    @DisplayName("이름이 검색어로 시작하면 더 앞에 온다")
+    void ranksNamePrefixHighest() {
+        List<PopupStore> picked = AiSearchService.narrowByQuery("성수", CATALOG, 10);
+
+        assertThat(picked.get(0).getName()).isEqualTo("성수 감성 베이커리 팝업");
+    }
+
+    /**
+     * 낱말 하나짜리 검색은 <b>이름·지역 조회</b>다. 부르는 쪽이 이걸 보고 LLM 을 건너뛴다 — 조회에 추론형 모델을 태워서 응답이 잘리던 것이 이 구분이 생긴
+     * 이유다.
+     *
+     * <p>여러 낱말은 그대로 LLM 에 맡긴다. "비 오는 날 감성 카페" 까지 낱말 대조로 답해 버리면 AI 검색이 단순 대조로 퇴화한다.
+     */
+    @Test
+    @DisplayName("낱말 하나는 조회, 여럿이면 개념 검색으로 가른다")
+    void tellsLookupFromConcept() {
+        assertThat(AiSearchService.isLookup("제주")).isTrue();
+        assertThat(AiSearchService.isLookup("  성수  ")).isTrue();
+        assertThat(AiSearchService.isLookup("마뗑킴")).isTrue();
+
+        assertThat(AiSearchService.isLookup("비 오는 날 감성 카페")).isFalse();
+        assertThat(AiSearchService.isLookup("성수 캐릭터 굿즈")).isFalse();
+    }
 }
