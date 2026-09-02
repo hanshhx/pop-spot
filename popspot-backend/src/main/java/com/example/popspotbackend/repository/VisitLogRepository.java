@@ -30,6 +30,28 @@ public interface VisitLogRepository extends JpaRepository<VisitLog, Long> {
     long countDistinctVisitorsByGuestSince(
             @Param("since") LocalDateTime since, @Param("guest") boolean guest);
 
+    /**
+     * 가장 최근 방문 기록의 시각. 수집이 멎었는지 판단하는 기준이다.
+     *
+     * <p>기록이 하나도 없으면 {@code null} — 0 이나 현재 시각으로 채우면 "멎었다" 와 "처음부터 없다" 가 구별되지 않는다.
+     */
+    @Query(value = "SELECT MAX(created_at) FROM visit_log", nativeQuery = true)
+    LocalDateTime findLastVisitAt();
+
+    /**
+     * 시각(0~23)별 방문 수. 공백을 <b>그 시간대의 평소치</b>와 견주기 위한 것이다.
+     *
+     * <p>고정 임계값("1시간 비면 경보")을 쓰면 새벽마다 울리고, 매일 울리는 경보는 아무도 안 본다.
+     *
+     * <p>{@code created_at} 은 한국 벽시계로 저장되므로 {@code EXTRACT(HOUR ...)} 가 곧 한국 시각이다.
+     */
+    @Query(
+            value =
+                    "SELECT EXTRACT(HOUR FROM created_at)::int AS h, COUNT(*) AS c FROM visit_log"
+                            + " WHERE created_at >= :since GROUP BY h ORDER BY h",
+            nativeQuery = true)
+    List<Object[]> hourlyPageviewsSince(@Param("since") LocalDateTime since);
+
     @Query(
             value =
                     "SELECT to_char(created_at, 'MM-DD') AS d, COUNT(DISTINCT visitor_id) AS v FROM"

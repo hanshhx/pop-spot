@@ -11,6 +11,7 @@ import java.net.URI;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -206,6 +207,8 @@ public class VisitService {
                         .map(r -> new VisitStatsDto.PathCount(str(r[0]), num(r[1])))
                         .toList();
 
+        LocalDateTime lastVisit = visitLogRepository.findLastVisitAt();
+
         return new VisitStatsDto(
                 visitLogRepository.countDistinctVisitorsSince(todayStart),
                 visitLogRepository.countPageviewsSince(todayStart),
@@ -213,7 +216,28 @@ public class VisitService {
                 visitLogRepository.countDistinctVisitorsByGuestSince(todayStart, false),
                 visitLogRepository.countDistinctVisitorsSince(weekStart),
                 daily,
-                topPaths);
+                topPaths,
+                lastVisit == null ? null : lastVisit.toString(),
+                hourlyAverage(weekStart));
+    }
+
+    /**
+     * 시각별 <b>하루 평균</b> 방문 수. 화면이 공백을 이 값과 견줘 경보를 낸다.
+     *
+     * <p><b>왜 평균인가.</b> 고정 임계값("1시간 비면 경보")은 새벽마다 울린다 — 새벽 3~5시는 진짜로 한 건도 없는 시간대가 있기 때문이다. 매일 울리는
+     * 경보는 아무도 안 보고, 그러면 진짜일 때도 안 본다. 시간대별 평소치와 견주면 임계값을 손으로 정할 필요가 없고, 방문이 늘면 기준도 따라 오른다.
+     *
+     * <p>기록이 없는 시각은 <b>목록에 안 넣는다</b> — 화면이 0 으로 본다. 여기서 0 을 채워 넣으면 자료가 없는 것과 정말 한산한 것이 구별되지 않는다.
+     */
+    private List<VisitStatsDto.HourAverage> hourlyAverage(LocalDateTime weekStart) {
+        long days = Math.max(1, ChronoUnit.DAYS.between(weekStart, LocalDateTime.now(SEOUL)));
+        return visitLogRepository.hourlyPageviewsSince(weekStart).stream()
+                .map(
+                        r ->
+                                new VisitStatsDto.HourAverage(
+                                        ((Number) r[0]).intValue(),
+                                        ((Number) r[1]).doubleValue() / days))
+                .toList();
     }
 
     /** 오늘 방문 경로별 집계 — 경로 · 총 페이지뷰 · 회원 뷰 · 게스트/봇 뷰. 유입 진단용. */

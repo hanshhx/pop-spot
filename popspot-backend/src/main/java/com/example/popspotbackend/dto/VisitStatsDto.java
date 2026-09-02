@@ -10,11 +10,18 @@ public record VisitStatsDto(
         long todayMembers,
         long weekVisitors,
         List<DailyCount> daily,
-        List<PathCount> topPaths) {
+        List<PathCount> topPaths,
+        /** 가장 최근 방문 기록 시각(ISO). 기록이 없으면 null. */
+        String lastVisitAt,
+        /** 시각별 하루 평균 방문 수 — 공백을 평소치와 견주는 데 쓴다. */
+        List<HourAverage> hourlyAverage) {
 
     /** 일자별 고유 방문자 수. */
     public record DailyCount(String date, long visitors) {}
 
     /** 경로별 방문(페이지뷰) 수. */
     public record PathCount(String path, long count) {}
+
+    /** 한국 시각 {@code hour} 시대의 하루 평균 방문 수. */
+    public record HourAverage(int hour, double perDay) {}
 }
