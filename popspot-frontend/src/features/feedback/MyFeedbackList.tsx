@@ -29,6 +29,7 @@ const CATEGORY_LABEL_KEY: Record<FeedbackCategory, MessageKey> = {
   BUG: 'fb.catBug',
   FEATURE: 'fb.catFeature',
   GOOD: 'fb.catGood',
+  PARTNERSHIP: 'fb.catPartner',
   OTHER: 'fb.catOther',
 };
 

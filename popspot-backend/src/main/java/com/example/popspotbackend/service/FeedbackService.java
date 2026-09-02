@@ -25,7 +25,18 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class FeedbackService {
 
-    private static final Set<String> ALLOWED_CATEGORIES = Set.of("BUG", "FEATURE", "GOOD", "OTHER");
+    /**
+     * 화면이 보내올 수 있는 종류.
+     *
+     * <p><b>프론트의 {@code FeedbackCategory} 와 반드시 같아야 한다.</b> 한쪽만 늘리면 사용자에게는 "제보가 안 됨" 으로만 보이고, 서버
+     * 로그를 열기 전에는 원인이 드러나지 않는다. 언어가 달라 컴파일러가 못 묶어 주는 자리라 검사로 묶어 둔다.
+     *
+     * <p>{@code PARTNERSHIP} 은 브랜드·기관이 팝업 등록이나 소개를 요청하는 자리다. 전용 화면을 새로 만들지 않은 것은, 제휴 건수가 아직 한 건이라
+     * 폼·저장·관리자 확인을 새로 짓는 값이 없기 때문이다 — 여기에 이미 셋 다 있다.
+     */
+    private static final Set<String> ALLOWED_CATEGORIES =
+            Set.of("BUG", "FEATURE", "GOOD", "PARTNERSHIP", "OTHER");
+
     private static final Set<String> ALLOWED_STATUSES =
             Set.of("PENDING", "REVIEWING", "RESOLVED", "WONT_FIX");
     private static final String STATUS_RESOLVED = "RESOLVED";
