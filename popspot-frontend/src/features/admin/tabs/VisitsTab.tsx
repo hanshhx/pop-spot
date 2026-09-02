@@ -1,6 +1,12 @@
 import type { AdminReferrer, AdminTodayPath, AdminVisitStats } from '@/features/admin/types';
 import { CampaignsPanel } from '@/features/admin/CampaignsPanel';
 import { PopupOpensPanel } from '@/features/admin/PopupOpensPanel';
+import {
+  completedAverage,
+  completedDays,
+  lastCompletedDay,
+  SHORTFALL_ALERT,
+} from '@/features/admin/visitWindows';
 
 type VisitsTabProps = {
   visitStats: AdminVisitStats;
@@ -17,27 +23,35 @@ export function VisitsTab({ visitStats, todayPaths, referrers, loadVisitStats }:
       {/* 둘 다 스스로 불러온다 — 기간을 자기가 관리하므로 부모를 거치면 상태가 두 곳에 나뉜다. */}
       <PopupOpensPanel />
       <CampaignsPanel />
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        {[
-          { label: '오늘 방문자', value: visitStats.todayVisitors, sub: '고유' },
-          { label: '오늘 페이지뷰', value: visitStats.todayPageviews, sub: '' },
-          { label: '오늘 게스트', value: visitStats.todayGuests, sub: '' },
-          { label: '오늘 회원', value: visitStats.todayMembers, sub: '' },
-          { label: '7일 방문자', value: visitStats.weekVisitors, sub: '고유' },
-        ].map((s) => (
-          <div
-            key={s.label}
-            className="bg-surface p-4 rounded-2xl border border-[var(--color-border)]"
-          >
-            <p className="text-xs text-muted-foreground">{s.label}</p>
-            <p className="text-2xl md:text-3xl font-black mt-1">
-              {s.value.toLocaleString()}
-              {s.sub && (
-                <span className="text-xs font-normal text-muted-foreground ml-1">{s.sub}</span>
-              )}
-            </p>
-          </div>
-        ))}
+      <CompletedDaySummary daily={visitStats.daily} />
+
+      {/*
+        오늘 숫자는 아래로 내리고 '진행 중' 을 붙인다. 예전에는 타일 다섯 중 넷이 '오늘' 이라,
+        비교에 쓰면 안 되는 숫자만 크게 보였다 — 급할 때는 반드시 큰 쪽을 집게 된다.
+      */}
+      <div>
+        <p className="mb-2 text-xs font-bold text-muted-foreground">
+          오늘 <span className="font-normal">— 진행 중이라 비교에 쓸 수 없습니다</span>
+        </p>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {[
+            { label: '방문자', value: visitStats.todayVisitors, sub: '고유' },
+            { label: '페이지뷰', value: visitStats.todayPageviews, sub: '' },
+            { label: '게스트', value: visitStats.todayGuests, sub: '' },
+            { label: '회원', value: visitStats.todayMembers, sub: '' },
+          ].map((s) => (
+            <div
+              key={s.label}
+              className="rounded-2xl border border-dashed border-[var(--color-border)] bg-surface/60 p-4"
+            >
+              <p className="text-xs text-muted-foreground">{s.label}</p>
+              <p className="mt-1 text-xl font-bold text-muted-foreground md:text-2xl">
+                {s.value.toLocaleString()}
+                {s.sub && <span className="ml-1 text-xs font-normal">{s.sub}</span>}
+              </p>
+            </div>
+          ))}
+        </div>
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* 유입 경로 — "어디서 제일 많이 오나" 에 바로 답하는 표라 맨 위·전체 폭. */}
@@ -191,6 +205,51 @@ export function VisitsTab({ visitStats, todayPaths, referrers, loadVisitStats }:
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+/**
+ * <b>Vercel 과 맞춰 볼 숫자.</b> 완료된 날만 쓴다.
+ *
+ * <p>진행 중인 오늘이 섞이면 언제나 낮게 나오고, 그 낮은 숫자를 하락으로 읽게 된다 — 2026-09-02
+ * 에 실제로 그렇게 "−47% 급락" 이라 판단했다가 완료된 주끼리 놓고 −6.8% 로 정정했다.
+ */
+function CompletedDaySummary({ daily }: { daily: AdminVisitStats['daily'] }) {
+  const last = lastCompletedDay(daily);
+  const average = completedAverage(daily);
+  const doneCount = completedDays(daily).length;
+
+  return (
+    <div className="rounded-2xl border border-lime-400/50 bg-lime-50/60 p-4 dark:bg-lime-400/5">
+      <p className="text-xs font-bold text-lime-700 dark:text-lime-300">
+        Vercel 과 맞춰 볼 숫자 — 완료된 날만
+      </p>
+
+      <div className="mt-3 grid grid-cols-2 gap-3">
+        <div>
+          <p className="text-xs text-muted-foreground">
+            {last ? `${last.date} (완료)` : '완료된 날 없음'}
+          </p>
+          <p className="mt-1 text-2xl font-black md:text-3xl">
+            {last ? last.visitors.toLocaleString() : '—'}
+            <span className="ml-1 text-xs font-normal text-muted-foreground">고유</span>
+          </p>
+        </div>
+        <div>
+          <p className="text-xs text-muted-foreground">완료 {doneCount}일 평균</p>
+          <p className="mt-1 text-2xl font-black md:text-3xl">
+            {average === null ? '—' : Math.round(average).toLocaleString()}
+            <span className="ml-1 text-xs font-normal text-muted-foreground">/일</span>
+          </p>
+        </div>
+      </div>
+
+      <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
+        Vercel 대시보드에서 <b>같은 날</b>을 열어 비교합니다. 차이가 ±
+        {Math.round(SHORTFALL_ALERT * 100)}% 를 넘으면 우리 수집이 새고 있는 것이니, 방문 기록의
+        공백부터 확인하세요.
+      </p>
     </div>
   );
 }
