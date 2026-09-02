@@ -1,7 +1,7 @@
 import { getAuthToken } from '@/lib/authStorage';
 import { bumpDropped, countsAsDrop, readDropped, settleDropped } from './beaconDrops';
 import { getVisitorId } from '@/lib/visitorId';
-import { API_BASE_URL } from '@/lib/api';
+import { apiUrl } from '@/lib/api';
 
 /**
  * 방문 안에서 일어난 행동을 남긴다.
@@ -133,7 +133,13 @@ export function trackVisitEvent(
   });
 
   try {
-    void fetch(`${API_BASE_URL}/api/visits/events`, {
+    /*
+     * 주소는 반드시 apiUrl 로 만든다. 예전에는 백엔드 기본 주소를 직접 이어 붙였는데, 운영에서
+     * 그 값이 Tailscale 호스트(vm-113.*.ts.net)라 <b>tailnet 밖의 방문자에게는 언제나
+     * TypeError: Failed to fetch</b> 였다. 같은 페이지의 페이지뷰 비콘은 apiUrl 을 써서 멀쩡히
+     * 204 를 받고 있었으므로, 행동 이벤트만 조용히 통째로 사라졌다.
+     */
+    void fetch(apiUrl('/api/visits/events'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body,
