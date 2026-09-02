@@ -14,9 +14,18 @@ import { LOCALE_SWITCHING_CLASS, runTransientClass } from '@/lib/transientClass'
 export default function LocaleSwitcher({
   locale,
   className = '',
+  compact = false,
 }: {
   locale: Locale;
   className?: string;
+  /**
+   * 넓은 화면에서도 <b>지구본 메뉴</b>로 둔다.
+   *
+   * <p>기본값은 좁은 화면만 메뉴이고 넓으면 칩 세 개를 늘어놓는다. 그 칩 줄은 200px 남짓이라,
+   * 헤더처럼 빽빽한 한 줄에 들어가면 옆의 네비 글자가 세로로 깨진다(실제로 그랬다). 헤더는
+   * 이 값을 켠다.
+   */
+  compact?: boolean;
 }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -124,7 +133,10 @@ export default function LocaleSwitcher({
         aria-expanded={open}
         aria-haspopup="menu"
         aria-label="Language"
-        className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-gray-200 bg-white/90 px-3 text-[11px] font-black uppercase text-foreground shadow-sm backdrop-blur transition hover:border-lime-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-400 md:hidden dark:border-white/10 dark:bg-black/55"
+        className={
+          'inline-flex min-h-11 items-center gap-1.5 rounded-full border border-gray-200 bg-white/90 px-3 text-[11px] font-black uppercase text-foreground shadow-sm backdrop-blur transition hover:border-lime-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-400 dark:border-white/10 dark:bg-black/55' +
+          (compact ? '' : ' md:hidden')
+        }
       >
         <Globe size={16} aria-hidden />
         {locale}
@@ -141,7 +153,10 @@ export default function LocaleSwitcher({
               ref={mobileMenuRef}
               role="menu"
               style={mobileMenuPosition}
-              className="fixed z-[10010] min-w-40 overflow-hidden rounded-2xl border border-gray-200 bg-white p-1.5 text-gray-900 shadow-xl md:hidden dark:border-white/10 dark:bg-[#171717] dark:text-white"
+              className={
+                'fixed z-[10010] min-w-40 overflow-hidden rounded-2xl border border-gray-200 bg-white p-1.5 text-gray-900 shadow-xl dark:border-white/10 dark:bg-[#171717] dark:text-white' +
+                (compact ? '' : ' md:hidden')
+              }
             >
               {localeLinks(true)}
             </div>,
@@ -149,14 +164,16 @@ export default function LocaleSwitcher({
           )
         : null}
 
-      <div
-        className="hidden items-center gap-1 rounded-pill border border-gray-200 bg-white/80 px-1.5 py-1 backdrop-blur md:inline-flex dark:border-white/10 dark:bg-black/40"
-        role="group"
-        aria-label="Language"
-      >
-        <Globe size={14} className="mx-1 shrink-0 text-muted-foreground" aria-hidden />
-        {localeLinks(false)}
-      </div>
+      {!compact && (
+        <div
+          className="hidden items-center gap-1 rounded-pill border border-gray-200 bg-white/80 px-1.5 py-1 backdrop-blur md:inline-flex dark:border-white/10 dark:bg-black/40"
+          role="group"
+          aria-label="Language"
+        >
+          <Globe size={14} className="mx-1 shrink-0 text-muted-foreground" aria-hidden />
+          {localeLinks(false)}
+        </div>
+      )}
     </div>
   );
 }

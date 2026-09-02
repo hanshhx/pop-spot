@@ -59,7 +59,6 @@ function fixedRegionLabel(code: RegionCode, locale: Locale): string {
   const region = REGIONS.find((r) => r.code === code);
   return region ? localizedRegionLabel(region, locale) : code;
 }
-import LocaleSwitcher from '@/components/LocaleSwitcher';
 import { FeaturedPopupBanner } from '@/components/main/FeaturedPopupBanner';
 import { PhotoDisclosure } from '@/components/popup/PhotoDisclosure';
 import { useDragScroll } from '@/hooks/useDragScroll';
@@ -1512,7 +1511,6 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
           onBellClick={() => setIsNotificationsOpen(true)}
           activeTab={currentTab}
           onNavChange={(t) => handleTabChange(t)}
-          mobileLocaleControl={<LocaleSwitcher locale={locale} />}
           className="mb-4 md:mb-6"
         />
 
@@ -1588,16 +1586,10 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
                 "오늘 서울에 N곳" 이 화면 밖으로 밀려 홈이 광고판처럼 읽힌다. */}
             <FeaturedPopupBanner />
 
-            {/* 언어 전환 — 히어로 <b>밖</b>, 자기 줄에 둔다.
-                예전엔 히어로 카드 안에 absolute right-4 top-4 로 띄웠는데 두 가지가 깨졌다.
-                (1) 좁은 화면에서 "오늘의 서울 팝업" 배지와 겹쳤다. 카드 폭이 줄어도 배지는
-                    왼쪽에서 자라고 언어 칩은 오른쪽에 고정이라 가운데서 만난다.
-                (2) 그 카드는 비로그인일 때만 그려진다. 로그인하면 언어 전환이 통째로 사라져,
-                    외국인 회원은 한 번 로그인한 뒤 언어를 못 바꿨다.
-                흐름 안에 두면 겹칠 수가 없고, 로그인 여부와 무관하게 늘 같은 자리에 있다. */}
-            <div className="mb-4 hidden justify-end md:flex">
-              <LocaleSwitcher locale={locale} />
-            </div>
+            {/* 언어 전환은 헤더로 옮겼다(Header). 화면마다 다른 자리에 같은 것이 있으면 사이트가
+                두 겹으로 읽힌다 — 홈은 여기, 랜딩은 우상단 알약, 상세는 사진 위 오버레이였다.
+                여기 있던 이유(히어로 카드 안에 absolute 로 띄웠다가 배지와 겹쳤고, 비로그인일
+                때만 그려져 로그인하면 사라졌다)는 헤더에서는 생기지 않는다. */}
 
             {/* User Greeting Section */}
             <section aria-label="Welcome Banner" className="mb-6">
