@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { LogOut, ShieldCheck, Megaphone, Crown, User as UserIcon, Bell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import LocaleSwitcher from '@/components/LocaleSwitcher';
 import ThemeToggle from '@/components/ThemeToggle';
 import { unreadCount as readUnread } from '@/lib/notifications';
 import { cn } from '@/lib/utils';
@@ -38,8 +39,6 @@ interface HeaderProps {
   /** 데스크톱(lg+) 상단 네비 — 현재 탭 + 전환 콜백. 모바일은 BottomDock 사용. */
   activeTab?: string;
   onNavChange?: (tab: string) => void;
-  /** 좁은 화면에서 로고 옆에 붙는 간단한 언어 선택기. */
-  mobileLocaleControl?: ReactNode;
   className?: string;
 }
 
@@ -47,7 +46,7 @@ interface HeaderProps {
  * 모든 페이지 공통 헤더.
  * - 로고 (POP-SPOT)
  * - 부제목
- * - 우측: 테마 토글 / 제보 (로그인 시) / 관리자 (ADMIN) / 사용자 또는 로그인-가입
+ * - 우측: 언어 / 테마 토글 / 제보 (로그인 시) / 관리자 (ADMIN) / 사용자 또는 로그인-가입
  */
 export function Header({
   user,
@@ -59,7 +58,6 @@ export function Header({
   subtitle,
   activeTab,
   onNavChange,
-  mobileLocaleControl,
   className,
 }: HeaderProps) {
   const { t, locale } = useLocale();
@@ -113,7 +111,6 @@ export function Header({
         {/* 계절 배지는 로고 링크 <b>밖</b>에 둔다. 안에 넣으면 배지를 눌러도 홈으로 튀어서,
             "이건 상태 표시지 버튼이 아니다" 라는 게 전달되지 않는다. */}
         <SeasonBadge className="ml-2 inline-flex shrink-0 self-center align-middle" />
-        <div className="shrink-0 md:hidden">{mobileLocaleControl}</div>
       </div>
 
       {/* 데스크톱(lg+) 상단 네비 — 모바일은 하단 BottomDock.
@@ -121,7 +118,7 @@ export function Header({
       {onNavChange && (
         <nav
           aria-label={t('nav.mainMenu')}
-          className="hidden lg:flex items-center gap-12 self-center xl:gap-14"
+          className="hidden lg:flex items-center gap-7 self-center xl:gap-12"
         >
           {DOCK_ITEMS.map((item) => {
             const active = activeTab === item.key;
@@ -150,6 +147,14 @@ export function Header({
         aria-label={t('nav.userMenu')}
         className="flex min-w-0 flex-wrap items-center justify-end gap-1.5 md:w-auto md:flex-nowrap md:gap-3"
       >
+        {/*
+          언어 전환은 <b>여기 한 곳</b>에 있다.
+
+          예전에는 화면마다 다른 자리에 있었다 — 홈은 검색존 옆, 랜딩은 우상단 알약, 상세는 사진
+          위 오버레이 칩. 같은 것이 페이지마다 다른 데 있으면 사이트가 한 겹이 아니라 두 겹으로
+          읽힌다. 헤더가 모든 화면에 붙었으므로(SiteChrome) 이제 여기가 그 자리다.
+        */}
+        <LocaleSwitcher locale={locale} compact className="shrink-0" />
         <ThemeToggle />
 
         {onBellClick && user && (

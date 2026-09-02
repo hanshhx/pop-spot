@@ -118,6 +118,8 @@ export type LandingCopy = {
   urgencyWithDday: (dday: number) => string;
   urgencyPlain: (label: string) => string;
   backHome: string;
+  /** 빵부스러기 첫 칸. {@code backHome}("메인으로")은 문장이라 경로 칸에는 안 맞는다. */
+  homeCrumb: string;
   statCount: (count: number) => string;
   statSoonest: string;
   statOpeningToday: string;
@@ -181,6 +183,8 @@ export type LandingCopy = {
   mapCtaSecondary: (label: string) => string;
   freeAutoNote: (refresh: string) => string;
   moreCount: (n: number) => string;
+  /** 접어 둔 목록을 여는 단추. 몇 곳이 더 있는지 숫자로 밝힌다 — "더 보기" 만으로는 열 값어치를 모른다. */
+  showRest: (n: number) => string;
   emptyHeading: (label: string) => string;
   emptyBody: (refresh: string) => string;
   emptyNote: string;
@@ -201,6 +205,7 @@ const ko: LandingCopy = {
   // 예전엔 "메인 지도에서 전체 확인" 이었다. 이제 그 목록이 바로 아래 있으므로 말과 화면이
   // 어긋나지 않게 고친다 — 다른 데로 보내는 문장이 아니라 아래를 가리키는 문장이어야 한다.
   moreCount: (n) => `외 ${n}곳 — 이름을 누르면 상세로 갑니다`,
+  showRest: (n) => `남은 ${n}곳 더 보기`,
   emptyHeading: (l) => `${l} 팝업은 지금 잠시 쉬어가는 중이에요`,
   emptyBody: (r) =>
     `서울 전체는 지금도 열려 있어요. 새 팝업은 ${r}에 자동 수집됩니다 — 지금 진행 중인 팝업부터 지도에서 둘러보세요.`,
@@ -303,6 +308,7 @@ const ko: LandingCopy = {
   urgencyPlain: (l) => `${l} 팝업 위치·운영 기간·마감일을 지도 한 화면에서 가입 없이 확인하세요.`,
 
   backHome: '메인으로',
+  homeCrumb: '홈',
   statCount: (c) => `${c}곳`,
   statSoonest: '가장 빠른 마감',
   statOpeningToday: '오늘 오픈',
@@ -368,6 +374,7 @@ const en: LandingCopy = {
   mapCtaSecondary: (l) => `View ${l} pop-ups on the map →`,
   freeAutoNote: (r) => `No sign-up · updated ${r}`,
   moreCount: (n) => `${n} more — open any name for details`,
+  showRest: (n) => `Show ${n} more`,
   emptyHeading: (l) => `Nothing running in ${l} right now`,
   emptyBody: (r) =>
     `The rest of Seoul is still open. New pop-ups are collected ${r} — start with what's running now on the map.`,
@@ -483,6 +490,7 @@ const en: LandingCopy = {
     `Locations, run dates and closing days for ${l} pop-ups, all on one map. No sign-up.`,
 
   backHome: 'Home',
+  homeCrumb: 'Home',
   statCount: (c) => `${c}`,
   statSoonest: 'Next to close',
   statOpeningToday: 'Opening today',
@@ -546,6 +554,7 @@ const ja: LandingCopy = {
   mapCtaSecondary: (l) => `${l}のポップアップをマップで →`,
   freeAutoNote: (r) => `登録不要・${r}に自動更新`,
   moreCount: (n) => `ほか${n}件 — 名前を選ぶと詳細へ`,
+  showRest: (n) => `残り${n}件を表示`,
   emptyHeading: (l) => `${l}のポップアップは現在お休み中です`,
   emptyBody: (r) =>
     `ソウル全体では今も開催中です。新しいポップアップは${r}に自動収集されます — まずは開催中のものをマップでご覧ください。`,
@@ -648,6 +657,7 @@ const ja: LandingCopy = {
   urgencyPlain: (l) => `${l}ポップアップの場所・開催期間・終了日をマップ一画面で。登録不要です。`,
 
   backHome: 'ホームへ',
+  homeCrumb: 'ホーム',
   statCount: (c) => `${c}件`,
   statSoonest: '最短の終了',
   statOpeningToday: '本日オープン',
