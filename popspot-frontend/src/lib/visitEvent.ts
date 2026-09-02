@@ -1,4 +1,5 @@
 import { getAuthToken } from '@/lib/authStorage';
+import { bumpDropped, readDropped, settleDropped } from './beaconDrops';
 import { getVisitorId } from '@/lib/visitorId';
 import { API_BASE_URL } from '@/lib/api';
 
@@ -70,6 +71,15 @@ function isOwnTraffic(path: string): boolean {
  * <p>화면 흐름을 절대 막지 않는다 — 통계가 한 건 빠지는 것보다 카드 클릭이 느려지는 쪽이 나쁘다.
  * 그래서 await 하지 않고, 페이지가 바뀌어도 전송이 끊기지 않게 {@code keepalive} 를 쓴다.
  */
+/** {@code localStorage} 접근 자체가 막힌 브라우저가 있다. 없으면 계수기는 조용히 쉰다. */
+function safeStorage(): Storage | null {
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+}
+
 export function trackVisitEvent(
   type: VisitEventType,
   options: { popupId?: number | string | null; path?: string } = {},
@@ -86,6 +96,13 @@ export function trackVisitEvent(
     /* 접근 불가 시 게스트로 간주 */
   }
 
+  /*
+   * 지금까지 못 보낸 비콘 수를 함께 실어 보낸다. 서버가 살아나는 첫 요청에 그동안의 손실이
+   * 따라 들어가므로, 별도 보고 경로가 없어도 유실이 드러난다(beaconDrops 참고).
+   */
+  const storage = safeStorage();
+  const dropped = readDropped(storage);
+
   const body = JSON.stringify({
     visitorId: getVisitorId(),
     sessionId: currentSessionId(),
@@ -93,6 +110,7 @@ export function trackVisitEvent(
     ...(options.popupId != null ? { popupId: options.popupId } : {}),
     path: path.slice(0, 255),
     guest,
+    ...(dropped > 0 ? { dropped } : {}),
   });
 
   try {
@@ -103,10 +121,21 @@ export function trackVisitEvent(
       // 카드를 누르면 곧바로 화면이 바뀐다. keepalive 가 없으면 이동과 함께 요청이 취소돼
       // 정작 세려던 클릭이 안 잡힌다.
       keepalive: true,
-    }).catch(() => {
-      /* 통계 실패는 사용자에게 알릴 일이 아니다 */
-    });
+    })
+      .then((res) => {
+        /*
+         * fetch 는 500 에도 resolve 한다. res.ok 를 안 보면 백엔드가 죽어 있어도 "보냈다" 로
+         * 여겨져, 기록이 통째로 비는 구간이 아무 신호 없이 지나간다(2026-08-13~19 이 그랬다).
+         */
+        if (res.ok) settleDropped(storage, dropped);
+        else bumpDropped(storage);
+      })
+      .catch(() => {
+        /* 사용자에게 알릴 일은 아니지만, 잃었다는 사실은 남긴다. */
+        bumpDropped(storage);
+      });
   } catch {
     /* fetch 자체가 막힌 환경 */
+    bumpDropped(storage);
   }
 }
