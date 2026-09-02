@@ -13,6 +13,8 @@
  * 서로 다른 순서로 나오면 사용자가 둘을 같은 검색으로 못 읽는다.
  */
 
+import { isExpired } from './popupSlices';
+
 /** 추천 드롭다운에 몇 개까지 보일지. */
 export const SUGGEST_LIMIT = 6;
 
@@ -69,4 +71,26 @@ export function rankSuggestions<T extends SuggestFields>(
     .sort((a, b) => b.score - a.score || a.order - b.order)
     .slice(0, limit)
     .map((scored) => scored.popup);
+}
+
+/**
+ * 검색창이 볼 팝업 — <b>아직 안 끝난 것 전부</b>. 오늘 열린 것에 <b>앞으로 열 것</b>을 더한다.
+ *
+ * <p><b>왜 "오늘 열린 것" 이면 안 되나.</b> 2026-09-02 에 "제주" 를 쳐도 9/5 에 여는
+ * 「2026 제주 로컬브랜드 팝업스토어」가 추천에 안 떴다. 홈 목록·랭킹은 오늘 문이 열린 것만
+ * 남기는 것이 맞지만, <b>검색은 다르다</b> — 사람들은 주말에 갈 곳을 미리 찾는다.
+ *
+ * <p>같은 검색창의 두 경로가 서로 다른 세계를 보고 있던 것이 진짜 문제였다. 즉시 추천은 "오늘
+ * 열린 것" 만, 서버의 AI 검색은 지도 마커 전체(예정 포함)를 봤다. 그래서 AI 검색은 찾아내는데
+ * 추천에는 없는 팝업이 생겼고, 밖에서는 그냥 "없는 팝업" 으로 보였다. 지도 마커와 같은
+ * 기준으로 맞춘다.
+ *
+ * <p>끝난 것은 뺀다 — 지난달에 닫은 팝업이 검색에 뜨면 헛걸음을 만든다.
+ */
+export function keepSearchable<T extends { endDate?: string | null }>(
+  popups: T[] | undefined | null,
+  today: Date,
+): T[] {
+  if (!popups?.length) return [];
+  return popups.filter((popup) => popup && !isExpired(popup.endDate, today));
 }
