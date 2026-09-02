@@ -61,6 +61,15 @@ export interface AdminVisitStats {
   weekVisitors: number;
   daily: { date: string; visitors: number }[];
   topPaths: { path: string; count: number }[];
+  /**
+   * 가장 최근 방문 기록 시각(ISO).
+   *
+   * <p>선택 사항인 이유 — 백엔드 jar 는 손으로 올리므로, 프론트가 먼저 배포되는 구간이 반드시
+   * 생긴다. 그때 이 값이 없다고 화면이 깨지거나 없는 경보를 울리면 안 된다.
+   */
+  lastVisitAt?: string | null;
+  /** 시각별 하루 평균 방문 수. 공백을 평소치와 견주는 데 쓴다. */
+  hourlyAverage?: { hour: number; perDay: number }[];
 }
 
 /** 유입 경로 집계 1행. source 는 사람이 읽는 묶음명(네이버·구글·직접 방문…), host 는 원본 도메인. */
