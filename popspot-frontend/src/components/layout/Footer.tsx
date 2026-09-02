@@ -75,7 +75,7 @@ export function Footer({ className, onReportClick }: FooterProps) {
       <div className="max-w-[1600px] mx-auto px-6 lg:px-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-12">
         <BrandColumn />
         <LinkColumn title="Platform" links={PLATFORM_LINKS} />
-        <LinkColumn title="Partners" links={PARTNER_LINKS} external />
+        <LinkColumn title="Partners" links={PARTNER_LINKS} external showContact />
       </div>
 
       <DisclaimerBox />
@@ -176,12 +176,22 @@ function SocialLink({ href, label, icon }: { href: string; label: string; icon: 
 }
 
 interface LinkColumnProps {
+  /**
+   * 주소를 <b>글자로도</b> 내보일지.
+   *
+   * <p>{@code mailto:} 는 모바일에서 자주 아무 일도 안 한다 — 메일 앱이 없거나 안 쓰는 계정에
+   * 물려 있으면 눌러도 화면이 안 바뀌고 오류도 안 난다. 방문의 71%가 모바일이므로, 그 상태로는
+   * 문의 창구가 소수에게만 열려 있는 셈이고 그 사실이 어디에도 안 드러난다.
+   *
+   * <p>그래서 주소를 글자로 같이 둔다. 눌러서 안 열리면 눈으로 읽고 복사하면 된다.
+   */
+  showContact?: boolean;
   title: string;
   links: ReadonlyArray<{ labelKey: MessageKey; href: string }>;
   external?: boolean;
 }
 
-function LinkColumn({ title, links, external }: LinkColumnProps) {
+function LinkColumn({ title, links, external, showContact }: LinkColumnProps) {
   const { t, locale } = useLocale();
   const mailSubject = (key: MessageKey) => {
     const subjects: Record<string, Record<typeof locale, string>> = {
@@ -231,6 +241,14 @@ function LinkColumn({ title, links, external }: LinkColumnProps) {
           ),
         )}
       </ul>
+
+      {showContact && (
+        <div className="mt-4 space-y-1 text-xs text-muted-foreground">
+          {/* '제휴' 는 돈을 내고 실리는 것으로 읽히기 쉽다. 문의를 망설이지 않게 먼저 밝힌다. */}
+          <p className="font-bold text-foreground">{t('footer.partnerFree')}</p>
+          <p className="select-all break-all">{CONTACT_EMAIL}</p>
+        </div>
+      )}
     </div>
   );
 }

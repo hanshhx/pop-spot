@@ -17,7 +17,7 @@ interface FeedbackFormProps {
   onSubmitted?: () => void;
 }
 
-const CATEGORY_ORDER: FeedbackCategory[] = ['BUG', 'FEATURE', 'GOOD', 'OTHER'];
+const CATEGORY_ORDER: FeedbackCategory[] = ['BUG', 'FEATURE', 'GOOD', 'PARTNERSHIP', 'OTHER'];
 
 /**
  * 카테고리는 <b>보내는 값과 보이는 문구를 나눈다.</b>
@@ -30,6 +30,7 @@ const CATEGORY_LABEL_KEY: Record<FeedbackCategory, MessageKey> = {
   BUG: 'fb.catBug',
   FEATURE: 'fb.catFeature',
   GOOD: 'fb.catGood',
+  PARTNERSHIP: 'fb.catPartner',
   OTHER: 'fb.catOther',
 };
 
@@ -124,6 +125,16 @@ export function FeedbackForm({ userId, onSubmitted }: FeedbackFormProps) {
             );
           })}
         </div>
+        {category === 'PARTNERSHIP' && (
+          /*
+           * '제휴' 는 돈을 내고 실리는 것으로 읽히기 쉽다. 고른 그 자리에서 아니라고 말해야
+           * 문의를 망설이지 않는다. 광고 문의는 푸터에 따로 있으므로 여기서는 <b>팝업 등록·
+           * 소개</b>로 범위를 좁혀 적는다 — 사이트 전체를 비상업적이라 하면 그것과 안 맞는다.
+           */
+          <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+            {t('fb.partnerFree')}
+          </p>
+        )}
       </Field>
 
       <Field label={t('fb.titleLabel')} required>

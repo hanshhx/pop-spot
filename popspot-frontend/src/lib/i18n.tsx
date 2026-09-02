@@ -349,7 +349,9 @@ const DICT = {
     'fb.catBug': '버그',
     'fb.catFeature': '기능 제안',
     'fb.catGood': '좋은 점',
+    'fb.catPartner': '제휴·등록',
     'fb.catOther': '그 외',
+    'fb.partnerFree': '팝업 등록과 소개는 무료입니다. 게재비를 받지 않습니다.',
     'fb.titleLabel': '제목',
     'fb.titlePlaceholder': '한 줄로 요약해 주세요',
     'fb.contentLabel': '내용',
@@ -541,6 +543,7 @@ const DICT = {
     'footer.partnerReg': '파트너 등록',
     'footer.business': '비즈니스 문의',
     'footer.ads': '광고 안내',
+    'footer.partnerFree': '팝업 등록·소개는 무료입니다',
     'footer.noticeHead': '[정보 안내] 서울 팝업스토어 정보를 모아 안내하는 서비스입니다.',
     'footer.noticePay':
       '본 서비스는 실제 티켓 예매 및 금전적 거래를 처리하지 않습니다. 팝업스토어 자체의 입장 / 예약 / 구매는 각',
@@ -1173,7 +1176,9 @@ const DICT = {
     'fb.catBug': 'Bug',
     'fb.catFeature': 'Feature idea',
     'fb.catGood': 'What I liked',
+    'fb.catPartner': 'Partnership',
     'fb.catOther': 'Other',
+    'fb.partnerFree': 'Listing and featuring your popup is free. We never charge for placement.',
     'fb.titleLabel': 'Title',
     'fb.titlePlaceholder': 'Sum it up in one line',
     'fb.contentLabel': 'Details',
@@ -1364,6 +1369,7 @@ const DICT = {
     'footer.partnerReg': 'Become a partner',
     'footer.business': 'Business enquiries',
     'footer.ads': 'Advertising',
+    'footer.partnerFree': 'Listing your popup is free',
     'footer.noticeHead':
       '[Notice] This service collects and lists information about pop-up stores in Seoul.',
     'footer.noticePay':
@@ -2003,7 +2009,9 @@ const DICT = {
     'fb.catBug': '不具合',
     'fb.catFeature': '機能のご提案',
     'fb.catGood': 'よかった点',
+    'fb.catPartner': '提携・掲載',
     'fb.catOther': 'その他',
+    'fb.partnerFree': 'ポップアップの掲載・紹介は無料です。掲載料はいただきません。',
     'fb.titleLabel': 'タイトル',
     'fb.titlePlaceholder': '一行で要約してください',
     'fb.contentLabel': '内容',
@@ -2195,6 +2203,7 @@ const DICT = {
     'footer.partnerReg': 'パートナー登録',
     'footer.business': 'ビジネスのお問い合わせ',
     'footer.ads': '広告について',
+    'footer.partnerFree': 'ポップアップの掲載は無料です',
     'footer.noticeHead': '［ご案内］ソウルのポップアップストア情報をまとめて掲載するサービスです。',
     'footer.noticePay':
       '本サービスはチケット予約や金銭の取引を一切扱いません。入場・予約・購入は各',
