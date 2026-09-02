@@ -8,6 +8,7 @@ import { SectionLogo } from '@/components/layout/BrandLogos';
 import { useLocale } from '@/lib/i18n';
 import { localizedPath } from '@/lib/localePath';
 import { bilingual } from '@/lib/bilingual';
+import { rankSuggestions } from '@/lib/searchSuggest';
 import type { PopupStore } from '@/types/popup';
 
 /**
@@ -57,18 +58,14 @@ export function SearchZone({ onAiFilter, onSelectPopup, popups }: SearchZoneProp
 
   const mapMode = typeof onAiFilter === 'function'; // 지도 필터 vs 결과 목록
 
-  // 이름 부분일치(대소문자 무시) — AI 호출 없이 즉시. "마뗑킴" → "마뗑킴 전시" 처럼 부분 이름도 잡는다.
-  const nameMatches = useMemo(() => {
-    const low = q.trim().toLowerCase();
-    if (low.length < 1 || !popups?.length) return [];
-    return popups
-      .filter((p) =>
-        [p.name, p.location, p.nameEn, p.nameJa, p.locationEn, p.locationJa].some((value) =>
-          value?.toLowerCase().includes(low),
-        ),
-      )
-      .slice(0, 6);
-  }, [q, popups]);
+  /*
+   * 이름 부분일치(대소문자 무시) — AI 호출 없이 즉시. "마뗑킴" → "마뗑킴 전시" 처럼 부분 이름도 잡는다.
+   *
+   * <b>자르기 전에 관련도로 정렬한다.</b> 예전에는 걸린 것 중 앞에서 여섯을 그냥 잘랐고, 그 탓에
+   * "제주" 검색에서 이름이 「2026 제주 로컬브랜드…」인 팝업이 주소에 「제주공항」이 든 지브리
+   * 팝업들에 밀려 안 보였다. 규칙과 그 근거는 {@link rankSuggestions} 에 있다.
+   */
+  const nameMatches = useMemo(() => rankSuggestions(popups, q), [q, popups]);
 
   const canSuggest = typeof onSelectPopup === 'function';
 
