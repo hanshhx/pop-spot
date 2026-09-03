@@ -44,7 +44,6 @@ import {
 import { REGIONS, type RegionCode } from '@/lib/regions';
 import { localizedPath } from '@/lib/localePath';
 import { visitedAgo, type VisitedAgo } from '@/lib/visitedAgo';
-import { PRIORITY_LANDING_LINKS } from '@/lib/priorityLandingLinks';
 
 /**
  * 소개 화면에 고정으로 박혀 있는 지역명.
@@ -87,11 +86,11 @@ import {
   classifyCategory,
   categoryLabel,
   CATEGORIES,
-  getPeriods,
   parseDate,
   type CategoryCode,
 } from '../src/lib/popupSlices';
 import { groupSameEvent } from '@/lib/groupSameEvent';
+import { landingLinks } from '@/lib/landingLinks';
 import { homeSurfaces } from '@/lib/homeSurfaces';
 import { popAllPreviewRows } from '@/lib/popAllPreview';
 import { Header } from '../src/components/layout/Header';
@@ -220,7 +219,6 @@ const RAIL_POPUP_COUNT = 30;
  */
 function SeoLandingDirectory() {
   const { locale } = useLocale();
-  const periods = getPeriods();
   const title =
     locale === 'en'
       ? 'Browse pop-ups by area, date, or category'
@@ -228,11 +226,19 @@ function SeoLandingDirectory() {
         ? 'エリア・日程・カテゴリーから探す'
         : '지역·일정·카테고리로 팝업 찾기';
 
-  const groups = [
-    { key: 'region', items: REGIONS },
-    { key: 'period', items: periods },
-    { key: 'category', items: CATEGORIES },
-  ];
+  /*
+   * 목록은 landingLinks 한 곳에서만 정한다.
+   *
+   * 예전에는 여기서 지역·기간·카테고리만 직접 나열했고 <b>브랜드가 통째로 빠져 있었다</b>. 그래서
+   * 홈에서 랜딩으로 가는 길이 27개뿐이었는데, 랜딩끼리는 108개씩 이어져 있었다(2026-09-03 실측).
+   * 홈이 사이트에서 가장 힘이 센 페이지인데 거기서 나가는 길이 가장 적었던 셈이다.
+   *
+   * 두 벌로 두면 또 갈라진다. 새 브랜드를 더했을 때 랜딩에만 반영되면 그 페이지는 홈에서 들어갈
+   * 길이 없고, 화면에는 아무 표시도 안 난다.
+   */
+  const links = landingLinks(locale);
+  const priority = links.filter((l) => l.priority);
+  const rest = links.filter((l) => !l.priority);
 
   return (
     <section className="mx-auto max-w-[1600px] px-4 md:px-6" aria-label={title}>
@@ -243,30 +249,30 @@ function SeoLandingDirectory() {
           {title}
         </summary>
         <div className="mt-4 space-y-4">
-          <nav className="flex flex-wrap gap-2" aria-label="priority">
-            {PRIORITY_LANDING_LINKS.map((item) => (
-              <Link
-                key={item.slug}
-                href={localizedPath(`/popups/${item.slug}`, locale)}
-                className="rounded-full border border-lime-300/60 bg-lime-50 px-3 py-1.5 text-xs font-bold text-lime-800 transition hover:bg-lime-100 dark:bg-lime-300/10 dark:text-lime-300"
-              >
-                {localizedLabel(item, locale)}
-              </Link>
-            ))}
-          </nav>
-          {groups.map((group) => (
-            <nav key={group.key} className="flex flex-wrap gap-2" aria-label={group.key}>
-              {group.items.map((item) => (
+          {priority.length > 0 && (
+            <nav className="flex flex-wrap gap-2" aria-label="priority">
+              {priority.map((item) => (
                 <Link
                   key={item.slug}
                   href={localizedPath(`/popups/${item.slug}`, locale)}
-                  className="rounded-full border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs font-medium text-gray-700 transition hover:border-lime-300 hover:bg-lime-50 dark:border-white/10 dark:bg-white/5 dark:text-white/75 dark:hover:border-lime-300/40"
+                  className="rounded-full border border-lime-300/60 bg-lime-50 px-3 py-1.5 text-xs font-bold text-lime-800 transition hover:bg-lime-100 dark:bg-lime-300/10 dark:text-lime-300"
                 >
-                  {localizedLabel(item, locale)}
+                  {item.label}
                 </Link>
               ))}
             </nav>
-          ))}
+          )}
+          <nav className="flex flex-wrap gap-2" aria-label="landings">
+            {rest.map((item) => (
+              <Link
+                key={item.slug}
+                href={localizedPath(`/popups/${item.slug}`, locale)}
+                className="rounded-full border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs font-medium text-gray-700 transition hover:border-lime-300 hover:bg-lime-50 dark:border-white/10 dark:bg-white/5 dark:text-white/75 dark:hover:border-lime-300/40"
+              >
+                {item.label}
+              </Link>
+            ))}
+          </nav>
         </div>
       </details>
     </section>
