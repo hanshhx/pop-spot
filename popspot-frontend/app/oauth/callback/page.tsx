@@ -9,6 +9,7 @@ import { useLocale } from '@/lib/i18n';
 import { localizedPath } from '@/lib/localePath';
 import { TotpChallenge } from '@/features/auth/TotpChallenge';
 import { appFlowNonce, appReturnUrl, clearAppFlowCookie } from '@/lib/oauthAppFlow';
+import { takeVerifier } from '@/lib/pkce';
 
 const COPY = {
   ko: {
@@ -131,6 +132,8 @@ function CallbackContent() {
         // 공격자가 자기 토큰을 담은 링크를 보내면 피해자가 공격자 계정으로 로그인된다(로그인 CSRF).
         // 그 상태로 입력한 정보는 공격자 계정에 쌓인다. 쓰이지 않으면서 위험만 남는 경로라 제거했다.
         const exchangeCode = searchParams.get('code');
+        // 코드보다 먼저 꺼낸다 — 아래에서 URL 을 갈아 끼워도 영향이 없도록.
+        const codeVerifier = takeVerifier();
 
         if (exchangeCode) {
           // 신규(보안) 흐름: 1회성 교환코드를 서버에서 토큰으로 교환.
@@ -139,7 +142,14 @@ function CallbackContent() {
           const exchangeResponse = await apiFetch('/api/v1/auth/oauth/exchange', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ code: exchangeCode }),
+            // 시작할 때 이 탭에 둔 verifier 를 함께 낸다. 서버가 발급 시점의 challenge 와 대조해
+            // "이 로그인을 시작한 그 브라우저" 인지 확인한다. 없으면(구방식으로 시작했거나 저장소가
+            // 막힘) 안 보낸다 — 붙여 보내면 서버가 강등 시도로 보고 거부한다.
+            body: JSON.stringify(
+              codeVerifier
+                ? { code: exchangeCode, code_verifier: codeVerifier }
+                : { code: exchangeCode },
+            ),
           });
           if (!exchangeResponse.ok) {
             if ([400, 404, 410].includes(exchangeResponse.status)) {

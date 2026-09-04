@@ -48,6 +48,9 @@ const PROVIDERS = new Set(['kakao', 'naver', 'google']);
  */
 const NONCE_SHAPE = /^[A-Za-z0-9_-]{8,64}$/;
 
+/** S256 챌린지 — base64url 43자. 서버의 OAuthAttemptStore 와 같은 기준. */
+const CHALLENGE_SHAPE = /^[A-Za-z0-9_-]{43}$/;
+
 export const dynamic = 'force-dynamic';
 
 export async function GET(
@@ -73,7 +76,20 @@ export async function GET(
   const requested = request.nextUrl.searchParams.get('n');
   const nonce = requested && NONCE_SHAPE.test(requested) ? requested : '1';
 
-  const response = NextResponse.redirect(`${backend}/oauth2/authorization/${provider}`, 302);
+  /* 앱이 만든 PKCE 챌린지를 백엔드까지 그대로 넘긴다. 이 라우트는 쿠키를 심느라 한 번 거쳐 가는
+     자리라, 여기서 떨어뜨리면 앱은 verifier 를 갖고 있는데 서버는 묶지 않아 <b>교환 단계에서
+     반드시 실패</b>한다.
+
+     모양을 검사해 통과시키는 이유: 아무 문자열이나 흘려보내면 서버가 그것을 챌린지로 기록했다가
+     아무도 못 푸는 코드를 만든다. 모양이 아니면 조용히 뺀다 — 그러면 구방식으로 시작되고
+     전환 기간에는 로그인 자체는 된다. */
+  const challenge = request.nextUrl.searchParams.get('code_challenge');
+  const target = new URL(`${backend}/oauth2/authorization/${provider}`);
+  if (challenge && CHALLENGE_SHAPE.test(challenge)) {
+    target.searchParams.set('code_challenge', challenge);
+  }
+
+  const response = NextResponse.redirect(target.toString(), 302);
   response.cookies.set(APP_FLOW_COOKIE, nonce, {
     path: APP_FLOW_COOKIE_PATH,
     maxAge: APP_FLOW_COOKIE_MAX_AGE_SECONDS,
