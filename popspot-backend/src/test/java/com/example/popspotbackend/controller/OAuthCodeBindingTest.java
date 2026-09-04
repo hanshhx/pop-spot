@@ -14,6 +14,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.http.ResponseEntity;
 
@@ -173,5 +174,27 @@ class OAuthCodeBindingTest {
         ResponseEntity<?> res = exchange("code-1", "too-short");
 
         assertThat(res.getStatusCode().value()).isEqualTo(400);
+    }
+
+    /* ==================== 스크립트 텍스트 ==================== */
+
+    /**
+     * Lua 는 홑따옴표 문자열 안의 <b>실제 개행</b>을 문법 오류로 본다. 그래서 Redis 가 컴파일 단계에서 스크립트를 거부하고, 우리는 원인을 알 수 없는
+     * {@code RedisSystemException} 만 보게 된다.
+     *
+     * <p>2026-09-05 에 실제로 그렇게 나갔다. 이스케이프가 heredoc → 자바 → Lua 로 세 겹인데 한 겹을 잃어 자바가 {@code '\n'} 을 진짜
+     * 개행으로 컴파일했다. <b>소스를 읽어서는 안 보인다</b> — 컴파일된 상수를 꺼내 봐야 드러났다.
+     *
+     * <p>그래서 개행은 {@code string.char(10)} 으로 만든다. 이 검사가 그 규칙을 지킨다.
+     */
+    @Test
+    @DisplayName("Redis 스크립트에 진짜 개행이 들어가지 않는다")
+    void scriptsHaveNoRawNewline() {
+        assertThat(
+                        ((DefaultRedisScript<String>) AuthController.OAUTH_EXCHANGE_SCRIPT)
+                                .getScriptAsString())
+                .doesNotContain("\n");
+        assertThat(((DefaultRedisScript<String>) AuthController.GET_DEL_SCRIPT).getScriptAsString())
+                .doesNotContain("\n");
     }
 }
