@@ -169,7 +169,7 @@ describe('직행이 막힌 브라우저에서의 되돌림', () => {
     vi.spyOn(globalThis, 'fetch').mockRejectedValue(new TypeError('Failed to fetch'));
 
     await expect(
-      apiFetch('/api/chat/upload', { method: 'POST', body: new FormData() }),
+      apiFetch('/api/v1/users/me/avatar', { method: 'POST', body: new FormData() }),
     ).rejects.toThrow();
 
     expect(getServiceAvailability()).not.toBe('unavailable');

@@ -50,8 +50,8 @@ import org.springframework.web.multipart.MultipartFile;
  *   <li>{@code PATCH /api/v1/users/me} — nickname / picture 갱신 (JSON body)
  * </ul>
  *
- * <p>아바타 업로드는 {@link ChatFileController} 와 동일한 패턴 (UUID 재명명 + traversal 차단 + 확장자/MIME 화이트리스트) 을
- * 따른다. 저장 위치만 {@code uploads/avatar/} 하위로 분리.
+ * <p>아바타 업로드는 UUID 재명명 + traversal 차단 + 확장자/MIME 화이트리스트 패턴을 따른다. 저장 위치만 {@code uploads/avatar/} 하위로
+ * 분리.
  */
 @Slf4j
 @RestController
