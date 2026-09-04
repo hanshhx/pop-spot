@@ -2,6 +2,7 @@ package com.example.popspotbackend.config;
 
 import com.example.popspotbackend.service.CustomOAuth2UserService;
 import com.example.popspotbackend.service.admin.AdminAuditService;
+import com.example.popspotbackend.service.auth.OAuthAttemptStore;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.time.OffsetDateTime;
@@ -26,6 +27,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.AccessDeniedHandler;
@@ -108,10 +110,14 @@ public class SecurityConfig {
     /** 감사 기록 대상인 관리자 영역. */
     private static final String ADMIN_PATH_PREFIX = "/api/admin/";
 
+    /** Spring 기본값. 클라이언트는 이 아래로 {provider} 를 붙여 로그인을 시작한다. */
+    private static final String AUTHORIZATION_BASE_URI = "/oauth2/authorization";
+
     private final CustomOAuth2UserService customOAuth2UserService;
     private final OAuth2SuccessHandler oAuth2SuccessHandler;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final AdminAuditService adminAuditService;
+    private final OAuthAttemptStore oAuthAttemptStore;
 
     @Value("${app.frontend.url:http://localhost:3000}")
     private String frontendUrl;
@@ -130,7 +136,8 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain filterChain(
+            HttpSecurity http, ClientRegistrationRepository clientRegistrations) throws Exception {
         RequestMatcher apiMatcher =
                 PathPatternRequestMatcher.withDefaults().matcher(API_PATH_PATTERN);
         http.csrf(AbstractHttpConfigurer::disable)
@@ -205,7 +212,17 @@ public class SecurityConfig {
                                                 apiForbiddenHandler(), apiMatcher))
                 .oauth2Login(
                         oauth2 ->
-                                oauth2.userInfoEndpoint(
+                                oauth2
+                                        // 로그인 시작 요청의 PKCE 챌린지를 state 로 기록해 둔다.
+                                        // 그래야 콜백에서 교환 코드에 묶을 수 있다.
+                                        .authorizationEndpoint(
+                                                a ->
+                                                        a.authorizationRequestResolver(
+                                                                new PkceAuthorizationRequestResolver(
+                                                                        clientRegistrations,
+                                                                        AUTHORIZATION_BASE_URI,
+                                                                        oAuthAttemptStore)))
+                                        .userInfoEndpoint(
                                                 userInfo ->
                                                         userInfo.userService(
                                                                 customOAuth2UserService))

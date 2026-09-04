@@ -4,6 +4,7 @@ import com.example.popspotbackend.entity.AdminAuditLog;
 import com.example.popspotbackend.entity.User;
 import com.example.popspotbackend.repository.UserRepository;
 import com.example.popspotbackend.service.admin.AdminAuditService;
+import com.example.popspotbackend.service.auth.OAuthAttemptStore;
 import com.example.popspotbackend.service.auth.RefreshTokenService;
 import com.example.popspotbackend.service.auth.TotpAuthService;
 import io.jsonwebtoken.Jwts;
@@ -63,11 +64,25 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
 
     private static final String REDIRECT_NO_EMAIL_QUERY = "?error=no_email";
 
+    /** 시도 기록이 없어 거부했을 때. 프런트는 "다시 시도해 주세요" 로 안내한다. */
+    private static final String REDIRECT_EXPIRED_QUERY = "?error=expired";
+
+    /** 인가 콜백이 돌려주는 시도 식별자. 시도 기록의 키다. */
+    private static final String QUERY_PARAM_STATE = "state";
+
+    /**
+     * 교환 슬롯 값의 헤더 표시. {@code B1:-} 는 전환기 구방식, {@code B1:S256:<challenge>} 는 묶인 코드.
+     *
+     * <p>이 표시가 아예 없는 값은 <b>배포 직전 60초 안에 발급된 옛 형식</b>이다(슬롯 TTL 이 60초다). 교환 쪽에서 그것도 구방식으로 받아 준다.
+     */
+    public static final String BINDING_HEADER_PREFIX = "B1:";
+
     private final UserRepository userRepository;
     private final StringRedisTemplate redisTemplate;
     private final TotpAuthService totpAuth;
     private final AdminAuditService adminAudit;
     private final RefreshTokenService refreshTokens;
+    private final OAuthAttemptStore attempts;
 
     @Value("${app.oauth2.redirect-uri}")
     private String redirectUri;
@@ -95,6 +110,19 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
     public void onAuthenticationSuccess(
             HttpServletRequest request, HttpServletResponse response, Authentication authentication)
             throws IOException {
+        // 로그인 시도 기록을 먼저 꺼낸다. 이 코드에 PKCE 챌린지를 묶을지가 여기서 정해진다.
+        //
+        // 기록이 없으면 <b>로그인을 실패시킨다</b> — 구방식으로 해석하지 않는다. 그렇게 하면 요청에서
+        // 필드를 빼는 대신 세션·쿠키를 지우는 것만으로 보호를 벗겨내는 강등 공격이 열린다.
+        // 정상 사용자가 여기 걸리면 재시작을 안내할 일이지, 보호를 낮출 일이 아니다.
+        String binding = attempts.consume(request.getParameter(QUERY_PARAM_STATE)).orElse(null);
+        if (binding == null) {
+            log.warn("OAuth2 success but attempt record missing (state 만료·유실) — 로그인 거부");
+            getRedirectStrategy()
+                    .sendRedirect(request, response, redirectUri + REDIRECT_EXPIRED_QUERY);
+            return;
+        }
+
         OAuth2User oAuth2User = (OAuth2User) authentication.getPrincipal();
         String email = extractEmail(oAuth2User.getAttributes());
         if (email == null) {
@@ -136,7 +164,13 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
 
         redisTemplate
                 .opsForValue()
-                .set(OAUTH_EXCHANGE_KEY_PREFIX + exchangeCode, slotValue, 60, TimeUnit.SECONDS);
+                .set(
+                        OAUTH_EXCHANGE_KEY_PREFIX + exchangeCode,
+                        // 헤더 한 줄을 앞에 붙인다. 교환 때 이 값으로 verifier 요구 여부가 정해진다 —
+                        // 요청이 무엇을 보내느냐가 아니라 <b>발급된 코드의 속성</b>으로 판정한다.
+                        BINDING_HEADER_PREFIX + binding + TOKEN_SEPARATOR + slotValue,
+                        60,
+                        TimeUnit.SECONDS);
         String targetUrl =
                 UriComponentsBuilder.fromUriString(redirectUri)
                         .queryParam(QUERY_PARAM_CODE, exchangeCode)
