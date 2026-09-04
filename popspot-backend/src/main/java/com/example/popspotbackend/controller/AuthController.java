@@ -72,6 +72,53 @@ public class AuthController {
                             + "return v",
                     String.class);
 
+    /* ---------------- 소셜 로그인 교환 ---------------- */
+
+    private static final int MAX_EXCHANGE_CODE_LENGTH = 100;
+    private static final String PARAM_CODE_VERIFIER = "code_verifier";
+
+    private static final String EXCHANGE_OK_PREFIX = "OK\n";
+    private static final String EXCHANGE_MISS = "MISS";
+    private static final String EXCHANGE_NEEDS_VERIFIER = "NEEDV";
+    private static final String EXCHANGE_DOWNGRADE = "NODOWN";
+
+    /**
+     * 교환 코드의 <b>검증과 소비를 한 원자 단위로</b> 처리한다.
+     *
+     * <p>자바 쪽에서 먼저 읽고 나중에 검사하면, 틀린 verifier 를 보낸 사람이 정상 로그인을 소진시킬 수 있다. 그래서 비교 → 조건부 삭제 → 반환이 전부 여기
+     * 있다. <b>불일치면 코드를 남긴다</b> — 정상 클라이언트가 다시 시도할 수 있어야 한다.
+     *
+     * <p>공용 {@link #GET_DEL_SCRIPT} 를 확장하지 않은 이유: 그 스크립트는 이메일 인증 완료 표도 쓴다. OAuth 전용으로 바꾸면 회원가입·비밀번호
+     * 재설정에 영향이 간다.
+     *
+     * <p>해시 계산(S256)은 자바에서 한다. 원자적으로 묶여야 하는 것은 <b>저장값과의 비교 → 조건부 삭제 → 반환</b>이지 해시 계산이 아니다.
+     *
+     * <p>Redis 6.0 호환 — 운영 서버에 {@code GETDEL} 이 없다(위 {@link #GET_DEL_SCRIPT} 사연 참고).
+     */
+    private static final RedisScript<String> OAUTH_EXCHANGE_SCRIPT =
+            new DefaultRedisScript<>(
+                    "local v = redis.call('GET', KEYS[1]) "
+                            + "if not v then return 'MISS' end "
+                            + "local given = ARGV[1] "
+                            + "local nl = string.find(v, '\n', 1, true) "
+                            + "local header, payload "
+                            + "if nl then header = string.sub(v, 1, nl - 1) "
+                            + "  payload = string.sub(v, nl + 1) "
+                            + "else header = v payload = '' end "
+                            // 헤더가 없는 값 = 배포 직전 60초 안에 발급된 옛 형식. 값 전체가 payload 다.
+                            + "if string.sub(header, 1, 3) ~= 'B1:' then "
+                            + "  if given ~= '' then return 'NODOWN' end "
+                            + "  redis.call('DEL', KEYS[1]) return 'OK\n' .. v end "
+                            + "local bind = string.sub(header, 4) "
+                            + "if bind == '-' then "
+                            + "  if given ~= '' then return 'NODOWN' end "
+                            + "  redis.call('DEL', KEYS[1]) return 'OK\n' .. payload end "
+                            + "if string.sub(bind, 1, 5) ~= 'S256:' then return 'NEEDV' end "
+                            + "local want = string.sub(bind, 6) "
+                            + "if given == '' or given ~= want then return 'NEEDV' end "
+                            + "redis.call('DEL', KEYS[1]) return 'OK\n' .. payload",
+                    String.class);
+
     private final AuthService authService;
     private final EmailService emailService;
     private final StringRedisTemplate redisTemplate;
@@ -114,16 +161,67 @@ public class AuthController {
         return ResponseEntity.ok(authService.refresh(body.get("refreshToken")));
     }
 
+    /**
+     * 소셜 로그인 교환 — 1회용 코드를 토큰으로 바꾼다.
+     *
+     * <p><b>가로챈 코드를 쓰지 못하게 하는 것이 이 경로의 몫이다.</b> 앱이 만드는 nonce 는 정상 앱이 <b>위조된</b> 콜백을 걸러내는 장치이고,
+     * <b>탈취된</b> 콜백은 막지 못한다 — 그 검사는 서버가 아니라 정상 앱이 자기 기기에서 하기 때문이다. 그래서 서버가 코드 자체를 요청자에게 묶는다(RFC
+     * 7636).
+     *
+     * <p>판정은 <b>요청이 무엇을 보냈느냐가 아니라 발급된 코드의 속성</b>으로 한다. 요청에 verifier 가 없다고 구방식으로 통과시키면 공격자는 필드를 빼기만
+     * 하면 된다.
+     *
+     * <table>
+     *   <tr><th>저장된 코드</th><th>교환 조건</th></tr>
+     *   <tr><td>묶임(B1:S256:…)</td><td>맞는 verifier 필수. 없거나 틀리면 <b>항상</b> 거부</td></tr>
+     *   <tr><td>구방식(B1:-)</td><td>전환기에만 허용. <b>verifier 가 붙어 오면 거부</b>(강등 차단)</td></tr>
+     *   <tr><td>만료·사용됨</td><td>거부</td></tr>
+     * </table>
+     */
     @PostMapping("/oauth/exchange")
     public ResponseEntity<?> exchangeOAuthCode(@RequestBody Map<String, String> body) {
         String code = body.get("code");
-        if (isBlank(code) || code.length() > 100) {
+        if (isBlank(code) || code.length() > MAX_EXCHANGE_CODE_LENGTH) {
             return ResponseEntity.badRequest().body("유효하지 않은 로그인 교환 코드입니다.");
         }
-        String value = consumeKey(OAuth2SuccessHandler.OAUTH_EXCHANGE_KEY_PREFIX + code);
-        if (value == null) {
+
+        String verifier = body.get(PARAM_CODE_VERIFIER);
+        String presented = "";
+        if (verifier != null && !verifier.isBlank()) {
+            if (!isWellFormedVerifier(verifier)) {
+                return ResponseEntity.badRequest().body("유효하지 않은 code_verifier 입니다.");
+            }
+            presented = sha256Base64Url(verifier);
+        }
+
+        String result;
+        try {
+            result =
+                    redisTemplate.execute(
+                            OAUTH_EXCHANGE_SCRIPT,
+                            List.of(OAuth2SuccessHandler.OAUTH_EXCHANGE_KEY_PREFIX + code),
+                            presented);
+        } catch (RuntimeException e) {
+            log.error("[OAuthExchange] Redis 실행 실패: {}", e.getClass().getSimpleName());
+            return ResponseEntity.status(503).body("잠시 후 다시 시도해 주세요.");
+        }
+
+        if (result == null || EXCHANGE_MISS.equals(result)) {
             return ResponseEntity.status(401).body("로그인 교환 코드가 만료되었거나 이미 사용되었습니다.");
         }
+        if (EXCHANGE_NEEDS_VERIFIER.equals(result)) {
+            // 틀린 verifier 로는 코드가 소비되지 않는다. 정상 클라이언트는 다시 시도할 수 있다.
+            log.warn("[OAuthExchange] 묶인 코드에 맞지 않는 verifier — 거부");
+            return ResponseEntity.status(401).body("이 로그인 요청을 시작한 앱에서만 완료할 수 있습니다.");
+        }
+        if (EXCHANGE_DOWNGRADE.equals(result)) {
+            // 묶이지 않은 코드에 verifier 가 붙어 왔다. 신방식 클라이언트가 구코드를 신방식 응답으로
+            // 받아들이는 강등 경로를 막는다(RFC 9700 §4.8.2).
+            log.warn("[OAuthExchange] 구방식 코드에 verifier 가 붙어 왔다 — 거부");
+            return ResponseEntity.badRequest().body("유효하지 않은 로그인 교환 요청입니다.");
+        }
+
+        String value = result.substring(EXCHANGE_OK_PREFIX.length());
 
         // 2단계 인증이 남았으면 토큰 대신 표를 준다. 프론트는 이메일 로그인과 <b>같은</b> 6자리
         // 화면으로 이어간다 — 경로가 갈리면 한쪽만 고치는 사고가 난다.
@@ -141,6 +239,38 @@ public class AuthController {
         tokens.put("token", parts[0]);
         if (parts.length > 1) tokens.put("refreshToken", parts[1]);
         return ResponseEntity.ok(tokens);
+    }
+
+    /** RFC 7636 의 code_verifier — unreserved 문자 43~128자. */
+    static boolean isWellFormedVerifier(String verifier) {
+        int n = verifier.length();
+        if (n < 43 || n > 128) return false;
+        for (int i = 0; i < n; i++) {
+            char c = verifier.charAt(i);
+            boolean ok =
+                    (c >= 'A' && c <= 'Z')
+                            || (c >= 'a' && c <= 'z')
+                            || (c >= '0' && c <= '9')
+                            || c == '-'
+                            || c == '.'
+                            || c == '_'
+                            || c == '~';
+            if (!ok) return false;
+        }
+        return true;
+    }
+
+    /** S256 변환 — base64url(SHA-256(verifier)), 패딩 없음. */
+    static String sha256Base64Url(String verifier) {
+        try {
+            byte[] digest =
+                    java.security.MessageDigest.getInstance("SHA-256")
+                            .digest(verifier.getBytes(java.nio.charset.StandardCharsets.US_ASCII));
+            return java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(digest);
+        } catch (java.security.NoSuchAlgorithmException e) {
+            // SHA-256 은 JRE 필수 알고리즘이다. 없으면 환경이 깨진 것이라 조용히 넘기면 안 된다.
+            throw new IllegalStateException("SHA-256 을 쓸 수 없습니다", e);
+        }
     }
 
     @GetMapping("/check-email")
