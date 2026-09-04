@@ -29,15 +29,15 @@ jobs:
       - run: npm run lint
       - run: npm run format:check
       - run: npm test
-      # 의존성 취약점은 보고만 하고 막지 않는다.
+      # 의존성 취약점 — 2026-09-04 부터 다시 막는다.
       #
-      # Next.js 16.1.6 에 high 등급 권고가 걸려 있고 해결 버전은 16.2.12 인데, 그 버전은 빌드는
-      # 통과하지만 Vercel 에서 서비스되는 배포로 승격되지 않았다(2026-07-28, 세 번 시도). 운영에
-      # 사용자 영향이 있는 수정을 내보내야 해서 버전을 되돌렸다.
+      # 예전 예외 사유는 Next.js 16.1.6 의 high 권고였는데, 해결 버전 16.2.12 가 Vercel 배포로
+      # 승격되지 않아 되돌렸고 그 뒤로 continue-on-error 로 열어 뒀다. 지금은 그 권고가 목록에
+      # 없고 audit 이 dev 포함 0건이라 예외를 지운다.
       #
-      # 막지 않는 대신 결과는 로그에 남는다. 승격 문제가 풀리면 16.2.12 로 올리고 이 예외를 지운다.
-      - run: npm audit --omit=dev --audit-level=high
-        continue-on-error: true
+      # dev 를 빼지 않는 이유: browserslist high 권고가 dev 의존성이라 --omit=dev 로는 안 보였는데
+      # Dependabot 은 그걸 그대로 잡았다. 두 도구가 세는 기준이 다르니 여기서는 넓게 본다.
+      - run: npm audit --audit-level=high
       - run: npm run build
         env:
           NEXT_PUBLIC_API_URL: http://localhost:8080
