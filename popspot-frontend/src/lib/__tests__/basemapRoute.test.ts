@@ -112,9 +112,9 @@ describe('GET — 넘기기만 한다', () => {
    */
   it('Range 가 없거나 성치 않으면 거부한다', async () => {
     expect((await GET(req('https://popspot.co.kr/basemap', {}))).status).toBe(416);
-    expect(
-      (await GET(req('https://popspot.co.kr/basemap', { range: 'bytes=0-' }))).status,
-    ).toBe(416);
+    expect((await GET(req('https://popspot.co.kr/basemap', { range: 'bytes=0-' }))).status).toBe(
+      416,
+    );
     expect(
       (await GET(req('https://popspot.co.kr/basemap', { range: 'bytes=0-99999999' }))).status,
     ).toBe(416);
