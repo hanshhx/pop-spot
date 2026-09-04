@@ -9,7 +9,6 @@ import VisitTracker from '@/components/VisitTracker';
 import { Providers } from './Providers';
 import { LocaleProvider } from '@/lib/i18n';
 import AuthGuard from '@/components/AuthGuard';
-import GlobalChatManager from '@/components/GlobalChatManager';
 import { MusicPlayerProvider } from '@/components/music/MusicPlayerProvider';
 import { GlobalMusicPlayer } from '@/components/music/GlobalMusicPlayer';
 import ServiceStatusBanner from '@/components/ServiceStatusBanner';
@@ -146,7 +145,6 @@ export default async function RootLayout({
               <AuthGuard>
                 <MusicPlayerProvider>
                   {children}
-                  <GlobalChatManager />
                   <GlobalMusicPlayer />
                 </MusicPlayerProvider>
               </AuthGuard>

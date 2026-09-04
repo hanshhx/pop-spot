@@ -17,22 +17,13 @@ class PrivateEndpointAuthorizationTest {
                     WishlistController.class,
                     MyPageController.class,
                     MyCourseController.class,
-                    StampController.class,
-                    ChatFileController.class);
+                    StampController.class);
 
     private static final Map<Class<?>, List<String>> PRIVATE_METHODS =
             Map.of(
                     AuthController.class, List.of("getCurrentUser"),
                     GameController.class, List.of("startSimulation", "reserve"),
                     FeedbackController.class, List.of("getMine"),
-                    MateController.class,
-                            List.of(
-                                    "getChatMessages",
-                                    "createPost",
-                                    "getBoostStatus",
-                                    "joinMate",
-                                    "deletePost",
-                                    "reportPost"),
                     TermsController.class, List.of("accept", "decline"),
                     UserProfileController.class, List.of("uploadAvatar", "updateMe", "deleteMe"),
                     SpotifyAuthController.class, List.of("login", "disconnect", "token"));

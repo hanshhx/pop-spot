@@ -363,9 +363,9 @@ const tryRefresh = async (endpoint: string): Promise<boolean> => {
 /**
  * 브라우저에서도 절대 URL(백엔드 직접 호출)을 반드시 유지해야 하는 경로.
  *
- * <p>업로드 2종 — 백엔드 {@code buildPublicUrl()} 이 요청 호스트를 반사해 응답 URL 을 만든다.
+ * <p>아바타 업로드 — 백엔드 {@code buildPublicUrl()} 이 요청 호스트를 반사해 응답 URL 을 만든다.
  * 프록시를 경유하면 {@code https://popspot.co.kr/uploads/...} 가 생성되는데 이 경로에는 리라이트가
- * 없어 404 다. 특히 아바타는 그 값이 users.picture 에 영구 저장되므로 코드 롤백으로 복구되지 않는다.
+ * 없어 404 다. 그 값이 users.picture 에 영구 저장되므로 코드 롤백으로 복구되지 않는다.
  * 덤으로 프록시 본문 크기 한도도 함께 피한다.
  *
  * <p>관리자 장시간 작업 2종 — 외부 API 를 최대 150회 직렬 호출한다. 엣지 게이트웨이 타임아웃에
@@ -373,7 +373,6 @@ const tryRefresh = async (endpoint: string): Promise<boolean> => {
  */
 const FORCE_ABSOLUTE_PREFIXES = [
   '/api/v1/users/me/avatar',
-  '/api/chat/upload',
   '/api/admin/popups/backfill-photos',
   '/api/admin/popups/dedupe',
 ] as const;
