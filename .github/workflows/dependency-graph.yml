@@ -1,0 +1,45 @@
+name: Dependency graph
+
+# Gradle 의존성 트리를 GitHub 의존성 그래프에 올린다. Dependabot 경보가 이걸 보고
+# 백엔드 라이브러리의 취약점을 알려 준다.
+#
+# 왜 OWASP dependency-check 를 걷어내고 이걸로 왔는가:
+#
+#   그 플러그인은 NVD 전체를 러너의 로컬 H2 로 매주 복제한다. 2026-08-02 부터 5주 연속
+#   실패했는데, 원인은 레이트리밋이 아니라 그 H2 가 깨지는 것이었다 —
+#   MVStore 예외 뒤에 BasicDataSource.getConnection() 이 NPE 를 냈다. NVD_API_KEY 는
+#   워크플로 주석이 안내만 하고 끝내 설정되지 않아, 인증 없이 받다가 중간에 끊겼을 때
+#   반쯤 쓰인 DB 가 남는 구조였다.
+#
+#   더 근본적으로 failOnError = true 라 "취약점을 찾았다" 와 "스캐너가 깨졌다" 가 똑같이
+#   빨간불이었다. 구분이 안 되니 5주 동안 아무도 안 봤다.
+#
+#   npm 쪽(프론트·앱)은 락파일이 있어 GitHub 가 알아서 읽는다. Gradle 은 락파일이 없어
+#   이 잡이 대신 올려 준다. 그러면 NVD 키도, H2 도, 캐시도 필요 없다.
+#
+# ⚠️ 이것만으로는 아무 일도 안 일어난다. 저장소 Settings → Security 에서
+#    Dependency graph 와 Dependabot alerts 가 켜져 있어야 경보가 뜬다.
+
+on:
+  push:
+    branches: [main]
+  # 손으로 갱신하고 싶을 때.
+  workflow_dispatch:
+
+# 의존성 그래프에 쓰려면 contents: write 가 필요하다. 이 워크플로를 quality.yml 에
+# 합치지 않고 따로 둔 이유가 이것이다 — 검사 잡 전체에 쓰기 권한을 주지 않는다.
+permissions:
+  contents: write
+
+jobs:
+  submit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: gradle/actions/dependency-submission@v4
+        with:
+          build-root-directory: popspot-backend

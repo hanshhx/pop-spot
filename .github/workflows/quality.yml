@@ -74,12 +74,19 @@ jobs:
           # 기본 90일은 이 용도에 과하다. 배포는 며칠 안에 끝난다.
           retention-days: 14
           if-no-files-found: error
-      # 의존성 취약점 검사(dependencyCheckAnalyze)는 여기 없다 — security-scan.yml 로 옮겼다.
+      # 의존성 취약점 검사는 여기 없다 — GitHub 의존성 그래프 + Dependabot 경보로 옮겼다.
       #
-      # 이 검사는 미국 취약점 DB(NVD) 전체를 내려받는데, 커밋마다 돌리면 한 번에 30~50분이 걸리고
-      # NVD 가 응답을 끊으면 그대로 실패한다(실측: 성공 29·30·56분 / 실패 3·4·7분). 결과적으로
-      # <b>내 코드는 멀쩡한데 빨간불만 켜져 있는</b> 상태가 반복됐다.
-      #
-      # 검사 대상은 내 코드가 아니라 <b>남이 만든 라이브러리</b>다. 커밋을 해도 그 목록은 바뀌지
-      # 않으므로 매번 돌릴 이유가 없다. 주 1회로 충분하고, 새 취약점은 발표 시점에 생기지 커밋
-      # 시점에 생기지 않는다.
+      # 예전엔 커밋마다 dependencyCheckAnalyze 를 돌렸다가(한 번에 30~50분) 주 1회
+      # security-scan.yml 로 뺐다. 그런데 그것도 2026-08-02 부터 5주 연속 실패했고, 원인은
+      # NVD 응답이 아니라 러너에 만드는 로컬 H2 가 깨지는 것이었다(MVStore 예외 → NPE).
+      # 2026-09-04 에 폐기하고 dependency-graph.yml 로 Gradle 트리를 GitHub 에 올리는 방식으로
+      # 바꿨다. 사정은 그 파일 주석에 적어 뒀다.
+
+  # 앱(RN/Expo)은 아직 CI 대상이 아니다 — 붙이려 했다가 되돌렸다.
+  #
+  # main 의 popspot-app 은 expo 스크립트(start/android/ios/web)만 있고 typecheck·test 스크립트도,
+  # 검사 파일도 없다. 검사 40파일은 작업 브랜치(feat/app-design-17screens)에만 있어 아직 병합 전이다.
+  # 지금 잡을 만들면 "Missing script" 로 바로 빨간불이 된다(2026-09-04 워크트리에서 실측).
+  #
+  # 그러니 앱 CI 는 그 브랜치가 병합되는 시점에 함께 붙인다. 그때까지 앱 <b>의존성</b>은
+  # package-lock.json 을 GitHub 가 읽어 Dependabot 경보로 덮는다 — 그건 CI 잡이 없어도 된다.
