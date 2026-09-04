@@ -25,6 +25,7 @@ import { notify, notifyError, notifySuccess } from '@/lib/notify';
 import { GUEST_GRACE_PERIOD_DAYS, startGuestMode } from '@/lib/guestMode';
 import { useLocale } from '@/lib/i18n';
 import { appReturnUrl, clearAppFlowCookie, startedByApp } from '@/lib/oauthAppFlow';
+import { startPkce } from '@/lib/pkce';
 import { localizedPath } from '@/lib/localePath';
 import { TotpChallenge } from '@/features/auth/TotpChallenge';
 import { useServiceAvailability } from '@/components/ServiceStatusBanner';
@@ -179,7 +180,16 @@ export default function LoginPage() {
     /* 앱에서 시작하다 만 흐름의 표시가 남아 있으면 이 웹 로그인이 앱으로 튕긴다. 여기서 지운다
        (콜백도 읽자마자 지우지만, 콜백까지 못 간 채 끝난 경우가 있다). */
     clearAppFlowCookie();
-    window.location.href = `${API_BASE_URL}/oauth2/authorization/${provider}`;
+
+    // 이 로그인을 이 탭에 묶는다. verifier 는 여기 남고 challenge 만 서버로 간다 —
+    // 콜백을 가로챈 쪽은 해시만 보게 되어 교환 코드를 쓸 수 없다.
+    //
+    // 만들지 못하면(보안 컨텍스트가 아니거나 저장소가 막힘) 챌린지 없이 시작한다. 서버가
+    // 구방식으로 기록하고 전환 기간에는 그대로 로그인된다 — 여기서 로그인을 막지는 않는다.
+    const challenge = await startPkce();
+    const start = new URL(`${API_BASE_URL}/oauth2/authorization/${provider}`);
+    if (challenge) start.searchParams.set('code_challenge', challenge);
+    window.location.href = start.toString();
   };
 
   /**
