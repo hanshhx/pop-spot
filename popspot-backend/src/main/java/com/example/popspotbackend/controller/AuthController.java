@@ -65,7 +65,7 @@ public class AuthController {
      * <p>Lua 스크립트는 Redis 2.6+ 에서 동작하고 서버에서 단일 원자 단위로 실행되므로, 1회용 코드가 두 번 소비되지 않는다는 보장은 {@code
      * GETDEL} 과 동일하게 유지된다.
      */
-    private static final RedisScript<String> GET_DEL_SCRIPT =
+    static final RedisScript<String> GET_DEL_SCRIPT =
             new DefaultRedisScript<>(
                     "local v = redis.call('GET', KEYS[1]) "
                             + "if v then redis.call('DEL', KEYS[1]) end "
@@ -95,12 +95,18 @@ public class AuthController {
      *
      * <p>Redis 6.0 호환 — 운영 서버에 {@code GETDEL} 이 없다(위 {@link #GET_DEL_SCRIPT} 사연 참고).
      */
-    private static final RedisScript<String> OAUTH_EXCHANGE_SCRIPT =
+    static final RedisScript<String> OAUTH_EXCHANGE_SCRIPT =
             new DefaultRedisScript<>(
-                    "local v = redis.call('GET', KEYS[1]) "
+                    // 개행은 string.char(10) 으로 만든다. 문자열 리터럴에 이스케이프를 쓰면 안 된다 —
+                    // 이스케이프가 heredoc → 자바 → Lua 로 세 겹이라 한 겹만 잃어도 자바가 진짜 개행을
+                    // 넣고, Lua 는 홑따옴표 문자열 안의 개행을 문법 오류로 본다. 2026-09-05 에 실제로
+                    // 그렇게 나가 소셜 로그인이 503 이 됐다. 이 방식은 백슬래시가 아예 없어 그 겹침이
+                    // 생기지 않는다.
+                    "local NL = string.char(10) "
+                            + "local v = redis.call('GET', KEYS[1]) "
                             + "if not v then return 'MISS' end "
                             + "local given = ARGV[1] "
-                            + "local nl = string.find(v, '\n', 1, true) "
+                            + "local nl = string.find(v, NL, 1, true) "
                             + "local header, payload "
                             + "if nl then header = string.sub(v, 1, nl - 1) "
                             + "  payload = string.sub(v, nl + 1) "
@@ -108,15 +114,15 @@ public class AuthController {
                             // 헤더가 없는 값 = 배포 직전 60초 안에 발급된 옛 형식. 값 전체가 payload 다.
                             + "if string.sub(header, 1, 3) ~= 'B1:' then "
                             + "  if given ~= '' then return 'NODOWN' end "
-                            + "  redis.call('DEL', KEYS[1]) return 'OK\n' .. v end "
+                            + "  redis.call('DEL', KEYS[1]) return 'OK' .. NL .. v end "
                             + "local bind = string.sub(header, 4) "
                             + "if bind == '-' then "
                             + "  if given ~= '' then return 'NODOWN' end "
-                            + "  redis.call('DEL', KEYS[1]) return 'OK\n' .. payload end "
+                            + "  redis.call('DEL', KEYS[1]) return 'OK' .. NL .. payload end "
                             + "if string.sub(bind, 1, 5) ~= 'S256:' then return 'NEEDV' end "
                             + "local want = string.sub(bind, 6) "
                             + "if given == '' or given ~= want then return 'NEEDV' end "
-                            + "redis.call('DEL', KEYS[1]) return 'OK\n' .. payload",
+                            + "redis.call('DEL', KEYS[1]) return 'OK' .. NL .. payload",
                     String.class);
 
     private final AuthService authService;
@@ -202,7 +208,12 @@ public class AuthController {
                             List.of(OAuth2SuccessHandler.OAUTH_EXCHANGE_KEY_PREFIX + code),
                             presented);
         } catch (RuntimeException e) {
-            log.error("[OAuthExchange] Redis 실행 실패: {}", e.getClass().getSimpleName());
+            // 클래스명만 남기면 RedisSystemException 처럼 원인이 메시지에만 있는 예외에서
+            // 진단 정보를 통째로 잃는다. 2026-09-05 에 실제로 그래서 한 배포를 더 썼다.
+            log.error(
+                    "[OAuthExchange] Redis 실행 실패: {} — {}",
+                    e.getClass().getSimpleName(),
+                    e.getMessage());
             return ResponseEntity.status(503).body("잠시 후 다시 시도해 주세요.");
         }
 
