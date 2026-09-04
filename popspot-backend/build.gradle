@@ -1,6 +1,6 @@
 plugins {
     id 'java'
-    id 'org.springframework.boot' version '4.0.7'
+    id 'org.springframework.boot' version '4.0.8'
     id 'io.spring.dependency-management' version '1.1.7'
     id "io.sentry.jvm.gradle" version "6.1.0"
     id 'com.diffplug.spotless' version '6.25.0'
@@ -20,6 +20,25 @@ spotless {
         endWithNewline()
     }
 }
+
+
+/*
+ * Spring Boot BOM 이 관리하는 버전 중 취약점이 남은 것만 손으로 올린다.
+ *
+ * <p>2026-09-04 Dependabot 경보를 켜면서 백엔드에 critical 4 · high 4 가 드러났다. 그 전까지
+ * 의존성 검사가 2026-08-02 부터 죽어 있었다(security-scan.yml, 로컬 H2 손상). Tomcat 3건은
+ * 8월 26일 공개라 정확히 그 공백 동안 들어온 것이다.
+ *
+ * <p>부트를 4.0.7 → 4.0.8 로 올려 postgresql · jackson(2·3) · netty · log4j2 는 해결했다.
+ * 아래 셋은 4.0.8 도 아직 취약한 버전을 물고 있어 따로 올린다. 부트가 이 버전들을 따라잡으면
+ * 이 블록은 지운다.
+ *
+ * <p>⚠️ 속성 이름이 틀리면 <b>오류 없이 조용히 무시된다.</b> 그래서 배포 전에 만들어진 jar 의
+ * BOOT-INF/lib 에서 실제 버전을 확인할 것.
+ */
+ext['tomcat.version'] = '11.0.25'      // CVE-2026-68525 / 65905 / 65182 (critical)
+ext['httpcore5.version'] = '5.4.3'     // HPackDecoder / HTTP1 헤더 파싱 (high)
+ext['httpclient5.version'] = '5.6.3'   // httpcore5 5.4.x 와 짝
 
 group = 'com.example'
 version = '0.0.1-SNAPSHOT'
@@ -65,9 +84,21 @@ dependencies {
     // 스프링 부트 웹 스타터에 기본 포함되어 있지만, 에러가 난다면 명시적으로 추가해야 합니다.
     implementation 'com.fasterxml.jackson.core:jackson-databind'
 // [1] LangChain4j 스프링 부트 통합팩
-    implementation 'dev.langchain4j:langchain4j-spring-boot-starter:0.36.0'
+    //
+    // opennlp 를 뺀다. langchain4j 는 문서 분할기(DocumentSplitter)용으로 opennlp-tools 를
+    // 끌어오는데, 우리는 채팅 모델(OpenAiChatModel · ChatLanguageModel)만 쓰고 분할기는 쓰지
+    // 않는다. 그런데도 jar 에 opennlp-tools-1.9.4 가 실려 critical 2건(CVE-2026-42027 임의 클래스
+    // 인스턴스화 · CVE-2026-40682 XXE)과 high 1건을 달고 있었다.
+    //
+    // 2.5.9 로 올리는 방법도 있으나 1.x → 2.x 는 메이저 점프라 langchain4j 0.36.0 이 컴파일한
+    // API 와 어긋날 수 있다. 안 쓰는 것을 빼는 쪽이 위험이 없고 jar 도 가벼워진다.
+    implementation('dev.langchain4j:langchain4j-spring-boot-starter:0.36.0') {
+        exclude group: 'org.apache.opennlp'
+    }
     // Groq 는 OpenAI API 호환이므로 langchain4j-open-ai 사용
-    implementation 'dev.langchain4j:langchain4j-open-ai:0.36.0'
+    implementation('dev.langchain4j:langchain4j-open-ai:0.36.0') {
+        exclude group: 'org.apache.opennlp'
+    }
     implementation 'org.json:json:20231013'
     implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
     implementation 'org.springframework.boot:spring-boot-starter-mail'
