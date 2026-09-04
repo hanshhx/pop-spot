@@ -1,13 +1,15 @@
 /**
- * 베이스맵 프록시 공용 로직 — /basemap(타일)과 /basemap/version(버전) 이 공유.
+ * 베이스맵 버전 해석 — /basemap/version 이 쓴다.
  *
- * 핵심: pmtiles 일별 planet 빌드는 매일 파일이 바뀐다(청크 오프셋도 바뀜). 그래서 클라이언트는
- * /basemap/version 으로 "지금 서버가 서빙할 빌드 날짜(v)"를 한 번 받고, 모든 타일 요청에 ?v=날짜
- * 를 붙인다. 서버는 그 날짜 파일을 그대로 서빙하므로 (v = 불변 파일) 장기 immutable 캐시가 안전하다.
- * → 브라우저가 타일을 재요청하지 않아 지도가 빨라지고, 빌드 롤오버로 바이트가 섞이는 일도 없다.
+ * 핵심: 클라이언트는 지도를 만들기 전에 "지금 서빙 중인 파일의 버전(v)"을 한 번 받고, 모든 타일
+ * 요청에 ?v= 를 붙인다. v 가 곧 파일 서명이라, 파일을 갈아끼우면 값이 바뀌어 브라우저 캐시가
+ * 자동으로 무효화된다 → 옛 목차와 새 조각이 섞이는 사고를 막는다.
+ *
+ * 예전엔 타일 라우트도 이 파일의 캐시·URL 생성기를 함께 썼다. 2026-09-04 에 타일 중계를 없애면서
+ * 그쪽 코드는 지웠다(파일 끝 주석 참고). 지금 남은 공개 API 는 resolveBuildDate 하나다.
  */
 
-export const BUILD_BASE = 'https://build.protomaps.com';
+const BUILD_BASE = 'https://build.protomaps.com';
 
 /** 저장소에 동봉한 서울 추출본. public/ 에 있으므로 같은 도메인에서 그대로 서빙된다. */
 const BUNDLED_SEOUL = '/seoul.pmtiles';
@@ -37,7 +39,7 @@ function bundledSeoulUrl(): string | undefined {
   return undefined;
 }
 
-export const OVERRIDE = process.env.BASEMAP_PMTILES_URL ?? bundledSeoulUrl();
+const OVERRIDE = process.env.BASEMAP_PMTILES_URL ?? bundledSeoulUrl();
 
 let resolvedDate: string | null = null;
 let resolvedAt = 0;
@@ -51,7 +53,12 @@ function ymd(d: Date): string {
   );
 }
 
-/** 문자열을 짧은 영숫자 토큰으로 (캐시 키 용도라 충돌 저항만 있으면 충분). */
+/**
+ * 문자열을 짧은 영숫자 토큰으로 (캐시 키 용도라 충돌 저항만 있으면 충분).
+ *
+ * <p>32비트를 base36 으로 찍으므로 최대 7자다 — 타일 라우트의 {@code sanitizeVersion} 이
+ * 통과시키는 모양이 이 길이에 맞춰져 있다.
+ */
 function shortHash(s: string): string {
   let h = 2166136261;
   for (let i = 0; i < s.length; i++) {
@@ -103,27 +110,10 @@ export async function resolveBuildDate(): Promise<string> {
   throw new Error('사용 가능한 Protomaps 빌드를 찾지 못했습니다');
 }
 
-/** 버전(날짜 or "static") → 실제 upstream pmtiles URL. v 는 숫자 8자리만 허용(SSRF 차단). */
-export function upstreamUrlForVersion(v: string | null): string | null {
-  if (OVERRIDE) return OVERRIDE;
-  if (v && /^\d{8}$/.test(v)) return `${BUILD_BASE}/${v}.pmtiles`;
-  return null; // 유효한 v 없음 → 호출부에서 resolveBuildDate 로 폴백
-}
-
-// Range 조각 캐시(서버 메모리). 서버리스 인스턴스별로 존재.
-const cache = new Map<string, { status: number; contentRange: string | null; body: ArrayBuffer }>();
-const CACHE_MAX = 1200;
-
-export function cacheGet(key: string) {
-  return cache.get(key);
-}
-export function cacheSet(
-  key: string,
-  val: { status: number; contentRange: string | null; body: ArrayBuffer },
-) {
-  if (cache.size >= CACHE_MAX) {
-    const oldest = cache.keys().next().value;
-    if (oldest !== undefined) cache.delete(oldest);
-  }
-  cache.set(key, val);
-}
+/*
+ * 2026-09-04 정리 — 여기 있던 `upstreamUrlForVersion` 과 Range 조각 메모리 캐시(cacheGet/cacheSet,
+ * 최대 1200칸)를 지웠다. 타일 라우트가 중계를 그만두고 정적 파일로 넘기면서 호출자가 사라졌다.
+ * 남겨 두면 "쓰는 사람 없는데 살아 있는 코드" 가 다시 쌓인다 — 이번 문제의 원인이 정확히 그것이었다.
+ *
+ * 이 파일의 남은 공개 API 는 `resolveBuildDate` 하나이며, /basemap/version 만 쓴다.
+ */
