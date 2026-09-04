@@ -22,8 +22,9 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * 동행 모집 게시판 도메인 서비스.
  *
- * <p>{@link com.example.popspotbackend.controller.MateController} 의 비즈니스 로직(부스트 한도 검증 · 정원 검사 · 자동
- * 마감 · 멤버 admit)을 모아서 라우팅과 분리. 트랜잭션 경계도 이 클래스에서만 정의한다.
+ * <p>2026-09-04 에 HTTP 표면(MateController · MateChatController)이 폐기돼 이 서비스에 외부 진입점은 없다.
+ * WebSocketConfig 의 채널 인가만 남아 있다. 아래는 그 시절의 비즈니스 로직(부스트 한도 검증 · 정원 검사 · 자동 마감 · 멤버 admit)을 모아서 라우팅과
+ * 분리. 트랜잭션 경계도 이 클래스에서만 정의한다.
  *
  * <p>v2.12 부터 확성기 아이템 소비 모델을 폐지하고, 등급(스탬프 누적량)별 월 한도로 상단 부스트를 제공한다. {@code MatePost.isMegaphone}
  * 컬럼은 의미만 "상단 부스트 적용 여부" 로 재해석해 그대로 재사용.

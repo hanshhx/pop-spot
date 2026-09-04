@@ -127,48 +127,6 @@ public class UploadQuotaService {
         }
     }
 
-    /**
-     * 폐기 예정인 기존 채팅 업로드 경로의 호환용 판정 API.
-     *
-     * <p>신규 업로드 경로는 동시 요청에도 안전한 {@link #reserve}를 사용한다. 이 메서드는 해당 기능을 건드리지 않기 위해 기존 호출 계약만 보존한다.
-     */
-    public Decision check(String userId, long incomingBytes) {
-        if (userId == null || userId.isBlank()) return Decision.ok();
-        try {
-            long usedBytes = readHashLong(key(userId), "bytes");
-            long usedCount = readHashLong(key(userId), "count");
-            if (usedCount + 1 > dailyCount) {
-                return Decision.denied(
-                        "오늘 올릴 수 있는 파일 수(" + dailyCount + "개)를 다 썼어요. 내일 다시 시도해 주세요.");
-            }
-            long limitBytes = dailyMb * BYTES_PER_MB;
-            if (usedBytes + incomingBytes > limitBytes) {
-                long remainMb = Math.max(0, (limitBytes - usedBytes) / BYTES_PER_MB);
-                return Decision.denied(
-                        "오늘 올릴 수 있는 용량(" + dailyMb + "MB)을 넘었어요. 남은 용량 " + remainMb + "MB.");
-            }
-            return Decision.ok();
-        } catch (RuntimeException e) {
-            log.warn("[UploadQuota] 호환 경로 사용량 조회 실패: {}", e.getClass().getSimpleName());
-            return Decision.ok();
-        }
-    }
-
-    /** 폐기 예정인 기존 채팅 업로드 경로의 호환용 기록 API. */
-    public void record(String userId, long bytes) {
-        if (userId == null || userId.isBlank() || bytes <= 0) return;
-        try {
-            String key = key(userId);
-            redis.opsForHash().increment(key, "bytes", bytes);
-            redis.opsForHash().increment(key, "count", 1);
-            if (Boolean.FALSE.equals(redis.hasKey(key)) || redis.getExpire(key) < 0) {
-                redis.expire(key, untilMidnightKst());
-            }
-        } catch (RuntimeException e) {
-            log.warn("[UploadQuota] 호환 경로 사용량 기록 실패: {}", e.getClass().getSimpleName());
-        }
-    }
-
     /** 파일 저장이나 DB 반영이 실패했을 때만 호출한다. 성공한 업로드 몫은 자정까지 유지한다. */
     public void release(String userId, long bytes) {
         if (userId == null || userId.isBlank() || bytes <= 0) return;
@@ -182,16 +140,6 @@ public class UploadQuotaService {
 
     private String key(String userId) {
         return KEY_PREFIX + userId + ":" + LocalDate.now(KST);
-    }
-
-    private long readHashLong(String key, String field) {
-        Object raw = redis.opsForHash().get(key, field);
-        if (raw == null) return 0L;
-        try {
-            return Long.parseLong(raw.toString());
-        } catch (NumberFormatException e) {
-            return 0L;
-        }
     }
 
     private Duration untilMidnightKst() {
