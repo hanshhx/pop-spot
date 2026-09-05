@@ -682,6 +682,9 @@ const DICT = {
     'common.loginRequired': '로그인이 필요합니다.',
     'detail.ended': '종료',
     'detail.todayClosing': '오늘 마감',
+    // 아직 안 연 팝업에는 마감까지가 아니라 열기까지를 보여준다. 문구는 랜딩 목록
+    // (landingCopy.ddayOpensIn)과 맞춘다 — 같은 것을 두 화면이 다르게 부르면 안 된다.
+    'detail.opensIn': '{days}일 뒤 오픈',
     'detail.period': '기간',
     'detail.hours': '운영',
     'detail.closing': '마감',
@@ -1510,6 +1513,7 @@ const DICT = {
     'common.loginRequired': 'Please log in to continue.',
     'detail.ended': 'Ended',
     'detail.todayClosing': 'Ends today',
+    'detail.opensIn': 'Opens in {days}d',
     'detail.period': 'Dates',
     'detail.hours': 'Event period',
     'detail.closing': 'Ends',
@@ -2344,6 +2348,7 @@ const DICT = {
     'common.loginRequired': 'ログインが必要です。',
     'detail.ended': '終了',
     'detail.todayClosing': '本日終了',
+    'detail.opensIn': 'あと{days}日で開始',
     'detail.period': '期間',
     'detail.hours': '開催期間',
     'detail.closing': '終了',
