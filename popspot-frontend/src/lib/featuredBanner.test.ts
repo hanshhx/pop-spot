@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 
 import {
   daysUntilStart,
+  pickAll,
+  pickAllForPage,
   pickFeatured,
   pickForPage,
   SHOW_DAYS_BEFORE,
@@ -113,5 +115,82 @@ describe('pickForPage', () => {
   /* 기간 판정이 우선이다 — 자기 상세가 아니어도 끝났으면 안 뜬다. */
   it('기간이 끝났으면 어느 화면에서도 안 띄운다', () => {
     expect(pickForPage(ENTRY, 9999, at('2026-09-07'))).toBeNull();
+  });
+});
+
+/**
+ * 여러 건이 겹치는 동안 <b>둘 다</b> 뜬다.
+ *
+ * <p>한 건짜리 상수였을 때는 새 건이 들어오면 갈아 끼워야 했고, 그러면 아직 열려 있는 팝업이
+ * 배너에서 사라졌다. 2026-09-05 에 제주(~09-06)가 하루 남은 상태로 릴 건(09-15~23)이 들어와
+ * 실제로 그 상황이 됐다.
+ */
+describe('pickAll — 겹치는 동안 여러 줄', () => {
+  const 제주: FeaturedPopup = { ...ENTRY };
+  const 릴: FeaturedPopup = {
+    popupId: 5678,
+    title: '릴 X 토니노 람보르기니 GROUND',
+    place: '성수 · 성수이로 72',
+    imageUrl: '/partner/lil-lamborghini-2026/01.webp',
+    startDate: '2026-09-15',
+    endDate: '2026-09-23',
+  };
+  const 목록 = [제주, 릴];
+
+  it('둘 다 기간에 걸리면 둘 다 띄운다', () => {
+    expect(pickAll(목록, at('2026-09-05')).map((e) => e.popupId)).toEqual([1234, 5678]);
+  });
+
+  /* 곧 닫히는 쪽이 위다 — 2주 남은 건은 다음에 봐도 되지만 내일 끝나는 건은 오늘이 마지막이다. */
+  it('끝나는 순서대로 준다 — 목록에 적은 순서가 아니라', () => {
+    expect(pickAll([릴, 제주], at('2026-09-05')).map((e) => e.endDate)).toEqual([
+      '2026-09-06',
+      '2026-09-23',
+    ]);
+  });
+
+  it('끝난 것만 빠지고 나머지는 남는다', () => {
+    expect(pickAll(목록, at('2026-09-16')).map((e) => e.popupId)).toEqual([5678]);
+  });
+
+  it('아직 아무것도 시작 근처가 아니면 빈 배열이다', () => {
+    expect(pickAll(목록, at('2026-08-01'))).toEqual([]);
+  });
+
+  /* 등록 SQL 전이라 id 가 없는 줄은 눌러도 갈 곳이 없다. 그 줄만 빠지고 나머지는 뜬다. */
+  it('id 가 없는 줄만 빠진다', () => {
+    const 미등록 = { ...릴, popupId: null };
+    expect(pickAll([제주, 미등록], at('2026-09-05')).map((e) => e.popupId)).toEqual([1234]);
+  });
+});
+
+describe('pickAllForPage — 보고 있는 팝업 줄만 뺀다', () => {
+  const 제주: FeaturedPopup = { ...ENTRY };
+  const 릴: FeaturedPopup = {
+    popupId: 5678,
+    title: '릴 X 토니노 람보르기니 GROUND',
+    place: '성수 · 성수이로 72',
+    imageUrl: '/partner/lil-lamborghini-2026/01.webp',
+    startDate: '2026-09-15',
+    endDate: '2026-09-23',
+  };
+  const 목록 = [제주, 릴];
+  const 행사중 = at('2026-09-05');
+
+  /*
+   * 한 건짜리였을 때와 갈라지는 지점이다. 그때는 "내 상세면 배너가 통째로 사라진다" 였는데,
+   * 이제는 <b>그 줄만</b> 빠지고 다른 팝업 줄은 남아야 한다 — 남은 줄은 여전히 갈 곳이 있다.
+   */
+  it('자기 상세에서는 자기 줄만 빠지고 다른 줄은 남는다', () => {
+    expect(pickAllForPage(목록, 1234, 행사중).map((e) => e.popupId)).toEqual([5678]);
+  });
+
+  it('id 가 문자열로 와도 같은 답을 낸다', () => {
+    expect(pickAllForPage(목록, '5678', 행사중).map((e) => e.popupId)).toEqual([1234]);
+  });
+
+  it('id 를 안 주는 화면에서는 전부 띄운다', () => {
+    expect(pickAllForPage(목록, null, 행사중)).toHaveLength(2);
+    expect(pickAllForPage(목록, undefined, 행사중)).toHaveLength(2);
   });
 });
