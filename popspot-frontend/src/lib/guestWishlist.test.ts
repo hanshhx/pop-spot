@@ -6,11 +6,10 @@ import {
   GUEST_WISHLIST_KEY,
   GUEST_WISHLIST_MAX,
   clearGuestWishlist,
+  forgetGuestWishlist,
   isGuestWished,
   readGuestWishlist,
   removeGuestWishlist,
-  restoreGuestWishlist,
-  takeGuestWishlist,
   toggleGuestWishlist,
 } from './guestWishlist';
 
@@ -79,33 +78,52 @@ describe('목록에서 빼기', () => {
   });
 });
 
-describe('로그인할 때 서버로 옮기기', () => {
-  it('꺼내면서 비운다 — 같은 것을 두 번 올리지 않게', () => {
+/*
+ * 예전에는 여기에 "꺼내면서 비우기(take)" 와 "못 옮긴 것 되돌리기(restore)" 가 있었다. 둘 다
+ * 지웠다. 비우는 것이 전송보다 먼저라 중간에 탭이 닫히면 되돌릴 것 자체가 없었고, restore 는
+ * 되돌리는 것을 배열 <b>앞</b>에 붙이면서 상한은 <b>뒤</b>를 지키게 잘라서 목록이 차 있으면
+ * 되돌린 것이 통째로 사라졌다. 지금은 옮기기가 끝난 뒤 <b>서버에 있는 것이 확인된 id 만</b> 뺀다.
+ */
+describe('옮겨진 것만 목록에서 빼기', () => {
+  it('지정한 것만 빠지고 나머지는 순서 그대로 남는다', () => {
     toggleGuestWishlist(1);
     toggleGuestWishlist(2);
-    expect(takeGuestWishlist()).toEqual([1, 2]);
-    expect(readGuestWishlist()).toEqual([]);
+    toggleGuestWishlist(3);
+    expect(forgetGuestWishlist([1, 3])).toBe(2);
+    expect(readGuestWishlist()).toEqual([2]);
   });
 
-  it('빈 목록을 꺼내도 아무 일도 없다', () => {
-    expect(takeGuestWishlist()).toEqual([]);
-  });
-
-  /* 서버로 못 옮긴 것을 되돌리는 길이 없으면, 전송 실패가 곧 소실이 된다. */
-  it('못 옮긴 것을 되돌려 놓을 수 있다', () => {
-    toggleGuestWishlist(9);
-    const taken = takeGuestWishlist();
-    restoreGuestWishlist(taken);
-    expect(readGuestWishlist()).toEqual([9]);
-  });
-
-  it('되돌릴 때 이미 담긴 것과 중복되지 않는다', () => {
+  /*
+   * 이 시험이 이 함수가 "빼야 할 것" 만 받는 이유다. 옮기는 동안 사용자는 계속 담을 수 있는데,
+   * 시작할 때 읽어 둔 배열을 그대로 되쓰면 그 창에서 담은 것이 조용히 지워진다. 예전 구현이
+   * 정확히 그랬다.
+   */
+  it('옮기는 사이에 새로 담은 것은 건드리지 않는다', () => {
     toggleGuestWishlist(1);
-    const taken = takeGuestWishlist();
-    toggleGuestWishlist(1); // 그 사이 같은 것을 다시 담았다
-    toggleGuestWishlist(2);
-    restoreGuestWishlist(taken);
-    expect(readGuestWishlist()).toEqual([1, 2]);
+    const sending = readGuestWishlist(); // 이 시점에 서버로 보낸 목록
+    toggleGuestWishlist(2); // 응답을 기다리는 사이에 사용자가 하나 더 담았다
+    forgetGuestWishlist(sending);
+    expect(readGuestWishlist()).toEqual([2]);
+  });
+
+  it('없는 것을 빼라고 해도 아무 일도 없다', () => {
+    toggleGuestWishlist(1);
+    expect(forgetGuestWishlist([99])).toBe(0);
+    expect(readGuestWishlist()).toEqual([1]);
+  });
+
+  it('빈 목록을 넘기면 저장소를 건드리지 않는다', () => {
+    toggleGuestWishlist(1);
+    expect(forgetGuestWishlist([])).toBe(0);
+    expect(readGuestWishlist()).toEqual([1]);
+  });
+
+  /* 목록이 상한까지 차 있어도 빼기만 하므로 잘려 나가는 것이 없어야 한다. */
+  it('목록이 가득 차 있어도 남은 것을 잃지 않는다', () => {
+    for (let i = 1; i <= GUEST_WISHLIST_MAX; i++) toggleGuestWishlist(i);
+    forgetGuestWishlist([1]);
+    expect(readGuestWishlist()).toHaveLength(GUEST_WISHLIST_MAX - 1);
+    expect(readGuestWishlist()).toContain(GUEST_WISHLIST_MAX);
   });
 });
 
