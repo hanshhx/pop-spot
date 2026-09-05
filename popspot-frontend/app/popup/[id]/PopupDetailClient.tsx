@@ -1,11 +1,7 @@
 'use client';
 
-import {
-  isGuestWished,
-  restoreGuestWishlist,
-  takeGuestWishlist,
-  toggleGuestWishlist,
-} from '@/lib/guestWishlist';
+import { isGuestWished, toggleGuestWishlist } from '@/lib/guestWishlist';
+import { GUEST_WISHLIST_MIGRATED_EVENT } from '@/lib/migrateGuestWishlist';
 import { FeaturedPopupBanner } from '@/components/main/FeaturedPopupBanner';
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -355,32 +351,23 @@ export default function PopupDetailClient({
   };
 
   /**
-   * 로그인하면 비회원 때 담아 둔 찜을 서버로 옮긴다.
+   * 비회원 때 담아 둔 찜이 방금 이 계정으로 옮겨졌으면 하트를 맞춘다.
    *
-   * <p>이게 없으면 가입한 순간 모아 둔 것이 조용히 사라져, 가입이 손해처럼 느껴진다.
-   * 꺼내면서 비우므로({@link takeGuestWishlist}) 같은 것을 두 번 올리지 않고, 못 옮긴 것만
-   * 되돌려 놓아 다음 기회에 다시 시도한다.
+   * <p><b>옮기는 일 자체는 더 이상 여기서 하지 않는다.</b> 예전에는 이 화면 안의 useEffect 가
+   * 유일한 이전기였는데, 로그인 성공은 전부 {@code /?entered=1}(홈)으로 착지하므로 <b>평범한
+   * 로그인으로는 한 번도 돌지 않았다.</b> 이제 AuthGuard(루트 레이아웃)가 경로와 무관하게
+   * 실행하고(lib/migrateGuestWishlist.ts), 이 화면은 결과만 받아 화면을 맞춘다 — 이전이 끝나는
+   * 시점은 이 컴포넌트의 마운트보다 늦을 수 있어서 알려 주지 않으면 하트가 꺼진 채로 남는다.
    */
   useEffect(() => {
-    const userId = user?.userId;
-    if (!userId) return;
-    const pending = takeGuestWishlist();
-    if (pending.length === 0) return;
-
-    void (async () => {
-      const failed: number[] = [];
-      for (const id of pending) {
-        try {
-          const res = await apiFetch(`/api/wishlist/${userId}/${id}`, { method: 'POST' });
-          if (!res.ok) failed.push(id);
-        } catch {
-          failed.push(id);
-        }
-      }
-      // 화면이 사라졌더라도 되돌려 놓는다 — 여기서 버리면 그대로 소실이다.
-      restoreGuestWishlist(failed);
-    })();
-  }, [user?.userId]);
+    const handleMigrated = () => {
+      if (popup) void checkWishlistStatus(popup.id);
+    };
+    window.addEventListener(GUEST_WISHLIST_MIGRATED_EVENT, handleMigrated);
+    return () => window.removeEventListener(GUEST_WISHLIST_MIGRATED_EVENT, handleMigrated);
+    // checkWishlistStatus 는 매 렌더 새로 만들어지지만 읽는 값은 popup·user 뿐이다.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [popup?.id, user?.userId]);
 
   const handleStamp = async () => {
     if (!popup) return;
@@ -415,7 +402,10 @@ export default function PopupDetailClient({
    * 사람이 <b>0명</b>이었다 — 그 기간 방문자 1,561명 중 회원은 4명이라 99.7% 가 벽을 만났다.
    * 게다가 그 벽은 방문을 끝냈다. 관심을 표시하려던 사람을 정확히 그 순간에 내보낸 셈이다.
    *
-   * <p>이제 비회원은 브라우저에 담고, 로그인하면 위 {@code useEffect} 가 서버로 옮긴다.
+   * <p>이제 비회원은 브라우저에 담고, 로그인하면 <b>AuthGuard(루트 레이아웃)</b>가 서버로 옮긴다
+   * ({@code lib/migrateGuestWishlist.ts}). 이 화면에는 이전 로직이 없다 — 예전에 여기 있었는데,
+   * 로그인은 언제나 홈에 착지하므로 <b>평범한 로그인으로는 한 번도 돌지 않았다.</b> 이 화면은 이제
+   * 이전이 끝났다는 알림만 받아 하트를 다시 맞춘다.
    */
   const handleToggleLike = async () => {
     if (!popup) return;
