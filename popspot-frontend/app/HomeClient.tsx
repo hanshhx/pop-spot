@@ -108,6 +108,10 @@ import {
   startGuestMode,
 } from '@/lib/guestMode';
 import { readGuestWishlist, removeGuestWishlist } from '@/lib/guestWishlist';
+import {
+  GUEST_WISHLIST_MIGRATED_EVENT,
+  retryGuestWishlistMigration,
+} from '@/lib/migrateGuestWishlist';
 import { canAccessTab } from '@/lib/tabAccess';
 import {
   HOME_RETURN_STATE_KEY,
@@ -821,6 +825,48 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
    * <p>카탈로그에 없는 id 는 화면에서만 뺀다. 담아 둔 사이에 끝나 목록에서 빠진 팝업이다.
    * 저장소에는 남겨 둔다 — 로그인하면 서버로 옮겨지고, 그쪽에는 지난 팝업도 남는다.
    */
+  /**
+   * 로그인했는데 저장소에 아직 남아 있는 게스트 찜의 개수.
+   *
+   * <p><b>왜 이걸 세는가.</b> 이전은 AuthGuard 에서 도는데 서버 왕복이 끼어 있어 홈이 먼저
+   * 그려진다. 그동안, 그리고 이전이 <b>실패했을 때</b>, MY 탭은 서버 목록(비어 있음)만 보고
+   * "아직 찜한 팝업스토어가 없습니다" 를 띄운다. 저장소에는 멀쩡히 남아 있는데 화면이 없다고
+   * 단언하는 것이고, 그게 이 작업 전체가 고치려던 바로 그 화면이다.
+   */
+  const [guestLeftover, setGuestLeftover] = useState(0);
+  /** 이전이 한 바퀴 돌았는가. 안 돌았으면 "옮기는 중", 돌았는데도 남았으면 "못 옮김" 이다. */
+  const [migrationSettled, setMigrationSettled] = useState(false);
+
+  /** "다시 시도" 를 누른 직후. 버튼을 잠가 같은 이전을 연타로 밀어 넣지 않게 한다. */
+  const [retryingMigration, setRetryingMigration] = useState(false);
+
+  useEffect(() => {
+    if (!user) {
+      setGuestLeftover(0);
+      setMigrationSettled(false);
+      return;
+    }
+    setGuestLeftover(readGuestWishlist().length);
+  }, [user]);
+
+  /**
+   * 사용자가 직접 이전을 다시 시도한다.
+   *
+   * <p>쿨다운을 우회하는 문({@link retryGuestWishlistMigration})을 쓴다 — 그 쿨다운은 "아무도 안
+   * 시켰는데 배경에서 나가는" 요청을 막으려는 것이고, 사람이 버튼을 눌렀다면 그 이유가 없다.
+   * 결과 반영은 이전이 쏘는 완료 알림이 하므로 여기서는 잠금만 풀어 준다.
+   */
+  const handleRetryMigration = async () => {
+    const userId = user?.userId;
+    if (!userId || retryingMigration) return;
+    setRetryingMigration(true);
+    try {
+      await retryGuestWishlistMigration(userId);
+    } finally {
+      setRetryingMigration(false);
+    }
+  };
+
   useEffect(() => {
     if (currentTab !== 'MY' || user) return;
     const byId = new Map(catalogPopups.map((p) => [Number(p.id), p]));
@@ -1375,6 +1421,31 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
     window.addEventListener(AUTH_EXPIRED_EVENT, handleExpired);
     return () => window.removeEventListener(AUTH_EXPIRED_EVENT, handleExpired);
   }, []);
+
+  /*
+   * 비회원 때 담아 둔 찜이 방금 이 계정으로 옮겨졌다.
+   *
+   * 이전은 AuthGuard(루트 레이아웃)에서 도는데, 그 전에 /api/v1/auth/me 왕복을 한 번 기다린다.
+   * 홈의 mount effect 는 그보다 먼저 끝나 서버 목록(=아직 비어 있는)을 state 로 들고 있으므로,
+   * 알려 주지 않으면 새로고침 전까지 MY 탭이 0건으로 보인다 — "로그인했더니 찜이 사라졌다" 로
+   * 읽히는 바로 그 화면이다. 위 AUTH_EXPIRED_EVENT 와 같은 방식으로 서버 값을 다시 읽는다.
+   * 찜 개수(likeCount)는 서버가 세므로 마이페이지도 함께 다시 부른다.
+   */
+  useEffect(() => {
+    const handleMigrated = () => {
+      const userId = user?.userId;
+      if (!userId) return;
+      fetchWishlist(userId);
+      fetchMyPageData(userId);
+      // 이전이 한 바퀴 돌았다. 남은 것이 있으면 그것은 "아직 진행 중" 이 아니라 "못 옮긴 것" 이다.
+      setGuestLeftover(readGuestWishlist().length);
+      setMigrationSettled(true);
+    };
+    window.addEventListener(GUEST_WISHLIST_MIGRATED_EVENT, handleMigrated);
+    return () => window.removeEventListener(GUEST_WISHLIST_MIGRATED_EVENT, handleMigrated);
+    // fetchWishlist/fetchMyPageData 는 매 렌더 새로 만들어지지만 인자는 userId 뿐이다.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.userId]);
 
   /*
    * ?tab= 쿼리 또는 sessionStorage 의 lastTab 으로 초기 탭 복원. searchParams 변경 시마다
@@ -2743,7 +2814,36 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
                   <Heart size={16} className="lg:w-[18px] lg:h-[18px] text-hot-400" />{' '}
                   {t('my.wishlist')}
                 </h3>
-                {myWishlist.length === 0 ? (
+                {myWishlist.length === 0 && guestLeftover > 0 ? (
+                  /*
+                   * 목록은 비었는데 저장소에는 남아 있다 — "없습니다" 는 거짓말이다.
+                   *
+                   * 여기서 두 가지를 구분한다. 이전이 아직 한 바퀴도 안 돌았으면 진행 중이고,
+                   * 돌았는데도 남았으면 못 옮긴 것이다. 뒤쪽에는 다시 시도할 방법을 준다 —
+                   * 자동 재시도는 경로가 바뀔 때만 오는데 로그인 착지점인 홈에서는 탭을 아무리
+                   * 눌러도 경로가 안 바뀌어, 버튼이 없으면 사용자가 할 수 있는 것이 없다.
+                   */
+                  <div className="text-center py-8 text-muted-foreground text-sm border border-dashed border-[var(--color-border-strong)] rounded-md">
+                    {!migrationSettled ? (
+                      t('wish.migrating')
+                    ) : (
+                      <>
+                        {t('wish.stuck').replace('{count}', String(guestLeftover))}
+                        <br />
+                        {t('wish.stuckHint')}
+                        <br />
+                        <button
+                          type="button"
+                          onClick={handleRetryMigration}
+                          className="mt-3 px-3 py-1.5 rounded-md border border-[var(--color-border-strong)] text-foreground text-xs font-semibold hover:bg-[var(--color-surface-2)] disabled:opacity-50"
+                          disabled={retryingMigration}
+                        >
+                          {t('wish.retry')}
+                        </button>
+                      </>
+                    )}
+                  </div>
+                ) : myWishlist.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground text-sm border border-dashed border-[var(--color-border-strong)] rounded-md">
                     {t('wish.empty')}
                     <br />

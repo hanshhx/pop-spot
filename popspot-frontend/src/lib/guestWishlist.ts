@@ -8,8 +8,15 @@
  * <p>그리고 그 벽은 방문을 끝낸다. 랜딩 → 상세 → 찜 시도 → 로그인 화면. 관심을 표시하려던
  * 사람을 정확히 그 순간에 내보낸다.
  *
- * <p><b>여기 담긴 것은 서버로 옮겨진다.</b> 로그인하면 {@link takeGuestWishlist} 로 꺼내 서버에
- * 올리고 비운다. 안 그러면 가입한 순간 모아 둔 것이 조용히 사라져, 가입이 손해처럼 느껴진다.
+ * <p><b>여기 담긴 것은 서버로 옮겨진다.</b> 로그인하면 {@code lib/migrateGuestWishlist.ts} 가
+ * 서버에 올리고, <b>올라간 것이 확인된 것만</b> {@link forgetGuestWishlist} 로 뺀다. 안 그러면
+ * 가입한 순간 모아 둔 것이 조용히 사라져, 가입이 손해처럼 느껴진다.
+ *
+ * <p><b>이 파일은 옮기기를 직접 하지 않는다.</b> 예전에는 여기에 "꺼내면서 비우는" 함수가 있었고
+ * 그 주석은 "서버 찜은 멱등이라 두 번 올려도 결과는 같다" 고 적고 있었다. <b>사실이 아니다</b> —
+ * 서버의 {@code POST /api/wishlist/{userId}/{popupId}} 는 토글이라 두 번 올리면 지워진다. 그
+ * 잘못된 전제 위에서 이미 찜한 팝업이 이전 중에 삭제됐다. 지금은 저장소가 무엇을 뺄지 스스로
+ * 정하지 않고, 서버 상태를 아는 쪽이 id 를 지정해 빼도록 한다.
  *
  * <p>저장소가 막힌 환경(시크릿 창·차단 설정)에서는 조용히 빈 목록으로 동작한다. 찜이 안 남는 것은
  * 아쉽지만, 그것 때문에 화면이 깨지는 것보다는 낫다.
@@ -89,24 +96,25 @@ export function removeGuestWishlist(popupId: number): void {
 }
 
 /**
- * 목록을 <b>꺼내면서 비운다.</b> 로그인 직후 서버로 옮길 때 쓴다.
+ * <b>서버에 있는 것이 확인된 id 만</b> 목록에서 뺀다. 몇 개를 실제로 뺐는지 돌려준다.
  *
- * <p>비우는 것까지 한 번에 하는 이유는, 꺼내 놓고 옮기다 실패했을 때 <b>같은 것을 두 번 올리는</b>
- * 일을 막기 위해서다. 서버 찜은 멱등이라 두 번 올려도 결과는 같지만, 실패한 것을 되돌려 놓는
- * 책임은 호출부에 있다({@link restoreGuestWishlist}).
+ * <p>이전(migrateGuestWishlist)이 끝날 때 <b>단 한 번</b> 부른다. 옮기기 전에 미리 비우지 않는
+ * 이유는, 그 사이에 탭이 닫히면 되돌릴 것 자체가 없어지기 때문이다. 예전 구현이 그랬다.
+ *
+ * <p><b>지금 저장소를 다시 읽는 것</b>이 이 함수의 핵심이다. 이전은 네트워크를 기다리므로 그
+ * 사이에 사용자가 새로 담을 수 있는데, 시작할 때 읽어 둔 배열을 그대로 되쓰면 그 창에서 담은
+ * 것이 조용히 지워진다. 그래서 "빼야 할 것" 만 받고 나머지는 지금 저장소를 따른다.
+ *
+ * <p>상한을 다시 자르지 않는다 — 빼기만 하므로 개수가 늘어날 일이 없다.
  */
-export function takeGuestWishlist(): number[] {
-  const ids = read();
-  if (ids.length > 0) write([]);
-  return ids;
-}
-
-/** 서버로 못 옮긴 것을 되돌려 놓는다. 이미 담긴 것과 합치되 중복은 만들지 않는다. */
-export function restoreGuestWishlist(ids: number[]): void {
-  if (ids.length === 0) return;
+export function forgetGuestWishlist(ids: number[]): number {
+  if (ids.length === 0) return 0;
+  const gone = new Set(ids);
   const current = read();
-  const merged = [...ids.filter((id) => !current.includes(id)), ...current];
-  write(merged.slice(-GUEST_WISHLIST_MAX));
+  const next = current.filter((id) => !gone.has(id));
+  if (next.length === current.length) return 0;
+  write(next);
+  return current.length - next.length;
 }
 
 export function clearGuestWishlist(): void {
