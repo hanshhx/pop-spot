@@ -65,6 +65,7 @@ class ControllerAuthorizationInventoryTest {
                     "ClientErrorController", // 브라우저가 보내는 오류 보고. 인증 전에도 나야 한다
                     "CongestionController", // 혼잡도 조회
                     "CourseController", // 코스 추천(AI). 저장은 MyCourseController(보호됨)
+                    "GoodsController", // 굿즈 조회만 남았다. 어드민 목록은 AdminController 로 옮겼다
                     "MusicController", // 팝업 배경음 조회
                     "PlanningController", // ⚠ 폐기된 작전지도. 코드가 살아 있어 여기 남는다
                     "PopupMapController", // 지도 마커
@@ -81,7 +82,6 @@ class ControllerAuthorizationInventoryTest {
                     "AuthController", // 로그인·회원가입은 공개, /me 는 보호
                     "FeedbackController", // 보내기는 공개, 내 것 보기는 보호
                     "GameController", // 조회는 공개, 시작·예약은 보호
-                    "GoodsController", // 목록은 공개, 나머지는 보호
                     "SearchController", // 추천은 공개, 나머지는 보호
                     "SpotifyAuthController", // 콜백은 공개, 연결·해제는 보호
                     "TermsController", // 약관 조회는 공개, 동의·철회는 보호
