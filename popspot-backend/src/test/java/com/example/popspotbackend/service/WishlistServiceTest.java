@@ -91,6 +91,52 @@ class WishlistServiceTest {
     }
 
     /**
+     * 날짜 없는 팝업 하나가 <b>목록 전체</b>를 날려 버리던 것.
+     *
+     * <p>{@code toResponse} 가 {@code getEndDate().toString()} 을 부르고 있었다. 두 필드는 이미 {@code String} 이라
+     * 변환할 것이 없었고, null 이면 그 자리에서 NPE 가 나 조회 전체가 500 이 됐다. 종료일 없는 팝업이 1,554곳 중 907곳(58%)이라 아주 흔한
+     * 경우였다.
+     *
+     * <p>화면에서는 <b>"찜 개수는 올라가는데 목록은 비어 있는"</b> 모습이었다. 개수는 {@code countByUser_UserId} 라 날짜를 안 건드려
+     * 멀쩡했고, 프론트는 {@code if (res.ok)} 안에서만 목록을 세팅해서 500 이 와도 오류 하나 없이 빈 화면을 유지했다.
+     */
+    @Test
+    @DisplayName("날짜가 없는 팝업도 목록에 나온다 — 한 줄 때문에 전체를 잃지 않는다")
+    void getMyWishlist_survivesNullDates() {
+        PopupStore 날짜없음 =
+                PopupStore.builder().id(POPUP_ID).name("날짜 미상 팝업").location("서울 성동구").build();
+        Wishlist row = Wishlist.builder().id(1L).popupStore(날짜없음).build();
+        when(wishlistRepository.findAllByUser_UserIdOrderByIdDesc(USER_ID))
+                .thenReturn(java.util.List.of(row));
+
+        var result = wishlistService.getMyWishlist(USER_ID);
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).getPopupId()).isEqualTo(POPUP_ID);
+        assertThat(result.get(0).getStartDate()).isNull();
+        assertThat(result.get(0).getEndDate()).isNull();
+    }
+
+    @Test
+    @DisplayName("날짜가 있으면 그대로 내보낸다")
+    void getMyWishlist_passesDatesThrough() {
+        PopupStore popup =
+                PopupStore.builder()
+                        .id(POPUP_ID)
+                        .name("릴 X 토니노 람보르기니 GROUND")
+                        .startDate("2026-09-15")
+                        .endDate("2026-09-23")
+                        .build();
+        when(wishlistRepository.findAllByUser_UserIdOrderByIdDesc(USER_ID))
+                .thenReturn(java.util.List.of(Wishlist.builder().id(1L).popupStore(popup).build()));
+
+        var result = wishlistService.getMyWishlist(USER_ID);
+
+        assertThat(result.get(0).getStartDate()).isEqualTo("2026-09-15");
+        assertThat(result.get(0).getEndDate()).isEqualTo("2026-09-23");
+    }
+
+    /**
      * 빼기가 토글과 갈라지는 지점. 토글이었다면 여기서 <b>담아 버린다</b> — 빼기 버튼이 담기 버튼으로 둔갑하는 것이 정확히 그 사고다. 두 번 눌렀거나 다른
      * 기기에서 먼저 뺐을 때 도달한다.
      */
