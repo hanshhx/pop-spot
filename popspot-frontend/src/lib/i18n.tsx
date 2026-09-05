@@ -601,6 +601,9 @@ const DICT = {
     'my.withdraw': '회원 탈퇴',
     'my.activity': '활동 기록',
     'my.wishlist': '찜한 팝업',
+    // 비회원 MY 화면 아래 한 줄. "가입하면 볼 수 있다" 가 아니라 "다른 기기에서도 이어
+    // 볼 수 있다" 고 말한다 — 계정만 할 수 있는 일이 실제로 그것이기 때문이다.
+    'my.deviceOnly': '찜은 이 기기에만 저장돼요. 로그인하면 다른 기기에서도 볼 수 있어요.',
     'my.stamps': '획득 스탬프',
     'my.reviews': '리뷰/톡',
     'my.grade': '내 등급',
@@ -1436,6 +1439,7 @@ const DICT = {
     'my.withdraw': 'Delete account',
     'my.activity': 'Activity',
     'my.wishlist': 'Saved pop-ups',
+    'my.deviceOnly': 'Saved on this device only. Sign in to see them anywhere.',
     'my.stamps': 'Stamps',
     'my.reviews': 'Reviews & chat',
     'my.grade': 'My level',
@@ -2274,6 +2278,7 @@ const DICT = {
     'my.withdraw': '退会',
     'my.activity': '利用履歴',
     'my.wishlist': '保存したポップアップ',
+    'my.deviceOnly': 'この端末にのみ保存されます。ログインすると他の端末でも見られます。',
     'my.stamps': '獲得スタンプ',
     'my.reviews': 'レビュー・トーク',
     'my.grade': 'マイランク',

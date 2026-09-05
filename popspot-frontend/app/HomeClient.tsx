@@ -2702,105 +2702,126 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
           >
             {/* '기록' 대시보드 — 개선안: 코스 지도 제거, 전체폭 세로 대시보드(프로필·통계·등급·찜·최근 방문). */}
             <div className="flex flex-col overflow-hidden rounded-2xl border border-[var(--color-border)] bg-surface text-surface-foreground shadow-md">
-              {/* v2.15.3 — 내 계정: 회원이름 / 이메일 / 프로필 사진 노출. 네이버/카카오/구글
+              {/*
+                계정·실적 영역은 <b>로그인한 사람에게만</b> 그린다.
+
+                <p>예전에는 조건 없이 그려서, 계정이 없는 사람에게 "이메일 정보 없음" 과 <b>회원
+                탈퇴 버튼</b>이 보였다 — 지울 계정이 없는 사람에게 탈퇴를 권하는 화면이었다.
+                활동 기록(스탬프 0/12 · 리뷰 0)과 등급("기록 시작")도 같다. 서버에 쌓이는 값이라
+                비회원에게는 언제나 0 이고, 저장한 것을 보러 온 사람 앞에 0 점짜리 실적을 먼저
+                놓는 셈이었다(§4.5 가 지적한 "빈 실적을 먼저 보여줌").
+
+                <p>아래 최근 본 팝업·찜은 이 브라우저의 localStorage 에서 오므로 비회원에게도 그린다.
+                MY 탭을 비회원에게 연 것이 이 변경의 짝이다 — 게이트만 풀고 이 영역을 그대로 두면
+                지금보다 나빠진다.
+              */}
+              {user && (
+                <>
+                  {/* v2.15.3 — 내 계정: 회원이름 / 이메일 / 프로필 사진 노출. 네이버/카카오/구글
                         OAuth 검수 활용처 증명에 사용되며, 사용자도 "내 정보" 를 한 눈에 확인.
                         v2.17 — 회원 탈퇴 버튼 추가 (PIPA 의무). */}
-              <div className="p-4 lg:p-6 border-b border-[var(--color-border)]">
-                <h3 className="text-base lg:text-lg font-bold mb-4 flex items-center gap-2 text-foreground">
-                  <UserIcon size={16} className="lg:w-[18px] lg:h-[18px] text-lime-500" />{' '}
-                  {t('my.account')}
-                </h3>
-                <div className="flex items-center gap-4 p-3 lg:p-4 rounded-md border border-[var(--color-border)] bg-cream-300 dark:bg-ink-800">
-                  {user?.picture ? (
-                    <Image
-                      src={user.picture}
-                      alt={t('home.profilePhotoAlt')}
-                      width={56}
-                      height={56}
-                      className="rounded-full object-cover w-14 h-14 border border-[var(--color-border)]"
-                      unoptimized
-                    />
-                  ) : (
-                    <div className="w-14 h-14 rounded-full bg-lime-300/20 flex items-center justify-center border border-[var(--color-border)]">
-                      <UserIcon size={24} className="text-lime-500" />
+                  <div className="p-4 lg:p-6 border-b border-[var(--color-border)]">
+                    <h3 className="text-base lg:text-lg font-bold mb-4 flex items-center gap-2 text-foreground">
+                      <UserIcon size={16} className="lg:w-[18px] lg:h-[18px] text-lime-500" />{' '}
+                      {t('my.account')}
+                    </h3>
+                    <div className="flex items-center gap-4 p-3 lg:p-4 rounded-md border border-[var(--color-border)] bg-cream-300 dark:bg-ink-800">
+                      {user?.picture ? (
+                        <Image
+                          src={user.picture}
+                          alt={t('home.profilePhotoAlt')}
+                          width={56}
+                          height={56}
+                          className="rounded-full object-cover w-14 h-14 border border-[var(--color-border)]"
+                          unoptimized
+                        />
+                      ) : (
+                        <div className="w-14 h-14 rounded-full bg-lime-300/20 flex items-center justify-center border border-[var(--color-border)]">
+                          <UserIcon size={24} className="text-lime-500" />
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm lg:text-base font-bold text-foreground truncate">
+                          {user?.nickname || t('home.memberFallback')}
+                        </p>
+                        <p className="text-xs lg:text-sm text-muted-foreground truncate mt-0.5">
+                          {user?.email || t('home.noEmail')}
+                        </p>
+                      </div>
                     </div>
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm lg:text-base font-bold text-foreground truncate">
-                      {user?.nickname || t('home.memberFallback')}
-                    </p>
-                    <p className="text-xs lg:text-sm text-muted-foreground truncate mt-0.5">
-                      {user?.email || t('home.noEmail')}
-                    </p>
+                    <div className="mt-3 flex items-center justify-between">
+                      <button
+                        type="button"
+                        onClick={() => handleTabChange('FEEDBACK')}
+                        className="text-xs font-semibold text-lime-600 dark:text-lime-400 underline-offset-2 hover:underline transition-colors"
+                      >
+                        {t('my.feedback')}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleDeleteAccount}
+                        className="text-xs text-muted-foreground hover:text-danger underline-offset-2 hover:underline transition-colors"
+                      >
+                        {t('my.withdraw')}
+                      </button>
+                    </div>
                   </div>
-                </div>
-                <div className="mt-3 flex items-center justify-between">
-                  <button
-                    type="button"
-                    onClick={() => handleTabChange('FEEDBACK')}
-                    className="text-xs font-semibold text-lime-600 dark:text-lime-400 underline-offset-2 hover:underline transition-colors"
-                  >
-                    {t('my.feedback')}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleDeleteAccount}
-                    className="text-xs text-muted-foreground hover:text-danger underline-offset-2 hover:underline transition-colors"
-                  >
-                    {t('my.withdraw')}
-                  </button>
-                </div>
-              </div>
 
-              {/* Activity Dashboard */}
-              <div className="p-4 lg:p-6 border-b border-[var(--color-border)]">
-                <h3 className="text-base lg:text-lg font-bold mb-4 flex items-center gap-2 text-foreground">
-                  <UserIcon size={16} className="lg:w-[18px] lg:h-[18px] text-lime-500" />{' '}
-                  {t('my.activity')}
-                </h3>
-                <div className="grid grid-cols-3 gap-2 lg:gap-3">
-                  <div className="bg-cream-300 dark:bg-ink-800 p-4 rounded-md text-center border border-[var(--color-border)]">
-                    <Heart size={16} className="lg:w-5 lg:h-5 mx-auto mb-1 text-red-500" />
-                    <div className="text-2xl font-extrabold text-foreground">
-                      {/* 비회원의 찜은 서버가 모른다(myPageInfo 는 로그인해야 채워진다).
+                  {/* Activity Dashboard */}
+                  <div className="p-4 lg:p-6 border-b border-[var(--color-border)]">
+                    <h3 className="text-base lg:text-lg font-bold mb-4 flex items-center gap-2 text-foreground">
+                      <UserIcon size={16} className="lg:w-[18px] lg:h-[18px] text-lime-500" />{' '}
+                      {t('my.activity')}
+                    </h3>
+                    <div className="grid grid-cols-3 gap-2 lg:gap-3">
+                      <div className="bg-cream-300 dark:bg-ink-800 p-4 rounded-md text-center border border-[var(--color-border)]">
+                        <Heart size={16} className="lg:w-5 lg:h-5 mx-auto mb-1 text-red-500" />
+                        <div className="text-2xl font-extrabold text-foreground">
+                          {/* 비회원의 찜은 서버가 모른다(myPageInfo 는 로그인해야 채워진다).
                           아래 목록에는 2개가 떠 있는데 여기만 0 이면 화면이 스스로 모순된다. */}
-                      {(user ? myPageInfo?.likeCount : myWishlist.length) || 0}
+                          {(user ? myPageInfo?.likeCount : myWishlist.length) || 0}
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-0.5">
+                          {t('my.wishlist')}
+                        </div>
+                      </div>
+                      <div className="bg-cream-300 dark:bg-ink-800 p-4 rounded-md text-center border border-[var(--color-border)]">
+                        <Ticket size={16} className="lg:w-5 lg:h-5 mx-auto mb-1 text-lime-500" />
+                        <div className="text-2xl font-extrabold text-foreground">
+                          {myPageInfo?.stampCount || 0}
+                          <span className="text-sm text-muted-foreground font-normal">/12</span>
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-0.5">{t('my.stamps')}</div>
+                      </div>
+                      <div className="bg-cream-300 dark:bg-ink-800 p-4 rounded-md text-center border border-[var(--color-border)]">
+                        <MessageCircle
+                          size={16}
+                          className="lg:w-5 lg:h-5 mx-auto mb-1 text-green-500"
+                        />
+                        <div className="text-2xl font-extrabold text-foreground">
+                          {myPageInfo?.reviewCount || 0}
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-0.5">
+                          {t('my.reviews')}
+                        </div>
+                      </div>
                     </div>
-                    <div className="text-xs text-muted-foreground mt-0.5">{t('my.wishlist')}</div>
                   </div>
-                  <div className="bg-cream-300 dark:bg-ink-800 p-4 rounded-md text-center border border-[var(--color-border)]">
-                    <Ticket size={16} className="lg:w-5 lg:h-5 mx-auto mb-1 text-lime-500" />
-                    <div className="text-2xl font-extrabold text-foreground">
-                      {myPageInfo?.stampCount || 0}
-                      <span className="text-sm text-muted-foreground font-normal">/12</span>
-                    </div>
-                    <div className="text-xs text-muted-foreground mt-0.5">{t('my.stamps')}</div>
-                  </div>
-                  <div className="bg-cream-300 dark:bg-ink-800 p-4 rounded-md text-center border border-[var(--color-border)]">
-                    <MessageCircle
-                      size={16}
-                      className="lg:w-5 lg:h-5 mx-auto mb-1 text-green-500"
-                    />
-                    <div className="text-2xl font-extrabold text-foreground">
-                      {myPageInfo?.reviewCount || 0}
-                    </div>
-                    <div className="text-xs text-muted-foreground mt-0.5">{t('my.reviews')}</div>
-                  </div>
-                </div>
-              </div>
 
-              {/* 등급 진열 카드 — 스탬프 누적량에 따른 등급 + 다음 단계 진행도 */}
-              <div className="p-4 lg:p-6 border-b border-[var(--color-border)]">
-                <h3 className="text-base lg:text-lg font-bold mb-4 flex items-center gap-2 text-foreground">
-                  <Star size={16} className="lg:w-[18px] lg:h-[18px] text-amber-500" />{' '}
-                  {t('my.grade')}
-                </h3>
-                <RankCard
-                  stampCount={myPageInfo?.stampCount || 0}
-                  nickname={user?.nickname}
-                  onSeeAll={() => handleTabChange('PASSPORT')}
-                />
-              </div>
+                  {/* 등급 진열 카드 — 스탬프 누적량에 따른 등급 + 다음 단계 진행도 */}
+                  <div className="p-4 lg:p-6 border-b border-[var(--color-border)]">
+                    <h3 className="text-base lg:text-lg font-bold mb-4 flex items-center gap-2 text-foreground">
+                      <Star size={16} className="lg:w-[18px] lg:h-[18px] text-amber-500" />{' '}
+                      {t('my.grade')}
+                    </h3>
+                    <RankCard
+                      stampCount={myPageInfo?.stampCount || 0}
+                      nickname={user?.nickname}
+                      onSeeAll={() => handleTabChange('PASSPORT')}
+                    />
+                  </div>
+                </>
+              )}
 
               {/* v2.18 — 최근 본 팝업 (localStorage 기반, 최대 30개). 게스트/회원 무관. */}
               <RecentVisitsCard />
@@ -2890,138 +2911,175 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
                 )}
               </div>
 
-              {/* Saved Courses History */}
-              <div className="p-4 lg:p-6 border-b border-[var(--color-border)]">
-                <h3 className="text-base lg:text-lg font-bold mb-4 flex items-center gap-2 text-foreground">
-                  <FolderOpen size={16} className="lg:w-[18px] lg:h-[18px] text-lime-500" />{' '}
-                  {t('course.saved')}
-                </h3>
+              {/*
+                여기서부터 카드 끝까지는 전부 <b>서버에서 오는 계정 자산</b>이다 — 저장한 코스,
+                내가 보낸 의견, 편집 중인 코스. 비회원에게는 언제나 비어 있으므로 그리지 않는다.
 
-                {savedCourses.length === 0 ? (
-                  <div className="text-center text-muted-foreground py-4 text-sm">
-                    {t('course.empty')}
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {savedCourses.map((course: SavedCourse, idx: number) => (
-                      <article
-                        key={idx}
-                        className="flex items-center justify-between p-3 rounded-md border bg-cream-300 dark:bg-ink-800 border-[var(--color-border)] hover:border-lime-300/60 hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer"
-                        onClick={() => handleLoadCourse(course.courseData)}
-                      >
-                        <div className="flex items-center gap-2 lg:gap-3">
-                          <div className="w-8 h-8 rounded-pill bg-lime-300/15 flex items-center justify-center text-lime-700 dark:text-lime-300 font-bold text-xs">
-                            {idx + 1}
-                          </div>
-                          <div>
-                            <div className="text-sm font-semibold text-foreground">
-                              {course.courseName}
-                            </div>
-                            <div className="text-xs text-muted-foreground mt-0.5">
-                              {t('course.loadHint')}
-                            </div>
-                          </div>
-                        </div>
+                <p>규칙은 하나다. <b>서버에서 오는 것은 숨기고, 이 기기에서 오는 것만 보여준다.</b>
+                위쪽 최근 본 팝업·찜은 localStorage 라 남기고, 계정·활동·등급과 여기 셋은 가린다.
+              */}
+              {user && (
+                <>
+                  {/* Saved Courses History */}
+                  <div className="p-4 lg:p-6 border-b border-[var(--color-border)]">
+                    <h3 className="text-base lg:text-lg font-bold mb-4 flex items-center gap-2 text-foreground">
+                      <FolderOpen size={16} className="lg:w-[18px] lg:h-[18px] text-lime-500" />{' '}
+                      {t('course.saved')}
+                    </h3>
 
-                        <button
-                          onClick={(e) => handleDeleteCourse(e, course.id)}
-                          className="p-2 text-muted-foreground hover:text-danger transition-colors rounded-pill hover:bg-hot-400/10"
-                          title={t('home.delete')}
-                        >
-                          <Trash2 size={14} className="lg:w-4 lg:h-4" />
-                        </button>
-                      </article>
-                    ))}
-                    {/* v2.12: 무료 회원 1개 제한 폐지 — 모든 사용자가 무제한 저장 */}
-                  </div>
-                )}
-              </div>
-
-              {/* 내가 보낸 의견 — 최근 3건만 노출. 전체는 FEEDBACK 탭으로 이동. */}
-              <div className="p-4 lg:p-6 border-b border-[var(--color-border)]">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-base lg:text-lg font-bold flex items-center gap-2 text-foreground">
-                    <MessageCircle size={16} className="lg:w-[18px] lg:h-[18px] text-lime-500" />{' '}
-                    {t('feedback.mine')}
-                  </h3>
-                  <button
-                    type="button"
-                    onClick={() => handleTabChange('FEEDBACK')}
-                    className="text-xs text-muted-foreground hover:text-foreground"
-                  >
-                    {t('feedback.viewAll')}
-                  </button>
-                </div>
-                <MyFeedbackList
-                  userId={user?.userId ?? null}
-                  limit={3}
-                  emptyText={t('home.feedbackEmpty')}
-                />
-              </div>
-
-              {/* Current Editing Course (DND) */}
-              <div className="p-4 lg:p-6">
-                <h3 className="text-base lg:text-lg font-bold mb-4 flex items-center gap-2 text-foreground">
-                  <Route size={16} className="lg:w-[18px] lg:h-[18px] text-lime-500" /> Current Plan
-                </h3>
-
-                {myCourseItems.length === 0 && (
-                  <div className="text-center text-muted-foreground py-6 border border-dashed border-[var(--color-border-strong)] rounded-md mb-4 text-sm">
-                    {t('course.editingEmpty')}
-                    <br />
-                    {t('course.editingHint')}
-                  </div>
-                )}
-
-                <DndContext
-                  sensors={sensors}
-                  collisionDetection={closestCenter}
-                  onDragEnd={handleDragEnd}
-                >
-                  <SortableContext items={myCourseItems} strategy={verticalListSortingStrategy}>
-                    <div className="space-y-2">
-                      {myCourseItems.map((place, index) => (
-                        <div key={place.id} className="relative group">
-                          <SortableItem id={place.id} place={place} index={index} />
-                          <button
-                            aria-label={t('home.placeRemove')}
-                            onClick={() => {
-                              const newItems = myCourseItems.filter((i) => i.id !== place.id);
-                              setMyCourseItems(newItems);
-                            }}
-                            className="absolute -top-2 -right-2 bg-hot-400 text-white p-1 rounded-pill opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity shadow-md"
-                            title={t('home.delete')}
+                    {savedCourses.length === 0 ? (
+                      <div className="text-center text-muted-foreground py-4 text-sm">
+                        {t('course.empty')}
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {savedCourses.map((course: SavedCourse, idx: number) => (
+                          <article
+                            key={idx}
+                            className="flex items-center justify-between p-3 rounded-md border bg-cream-300 dark:bg-ink-800 border-[var(--color-border)] hover:border-lime-300/60 hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer"
+                            onClick={() => handleLoadCourse(course.courseData)}
                           >
-                            <X size={10} className="lg:w-3 lg:h-3" />
-                          </button>
-                        </div>
-                      ))}
+                            <div className="flex items-center gap-2 lg:gap-3">
+                              <div className="w-8 h-8 rounded-pill bg-lime-300/15 flex items-center justify-center text-lime-700 dark:text-lime-300 font-bold text-xs">
+                                {idx + 1}
+                              </div>
+                              <div>
+                                <div className="text-sm font-semibold text-foreground">
+                                  {course.courseName}
+                                </div>
+                                <div className="text-xs text-muted-foreground mt-0.5">
+                                  {t('course.loadHint')}
+                                </div>
+                              </div>
+                            </div>
+
+                            <button
+                              onClick={(e) => handleDeleteCourse(e, course.id)}
+                              className="p-2 text-muted-foreground hover:text-danger transition-colors rounded-pill hover:bg-hot-400/10"
+                              title={t('home.delete')}
+                            >
+                              <Trash2 size={14} className="lg:w-4 lg:h-4" />
+                            </button>
+                          </article>
+                        ))}
+                        {/* v2.12: 무료 회원 1개 제한 폐지 — 모든 사용자가 무제한 저장 */}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 내가 보낸 의견 — 최근 3건만 노출. 전체는 FEEDBACK 탭으로 이동. */}
+                  <div className="p-4 lg:p-6 border-b border-[var(--color-border)]">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-base lg:text-lg font-bold flex items-center gap-2 text-foreground">
+                        <MessageCircle
+                          size={16}
+                          className="lg:w-[18px] lg:h-[18px] text-lime-500"
+                        />{' '}
+                        {t('feedback.mine')}
+                      </h3>
+                      <button
+                        type="button"
+                        onClick={() => handleTabChange('FEEDBACK')}
+                        className="text-xs text-muted-foreground hover:text-foreground"
+                      >
+                        {t('feedback.viewAll')}
+                      </button>
                     </div>
-                  </SortableContext>
-                </DndContext>
+                    <MyFeedbackList
+                      userId={user?.userId ?? null}
+                      limit={3}
+                      emptyText={t('home.feedbackEmpty')}
+                    />
+                  </div>
 
-                <button
-                  onClick={() => setIsAddPlaceOpen(true)}
-                  className="w-full py-3 mt-4 border border-dashed border-[var(--color-border-strong)] rounded-md text-muted-foreground hover:border-lime-500 hover:text-lime-500 transition-colors flex items-center justify-center gap-2 font-medium text-sm"
-                >
-                  <PlusCircle size={14} className="lg:w-4 lg:h-4" /> {t('course.addPlace')}
-                </button>
+                  {/* Current Editing Course (DND) */}
+                  <div className="p-4 lg:p-6">
+                    <h3 className="text-base lg:text-lg font-bold mb-4 flex items-center gap-2 text-foreground">
+                      <Route size={16} className="lg:w-[18px] lg:h-[18px] text-lime-500" /> Current
+                      Plan
+                    </h3>
 
-                <button
-                  onClick={handleSaveCourse}
-                  className="w-full py-3 lg:py-4 mt-4 bg-ink-900 hover:bg-ink-700 text-cream-200 font-semibold rounded-pill shadow-md transition-colors active:scale-[0.98] flex items-center justify-center gap-2 dark:bg-cream-200 dark:text-ink-900 dark:hover:bg-cream-300 text-sm lg:text-base"
-                >
-                  <Save size={14} className="lg:w-[18px] lg:h-[18px]" />{' '}
-                  <span>{t('course.saveCurrent')}</span>
-                </button>
-              </div>
+                    {myCourseItems.length === 0 && (
+                      <div className="text-center text-muted-foreground py-6 border border-dashed border-[var(--color-border-strong)] rounded-md mb-4 text-sm">
+                        {t('course.editingEmpty')}
+                        <br />
+                        {t('course.editingHint')}
+                      </div>
+                    )}
 
-              <AddPlaceModal
-                open={isAddPlaceOpen}
-                onClose={() => setIsAddPlaceOpen(false)}
-                popups={allPopups}
-                onSelect={handleAddPlace}
-              />
+                    <DndContext
+                      sensors={sensors}
+                      collisionDetection={closestCenter}
+                      onDragEnd={handleDragEnd}
+                    >
+                      <SortableContext items={myCourseItems} strategy={verticalListSortingStrategy}>
+                        <div className="space-y-2">
+                          {myCourseItems.map((place, index) => (
+                            <div key={place.id} className="relative group">
+                              <SortableItem id={place.id} place={place} index={index} />
+                              <button
+                                aria-label={t('home.placeRemove')}
+                                onClick={() => {
+                                  const newItems = myCourseItems.filter((i) => i.id !== place.id);
+                                  setMyCourseItems(newItems);
+                                }}
+                                className="absolute -top-2 -right-2 bg-hot-400 text-white p-1 rounded-pill opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity shadow-md"
+                                title={t('home.delete')}
+                              >
+                                <X size={10} className="lg:w-3 lg:h-3" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </SortableContext>
+                    </DndContext>
+
+                    <button
+                      onClick={() => setIsAddPlaceOpen(true)}
+                      className="w-full py-3 mt-4 border border-dashed border-[var(--color-border-strong)] rounded-md text-muted-foreground hover:border-lime-500 hover:text-lime-500 transition-colors flex items-center justify-center gap-2 font-medium text-sm"
+                    >
+                      <PlusCircle size={14} className="lg:w-4 lg:h-4" /> {t('course.addPlace')}
+                    </button>
+
+                    <button
+                      onClick={handleSaveCourse}
+                      className="w-full py-3 lg:py-4 mt-4 bg-ink-900 hover:bg-ink-700 text-cream-200 font-semibold rounded-pill shadow-md transition-colors active:scale-[0.98] flex items-center justify-center gap-2 dark:bg-cream-200 dark:text-ink-900 dark:hover:bg-cream-300 text-sm lg:text-base"
+                    >
+                      <Save size={14} className="lg:w-[18px] lg:h-[18px]" />{' '}
+                      <span>{t('course.saveCurrent')}</span>
+                    </button>
+                  </div>
+
+                  <AddPlaceModal
+                    open={isAddPlaceOpen}
+                    onClose={() => setIsAddPlaceOpen(false)}
+                    popups={allPopups}
+                    onSelect={handleAddPlace}
+                  />
+                </>
+              )}
+
+              {/*
+                비회원에게만 보이는 한 줄. <b>가입하면 볼 수 있다</b>가 아니라 <b>다른 기기에서도
+                이어 볼 수 있다</b>고 말한다 — 실제로 계정만 할 수 있는 일이 그것이기 때문이다.
+                위 목록의 찜은 이 브라우저의 localStorage 에만 있고 서버는 그 존재조차 모른다.
+              */}
+              {!user && (
+                <div className="border-t border-[var(--color-border)] p-4 lg:p-6">
+                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-dashed border-[var(--color-border-strong)] p-3">
+                    <p className="min-w-0 flex-1 text-xs text-muted-foreground lg:text-sm">
+                      {t('my.deviceOnly')}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => router.push(localizedPath('/login', locale))}
+                      className="shrink-0 rounded-pill bg-lime-300 px-4 py-2 text-xs font-bold text-ink-900 transition-colors hover:bg-lime-400"
+                    >
+                      {t('nav.login')}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </motion.section>
         )}
