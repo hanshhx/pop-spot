@@ -52,8 +52,8 @@ const FEATURED: FeaturedPopup[] = [
     endDate: '2026-09-06',
   },
   {
-    // 2026-09-05 제보 접수. 등록 SQL 을 돌린 뒤 나온 id 를 넣는다.
-    popupId: null,
+    // 2026-09-05 제보 접수·등록. popup_store_seq 가 준 번호다.
+    popupId: 6291,
     title: '릴 X 토니노 람보르기니 GROUND',
     place: '성수 · 성수이로 72',
     imageUrl: '/partner/lil-lamborghini-2026/01.webp',
