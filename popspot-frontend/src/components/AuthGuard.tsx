@@ -6,6 +6,7 @@ import { Loader2 } from 'lucide-react';
 
 import { apiFetch, AUTH_EXPIRED_EVENT } from '@/lib/api';
 import { clearAuthToken, getAuthToken } from '@/lib/authStorage';
+import { migrateGuestWishlist } from '@/lib/migrateGuestWishlist';
 import { notifyWarning } from '@/lib/notify';
 import { useLocale } from '@/lib/i18n';
 import { localizedPath } from '@/lib/localePath';
@@ -168,6 +169,25 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
         const serverUser = await res.json();
         localStorage.setItem(USER_KEY, JSON.stringify(serverUser));
         setAuthenticated(true);
+
+        /*
+         * 비회원 때 담아 둔 찜을 이 계정으로 옮긴다.
+         *
+         * <p><b>왜 하필 여기인가.</b> 예전에는 팝업 상세 화면 안에 있었는데, 로그인 성공은 전부
+         * '/?entered=1'(홈)으로 착지한다 — 그래서 평범한 로그인으로는 이전이 한 번도 돌지 않았다.
+         * 이 가드는 <html> 을 가진 유일한 루트 레이아웃(app/layout.tsx) 안에 있어 ko/en/ja ·
+         * 홈/상세/랜딩을 가리지 않고 마운트되고, 서버가 검증한 userId 를 아는 유일한 자리다
+         * (다른 화면은 전부 localStorage 캐시를 읽을 뿐이라 '이름은 떠 있는데 로그인은 풀린'
+         * 상태를 구분하지 못한다). TermsReconsentModal 을 authenticated 로 켜는 것과 같은
+         * 모양의 "인증이 확정되면 켜지는 부수 동작" 이다.
+         *
+         * <p>이 effect 는 deps 에 pathname 이 있어 경로가 바뀔 때마다 다시 도는데, 중복 실행
+         * 차단은 migrateGuestWishlist 가 스스로 한다 — 여기에 ref 가드를 또 두면 이전을 부르는
+         * 자리가 늘어날 때마다 같은 규칙을 다시 써야 하고, 한 곳만 빠뜨리면 찜이 뒤집힌다.
+         */
+        if (typeof serverUser?.userId === 'string') {
+          void migrateGuestWishlist(serverUser.userId);
+        }
       } catch {
         // 네트워크 실패 → stale 캐시 fallback.
       }
