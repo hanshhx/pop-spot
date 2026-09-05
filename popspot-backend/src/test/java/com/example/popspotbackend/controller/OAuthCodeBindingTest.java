@@ -4,10 +4,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.example.popspotbackend.service.AuthService;
 import com.example.popspotbackend.service.EmailService;
+import com.example.popspotbackend.service.auth.OAuthFlowMetrics;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
@@ -32,11 +34,15 @@ class OAuthCodeBindingTest {
 
     private StringRedisTemplate redis;
     private AuthController controller;
+    private OAuthFlowMetrics metrics;
 
     @BeforeEach
     void setUp() {
         redis = mock(StringRedisTemplate.class);
-        controller = new AuthController(mock(AuthService.class), mock(EmailService.class), redis);
+        metrics = mock(OAuthFlowMetrics.class);
+        controller =
+                new AuthController(
+                        mock(AuthService.class), mock(EmailService.class), redis, metrics);
     }
 
     private void luaReturns(String result) {
@@ -130,7 +136,7 @@ class OAuthCodeBindingTest {
     @Test
     @DisplayName("검증을 통과하면 토큰을 준다")
     void okReturnsTokens() {
-        luaReturns("OK\naccess-token\nrefresh-token");
+        luaReturns("OKB\naccess-token\nrefresh-token");
 
         ResponseEntity<?> res = exchange("code-1", "v".repeat(43));
 
@@ -145,7 +151,7 @@ class OAuthCodeBindingTest {
     @Test
     @DisplayName("TOTP 가 남아 있으면 토큰 대신 표를 준다")
     void totpStillChallenges() {
-        luaReturns("OK\nTOTP:challenge-token");
+        luaReturns("OKB\nTOTP:challenge-token");
 
         ResponseEntity<?> res = exchange("code-1", "v".repeat(43));
 
@@ -196,5 +202,32 @@ class OAuthCodeBindingTest {
                 .doesNotContain("\n");
         assertThat(((DefaultRedisScript<String>) AuthController.GET_DEL_SCRIPT).getScriptAsString())
                 .doesNotContain("\n");
+    }
+
+    /**
+     * 구방식 교환을 언제 끊을지 정하려면 아직 누가 쓰는지 알아야 한다. 이 계측이 그 재료다.
+     *
+     * <p>다만 교환 0건이 구방식 사용자 0명은 아니다 — 이미 로그인한 사람은 갱신 토큰으로 계속 쓰고, 공격자가 구방식 호출을 계속 만들면 0 이 안 온다. 실제
+     * 종료는 발급 쪽에서 끊는다.
+     */
+    @Test
+    @DisplayName("교환이 어느 가지로 났는지 센다")
+    void countsExchangeKind() {
+        luaReturns("OKB\naccess\nrefresh");
+        exchange("code-1", "v".repeat(43));
+        verify(metrics).count(OAuthFlowMetrics.EXCHANGED_BOUND);
+
+        luaReturns("OKL\naccess\nrefresh");
+        exchange("code-2", null);
+        verify(metrics).count(OAuthFlowMetrics.EXCHANGED_LEGACY);
+    }
+
+    /** 알 수 없는 응답에 토큰을 내주면 안 된다. 스크립트를 고치다 규약이 어긋나는 경우다. */
+    @Test
+    @DisplayName("모르는 스크립트 응답에는 토큰을 안 준다")
+    void unknownScriptResultIssuesNothing() {
+        luaReturns("WHAT");
+
+        assertThat(exchange("code-1", null).getStatusCode().value()).isEqualTo(500);
     }
 }

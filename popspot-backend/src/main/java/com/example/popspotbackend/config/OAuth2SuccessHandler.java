@@ -5,6 +5,7 @@ import com.example.popspotbackend.entity.User;
 import com.example.popspotbackend.repository.UserRepository;
 import com.example.popspotbackend.service.admin.AdminAuditService;
 import com.example.popspotbackend.service.auth.OAuthAttemptStore;
+import com.example.popspotbackend.service.auth.OAuthFlowMetrics;
 import com.example.popspotbackend.service.auth.RefreshTokenService;
 import com.example.popspotbackend.service.auth.TotpAuthService;
 import io.jsonwebtoken.Jwts;
@@ -83,6 +84,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
     private final AdminAuditService adminAudit;
     private final RefreshTokenService refreshTokens;
     private final OAuthAttemptStore attempts;
+    private final OAuthFlowMetrics metrics;
 
     @Value("${app.oauth2.redirect-uri}")
     private String redirectUri;
@@ -118,6 +120,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         String binding = attempts.consume(request.getParameter(QUERY_PARAM_STATE)).orElse(null);
         if (binding == null) {
             log.warn("OAuth2 success but attempt record missing (state 만료·유실) — 로그인 거부");
+            metrics.count(OAuthFlowMetrics.REJECTED_NO_ATTEMPT);
             getRedirectStrategy()
                     .sendRedirect(request, response, redirectUri + REDIRECT_EXPIRED_QUERY);
             return;
@@ -162,6 +165,10 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         // "관리자 로그인 성공" 으로 기록된다.
         if (!totpPending) recordAdminLogin(user);
 
+        metrics.count(
+                OAuthAttemptStore.LEGACY.equals(binding)
+                        ? OAuthFlowMetrics.ISSUED_LEGACY
+                        : OAuthFlowMetrics.ISSUED_BOUND);
         redisTemplate
                 .opsForValue()
                 .set(
