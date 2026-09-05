@@ -91,6 +91,20 @@ public class WishlistService {
         wishlistRepository.save(Wishlist.builder().user(user).popupStore(popup).build());
     }
 
+    /**
+     * 찜 한 줄을 화면용으로 옮긴다.
+     *
+     * <p><b>날짜에 {@code .toString()} 을 붙이지 않는다.</b> {@code startDate}·{@code endDate} 는 엔티티에서 이미
+     * {@code String} 이라 변환할 것이 없고, <b>null 이면 그 자리에서 NPE 가 난다.</b>
+     *
+     * <p>그것이 실제로 터졌다. 종료일이 없는 팝업이 1,554곳 중 907곳(58%)이라, 그중 하나만 찜해도 {@link #getMyWishlist} 전체가 예외로
+     * 끝나 500 이 됐다. 그런데 화면은 아무 말도 하지 않았다 — 프론트가 {@code if (res.ok)} 안에서만 목록을 세팅해서, 실패하면 <b>빈 목록 그대로
+     * 두고 오류도 안 띄웠다.</b> 반면 마이페이지의 찜 개수는 {@code countByUser_UserId} 라 날짜를 건드리지 않아 멀쩡히 올라갔다. 그래서 "개수는
+     * 늘어나는데 목록은 비어 있는" 화면이 됐다.
+     *
+     * <p>한 줄이 망가졌다고 목록 전체를 잃지 않게 하는 것이 요점이다. 날짜를 모르는 것은 팝업 자료의 정상적인 상태이지 오류가 아니다({@code
+     * PopupStoreRepository} 의 공개 필터도 종료일 없는 건을 숨기지 않는다 — "날짜 미상일 뿐 종료 근거가 아니므로 추측해서 숨기지 않는다").
+     */
     private WishlistResponseDto toResponse(Wishlist w) {
         PopupStore popup = w.getPopupStore();
         return WishlistResponseDto.builder()
@@ -99,8 +113,8 @@ public class WishlistService {
                 .popupName(popup.getName())
                 .popupImage(popup.getImageUrl())
                 .location(popup.getLocation())
-                .startDate(popup.getStartDate().toString())
-                .endDate(popup.getEndDate().toString())
+                .startDate(popup.getStartDate())
+                .endDate(popup.getEndDate())
                 .build();
     }
 }
