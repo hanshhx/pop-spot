@@ -39,10 +39,15 @@ import type { User } from '@/types/popup';
 import { useLocale, type MessageKey } from '@/lib/i18n';
 import { localizedPath } from '@/lib/localePath';
 import { bilingual } from '@/lib/bilingual';
-import { daysUntilEnd } from '@/lib/dday';
 import { isPopupStamped, stampErrorMessageKey, type StampRow } from '@/lib/stamps';
 import { periodText } from '@/lib/periodText';
-import { detailStatusLabel, isPopupEnded } from '@/lib/popupDetailStatus';
+import {
+  detailPeriodBadge,
+  detailStatusLabel,
+  isPopupEnded,
+  isUrgentPeriod,
+  type DetailPeriodBadge,
+} from '@/lib/popupDetailStatus';
 import { showsVisitActions } from '@/lib/detailActions';
 import { kstTodayStart } from '@/lib/popupSlices';
 import type { Nearby } from '@/lib/nearby';
@@ -110,16 +115,19 @@ const CAT_GRAD: Record<string, string> = {
   ETC: 'from-gray-300 to-gray-400',
 };
 
-function ddayLabel(
-  closeDate: string | undefined,
-  ended: string,
-  todayClosing: string,
-): string | null {
-  const diff = daysUntilEnd(closeDate);
-  if (diff === null) return null;
-  if (diff < 0) return ended;
-  if (diff === 0) return todayClosing;
-  return `D-${diff}`;
+/**
+ * 기간 옆 배지 문구.
+ *
+ * <p>무엇을 셀지는 {@link detailPeriodBadge} 가 정한다 — 여기서는 옮겨 적기만 한다. 예전에는
+ * 이 함수가 종료일 하나만 보고 {@code D-n} 을 만들어서, <b>아직 안 연 팝업에 마감까지 남은
+ * 날이 붙었다</b>(자세한 경위는 그쪽 주석).
+ */
+function ddayText(badge: DetailPeriodBadge | null, t: (key: MessageKey) => string): string | null {
+  if (!badge) return null;
+  if (badge.kind === 'ended') return t('detail.ended');
+  if (badge.kind === 'closing-today') return t('detail.todayClosing');
+  if (badge.kind === 'opens-in') return t('detail.opensIn').replace('{days}', String(badge.days));
+  return `D-${badge.days}`;
 }
 
 /**
@@ -489,7 +497,8 @@ export default function PopupDetailClient({
   const catKey = popup.category?.toUpperCase() ?? 'ETC';
   const category = CATEGORY_KEY[catKey] ? t(CATEGORY_KEY[catKey]) : popup.category;
   const catGrad = CAT_GRAD[catKey] ?? CAT_GRAD.ETC;
-  const dday = ddayLabel(popup.closeDate, t('detail.ended'), t('detail.todayClosing'));
+  const periodBadge = detailPeriodBadge(popup.openDate, popup.closeDate);
+  const dday = ddayText(periodBadge, t);
   const shownName = bilingual(
     popup.name,
     locale === 'en' ? popup.nameEn : locale === 'ja' ? popup.nameJa : null,
@@ -769,7 +778,7 @@ export default function PopupDetailClient({
             <div className="px-3 py-4 text-center">
               <p className="text-[10px] font-bold text-muted-foreground">{t('detail.closing')}</p>
               <p
-                className={`mt-1 text-sm font-black ${dday === t('detail.ended') ? 'text-muted-foreground' : 'text-hot-400'}`}
+                className={`mt-1 text-sm font-black ${isUrgentPeriod(periodBadge) ? 'text-hot-400' : 'text-muted-foreground'}`}
               >
                 {dday || '-'}
               </p>
