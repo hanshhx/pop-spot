@@ -9,6 +9,7 @@ import com.example.popspotbackend.entity.User;
 import com.example.popspotbackend.exception.ResourceNotFoundException;
 import com.example.popspotbackend.service.AuthService;
 import com.example.popspotbackend.service.EmailService;
+import com.example.popspotbackend.service.auth.OAuthFlowMetrics;
 import jakarta.validation.Valid;
 import java.util.HashMap;
 import java.util.List;
@@ -77,7 +78,14 @@ public class AuthController {
     private static final int MAX_EXCHANGE_CODE_LENGTH = 100;
     private static final String PARAM_CODE_VERIFIER = "code_verifier";
 
-    private static final String EXCHANGE_OK_PREFIX = "OK\n";
+    /** 교환이 성공한 코드가 어느 쪽이었는지. 구방식 종료 시점을 정하려면 이 구분이 필요하다. */
+    private static final String EXCHANGE_OK_BOUND = "OKB";
+
+    private static final String EXCHANGE_OK_LEGACY = "OKL";
+
+    /** {@code OKB}·{@code OKL} 세 글자 + 줄바꿈. */
+    private static final int EXCHANGE_OK_PREFIX_LENGTH = 4;
+
     private static final String EXCHANGE_MISS = "MISS";
     private static final String EXCHANGE_NEEDS_VERIFIER = "NEEDV";
     private static final String EXCHANGE_DOWNGRADE = "NODOWN";
@@ -114,20 +122,21 @@ public class AuthController {
                             // 헤더가 없는 값 = 배포 직전 60초 안에 발급된 옛 형식. 값 전체가 payload 다.
                             + "if string.sub(header, 1, 3) ~= 'B1:' then "
                             + "  if given ~= '' then return 'NODOWN' end "
-                            + "  redis.call('DEL', KEYS[1]) return 'OK' .. NL .. v end "
+                            + "  redis.call('DEL', KEYS[1]) return 'OKL' .. NL .. v end "
                             + "local bind = string.sub(header, 4) "
                             + "if bind == '-' then "
                             + "  if given ~= '' then return 'NODOWN' end "
-                            + "  redis.call('DEL', KEYS[1]) return 'OK' .. NL .. payload end "
+                            + "  redis.call('DEL', KEYS[1]) return 'OKL' .. NL .. payload end "
                             + "if string.sub(bind, 1, 5) ~= 'S256:' then return 'NEEDV' end "
                             + "local want = string.sub(bind, 6) "
                             + "if given == '' or given ~= want then return 'NEEDV' end "
-                            + "redis.call('DEL', KEYS[1]) return 'OK' .. NL .. payload",
+                            + "redis.call('DEL', KEYS[1]) return 'OKB' .. NL .. payload",
                     String.class);
 
     private final AuthService authService;
     private final EmailService emailService;
     private final StringRedisTemplate redisTemplate;
+    private final OAuthFlowMetrics metrics;
 
     @PostMapping("/signup")
     public ResponseEntity<String> signup(@Valid @RequestBody SignupRequestDto requestDto) {
@@ -223,16 +232,26 @@ public class AuthController {
         if (EXCHANGE_NEEDS_VERIFIER.equals(result)) {
             // 틀린 verifier 로는 코드가 소비되지 않는다. 정상 클라이언트는 다시 시도할 수 있다.
             log.warn("[OAuthExchange] 묶인 코드에 맞지 않는 verifier — 거부");
+            metrics.count(OAuthFlowMetrics.REJECTED_VERIFIER);
             return ResponseEntity.status(401).body("이 로그인 요청을 시작한 앱에서만 완료할 수 있습니다.");
         }
         if (EXCHANGE_DOWNGRADE.equals(result)) {
             // 묶이지 않은 코드에 verifier 가 붙어 왔다. 신방식 클라이언트가 구코드를 신방식 응답으로
             // 받아들이는 강등 경로를 막는다(RFC 9700 §4.8.2).
             log.warn("[OAuthExchange] 구방식 코드에 verifier 가 붙어 왔다 — 거부");
+            metrics.count(OAuthFlowMetrics.REJECTED_DOWNGRADE);
             return ResponseEntity.badRequest().body("유효하지 않은 로그인 교환 요청입니다.");
         }
 
-        String value = result.substring(EXCHANGE_OK_PREFIX.length());
+        // 어느 가지로 나왔는지 세어 둔다. 구방식이 언제 0 이 되는지가 종료 판단의 재료다.
+        boolean bound = result.startsWith(EXCHANGE_OK_BOUND);
+        if (!bound && !result.startsWith(EXCHANGE_OK_LEGACY)) {
+            log.error("[OAuthExchange] 알 수 없는 스크립트 응답 — 토큰을 내주지 않는다");
+            return ResponseEntity.status(500).body("로그인 처리 중 오류가 발생했습니다.");
+        }
+        metrics.count(bound ? OAuthFlowMetrics.EXCHANGED_BOUND : OAuthFlowMetrics.EXCHANGED_LEGACY);
+
+        String value = result.substring(EXCHANGE_OK_PREFIX_LENGTH);
 
         // 2단계 인증이 남았으면 토큰 대신 표를 준다. 프론트는 이메일 로그인과 <b>같은</b> 6자리
         // 화면으로 이어간다 — 경로가 갈리면 한쪽만 고치는 사고가 난다.
