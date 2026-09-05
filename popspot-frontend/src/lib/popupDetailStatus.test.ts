@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { detailStatusLabel, isPopupEnded } from './popupDetailStatus';
+import {
+  detailPeriodBadge,
+  detailStatusLabel,
+  isPopupEnded,
+  isUrgentPeriod,
+} from './popupDetailStatus';
+import { kstTodayStart } from './popupSlices';
 
 const TODAY = new Date('2026-08-25');
 const t = (key: string) => `translated:${key}`;
@@ -115,5 +121,96 @@ describe('detailStatusLabel', () => {
     expect(detailStatusLabel('   ', ended, '2026-07-22', '2026-08-31', t, TODAY)).toBe(
       'translated:status.open',
     );
+  });
+});
+
+/**
+ * 이 검사들이 지키는 것은 하나다 — <b>아직 안 연 팝업에 마감 D-day 를 붙이지 않는다.</b>
+ *
+ * <p>실제로 그랬다. 릴 X 토니노 람보르기니(09-15~09-23)를 09-05 에 열면 배지는 '오픈 예정' 인데
+ * 그 옆이 'D-18'(마감까지) 이었다. 사람은 "18일 뒤에 연다"로 읽지만 실제로는 10일 뒤였다.
+ * 같은 화면의 두 값이 서로 다른 것을 세고 있었다.
+ */
+describe('detailPeriodBadge', () => {
+  const 오늘 = new Date('2026-09-05T00:00:00+09:00');
+
+  it('아직 안 열었으면 열기까지 센다 — 마감까지가 아니라', () => {
+    expect(detailPeriodBadge('2026-09-15', '2026-09-23', 오늘)).toEqual({
+      kind: 'opens-in',
+      days: 10,
+    });
+  });
+
+  it('열려 있으면 마감까지 센다', () => {
+    expect(detailPeriodBadge('2026-09-01', '2026-09-23', 오늘)).toEqual({
+      kind: 'closes-in',
+      days: 18,
+    });
+  });
+
+  it('오늘 마감이면 따로 알린다 — D-0 은 숫자로 읽히지 않는다', () => {
+    expect(detailPeriodBadge('2026-09-01', '2026-09-05', 오늘)).toEqual({ kind: 'closing-today' });
+  });
+
+  it('끝났으면 끝난 것으로 준다', () => {
+    expect(detailPeriodBadge('2026-08-01', '2026-09-04', 오늘)).toEqual({ kind: 'ended' });
+  });
+
+  /* 시작 당일은 '오늘 연다'가 아니라 진행 중이다 — landingStatus 가 toStart > 0 만 upcoming 으로 본다. */
+  it('시작 당일은 진행 중으로 본다', () => {
+    expect(detailPeriodBadge('2026-09-05', '2026-09-23', 오늘)).toEqual({
+      kind: 'closes-in',
+      days: 18,
+    });
+  });
+
+  it('상시 운영(종료일 없음)은 셀 것이 없어 배지를 안 그린다', () => {
+    expect(detailPeriodBadge('2026-09-01', null, 오늘)).toBeNull();
+  });
+
+  it('날짜가 하나도 없으면 배지를 안 그린다', () => {
+    expect(detailPeriodBadge(null, null, 오늘)).toBeNull();
+    expect(detailPeriodBadge(undefined, '', 오늘)).toBeNull();
+  });
+
+  /*
+   * 시작일만 있고 종료일이 없는 건. 아직 안 열었으면 열기까지는 셀 수 있다 —
+   * 마감을 모른다고 오픈 예정 정보까지 숨길 이유가 없다.
+   */
+  it('종료일을 몰라도 아직 안 열었으면 열기까지는 센다', () => {
+    expect(detailPeriodBadge('2026-09-15', null, 오늘)).toEqual({ kind: 'opens-in', days: 10 });
+  });
+});
+
+/**
+ * 인자를 안 줄 때의 '오늘'을 못박는다.
+ *
+ * <p>이 함수의 예전 자리({@code ddayLabel})는 {@code dday.ts} 의 {@code daysUntilEnd} 를 기본
+ * 인자로 불렀고, 그쪽은 로컬 {@code setHours} 로 오늘을 만든다. 이 화면은 서버에서도 그려지는데
+ * Vercel 은 UTC 라, KST 00:00~09:00 사이 9시간 동안 서버가 센 날짜가 하루 밀렸다.
+ *
+ * <p><b>이 검사의 한계를 적어 둔다.</b> 개발 PC 는 KST 라 로컬 자정과 KST 자정이 같아서 여기서는
+ * 기본값을 바꿔도 안 걸린다. 걸리는 곳은 <b>UTC 로 도는 CI 와 Vercel</b> 이고, 버그가 살던 곳도
+ * 정확히 거기다. 다른 검사들은 모두 today 를 명시로 넘기므로 기본값을 보는 것은 이 검사뿐이다.
+ */
+describe('detailPeriodBadge — 오늘의 기준', () => {
+  it('오늘을 안 주면 KST 자정을 쓴다', () => {
+    const 인자없이 = detailPeriodBadge('2026-09-15', '2026-09-23');
+    const KST명시 = detailPeriodBadge('2026-09-15', '2026-09-23', kstTodayStart());
+    expect(인자없이).toEqual(KST명시);
+  });
+});
+
+describe('isUrgentPeriod', () => {
+  it('마감이 걸린 것만 강조한다', () => {
+    expect(isUrgentPeriod({ kind: 'closing-today' })).toBe(true);
+    expect(isUrgentPeriod({ kind: 'closes-in', days: 3 })).toBe(true);
+  });
+
+  /* 열흘 뒤에 여는 팝업이 마감 임박과 같은 색이면 두 상황을 구분할 수 없다. */
+  it('아직 안 연 것과 끝난 것은 강조하지 않는다', () => {
+    expect(isUrgentPeriod({ kind: 'opens-in', days: 10 })).toBe(false);
+    expect(isUrgentPeriod({ kind: 'ended' })).toBe(false);
+    expect(isUrgentPeriod(null)).toBe(false);
   });
 });
