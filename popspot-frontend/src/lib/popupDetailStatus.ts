@@ -84,3 +84,69 @@ export function detailStatusLabel(
 
   return t('status.unknown');
 }
+
+/**
+ * 상세 페이지의 기간 옆에 붙일 남은 기간 배지.
+ *
+ * <p><b>왜 생겼나.</b> 여기는 {@code ddayLabel} 이라는 이름으로 상세 화면 안에 있었고,
+ * 종료일 하나만 보고 {@code D-n} 을 만들었다. 그래서 <b>아직 열지도 않은 팝업에 마감까지 남은
+ * 날이 붙었다</b> — 릴 X 토니노 람보르기니(09-15~09-23)를 09-05 에 열면 배지는 '오픈 예정'
+ * 인데 그 옆이 'D-18' 이었다. 사람은 그것을 "18일 뒤에 연다"로 읽는데 실제로는 10일 뒤였다.
+ *
+ * <p>같은 결함을 랜딩 목록에서는 이미 고쳤다({@code ddayBadge} 의 "아직 안 연 것에 '진행 중' 을
+ * 달던 자리다" 주석). {@code dday.ts} 가 "같은 산수가 세 곳에 복사돼 있던 것을 모았다"고 적어
+ * 둔 그대로, 한 벌만 고쳐지고 이쪽이 남아 있었다.
+ *
+ * <p><b>'오늘'을 {@link kstTodayStart} 로 세는 것도 옮긴 이유다.</b> 예전 구현은 {@code dday.ts}
+ * 의 {@code daysUntilEnd} 를 기본 인자로 불렀는데, 그쪽은 로컬 {@code setHours} 로 오늘을
+ * 만든다. 이 화면은 서버에서도 한 번 그려지므로(Vercel = UTC) KST 00:00~09:00 사이에는 서버가
+ * 센 날짜가 하루 밀린다 — 바로 옆 상태 배지는 KST 로 세고 있어서, <b>한 줄 안에서 두 값이 서로
+ * 다른 오늘</b>을 쓰고 있었다.
+ *
+ * <p>문구가 아니라 <b>무엇인지</b>를 돌려준다. 화면이 {@code === '종료'} 로 되묻는 식이면
+ * 문구를 옮기는 순간 판단이 빗나간다({@code DdayBadge} 가 같은 이유로 그렇게 되어 있다).
+ */
+export type DetailPeriodBadge =
+  | { kind: 'ended' }
+  | { kind: 'closing-today' }
+  | { kind: 'closes-in'; days: number }
+  | { kind: 'opens-in'; days: number };
+
+/**
+ * 기간 배지에 무엇을 쓸지 정한다. 셀 날짜가 없으면 null(배지를 안 그린다).
+ *
+ * <p>{@link landingStatus} 에 맡기고 그 답을 옮기기만 한다 — 시작일·종료일을 둘 다 보는 산수를
+ * 여기서 다시 쓰면 또 한 벌이 늘어난다.
+ */
+export function detailPeriodBadge(
+  openDate: string | null | undefined,
+  closeDate: string | null | undefined,
+  today: Date = kstTodayStart(),
+): DetailPeriodBadge | null {
+  // 날짜가 하나도 안 읽히면 셀 것이 없다. landingStatus 는 이 경우 'ongoing' 을 주는데
+  // (그쪽은 이미 걸러진 목록을 전제한다), 상세는 어떤 팝업이든 URL 로 바로 열리므로
+  // 그 전제가 없다 — detailStatusLabel 이 같은 이유로 같은 검사를 먼저 한다.
+  if (!parseDate(openDate) && !parseDate(closeDate)) return null;
+
+  const derived = landingStatus(openDate ?? null, closeDate ?? null, today);
+  if (derived.kind === 'ended') return { kind: 'ended' };
+  if (derived.kind === 'upcoming') return { kind: 'opens-in', days: derived.opensIn };
+  if (derived.dday === null) return null; // 상시 운영 — 마감을 셀 수 없다.
+  if (derived.dday === 0) return { kind: 'closing-today' };
+  return { kind: 'closes-in', days: derived.dday };
+}
+
+/**
+ * 이 배지를 <b>강조색</b>으로 그릴 것인가.
+ *
+ * <p>강조는 "서둘러라" 는 신호다. 그러니 마감이 걸린 것에만 준다 — 끝난 것은 서둘러도 소용이
+ * 없고, 아직 안 연 것은 서두를 일이 아니다. 열흘 뒤에 여는 팝업에 마감 임박과 같은 색을 주면
+ * 두 상황을 구분할 수 없다(랜딩 목록이 upcoming 을 중립색으로 두는 것과 같은 판단이다).
+ *
+ * <p>화면이 아니라 여기서 정하는 이유 — 예전에는 화면이 {@code dday === t('detail.ended')} 로
+ * <b>보이는 글자를 되물어</b> 색을 골랐다. 문구를 옮기는 순간 비교가 빗나가 끝난 팝업까지
+ * 강조색을 달게 된다. {@code dday.ts} 의 {@code DdayBadge} 가 같은 이유로 문구와 판단을 갈라 뒀다.
+ */
+export function isUrgentPeriod(badge: DetailPeriodBadge | null): boolean {
+  return badge !== null && (badge.kind === 'closing-today' || badge.kind === 'closes-in');
+}
