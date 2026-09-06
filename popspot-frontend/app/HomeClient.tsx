@@ -44,6 +44,8 @@ import {
 import { REGIONS, type RegionCode } from '@/lib/regions';
 import { localizedPath } from '@/lib/localePath';
 import { rememberReturnTo } from '@/lib/returnTo';
+import { cn } from '@/lib/utils';
+import { type SavedPeriodBadge, isUrgentPeriod, savedPeriodBadge } from '@/lib/popupDetailStatus';
 import { visitedAgo, type VisitedAgo } from '@/lib/visitedAgo';
 
 /**
@@ -184,6 +186,37 @@ function popupToMapMarker(popup: PopupStore): PublicMapMarker {
 /* 위험이 생긴다.                                                                */
 /* -------------------------------------------------------------------------- */
 const DEFAULT_TAB = 'MAP';
+
+/**
+ * 저장한 팝업 카드의 기간 배지 문구.
+ *
+ * <p>무엇을 셀지는 {@link savedPeriodBadge} 가 정하고 여기서는 옮겨 적기만 한다. 상세 화면의
+ * {@code ddayText} 와 같은 모양이고, 같은 문구 키를 쓴다 — 같은 것을 두 화면이 다르게 부르면
+ * 안 된다.
+ */
+function savedBadgeText(badge: SavedPeriodBadge, t: (key: MessageKey) => string): string {
+  if (badge.kind === 'ended') return t('detail.ended');
+  if (badge.kind === 'closing-today') return t('detail.todayClosing');
+  if (badge.kind === 'opens-in') return t('detail.opensIn').replace('{days}', String(badge.days));
+  if (badge.kind === 'open-undated') return t('wish.undated');
+  return `D-${badge.days}`;
+}
+
+/**
+ * 그 배지의 색.
+ *
+ * <p><b>보이는 글자가 아니라 종류로 고른다.</b> 예전에 상세 화면이 문구를 되물어 색을 고르다가,
+ * 문구를 옮기는 순간 끝난 팝업까지 강조색을 달았다({@code popupDetailStatus.ts} 의 경위).
+ *
+ * <p>강조색은 <b>서두를 이유가 있는 것</b>에만 준다. 끝난 것은 서둘러도 소용없고, 아직 안 연
+ * 것은 서두를 일이 아니며, <b>마감일을 모르는 것에 마감 임박과 같은 색을 주면 모른다는 사실이
+ * 지워진다.</b>
+ */
+function savedBadgeTone(badge: SavedPeriodBadge): string {
+  if (isUrgentPeriod(badge)) return 'bg-hot-400/90 text-white';
+  if (badge.kind === 'ended') return 'bg-ink-900/70 text-cream-200/70';
+  return 'bg-ink-900/70 text-cream-200';
+}
 
 /**
  * 홈이 한 번에 보여 주는 팝업 수.
@@ -2942,41 +2975,64 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
                     )}
                     {myWishlist.length > 0 && (
                       <div className="grid grid-cols-2 gap-2 lg:gap-3">
-                        {myWishlist.map((item, i) => (
-                          <div
-                            key={i}
-                            className="relative rounded-md overflow-hidden aspect-video group cursor-pointer border border-[var(--color-border)] bg-cream-300 dark:bg-ink-800"
-                          >
-                            <PopupCoverVisual
-                              popup={{ id: item.popupId, imageUrl: item.popupImage }}
-                              name={item.popupName}
-                              location={item.location}
-                              compact
-                            />
-
-                            <div className="absolute inset-0 bg-gradient-to-t from-ink-900/85 via-ink-900/30 to-transparent flex flex-col justify-end p-3">
-                              <span className="text-cream-200 text-xs font-semibold truncate">
-                                {item.popupName}
-                              </span>
-                              <span className="text-cream-200/70 text-[10px] truncate mt-0.5">
-                                {item.location}
-                              </span>
-                            </div>
-
-                            <button
-                              onClick={(e) => handleRemoveWishlist(e, item.popupId)}
-                              className="absolute top-2 right-2 bg-ink-900/60 backdrop-blur rounded-pill p-1.5 text-hot-400 hover:bg-hot-400 hover:text-white transition-colors opacity-100 md:opacity-0 md:group-hover:opacity-100"
-                              title={t('home.wishRemove')}
+                        {myWishlist.map((item, i) => {
+                          const badge = savedPeriodBadge(item.startDate, item.endDate);
+                          return (
+                            <div
+                              key={i}
+                              className="relative rounded-md overflow-hidden aspect-video group cursor-pointer border border-[var(--color-border)] bg-cream-300 dark:bg-ink-800"
                             >
-                              <Heart size={10} className="lg:w-3 lg:h-3 fill-current" />
-                            </button>
+                              <PopupCoverVisual
+                                popup={{ id: item.popupId, imageUrl: item.popupImage }}
+                                name={item.popupName}
+                                location={item.location}
+                                compact
+                              />
 
-                            <Link
-                              href={localizedPath(`/popup/${item.popupId}`, locale)}
-                              className="absolute inset-0 z-0"
-                            />
-                          </div>
-                        ))}
+                              <div className="absolute inset-0 bg-gradient-to-t from-ink-900/85 via-ink-900/30 to-transparent flex flex-col justify-end p-3">
+                                <span className="text-cream-200 text-xs font-semibold truncate">
+                                  {item.popupName}
+                                </span>
+                                <span className="text-cream-200/70 text-[10px] truncate mt-0.5">
+                                  {item.location}
+                                </span>
+                              </div>
+
+                              {/*
+                              카드에 상태를 적는다. 없으면 <b>끝난 것·아직 안 연 것·지금 갈 수
+                              있는 것이 전부 똑같이 보인다</b> — 2024년에 끝난 팝업과 다음 주에
+                              여는 팝업이 한 화면에서 구별되지 않았다.
+
+                              무엇을 셀지는 savedPeriodBadge 가 정한다. 여기서는 옮겨 적기만
+                              한다 — 화면이 보이는 글자를 되물어 색을 고르면, 문구를 옮기는
+                              순간 판단이 빗나간다(popupDetailStatus.ts 의 같은 경위 참고).
+                            */}
+                              {badge && (
+                                <span
+                                  className={cn(
+                                    'absolute top-2 left-2 rounded-pill px-2 py-0.5 text-[10px] font-bold backdrop-blur',
+                                    savedBadgeTone(badge),
+                                  )}
+                                >
+                                  {savedBadgeText(badge, t)}
+                                </span>
+                              )}
+
+                              <button
+                                onClick={(e) => handleRemoveWishlist(e, item.popupId)}
+                                className="absolute top-2 right-2 bg-ink-900/60 backdrop-blur rounded-pill p-1.5 text-hot-400 hover:bg-hot-400 hover:text-white transition-colors opacity-100 md:opacity-0 md:group-hover:opacity-100"
+                                title={t('home.wishRemove')}
+                              >
+                                <Heart size={10} className="lg:w-3 lg:h-3 fill-current" />
+                              </button>
+
+                              <Link
+                                href={localizedPath(`/popup/${item.popupId}`, locale)}
+                                className="absolute inset-0 z-0"
+                              />
+                            </div>
+                          );
+                        })}
                       </div>
                     )}
                   </>
