@@ -112,6 +112,7 @@ import {
 } from '@/lib/guestMode';
 import { readGuestWishlist, removeGuestWishlist } from '@/lib/guestWishlist';
 import { buildGuestWishlist } from '@/lib/guestWishlistItems';
+import { groupSavedWishlist } from '@/lib/savedWishlistGroups';
 import {
   GUEST_WISHLIST_MIGRATED_EVENT,
   retryGuestWishlistMigration,
@@ -947,6 +948,82 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
       cancelled = true;
     };
   }, [currentTab, user, catalogPopups, wishReloadKey]);
+
+  /**
+   * 저장한 팝업을 <b>지금 갈 수 있는 것 · 곧 열리는 것 · 지난 것</b>으로 나눈다.
+   *
+   * <p>카드마다 배지가 붙어 있어도 열 장이 섞여 있으면 하나씩 읽어야 한다. 이 화면을 여는
+   * 이유는 "이번에 어디 가지" 하나라, 화면이 그 답을 먼저 내놓아야 한다(§4.5 1번).
+   */
+  const wishGroups = useMemo(() => groupSavedWishlist(myWishlist), [myWishlist]);
+
+  /**
+   * 찜 카드 한 묶음. 세 묶음이 같은 마크업을 쓴다.
+   *
+   * <p><b>key 를 popupId 로 잡는다.</b> 예전에는 배열 인덱스였는데, 묶음이 셋이 되면서 서로
+   * 다른 팝업이 같은 key(0·1·2…)를 갖게 됐다 — 리액트가 다른 묶음의 카드를 재사용해
+   * 지난 팝업 자리에 진행 중 팝업의 사진이 남는 식으로 어긋난다.
+   */
+  const renderWishGrid = (items: WishlistItem[], dim = false) => (
+    <div className={cn('grid grid-cols-2 gap-2 lg:gap-3', dim && 'opacity-75')}>
+      {items.map((item) => {
+        const badge = savedPeriodBadge(item.startDate, item.endDate);
+        return (
+          <div
+            key={item.popupId}
+            className="relative rounded-md overflow-hidden aspect-video group cursor-pointer border border-[var(--color-border)] bg-cream-300 dark:bg-ink-800"
+          >
+            <PopupCoverVisual
+              popup={{ id: item.popupId, imageUrl: item.popupImage }}
+              name={item.popupName}
+              location={item.location}
+              compact
+            />
+
+            <div className="absolute inset-0 bg-gradient-to-t from-ink-900/85 via-ink-900/30 to-transparent flex flex-col justify-end p-3">
+              <span className="text-cream-200 text-xs font-semibold truncate">
+                {item.popupName}
+              </span>
+              <span className="text-cream-200/70 text-[10px] truncate mt-0.5">{item.location}</span>
+            </div>
+
+            {/*
+            카드에 상태를 적는다. 없으면 <b>끝난 것·아직 안 연 것·지금 갈 수
+            있는 것이 전부 똑같이 보인다</b> — 2024년에 끝난 팝업과 다음 주에
+            여는 팝업이 한 화면에서 구별되지 않았다.
+
+            무엇을 셀지는 savedPeriodBadge 가 정한다. 여기서는 옮겨 적기만
+            한다 — 화면이 보이는 글자를 되물어 색을 고르면, 문구를 옮기는
+            순간 판단이 빗나간다(popupDetailStatus.ts 의 같은 경위 참고).
+          */}
+            {badge && (
+              <span
+                className={cn(
+                  'absolute top-2 left-2 rounded-pill px-2 py-0.5 text-[10px] font-bold backdrop-blur',
+                  savedBadgeTone(badge),
+                )}
+              >
+                {savedBadgeText(badge, t)}
+              </span>
+            )}
+
+            <button
+              onClick={(e) => handleRemoveWishlist(e, item.popupId)}
+              className="absolute top-2 right-2 bg-ink-900/60 backdrop-blur rounded-pill p-1.5 text-hot-400 hover:bg-hot-400 hover:text-white transition-colors opacity-100 md:opacity-0 md:group-hover:opacity-100"
+              title={t('home.wishRemove')}
+            >
+              <Heart size={10} className="lg:w-3 lg:h-3 fill-current" />
+            </button>
+
+            <Link
+              href={localizedPath(`/popup/${item.popupId}`, locale)}
+              className="absolute inset-0 z-0"
+            />
+          </div>
+        );
+      })}
+    </div>
+  );
 
   const handleRemoveWishlist = async (e: React.MouseEvent, popupId: number) => {
     e.preventDefault();
@@ -2817,12 +2894,6 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
                       </>
                     )}
                   </div>
-                ) : myWishlist.length === 0 && unresolvedWishes.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground text-sm border border-dashed border-[var(--color-border-strong)] rounded-md">
-                    {t('wish.empty')}
-                    <br />
-                    {t('wish.emptyHint')}
-                  </div>
                 ) : (
                   <>
                     {/*
@@ -2846,67 +2917,53 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
                         </button>
                       </div>
                     )}
-                    {myWishlist.length > 0 && (
-                      <div className="grid grid-cols-2 gap-2 lg:gap-3">
-                        {myWishlist.map((item, i) => {
-                          const badge = savedPeriodBadge(item.startDate, item.endDate);
-                          return (
-                            <div
-                              key={i}
-                              className="relative rounded-md overflow-hidden aspect-video group cursor-pointer border border-[var(--color-border)] bg-cream-300 dark:bg-ink-800"
-                            >
-                              <PopupCoverVisual
-                                popup={{ id: item.popupId, imageUrl: item.popupImage }}
-                                name={item.popupName}
-                                location={item.location}
-                                compact
-                              />
 
-                              <div className="absolute inset-0 bg-gradient-to-t from-ink-900/85 via-ink-900/30 to-transparent flex flex-col justify-end p-3">
-                                <span className="text-cream-200 text-xs font-semibold truncate">
-                                  {item.popupName}
-                                </span>
-                                <span className="text-cream-200/70 text-[10px] truncate mt-0.5">
-                                  {item.location}
-                                </span>
-                              </div>
-
-                              {/*
-                              카드에 상태를 적는다. 없으면 <b>끝난 것·아직 안 연 것·지금 갈 수
-                              있는 것이 전부 똑같이 보인다</b> — 2024년에 끝난 팝업과 다음 주에
-                              여는 팝업이 한 화면에서 구별되지 않았다.
-
-                              무엇을 셀지는 savedPeriodBadge 가 정한다. 여기서는 옮겨 적기만
-                              한다 — 화면이 보이는 글자를 되물어 색을 고르면, 문구를 옮기는
-                              순간 판단이 빗나간다(popupDetailStatus.ts 의 같은 경위 참고).
-                            */}
-                              {badge && (
-                                <span
-                                  className={cn(
-                                    'absolute top-2 left-2 rounded-pill px-2 py-0.5 text-[10px] font-bold backdrop-blur',
-                                    savedBadgeTone(badge),
-                                  )}
-                                >
-                                  {savedBadgeText(badge, t)}
-                                </span>
-                              )}
-
-                              <button
-                                onClick={(e) => handleRemoveWishlist(e, item.popupId)}
-                                className="absolute top-2 right-2 bg-ink-900/60 backdrop-blur rounded-pill p-1.5 text-hot-400 hover:bg-hot-400 hover:text-white transition-colors opacity-100 md:opacity-0 md:group-hover:opacity-100"
-                                title={t('home.wishRemove')}
-                              >
-                                <Heart size={10} className="lg:w-3 lg:h-3 fill-current" />
-                              </button>
-
-                              <Link
-                                href={localizedPath(`/popup/${item.popupId}`, locale)}
-                                className="absolute inset-0 z-0"
-                              />
-                            </div>
-                          );
-                        })}
+                    {/*
+                      <b>"비어 있다" 는 한 가지가 아니다.</b> 담은 것이 없는 사람과 담은 것이 전부
+                      끝난 사람에게 같은 말을 하면, 뒷사람은 자기가 담은 것을 못 본 채 "하트를
+                      눌러보세요" 를 듣는다. 무엇이 비었는지는 groupSavedWishlist 가 가른다.
+                    */}
+                    {wishGroups.emptiness === 'nothing-saved' && unresolvedWishes.length === 0 && (
+                      <div className="rounded-md border border-dashed border-[var(--color-border-strong)] px-3 py-8 text-center text-sm text-muted-foreground">
+                        {t('wish.empty')}
+                        <br />
+                        {t('wish.emptyHint')}
                       </div>
+                    )}
+                    {wishGroups.emptiness === 'all-ended' && (
+                      <div className="rounded-md border border-dashed border-[var(--color-border-strong)] px-3 py-8 text-center text-sm text-muted-foreground">
+                        {t('wish.allEnded')}
+                        <br />
+                        {t('wish.allEndedHint')}
+                      </div>
+                    )}
+                    {(wishGroups.emptiness === 'only-upcoming' ||
+                      wishGroups.emptiness === 'nothing-now') && (
+                      <div className="rounded-md border border-dashed border-[var(--color-border-strong)] px-3 py-8 text-center text-sm text-muted-foreground">
+                        {t('wish.noneNow')}
+                        <br />
+                        {t('wish.noneNowHint')}
+                      </div>
+                    )}
+
+                    {/* 지금 갈 수 있는 것은 제목 없이 먼저 — 이 화면을 여는 이유가 그것이다. */}
+                    {wishGroups.current.length > 0 && renderWishGrid(wishGroups.current)}
+                    {wishGroups.upcoming.length > 0 && (
+                      <>
+                        <h4 className="mb-3 mt-5 text-sm font-bold text-muted-foreground">
+                          {t('wish.groupUpcoming')}
+                        </h4>
+                        {renderWishGrid(wishGroups.upcoming)}
+                      </>
+                    )}
+                    {/* 지난 것은 지우지 않고 아래에 남긴다(§4.5). 흐리게 두되 지우지는 않는다. */}
+                    {wishGroups.ended.length > 0 && (
+                      <>
+                        <h4 className="mb-3 mt-5 text-sm font-bold text-muted-foreground">
+                          {t('wish.groupEnded')}
+                        </h4>
+                        {renderWishGrid(wishGroups.ended, true)}
+                      </>
                     )}
                   </>
                 )}
