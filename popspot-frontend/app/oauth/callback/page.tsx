@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef, Suspense } from 'react';
+import { useCallback, useEffect, useState, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import { apiFetch } from '../../../src/lib/api';
@@ -10,6 +10,7 @@ import { localizedPath } from '@/lib/localePath';
 import { TotpChallenge } from '@/features/auth/TotpChallenge';
 import { appFlowNonce, appReturnUrl, clearAppFlowCookie } from '@/lib/oauthAppFlow';
 import { takeVerifier } from '@/lib/pkce';
+import { takeReturnTo } from '@/lib/returnTo';
 
 const COPY = {
   ko: {
@@ -74,6 +75,26 @@ function CallbackContent() {
   const copy = COPY[locale];
   const [status, setStatus] = useState<string>(copy.processing);
   const hasFetched = useRef(false); // React StrictMode 이중 호출 방지용
+
+  /**
+   * 로그인 전에 있던 자리. 아래 effect 가 딱 한 번 채운다. 비어 있으면 홈이다.
+   *
+   * <p>이 값은 소셜 로그인이 <b>브라우저를 통째로 백엔드에 넘겼다가 돌아오는 왕복</b>을 건너온
+   * 것이다. sessionStorage 가 그 구간을 건넌다는 근거는 바로 옆의 {@link takeVerifier} 다 —
+   * PKCE verifier 가 같은 저장소로 같은 구간을 건너지 못하면 소셜 로그인 자체가 성립하지 않는다.
+   *
+   * <p><b>왜 ref 이고, 왜 effect 안에서 꺼내는가.</b> {@code takeReturnTo} 는 읽으면서 <b>지운다.</b>
+   * 렌더 중에 부르면 StrictMode 의 이중 렌더에서 두 번째가 빈 손으로 돌아온다. 꺼내는 자리를
+   * {@code hasFetched} 가 지키는 effect 안으로 넣으면 교환 코드와 verifier 를 다루는 규칙과
+   * 같아진다 — 이 파일에서 "한 번만 쓸 수 있는 것" 은 전부 그 안에 있다.
+   *
+   * <p>착지 갈래가 둘(바로 성공·2단계 인증 통과)인데 갈래마다 꺼내면 먼저 꺼낸 쪽이 지워 버려
+   * 나머지가 홈으로 간다. 그래서 꺼내는 곳은 하나, 읽는 곳이 둘이다.
+   */
+  const returnTo = useRef<string | null>(null);
+  /* useCallback 인 이유는 아래 effect 가 이것을 부르기 때문이다 — 매 렌더 새로 만들면
+     의존성 검사가 계속 걸리고, 무시하려고 disable 주석을 달면 진짜 누락도 같이 가려진다. */
+  const landing = useCallback(() => returnTo.current ?? localizedPath('/', locale), [locale]);
   /** 2단계 인증이 남았을 때 받은 단기 표. */
   const [totpChallenge, setTotpChallenge] = useState<string | null>(null);
   /**
@@ -88,6 +109,11 @@ function CallbackContent() {
     // 이미 한 번 요청을 보냈다면 중복 실행 방지
     if (hasFetched.current) return;
     hasFetched.current = true;
+
+    /* 로그인 전에 있던 자리를 꺼낸다(읽으면서 지운다). 앱 흐름이면 웹은 착지하지 않으므로
+       꺼낼 필요가 없지만, 꺼내 두면 앱으로 넘어간 뒤 이 브라우저에 남은 값이 다음 웹 로그인을
+       엉뚱한 곳으로 데려가는 일이 없다. */
+    returnTo.current = takeReturnTo(locale);
 
     /* 앱에서 시작한 흐름이면 여기서 끝낸다. 교환은 앱이 한다.
 
@@ -199,10 +225,10 @@ function CallbackContent() {
           };
           localStorage.setItem('user', JSON.stringify(realUser));
 
-          // 5. 로그인 성공 처리 (인트로 미들웨어 우회 — 메인 직행)
+          // 5. 로그인 성공 — 원래 있던 자리로. 없으면 홈이다.
           setStatus(copy.success);
           setTimeout(() => {
-            window.location.href = localizedPath('/?entered=1', locale);
+            window.location.href = landing();
           }, AUTH_SUCCESS_REDIRECT_MS);
         } else {
           // 백엔드가 401 에러 등을 보내면, 에러 메시지를 까서 보여줍니다.
@@ -217,7 +243,7 @@ function CallbackContent() {
     };
 
     fetchUserInfo();
-  }, [router, searchParams, locale, copy]);
+  }, [router, searchParams, locale, copy, landing]);
 
   /* 앱으로 넘기는 중. `location.replace` 가 곧 앱을 띄우지만 항상 성공하는 것은 아니다 —
      앱이 지워졌거나, 브라우저가 스킴 이동을 사용자 제스처 없이 막는 경우가 있다. 그때 흰 화면만
@@ -259,7 +285,7 @@ function CallbackContent() {
                 isSocial: true,
               }),
             );
-            window.location.href = localizedPath('/?entered=1', locale);
+            window.location.href = landing();
           }}
         />
       </div>

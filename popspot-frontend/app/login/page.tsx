@@ -21,12 +21,13 @@ import { apiFetch, API_BASE_URL } from '@/lib/api';
 import { setAuthToken, setRefreshToken } from '@/lib/authStorage';
 import { Button } from '@/components/ui/button';
 import { Input, Field } from '@/components/ui/input';
-import { notify, notifyError, notifySuccess } from '@/lib/notify';
+import { notify, notifyError, notifySuccess, notifyWarning } from '@/lib/notify';
 import { GUEST_GRACE_PERIOD_DAYS, startGuestMode } from '@/lib/guestMode';
 import { useLocale } from '@/lib/i18n';
 import { appReturnUrl, clearAppFlowCookie, startedByApp } from '@/lib/oauthAppFlow';
 import { startPkce } from '@/lib/pkce';
 import { localizedPath } from '@/lib/localePath';
+import { takeReturnTo } from '@/lib/returnTo';
 import { TotpChallenge } from '@/features/auth/TotpChallenge';
 import { useServiceAvailability } from '@/components/ServiceStatusBanner';
 import { useTheme } from 'next-themes';
@@ -69,20 +70,38 @@ export default function LoginPage() {
   const [submitting, setSubmitting] = useState(false);
 
   /**
-   * 앱에서 시작한 소셜 로그인이 <b>실패해서</b> 여기로 온 경우 — 앱에 알려 주고 끝낸다.
+   * 소셜 로그인이 <b>실패해서</b> 여기로 온 경우.
    *
    * <p>백엔드는 성공만 {@code /oauth/callback} 으로 보낸다. 사용자가 카카오 동의 화면에서 취소하거나
    * 토큰 교환이 실패하면 스프링의 {@code failureUrl} 이 <b>이 페이지</b>로 보낸다
-   * ({@code SecurityConfig.buildOAuthFailureUrl} → {@code /login?error}). 그러면 앱은 브라우저를
-   * 열어 둔 채 영영 아무 소식도 못 듣는다 — 화면에 "로그인 중" 만 돈다.
+   * ({@code SecurityConfig.buildOAuthFailureUrl} → {@code /login?error}).
    *
-   * <p>앱 표시가 없으면 <b>아무 일도 하지 않는다.</b> 웹 로그인은 한 글자도 달라지지 않는다.
+   * <p><b>앱에서 시작한 흐름이면</b> 앱에 알려 주고 끝낸다. 안 그러면 앱은 브라우저를 열어 둔 채
+   * 영영 아무 소식도 못 듣는다 — 화면에 "로그인 중" 만 돈다.
+   *
+   * <p><b>웹이면 왜 왔는지 알린다.</b> 예전에는 이 페이지가 {@code ?error} 를 읽지 않아서, 취소한
+   * 사람이 <b>아무 설명 없이</b> 로그인 화면에 떨어졌다. 본인은 취소를 눌렀다는 것을 알지만 화면은
+   * 처음 로그인하러 온 것과 구별되지 않으니, 방금 누른 것이 먹히지 않은 것처럼 보인다.
+   *
+   * <p>두 경우를 한 effect 에 둔 이유는 <b>둘 다 "내가 왜 이 화면에 있는가" 에 대한 답</b>이라
+   * 나누면 순서에 기대게 되기 때문이다 — 앱 분기가 쿠키를 지우고 나면 뒤에 오는 effect 는
+   * "앱에서 왔다" 를 더 이상 알 수 없다.
    */
   useEffect(() => {
-    if (!startedByApp()) return;
-    clearAppFlowCookie();
-    window.location.replace(appReturnUrl({ error: 'denied' }));
-  }, []);
+    const failed = new URLSearchParams(window.location.search).has('error');
+    if (startedByApp()) {
+      clearAppFlowCookie();
+      window.location.replace(appReturnUrl({ error: 'denied' }));
+      return;
+    }
+    if (!failed) return;
+    void notifyWarning({
+      title: t('login.socialCancelledTitle'),
+      text: t('login.socialCancelledText'),
+    });
+    /* 주소에서 지운다 — 새로고침하거나 뒤로 왔을 때 같은 안내가 다시 뜨지 않게. */
+    window.history.replaceState({}, '', window.location.pathname);
+  }, [t]);
 
   // 저장된 아이디 자동 입력
   useEffect(() => {
@@ -95,6 +114,21 @@ export default function LoginPage() {
 
   /** 2단계 인증이 남았을 때 받은 단기 표. 값이 있으면 6자리 화면을 띄운다. */
   const [totpChallenge, setTotpChallenge] = useState<string | null>(null);
+
+  /**
+   * 로그인을 마친 사람을 <b>원래 있던 자리로</b> 보낸다. 없으면 홈이다.
+   *
+   * <p>예전에는 세 곳이 각각 {@code localizedPath('/?entered=1', locale)} 를 적고 있었다. 그
+   * {@code entered=1} 은 <b>아무도 읽지 않는 값</b>이었다 — 여섯 곳에서 붙이는데 읽는 코드가 0이고,
+   * 그것을 보던 미들웨어는 저장소에 남아 있지 않다. 사라진 대상을 위한 우회로였다.
+   *
+   * <p>여기 한 곳에 모아 둔 이유는 <b>착지 지점이 다섯 곳</b>(이 파일 셋, 소셜 콜백 둘)이기
+   * 때문이다. 한 곳만 빠뜨리면 그 경로로 로그인한 사람만 조용히 홈으로 가는데, 화면에 오류가
+   * 없어서 아무도 신고하지 않는다. {@code src/lib/ReturnToPlacement.test.ts} 가 다섯 곳을 센다.
+   */
+  const goAfterLogin = () => {
+    router.push(takeReturnTo(locale) ?? localizedPath('/', locale));
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -136,8 +170,7 @@ export default function LoginPage() {
         else localStorage.removeItem('savedEmail');
 
         await notifySuccess(`${data.nickname}${t('login.welcomeSuffix')}`);
-        // 인트로 미들웨어 우회 — 방금 인트로 거쳐서 로그인 왔으니 메인 직행
-        router.push(localizedPath('/?entered=1', locale));
+        goAfterLogin();
       } else {
         notifyError({ title: t('login.failedTitle'), text: t('login.failedText') });
       }
@@ -176,7 +209,6 @@ export default function LoginPage() {
       notifyError({ title: t('login.serverTitle'), text: t('login.serverText') });
       return;
     }
-    localStorage.setItem('popspot:oauth-locale', locale);
     /* 앱에서 시작하다 만 흐름의 표시가 남아 있으면 이 웹 로그인이 앱으로 튕긴다. 여기서 지운다
        (콜백도 읽자마자 지우지만, 콜백까지 못 간 채 끝난 경우가 있다). */
     clearAppFlowCookie();
@@ -206,7 +238,9 @@ export default function LoginPage() {
       text: t('login.guestDesc'),
       timer: 1600,
     });
-    router.push(localizedPath('/?entered=1', locale));
+    /* 게스트도 원래 자리로 돌려보낸다. 잠긴 탭에서 밀려나 여기까지 온 사람이 대부분이고,
+       게스트를 시작하면 그 탭이 바로 열린다 — 다시 찾아가게 두면 시작한 보람이 없다. */
+    goAfterLogin();
   };
 
   return (
@@ -300,7 +334,7 @@ export default function LoginPage() {
               if (saveId) localStorage.setItem('savedEmail', formData.email);
               else localStorage.removeItem('savedEmail');
               await notifySuccess(`${profile.nickname ?? ''}${t('login.welcomeSuffix')}`);
-              router.push(localizedPath('/?entered=1', locale));
+              goAfterLogin();
             }}
           />
         ) : (

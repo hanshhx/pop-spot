@@ -484,7 +484,7 @@ export default function PlanningPage() {
           <div className="flex justify-between items-start mb-2 md:mb-4">
             <div className="flex items-start gap-2">
               <button
-                onClick={() => router.push(localizedPath('/?entered=1', locale))}
+                onClick={() => router.push(localizedPath('/', locale))}
                 aria-label={copy.home}
                 className="mt-0.5 inline-flex items-center justify-center size-7 md:size-8 rounded-full bg-white/8 hover:bg-white/15 text-gray-300 hover:text-white transition-colors ring-1 ring-white/10 hover:ring-white/20"
               >
