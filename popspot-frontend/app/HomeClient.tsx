@@ -114,6 +114,12 @@ import { readGuestWishlist, removeGuestWishlist } from '@/lib/guestWishlist';
 import { buildGuestWishlist } from '@/lib/guestWishlistItems';
 import { groupSavedWishlist } from '@/lib/savedWishlistGroups';
 import {
+  type PopupSummary,
+  readSummaries,
+  rememberSummaries,
+  toSummary,
+} from '@/lib/popupSummaryCache';
+import {
   GUEST_WISHLIST_MIGRATED_EVENT,
   retryGuestWishlistMigration,
 } from '@/lib/migrateGuestWishlist';
@@ -187,6 +193,33 @@ function popupToMapMarker(popup: PopupStore): PublicMapMarker {
 /* 위험이 생긴다.                                                                */
 /* -------------------------------------------------------------------------- */
 const DEFAULT_TAB = 'MAP';
+
+/** 저장 목록 조회 한 건이 기다리는 최대 시간. {@code api.ts} 의 REQUEST_TIMEOUT_MS 와 같은 값이다. */
+const WISH_LOOKUP_TIMEOUT_MS = 12_000;
+
+/**
+ * 조회 한 건에 걸 signal — <b>떠나면 끊고, 오래 걸려도 끊는다.</b>
+ *
+ * <p>{@code AbortSignal.any} 가 없는 브라우저에서는 떠남만 지킨다. 타임아웃을 잃는 것이
+ * 취소를 잃는 것보다 낫다 — 취소가 없으면 탭을 오갈 때마다 요청이 겹쳐 쌓이고, 그 요청 하나
+ * 하나가 조회수를 올린다.
+ */
+function lookupSignal(controller: AbortController): AbortSignal {
+  if (typeof AbortSignal.any !== 'function') return controller.signal;
+  return AbortSignal.any([controller.signal, AbortSignal.timeout(WISH_LOOKUP_TIMEOUT_MS)]);
+}
+
+/** 적어 둔 요약을 목록 데이터와 같은 모양으로 — 그래야 조회를 건너뛴다. */
+function summaryToPopup(summary: PopupSummary): PopupStore {
+  return {
+    id: summary.id,
+    name: summary.name,
+    imageUrl: summary.imageUrl,
+    location: summary.location,
+    startDate: summary.startDate,
+    endDate: summary.endDate,
+  } as PopupStore;
+}
 
 /**
  * 저장한 팝업 카드의 기간 배지 문구.
@@ -922,31 +955,56 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
    *
    * <p>못 찾은 것은 상세로 따로 가져온다. 끝난 팝업도 상세는 200 을 돌려준다. 판정과 순서는
    * {@code lib/guestWishlistItems.ts} 가 하고 여기서는 조회만 붙인다.
+   *
+   * <p><b>그 조회는 공짜가 아니다.</b> {@code GET /api/popups/{id}} 는 읽기가 아니라 쓰기다 —
+   * 컨트롤러 주석이 "진입할 때마다 조회수를 1 올리는 부수효과가 있어 캐시 헤더를 붙이지 않는다"
+   * 고 직접 적어 두었고, 응답을 만들며 YouTube 검색도 한 번 나간다. 이 effect 는 MY 탭에 들어갈
+   * 때마다 도는데, 처음 짤 때 그 값을 다시 묻지 않을 방법을 두지 않아서 <b>탭을 오갈 때마다 담아
+   * 둔 개수만큼 조회수가 오르고 외부 API 가 호출됐다.</b> 아무도 보지 않은 팝업의 조회수가
+   * 오르는 셈이고, 인프라 비용이 0원이어야 하는 서비스에서 카드 한 장 값으로는 너무 비싸다.
+   *
+   * <p>그래서 한 번 알아낸 것은 {@code lib/popupSummaryCache.ts} 에 적어 두고 다시 묻지 않는다.
+   * 예전에 담아 둔 팝업은 처음 한 번만 물어본다 — <b>영영 한 번</b>이다.
    */
   useEffect(() => {
     if (currentTab !== 'MY' || user) return;
-    let cancelled = false;
+    const controller = new AbortController();
     void (async () => {
-      const view = await buildGuestWishlist(readGuestWishlist(), catalogPopups, async (id) => {
+      const now = Date.now();
+      const cached = readSummaries(now);
+      // 적어 둔 것은 목록 데이터와 같은 모양으로 바꿔 넘긴다 — buildGuestWishlist 가 "목록에 있는
+      // 것" 으로 보고 조회를 건너뛴다. 요청을 아예 만들지 않는 것이 이 캐시의 요점이다.
+      const known = [...catalogPopups, ...[...cached.values()].map(summaryToPopup)];
+      const learned: PopupSummary[] = [];
+
+      const view = await buildGuestWishlist(readGuestWishlist(), known, async (id) => {
         try {
-          const res = await apiFetch(`/api/popups/${id}`);
+          /* 떠남(controller)과 응답 없음(timeout)을 <b>합쳐서</b> 넘긴다.
+             apiFetch 는 호출부가 signal 을 넘기면 자기 타임아웃을 걸지 않는다 — "취소 주체가
+             둘이면 원인을 구분할 수 없다" 는 이유인데, 여기서는 두 원인을 똑같이 다룬다(둘 다
+             'failed'). 그래서 합쳐도 구분할 것이 없고, 대신 둘 다 지킬 수 있다. */
+          const res = await apiFetch(`/api/popups/${id}`, { signal: lookupSignal(controller) });
           // 404 는 지워진 팝업이다. 다시 물어도 같은 답이라 재시도 대상이 아니다.
           if (res.status === 404) return { kind: 'gone' };
           if (!res.ok) return { kind: 'failed' };
           const body = await res.json();
           const data = body.data || body;
-          return { kind: 'found', popup: { ...data, id: data.popupId ?? data.id } };
+          const popup = { ...data, id: data.popupId ?? data.id };
+          learned.push(toSummary(popup, now));
+          return { kind: 'found', popup };
         } catch {
           return { kind: 'failed' };
         }
       });
-      if (cancelled) return;
+      // 화면을 버리더라도 알아낸 것은 적어 둔다 — 그 요청의 대가는 이미 치렀다.
+      rememberSummaries(learned, now);
+      if (controller.signal.aborted) return;
       setMyWishlist(view.items);
       setUnresolvedWishes(view.unresolved);
     })();
-    return () => {
-      cancelled = true;
-    };
+    /* 떠나면 <b>실제로 끊는다.</b> 예전에는 플래그로 setState 만 막아서, 탭을 빠르게 오가면
+       같은 id 의 요청이 겹쳐 나갔다 — 그 요청 하나하나가 조회수를 올린다. */
+    return () => controller.abort();
   }, [currentTab, user, catalogPopups, wishReloadKey]);
 
   /**
