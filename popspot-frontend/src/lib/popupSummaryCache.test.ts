@@ -7,6 +7,7 @@ import {
   type PopupSummary,
   clearSummaries,
   readSummaries,
+  rememberSavedPopup,
   rememberSummaries,
   resolveSummary,
   toSummary,
@@ -77,6 +78,69 @@ describe('적고 읽기', () => {
     rememberSummaries([toSummary(popup(1), NOW)], NOW);
     clearSummaries();
     expect(readSummaries(NOW).size).toBe(0);
+  });
+});
+
+/**
+ * 담는 순간에 적어 두는 쪽. 여기까지 되면 <b>앞으로 담는 것에 대해서는 조회가 0</b>이다.
+ *
+ * <p>필드 이름을 풀어서 받는 이유는 화면마다 같은 값을 다른 이름으로 들고 있어서다 — 상세
+ * 화면은 openDate/closeDate/address 다.
+ */
+describe('담을 때 적어 두기', () => {
+  it('담은 자리에서 적으면 나중에 물어볼 것이 없다', () => {
+    rememberSavedPopup(
+      {
+        id: 6291,
+        name: '릴 X 토니노 람보르기니 GROUND',
+        imageUrl: '/partner/x.webp',
+        location: '서울 성동구 성수이로 72',
+        startDate: '2026-09-15',
+        endDate: '2026-09-23',
+      },
+      NOW,
+    );
+    expect(readSummaries(NOW).get(6291)).toEqual({
+      id: 6291,
+      name: '릴 X 토니노 람보르기니 GROUND',
+      imageUrl: '/partner/x.webp',
+      location: '서울 성동구 성수이로 72',
+      startDate: '2026-09-15',
+      endDate: '2026-09-23',
+      savedAt: NOW,
+    });
+  });
+
+  /* 상세 API 는 id 를 문자열로 줄 때가 있다. 그걸로 캐시가 어긋나면 안 된다. */
+  it('id 가 문자열이어도 숫자로 적는다', () => {
+    rememberSavedPopup({ id: '42', name: '문자열 id' }, NOW);
+    expect(readSummaries(NOW).get(42)?.name).toBe('문자열 id');
+  });
+
+  it('없는 값은 빈 문자열로', () => {
+    rememberSavedPopup({ id: 5, name: '이름만', imageUrl: null, location: undefined }, NOW);
+    const got = readSummaries(NOW).get(5);
+    expect(got?.imageUrl).toBe('');
+    expect(got?.location).toBe('');
+    expect(got?.endDate).toBe('');
+  });
+
+  /* 이름 없이 적으면 화면이 빈 카드를 그린다 — 차라리 안 적고 나중에 물어보는 편이 낫다. */
+  it.each([
+    ['이름이 없으면', { id: 5, name: '' }],
+    ['id 가 0 이면', { id: 0, name: '이름' }],
+    ['id 가 숫자가 아니면', { id: 'abc', name: '이름' }],
+  ])('%s 적지 않는다', (_label, fields) => {
+    rememberSavedPopup(fields, NOW);
+    expect(readSummaries(NOW).size).toBe(0);
+  });
+
+  it('이미 적어 둔 것 위에 덮어쓴다 — 담기를 반복해도 하나다', () => {
+    rememberSavedPopup({ id: 8, name: '처음' }, NOW);
+    rememberSavedPopup({ id: 8, name: '나중' }, NOW + 1000);
+    const all = readSummaries(NOW + 1000);
+    expect(all.size).toBe(1);
+    expect(all.get(8)?.name).toBe('나중');
   });
 });
 
