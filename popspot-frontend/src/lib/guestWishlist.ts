@@ -47,12 +47,20 @@ function read(): number[] {
   }
 }
 
-function write(ids: number[]): void {
-  if (typeof window === 'undefined') return;
+/**
+ * 저장소에 쓴다. <b>실제로 쓰였는지</b>를 돌려준다.
+ *
+ * <p>예전에는 실패를 조용히 삼켰다. 저장소가 막힌 환경(시크릿 창·사이트 데이터 차단·용량 초과)
+ * 에서는 아무것도 남지 않는데 화면은 담긴 것처럼 보였고, 새로고침하면 사라졌다. 호출부가
+ * 그것을 알 방법이 없었다.
+ */
+function write(ids: number[]): boolean {
+  if (typeof window === 'undefined') return false;
   try {
     window.localStorage.setItem(GUEST_WISHLIST_KEY, JSON.stringify(ids));
+    return true;
   } catch {
-    /* 저장소가 막혀 있으면 이번 담기는 기억되지 않는다. 화면은 그대로 둔다. */
+    return false;
   }
 }
 
@@ -65,21 +73,33 @@ export function isGuestWished(popupId: number): boolean {
   return read().includes(popupId);
 }
 
+/** {@link toggleGuestWishlist} 의 결과. 의도한 상태와 <b>실제 저장 여부</b>를 나눠서 준다. */
+export interface GuestWishToggle {
+  /** 눌린 뒤의 상태. 담겼으면 true. */
+  wished: boolean;
+  /** 그 상태가 저장소에 <b>실제로 남았는가.</b> false 면 새로고침하면 사라진다. */
+  saved: boolean;
+}
+
 /**
- * 담거나 뺀다. <b>바뀐 뒤의 상태</b>를 돌려준다(담겼으면 true).
+ * 담거나 뺀다.
  *
- * <p>호출부가 그 값으로 화면을 갱신하므로, 저장소가 막혀 있어도 이 반환값은 정직해야 한다 —
- * 그래서 저장 결과가 아니라 <b>의도한 다음 상태</b>를 돌려준다. 새로고침하면 사라지지만
- * 그 자리에서 눌린 것처럼 보이는 편이 낫다.
+ * <p><b>왜 둘을 나눠서 돌려주는가.</b> 예전에는 boolean 하나였고, 주석은 "저장 결과가 아니라
+ * 의도한 다음 상태를 돌려준다 — 그 자리에서 눌린 것처럼 보이는 편이 낫다" 고 적고 있었다.
+ * 그 선택의 대가는 <b>화면이 거짓말을 한다</b>는 것이다. 저장소가 막힌 브라우저에서 하트가
+ * 채워지고, 사용자는 찜이 쌓이는 줄 알다가 새로고침에서 전부 잃는다.
+ *
+ * <p>둘을 나누면 호출부가 고를 수 있다. 지금 상세 화면은 저장에 실패하면 하트를 채우지 않고
+ * 그 사실을 알린다 — 회원의 저장 실패를 다루는 방식과 같은 모양이고, "저장 성공이 확인되지
+ * 않으면 저장됨이라고 말하지 않는다" 는 원칙과도 맞는다.
  */
-export function toggleGuestWishlist(popupId: number): boolean {
+export function toggleGuestWishlist(popupId: number): GuestWishToggle {
   const current = read();
   const has = current.includes(popupId);
   const next = has
     ? current.filter((id) => id !== popupId)
     : [...current, popupId].slice(-GUEST_WISHLIST_MAX);
-  write(next);
-  return !has;
+  return { wished: !has, saved: write(next) };
 }
 
 /**

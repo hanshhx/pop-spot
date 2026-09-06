@@ -704,6 +704,12 @@ const DICT = {
     'detail.stampAlreadyDone': '이미 방문 인증을 완료한 팝업이에요.',
     'detail.failed': '요청을 처리하지 못했습니다.',
     'detail.wishFailed': '찜하기를 처리하지 못했습니다.',
+    // 담을 때만 쓴다. 해제는 하트가 비는 것으로 충분하다.
+    'detail.wishSaved': '찜했어요.',
+    'detail.unwishFailed': '찜 해제를 처리하지 못했습니다.',
+    // 저장소가 막힌 브라우저(시크릿·사이트 데이터 차단). 하트를 채우지 않고 이것을 알린다 —
+    // 담긴 것처럼 보여 두면 새로고침에서 잃었다는 사실조차 모른다.
+    'detail.wishNotSaved': '이 브라우저에서는 찜을 저장할 수 없어요.',
     'detail.addCalendar': '캘린더에 추가',
     'detail.intro': '소개',
     'detail.originalKorean': '원문은 한국어로 제공됩니다.',
@@ -1536,6 +1542,9 @@ const DICT = {
     'detail.stampAlreadyDone': 'You’ve already verified a visit to this pop-up.',
     'detail.failed': 'Could not process the request.',
     'detail.wishFailed': 'Could not update your saved list.',
+    'detail.wishSaved': 'Saved.',
+    'detail.unwishFailed': 'Could not remove it from your saved list.',
+    'detail.wishNotSaved': 'This browser can’t store saved pop-ups.',
     'detail.addCalendar': 'Add to calendar',
     'detail.intro': 'About this pop-up',
     'detail.originalKorean': 'The original description is provided in Korean.',
@@ -2375,6 +2384,9 @@ const DICT = {
     'detail.stampAlreadyDone': 'このポップアップはすでに訪問認証済みです。',
     'detail.failed': 'リクエストを処理できませんでした。',
     'detail.wishFailed': '保存リストを更新できませんでした。',
+    'detail.wishSaved': '保存しました。',
+    'detail.unwishFailed': '保存リストから外せませんでした。',
+    'detail.wishNotSaved': 'このブラウザでは保存できません。',
     'detail.addCalendar': 'カレンダーに追加',
     'detail.intro': '紹介',
     'detail.originalKorean': '原文は韓国語で掲載しています。',

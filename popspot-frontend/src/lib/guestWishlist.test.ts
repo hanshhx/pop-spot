@@ -24,9 +24,9 @@ beforeEach(() => {
 
 describe('담고 빼기', () => {
   it('담으면 남고, 다시 누르면 빠진다', () => {
-    expect(toggleGuestWishlist(7)).toBe(true);
+    expect(toggleGuestWishlist(7)).toEqual({ wished: true, saved: true });
     expect(isGuestWished(7)).toBe(true);
-    expect(toggleGuestWishlist(7)).toBe(false);
+    expect(toggleGuestWishlist(7)).toEqual({ wished: false, saved: true });
     expect(isGuestWished(7)).toBe(false);
   });
 
@@ -131,7 +131,7 @@ describe('망가진 저장소', () => {
   it('남이 넣어 둔 값이 있어도 죽지 않는다', () => {
     window.localStorage.setItem(GUEST_WISHLIST_KEY, '{"not":"an array"}');
     expect(readGuestWishlist()).toEqual([]);
-    expect(toggleGuestWishlist(1)).toBe(true);
+    expect(toggleGuestWishlist(1)).toEqual({ wished: true, saved: true });
     expect(readGuestWishlist()).toEqual([1]);
   });
 
@@ -146,14 +146,21 @@ describe('망가진 저장소', () => {
   });
 
   /*
-   * 시크릿 창·저장소 차단에서는 setItem 이 던진다. 그때도 버튼은 눌린 것처럼 보여야 한다 —
-   * 새로고침하면 사라지지만, 눌러도 아무 반응이 없는 것보다는 낫다.
+   * 시크릿 창·저장소 차단·용량 초과에서는 setItem 이 던진다.
+   *
+   * <p>예전에는 여기서 true 하나만 돌려주고 실패를 삼켰다. 그래서 화면은 하트를 채웠고,
+   * 사용자는 찜이 쌓이는 줄 알다가 새로고침에서 전부 잃었다 — 잃었다는 사실조차 모른 채로.
+   * 그 시험의 제목은 "정직하게 돌려준다" 였는데, 정작 <b>저장되지 않았다는 사실</b>은
+   * 돌려주지 않았다.
+   *
+   * <p>이제 둘을 나눠서 준다. 무엇을 누른 것인지(wished)와 그것이 남았는지(saved)는 다른
+   * 질문이고, 화면은 둘 다 알아야 거짓말을 안 한다.
    */
-  it('저장소가 막혀 있어도 누른 결과를 정직하게 돌려준다', () => {
+  it('저장소가 막히면 저장되지 않았다는 것을 알린다', () => {
     vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
       throw new Error('QuotaExceededError');
     });
-    expect(toggleGuestWishlist(1)).toBe(true);
+    expect(toggleGuestWishlist(1)).toEqual({ wished: true, saved: false });
     vi.restoreAllMocks();
   });
 
