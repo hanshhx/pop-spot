@@ -123,6 +123,39 @@ export function detailPeriodBadge(
   closeDate: string | null | undefined,
   today: Date = kstTodayStart(),
 ): DetailPeriodBadge | null {
+  const badge = savedPeriodBadge(openDate, closeDate, today);
+  // 상시 운영(마감일 미상)은 상세에서 배지를 그리지 않는다 — 예전과 같다. 배지 바로 옆에
+  // 기간 줄이 있어서, "마감일 미정" 을 배지로 또 말하면 같은 말을 두 번 하는 셈이다.
+  return badge === null || badge.kind === 'open-undated' ? null : badge;
+}
+
+/**
+ * 저장 목록(마이팝)의 기간 배지. {@link DetailPeriodBadge} 에 <b>한 종류를 더한다.</b>
+ *
+ * <p><b>왜 상세와 다른 종류가 필요한가.</b> {@link detailPeriodBadge} 는 "열려 있는데 마감일을
+ * 모르는" 팝업에 {@code null} 을 준다. 상세에서는 그래도 됐다 — 배지 옆에 기간 줄이 있어서
+ * 사용자가 날짜를 직접 본다.
+ *
+ * <p>저장 목록에는 그 줄이 없다. 카드에 이름과 위치뿐이라 {@code null} 은 곧 <b>아무 표시 없음</b>
+ * 이 되고, 그러면 <b>끝난 것·아직 안 연 것·마감일 모르는 것이 전부 똑같이 보인다.</b>
+ * 2026-09-06 운영에서 실제로 그랬다 — 2024년에 끝난 블루보틀과 2026-09-15 에 여는 람보르기니가
+ * 한 화면에서 구별되지 않았다.
+ *
+ * <p><b>그리고 이 경우가 소수가 아니다.</b> 같은 날 잰 결과 팝업 1,492개 중 <b>900개(60.3%)에
+ * {@code endDate} 가 없다.</b> 시작일은 98%가 있다. 즉 우리가 모르는 것은 "언제 여는가" 가 아니라
+ * <b>"끝났는가"</b> 하나다.
+ *
+ * <p>그래서 진행/예정/종료로 나누지 않는다 — 그러면 <b>네 번째 칸("모름")이 제일 커진다.</b>
+ * 대신 시작일이 지났으면 갈 수 있는 것으로 보되, <b>마감일을 모른다고 화면에 적는다.</b> 그중
+ * 일부는 이미 끝났을 수 있지만, 그 불확실성을 화면이 숨기지 않는다.
+ */
+export type SavedPeriodBadge = DetailPeriodBadge | { kind: 'open-undated' };
+
+export function savedPeriodBadge(
+  openDate: string | null | undefined,
+  closeDate: string | null | undefined,
+  today: Date = kstTodayStart(),
+): SavedPeriodBadge | null {
   // 날짜가 하나도 안 읽히면 셀 것이 없다. landingStatus 는 이 경우 'ongoing' 을 주는데
   // (그쪽은 이미 걸러진 목록을 전제한다), 상세는 어떤 팝업이든 URL 로 바로 열리므로
   // 그 전제가 없다 — detailStatusLabel 이 같은 이유로 같은 검사를 먼저 한다.
@@ -131,7 +164,7 @@ export function detailPeriodBadge(
   const derived = landingStatus(openDate ?? null, closeDate ?? null, today);
   if (derived.kind === 'ended') return { kind: 'ended' };
   if (derived.kind === 'upcoming') return { kind: 'opens-in', days: derived.opensIn };
-  if (derived.dday === null) return null; // 상시 운영 — 마감을 셀 수 없다.
+  if (derived.dday === null) return { kind: 'open-undated' }; // 열렸다. 끝났는지는 모른다.
   if (derived.dday === 0) return { kind: 'closing-today' };
   return { kind: 'closes-in', days: derived.dday };
 }
@@ -146,7 +179,11 @@ export function detailPeriodBadge(
  * <p>화면이 아니라 여기서 정하는 이유 — 예전에는 화면이 {@code dday === t('detail.ended')} 로
  * <b>보이는 글자를 되물어</b> 색을 골랐다. 문구를 옮기는 순간 비교가 빗나가 끝난 팝업까지
  * 강조색을 달게 된다. {@code dday.ts} 의 {@code DdayBadge} 가 같은 이유로 문구와 판단을 갈라 뒀다.
+ *
+ * <p>저장 목록의 배지({@link SavedPeriodBadge})도 그대로 받는다. 거기 하나 더 있는
+ * {@code open-undated} 는 강조하지 않는다 — <b>마감일을 모르는 것에 마감 임박과 같은 색을 주면
+ * 모른다는 사실이 지워진다.</b> 종류로 고르므로 저절로 그렇게 된다.
  */
-export function isUrgentPeriod(badge: DetailPeriodBadge | null): boolean {
+export function isUrgentPeriod(badge: SavedPeriodBadge | null): boolean {
   return badge !== null && (badge.kind === 'closing-today' || badge.kind === 'closes-in');
 }

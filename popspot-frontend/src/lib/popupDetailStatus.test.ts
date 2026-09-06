@@ -5,6 +5,7 @@ import {
   detailStatusLabel,
   isPopupEnded,
   isUrgentPeriod,
+  savedPeriodBadge,
 } from './popupDetailStatus';
 import { kstTodayStart } from './popupSlices';
 
@@ -212,5 +213,54 @@ describe('isUrgentPeriod', () => {
     expect(isUrgentPeriod({ kind: 'opens-in', days: 10 })).toBe(false);
     expect(isUrgentPeriod({ kind: 'ended' })).toBe(false);
     expect(isUrgentPeriod(null)).toBe(false);
+  });
+});
+
+/**
+ * 저장 목록의 배지. 상세와 <b>딱 한 가지</b>가 다르다 — 마감일을 모르는 팝업을 이름 붙여 준다.
+ *
+ * <p>그 한 가지가 중요한 이유는 <b>수량</b>이다. 2026-09-06 실측으로 팝업 1,492개 중 900개
+ * (60.3%)에 endDate 가 없다. 상세에서는 배지가 없어도 기간 줄이 날짜를 보여주지만, 저장 목록의
+ * 카드에는 이름과 위치뿐이라 "표시 없음" 이 곧 "산 팝업" 처럼 읽힌다.
+ */
+describe('savedPeriodBadge', () => {
+  it('열렸는데 마감일을 모르면 그렇다고 말한다', () => {
+    expect(savedPeriodBadge('2026-08-01', null, TODAY)).toEqual({ kind: 'open-undated' });
+    expect(savedPeriodBadge('2026-08-01', '', TODAY)).toEqual({ kind: 'open-undated' });
+  });
+
+  /* 시작일조차 안 읽히면 셀 것이 없다 — 모른다는 것과 없다는 것은 다르다. */
+  it('날짜가 하나도 없으면 배지가 없다', () => {
+    expect(savedPeriodBadge(null, null, TODAY)).toBeNull();
+    expect(savedPeriodBadge('알 수 없음', '미정', TODAY)).toBeNull();
+  });
+
+  it.each([
+    ['끝난 것', '2024-01-01', '2024-04-30', { kind: 'ended' }],
+    ['오늘 마감', '2026-08-01', '2026-08-25', { kind: 'closing-today' }],
+    ['마감 임박', '2026-08-01', '2026-08-28', { kind: 'closes-in', days: 3 }],
+    ['아직 안 연 것', '2026-09-15', '2026-09-23', { kind: 'opens-in', days: 21 }],
+  ])('%s', (_name, start, end, expected) => {
+    expect(savedPeriodBadge(start, end, TODAY)).toEqual(expected);
+  });
+
+  /*
+   * 상세는 예전과 한 글자도 달라지면 안 된다. detailPeriodBadge 를 이 함수 위에 다시 쓴 것이
+   * 눈에 띄지 않게 상세 화면을 바꾸는 일이 없도록, 두 함수가 갈라지는 지점을 못 박아 둔다.
+   */
+  it('상세는 마감일 미상에 여전히 배지를 그리지 않는다', () => {
+    expect(savedPeriodBadge('2026-08-01', null, TODAY)).toEqual({ kind: 'open-undated' });
+    expect(detailPeriodBadge('2026-08-01', null, TODAY)).toBeNull();
+  });
+
+  it('그 한 경우를 빼면 상세와 같은 답을 준다', () => {
+    for (const [s, e] of [
+      ['2024-01-01', '2024-04-30'],
+      ['2026-08-01', '2026-08-25'],
+      ['2026-09-15', '2026-09-23'],
+      [null, null],
+    ] as const) {
+      expect(savedPeriodBadge(s, e, TODAY)).toEqual(detailPeriodBadge(s, e, TODAY));
+    }
   });
 });
