@@ -1,6 +1,7 @@
 'use client';
 
 import { isGuestWished, toggleGuestWishlist } from '@/lib/guestWishlist';
+import { rememberSavedPopup } from '@/lib/popupSummaryCache';
 import { GUEST_WISHLIST_MIGRATED_EVENT } from '@/lib/migrateGuestWishlist';
 import { FeaturedPopupBanner } from '@/components/main/FeaturedPopupBanner';
 import { useEffect, useRef, useState } from 'react';
@@ -436,6 +437,28 @@ export default function PopupDetailClient({
       }
       setIsLiked(wished);
       if (wished) {
+        /*
+         * 담는 김에 <b>이 팝업이 무엇이었는지</b>도 적어 둔다. 이 화면은 그 값을 이미 들고 있다.
+         *
+         * <p>없으면 나중에 물어봐야 한다. 마이팝은 끝난 팝업의 이름을 알아내려고
+         * {@code GET /api/popups/{id}} 를 부르는데, 그 엔드포인트는 읽기가 아니라 <b>쓰기</b>다 —
+         * 부를 때마다 조회수를 1 올리고 YouTube 검색을 한 번 태운다(백엔드 컨트롤러 주석).
+         * 지금 한 줄 적어 두면 <b>그 요청이 영영 필요 없다.</b>
+         *
+         * <p>이 화면의 이름이 저장소와 다르다 — openDate/closeDate/address 다. 옮겨 적는 일은
+         * 그 이름을 아는 여기서 한다.
+         */
+        rememberSavedPopup(
+          {
+            id: popup.id,
+            name: popup.name,
+            imageUrl: popup.imageUrl,
+            location: popup.address,
+            startDate: popup.openDate,
+            endDate: popup.closeDate,
+          },
+          Date.now(),
+        );
         trackVisitEvent('wishlist_add', { popupId: popup.id });
         notifySuccess(t('detail.wishSaved'));
       }

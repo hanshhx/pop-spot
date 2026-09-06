@@ -53,6 +53,49 @@ export interface PopupSummary {
   savedAt: number;
 }
 
+/**
+ * <b>담는 순간에 적어 둔다 — 이 경로에서는 요청이 아예 없다.</b>
+ *
+ * <p>하트를 누르는 화면은 그 팝업의 이름·사진·기간을 <b>이미 들고 있다.</b> 그때 함께 적어 두면,
+ * 몇 달 뒤 그 팝업이 끝나 목록에서 빠져도 물어볼 일이 없다. 위의 캐시가 "이미 담아 둔 것을 위해
+ * 한 번은 물어본다" 면, 이쪽은 <b>앞으로 담는 것에 대해서는 그 한 번마저 없앤다.</b>
+ *
+ * <p>필드 이름을 {@link PopupStore} 에 맞추지 않고 풀어서 받는다 — 화면마다 같은 값을 다른
+ * 이름으로 들고 있어서다(상세 화면은 {@code openDate}·{@code closeDate}·{@code address}).
+ * 옮겨 적는 일은 그 이름을 아는 쪽에서 하는 것이 맞다.
+ *
+ * <p><b>찜을 해제해도 지우지 않는다.</b> 이것은 찜 목록이 아니라 "이 팝업이 무엇이었나" 를 적어
+ * 둔 표다. 남겨 두면 다시 담을 때 그대로 쓰이고, 넘치면 오래된 것부터 알아서 빠진다.
+ */
+export function rememberSavedPopup(
+  fields: {
+    id: number | string;
+    name: string;
+    imageUrl?: string | null;
+    location?: string | null;
+    startDate?: string | null;
+    endDate?: string | null;
+  },
+  now: number,
+): void {
+  const id = Number(fields.id);
+  if (!Number.isInteger(id) || id <= 0 || !fields.name) return;
+  rememberSummaries(
+    [
+      {
+        id,
+        name: fields.name,
+        imageUrl: fields.imageUrl ?? '',
+        location: fields.location ?? '',
+        startDate: fields.startDate ?? '',
+        endDate: fields.endDate ?? '',
+        savedAt: now,
+      },
+    ],
+    now,
+  );
+}
+
 /** 상세 응답에서 화면에 필요한 것만 뽑는다. */
 export function toSummary(popup: PopupStore, now: number): PopupSummary {
   return {
