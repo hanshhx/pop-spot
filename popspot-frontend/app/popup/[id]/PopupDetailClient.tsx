@@ -27,7 +27,7 @@ import ChatRoom from '../../../src/components/ChatRoom';
 import NowWait from '@/components/popup/NowWait';
 import MusicForPopup from '../../../src/components/music/MusicForPopup';
 import { apiFetch } from '../../../src/lib/api';
-import { notify, notifyError, confirmAction } from '@/lib/notify';
+import { notify, notifyError, notifySuccess, notifyWarning, confirmAction } from '@/lib/notify';
 import { trackVisitEvent } from '@/lib/visitEvent';
 import { isPexelsPhoto, popupCoverUrl } from '@/lib/popupCover';
 import { PhotoDisclosure } from '@/components/popup/PhotoDisclosure';
@@ -418,9 +418,23 @@ export default function PopupDetailClient({
   const handleToggleLike = async () => {
     if (!popup) return;
     if (!user) {
-      const nowLiked = toggleGuestWishlist(popup.id);
-      setIsLiked(nowLiked);
-      if (nowLiked) trackVisitEvent('wishlist_add', { popupId: popup.id });
+      const { wished, saved } = toggleGuestWishlist(popup.id);
+      /*
+       * 저장소가 막혀 있으면(시크릿 창·사이트 데이터 차단·용량 초과) 하트를 채우지 않는다.
+       *
+       * <p>예전에는 저장 실패를 삼키고 하트만 채웠다. 사용자는 찜이 쌓이는 줄 알다가
+       * 새로고침에서 전부 잃는다 — 잃었다는 사실조차 모른 채로. 회원의 저장 실패를 다루는
+       * 방식(아래 catch)과 같은 모양으로 맞춘다.
+       */
+      if (!saved) {
+        notifyWarning(t('detail.wishNotSaved'));
+        return;
+      }
+      setIsLiked(wished);
+      if (wished) {
+        trackVisitEvent('wishlist_add', { popupId: popup.id });
+        notifySuccess(t('detail.wishSaved'));
+      }
       return;
     }
     const prevStatus = isLiked;
@@ -430,6 +444,9 @@ export default function PopupDetailClient({
         method: 'POST',
       });
       if (!res.ok) throw new Error();
+      // 담을 때만 알린다. 해제는 하트가 비는 것으로 충분하고, 실수로 두 번 누른 사람에게
+      // 토스트를 연달아 띄우지 않는다. 문구는 회원·비회원이 같다 — 같은 행동이기 때문이다.
+      if (!prevStatus) notifySuccess(t('detail.wishSaved'));
       /*
        * C-4 퍼널의 "저장" 단계. <b>담을 때만</b> 남긴다 — 이 버튼은 토글이라 해제도 같은 곳을
        * 지나는데, 퍼널이 묻는 것은 "관심을 표시한 적이 있나" 이고 나중에 마음이 바뀐 것은 그
@@ -441,7 +458,9 @@ export default function PopupDetailClient({
       if (!prevStatus) trackVisitEvent('wishlist_add', { popupId: popup.id });
     } catch (e) {
       setIsLiked(prevStatus);
-      notifyError(t('detail.wishFailed'));
+      // 방향을 구분한다. 이 버튼은 토글이라 해제도 같은 곳을 지나는데, 예전에는 어느 쪽이든
+      // "찜하기를 처리하지 못했습니다" 가 떴다 — 빼려던 사람에게 담기 실패를 알리는 셈이었다.
+      notifyError(t(prevStatus ? 'detail.unwishFailed' : 'detail.wishFailed'));
     }
   };
 
