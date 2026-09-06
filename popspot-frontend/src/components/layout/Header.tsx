@@ -16,6 +16,7 @@ import { SeasonBadge } from '@/components/layout/SeasonBadge';
 import { DOCK_ITEMS } from '@/components/layout/BottomDock';
 import { useLocale } from '@/lib/i18n';
 import { localizedPath } from '@/lib/localePath';
+import { rememberReturnTo } from '@/lib/returnTo';
 
 export interface HeaderUser {
   userId: string;
@@ -86,7 +87,7 @@ export function Header({
           baseline 에 걸려 h-14 로고보다 한참 아래로 떨어진다 — items-center 가 필요하다. */}
       <div className="flex min-w-0 items-center justify-between gap-2 md:w-auto md:justify-start">
         <Link
-          href={localizedPath('/?entered=1', locale)}
+          href={localizedPath('/', locale)}
           onClick={onLogoClick}
           className="group inline-flex min-w-0 shrink items-start"
         >
@@ -234,7 +235,16 @@ export function Header({
               size="sm"
               className="h-10 px-2 text-[12px] font-bold sm:px-3 md:text-[15px]"
             >
-              <Link href={localizedPath('/login', locale)}>{t('nav.login')}</Link>
+              {/* 헤더 로그인은 <b>어느 화면에서든</b> 눌린다. 지금 보고 있던 화면을 적어 두면
+                  로그인을 마치고 그 자리로 돌아온다 — 읽던 팝업, 보던 랜딩 그대로.
+                  {@code location.pathname + search} 를 쓰는 이유는 목록의 필터·검색 조건이 쿼리에
+                  들어 있어서, 경로만 적으면 필터가 풀린 첫 화면으로 돌아오기 때문이다. */}
+              <Link
+                href={localizedPath('/login', locale)}
+                onClick={() => rememberReturnTo(window.location.pathname + window.location.search)}
+              >
+                {t('nav.login')}
+              </Link>
             </Button>
             <Button
               asChild

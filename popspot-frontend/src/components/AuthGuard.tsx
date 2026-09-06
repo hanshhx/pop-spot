@@ -10,6 +10,7 @@ import { migrateGuestWishlist } from '@/lib/migrateGuestWishlist';
 import { notifyWarning } from '@/lib/notify';
 import { useLocale } from '@/lib/i18n';
 import { localizedPath } from '@/lib/localePath';
+import { forgetReturnTo, rememberReturnTo } from '@/lib/returnTo';
 import { TermsReconsentModal } from '@/features/terms/TermsReconsentModal';
 
 // 인증 불필요 공개 경로 — 정확 일치. (sitemap 포함 페이지 + 인증 흐름 페이지)
@@ -140,6 +141,21 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     let cancelled = false;
 
     /**
+     * 보호 경로에서 밀려나는 사람을 로그인으로 보내되, <b>어디서 밀려났는지</b> 적어 둔다.
+     *
+     * <p>여기서 튕기는 두 경우는 성질이 다르지만 답은 같다. 세션이 만료된 사람은 <b>방금까지
+     * 보던 화면</b>이 있었고, 링크를 타고 들어온 사람은 <b>그 링크가 가리키던 화면</b>이 있었다.
+     * 둘 다 로그인을 마치고 지도에 떨어지면 목적지를 스스로 다시 찾아야 한다.
+     *
+     * <p>공개 경로는 애초에 이동하지 않으므로 적지도 않는다.
+     */
+    const bounceToLogin = () => {
+      if (publicPath) return;
+      rememberReturnTo(window.location.pathname + window.location.search);
+      router.replace(localizedPath('/login', locale));
+    };
+
+    /**
      * 만료 처리. 정리는 apiFetch 가 이미 했지만 멱등하게 한 번 더 — 다른 경로(수동 삭제 등)로 이벤트가
      * 와도 캐시가 남지 않게. 안내는 기존 notify 유틸 재사용(중복 방지는 apiFetch 가 이벤트 발행 단계에서
      * 이미 하므로 세션당 한 번만 뜬다).
@@ -149,7 +165,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
       localStorage.removeItem(USER_KEY);
       setAuthenticated(false);
       void notifyWarning({ title: expiredCopy.title, text: expiredCopy.text });
-      if (!publicPath) router.replace(localizedPath('/login', locale));
+      bounceToLogin();
     };
 
     const verify = async () => {
@@ -157,7 +173,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
       if (!token) {
         setAuthenticated(false);
         // 비로그인 상태. 공개 경로는 그대로 두고, 보호 경로만 로그인으로 보낸다.
-        if (!publicPath) router.replace(localizedPath('/login', locale));
+        bounceToLogin();
         return;
       }
       try {
@@ -173,8 +189,11 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
         /*
          * 비회원 때 담아 둔 찜을 이 계정으로 옮긴다.
          *
-         * <p><b>왜 하필 여기인가.</b> 예전에는 팝업 상세 화면 안에 있었는데, 로그인 성공은 전부
-         * '/?entered=1'(홈)으로 착지한다 — 그래서 평범한 로그인으로는 이전이 한 번도 돌지 않았다.
+         * <p><b>왜 하필 여기인가.</b> 예전에는 팝업 상세 화면 안에 있었는데, 그때 로그인 성공은
+         * 전부 홈으로 착지했다 — 그래서 평범한 로그인으로는 이전이 한 번도 돌지 않았다.
+         * (착지는 2026-09-06 부터 원래 있던 자리로 바뀌었다. 이 자리를 고른 이유는 그것과
+         * 무관하고, 오히려 착지가 흩어진 지금 더 중요해졌다 — 착지 주소를 좇는 설계였다면
+         * 그 변경에서 조용히 깨졌을 것이다.)
          * 이 가드는 <html> 을 가진 유일한 루트 레이아웃(app/layout.tsx) 안에 있어 ko/en/ja ·
          * 홈/상세/랜딩을 가리지 않고 마운트되고, 서버가 검증한 userId 를 아는 유일한 자리다
          * (다른 화면은 전부 localStorage 캐시를 읽을 뿐이라 '이름은 떠 있는데 로그인은 풀린'
@@ -206,6 +225,9 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     clearAuthToken();
     localStorage.removeItem(USER_KEY);
     setAuthenticated(false);
+    /* 약관을 거절하고 나가는 길이다. 적어 둔 복귀 주소가 남아 있으면 다음 로그인이 그리로
+       끌려가는데, 그건 이 사람이 방금 <b>그만두겠다고 한</b> 화면이다. */
+    forgetReturnTo();
     router.replace(localizedPath('/login', locale));
   };
 
