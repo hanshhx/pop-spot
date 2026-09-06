@@ -3145,8 +3145,15 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
                     />
                   </div>
 
-                  {/* Current Editing Course (DND) */}
-                  <div className="p-4 lg:p-6">
+                  {/*
+                    Current Editing Course (DND)
+
+                    <b>선이 없던 구역이었다.</b> 재배치(f5369b6) 전에는 이것이 카드의 마지막이라
+                    맞는 값이었는데, 계정·활동·등급이 그 아래로 내려오면서 "마지막이라 선이 없다"
+                    는 성질이 <b>위치가 아니라 블록을 따라갔다.</b> 그래서 코스 저장 버튼 바로
+                    다음에 내 계정 프로필이 구분선 없이 붙어 한 덩어리로 보였다.
+                  */}
+                  <div className="p-4 lg:p-6 border-b border-[var(--color-border)]">
                     <h3 className="text-base lg:text-lg font-bold mb-4 flex items-center gap-2 text-foreground">
                       <Route size={16} className="lg:w-[18px] lg:h-[18px] text-lime-500" /> Current
                       Plan
@@ -3328,8 +3335,15 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
                     </div>
                   </div>
 
-                  {/* 등급 진열 카드 — 스탬프 누적량에 따른 등급 + 다음 단계 진행도 */}
-                  <div className="p-4 lg:p-6 border-b border-[var(--color-border)]">
+                  {/*
+                    등급 진열 카드 — 스탬프 누적량에 따른 등급 + 다음 단계 진행도
+
+                    <b>선을 뺀다.</b> 재배치 뒤 이것이 회원 화면의 마지막 구역이 됐는데
+                    border-b 를 그대로 들고 와서, {@code overflow-hidden rounded-2xl border}
+                    컨테이너의 아래 테두리 바로 위에 같은 색 1px 이 하나 더 그려졌다(아래만 2px).
+                    비회원은 이 블록을 보지 않고, 그쪽 마지막인 안내 줄은 자기 border-t 를 갖는다.
+                  */}
+                  <div className="p-4 lg:p-6">
                     <h3 className="text-base lg:text-lg font-bold mb-4 flex items-center gap-2 text-foreground">
                       <Star size={16} className="lg:w-[18px] lg:h-[18px] text-amber-500" />{' '}
                       {t('my.grade')}
