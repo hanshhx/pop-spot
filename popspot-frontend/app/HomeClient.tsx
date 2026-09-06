@@ -2782,133 +2782,6 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
           >
             {/* '기록' 대시보드 — 개선안: 코스 지도 제거, 전체폭 세로 대시보드(프로필·통계·등급·찜·최근 방문). */}
             <div className="flex flex-col overflow-hidden rounded-2xl border border-[var(--color-border)] bg-surface text-surface-foreground shadow-md">
-              {/*
-                계정·실적 영역은 <b>로그인한 사람에게만</b> 그린다.
-
-                <p>예전에는 조건 없이 그려서, 계정이 없는 사람에게 "이메일 정보 없음" 과 <b>회원
-                탈퇴 버튼</b>이 보였다 — 지울 계정이 없는 사람에게 탈퇴를 권하는 화면이었다.
-                활동 기록(스탬프 0/12 · 리뷰 0)과 등급("기록 시작")도 같다. 서버에 쌓이는 값이라
-                비회원에게는 언제나 0 이고, 저장한 것을 보러 온 사람 앞에 0 점짜리 실적을 먼저
-                놓는 셈이었다(§4.5 가 지적한 "빈 실적을 먼저 보여줌").
-
-                <p>아래 최근 본 팝업·찜은 이 브라우저의 localStorage 에서 오므로 비회원에게도 그린다.
-                MY 탭을 비회원에게 연 것이 이 변경의 짝이다 — 게이트만 풀고 이 영역을 그대로 두면
-                지금보다 나빠진다.
-              */}
-              {user && (
-                <>
-                  {/* v2.15.3 — 내 계정: 회원이름 / 이메일 / 프로필 사진 노출. 네이버/카카오/구글
-                        OAuth 검수 활용처 증명에 사용되며, 사용자도 "내 정보" 를 한 눈에 확인.
-                        v2.17 — 회원 탈퇴 버튼 추가 (PIPA 의무). */}
-                  <div className="p-4 lg:p-6 border-b border-[var(--color-border)]">
-                    <h3 className="text-base lg:text-lg font-bold mb-4 flex items-center gap-2 text-foreground">
-                      <UserIcon size={16} className="lg:w-[18px] lg:h-[18px] text-lime-500" />{' '}
-                      {t('my.account')}
-                    </h3>
-                    <div className="flex items-center gap-4 p-3 lg:p-4 rounded-md border border-[var(--color-border)] bg-cream-300 dark:bg-ink-800">
-                      {user?.picture ? (
-                        <Image
-                          src={user.picture}
-                          alt={t('home.profilePhotoAlt')}
-                          width={56}
-                          height={56}
-                          className="rounded-full object-cover w-14 h-14 border border-[var(--color-border)]"
-                          unoptimized
-                        />
-                      ) : (
-                        <div className="w-14 h-14 rounded-full bg-lime-300/20 flex items-center justify-center border border-[var(--color-border)]">
-                          <UserIcon size={24} className="text-lime-500" />
-                        </div>
-                      )}
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm lg:text-base font-bold text-foreground truncate">
-                          {user?.nickname || t('home.memberFallback')}
-                        </p>
-                        <p className="text-xs lg:text-sm text-muted-foreground truncate mt-0.5">
-                          {user?.email || t('home.noEmail')}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="mt-3 flex items-center justify-between">
-                      <button
-                        type="button"
-                        onClick={() => handleTabChange('FEEDBACK')}
-                        className="text-xs font-semibold text-lime-600 dark:text-lime-400 underline-offset-2 hover:underline transition-colors"
-                      >
-                        {t('my.feedback')}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleDeleteAccount}
-                        className="text-xs text-muted-foreground hover:text-danger underline-offset-2 hover:underline transition-colors"
-                      >
-                        {t('my.withdraw')}
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Activity Dashboard */}
-                  <div className="p-4 lg:p-6 border-b border-[var(--color-border)]">
-                    <h3 className="text-base lg:text-lg font-bold mb-4 flex items-center gap-2 text-foreground">
-                      <UserIcon size={16} className="lg:w-[18px] lg:h-[18px] text-lime-500" />{' '}
-                      {t('my.activity')}
-                    </h3>
-                    <div className="grid grid-cols-3 gap-2 lg:gap-3">
-                      <div className="bg-cream-300 dark:bg-ink-800 p-4 rounded-md text-center border border-[var(--color-border)]">
-                        <Heart size={16} className="lg:w-5 lg:h-5 mx-auto mb-1 text-red-500" />
-                        <div className="text-2xl font-extrabold text-foreground">
-                          {/* 비회원의 찜은 서버가 모른다(myPageInfo 는 로그인해야 채워진다).
-                          아래 목록에는 2개가 떠 있는데 여기만 0 이면 화면이 스스로 모순된다. */}
-                          {(user ? myPageInfo?.likeCount : myWishlist.length) || 0}
-                        </div>
-                        <div className="text-xs text-muted-foreground mt-0.5">
-                          {t('my.wishlist')}
-                        </div>
-                      </div>
-                      <div className="bg-cream-300 dark:bg-ink-800 p-4 rounded-md text-center border border-[var(--color-border)]">
-                        <Ticket size={16} className="lg:w-5 lg:h-5 mx-auto mb-1 text-lime-500" />
-                        <div className="text-2xl font-extrabold text-foreground">
-                          {myPageInfo?.stampCount || 0}
-                          <span className="text-sm text-muted-foreground font-normal">/12</span>
-                        </div>
-                        <div className="text-xs text-muted-foreground mt-0.5">{t('my.stamps')}</div>
-                      </div>
-                      <div className="bg-cream-300 dark:bg-ink-800 p-4 rounded-md text-center border border-[var(--color-border)]">
-                        <MessageCircle
-                          size={16}
-                          className="lg:w-5 lg:h-5 mx-auto mb-1 text-green-500"
-                        />
-                        <div className="text-2xl font-extrabold text-foreground">
-                          {myPageInfo?.reviewCount || 0}
-                        </div>
-                        <div className="text-xs text-muted-foreground mt-0.5">
-                          {t('my.reviews')}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* 등급 진열 카드 — 스탬프 누적량에 따른 등급 + 다음 단계 진행도 */}
-                  <div className="p-4 lg:p-6 border-b border-[var(--color-border)]">
-                    <h3 className="text-base lg:text-lg font-bold mb-4 flex items-center gap-2 text-foreground">
-                      <Star size={16} className="lg:w-[18px] lg:h-[18px] text-amber-500" />{' '}
-                      {t('my.grade')}
-                    </h3>
-                    <RankCard
-                      stampCount={myPageInfo?.stampCount || 0}
-                      nickname={user?.nickname}
-                      onSeeAll={() => handleTabChange('PASSPORT')}
-                    />
-                  </div>
-                </>
-              )}
-
-              {/* v2.18 — 최근 본 팝업 (localStorage 기반, 최대 30개). 게스트/회원 무관. */}
-              <RecentVisitsCard />
-
-              {/* 옛 inventory 컨테이너 — 보존 (혹시 후속 카드 추가 시 재사용) */}
-              <div className="hidden"></div>
-
               {/* Wishlist */}
               <div className="p-4 lg:p-6 border-b border-[var(--color-border)]">
                 <h3 className="text-base lg:text-lg font-bold mb-4 flex items-center gap-2 text-foreground">
@@ -3039,12 +2912,22 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
                 )}
               </div>
 
+              {/* v2.18 — 최근 본 팝업 (localStorage 기반, 최대 30개). 게스트/회원 무관. */}
+              <RecentVisitsCard />
+
+              {/* 옛 inventory 컨테이너 — 보존 (혹시 후속 카드 추가 시 재사용) */}
+              <div className="hidden"></div>
+
               {/*
                 여기서부터 카드 끝까지는 전부 <b>서버에서 오는 계정 자산</b>이다 — 저장한 코스,
-                내가 보낸 의견, 편집 중인 코스. 비회원에게는 언제나 비어 있으므로 그리지 않는다.
+                내가 보낸 의견, 편집 중인 코스, 그리고 그 아래 계정·활동 기록·등급.
+                비회원에게는 언제나 비어 있으므로 그리지 않는다.
 
                 <p>규칙은 하나다. <b>서버에서 오는 것은 숨기고, 이 기기에서 오는 것만 보여준다.</b>
-                위쪽 최근 본 팝업·찜은 localStorage 라 남기고, 계정·활동·등급과 여기 셋은 가린다.
+                위쪽 찜·최근 본 팝업은 localStorage 라 남기고, 여기부터는 전부 가린다.
+
+                <p>순서도 같은 선을 따른다 — <b>이 기기의 것이 먼저, 계정의 것이 나중.</b> 저장한
+                것을 보러 온 사람에게 계정 상태를 먼저 내밀지 않기 위해서다(§4.5).
               */}
               {user && (
                 <>
@@ -3184,6 +3067,137 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
                     popups={allPopups}
                     onSelect={handleAddPlace}
                   />
+                </>
+              )}
+
+              {/*
+                계정·실적 — <b>로그인한 사람에게만, 그리고 카드의 맨 끝에.</b>
+
+                <p><b>왜 맨 끝인가(2026-09-06).</b> 이 셋이 화면 맨 위에 있었다. 저장한 것을 보러
+                온 사람이 만나는 첫 화면이 <b>회원 탈퇴 버튼과 0점짜리 실적</b>이었다 —
+                내 계정 → 활동 기록(스탬프 0/12 · 리뷰 0) → 등급("기록 시작") → 최근 본 → 찜.
+                <b>정작 찾아온 것이 다섯 번째였다.</b> §4.5 가 "계정 상태를 보러 오는 화면" 이라고
+                지적한 것이 바로 이 순서다.
+
+                <p>지금은 반대다 — <b>찜 → 최근 본 → 코스·의견 → 계정·실적.</b> 지우지 않고
+                <b>순서만</b> 바꾼 이유는, 프로필·로그아웃·탈퇴가 찾기 어려워지면 그것대로
+                문제이기 때문이다(§4.5 5번 "찾기 쉽게 제공함"). 맨 끝은 숨긴 것이 아니라
+                <b>마지막에 두는 것</b>이다.
+
+                <p><b>로그인한 사람에게만 그리는 이유는 이것과 별개다.</b> 예전에는 조건 없이
+                그려서, 계정이 없는 사람에게 "이메일 정보 없음" 과 <b>회원 탈퇴 버튼</b>이 보였다 —
+                지울 계정이 없는 사람에게 탈퇴를 권하는 화면이었다. 활동 기록과 등급도 서버에
+                쌓이는 값이라 비회원에게는 언제나 0 이다.
+
+                <p>위쪽 최근 본 팝업·찜은 이 브라우저의 localStorage 에서 오므로 비회원에게도
+                그린다. MY 탭을 비회원에게 연 것이 그 변경의 짝이다 — 게이트만 풀고 이 영역을
+                그대로 두면 지금보다 나빠진다.
+              */}
+              {user && (
+                <>
+                  {/* v2.15.3 — 내 계정: 회원이름 / 이메일 / 프로필 사진 노출. 네이버/카카오/구글
+                        OAuth 검수 활용처 증명에 사용되며, 사용자도 "내 정보" 를 한 눈에 확인.
+                        v2.17 — 회원 탈퇴 버튼 추가 (PIPA 의무). */}
+                  <div className="p-4 lg:p-6 border-b border-[var(--color-border)]">
+                    <h3 className="text-base lg:text-lg font-bold mb-4 flex items-center gap-2 text-foreground">
+                      <UserIcon size={16} className="lg:w-[18px] lg:h-[18px] text-lime-500" />{' '}
+                      {t('my.account')}
+                    </h3>
+                    <div className="flex items-center gap-4 p-3 lg:p-4 rounded-md border border-[var(--color-border)] bg-cream-300 dark:bg-ink-800">
+                      {user?.picture ? (
+                        <Image
+                          src={user.picture}
+                          alt={t('home.profilePhotoAlt')}
+                          width={56}
+                          height={56}
+                          className="rounded-full object-cover w-14 h-14 border border-[var(--color-border)]"
+                          unoptimized
+                        />
+                      ) : (
+                        <div className="w-14 h-14 rounded-full bg-lime-300/20 flex items-center justify-center border border-[var(--color-border)]">
+                          <UserIcon size={24} className="text-lime-500" />
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm lg:text-base font-bold text-foreground truncate">
+                          {user?.nickname || t('home.memberFallback')}
+                        </p>
+                        <p className="text-xs lg:text-sm text-muted-foreground truncate mt-0.5">
+                          {user?.email || t('home.noEmail')}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="mt-3 flex items-center justify-between">
+                      <button
+                        type="button"
+                        onClick={() => handleTabChange('FEEDBACK')}
+                        className="text-xs font-semibold text-lime-600 dark:text-lime-400 underline-offset-2 hover:underline transition-colors"
+                      >
+                        {t('my.feedback')}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleDeleteAccount}
+                        className="text-xs text-muted-foreground hover:text-danger underline-offset-2 hover:underline transition-colors"
+                      >
+                        {t('my.withdraw')}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Activity Dashboard */}
+                  <div className="p-4 lg:p-6 border-b border-[var(--color-border)]">
+                    <h3 className="text-base lg:text-lg font-bold mb-4 flex items-center gap-2 text-foreground">
+                      <UserIcon size={16} className="lg:w-[18px] lg:h-[18px] text-lime-500" />{' '}
+                      {t('my.activity')}
+                    </h3>
+                    <div className="grid grid-cols-3 gap-2 lg:gap-3">
+                      <div className="bg-cream-300 dark:bg-ink-800 p-4 rounded-md text-center border border-[var(--color-border)]">
+                        <Heart size={16} className="lg:w-5 lg:h-5 mx-auto mb-1 text-red-500" />
+                        <div className="text-2xl font-extrabold text-foreground">
+                          {/* 비회원의 찜은 서버가 모른다(myPageInfo 는 로그인해야 채워진다).
+                          아래 목록에는 2개가 떠 있는데 여기만 0 이면 화면이 스스로 모순된다. */}
+                          {(user ? myPageInfo?.likeCount : myWishlist.length) || 0}
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-0.5">
+                          {t('my.wishlist')}
+                        </div>
+                      </div>
+                      <div className="bg-cream-300 dark:bg-ink-800 p-4 rounded-md text-center border border-[var(--color-border)]">
+                        <Ticket size={16} className="lg:w-5 lg:h-5 mx-auto mb-1 text-lime-500" />
+                        <div className="text-2xl font-extrabold text-foreground">
+                          {myPageInfo?.stampCount || 0}
+                          <span className="text-sm text-muted-foreground font-normal">/12</span>
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-0.5">{t('my.stamps')}</div>
+                      </div>
+                      <div className="bg-cream-300 dark:bg-ink-800 p-4 rounded-md text-center border border-[var(--color-border)]">
+                        <MessageCircle
+                          size={16}
+                          className="lg:w-5 lg:h-5 mx-auto mb-1 text-green-500"
+                        />
+                        <div className="text-2xl font-extrabold text-foreground">
+                          {myPageInfo?.reviewCount || 0}
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-0.5">
+                          {t('my.reviews')}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 등급 진열 카드 — 스탬프 누적량에 따른 등급 + 다음 단계 진행도 */}
+                  <div className="p-4 lg:p-6 border-b border-[var(--color-border)]">
+                    <h3 className="text-base lg:text-lg font-bold mb-4 flex items-center gap-2 text-foreground">
+                      <Star size={16} className="lg:w-[18px] lg:h-[18px] text-amber-500" />{' '}
+                      {t('my.grade')}
+                    </h3>
+                    <RankCard
+                      stampCount={myPageInfo?.stampCount || 0}
+                      nickname={user?.nickname}
+                      onSeeAll={() => handleTabChange('PASSPORT')}
+                    />
+                  </div>
                 </>
               )}
 
