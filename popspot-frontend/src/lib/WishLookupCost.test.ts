@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const home = readFileSync(join(process.cwd(), 'app/HomeClient.tsx'), 'utf8');
+const detail = readFileSync(join(process.cwd(), 'app/popup/[id]/PopupDetailClient.tsx'), 'utf8');
 const controller = readFileSync(
   join(
     process.cwd(),
@@ -75,5 +76,33 @@ describe('저장 목록 조회의 대가', () => {
 
   it('끊기와 타임아웃을 함께 건다', () => {
     expect(home).toContain('AbortSignal.any([controller.signal, AbortSignal.timeout(');
+  });
+
+  /*
+   * 여기까지 되면 앞으로 담는 것에 대해서는 조회가 0 이다. 담는 화면은 그 값을 이미 들고
+   * 있으므로, 지금 한 줄 적어 두면 몇 달 뒤 그 팝업이 끝나도 물어볼 일이 없다.
+   *
+   * 이 한 줄은 지워도 아무 표시가 안 난다 — 화면은 똑같고, 대가는 몇 달 뒤 남이 치른다.
+   */
+  it('담는 자리에서 미리 적어 둔다 — 그래야 나중에 물어보지 않는다', () => {
+    expect(detail).toContain('rememberSavedPopup(');
+    expect(detail).toContain("from '@/lib/popupSummaryCache'");
+  });
+
+  /*
+   * 담기에 성공했을 때만 적는다. 저장소가 막혀 하트가 채워지지 않은 경우(saved === false)에도
+   * 적으면, 담지도 않은 팝업의 정보가 쌓여 상한 100 을 밀어낸다.
+   */
+  it('담긴 경우에만 적는다', () => {
+    const saveBlock = detail.slice(
+      detail.indexOf('const { wished, saved } = toggleGuestWishlist('),
+      detail.indexOf("trackVisitEvent('wishlist_add'"),
+    );
+    expect(saveBlock).toContain('if (!saved)');
+    expect(saveBlock).toContain('if (wished) {');
+    // 적는 코드가 그 두 관문 뒤에 있다.
+    expect(saveBlock.indexOf('rememberSavedPopup(')).toBeGreaterThan(
+      saveBlock.indexOf('if (wished) {'),
+    );
   });
 });
