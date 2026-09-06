@@ -109,6 +109,7 @@ import {
   startGuestMode,
 } from '@/lib/guestMode';
 import { readGuestWishlist, removeGuestWishlist } from '@/lib/guestWishlist';
+import { buildGuestWishlist } from '@/lib/guestWishlistItems';
 import {
   GUEST_WISHLIST_MIGRATED_EVENT,
   retryGuestWishlistMigration,
@@ -425,6 +426,15 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
   const [myPageInfo, setMyPageInfo] = useState<MyPageData | null>(null);
   const [savedCourses, setSavedCourses] = useState<SavedCourse[]>([]);
   const [myWishlist, setMyWishlist] = useState<WishlistItem[]>([]);
+  /**
+   * 담아 뒀는데 정보를 가져오지 못한 팝업 id — 비회원 경로에서만 채워진다.
+   *
+   * <p>지워진 팝업(404)은 여기 들어오지 않는다. 다시 시도해도 달라지지 않는 숫자를 화면에
+   * 박아 두면 사용자가 할 수 있는 일이 없다.
+   */
+  const [unresolvedWishes, setUnresolvedWishes] = useState<number[]>([]);
+  /** "다시 시도" 가 올린다. 아래 비회원 찜 effect 를 한 번 더 돌리는 것이 전부다. */
+  const [wishReloadKey, setWishReloadKey] = useState(0);
   const [aiCourse, setAiCourse] = useState<CourseItem[]>([]);
   const [myCourseItems, setMyCourseItems] = useState<CourseItem[]>(INITIAL_MY_COURSE);
 
@@ -868,25 +878,42 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
     }
   };
 
+  /**
+   * 비회원이 담아 둔 팝업을 화면 항목으로 만든다.
+   *
+   * <p><b>목록 데이터만으로는 안 된다.</b> {@code catalogPopups} 는 끝난 팝업을 빼고 온다
+   * ({@code PopupStoreRepository}: {@code endDate IS NULL OR endDate >= :today}). 예전에는 못 찾은
+   * id 를 그냥 버려서, <b>담아 둔 팝업이 끝나면 화면에서 조용히 사라졌다</b> — 전부 끝났으면
+   * "아직 찜한 팝업스토어가 없습니다" 라고 <b>거짓말했다.</b> 2026-09-06 운영에서 재현했다.
+   *
+   * <p>못 찾은 것은 상세로 따로 가져온다. 끝난 팝업도 상세는 200 을 돌려준다. 판정과 순서는
+   * {@code lib/guestWishlistItems.ts} 가 하고 여기서는 조회만 붙인다.
+   */
   useEffect(() => {
     if (currentTab !== 'MY' || user) return;
-    const byId = new Map(catalogPopups.map((p) => [Number(p.id), p]));
-    setMyWishlist(
-      readGuestWishlist()
-        .map((id) => byId.get(id))
-        .filter((p): p is PopupStore => Boolean(p))
-        .map((p) => ({
-          // 게스트에게는 서버가 준 wishlistId 가 없다. 화면에서 키로만 쓰므로 팝업 id 로 대신한다.
-          wishlistId: Number(p.id),
-          popupId: Number(p.id),
-          popupName: p.name,
-          popupImage: p.imageUrl ?? '',
-          location: p.location ?? '',
-          startDate: p.startDate ?? '',
-          endDate: p.endDate ?? '',
-        })),
-    );
-  }, [currentTab, user, catalogPopups]);
+    let cancelled = false;
+    void (async () => {
+      const view = await buildGuestWishlist(readGuestWishlist(), catalogPopups, async (id) => {
+        try {
+          const res = await apiFetch(`/api/popups/${id}`);
+          // 404 는 지워진 팝업이다. 다시 물어도 같은 답이라 재시도 대상이 아니다.
+          if (res.status === 404) return { kind: 'gone' };
+          if (!res.ok) return { kind: 'failed' };
+          const body = await res.json();
+          const data = body.data || body;
+          return { kind: 'found', popup: { ...data, id: data.popupId ?? data.id } };
+        } catch {
+          return { kind: 'failed' };
+        }
+      });
+      if (cancelled) return;
+      setMyWishlist(view.items);
+      setUnresolvedWishes(view.unresolved);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [currentTab, user, catalogPopups, wishReloadKey]);
 
   const handleRemoveWishlist = async (e: React.MouseEvent, popupId: number) => {
     e.preventDefault();
@@ -2884,50 +2911,75 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
                       </>
                     )}
                   </div>
-                ) : myWishlist.length === 0 ? (
+                ) : myWishlist.length === 0 && unresolvedWishes.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground text-sm border border-dashed border-[var(--color-border-strong)] rounded-md">
                     {t('wish.empty')}
                     <br />
                     {t('wish.emptyHint')}
                   </div>
                 ) : (
-                  <div className="grid grid-cols-2 gap-2 lg:gap-3">
-                    {myWishlist.map((item, i) => (
-                      <div
-                        key={i}
-                        className="relative rounded-md overflow-hidden aspect-video group cursor-pointer border border-[var(--color-border)] bg-cream-300 dark:bg-ink-800"
-                      >
-                        <PopupCoverVisual
-                          popup={{ id: item.popupId, imageUrl: item.popupImage }}
-                          name={item.popupName}
-                          location={item.location}
-                          compact
-                        />
-
-                        <div className="absolute inset-0 bg-gradient-to-t from-ink-900/85 via-ink-900/30 to-transparent flex flex-col justify-end p-3">
-                          <span className="text-cream-200 text-xs font-semibold truncate">
-                            {item.popupName}
-                          </span>
-                          <span className="text-cream-200/70 text-[10px] truncate mt-0.5">
-                            {item.location}
-                          </span>
-                        </div>
-
+                  <>
+                    {/*
+                      담아 뒀는데 정보를 못 가져온 것이 있으면 <b>먼저 말한다.</b> 이것이 없으면
+                      화면은 "없습니다" 라고 하거나 몇 개를 조용히 빼고 그린다 — 담은 사람에게
+                      담은 것이 없다고 말하는 셈이라, 이 계획서가 반복해 금지하는 무늬다.
+                      (지워진 팝업은 여기 세지 않는다 — 다시 시도해도 줄지 않는다.)
+                    */}
+                    {unresolvedWishes.length > 0 && (
+                      <div className="mb-3 rounded-md border border-dashed border-[var(--color-border-strong)] px-3 py-4 text-center text-sm text-muted-foreground">
+                        {t('wish.unresolved').replace('{count}', String(unresolvedWishes.length))}
+                        <br />
+                        {t('wish.unresolvedHint')}
+                        <br />
                         <button
-                          onClick={(e) => handleRemoveWishlist(e, item.popupId)}
-                          className="absolute top-2 right-2 bg-ink-900/60 backdrop-blur rounded-pill p-1.5 text-hot-400 hover:bg-hot-400 hover:text-white transition-colors opacity-100 md:opacity-0 md:group-hover:opacity-100"
-                          title={t('home.wishRemove')}
+                          type="button"
+                          onClick={() => setWishReloadKey((k) => k + 1)}
+                          className="mt-3 rounded-md border border-[var(--color-border-strong)] px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-[var(--color-surface-2)]"
                         >
-                          <Heart size={10} className="lg:w-3 lg:h-3 fill-current" />
+                          {t('wish.retry')}
                         </button>
-
-                        <Link
-                          href={localizedPath(`/popup/${item.popupId}`, locale)}
-                          className="absolute inset-0 z-0"
-                        />
                       </div>
-                    ))}
-                  </div>
+                    )}
+                    {myWishlist.length > 0 && (
+                      <div className="grid grid-cols-2 gap-2 lg:gap-3">
+                        {myWishlist.map((item, i) => (
+                          <div
+                            key={i}
+                            className="relative rounded-md overflow-hidden aspect-video group cursor-pointer border border-[var(--color-border)] bg-cream-300 dark:bg-ink-800"
+                          >
+                            <PopupCoverVisual
+                              popup={{ id: item.popupId, imageUrl: item.popupImage }}
+                              name={item.popupName}
+                              location={item.location}
+                              compact
+                            />
+
+                            <div className="absolute inset-0 bg-gradient-to-t from-ink-900/85 via-ink-900/30 to-transparent flex flex-col justify-end p-3">
+                              <span className="text-cream-200 text-xs font-semibold truncate">
+                                {item.popupName}
+                              </span>
+                              <span className="text-cream-200/70 text-[10px] truncate mt-0.5">
+                                {item.location}
+                              </span>
+                            </div>
+
+                            <button
+                              onClick={(e) => handleRemoveWishlist(e, item.popupId)}
+                              className="absolute top-2 right-2 bg-ink-900/60 backdrop-blur rounded-pill p-1.5 text-hot-400 hover:bg-hot-400 hover:text-white transition-colors opacity-100 md:opacity-0 md:group-hover:opacity-100"
+                              title={t('home.wishRemove')}
+                            >
+                              <Heart size={10} className="lg:w-3 lg:h-3 fill-current" />
+                            </button>
+
+                            <Link
+                              href={localizedPath(`/popup/${item.popupId}`, locale)}
+                              className="absolute inset-0 z-0"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
 
