@@ -43,6 +43,7 @@ import {
 } from '@/lib/i18n';
 import { REGIONS, type RegionCode } from '@/lib/regions';
 import { localizedPath } from '@/lib/localePath';
+import { rememberReturnTo } from '@/lib/returnTo';
 import { visitedAgo, type VisitedAgo } from '@/lib/visitedAgo';
 
 /**
@@ -967,6 +968,19 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
    *
    * @return 이제 그 탭을 열어도 되면 {@code true} (게스트를 방금 시작한 경우).
    */
+  /**
+   * 열려다 막힌 탭을 기억해 둔다 — 로그인·가입을 마치면 그 탭으로 돌아온다.
+   *
+   * <p><b>왜 이 자리가 필요한가.</b> {@code sessionStorage['lastTab']} 이 이미 홈 탭을 복원한다.
+   * 그런데 그 값은 <b>성공한 탭 전환에서만</b> 기록된다({@link handleTabChange}). 막혀서 로그인까지
+   * 간 탭은 한 번도 기록된 적이 없으므로, 로그인을 마쳐도 지도로 돌아온다 — 되는 길이 있는데
+   * <b>막힌 경우에만 정확히 끊긴다.</b>
+   *
+   * <p><b>사용자가 응했을 때만 부른다.</b> 안내창을 닫은 사람은 그 탭에 가겠다고 한 적이 없다.
+   * 그런데도 적어 두면, 한참 뒤 다른 화면에서 한 로그인이 <b>본인이 취소한 탭</b>으로 끌려간다.
+   */
+  const rememberLockedTab = (tab: string) => rememberReturnTo(`/?tab=${tab}`);
+
   const promptUpgradeOrLogin = async (tab: string): Promise<boolean> => {
     const guestNeverStarted = getGuestFirstVisit() == null;
     if (!user && guestNeverStarted) {
@@ -993,6 +1007,7 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
           confirmText: t('auth.signup'),
         })
       ) {
+        rememberLockedTab(tab);
         router.push(localizedPath('/signup', locale));
       }
       return false;
@@ -1003,6 +1018,7 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
         confirmText: t('nav.login'),
       })
     ) {
+      rememberLockedTab(tab);
       router.push(localizedPath('/login', locale));
     }
     return false;
@@ -1128,6 +1144,10 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
     }
     if (!user) {
       notify(t('home.loginRequired'));
+      /* 만들어 둔 코스는 sessionStorage 에 있고 로그인 왕복을 건넌다. COURSE 탭으로 돌려보내면
+         화면에 그대로 있어서 저장 버튼을 한 번 더 누르면 된다 — 홈에 떨어뜨리면 코스는 남아
+         있는데 본인은 잃은 줄 안다. */
+      rememberLockedTab('COURSE');
       router.push(localizedPath('/login', locale));
       return;
     }
@@ -3070,9 +3090,15 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
                     <p className="min-w-0 flex-1 text-xs text-muted-foreground lg:text-sm">
                       {t('my.deviceOnly')}
                     </p>
+                    {/* 이 기기에만 있는 찜을 계정으로 옮기려고 누르는 버튼이다. 로그인을 마치면
+                        이전이 돌고(AuthGuard), MY 탭으로 돌아와야 옮겨진 것이 눈에 보인다 —
+                        지도로 떨어뜨리면 옮겨졌는지 확인하러 다시 걸어와야 한다. */}
                     <button
                       type="button"
-                      onClick={() => router.push(localizedPath('/login', locale))}
+                      onClick={() => {
+                        rememberLockedTab('MY');
+                        router.push(localizedPath('/login', locale));
+                      }}
                       className="shrink-0 rounded-pill bg-lime-300 px-4 py-2 text-xs font-bold text-ink-900 transition-colors hover:bg-lime-400"
                     >
                       {t('nav.login')}

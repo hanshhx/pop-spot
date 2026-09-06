@@ -37,6 +37,7 @@ import { addToCalendar, toCalendarEvent } from '@/lib/calendar';
 import type { User } from '@/types/popup';
 import { useLocale, type MessageKey } from '@/lib/i18n';
 import { localizedPath } from '@/lib/localePath';
+import { rememberReturnTo } from '@/lib/returnTo';
 import { bilingual } from '@/lib/bilingual';
 import { isPopupStamped, stampErrorMessageKey, type StampRow } from '@/lib/stamps';
 import { periodText } from '@/lib/periodText';
@@ -362,8 +363,8 @@ export default function PopupDetailClient({
    * 비회원 때 담아 둔 찜이 방금 이 계정으로 옮겨졌으면 하트를 맞춘다.
    *
    * <p><b>옮기는 일 자체는 더 이상 여기서 하지 않는다.</b> 예전에는 이 화면 안의 useEffect 가
-   * 유일한 이전기였는데, 로그인 성공은 전부 {@code /?entered=1}(홈)으로 착지하므로 <b>평범한
-   * 로그인으로는 한 번도 돌지 않았다.</b> 이제 AuthGuard(루트 레이아웃)가 경로와 무관하게
+   * 유일한 이전기였는데, 그때 로그인 성공은 전부 홈으로 착지했으므로 <b>평범한 로그인으로는
+   * 한 번도 돌지 않았다.</b> 이제 AuthGuard(루트 레이아웃)가 경로와 무관하게
    * 실행하고(lib/migrateGuestWishlist.ts), 이 화면은 결과만 받아 화면을 맞춘다 — 이전이 끝나는
    * 시점은 이 컴포넌트의 마운트보다 늦을 수 있어서 알려 주지 않으면 하트가 꺼진 채로 남는다.
    */
@@ -381,6 +382,9 @@ export default function PopupDetailClient({
     if (!popup) return;
     if (!user) {
       notify(t('common.loginRequired'));
+      /* 로그인을 마치면 이 팝업으로 돌려보낸다 — 스탬프를 찍으러 온 사람을 홈에 떨어뜨리면
+         자기가 보던 팝업부터 다시 찾아야 한다. */
+      rememberReturnTo(`/popup/${popup.id}`);
       router.push(localizedPath('/login', locale));
       return;
     }
@@ -629,6 +633,10 @@ export default function PopupDetailClient({
           confirmText: t('nav.login'),
         })
       ) {
+        /* 홈의 COURSE 탭이 아니라 <b>이 팝업</b>으로 돌려보낸다. 코스는 이 팝업의 분위기에서
+           만들어지므로(아래 popupVibe), 빈 COURSE 탭에 떨어뜨리면 여기까지 다시 걸어와서 같은
+           버튼을 눌러야 한다. */
+        rememberReturnTo(`/popup/${popup.id}`);
         router.push(localizedPath('/login', locale));
       }
       return;
