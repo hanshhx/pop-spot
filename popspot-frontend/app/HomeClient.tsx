@@ -995,11 +995,25 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
             무엇을 셀지는 savedPeriodBadge 가 정한다. 여기서는 옮겨 적기만
             한다 — 화면이 보이는 글자를 되물어 색을 고르면, 문구를 옮기는
             순간 판단이 빗나간다(popupDetailStatus.ts 의 같은 경위 참고).
+
+            <b>폭을 묶어 둔다.</b> 이 배지 맞은편(right-2)에 찜 해제 버튼이
+            22px 로 떠 있는데, 둘 다 absolute 라 서로를 밀어내지 못한다.
+            320px 화면에서 실측하니 영어 "End date unknown" 이 19px,
+            일본어 "あと116日で開始" 가 5px 버튼을 덮었다 — 한국어는
+            멀쩡해서 눈으로는 안 보인다.
+
+            문구를 언어마다 줄이는 것은 답이 아니다. 언어가 늘거나 날짜가
+            세 자리가 되면 같은 일이 다시 난다. 자리를 비워 두고 넘치면
+            자르는 쪽이 언제나 맞다.
+
+            비우는 폭 52px = 버튼 22 + 오른쪽 여백 8 + 버튼이 넓힌 터치
+            영역 8 + 사이 14. 아래 버튼의 {@code after:-inset-2} 와 짝이라
+            한쪽만 고치면 다시 닿는다.
           */}
             {badge && (
               <span
                 className={cn(
-                  'absolute top-2 left-2 rounded-pill px-2 py-0.5 text-[10px] font-bold backdrop-blur',
+                  'absolute top-2 left-2 max-w-[calc(100%-3.25rem)] truncate rounded-pill px-2 py-0.5 text-[10px] font-bold backdrop-blur',
                   savedBadgeTone(badge),
                 )}
               >
@@ -1007,9 +1021,22 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
               </span>
             )}
 
+            {/*
+              <b>z-10 이 없으면 이 버튼은 눌리지 않는다.</b> 아래 Link 가 카드 전체를
+              덮는데({@code absolute inset-0 z-0}), 버튼은 {@code z-auto} 라 같은 층에서
+              DOM 순서로 칠해진다 — Link 가 뒤에 있으니 Link 가 위다.
+
+              실측(2026-09-06, 운영): 버튼의 세 지점에서 document.elementFromPoint 가
+              전부 Link 를 돌려줬다(0/3). 즉 <b>찜 해제를 누르면 상세로 이동했다.</b>
+              화면에는 버튼이 멀쩡히 보이고 눌리기도 하니, 사용자는 "지워지지 않는다" 가
+              아니라 "왜 상세로 가지" 로 겪는다 — 신고하기 어려운 모양의 고장이다.
+
+              p-1.5 + 10px 아이콘이라 22×22px 다(권장 44px). 여기서 키우면 카드 사진을
+              가리므로 -inset-2 로 <b>누를 수 있는 자리만</b> 넓힌다. 보이는 크기는 그대로.
+            */}
             <button
               onClick={(e) => handleRemoveWishlist(e, item.popupId)}
-              className="absolute top-2 right-2 bg-ink-900/60 backdrop-blur rounded-pill p-1.5 text-hot-400 hover:bg-hot-400 hover:text-white transition-colors opacity-100 md:opacity-0 md:group-hover:opacity-100"
+              className="absolute top-2 right-2 z-10 rounded-pill bg-ink-900/60 p-1.5 text-hot-400 opacity-100 backdrop-blur transition-colors after:absolute after:-inset-2 after:content-[''] hover:bg-hot-400 hover:text-white md:opacity-0 md:group-hover:opacity-100"
               title={t('home.wishRemove')}
             >
               <Heart size={10} className="lg:w-3 lg:h-3 fill-current" />
