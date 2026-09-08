@@ -29,6 +29,8 @@ import {
   Coffee,
   Clock,
   Store,
+  Columns2,
+  Check,
 } from 'lucide-react';
 import { motion, Variants, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
@@ -138,6 +140,15 @@ import { ReportPopupModal } from '@/features/popup/ReportPopupModal';
 import { PopupCalendarModal } from '@/features/popup/PopupCalendarModal';
 import { PopupCalendar } from '@/features/popup/PopupCalendar';
 import { AllTrendingModal } from '@/features/popup/AllTrendingModal';
+import { CompareModal } from '@/features/popup/CompareModal';
+import type { CompareItem } from '@/lib/compareRows';
+import {
+  COMPARE_MAX,
+  forgetCompareSelection,
+  removeCompareSelection,
+  toggleCompareSelection,
+  useCompareSelection,
+} from '@/lib/compareSelection';
 import { PopAllModal } from '@/features/popup/PopAllModal';
 import { AddPlaceModal } from '@/features/popup/AddPlaceModal';
 import { GlobalSearchModal, useGlobalSearchHotkey } from '@/features/popup/GlobalSearchModal';
@@ -985,6 +996,59 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
    */
   const wishGroups = useMemo(() => groupSavedWishlist(myWishlist), [myWishlist]);
 
+  const [compareOpen, setCompareOpen] = useState(false);
+  const compareIds = useCompareSelection();
+
+  /**
+   * 나란히 볼 것 — 찜 목록에 <b>홈이 이미 들고 있는 요약</b>을 붙인다.
+   *
+   * <p>{@code WishlistItem} 에는 {@code description} 이 없다(백엔드 DTO 에 없다). 그런데 비교의
+   * 세 번째 칸이 그 요약이라, 그대로 두면 <b>3칸이 아니라 2칸</b>이 된다. 마침 {@code allPopups}
+   * 가 같은 화면 안에 이미 있으므로 <b>요청을 하나도 늘리지 않고</b> 채운다.
+   *
+   * <p>끝난 팝업은 {@code allPopups}(진행 중만)에 없어 요약이 비지만, 셋 중 하나라도 있으면 행은
+   * 남고 그 칸만 빈다({@code buildCompareRows}). 끝난 것은 어차피 맨 뒤로 밀린다.
+   *
+   * <p>번역명은 붙이지 않는다 — 찜 카드가 이미 원문을 그대로 보여주고 있어, 비교만 번역명을
+   * 쓰면 같은 팝업이 두 화면에서 다른 이름으로 보인다.
+   */
+  const compareItems = useMemo<CompareItem[]>(() => {
+    const byId = new Map(allPopups.map((p) => [Number(p.id), p]));
+    return compareIds
+      .map((id): CompareItem | null => {
+        const saved = myWishlist.find((w) => w.popupId === id);
+        if (!saved) return null;
+        return {
+          popupId: id,
+          name: saved.popupName,
+          location: saved.location || null,
+          openDate: saved.startDate || null,
+          closeDate: saved.endDate || null,
+          description: byId.get(id)?.description ?? null,
+          imageUrl: saved.popupImage || null,
+        };
+      })
+      .filter((it): it is CompareItem => it !== null);
+  }, [compareIds, myWishlist, allPopups]);
+
+  /**
+   * 나란히 보기에 담거나 뺀다.
+   *
+   * <p>상한을 넘기면 <b>가장 오래된 것을 버리지 않고 거절한다</b>({@code compareSelection.ts}).
+   * 그 거절을 화면이 말해 주지 않으면 사용자에게는 "안 눌리는 버튼" 으로만 보인다.
+   */
+  const handleToggleCompare = (e: React.MouseEvent, popupId: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const result = toggleCompareSelection(popupId);
+    if (result.reason === 'full') {
+      notifyWarning(t('compare.full').replace('{max}', String(COMPARE_MAX)));
+      return;
+    }
+    // 저장이 확인되지 않으면 담긴 것처럼 말하지 않는다 — guestWishlist 와 같은 원칙.
+    if (!result.saved) notifyError(t('compare.notSaved'));
+  };
+
   /**
    * 찜 카드 한 묶음. 세 묶음이 같은 마크업을 쓴다.
    *
@@ -1008,7 +1072,7 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
               compact
             />
 
-            <div className="absolute inset-0 bg-gradient-to-t from-ink-900/85 via-ink-900/30 to-transparent flex flex-col justify-end p-3">
+            <div className="absolute inset-0 bg-gradient-to-t from-ink-900/85 via-ink-900/30 to-transparent flex flex-col justify-end p-3 pr-11">
               <span className="text-cream-200 text-xs font-semibold truncate">
                 {item.popupName}
               </span>
@@ -1070,6 +1134,34 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
               <Heart size={10} className="lg:w-3 lg:h-3 fill-current" />
             </button>
 
+            {/*
+              <b>우하단인 이유.</b> 우상단은 찜 해제 버튼이 이미 쓰고 있고, 그 옆 배지가
+              {@code max-w-[calc(100%-3.25rem)]} 로 딱 그만큼만 자리를 비워 뒀다(320px 실측).
+              거기에 버튼을 하나 더 끼우면 그 계산이 다시 깨진다.
+
+              <b>z-10 은 선택이 아니다.</b> 아래 Link 가 카드를 통째로 덮는다({@code z-0}).
+              2026-09-06 에 찜 해제 버튼이 정확히 이 이유로 안 눌렸고, 화면에는 멀쩡히
+              보였기 때문에 아무도 신고하지 못했다. {@code after:-inset-2} 도 그때와 같은
+              짝이다 — 22px 버튼의 누를 수 있는 자리만 넓힌다.
+            */}
+            <button
+              onClick={(e) => handleToggleCompare(e, item.popupId)}
+              aria-pressed={compareIds.includes(item.popupId)}
+              aria-label={t(compareIds.includes(item.popupId) ? 'compare.remove' : 'compare.add')}
+              className={cn(
+                "absolute bottom-2 right-2 z-10 rounded-pill p-1.5 backdrop-blur transition-colors after:absolute after:-inset-2 after:content-['']",
+                compareIds.includes(item.popupId)
+                  ? 'bg-lime-300 text-ink-900'
+                  : 'bg-ink-900/60 text-cream-200 hover:bg-ink-900/80',
+              )}
+            >
+              {compareIds.includes(item.popupId) ? (
+                <Check size={10} className="lg:w-3 lg:h-3" />
+              ) : (
+                <Columns2 size={10} className="lg:w-3 lg:h-3" />
+              )}
+            </button>
+
             <Link
               href={localizedPath(`/popup/${item.popupId}`, locale)}
               className="absolute inset-0 z-0"
@@ -1089,6 +1181,9 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
       destructive: true,
     });
     if (!confirmed) return;
+
+    // 찜에서 사라진 팝업이 비교에 남아 있으면 어디서 지워야 하는지 알 수 없다.
+    forgetCompareSelection([popupId]);
 
     // 비회원은 브라우저에서 뺀다. 토글이 아니라 제거를 쓰는 이유는 guestWishlist.ts 주석 참고.
     if (!user) {
@@ -3001,6 +3096,24 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
                       </div>
                     )}
 
+                    {/*
+                      고른 것이 둘 이상일 때만 연다. 하나로는 나란히 놓을 것이 없어서,
+                      버튼을 눌러도 할 일이 없는 화면이 뜬다 — 대신 무엇이 모자란지 적는다.
+                    */}
+                    {compareIds.length === 1 && (
+                      <p className="mb-3 text-xs text-muted-foreground">{t('compare.needMore')}</p>
+                    )}
+                    {compareIds.length >= 2 && (
+                      <button
+                        type="button"
+                        onClick={() => setCompareOpen(true)}
+                        className="mb-3 inline-flex min-h-11 items-center gap-2 rounded-md bg-lime-300 px-3 text-sm font-bold text-ink-900 hover:bg-lime-400"
+                      >
+                        <Columns2 size={16} aria-hidden />
+                        {t('compare.open').replace('{count}', String(compareIds.length))}
+                      </button>
+                    )}
+
                     {/* 지금 갈 수 있는 것은 제목 없이 먼저 — 이 화면을 여는 이유가 그것이다. */}
                     {wishGroups.current.length > 0 && renderWishGrid(wishGroups.current)}
                     {wishGroups.upcoming.length > 0 && (
@@ -3420,6 +3533,13 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
           {@code mappablePopupCount} 를 광고하기 때문이다. 다른 풀을 넘기면 "전체 N곳" 이라고
           적힌 버튼이 N보다 많은 카드를 여는 옛 버그가 그대로 되살아난다. */}
       <AllTrendingModal open={isModalOpen} onOpenChange={setIsModalOpen} popups={popAllPopups} />
+
+      <CompareModal
+        open={compareOpen}
+        onOpenChange={setCompareOpen}
+        items={compareItems}
+        onRemove={(id) => removeCompareSelection(id)}
+      />
 
       <PopAllModal
         open={popAllOpen}
