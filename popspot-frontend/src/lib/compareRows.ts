@@ -26,6 +26,11 @@ export interface CompareItem {
   name: string;
   /** 백엔드가 확신할 때만 채운다. 없으면 원문만 보여준다. */
   nameTranslated?: string | null;
+  /**
+   * 카드 머리글의 사진. 행을 만드는 데는 안 쓰지만 <b>일부러 같은 객체에 둔다</b> — 머리글과
+   * 행이 서로 다른 배열에서 오면 정렬 뒤에 열이 어긋난다({@link buildCompareView} 참고).
+   */
+  imageUrl?: string | null;
   location: string | null;
   locationTranslated?: string | null;
   openDate: string | null;
