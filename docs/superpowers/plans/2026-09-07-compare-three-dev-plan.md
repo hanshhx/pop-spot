@@ -226,14 +226,14 @@ npx prettier --write <바꾼 파일들>
 
 ## 8. 착수 순서
 
-- [ ] 1. `MyTabOrder.test.ts` 를 먼저 돌려 현재 기준을 확인한다(위험 표 참고)
-- [ ] 2. `compareSelection.ts` + 시험 — 저장소 계약부터. 상한 거절이 핵심
-- [ ] 3. `compareRows.ts` + 시험 — 순수 함수. 행 삭제 규칙이 핵심
-- [ ] 4. i18n 키를 ko/en/ja 세 곳에 동시에 추가
-- [ ] 5. `CompareModal.tsx` — `AllTrendingModal` 복사에서 시작
-- [ ] 6. 마이팝 진입 — 카드 토글(z-index 주의) + 블록 진입
-- [ ] 7. 검증 4종 + 사보타주 확인
-- [ ] 8. 배포 후 운영에서 회원·비회원 양쪽 확인
+- [x] 1. `MyTabOrder.test.ts` 를 먼저 돌려 현재 기준을 확인한다 — 전체 1,025건 초록에서 시작했다
+- [x] 2. `compareSelection.ts` + 시험 (`9ce2a95`, +25건). 사보타주 3종 중 하나가 안 잡혔는데 시험이 아니라 내 사보타주의 결함이었다
+- [x] 3. `compareRows.ts` + 시험 (`a84f3a7`, +30건). 정렬을 행 만들기에서 갈랐다 — 안에서 정렬하면 머리글과 행의 열이 어긋난다
+- [x] 4. i18n 10개 × 3개 국어 (`15124e5`). 배지 문구·색을 `savedBadgeText.ts` 로 꺼냈다 — 세 번째 화면이 같은 배지를 그리게 됐다
+- [x] 5. `CompareModal.tsx` (`f0a90d9`). 좁은 화면은 표가 아니라 카드
+- [x] 6. 마이팝 진입 (`f0a90d9`). 우하단 배치 · `elementFromPoint` 9/9 BUTTON
+- [x] 7. typecheck ✓ · lint 0 errors · prettier ✓ · 1,080건 통과 · 사보타주 9종
+- [ ] 8. 배포 후 운영에서 회원·비회원 양쪽 확인 *(개발 서버 비회원 확인은 마침 — 운영과 회원 화면이 남았다)*
 
 ## 9. 이 계획이 답하지 않는 것
 
