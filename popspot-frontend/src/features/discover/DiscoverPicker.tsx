@@ -31,8 +31,17 @@ import type { PopupStore } from '@/types/popup';
  * <p><b>'넘기기' 는 이번 탐색에서만이다</b>({@code discoverySkips} 는 sessionStorage 를 쓴다).
  * 기획 §4.4 — "영구 취향으로 단정하지 않는다."
  *
- * <p><b>카드 밀도는 POP-ALL 결과 그리드와 맞춘다</b>(최대 5열). 3열까지만 두면 넓은 화면에서
- * 한 장이 지나치게 커져, 여섯 장을 훑어보는 화면이 아니라 여섯 장을 스크롤하는 화면이 된다.
+ * <p><b>가장 넓은 화면에서는 여섯 장을 한 줄에 편다</b>({@code xl:grid-cols-6}). 카드 수가
+ * {@code DISCOVER_CARD_LIMIT} 로 고정이므로 열 수가 6의 약수(2·3·6)가 아니면 마지막 줄에
+ * 외톨이가 남고, 여섯 곳을 고른 화면이 잘린 목록처럼 보인다. POP-ALL 은 결과가 수십 개라
+ * 남는 줄이 자연스럽지만 여기는 <b>개수 자체가 의미</b>다 — 그래서 POP-ALL 의 5열을 그대로
+ * 가져오면 안 된다.
+ *
+ * <p>중간 폭({@code lg})만 4열이라 두 장이 남는다. 여기서 3열로 내리면 카드가 다시 과하게
+ * 커지므로, 짝이 맞는 것보다 크기를 택했다.
+ *
+ * <p>3열까지만 두면 넓은 화면에서 한 장이 지나치게 커져, 여섯 장을 훑어보는 화면이 아니라
+ * 여섯 장을 스크롤하는 화면이 된다.
  *
  * <p>빈손일 때 "조건을 완화하세요" 를 말하려면 <b>왜 비었는지</b>부터 갈라야 한다. 재고가 없는
  * 것과 자기가 다 넘긴 것은 다른 상황이고, 뭉뚱그리면 조건이 멀쩡한 사람에게 조건을 고치라고
@@ -127,7 +136,7 @@ export function DiscoverPicker({ popups, wishedIds, onWish, onOpenPopup }: Props
       </div>
 
       {result.emptiness === 'none' ? (
-        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
           {result.items.slice(0, DISCOVER_CARD_LIMIT).map((popup) => (
             <div key={popup.id} className="flex flex-col gap-1.5">
               <PopupCard
