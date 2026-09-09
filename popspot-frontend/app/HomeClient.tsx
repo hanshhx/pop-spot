@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import {
@@ -113,7 +113,14 @@ import {
   isGuestExpired,
   startGuestMode,
 } from '@/lib/guestMode';
-import { readGuestWishlist, removeGuestWishlist } from '@/lib/guestWishlist';
+import { readGuestWishlist, removeGuestWishlist, toggleGuestWishlist } from '@/lib/guestWishlist';
+
+/** {@code useSyncExternalStore} 용 빈 구독. 참조가 바뀌면 매 렌더 재구독하므로 모듈에 둔다. */
+const NEVER_CHANGES = () => () => {
+  /* 해제할 구독이 없다 — guestWishlist 는 변경 이벤트를 쏘지 않는다. */
+};
+import { rememberSavedPopup } from '@/lib/popupSummaryCache';
+import { DiscoverPicker } from '@/features/discover/DiscoverPicker';
 import { buildGuestWishlist } from '@/lib/guestWishlistItems';
 import { groupSavedWishlist } from '@/lib/savedWishlistGroups';
 import {
@@ -907,6 +914,102 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
     }
     setGuestLeftover(readGuestWishlist().length);
   }, [user]);
+
+  /**
+   * 발견의 카드에 하트를 채울지 정하는 집합.
+   *
+   * <p><b>비회원은 여기서 {@code myWishlist} 를 쓸 수 없다.</b> 그 목록은 MY 탭에 들어가야
+   * 채워지는데(위 효과의 조건이 {@code currentTab === 'MY'} 다), 발견은 홈 탭에 있다.
+   * 그래서 비회원은 브라우저 저장소를 직접 읽는다.
+   */
+  const [wishOverride, setWishOverride] = useState<ReadonlyMap<number, boolean>>(() => new Map());
+
+  /*
+   * 브라우저 저장소를 <b>효과 없이</b> 읽는다.
+   *
+   * <p>효과 안에서 setState 로 씨앗을 심으면 두 가지가 걸린다 — 린트가 "cascading renders" 로
+   * 경고하고, 서버 렌더에는 저장소가 없어 하이드레이션에서 하트 상태가 어긋난다.
+   * {@code useSyncExternalStore} 는 서버 스냅샷을 따로 받으므로 둘 다 없다.
+   *
+   * <p>{@code guestWishlist} 는 변경 이벤트를 쏘지 않으므로 구독은 비워 둔다. 이 화면에서
+   * 일어나는 변화는 아래 {@code wishOverride} 가 덮는다.
+   */
+  const guestWishedKey = useSyncExternalStore(
+    NEVER_CHANGES,
+    () => readGuestWishlist().join(','),
+    () => '',
+  );
+
+  const discoverWished = useMemo<ReadonlySet<number>>(() => {
+    const base = user
+      ? myWishlist.map((w) => w.popupId)
+      : guestWishedKey
+        ? guestWishedKey.split(',').map(Number)
+        : [];
+    const next = new Set(base);
+    for (const [id, on] of wishOverride) {
+      if (on) next.add(id);
+      else next.delete(id);
+    }
+    return next;
+  }, [user, myWishlist, guestWishedKey, wishOverride]);
+
+  const markWished = (popupId: number, on: boolean) =>
+    setWishOverride((prev) => new Map(prev).set(popupId, on));
+
+  /**
+   * 발견에서 관심 표시. 상세의 {@code handleToggleLike} 와 같은 규칙을 따른다.
+   *
+   * <p><b>저장이 확인되지 않으면 하트를 채우지 않는다.</b> 저장소가 막힌 환경에서 채우면
+   * 사용자는 찜이 쌓이는 줄 알다가 새로고침에서 전부 잃는다 — 잃었다는 사실조차 모른 채로.
+   *
+   * <p>담는 김에 <b>이 팝업이 무엇이었는지</b>도 적어 둔다({@link rememberSavedPopup}).
+   * 없으면 마이팝이 나중에 {@code GET /api/popups/{id}} 로 물어야 하는데, 그것은 읽기가 아니라
+   * 쓰기다 — 부를 때마다 조회수가 오르고 YouTube 가 한 번 돈다.
+   *
+   * <p>서버 {@code POST} 는 <b>토글</b>이다(멱등이 아니다). 그래서 지금 상태를 보고 방향을 정한다.
+   */
+  const handleDiscoverWish = async (popupId: number) => {
+    const popup = popAllPopups.find((p) => Number(p.id) === popupId);
+    const wasWished = discoverWished.has(popupId);
+
+    if (!user) {
+      const { wished, saved } = toggleGuestWishlist(popupId);
+      if (!saved) {
+        notifyWarning(t('discover.notSaved'));
+        return;
+      }
+      markWished(popupId, wished);
+      if (wished) {
+        if (popup) {
+          rememberSavedPopup(
+            {
+              id: popupId,
+              name: popup.name,
+              imageUrl: popup.imageUrl ?? undefined,
+              location: popup.location ?? undefined,
+              startDate: popup.startDate ?? undefined,
+              endDate: popup.endDate ?? undefined,
+            },
+            Date.now(),
+          );
+        }
+        notifySuccess(t('discover.saved'));
+      }
+      return;
+    }
+
+    markWished(popupId, !wasWished);
+    try {
+      const res = await apiFetch(`/api/wishlist/${user.userId}/${popupId}`, { method: 'POST' });
+      if (!res.ok) throw new Error();
+      if (!wasWished) notifySuccess(t('discover.saved'));
+    } catch {
+      // 낙관적 표시를 되돌린다. 방향을 구분해 알린다 — 빼려던 사람에게 담기 실패를 말하지 않는다.
+      markWished(popupId, wasWished);
+      notifyError(t(wasWished ? 'detail.unwishFailed' : 'detail.wishFailed'));
+    }
+  };
 
   /**
    * 사용자가 직접 이전을 다시 시도한다.
@@ -2249,6 +2352,19 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
               total={mappablePopupCount}
               seenIds={seenPopupIds}
               onOpenAll={openPopAll}
+              onOpenPopup={(id: number) => {
+                saveHomeReturnState();
+                router.push(localizedPath(`/popup/${id}`, locale));
+              }}
+            />
+
+            {/* 취향 탐색 — 지역·분야를 골라 갈 만한 곳을 최대 6곳. 선택지는 재고가 있는 것만
+                그린다(lifestyle 처럼 원천이 없는 분야가 저절로 빠진다). 서버는 부르지 않는다 —
+                POP-ALL 과 같은 목록을 그대로 넘긴다. */}
+            <DiscoverPicker
+              popups={popAllPopups}
+              wishedIds={discoverWished}
+              onWish={handleDiscoverWish}
               onOpenPopup={(id: number) => {
                 saveHomeReturnState();
                 router.push(localizedPath(`/popup/${id}`, locale));
