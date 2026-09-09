@@ -148,11 +148,20 @@ export function DiscoverPicker({ popups, wishedIds, onWish, onOpenPopup }: Props
               {/*
                 넘기기는 카드 <b>밖</b>에 둔다. 사진 위 우상단은 하트가 이미 쓰고 있고, 거기에
                 버튼을 하나 더 얹으면 2026-09-06 의 겹침 사고와 같은 모양이 된다.
+
+                밖에 두는 대신 <b>자기 바탕을 가져야 한다</b>. 홈 배경은 고정 사진
+                (bg/autumn-light.webp)이고 그 위 크림 스크림이 0.68 에서 0.34 로 옅어진다.
+                POP-WHY 는 페이지 아래쪽이라 사진이 그대로 비쳐, 배경 없는 컨트롤은 나무 위에
+                놓여 사라진다(2026-09-09 에 실제로 안 보인다는 지적을 받았다).
+
+                <b>글자색으로는 못 고친다</b> — 사진 밝기가 자리마다 다르니 어떤 색을 골라도
+                어딘가에서는 묻힌다. 바로 위 셀렉트 칩이 같은 자리에서 잘 보이는 이유도
+                {@code bg-surface} 하나다.
               */}
               <button
                 type="button"
                 onClick={() => handleSkip(Number(popup.id))}
-                className="inline-flex min-h-8 items-center justify-center gap-1 rounded-pill border border-[var(--color-border)] px-2 text-[11px] font-semibold text-muted-foreground transition hover:border-[var(--color-border-strong)] hover:text-foreground"
+                className="inline-flex min-h-9 items-center justify-center gap-1 rounded-pill border border-[var(--color-border-strong)] bg-surface px-2 text-[11px] font-semibold text-foreground transition hover:border-lime-400 hover:bg-lime-300/20"
               >
                 <X size={12} aria-hidden />
                 {t('discover.skip')}
@@ -161,7 +170,8 @@ export function DiscoverPicker({ popups, wishedIds, onWish, onOpenPopup }: Props
           ))}
         </div>
       ) : (
-        <div className="mt-4 flex flex-col items-center gap-3 rounded-md border border-dashed border-[var(--color-border-strong)] px-3 py-10 text-center">
+        <div className="mt-4 flex flex-col items-center gap-3 rounded-md border border-dashed border-[var(--color-border-strong)] bg-surface px-3 py-10 text-center">
+          {/* 빈손 화면도 사진 위에 놓인다 — 위 주석과 같은 이유로 상자에 바탕을 준다. */}
           <SearchX size={26} className="text-muted-foreground" aria-hidden />
           <p className="text-sm font-bold text-foreground">
             {result.emptiness === 'all-skipped' ? t('discover.allSkipped') : t('popall.emptyTitle')}
@@ -189,7 +199,7 @@ export function DiscoverPicker({ popups, wishedIds, onWish, onOpenPopup }: Props
                     if (s.field === 'region') setRegion(null);
                     if (s.field === 'category') setCategory(null);
                   }}
-                  className="min-h-11 rounded-pill border border-[var(--color-border)] px-3 text-xs font-bold text-foreground transition hover:border-lime-400 hover:bg-lime-300/10"
+                  className="min-h-11 rounded-pill border border-[var(--color-border-strong)] px-3 text-xs font-bold text-foreground transition hover:border-lime-400 hover:bg-lime-300/10"
                 >
                   {t(RELAX_LABEL[s.field])} ({s.count.toLocaleString()}
                   {t('popall.resultSuffix')})
