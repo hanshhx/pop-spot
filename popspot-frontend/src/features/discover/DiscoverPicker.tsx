@@ -31,6 +31,9 @@ import type { PopupStore } from '@/types/popup';
  * <p><b>'넘기기' 는 이번 탐색에서만이다</b>({@code discoverySkips} 는 sessionStorage 를 쓴다).
  * 기획 §4.4 — "영구 취향으로 단정하지 않는다."
  *
+ * <p><b>카드 밀도는 POP-ALL 결과 그리드와 맞춘다</b>(최대 5열). 3열까지만 두면 넓은 화면에서
+ * 한 장이 지나치게 커져, 여섯 장을 훑어보는 화면이 아니라 여섯 장을 스크롤하는 화면이 된다.
+ *
  * <p>빈손일 때 "조건을 완화하세요" 를 말하려면 <b>왜 비었는지</b>부터 갈라야 한다. 재고가 없는
  * 것과 자기가 다 넘긴 것은 다른 상황이고, 뭉뚱그리면 조건이 멀쩡한 사람에게 조건을 고치라고
  * 말하게 된다.
@@ -87,9 +90,11 @@ export function DiscoverPicker({ popups, wishedIds, onWish, onOpenPopup }: Props
     'rounded-pill border border-[var(--color-border)] bg-surface px-3 py-2 text-xs font-semibold text-foreground focus:border-lime-400 focus:outline-none';
 
   return (
-    <section className="mt-8" aria-label={t('discover.title')}>
-      <h3 className="text-lg font-black text-foreground md:text-xl">{t('discover.title')}</h3>
-      <p className="mt-1 text-xs text-muted-foreground">{t('discover.desc')}</p>
+    <section className="mb-10" aria-label={t('discover.title')}>
+      <h3 className="text-xl font-black tracking-tight text-foreground md:text-2xl">
+        {t('discover.title')}
+      </h3>
+      <p className="mt-1 text-xs text-muted-foreground md:text-sm">{t('discover.desc')}</p>
 
       <div className="mt-3 flex flex-wrap gap-2">
         <select
@@ -122,7 +127,7 @@ export function DiscoverPicker({ popups, wishedIds, onWish, onOpenPopup }: Props
       </div>
 
       {result.emptiness === 'none' ? (
-        <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-3">
+        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
           {result.items.slice(0, DISCOVER_CARD_LIMIT).map((popup) => (
             <div key={popup.id} className="flex flex-col gap-1.5">
               <PopupCard
