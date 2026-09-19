@@ -23,7 +23,7 @@ const PINNED_FINGERPRINT = '33e29618af5c';
 async function loadWithSecret(secret: string) {
   vi.stubEnv('EDGE_SIGNING_SECRET', secret);
   vi.resetModules();
-  return import('./proxy');
+  return import('./edgeSignature');
 }
 
 describe('엣지 서명', () => {

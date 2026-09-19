@@ -1,5 +1,7 @@
 import type { NextRequest } from 'next/server';
 
+import { EDGE_HEADERS, signedEdgeHeaders } from '@/lib/edgeSignature';
+
 /**
  * {@code /api/*} 를 백엔드로 넘기는 프록시.
  *
@@ -65,6 +67,8 @@ const BACKEND = (process.env.NEXT_PUBLIC_API_URL ?? '').replace(/\/+$/, '');
  * 경계가 분명하다(그 두 헤더는 {@code DROP_RESPONSE_HEADERS} 에서도 빠진다).
  */
 const DROP_REQUEST_HEADERS = new Set([
+  // 클라이언트가 보냈을 수 있는 서명 헤더. 그대로 넘기면 IP 를 위조당한다.
+  ...EDGE_HEADERS,
   'host',
   'connection',
   'content-length',
@@ -246,7 +250,15 @@ async function proxy(
   const body =
     request.method === 'GET' || request.method === 'HEAD' ? undefined : await request.arrayBuffer();
 
-  const headers = forwardRequestHeaders(request);
+  /*
+   * 엣지 서명을 여기서 붙인다. 2026-09-19 까지는 proxy.ts(미들웨어)가 했는데, Cloudflare 에서
+   * Node 미들웨어가 약 50% 확률로 죽었다(경위는 lib/edgeSignature.ts 주석). 미들웨어를 없애고
+   * 이리로 옮겼다 — 하는 일이 이 서명 하나뿐이었다.
+   */
+  const headers = {
+    ...forwardRequestHeaders(request),
+    ...(await signedEdgeHeaders(request.headers)),
+  };
   let lastError: unknown;
 
   for (let attempt = 0; ; attempt++) {
