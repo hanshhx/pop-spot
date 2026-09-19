@@ -39,7 +39,17 @@ function bundledSeoulUrl(): string | undefined {
   return undefined;
 }
 
-const OVERRIDE = process.env.BASEMAP_PMTILES_URL ?? bundledSeoulUrl();
+/*
+ * 우선순위: 서버 전용 지정(BASEMAP_PMTILES_URL) → 클라이언트와 공유하는 바깥 주소
+ * (NEXT_PUBLIC_BASEMAP_URL) → 저장소에 동봉한 파일.
+ *
+ * 둘째를 끼워 넣는 이유는 <b>한 곳만 설정해도 서버와 클라이언트가 같은 파일을 보게</b>
+ * 하기 위해서다. 서로 다른 파일을 가리키면 버전 서명이 엇갈려 타일이 깨진다.
+ */
+const OVERRIDE =
+  process.env.BASEMAP_PMTILES_URL ||
+  (process.env.NEXT_PUBLIC_BASEMAP_URL ?? '').replace(/\/+$/, '') ||
+  bundledSeoulUrl();
 
 let resolvedDate: string | null = null;
 let resolvedAt = 0;
