@@ -70,6 +70,10 @@ const eslintConfig = defineConfig([
   globalIgnores([
     '.next/**',
     'out/**',
+    // OpenNext(Cloudflare) 빌드 산출물. 생성 코드라 검사 대상이 아니고,
+    // 캐시 자산까지 합쳐 500MB 가 넘어 검사하면 lint 가 몇 분씩 걸린다.
+    '.open-next/**',
+    '.wrangler/**',
     'build/**',
     'next-env.d.ts',
     'node_modules/**',

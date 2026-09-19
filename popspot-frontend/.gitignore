@@ -41,3 +41,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 # next-env.d.ts는 Next.js 공식 권장사항에 따라 깃허브에 올려야 하므로 여기서 삭제했습니다.
+# OpenNext (Cloudflare Workers) 빌드 산출물. 캐시 자산까지 합쳐 500MB 가 넘는다.
+.open-next/
+.wrangler/
