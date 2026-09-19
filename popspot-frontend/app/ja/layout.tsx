@@ -1,9 +1,12 @@
-import { LocaleProvider } from '@/lib/i18n';
+import { SiteDocument, siteMetadata, siteViewport } from '@/app/SiteDocument';
 
 /**
- * {@code /ja} 아래는 처음부터 일본어로 그린다. 경위는 {@code app/en/layout.tsx} 와 같다 —
- * 컨텍스트는 가장 가까운 것이 이기므로 이 주소의 화면만 일본어로 고정된다.
+ * {@code /ja} 트리의 <b>루트</b> 레이아웃. 경위는 {@code app/en/layout.tsx} 와 같다 —
+ * 로케일이 빌드 시점 리터럴이라 요청 헤더가 필요 없다.
  */
-export default function JaLayout({ children }: { children: React.ReactNode }) {
-  return <LocaleProvider initialLocale="ja">{children}</LocaleProvider>;
+export const metadata = siteMetadata();
+export const viewport = siteViewport;
+
+export default function JaRootLayout({ children }: { children: React.ReactNode }) {
+  return <SiteDocument locale="ja">{children}</SiteDocument>;
 }

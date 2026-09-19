@@ -56,7 +56,7 @@ describe('약관 시행일을 코드가 지킨다', () => {
 
 describe('코드의 시행일과 약관에 적힌 시행일이 같다', () => {
   it('이용약관 페이지가 같은 날짜를 공표하고 있다', () => {
-    const terms = readFileSync(path.join(process.cwd(), 'app/terms/page.tsx'), 'utf8');
+    const terms = readFileSync(path.join(process.cwd(), 'app/(ko)/terms/page.tsx'), 'utf8');
     // 헤더의 "시행일: YYYY-MM-DD".
     const declared = terms.match(/시행일:\s*(\d{4}-\d{2}-\d{2})/)?.[1];
 
@@ -66,7 +66,7 @@ describe('코드의 시행일과 약관에 적힌 시행일이 같다', () => {
   });
 
   it('약관 본문이 조건부 색인을 실제로 공표하고 있다', () => {
-    const terms = readFileSync(path.join(process.cwd(), 'app/terms/page.tsx'), 'utf8');
+    const terms = readFileSync(path.join(process.cwd(), 'app/(ko)/terms/page.tsx'), 'utf8');
     // 코드는 "종료일 + 위치" 를 조건으로 쓴다. 약관이 그렇게 적혀 있지 않으면
     // 공표한 것보다 넓게 여는 것이다.
     expect(terms).toContain('운영 종료일과 찾아갈 수 있는 위치가 모두 확인된 경우에 한해');

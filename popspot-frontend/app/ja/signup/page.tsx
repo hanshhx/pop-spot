@@ -1,1 +1,1 @@
-export { default } from '../../signup/page';
+export { default } from '@/app/(ko)/signup/page';

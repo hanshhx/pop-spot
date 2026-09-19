@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, User, Phone, Mail, KeyRound, ChevronRight, Lock } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { apiFetch } from '../../src/lib/api';
+import { apiFetch } from '@/lib/api';
 import { notify, notifyError } from '@/lib/notify';
 import { useLocale } from '@/lib/i18n';
 import { localizedPath } from '@/lib/localePath';

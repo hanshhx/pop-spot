@@ -3,7 +3,7 @@ import type { MetadataRoute } from 'next';
 import { REGIONS, classifyRegion } from '@/lib/regions';
 import { indexableDetailGroups } from '@/lib/indexableDetail';
 import { loadPublicMarkers } from '@/lib/emergencyPopupData';
-import { TERMS_EFFECTIVE_DATE, kstToday } from './popup/[id]/serverData';
+import { TERMS_EFFECTIVE_DATE, kstToday } from '@/app/(ko)/popup/[id]/serverData';
 import {
   getPeriods,
   CATEGORIES,

@@ -1,1 +1,1 @@
-export { default } from '../../planning/page';
+export { default } from '@/app/(ko)/planning/page';

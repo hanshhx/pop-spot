@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useState, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
-import { apiFetch } from '../../../src/lib/api';
-import { setAuthToken, setRefreshToken } from '../../../src/lib/authStorage';
+import { apiFetch } from '@/lib/api';
+import { setAuthToken, setRefreshToken } from '@/lib/authStorage';
 import { useLocale } from '@/lib/i18n';
 import { localizedPath } from '@/lib/localePath';
 import { TotpChallenge } from '@/features/auth/TotpChallenge';
