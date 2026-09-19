@@ -511,9 +511,24 @@ export const zoomFromLevel = (level: number): number => 18 - level; // level 4 �
  * <p>{@code ?v=} 는 파일 서명(ETag 해시)이라 파일을 갈아끼우면 값이 바뀐다 → 브라우저 캐시가 자동
  * 무효화된다. Vercel 정적 서빙은 쿼리를 무시하고 같은 파일을 주므로(실측: 쿼리 유무 모두 206) 안전하다.
  */
+/**
+ * 타일 파일의 바깥 주소. 비워 두면 예전처럼 우리 도메인의 {@code /seoul.pmtiles} 를 쓴다.
+ *
+ * <p><b>왜 바깥으로 뺄 수 있어야 하는가.</b> 이 파일은 56MB 다. {@code public/} 에 두면
+ * 호스팅이 <b>배포마다 한 벌씩</b> 보관한다 — 2026-09-19 에 Vercel 의 Deployment Storage 가
+ * 10GB 한도에 53.4GB 로 차서 배포가 정지됐고, 배포 수(약 640)와 56MB 의 곱이 그 값과 맞았다.
+ * 대역폭이 아니라 <b>저장소</b>가 먼저 터진 것이라 캐시 헤더로는 손댈 수 없다.
+ *
+ * <p>값은 파일의 <b>전체 URL</b> 이다(예: {@code https://…/seoul.pmtiles}). 서버 쪽
+ * {@code BASEMAP_PMTILES_URL} 과 같은 파일을 가리켜야 한다 — 다르면 버전 서명(?v=)이
+ * 다른 파일의 것이 되어 옛 목차와 새 조각이 섞인다.
+ */
+const EXTERNAL = (process.env.NEXT_PUBLIC_BASEMAP_URL ?? '').replace(/\/+$/, '');
+
 export function basemapTileUrl(version?: string): string {
-  const origin = typeof window !== 'undefined' ? window.location.origin : '';
   const q = version ? `?v=${encodeURIComponent(version)}` : '';
+  if (EXTERNAL) return `pmtiles://${EXTERNAL}${q}`;
+  const origin = typeof window !== 'undefined' ? window.location.origin : '';
   return `pmtiles://${origin}/seoul.pmtiles${q}`;
 }
 

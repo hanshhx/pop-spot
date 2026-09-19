@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { buildBaseStyle } from './mapStyle';
 import { parseHex } from '@/lib/colorMix';
@@ -75,5 +75,57 @@ describe('buildBaseStyle', () => {
       );
       expect(road, dark ? 'dark' : 'light').toBeGreaterThan(earth);
     }
+  });
+});
+
+/**
+ * <b>타일 파일이 어디에 있느냐는 배포 비용 문제다.</b>
+ *
+ * <p>이 파일은 56MB 다. {@code public/} 에 두면 호스팅이 <b>배포마다 한 벌씩</b> 보관한다 —
+ * 2026-09-19 에 Vercel 의 Deployment Storage 가 10GB 한도에 53.4GB 로 차서 배포가 정지됐고,
+ * 배포 수(약 640)와 56MB 의 곱이 그 값과 맞았다. 대역폭이 아니라 <b>저장소</b>가 먼저 터진
+ * 것이라 캐시 헤더로는 손댈 수 없고, 파일을 바깥으로 빼는 것 말고 방법이 없다.
+ *
+ * <p>그래서 검사하는 것은 "바깥 주소를 줬을 때 실제로 그쪽을 쓰는가" 하나다. 이게 참이어야
+ * {@code public/seoul.pmtiles} 를 지울 수 있다.
+ *
+ * <p><b>{@code /basemap} 라우트는 일부러 건드리지 않았다.</b> 그쪽 테스트에 "목적지는 코드가
+ * 정해야지 배포 설정이 정하면 안 된다" 는 판단이 근거와 함께 적혀 있고, 지금 지도는 그 경로를
+ * 거치지 않고 파일을 직접 부르므로 바꿔서 얻을 것이 없다.
+ */
+describe('basemapTileUrl — 타일 파일을 어디서 받는가', () => {
+  async function load(external?: string) {
+    vi.resetModules();
+    if (external === undefined) vi.stubEnv('NEXT_PUBLIC_BASEMAP_URL', '');
+    else vi.stubEnv('NEXT_PUBLIC_BASEMAP_URL', external);
+    return (await import('./mapStyle')).basemapTileUrl;
+  }
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.resetModules();
+  });
+
+  it('설정이 없으면 예전처럼 우리 도메인의 동봉 파일을 쓴다', async () => {
+    const basemapTileUrl = await load();
+    expect(basemapTileUrl()).toMatch(/^pmtiles:\/\/.*\/seoul\.pmtiles$/);
+  });
+
+  it('바깥 주소를 주면 그쪽을 쓴다 — 이게 되어야 public/ 에서 56MB 를 뺄 수 있다', async () => {
+    const basemapTileUrl = await load('https://cdn.example/seoul.pmtiles');
+    expect(basemapTileUrl()).toBe('pmtiles://https://cdn.example/seoul.pmtiles');
+  });
+
+  it('버전 서명은 두 경우 모두 보존한다 — 옛 목차와 새 조각이 섞이는 것을 막는 장치다', async () => {
+    const bundled = await load();
+    expect(bundled('s1a2b3c')).toMatch(/\/seoul\.pmtiles\?v=s1a2b3c$/);
+
+    const external = await load('https://cdn.example/seoul.pmtiles');
+    expect(external('s1a2b3c')).toBe('pmtiles://https://cdn.example/seoul.pmtiles?v=s1a2b3c');
+  });
+
+  it('끝 슬래시를 떼서 주소가 겹치지 않게 한다', async () => {
+    const basemapTileUrl = await load('https://cdn.example/seoul.pmtiles/');
+    expect(basemapTileUrl()).toBe('pmtiles://https://cdn.example/seoul.pmtiles');
   });
 });
