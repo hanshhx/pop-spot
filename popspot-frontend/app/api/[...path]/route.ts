@@ -1,10 +1,4 @@
-import { request as httpRequest } from 'node:http';
-import type { IncomingHttpHeaders, IncomingMessage } from 'node:http';
-import { request as httpsRequest } from 'node:https';
-import { Readable } from 'node:stream';
 import type { NextRequest } from 'next/server';
-
-import { createBackendLookup } from '@/lib/backendDns';
 
 /**
  * {@code /api/*} 를 백엔드로 넘기는 프록시.
@@ -50,33 +44,25 @@ export const dynamic = 'force-dynamic';
 
 const BACKEND = (process.env.NEXT_PUBLIC_API_URL ?? '').replace(/\/+$/, '');
 
-function backendHostname(base: string): string {
-  try {
-    return new URL(base).hostname;
-  } catch {
-    return '';
-  }
-}
-
-/**
- * 백엔드 이름을 <b>우리가 직접</b> 푼다.
+/*
+ * 예전에는 여기서 <b>이름을 우리가 직접 풀었다</b>({@code node:https} 의 {@code lookup} 에
+ * DoH 리졸버를 꽂았다). 이유는 하나였다 — Vercel 이 함수 컨테이너에 꽂아 준 리졸버가
+ * {@code ts.net} 을 못 푸는 구간이 있었다(2026-08-31 11:36~11:57 실측, 21분간 전건
+ * {@code ENOTFOUND}). 같은 시각 공개 DNS 도 공인 IP 직접 접속도 멀쩡했다.
  *
- * <p>{@code fetch} 를 버리고 {@code node:https} 로 내려온 유일한 이유가 이것이다. Node 의
- * {@code fetch} 는 이름 해석에 {@code dns.lookup}(= OS 의 {@code getaddrinfo}) 만 쓰고, 그것은
- * Vercel 이 함수 컨테이너에 꽂아 준 리졸버로 간다. 그 리졸버가 ts.net 을 못 푸는 구간이 있다 —
- * 2026-08-31 11:36~11:57 실측으로 <b>21분간 전건 실패</b>({@code ENOTFOUND}). 같은 시각 공개
- * DNS 도 공인 IP 직접 접속도 멀쩡했다. {@code node:https} 는 {@code lookup} 을 갈아 끼울 수 있어
- * 그 리졸버를 통째로 건너뛴다. 경위와 근거는 {@link createBackendLookup} 에 적어 두었다.
+ * <p>그 우회로를 걷어내고 {@code fetch} 로 돌아왔다. <b>원인이 Vercel 하나였기 때문이다.</b>
+ * 다시 Vercel 로 돌아갈 일이 생기면 이 문제도 같이 돌아온다는 것만 기억하면 된다 —
+ * 그때는 git 이력에서 {@code backendDns} 를 되살리면 된다.
  */
-const backendLookup = createBackendLookup(backendHostname(BACKEND));
 
 /**
  * 백엔드로 넘기지 않는 요청 헤더.
  *
  * <p>{@code host} 를 그대로 넘기면 백엔드가 자기 주소를 popspot.co.kr 로 착각한다.
  * {@code content-length} 는 우리가 본문을 다시 만들어 보내므로 원래 값이 맞지 않는다.
- * {@code accept-encoding} 을 떼는 이유는 <b>압축을 받지 않기 위해서</b>다 — {@code node:https} 는
- * {@code fetch} 와 달리 압축을 풀어 주지 않으므로, 받으면 그대로 흘려보내다 브라우저에서 깨진다.
+ * {@code accept-encoding} 은 <b>우리가 정하게</b> 떼어 둔다. {@code fetch} 는 압축을 풀어 주지만,
+ * 그러면 {@code content-encoding} 과 실제 본문이 어긋난 채 흘러갈 수 있다. 아예 안 받는 편이
+ * 경계가 분명하다(그 두 헤더는 {@code DROP_RESPONSE_HEADERS} 에서도 빠진다).
  */
 const DROP_REQUEST_HEADERS = new Set([
   'host',
@@ -189,18 +175,18 @@ function forwardRequestHeaders(request: NextRequest): Record<string, string> {
 /**
  * 백엔드 응답 헤더를 옮긴다.
  *
- * <p>{@code node:http} 는 {@code set-cookie} 를 <b>배열로</b> 준다. 그래서 한 줄씩 따로 붙일 수
- * 있다 — 예전 {@code fetch} 경로에서는 {@code Headers.forEach} 가 여러 줄을 쉼표 하나로 합쳐
- * 버려서(쿠키 값에는 {@code Expires=Wed, 01 Jan ...} 처럼 쉼표가 들어간다) 따로 손을 써야 했다.
- * 지금은 구조가 알아서 지켜 준다.
+ * <p><b>{@code set-cookie} 만 따로 꺼낸다.</b> {@code Headers.forEach} 는 여러 줄의
+ * {@code set-cookie} 를 쉼표 하나로 합쳐 버리는데, 쿠키 값 안에도 쉼표가 들어간다
+ * ({@code Expires=Wed, 01 Jan ...}). 합쳐진 문자열은 다시 가를 수 없어 로그인이 깨진다.
+ * {@code getSetCookie()} 가 원래 줄 그대로 배열로 준다.
  */
-function forwardResponseHeaders(raw: IncomingHttpHeaders): Headers {
+function forwardResponseHeaders(raw: Headers): Headers {
   const headers = new Headers();
-  for (const [name, value] of Object.entries(raw)) {
-    if (DROP_RESPONSE_HEADERS.has(name)) continue;
-    if (Array.isArray(value)) for (const item of value) headers.append(name, item);
-    else if (value !== undefined) headers.append(name, value);
-  }
+  raw.forEach((value, name) => {
+    if (DROP_RESPONSE_HEADERS.has(name) || name === 'set-cookie') return;
+    headers.append(name, value);
+  });
+  for (const cookie of raw.getSetCookie()) headers.append('set-cookie', cookie);
   return headers;
 }
 
@@ -211,44 +197,36 @@ type Upstream = {
   body: ReadableStream<Uint8Array> | null;
 };
 
-function sendUpstream(
+/**
+ * 백엔드로 한 번 보낸다.
+ *
+ * <p>{@code redirect: 'manual'} 인 이유는 <b>우리가 리다이렉트를 따라가면 안 되기 때문</b>이다.
+ * 백엔드가 302 를 주면 그건 브라우저에게 하는 말이지 프록시에게 하는 말이 아니다. 여기서
+ * 따라가면 사용자는 주소가 안 바뀐 채 다른 자원을 받게 된다.
+ */
+async function sendUpstream(
   target: URL,
   method: string,
   headers: Record<string, string>,
   body: ArrayBuffer | undefined,
 ): Promise<Upstream> {
-  const send = target.protocol === 'http:' ? httpRequest : httpsRequest;
-
-  return new Promise<Upstream>((resolve, reject) => {
-    const outgoing = send(
-      {
-        protocol: target.protocol,
-        hostname: target.hostname,
-        port: target.port || (target.protocol === 'http:' ? 80 : 443),
-        path: `${target.pathname}${target.search}`,
-        method,
-        headers,
-        lookup: backendLookup,
-        signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
-      },
-      (incoming: IncomingMessage) => {
-        const status = incoming.statusCode ?? 502;
-        const hasBody = method !== 'HEAD' && !BODYLESS_STATUSES.has(status);
-        if (!hasBody) incoming.resume(); // 읽어 버리지 않으면 연결이 반납되지 않는다
-        resolve({
-          status,
-          statusText: incoming.statusMessage ?? '',
-          headers: forwardResponseHeaders(incoming.headers),
-          body: hasBody ? (Readable.toWeb(incoming) as ReadableStream<Uint8Array>) : null,
-        });
-      },
-    );
-
-    outgoing.on('error', reject);
-
-    if (body !== undefined) outgoing.write(Buffer.from(body));
-    outgoing.end();
+  const response = await fetch(target, {
+    method,
+    headers,
+    body,
+    redirect: 'manual',
+    signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
   });
+
+  // 본문이 있을 수 없는 응답에 본문을 붙이면 Response 생성자가 던진다.
+  const hasBody = method !== 'HEAD' && !BODYLESS_STATUSES.has(response.status);
+
+  return {
+    status: response.status,
+    statusText: response.statusText,
+    headers: forwardResponseHeaders(response.headers),
+    body: hasBody ? response.body : null,
+  };
 }
 
 async function proxy(

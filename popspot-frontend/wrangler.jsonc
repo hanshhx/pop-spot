@@ -1,0 +1,42 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+
+  // Cloudflare 대시보드에 보이는 이름. 도메인 연결도 이 이름으로 건다.
+  "name": "popspot",
+
+  // OpenNext 가 만들어 내는 진입점. next build 산출물을 Workers 용으로 변환한 결과다.
+  "main": ".open-next/worker.js",
+
+  /*
+   * 이 날짜 이후의 Workers 런타임 변경은 적용되지 않는다. 올리기 전에는 변경 내역을 읽어야
+   * 하므로 배포일에 고정한다 — "최신"으로 두면 어느 날 런타임이 바뀌어 조용히 깨진다.
+   */
+  "compatibility_date": "2026-09-19",
+
+  /*
+   * nodejs_compat — Next 런타임이 node: 표준 모듈 일부를 쓴다.
+   *   우리 코드에는 이제 node: import 가 없지만(2026-09-19 에 걷어냈다) 프레임워크가 쓴다.
+   *
+   * global_fetch_strictly_public — Worker 안의 fetch 가 우리 도메인을 향할 때 자기 자신으로
+   *   되돌아오지 않고 공개 인터넷으로 나가게 한다. app/basemap/shared.ts 가 버전을 확인하려고
+   *   자기 도메인의 /seoul.pmtiles 를 부르는데, 이 플래그가 없으면 Worker 가 자기를 다시
+   *   호출해 루프가 된다.
+   */
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+
+  /*
+   * 프리렌더된 890 페이지와 _next/static 이 여기로 들어간다.
+   *
+   * 정적 자산 요청은 Worker 를 호출하지 않고 무료·무제한으로 나간다. 이것이 이 이전의
+   * 핵심이다 — 886 페이지를 정적으로 되돌린 이유가 여기에 있다(커밋 dbf2c60).
+   */
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+
+  // 관측. 무료 티어에도 포함된다.
+  "observability": {
+    "enabled": true
+  }
+}

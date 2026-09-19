@@ -31,11 +31,21 @@ import { NextResponse, type NextRequest } from 'next/server';
  */
 
 export const config = {
-  // 페이지에는 서버가 처음부터 올바른 <html lang> 을 만들 수 있도록 언어 헤더를 전달한다.
-  // 정적 파일은 제외해 이미지·번들 요청마다 Proxy 가 실행되는 낭비를 막는다.
-  matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|icon.svg|og-image.png|.*\\.(?:svg|png|jpg|jpeg|gif|webp|avif|ico|mp4|webm)$).*)',
-  ],
+  /*
+   * <b>{@code /api/*} 에만 건다.</b> 이 Proxy 가 하는 일은 이제 엣지 서명 하나뿐이고 그것은
+   * 백엔드로 넘어가는 요청에만 필요하다.
+   *
+   * <p>예전에는 모든 경로를 잡았다. 페이지에 {@code x-popspot-locale} 을 실어 줘야 루트
+   * 레이아웃이 올바른 {@code <html lang>} 을 만들 수 있었기 때문이다. 그 헤더는 2026-09-19 에
+   * 필요 없어졌다 — 루트 레이아웃을 로케일별로 쪼개서 {@code lang} 이 빌드 시점 리터럴이 됐다
+   * (커밋 dbf2c60, {@code app/SiteDocument.tsx} 주석 참고).
+   *
+   * <p><b>좁히는 것이 이번 이전의 핵심이다.</b> Cloudflare Workers 에서 정적 자산 요청은
+   * Worker 를 호출하지 않고 무료·무제한으로 나간다. 그런데 Proxy 가 걸려 있으면 <b>HTML 요청마다
+   * Worker 가 깨어난다</b> — 프리렌더된 890 페이지가 전부 요청 한도(10만/일)와 CPU 한도(10ms)를
+   * 먹게 된다. 이 한 줄이 그것을 막는다.
+   */
+  matcher: ['/api/:path*'],
 };
 
 /**
@@ -125,8 +135,14 @@ export async function edgeSignature(ip: string, timestamp: string): Promise<stri
 
 export async function proxy(request: NextRequest) {
   const headers = new Headers(request.headers);
-  const localeMatch = request.nextUrl.pathname.match(/^\/(en|ja)(?=\/|$)/);
-  headers.set('x-popspot-locale', localeMatch?.[1] ?? 'ko');
+  /*
+   * 예전에는 여기서 주소의 /en·/ja 를 읽어 x-popspot-locale 헤더로 실어 보냈다. 루트 레이아웃이
+   * 그것으로 <html lang> 을 정했기 때문이다. 그 한 줄이 886 페이지를 전부 동적 렌더로
+   * 떨어뜨리고 있었다 — 동적 API 를 쓰는 레이아웃 아래는 전부 동적이 된다.
+   *
+   * 지금은 루트 레이아웃이 로케일별로 셋이라 lang 이 빌드 시점 리터럴이고, 이 헤더를 읽는
+   * 곳이 저장소에 하나도 없다(확인함). 그래서 붙이지 않는다.
+   */
 
   // 위조 시도를 먼저 걷어낸다. 아래에서 서명을 못 붙이는 경우에도 남아 있으면 안 된다.
   headers.delete('x-edge-ip');

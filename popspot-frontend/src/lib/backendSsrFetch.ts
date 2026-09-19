@@ -1,8 +1,3 @@
-import { request as httpsRequest } from 'node:https';
-import type { LookupFunction } from 'node:net';
-
-import { createBackendLookup } from './backendDns';
-
 /**
  * 서버 렌더가 백엔드를 부를 때 쓰는 {@code fetch} — <b>이름 해석에 실패하면 한 번 더 시도한다.</b>
  *
@@ -20,22 +15,6 @@ import { createBackendLookup } from './backendDns';
  * 시도한다. 정상 구간에서는 코드 경로가 예전과 완전히 같다.
  */
 
-/**
- * 다시 시도해도 되는 실패인가 — <b>요청이 백엔드에 닿은 적이 없음</b>이 증명되는 것만.
- *
- * <p>연결된 뒤 끊긴 경우는 서버가 이미 처리했을 수 있다. 여기는 전부 GET 이라 중복 처리 위험은
- * 없지만, 그때는 이름 해석이 문제가 아니므로 우회로가 도울 것도 없다. 괜히 한 번 더 기다릴 뿐이다.
- */
-const NOT_DELIVERED_CODES = new Set([
-  'ENOTFOUND',
-  'EAI_AGAIN',
-  'ECONNREFUSED',
-  'UND_ERR_CONNECT_TIMEOUT',
-]);
-
-/** 우회로 한 번에 허용하는 시간. 서버 렌더가 이것 때문에 오래 붙들리면 안 된다. */
-const DOH_TIMEOUT_MS = 8_000;
-
 /** 빌드 중에는 더 짧게 끊는다 — 아래 '빌드는 백엔드를 기다리지 않는다' 참고. */
 const BUILD_TIMEOUT_MS = 4_000;
 
@@ -47,9 +26,6 @@ const BUILD_TIMEOUT_MS = 4_000;
  * 드러난다.
  */
 const BUILD_GIVE_UP_AFTER = 3;
-
-/** 응답이 이보다 크면 우회로에서는 포기한다. 가장 큰 응답(팝업 목록)이 실측 1.3MB 다. */
-const MAX_BYTES = 8 * 1024 * 1024;
 
 /** Next 가 프로덕션 빌드를 시작할 때 넣는 값(next/dist/build/index.js). */
 const PHASE_PRODUCTION_BUILD = 'phase-production-build';
@@ -114,68 +90,6 @@ export function errorCode(error: unknown): string | undefined {
   return typeof direct === 'string' ? direct : undefined;
 }
 
-/** 이 실패에 우회로를 써 볼 값어치가 있는가. */
-export function shouldRetryViaDoh(error: unknown): boolean {
-  const code = errorCode(error);
-  return code !== undefined && NOT_DELIVERED_CODES.has(code);
-}
-
-const lookups = new Map<string, LookupFunction>();
-
-function lookupFor(hostname: string): LookupFunction {
-  const cached = lookups.get(hostname);
-  if (cached) return cached;
-  const made = createBackendLookup(hostname);
-  lookups.set(hostname, made);
-  return made;
-}
-
-/**
- * DoH 로 이름을 풀어 다시 받아 온다.
- *
- * <p>본문을 통째로 모아서 돌려준다. 여기를 지나는 응답은 전부 JSON 이고 가장 큰 것이 1.3MB 라,
- * 흘려보내는 복잡함을 감수할 이유가 없다 — 이 경로는 장애 구간에서만 돈다.
- */
-function viaDoh(target: URL, timeoutMs: number): Promise<Response> {
-  return new Promise<Response>((resolve, reject) => {
-    const req = httpsRequest(
-      {
-        hostname: target.hostname,
-        port: target.port || 443,
-        path: `${target.pathname}${target.search}`,
-        method: 'GET',
-        lookup: lookupFor(target.hostname),
-        signal: AbortSignal.timeout(timeoutMs),
-      },
-      (res) => {
-        const chunks: Buffer[] = [];
-        let size = 0;
-        res.on('data', (chunk: Buffer) => {
-          size += chunk.length;
-          if (size > MAX_BYTES) {
-            res.destroy();
-            reject(new Error('backend response too large'));
-            return;
-          }
-          chunks.push(chunk);
-        });
-        res.on('end', () => {
-          const type = res.headers['content-type'];
-          resolve(
-            new Response(Buffer.concat(chunks), {
-              status: res.statusCode ?? 502,
-              headers: type ? { 'content-type': type } : undefined,
-            }),
-          );
-        });
-        res.on('error', reject);
-      },
-    );
-    req.on('error', reject);
-    req.end();
-  });
-}
-
 /**
  * 서버 렌더용 백엔드 호출. 실패하면 던진다 — 호출부가 이미 {@code try/catch} 로 스냅샷·빈 값으로
  * 물러설 준비가 되어 있으므로, 여기서 삼키면 그 판단을 빼앗는다.
@@ -199,18 +113,7 @@ export async function fetchBackend(url: string, revalidate: number): Promise<Res
     noteBuildOutcome(false);
     return response;
   } catch (error) {
-    if (!shouldRetryViaDoh(error)) {
-      noteBuildOutcome(true);
-      throw error;
-    }
-    console.warn(`[ssr] 이름 해석 실패로 우회로 사용: ${url} (${errorCode(error)})`);
-    try {
-      const response = await viaDoh(new URL(url), building ? BUILD_TIMEOUT_MS : DOH_TIMEOUT_MS);
-      noteBuildOutcome(false);
-      return response;
-    } catch (dohError) {
-      noteBuildOutcome(true);
-      throw dohError;
-    }
+    noteBuildOutcome(true);
+    throw error;
   }
 }

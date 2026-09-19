@@ -1,11 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import {
-  errorCode,
-  fetchBackend,
-  resetBackendBuildState,
-  shouldRetryViaDoh,
-} from './backendSsrFetch';
+import { errorCode, fetchBackend, resetBackendBuildState } from './backendSsrFetch';
 
 /**
  * 이 판정이 느슨하면 <b>고칠 수 없는 실패</b>에도 우회로를 태워 서버 렌더가 두 배로 기다린다.
@@ -34,31 +29,6 @@ describe('errorCode', () => {
     expect(errorCode(new Error('그냥 오류'))).toBeUndefined();
     expect(errorCode(null)).toBeUndefined();
     expect(errorCode('문자열')).toBeUndefined();
-  });
-});
-
-describe('shouldRetryViaDoh', () => {
-  it.each(['ENOTFOUND', 'EAI_AGAIN', 'ECONNREFUSED', 'UND_ERR_CONNECT_TIMEOUT'])(
-    '%s 은 이름 해석 문제라 우회로를 쓴다',
-    (code) => {
-      expect(shouldRetryViaDoh(Object.assign(new Error('x'), { cause: { code } }))).toBe(true);
-    },
-  );
-
-  /*
-   * 아래는 이름을 이미 푼 뒤에 난 실패다. 우회로가 도울 것이 없고, 한 번 더 기다리기만 한다.
-   * 특히 시간 초과는 백엔드가 느린 것이지 못 찾은 것이 아니다.
-   */
-  it.each(['ECONNRESET', 'ETIMEDOUT', 'EPIPE', 'ABORT_ERR', 'CERT_HAS_EXPIRED'])(
-    '%s 은 우회로를 쓰지 않는다',
-    (code) => {
-      expect(shouldRetryViaDoh(Object.assign(new Error('x'), { cause: { code } }))).toBe(false);
-    },
-  );
-
-  it('코드 없는 오류는 우회로를 쓰지 않는다', () => {
-    expect(shouldRetryViaDoh(new Error('그냥 오류'))).toBe(false);
-    expect(shouldRetryViaDoh(undefined)).toBe(false);
   });
 });
 
