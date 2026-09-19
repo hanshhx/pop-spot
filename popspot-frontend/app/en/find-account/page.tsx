@@ -1,1 +1,1 @@
-export { default } from '../../find-account/page';
+export { default } from '@/app/(ko)/find-account/page';

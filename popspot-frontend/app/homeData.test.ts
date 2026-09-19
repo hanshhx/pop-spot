@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { fetchHomePopups } from './homeData';
+import { fetchHomePopups } from '@/app/homeData';
 
 /**
  * 서버 목록 가져오기의 <b>실패 방식</b>을 못박는다.

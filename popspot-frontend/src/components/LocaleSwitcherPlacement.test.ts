@@ -7,10 +7,10 @@ const read = (path: string) => readFileSync(join(process.cwd(), path), 'utf8');
 
 const header = read('src/components/layout/Header.tsx');
 const siteChrome = read('src/components/layout/SiteChrome.tsx');
-const detailPage = read('app/popup/[id]/PopupDetailClient.tsx');
-const detailLayout = read('app/popup/[id]/layout.tsx');
-const landingPage = read('app/popups/[slug]/page.tsx');
-const landingLayout = read('app/popups/layout.tsx');
+const detailPage = read('app/(ko)/popup/[id]/PopupDetailClient.tsx');
+const detailLayout = read('app/(ko)/popup/[id]/layout.tsx');
+const landingPage = read('app/(ko)/popups/[slug]/page.tsx');
+const landingLayout = read('app/(ko)/popups/layout.tsx');
 const home = read('app/HomeClient.tsx');
 
 /**

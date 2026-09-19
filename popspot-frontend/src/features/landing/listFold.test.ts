@@ -3,7 +3,7 @@ import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-const landing = readFileSync(join(process.cwd(), 'app/popups/[slug]/page.tsx'), 'utf8');
+const landing = readFileSync(join(process.cwd(), 'app/(ko)/popups/[slug]/page.tsx'), 'utf8');
 
 /**
  * <b>접는 것과 버리는 것은 다르다.</b>

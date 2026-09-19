@@ -4,7 +4,10 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const home = readFileSync(join(process.cwd(), 'app/HomeClient.tsx'), 'utf8');
-const detail = readFileSync(join(process.cwd(), 'app/popup/[id]/PopupDetailClient.tsx'), 'utf8');
+const detail = readFileSync(
+  join(process.cwd(), 'app/(ko)/popup/[id]/PopupDetailClient.tsx'),
+  'utf8',
+);
 const controller = readFileSync(
   join(
     process.cwd(),

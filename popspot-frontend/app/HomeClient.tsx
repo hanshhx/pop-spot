@@ -79,13 +79,13 @@ import {
 } from '@dnd-kit/core';
 import { arrayMove, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 
-import InteractiveMap from '../src/components/Map/DeferredInteractiveMap';
-import PassportView from '../src/components/Passport/PassportView';
-import AIReportModal from '../src/components/AIReportModal';
-import LiveChatTicker from '../src/components/LiveChatTicker';
-import { SortableItem } from '../src/components/SortableItem';
-import { apiFetch, AUTH_EXPIRED_EVENT } from '../src/lib/api';
-import { clearAuthToken } from '../src/lib/authStorage';
+import InteractiveMap from '@/components/Map/DeferredInteractiveMap';
+import PassportView from '@/components/Passport/PassportView';
+import AIReportModal from '@/components/AIReportModal';
+import LiveChatTicker from '@/components/LiveChatTicker';
+import { SortableItem } from '@/components/SortableItem';
+import { apiFetch, AUTH_EXPIRED_EVENT } from '@/lib/api';
+import { clearAuthToken } from '@/lib/authStorage';
 import {
   isOpenNow,
   kstTodayStart,
@@ -94,15 +94,15 @@ import {
   CATEGORIES,
   parseDate,
   type CategoryCode,
-} from '../src/lib/popupSlices';
+} from '@/lib/popupSlices';
 import { groupSameEvent } from '@/lib/groupSameEvent';
 import { landingLinks } from '@/lib/landingLinks';
 import { homeSurfaces } from '@/lib/homeSurfaces';
 import { popAllPreviewRows } from '@/lib/popAllPreview';
-import { Header } from '../src/components/layout/Header';
-import { Footer } from '../src/components/layout/Footer';
-import { BottomDock, type DockTab } from '../src/components/layout/BottomDock';
-import { MySchedule } from '../src/features/schedule/MySchedule';
+import { Header } from '@/components/layout/Header';
+import { Footer } from '@/components/layout/Footer';
+import { BottomDock, type DockTab } from '@/components/layout/BottomDock';
+import { MySchedule } from '@/features/schedule/MySchedule';
 import MusicTab from '@/components/music/MusicTab';
 import RankCard from '@/components/rank/RankCard';
 import LoopingBgVideo from '@/components/LoopingBgVideo';

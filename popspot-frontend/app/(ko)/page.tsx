@@ -1,8 +1,8 @@
 import { Suspense } from 'react';
 import type { Metadata } from 'next';
 
-import HomeClient from './HomeClient';
-import { fetchHomePopups } from './homeData';
+import HomeClient from '@/app/HomeClient';
+import { fetchHomePopups } from '@/app/homeData';
 import { localeAlternates } from '@/lib/localeRoutes';
 import { isOpenNow, kstTodayStart } from '@/lib/popupSlices';
 import { countGoAble } from '@/lib/mappableCount';

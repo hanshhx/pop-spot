@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { MapPageForLocale } from '../../map/page';
+import { MapPageForLocale } from '@/app/(ko)/map/page';
 
 const title = 'ソウルのポップアップストア地図';
 const description =

@@ -1,1 +1,1 @@
-export { default } from '../../music/page';
+export { default } from '@/app/(ko)/music/page';

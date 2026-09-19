@@ -5,12 +5,12 @@ import { describe, expect, it } from 'vitest';
 
 const read = (path: string) => readFileSync(join(process.cwd(), path), 'utf8');
 
-const rootLayout = read('app/layout.tsx');
+const rootLayout = read('app/SiteDocument.tsx');
 const authGuard = read('src/components/AuthGuard.tsx');
-const detail = read('app/popup/[id]/PopupDetailClient.tsx');
+const detail = read('app/(ko)/popup/[id]/PopupDetailClient.tsx');
 const home = read('app/HomeClient.tsx');
-const loginPage = read('app/login/page.tsx');
-const oauthCallback = read('app/oauth/callback/page.tsx');
+const loginPage = read('app/(ko)/login/page.tsx');
+const oauthCallback = read('app/(ko)/oauth/callback/page.tsx');
 
 /**
  * <b>비회원 찜 이전은 로그인하면 반드시 돌아야 한다. 어느 화면에 떨어지든.</b>

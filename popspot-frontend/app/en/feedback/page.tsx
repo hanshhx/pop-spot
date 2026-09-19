@@ -1,1 +1,1 @@
-export { default } from '../../feedback/page';
+export { default } from '@/app/(ko)/feedback/page';

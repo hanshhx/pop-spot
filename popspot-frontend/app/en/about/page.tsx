@@ -12,4 +12,4 @@ export const metadata: Metadata = {
     },
   },
 };
-export { default } from '../../about/page';
+export { default } from '@/app/(ko)/about/page';

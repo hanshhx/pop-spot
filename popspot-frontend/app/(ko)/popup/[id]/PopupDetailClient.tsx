@@ -21,13 +21,13 @@ import {
   Route,
   Loader2,
 } from 'lucide-react';
-import { TakedownModal } from '../../../src/features/popup/TakedownModal';
+import { TakedownModal } from '@/features/popup/TakedownModal';
 
-import DetailMap from '../../../src/components/Map/DetailMap';
-import ChatRoom from '../../../src/components/ChatRoom';
+import DetailMap from '@/components/Map/DetailMap';
+import ChatRoom from '@/components/ChatRoom';
 import NowWait from '@/components/popup/NowWait';
-import MusicForPopup from '../../../src/components/music/MusicForPopup';
-import { apiFetch } from '../../../src/lib/api';
+import MusicForPopup from '@/components/music/MusicForPopup';
+import { apiFetch } from '@/lib/api';
 import { notify, notifyError, notifySuccess, notifyWarning, confirmAction } from '@/lib/notify';
 import { trackVisitEvent } from '@/lib/visitEvent';
 import { isPexelsPhoto, popupCoverUrl } from '@/lib/popupCover';

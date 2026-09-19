@@ -1,8 +1,8 @@
 import { Suspense } from 'react';
 import type { Metadata } from 'next';
 
-import HomeClient from '../HomeClient';
-import { fetchHomePopups } from '../homeData';
+import HomeClient from '@/app/HomeClient';
+import { fetchHomePopups } from '@/app/homeData';
 import { REGIONS } from '@/lib/regions';
 import { CATEGORIES, BRANDS, getPeriods } from '@/lib/popupSlices';
 import { LOCALE_META, localeAlternates } from '@/lib/localeRoutes';

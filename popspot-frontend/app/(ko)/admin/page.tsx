@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { ShieldCheck, LogOut } from 'lucide-react';
 import Swal from 'sweetalert2';
 
-import { apiFetch } from '../../src/lib/api';
+import { apiFetch } from '@/lib/api';
 import { confirmAction, notifyError, notifySuccess } from '@/lib/notify';
 import { clearAuthToken } from '@/lib/authStorage';
 import type { PopupStore } from '@/types/popup';

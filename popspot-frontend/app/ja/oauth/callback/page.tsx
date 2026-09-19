@@ -1,1 +1,1 @@
-export { default } from '../../../oauth/callback/page';
+export { default } from '@/app/(ko)/oauth/callback/page';

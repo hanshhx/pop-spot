@@ -6,11 +6,11 @@ import { describe, expect, it } from 'vitest';
 const read = (path: string) => readFileSync(join(process.cwd(), path), 'utf8');
 
 const authGuard = read('src/components/AuthGuard.tsx');
-const detail = read('app/popup/[id]/PopupDetailClient.tsx');
+const detail = read('app/(ko)/popup/[id]/PopupDetailClient.tsx');
 const header = read('src/components/layout/Header.tsx');
 const home = read('app/HomeClient.tsx');
-const loginPage = read('app/login/page.tsx');
-const oauthCallback = read('app/oauth/callback/page.tsx');
+const loginPage = read('app/(ko)/login/page.tsx');
+const oauthCallback = read('app/(ko)/oauth/callback/page.tsx');
 
 /**
  * <b>로그인을 마친 사람은 원래 있던 자리로 돌아와야 한다. 어느 경로로 로그인했든.</b>

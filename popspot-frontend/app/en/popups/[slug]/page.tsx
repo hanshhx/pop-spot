@@ -4,7 +4,7 @@ import {
   SliceLandingPage,
   sliceMetadata,
   generateStaticParams as sliceParams,
-} from '../../../popups/[slug]/page';
+} from '@/app/(ko)/popups/[slug]/page';
 
 /**
  * 영어판 검색 랜딩.

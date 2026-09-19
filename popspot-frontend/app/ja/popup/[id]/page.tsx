@@ -1,4 +1,4 @@
-import { PopupDetailPageContent } from '../../../popup/[id]/page';
+import { PopupDetailPageContent } from '@/app/(ko)/popup/[id]/page';
 
 export default async function JapanesePopupDetailPage({
   params,

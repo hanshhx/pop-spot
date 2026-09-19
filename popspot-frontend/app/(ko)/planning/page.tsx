@@ -21,10 +21,10 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-import InteractiveMap from '../../src/components/Map/InteractiveMap';
+import InteractiveMap from '@/components/Map/InteractiveMap';
 
-import { SOCKET_BASE_URL } from '../../src/lib/api';
-import { getAuthToken } from '../../src/lib/authStorage';
+import { SOCKET_BASE_URL } from '@/lib/api';
+import { getAuthToken } from '@/lib/authStorage';
 import { notify, confirmAction } from '@/lib/notify';
 import { useLocale } from '@/lib/i18n';
 import { localizedPath } from '@/lib/localePath';
