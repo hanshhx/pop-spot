@@ -42,7 +42,7 @@ popspot.env
 **/next-env.d.ts.bak
 
 # ===== 임시 빌드/도구 산출물 (커밋 금지) =====
-# Codex/수동 검증용 임시 Gradle 빌드 디렉터리 — 정식 build/ 와 구분됨
+# 수동 검증용 임시 빌드 디렉터리
 **/build-codex*/
 **/build-final/
 **/build-verify/
@@ -60,13 +60,18 @@ eslint-report*.tmp.json
 대화기록.txt
 
 # ===== 로컬 전용 문서 / 도구 설정 =====
-/.claude/
+**/.claude/
+**/.codex/
+**/.cursor/
+**/.agents/
+**/.superpowers/
+**/AGENTS.md
+**/CLAUDE.md
 /docs/screenshots/
 /ARCHITECTURE.md
 /BACKEND_CLEAN_CODE_REFACTOR.md
 /CODEBASE_ANATOMY.md
 /PROJECT_CHANGELOG.md
-/README.md
 /README_OLD.md
 /SYNOLOGY_MIGRATION_GUIDE.md
 /architecture.svg
@@ -100,3 +105,31 @@ popspot-frontend/public/KakaoTalk_*.png
 popspot-frontend/public/IMG_*.png
 popspot-frontend/public/IMG_*.jpg
 popspot-frontend/public/IMG_*.jpeg
+
+# 로컬 작업 기록과 검토 초안. 운영 절차와 데이터 보정 SQL은 별도로 관리한다.
+/docs/superpowers/**/*.md
+/popspot-frontend/BACKEND_REVIEW.md
+/popspot-frontend/DESIGN_CODE_REVIEW.md
+
+# 공개 제품과 무관한 연구 자료·페이지 덤프·일회성 분석 결과
+/AuthGap_*.html
+/AuthGap_*.pdf
+/grad_backend_security_topics.md
+/grad_securedev_8v2_offensive.md
+/대학원_*.md
+/용어설명.html
+/제안서_*.html
+/제안서_*.pdf
+/취약점_자동검증_연구노트.pdf
+/프로젝트_용어설명.pdf
+/arch_diagram.html
+/arch_diagram.png
+/body.html
+/markers.json
+/pv.html
+/sandleak_research.html
+/system_arch*.html
+/system_arch*.png
+/popspot-frontend/_a.json
+/popspot-frontend/trim.json
+/popspot-frontend/footer.mjs

@@ -4,9 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
-  # 손으로도 돌릴 수 있게 둔다. 백엔드는 이 PC 에서 gradle 이 안 도는 환경이라
-  # (로컬 소켓 차단) 여기가 유일한 검증 수단인데, main 이 아닌 가지에 올린 변경은
-  # PR 을 열기 전까지 아무도 검사하지 않았다. 올리고 바로 확인할 길을 낸다.
+  # 기본 브랜치 밖에서도 필요한 검사를 직접 실행할 수 있다.
   workflow_dispatch:
 
 jobs:
@@ -23,20 +21,12 @@ jobs:
           cache: npm
           cache-dependency-path: popspot-frontend/package-lock.json
       - run: npm ci
-      # 검사 순서를 바꿨다 — 감사가 맨 앞에서 실패하면 뒤가 전부 건너뛰어져, 정작 코드가 깨졌는지는
-      # 아무도 모르는 채로 빨간불만 오래 켜져 있었다(20회 연속). 코드 검사를 먼저 돌린다.
+      # 코드 검사 결과를 의존성 검사와 별도로 확인한다.
       - run: npm run typecheck
       - run: npm run lint
       - run: npm run format:check
       - run: npm test
-      # 의존성 취약점 — 2026-09-04 부터 다시 막는다.
-      #
-      # 예전 예외 사유는 Next.js 16.1.6 의 high 권고였는데, 해결 버전 16.2.12 가 Vercel 배포로
-      # 승격되지 않아 되돌렸고 그 뒤로 continue-on-error 로 열어 뒀다. 지금은 그 권고가 목록에
-      # 없고 audit 이 dev 포함 0건이라 예외를 지운다.
-      #
-      # dev 를 빼지 않는 이유: browserslist high 권고가 dev 의존성이라 --omit=dev 로는 안 보였는데
-      # Dependabot 은 그걸 그대로 잡았다. 두 도구가 세는 기준이 다르니 여기서는 넓게 본다.
+      # 개발 의존성도 포함해 잠금 파일 전체의 취약점을 검사한다.
       - run: npm audit --audit-level=high
       - run: npm run build
         env:
@@ -60,33 +50,10 @@ jobs:
       - run: chmod +x gradlew
       - run: ./gradlew spotlessCheck test bootJar
 
-      # 만든 jar 를 버리지 않고 남긴다.
-      #
-      # <p>배포는 VM 에 jar 를 올리는 방식인데(VM 에는 소스가 없다), 그동안 그 jar 를 어디서
-      # 만들지가 매번 문제였다. 여기서 이미 만들고 있었으면서 결과를 버리고 있었다.
-      #
-      # <p>이제 검사를 통과한 그 jar 를 그대로 받아 올릴 수 있다. "검증한 것" 과 "배포한 것" 이
-      # 같은 물건이 된다 — 따로 빌드하면 그 둘이 어긋날 수 있고, 어긋난 것은 배포 뒤에야 드러난다.
+      # 검사를 통과한 JAR를 배포에도 사용할 수 있도록 보관한다.
       - uses: actions/upload-artifact@v4
         with:
           name: popspot-backend-jar
           path: popspot-backend/build/libs/*.jar
-          # 기본 90일은 이 용도에 과하다. 배포는 며칠 안에 끝난다.
           retention-days: 14
           if-no-files-found: error
-      # 의존성 취약점 검사는 여기 없다 — GitHub 의존성 그래프 + Dependabot 경보로 옮겼다.
-      #
-      # 예전엔 커밋마다 dependencyCheckAnalyze 를 돌렸다가(한 번에 30~50분) 주 1회
-      # security-scan.yml 로 뺐다. 그런데 그것도 2026-08-02 부터 5주 연속 실패했고, 원인은
-      # NVD 응답이 아니라 러너에 만드는 로컬 H2 가 깨지는 것이었다(MVStore 예외 → NPE).
-      # 2026-09-04 에 폐기하고 dependency-graph.yml 로 Gradle 트리를 GitHub 에 올리는 방식으로
-      # 바꿨다. 사정은 그 파일 주석에 적어 뒀다.
-
-  # 앱(RN/Expo)은 아직 CI 대상이 아니다 — 붙이려 했다가 되돌렸다.
-  #
-  # main 의 popspot-app 은 expo 스크립트(start/android/ios/web)만 있고 typecheck·test 스크립트도,
-  # 검사 파일도 없다. 검사 40파일은 작업 브랜치(feat/app-design-17screens)에만 있어 아직 병합 전이다.
-  # 지금 잡을 만들면 "Missing script" 로 바로 빨간불이 된다(2026-09-04 워크트리에서 실측).
-  #
-  # 그러니 앱 CI 는 그 브랜치가 병합되는 시점에 함께 붙인다. 그때까지 앱 <b>의존성</b>은
-  # package-lock.json 을 GitHub 가 읽어 Dependabot 경보로 덮는다 — 그건 CI 잡이 없어도 된다.
