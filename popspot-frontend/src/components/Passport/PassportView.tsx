@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import { Lock, Check, Store } from 'lucide-react';
 import { apiFetch } from '../../lib/api';
 import { popupCoverUrl } from '@/lib/popupCover';
@@ -52,6 +52,7 @@ const TOTAL_COUNT = 12;
 
 export default function PassportView() {
   const { t, locale } = useLocale();
+  const reduceMotion = useReducedMotion();
   const [stamps, setStamps] = useState<StampData[]>([]);
   const [loadFailed, setLoadFailed] = useState(false);
   const [user, setUser] = useState<User | null>(null);
@@ -115,8 +116,9 @@ export default function PassportView() {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 16 }}
+      initial={reduceMotion ? false : { opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.22 }}
       className="mx-auto w-full max-w-4xl px-4 py-6 md:px-6"
     >
       <header className="mb-6">
@@ -124,15 +126,20 @@ export default function PassportView() {
           {t('misc.passportStamps')} <span className="text-lime-500">{acquiredCount}</span>
           <span className="font-bold text-muted-foreground"> / {TOTAL_COUNT}</span>
         </h2>
-        <p className="mt-1 text-sm text-muted-foreground">{t('misc.passportDesc')}</p>
+        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+          {t('misc.passportDesc')}
+        </p>
         {loadFailed && (
-          <p className="mt-2 rounded-xl bg-red-500/10 p-3 text-sm text-red-600 dark:text-red-400">
+          <p
+            role="alert"
+            className="mt-2 rounded-xl bg-red-500/10 p-3 text-sm text-red-600 dark:text-red-400"
+          >
             {t('misc.passportLoadError')}
           </p>
         )}
       </header>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 items-start gap-4 sm:grid-cols-3 lg:grid-cols-4">
         {stamps.map((s, idx) => {
           const shownName = bilingual(
             s.popupStore.name,
@@ -156,9 +163,12 @@ export default function PassportView() {
           return (
             <motion.div
               key={s.id}
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: idx * 0.05 }}
+              initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{
+                duration: reduceMotion ? 0 : 0.2,
+                delay: reduceMotion ? 0 : Math.min(idx, 5) * 0.025,
+              }}
               className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-white/10 dark:bg-white/[0.04]"
             >
               <div className={`relative aspect-square bg-gradient-to-br ${grad}`}>
@@ -178,14 +188,19 @@ export default function PassportView() {
                   className="absolute bottom-2 left-2 right-2 w-fit"
                 />
               </div>
-              <div className="p-2.5">
-                <p className="truncate text-xs font-bold text-foreground">{shownName.display}</p>
+              <div className="p-3">
+                <p className="break-words text-sm font-bold leading-relaxed text-foreground">
+                  {shownName.display}
+                </p>
                 {shownName.original && (
-                  <p className="truncate text-[10px] text-muted-foreground" lang="ko">
+                  <p
+                    className="mt-1 break-words text-xs leading-relaxed text-muted-foreground"
+                    lang="ko"
+                  >
                     {shownName.original}
                   </p>
                 )}
-                <p className="mt-0.5 text-[10px] text-muted-foreground">
+                <p className="mt-2 text-xs tabular-nums text-muted-foreground">
                   {s.stampDate.split('T')[0]}
                 </p>
               </div>
@@ -196,10 +211,10 @@ export default function PassportView() {
         {Array.from({ length: lockedCount }).map((_, i) => (
           <div
             key={`locked-${i}`}
-            className="flex aspect-square flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-gray-200 text-center dark:border-white/10"
+            className="flex aspect-square flex-col items-center justify-center gap-2 rounded-2xl p-3 border-2 border-dashed border-gray-200 text-center dark:border-white/10"
           >
             <Lock size={22} className="text-gray-300 dark:text-white/20" />
-            <span className="text-[11px] font-semibold text-muted-foreground">
+            <span className="text-xs leading-relaxed font-semibold text-muted-foreground">
               {i === 0 ? t('misc.passportNext') : t('misc.passportLocked')}
             </span>
           </div>

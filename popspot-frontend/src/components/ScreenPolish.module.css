@@ -1,0 +1,130 @@
+/* Only opt-in screen surfaces use these rules; the home sections and shared cards do not. */
+.controls :where(button, a, input, select):focus-visible {
+  outline: 2px solid var(--color-ring, var(--color-primary));
+  outline-offset: 3px;
+}
+
+.controls :where(button, a) {
+  -webkit-tap-highlight-color: transparent;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .controls button:active:not(:disabled) {
+    scale: 0.98;
+  }
+}
+
+.map [data-map-control] {
+  display: grid;
+  place-items: center;
+  min-width: 44px;
+  min-height: 44px;
+}
+
+/* Keep marker z-index values inside the canvas, below the map's fixed controls. */
+.map :global(.maplibregl-map) {
+  isolation: isolate;
+}
+
+.map [data-map-filters] {
+  padding-left: 0;
+  right: 68px;
+  padding-right: 0;
+  scrollbar-width: thin;
+}
+
+.map [data-map-filters] button {
+  min-height: 40px;
+  font-size: 12px;
+  color: white;
+  background-color: rgb(24 24 24 / 82%);
+}
+
+.map [data-map-filters] button[aria-pressed='true'] {
+  color: var(--color-ink-900);
+  background-color: var(--color-primary);
+}
+
+.map [data-map-sheet] {
+  overscroll-behavior: contain;
+}
+
+.map [data-map-handle] {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 72px;
+  height: 32px;
+  margin-top: -8px;
+  margin-bottom: 0;
+  background: transparent;
+}
+
+.map [data-map-handle]::after {
+  content: '';
+  width: 40px;
+  height: 4px;
+  border-radius: 99px;
+  background: rgb(255 255 255 / 40%);
+}
+
+.map [data-map-list] {
+  min-height: 0;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+}
+
+.map [data-map-list] h4 {
+  font-size: 14px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.map [data-map-list] p {
+  white-space: normal;
+  font-size: 12px;
+  line-height: 1.5;
+  align-items: flex-start;
+  overflow-wrap: anywhere;
+}
+
+.map [data-map-detail] {
+  width: min(280px, calc(100vw - 64px));
+}
+
+.map [data-map-detail] h3 {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.map [data-map-detail] p {
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.map [data-map-detail] p span {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.map [data-map-detail] > div:first-of-type {
+  flex-wrap: wrap;
+  padding-right: 24px;
+}
+
+@media (min-width: 768px) {
+  .map [data-map-handle] {
+    display: none;
+  }
+  .map[data-list-open='true'] [data-map-filters] {
+    left: 296px;
+  }
+}
+
+@media (hover: none) {
+  .controls [data-track-play] {
+    opacity: 1;
+  }
+}

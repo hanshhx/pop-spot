@@ -32,7 +32,9 @@ import {
   Columns2,
   Check,
 } from 'lucide-react';
-import { motion, Variants, AnimatePresence } from 'framer-motion';
+import { motion, Variants, AnimatePresence, useReducedMotion } from 'framer-motion';
+import polish from '@/components/ScreenPolish.module.css';
+import homeStyle from '@/components/main/HomeRefinement.module.css';
 import Link from 'next/link';
 import Image from 'next/image';
 import { isPexelsPhoto, popupCoverUrl } from '@/lib/popupCover';
@@ -77,7 +79,12 @@ import {
   useSensors,
   DragEndEvent,
 } from '@dnd-kit/core';
-import { arrayMove, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
 
 import InteractiveMap from '@/components/Map/DeferredInteractiveMap';
 import PassportView from '@/components/Passport/PassportView';
@@ -477,6 +484,7 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
   useGlobalSearchHotkey(setIsGlobalSearchOpen);
 
   const [currentTab, setCurrentTab] = useState('MAP');
+  const reduceScreenMotion = useReducedMotion();
   const [user, setUser] = useState<User | null>(null);
   const [myPageInfo, setMyPageInfo] = useState<MyPageData | null>(null);
   const [savedCourses, setSavedCourses] = useState<SavedCourse[]>([]);
@@ -746,7 +754,7 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(KeyboardSensor),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
   /* Event Handlers */
@@ -1948,7 +1956,9 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
   };
 
   return (
-    <main className="relative min-h-screen overflow-x-clip pb-28 font-sans text-gray-900 transition-colors duration-500 dark:text-white lg:pb-16">
+    <main
+      className={`${currentTab === 'MAP' ? homeStyle.home : ''} relative min-h-screen overflow-x-clip pb-28 font-sans text-gray-900 transition-colors duration-500 dark:text-white lg:pb-16`}
+    >
       {/* 모드별 풀 배경 영상 — 라이트=밝은 스카이라인(light-bg), 다크=생기있는 서울 야경(login-bg).
           영상이 '실제로 보이도록' 스크림은 얕게(home-video-scrim). 콘텐츠는 불투명 카드 위라 가독성은 카드가 담당.
           마운트 전엔 브랜드 단색(cream/ink)만 → 깜빡임 없이 영상 페이드 인. 활성 모드 영상 한 개만 로드. */}
@@ -1963,7 +1973,8 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
             방법이 없어 따로 페이드한다(globals.css 의 theme-bg-fade). 바탕색·스크림까지 같이
             감싸면 그 둘은 이미 색으로 부드럽게 흐르는 중이라 두 번 흔들린 것처럼 보인다. */}
         <div className="theme-bg-fade absolute inset-0">
-          {themeReady &&
+          {currentTab !== 'MAP' &&
+            themeReady &&
             (bgStill ? (
               /* 정지 배경은 영상 감시자·크로스페이드가 필요 없다. 좁은 화면에서 안 그리는 것만
                  LoopingBgVideo 와 맞춘다(그 아래는 home-flat-bg 가 덮는다). 움직임을 줄이도록
@@ -2205,6 +2216,7 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
               {/* Search Zone */}
               <div className="relative z-50 col-span-1 lg:col-span-12">
                 <SearchZone
+                  refined
                   popups={searchablePopups}
                   onSelectPopup={(hit) => {
                     // AI 필터가 걸려 있으면 해제 — 그래야 고른 핀이 지도에 보인다.
@@ -2256,6 +2268,7 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
               <div className="group relative col-span-1 h-[min(62svh,560px)] min-h-[430px] overflow-hidden rounded-[1.5rem] border border-gray-200 bg-white shadow-lg shadow-black/5 dark:border-white/10 dark:bg-[#111] dark:shadow-black/30 sm:rounded-[2rem] lg:col-span-12 lg:h-[58vh]">
                 <InteractiveMap
                   initialMarkers={initialMapMarkers}
+                  refinedControls
                   center={mapCenter}
                   focusReq={searchFocus}
                   onMarkerClick={handleMarkerClickToDetail}
@@ -2538,29 +2551,25 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
                 whileInView="visible"
                 viewport={{ once: true }}
                 variants={sectionVariants}
-                className="mb-16"
+                className={`${homeStyle.look} mb-16`}
               >
-                <header className="flex flex-col md:flex-row items-center md:items-end justify-between mb-6 md:mb-8 text-center md:text-left">
-                  <SectionLogo
-                    name="pop-look"
-                    label="POP-LOOK"
-                    className="h-10 md:h-16 relative z-10 text-foreground"
-                  />
-                  <div className="mt-2 flex flex-col items-center gap-3 md:mt-0 md:items-end">
-                    <p className="text-gray-500 dark:text-white/60 max-w-md relative z-10 text-xs md:text-base">
+                <header className={homeStyle.sectionHead}>
+                  <div className="min-w-0">
+                    <SectionLogo
+                      name="pop-look"
+                      label="POP-LOOK"
+                      className={`${homeStyle.seasonalLogo} h-[35px] md:h-11 relative z-10 text-foreground`}
+                    />
+                    <p className={homeStyle.description}>
                       {t('poplook.lead')}
                       <br />
                       {t('poplook.sub')}
                     </p>
-                    <button
-                      type="button"
-                      onClick={handleOpenModal}
-                      className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3.5 py-2 text-xs font-bold text-foreground shadow-sm transition hover:border-lime-300 hover:bg-lime-50 dark:border-white/10 dark:bg-white/5 dark:hover:bg-lime-300/10"
-                    >
-                      <Store size={14} /> {t('poplook.all')} {mappablePopupCount}
-                      <ArrowRight size={14} />
-                    </button>
                   </div>
+                  <button type="button" onClick={handleOpenModal} className={homeStyle.action}>
+                    <Store size={14} /> {t('poplook.all')} {mappablePopupCount}
+                    <ArrowRight size={14} />
+                  </button>
                 </header>
                 {/*
                   높이를 고정하지 않고 <b>최소값</b>으로 둔다.
@@ -2854,7 +2863,7 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
         {currentTab === 'PASSPORT' && (
           <motion.section
             aria-label="Digital Passport"
-            initial={{ opacity: 0, scale: 0.95 }}
+            initial={false}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0 }}
             className="min-h-[60vh] rounded-xl border border-[var(--color-border)] bg-surface text-surface-foreground mb-16 shadow-md"
@@ -2868,8 +2877,9 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
         {currentTab === 'MUSIC' && (
           <motion.section
             aria-label="Music to Popup"
-            initial={{ opacity: 0, y: 12 }}
+            initial={reduceScreenMotion ? false : { opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.22 }}
             className="mb-16 rounded-xl border border-[var(--color-border)] bg-surface p-4 lg:p-6"
           >
             <MusicTab
@@ -2888,9 +2898,10 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
         {currentTab === 'COURSE' && (
           <motion.section
             aria-label="AI Course Generator"
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="min-h-[60vh] flex flex-col items-center rounded-xl border border-[var(--color-border)] bg-surface text-surface-foreground mb-16 p-4 lg:p-6 relative overflow-hidden"
+            initial={reduceScreenMotion ? false : { opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.22 }}
+            className={`${polish.controls} min-h-[60vh] flex flex-col items-center rounded-xl border border-[var(--color-border)] bg-surface text-surface-foreground mb-16 p-4 lg:p-6 relative`}
           >
             <header className="text-center mb-8 lg:mb-10 z-10 mt-6 lg:mt-8">
               <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-pill border border-lime-300/40 bg-lime-300/10 text-lime-500 text-[10px] lg:text-xs font-semibold tracking-wide mb-4">
@@ -2899,7 +2910,9 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
               <h2 className="font-display-en text-2xl md:text-4xl lg:text-5xl font-extrabold tracking-tighter mb-2 text-foreground">
                 POP<span className="text-lime-300">-</span>COURSE
               </h2>
-              <p className="text-muted-foreground text-sm">{t('course.moodHint')}</p>
+              <p className="text-muted-foreground text-sm leading-relaxed">
+                {t('course.moodHint')}
+              </p>
             </header>
 
             <div className="w-full max-w-3xl z-10 mb-8 lg:mb-12 flex flex-col gap-3 lg:gap-4">
@@ -2967,31 +2980,34 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
                 {!showCustomInput ? (
                   <button
                     onClick={() => setShowCustomInput(true)}
-                    className="text-sm flex items-center gap-2 transition-colors border-b border-transparent pb-1 text-muted-foreground hover:text-lime-500 hover:border-lime-500"
+                    className="text-sm min-h-11 flex items-center gap-2 transition-colors border-b border-transparent pb-1 text-muted-foreground hover:text-lime-500 hover:border-lime-500"
                   >
                     <Sparkles size={12} className="lg:w-3.5 lg:h-3.5" /> {t('course.customAsk')}
                   </button>
                 ) : (
                   <motion.div
-                    initial={{ opacity: 0, y: -10 }}
+                    initial={reduceScreenMotion ? false : { opacity: 0, y: -6 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="flex w-full max-w-md gap-2"
+                    className="grid w-full max-w-md grid-cols-[minmax(0,1fr)_44px] gap-2 sm:flex"
                   >
                     <input
                       type="text"
                       value={customVibeInput}
                       onChange={(e) => setCustomVibeInput(e.target.value)}
                       placeholder={t('home.vibePlaceholder')}
-                      className="flex-1 h-11 rounded-md px-4 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring bg-surface border border-[var(--color-border-strong)] text-foreground placeholder:text-muted-foreground text-sm"
+                      aria-label={t('home.vibePlaceholder')}
+                      className="col-span-2 min-w-0 flex-1 h-11 rounded-md px-4 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring bg-surface border border-[var(--color-border-strong)] text-foreground placeholder:text-muted-foreground text-sm"
                       onKeyDown={(e) => e.key === 'Enter' && handleAiRecommend(customVibeInput)}
                     />
                     <button
                       onClick={() => handleAiRecommend(customVibeInput)}
-                      className="bg-lime-300 hover:bg-lime-400 text-ink-900 px-4 lg:px-6 rounded-pill font-semibold transition-colors text-xs lg:text-sm whitespace-nowrap"
+                      disabled={isAiLoading || !customVibeInput.trim()}
+                      className="min-h-11 bg-lime-300 hover:bg-lime-400 text-ink-900 px-4 lg:px-6 rounded-pill font-semibold transition-colors text-sm whitespace-nowrap disabled:opacity-50"
                     >
                       {t('course.recommend')}
                     </button>
                     <button
+                      aria-label={t('common.close')}
                       onClick={() => setShowCustomInput(false)}
                       className="size-11 inline-flex items-center justify-center rounded-md transition-colors bg-cream-300 dark:bg-ink-700 hover:bg-cream-400 dark:hover:bg-ink-600 text-muted-foreground flex-shrink-0"
                     >
@@ -3002,9 +3018,12 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
               </div>
             </div>
 
-            <div className="w-full max-w-3xl z-10 min-h-[300px] px-2 lg:px-0">
-              <header className="flex items-center justify-between mb-4 lg:mb-6">
-                <h3 className="font-bold text-base lg:text-lg flex items-center gap-2 text-foreground">
+            <div className="w-full max-w-3xl z-10 px-2 lg:px-0">
+              <header className="flex flex-wrap items-center justify-between gap-3 mb-4 lg:mb-6">
+                <h3
+                  aria-live="polite"
+                  className="min-w-0 font-bold text-base lg:text-lg flex items-center gap-2 text-foreground"
+                >
                   {isAiLoading ? (
                     <Loader2 className="animate-spin text-lime-500 w-4 h-4 lg:w-5 lg:h-5" />
                   ) : (
@@ -3019,7 +3038,7 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
                 {aiCourse.length > 0 && !isAiLoading && (
                   <button
                     onClick={handleResetCourse}
-                    className="text-xs flex items-center gap-1 transition-colors text-muted-foreground hover:text-danger"
+                    className="min-h-11 shrink-0 px-2 text-sm flex items-center gap-2 transition-colors text-muted-foreground hover:text-danger"
                   >
                     <RefreshCw size={10} className="lg:w-3 lg:h-3" /> {t('course.reset')}
                   </button>
@@ -3028,7 +3047,7 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
 
               {!isAiLoading && aiCourse.length > 0 && (
                 <motion.div
-                  initial={{ opacity: 0, y: 20 }}
+                  initial={reduceScreenMotion ? false : { opacity: 0, y: 12 }}
                   animate={{ opacity: 1, y: 0 }}
                   className="rounded-xl p-5 lg:p-8 border border-[var(--color-border)] relative overflow-hidden bg-surface shadow-md"
                 >
@@ -3050,6 +3069,7 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
                     <div className="mb-6 h-[280px] overflow-hidden rounded-2xl border border-[var(--color-border)] lg:h-[340px]">
                       <InteractiveMap
                         places={aiCourse}
+                        refinedControls
                         showPath
                         center={
                           aiCourse[0] ? { lat: aiCourse[0].lat, lng: aiCourse[0].lng } : undefined
@@ -3070,20 +3090,20 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
                           </div>
                           <button
                             type="button"
-                            className="flex-1 pb-4 text-left lg:pb-6"
+                            className="min-w-0 flex-1 rounded-md pb-4 text-left lg:pb-6"
                             onClick={() => {
                               saveHomeReturnState();
                               router.push(localizedPath(`/popup/${item.id}`, locale));
                             }}
                           >
                             <div className="p-4 rounded-md border border-[var(--color-border)] transition-colors bg-cream-300 dark:bg-ink-800 hover:border-lime-300/60">
-                              <div className="flex justify-between items-center mb-1">
-                                <h5 className="font-bold text-sm lg:text-base text-foreground">
+                              <div className="flex justify-between items-start gap-3 mb-2">
+                                <h5 className="min-w-0 break-words font-bold text-sm leading-relaxed lg:text-base text-foreground">
                                   {item.name}
                                 </h5>
                                 <ArrowRight
                                   size={14}
-                                  className="lg:w-4 lg:h-4 text-muted-foreground"
+                                  className="mt-1 shrink-0 lg:w-4 lg:h-4 text-muted-foreground"
                                 />
                               </div>
                               <p className="text-sm mb-2 text-muted-foreground line-clamp-2 italic">
@@ -3382,7 +3402,7 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
                                   const newItems = myCourseItems.filter((i) => i.id !== place.id);
                                   setMyCourseItems(newItems);
                                 }}
-                                className="absolute -top-2 -right-2 bg-hot-400 text-white p-1 rounded-pill opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity shadow-md"
+                                className="absolute right-2 top-1/2 -translate-y-1/2 grid size-11 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-hot-400/10 hover:text-hot-500 focus-visible:outline-2 focus-visible:outline-ring"
                                 title={t('home.delete')}
                               >
                                 <X size={10} className="lg:w-3 lg:h-3" />

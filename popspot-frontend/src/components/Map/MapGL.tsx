@@ -304,6 +304,9 @@ export function MapPolyline({
     map.on('styledata', ensure);
     return () => {
       map.off('styledata', ensure);
+      // 탭을 떠날 때 부모 MapGL의 remove()가 먼저 스타일을 해제할 수 있다.
+      // 이미 제거된 지도에는 레이어를 다시 정리할 필요가 없다.
+      if (!map.getStyle()) return;
       if (map.getLayer(id)) map.removeLayer(id);
       if (map.getSource(id)) map.removeSource(id);
     };

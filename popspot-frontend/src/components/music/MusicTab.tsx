@@ -13,6 +13,7 @@ import type { PopupStore } from '@/types/popup';
 import { PopupCard } from '@/components/main/PopupCard';
 import { useMusicPlayer } from './MusicPlayerProvider';
 import { SpotifyAttributionLink } from './SpotifyAttributionLink';
+import polish from '../ScreenPolish.module.css';
 
 /**
  * 검색 디바운스 — 입력이 멈추고 N ms 후 한 번만 호출.
@@ -109,7 +110,7 @@ export interface MusicTabProps {
  */
 export default function MusicTab({ popups, onOpenPopup }: MusicTabProps) {
   const player = useMusicPlayer();
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
 
   const [activeMoodId, setActiveMoodId] = useState(MOODS[0].id);
   const activeMood = useMemo(
@@ -164,6 +165,8 @@ export default function MusicTab({ popups, onOpenPopup }: MusicTabProps) {
   const [popular, setPopular] = useState<MusicTrack[]>([]);
   const [results, setResults] = useState<MusicTrack[]>([]);
   const [searching, setSearching] = useState(false);
+  const [searchFailed, setSearchFailed] = useState(false);
+  const [searchAttempt, setSearchAttempt] = useState(0);
 
   const [moodTracks, setMoodTracks] = useState<MusicTrack[]>([]);
   const [moodLoading, setMoodLoading] = useState(false);
@@ -245,18 +248,35 @@ export default function MusicTab({ popups, onOpenPopup }: MusicTabProps) {
 
   // 확정된 검색어로 실제 곡 검색
   useEffect(() => {
+    let alive = true;
     const q = submittedQuery.trim();
+    setSearchFailed(false);
     if (!q) {
       setResults([]);
+      setSearching(false);
       return;
     }
     setSearching(true);
     apiFetch(`/api/music/search?q=${encodeURIComponent(q)}&limit=12`)
-      .then((r) => (r.ok ? r.json() : []))
-      .then((data: MusicTrack[]) => setResults(data || []))
-      .catch(() => setResults([]))
-      .finally(() => setSearching(false));
-  }, [submittedQuery]);
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`music ${r.status}`))))
+      .then((data: MusicTrack[]) => {
+        if (alive) setResults(data || []);
+      })
+      .catch(() => {
+        if (alive) {
+          setResults([]);
+          setSearchFailed(true);
+          setSuggestOpen(false);
+        }
+      })
+      .finally(() => {
+        if (alive) setSearching(false);
+      });
+    // A slow previous query must not replace the current query's results or error state.
+    return () => {
+      alive = false;
+    };
+  }, [submittedQuery, searchAttempt]);
 
   // 외부 클릭 시 드롭다운 닫기
   useEffect(() => {
@@ -327,11 +347,11 @@ export default function MusicTab({ popups, onOpenPopup }: MusicTabProps) {
   const strip: MusicTrack[] = showSearch ? results : moodTracks.length > 0 ? moodTracks : popular;
 
   return (
-    <div className="relative w-full">
+    <div className={`${polish.controls} relative w-full min-w-0`}>
       {/* 헤더 */}
       <header className="mb-6">
-        <div className="flex items-start justify-between gap-3">
-          <div>
+        <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:gap-6">
+          <div className="min-w-0">
             <p className="text-xs font-bold uppercase tracking-[0.3em] text-muted-foreground">
               POP · MUSIC
             </p>
@@ -339,10 +359,12 @@ export default function MusicTab({ popups, onOpenPopup }: MusicTabProps) {
               {t('music.heroLead')}
               <span className="text-lime-500 dark:text-lime-300">{t('music.heroAccent')}</span>
             </h2>
-            <p className="mt-2 max-w-md text-sm text-muted-foreground">{t('music.heroDesc')}</p>
+            <p className="mt-3 max-w-md text-sm leading-relaxed text-muted-foreground">
+              {t('music.heroDesc')}
+            </p>
           </div>
           {/* Spotify 연결 칩. Premium 이면 풀트랙, Free/미연결은 30초 미리듣기. */}
-          <div className="shrink-0 pt-1">
+          <div className="shrink-0 sm:pt-1 [&_button]:min-h-11">
             <SpotifyConnectButton />
           </div>
         </div>
@@ -351,7 +373,7 @@ export default function MusicTab({ popups, onOpenPopup }: MusicTabProps) {
       {/* 당신을 위한 — 개인화 추천 (로그인 유저, 재생 이력 취향 기반) */}
       {isLoggedIn && forYou.length > 0 && (
         <section aria-label={t('music.forYouAria')} className="mb-7">
-          <div className="mb-3 flex items-baseline gap-2">
+          <div className="mb-3 flex flex-wrap items-baseline gap-x-2 gap-y-1">
             <h3 className="text-base font-black text-foreground">
               {t('music.forYouLead')}
               <span className="text-lime-500 dark:text-lime-300">{t('music.forYouAccent')}</span>
@@ -397,7 +419,7 @@ export default function MusicTab({ popups, onOpenPopup }: MusicTabProps) {
       {/* PRIMARY — 이 무드의 팝업 사진 카드 */}
       <section aria-label={t('music.moodPopupsAria')} className="mb-10">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-baseline gap-2">
+          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
             <h3 className="text-base font-black text-foreground">
               <span className="text-lime-500 dark:text-lime-300">{t(activeMood.labelKey)}</span>
               {t('music.moodPopupsSuffix')}
@@ -412,7 +434,7 @@ export default function MusicTab({ popups, onOpenPopup }: MusicTabProps) {
                 setSortBy(e.target.value as 'default' | 'popular' | 'dday' | 'category')
               }
               aria-label={t('music.sortAria')}
-              className="rounded-pill border border-[var(--color-border)] bg-surface px-3 py-1.5 text-xs font-semibold text-foreground focus:outline-none focus:border-lime-400"
+              className="min-h-11 rounded-pill border border-[var(--color-border)] bg-surface px-3 py-2 text-sm font-semibold text-foreground focus:outline-none focus:border-lime-400"
             >
               {/* value 는 정렬 분기에 그대로 쓰이는 값이라 고정하고, 보이는 글자만 옮긴다. */}
               <option value="default">{t('music.sortDefault')}</option>
@@ -462,12 +484,12 @@ export default function MusicTab({ popups, onOpenPopup }: MusicTabProps) {
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
               onClick={handleRoulette}
               disabled={rouletteLoading}
-              className="flex h-9 items-center gap-1.5 rounded-pill bg-gradient-to-r from-lime-400 to-emerald-400 px-3.5 text-xs font-black text-ink-900 transition hover:scale-[1.02] disabled:opacity-60"
+              className="flex min-h-11 items-center gap-1.5 rounded-pill bg-gradient-to-r from-lime-400 to-emerald-400 px-3.5 text-xs font-black text-ink-900 transition hover:scale-[1.02] disabled:opacity-60"
             >
               {rouletteLoading ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -478,7 +500,7 @@ export default function MusicTab({ popups, onOpenPopup }: MusicTabProps) {
             </button>
             <Link
               href="/music/passport"
-              className="flex h-9 items-center gap-1.5 rounded-pill border border-[var(--color-border)] bg-surface px-3.5 text-xs font-bold text-foreground transition hover:bg-cream-300 dark:hover:bg-ink-700"
+              className="flex min-h-11 items-center gap-1.5 rounded-pill border border-[var(--color-border)] bg-surface px-3.5 text-xs font-bold text-foreground transition hover:bg-cream-300 dark:hover:bg-ink-700"
             >
               <Ticket className="h-3.5 w-3.5" />
               {t('music.passport')}
@@ -498,8 +520,9 @@ export default function MusicTab({ popups, onOpenPopup }: MusicTabProps) {
             }}
             onFocus={() => setSuggestOpen(true)}
             onKeyDown={handleKeyDown}
+            aria-label={t('music.searchPlaceholder')}
             placeholder={t('music.searchPlaceholder')}
-            className="h-10 w-full rounded-pill border border-[var(--color-border)] bg-surface pl-10 pr-9 text-sm text-foreground placeholder:text-muted-foreground focus:border-lime-400 focus:outline-none"
+            className="h-11 w-full rounded-pill border border-[var(--color-border)] bg-surface pl-10 pr-12 text-sm text-foreground placeholder:text-muted-foreground focus:border-lime-400 focus:outline-none"
             autoComplete="off"
           />
           {searching ? (
@@ -509,7 +532,7 @@ export default function MusicTab({ popups, onOpenPopup }: MusicTabProps) {
               type="button"
               onClick={clearSearch}
               aria-label={t('music.searchClear')}
-              className="absolute right-2.5 top-1/2 grid h-6 w-6 -translate-y-1/2 place-items-center rounded-full text-muted-foreground hover:bg-foreground/5"
+              className="absolute right-0 top-1/2 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full text-muted-foreground hover:bg-foreground/5"
             >
               <X className="h-3.5 w-3.5" />
             </button>
@@ -537,7 +560,7 @@ export default function MusicTab({ popups, onOpenPopup }: MusicTabProps) {
                   }`}
                 >
                   <Music2 className="h-4 w-4 shrink-0 text-muted-foreground" />
-                  <span className="truncate">{s}</span>
+                  <span className="min-w-0 break-words">{s}</span>
                 </button>
               ))}
             </div>
@@ -545,7 +568,27 @@ export default function MusicTab({ popups, onOpenPopup }: MusicTabProps) {
         </div>
 
         {/* 곡 스트립 (가로 스크롤) */}
-        {moodLoading && !showSearch ? (
+        {showSearch && searchFailed ? (
+          <div
+            role="alert"
+            className="rounded-xl border border-[var(--color-border)] p-4 text-sm leading-relaxed text-muted-foreground"
+          >
+            <p>
+              {locale === 'ko'
+                ? '곡을 불러오지 못했어요. 연결을 확인한 뒤 다시 시도해 주세요.'
+                : locale === 'ja'
+                  ? '曲を読み込めませんでした。接続を確認して、もう一度お試しください。'
+                  : 'Could not load tracks. Check your connection and try again.'}
+            </p>
+            <button
+              type="button"
+              onClick={() => setSearchAttempt((attempt) => attempt + 1)}
+              className="mt-2 min-h-11 rounded-pill border border-[var(--color-border)] bg-surface px-4 font-bold text-foreground"
+            >
+              {t('wish.retry')}
+            </button>
+          </div>
+        ) : searching || (moodLoading && !showSearch) ? (
           <TrackStripSkeleton />
         ) : strip.length === 0 ? (
           <p className="py-8 text-center text-xs text-muted-foreground">{t('music.tracksEmpty')}</p>
@@ -567,7 +610,7 @@ export default function MusicTab({ popups, onOpenPopup }: MusicTabProps) {
       {/* 다음 추천 — 재생 중일 때 이어질 곡 (유튜브 up-next식, 재생 곡 기반 개인화) */}
       {player.current && player.autoQueue.length > 0 && (
         <section aria-label={t('music.nextUp')} className="mt-6">
-          <div className="mb-3 flex items-baseline gap-2">
+          <div className="mb-3 flex flex-wrap items-baseline gap-x-2 gap-y-1">
             <h3 className="text-base font-black text-foreground">{t('music.nextUp')}</h3>
             <span className="min-w-0 truncate text-xs text-muted-foreground">
               {/* 곡명은 고유명사라 그대로 두고, 뒤에 붙는 설명만 언어별로 바꾼다. */}
@@ -593,9 +636,18 @@ export default function MusicTab({ popups, onOpenPopup }: MusicTabProps) {
 
 /** 강등된 배경음악 스트립의 가로 곡 칩. */
 function TrackChip({ track, onPlay }: { track: MusicTrack; onPlay: () => void }) {
+  const { t } = useLocale();
+  const { current } = useMusicPlayer();
+  const isCurrent = current?.id === track.id;
   return (
     <div className="group w-[120px] shrink-0 snap-start text-left sm:w-[132px]">
-      <button type="button" onClick={onPlay} className="block w-full text-left">
+      <button
+        type="button"
+        onClick={onPlay}
+        aria-label={`${t('player.play')}: ${track.trackName} · ${track.artistName}`}
+        aria-current={isCurrent ? true : undefined}
+        className={`block w-full rounded-xl text-left ${isCurrent ? 'ring-2 ring-lime-400 ring-offset-4 ring-offset-surface' : ''}`}
+      >
         <div className="relative aspect-square overflow-hidden rounded-xl bg-foreground/5 ring-1 ring-[var(--color-border)] transition group-hover:ring-foreground/30">
           {track.artworkUrlHires || track.artworkUrl ? (
             // Spotify/iTunes CDN 이미지 — next/image 화이트리스트 대신 <img> 사용.
@@ -604,21 +656,31 @@ function TrackChip({ track, onPlay }: { track: MusicTrack; onPlay: () => void })
               src={track.artworkUrlHires || track.artworkUrl}
               alt={track.trackName}
               loading="lazy"
-              className="h-full w-full object-cover transition duration-500 group-hover:scale-110"
+              className="h-full w-full object-cover transition duration-200 motion-safe:group-hover:scale-[1.03]"
             />
           ) : (
             <div className="grid h-full place-items-center text-muted-foreground">
               <Music2 className="h-7 w-7" />
             </div>
           )}
-          <div className="absolute inset-0 flex items-end justify-end bg-gradient-to-t from-black/70 to-transparent p-2 opacity-0 transition group-hover:opacity-100">
+          <div
+            data-track-play
+            className="absolute inset-0 flex items-end justify-end bg-gradient-to-t from-black/70 to-transparent p-2 opacity-0 transition group-hover:opacity-100 group-focus-within:opacity-100"
+          >
             <span className="grid h-8 w-8 place-items-center rounded-full bg-lime-300 text-ink-900 shadow-lg">
               <Play className="ml-0.5 h-3.5 w-3.5" fill="currentColor" />
             </span>
           </div>
         </div>
-        <p className="mt-1.5 truncate text-xs font-bold text-foreground">{track.trackName}</p>
-        <p className="truncate text-[11px] text-muted-foreground">{track.artistName}</p>
+        <p
+          title={track.trackName}
+          className="mt-2 line-clamp-2 break-words text-sm font-bold leading-snug text-foreground"
+        >
+          {track.trackName}
+        </p>
+        <p title={track.artistName} className="mt-1 truncate text-xs text-muted-foreground">
+          {track.artistName}
+        </p>
       </button>
       <SpotifyAttributionLink trackId={track.spotifyTrackId} className="mt-1" />
     </div>

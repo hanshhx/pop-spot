@@ -16,7 +16,7 @@ import type { PublicMapMarker } from '@/lib/mapMarkers';
 export default function MapClient({ initialMarkers }: { initialMarkers: PublicMapMarker[] }) {
   return (
     <div className="relative h-[70vh] min-h-[460px] w-full overflow-hidden rounded-[2rem] border border-gray-200 bg-white shadow-lg shadow-black/5 dark:border-white/10 dark:bg-[#111] dark:shadow-black/30">
-      <InteractiveMap initialMarkers={initialMarkers} />
+      <InteractiveMap initialMarkers={initialMarkers} refinedControls />
     </div>
   );
 }

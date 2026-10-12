@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Sparkles, Loader2, MapPin, ArrowRight } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import { SectionLogo } from '@/components/layout/BrandLogos';
+import homeStyle from '@/components/main/HomeRefinement.module.css';
 import { useLocale } from '@/lib/i18n';
 import { localizedPath } from '@/lib/localePath';
 import { bilingual } from '@/lib/bilingual';
@@ -25,6 +26,8 @@ type AiResult = Pick<
 > & { id: string };
 
 interface SearchZoneProps {
+  /** Home-only treatment; the search dialog keeps its original layout. */
+  refined?: boolean;
   /** 이름 매칭으로 고른 팝업 → 지도에서 해당 핀으로 이동 + 정보카드 오픈. */
   onSelectPopup?: (hit: { objectID: string; name: string; location?: string }) => void;
   /** AI 검색 결과 id 목록(또는 null=전체 복원). 지정되면 지도 핀 필터 모드. 미지정이면 결과 목록 모드. */
@@ -47,7 +50,12 @@ const EXAMPLES = [
   { key: 'search.ex4', query: '아이랑 가기 좋은 곳' },
 ] as const;
 
-export function SearchZone({ onAiFilter, onSelectPopup, popups }: SearchZoneProps = {}) {
+export function SearchZone({
+  onAiFilter,
+  onSelectPopup,
+  popups,
+  refined = false,
+}: SearchZoneProps = {}) {
   const { t, locale } = useLocale();
   const [q, setQ] = useState('');
   const [loading, setLoading] = useState(false);
@@ -127,13 +135,19 @@ export function SearchZone({ onAiFilter, onSelectPopup, popups }: SearchZoneProp
   const count = results?.length ?? null;
 
   return (
-    <div className="relative z-50 overflow-hidden rounded-xl border border-lime-300/50 bg-gradient-to-br from-lime-50/70 via-surface to-surface p-6 md:p-8 dark:from-lime-300/[0.06] dark:via-surface dark:to-surface">
+    <div
+      className={
+        refined
+          ? `${homeStyle.search} relative z-50 overflow-hidden border p-6 md:p-8`
+          : 'relative z-50 overflow-hidden rounded-xl border border-lime-300/50 bg-gradient-to-br from-lime-50/70 via-surface to-surface p-6 md:p-8 dark:from-lime-300/[0.06] dark:via-surface dark:to-surface'
+      }
+    >
       {/* 헤더 — AI 브랜딩 */}
       <div className="mb-4 flex items-center gap-2">
         <SectionLogo
           name="search-zone"
           label="Search Zone"
-          className="h-9 text-foreground md:h-12"
+          className={`${refined ? homeStyle.seasonalLogo : ''} h-9 text-foreground md:h-12`}
         />
         <span className="inline-flex items-center gap-1 rounded-pill bg-lime-300 px-2 py-0.5 text-[10px] font-black text-ink-900">
           <Sparkles size={11} /> AI

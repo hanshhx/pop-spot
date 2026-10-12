@@ -1,6 +1,8 @@
 'use client';
 
 import { useCallback, useRef, useState } from 'react';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import homeStyle from './HomeRefinement.module.css';
 import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp } from 'lucide-react';
 import type { PreviewRow } from '@/lib/popAllPreview';
 import { isPexelsPhoto, popupCoverUrl } from '@/lib/popupCover';
@@ -48,9 +50,6 @@ interface Props {
  * 있지 않게 하려는 장치였는데, 소유자 판단으로 <b>불투명 흰 면</b>으로 되돌렸다. 홈의 다른
  * 카드들(벤토·레일)이 전부 불투명이라 이 자리만 비치면 오히려 그쪽이 튄다.
  */
-const PANEL =
-  'rounded-[24px] border border-black/[0.06] bg-white shadow-pop md:rounded-[32px] dark:border-transparent dark:bg-ink-900';
-
 export default function PopAllPreview({ rows, total, onOpenAll, onOpenPopup, seenIds }: Props) {
   const { t } = useLocale();
 
@@ -63,40 +62,35 @@ export default function PopAllPreview({ rows, total, onOpenAll, onOpenPopup, see
   const [openIdx, setOpenIdx] = useState(0);
 
   return (
-    <section aria-label={t('popall.title')} className="mb-10">
-      <header className="mb-4 flex flex-col gap-4 px-1.5 md:mb-4 md:flex-row md:items-end md:justify-between md:gap-6">
-        <PopAllWordmark className="h-[35px] text-foreground md:h-16" />
-
-        <div className="flex flex-col items-start gap-3 md:items-end">
-          <p className="text-xs leading-relaxed text-[#3f6f86] md:text-right md:text-[15px] dark:text-cream-200/60">
+    <section aria-label={t('popall.title')} className={`${homeStyle.family} mb-10`}>
+      <header className={homeStyle.sectionHead}>
+        <div className="min-w-0">
+          <PopAllWordmark className="h-[35px] text-foreground md:h-11" />
+          <p className={homeStyle.description}>
             {t('popall.tagline')}
             <span className="hidden md:inline">
               <br />
               {t('popall.taglineSub')}
             </span>
           </p>
-          {/*
-           * 「전체 보기」 — 시안의 데스크톱에만 있던 것을 <b>모바일에도 같은 모양으로</b> 둔다.
-           * 없으면 폭이 좁은 화면에서 전체 목록으로 들어갈 길이 아예 사라진다(줄 제목을 눌러
-           * 분야별로 들어가는 길만 남는다).
-           *
-           * 라임이 아니라 흰 알약인 것은 시안의 판단이다 — 계절에 따라 청록으로 치환되는 라임
-           * 알약이 계절을 타지 않는 워드마크의 라임과 부딪힌다.
-           */}
-          <button
-            type="button"
-            onClick={() => onOpenAll()}
-            className="inline-flex items-center gap-2 rounded-full border border-white/70 bg-white/80 px-4 py-2.5 text-[13px] font-extrabold text-[#0d1517] shadow-[0_2px_10px_rgba(10,10,10,.08)] backdrop-blur-[8px] transition-[transform,box-shadow] duration-[250ms] ease-[cubic-bezier(.25,1,.5,1)] hover:-translate-y-0.5 hover:shadow-[0_8px_20px_rgba(10,10,10,.14)] dark:border-white/15 dark:bg-white/10 dark:text-cream-100"
-          >
-            <span className="popall-dot size-[7px] shrink-0 rounded-full bg-[#b4d45f] [animation:popall-dot_1.9s_ease-in-out_infinite_alternate]" />
-            {total.toLocaleString()}
-            {t('popall.countSuffix')}
-            <ChevronRight size={14} strokeWidth={2.2} />
-          </button>
         </div>
+        {/*
+         * 「전체 보기」 — 시안의 데스크톱에만 있던 것을 <b>모바일에도 같은 모양으로</b> 둔다.
+         * 없으면 폭이 좁은 화면에서 전체 목록으로 들어갈 길이 아예 사라진다(줄 제목을 눌러
+         * 분야별로 들어가는 길만 남는다).
+         *
+         * 라임이 아니라 흰 알약인 것은 시안의 판단이다 — 계절에 따라 청록으로 치환되는 라임
+         * 알약이 계절을 타지 않는 워드마크의 라임과 부딪힌다.
+         */}
+        <button type="button" onClick={() => onOpenAll()} className={homeStyle.action}>
+          <span className="size-[7px] shrink-0 rounded-full bg-[#b4d45f]" />
+          {total.toLocaleString()}
+          {t('popall.countSuffix')}
+          <ChevronRight size={14} strokeWidth={2.2} />
+        </button>
       </header>
 
-      <div className={`${PANEL} px-3.5 pb-3 pt-0.5 md:px-6 md:pb-4 md:pt-1.5`}>
+      <div className={homeStyle.allBody}>
         {rows.length === 0
           ? [...Array(5)].map((_, i) => (
               <div key={i} className="border-t border-[#0d1517]/10 py-4 dark:border-white/10">
@@ -107,7 +101,6 @@ export default function PopAllPreview({ rows, total, onOpenAll, onOpenPopup, see
               <AccordionRow
                 key={row.code}
                 row={row}
-                idx={idx}
                 open={openIdx === idx}
                 seenIds={seenIds}
                 onToggle={() => setOpenIdx((cur) => (cur === idx ? -1 : idx))}
@@ -162,7 +155,6 @@ function DeckImage({ popup }: { popup: PopupStore }) {
 /** 분야 한 줄 — 접혔을 때는 제목·곳수·덱, 펼쳤을 때는 화살표와 카드 열여덟 장. */
 function AccordionRow({
   row,
-  idx,
   open,
   seenIds,
   onToggle,
@@ -170,7 +162,6 @@ function AccordionRow({
   onOpenPopup,
 }: {
   row: PreviewRow;
-  idx: number;
   open: boolean;
   seenIds?: ReadonlySet<number>;
   onToggle: () => void;
@@ -178,6 +169,7 @@ function AccordionRow({
   onOpenPopup: (id: number) => void;
 }) {
   const { t, locale } = useLocale();
+  const reduceMotion = useReducedMotion();
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const [edge, setEdge] = useState<{ start: boolean; end: boolean }>({ start: true, end: true });
 
@@ -214,7 +206,10 @@ function AccordionRow({
   const nudge = (dir: -1 | 1) => {
     const node = scrollerRef.current;
     if (!node) return;
-    node.scrollBy({ left: dir * node.clientWidth * 0.8, behavior: 'smooth' });
+    node.scrollBy({
+      left: dir * node.clientWidth * 0.8,
+      behavior: reduceMotion ? 'auto' : 'smooth',
+    });
   };
 
   const def = CATEGORIES.find((c) => c.code === row.code);
@@ -226,10 +221,7 @@ function AccordionRow({
     'grid size-9 place-items-center rounded-full border border-[#0d1517]/12 bg-white/70 text-[#3f6f86] transition-colors hover:bg-white hover:text-[#0d1517] disabled:pointer-events-none disabled:opacity-30 md:size-[34px] dark:border-white/15 dark:bg-white/10 dark:text-cream-200/70 dark:hover:bg-white/20 dark:hover:text-cream-100';
 
   return (
-    <div
-      className="border-t border-[#0d1517]/11 [animation:popall-reveal_.5s_cubic-bezier(.25,1,.5,1)_both] dark:border-white/10"
-      style={{ animationDelay: `${idx * 70}ms` }}
-    >
+    <div className={homeStyle.allRow}>
       <button
         type="button"
         onClick={onToggle}
@@ -286,59 +278,67 @@ function AccordionRow({
         </span>
       </button>
 
-      {open && (
-        <div className="[animation:popall-open_.42s_cubic-bezier(.25,1,.5,1)_both] pb-3 md:pb-5">
-          <div className="mb-2.5 -mt-1 flex justify-end gap-2 md:mb-3 md:mt-0 md:gap-2.5">
-            <button
-              type="button"
-              onClick={() => nudge(-1)}
-              disabled={edge.start}
-              aria-label={rowArrowLabel(label, 'prev', locale)}
-              className={arrowCls}
-            >
-              <ChevronLeft size={16} />
-            </button>
-            <button
-              type="button"
-              onClick={() => nudge(1)}
-              disabled={edge.end}
-              aria-label={rowArrowLabel(label, 'next', locale)}
-              className={arrowCls}
-            >
-              <ChevronRight size={16} />
-            </button>
-          </div>
-
-          <div
-            ref={attach}
-            onScroll={(e) => measure(e.currentTarget)}
-            className="flex snap-x snap-proximity gap-3 overflow-x-auto overflow-y-hidden pb-3.5 md:gap-4 md:pb-1.5"
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            initial={reduceMotion ? false : { height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: reduceMotion ? 0 : 0.22, ease: 'easeOut' }}
+            className="overflow-hidden pb-3 md:pb-5"
           >
-            {row.popups.map((p) => (
-              <PreviewCard
-                key={p.id}
-                popup={p}
-                seen={seenIds?.has(p.id) ?? false}
-                today={today}
-                locale={locale}
-                onClick={() => onOpenPopup(p.id)}
-              />
-            ))}
-            {/* 열여덟 장 끝에서 그 분야 전체로 이어 준다 — 스크롤이 끝났는데 더 볼 길이 없으면
-                거기서 흐름이 끊긴다. */}
-            <button
-              type="button"
-              onClick={() => onOpenAll(row.code)}
-              className="flex w-[168px] shrink-0 snap-start flex-col items-center justify-center gap-2 rounded-[18px] border border-dashed border-[#0d1517]/15 text-[13px] font-bold text-[#3f6f86] transition hover:border-solid hover:bg-white/50 md:w-[200px] md:rounded-[22px] dark:border-white/15 dark:text-cream-200/60 dark:hover:bg-white/5"
-              style={{ aspectRatio: '4 / 5' }}
+            <div className="mb-2.5 -mt-1 flex justify-end gap-2 md:mb-3 md:mt-0 md:gap-2.5">
+              <button
+                type="button"
+                onClick={() => nudge(-1)}
+                disabled={edge.start}
+                aria-label={rowArrowLabel(label, 'prev', locale)}
+                className={arrowCls}
+              >
+                <ChevronLeft size={16} />
+              </button>
+              <button
+                type="button"
+                onClick={() => nudge(1)}
+                disabled={edge.end}
+                aria-label={rowArrowLabel(label, 'next', locale)}
+                className={arrowCls}
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
+
+            <div
+              ref={attach}
+              onScroll={(e) => measure(e.currentTarget)}
+              className="flex snap-x snap-proximity gap-3 overflow-x-auto overflow-y-hidden pb-3.5 md:gap-4 md:pb-1.5"
             >
-              <ChevronRight size={20} />
-              {label} {row.total.toLocaleString()}
-              {t('slice.countUnit')}
-            </button>
-          </div>
-        </div>
-      )}
+              {row.popups.map((p) => (
+                <PreviewCard
+                  key={p.id}
+                  popup={p}
+                  seen={seenIds?.has(p.id) ?? false}
+                  today={today}
+                  locale={locale}
+                  onClick={() => onOpenPopup(p.id)}
+                />
+              ))}
+              {/* 열여덟 장 끝에서 그 분야 전체로 이어 준다 — 스크롤이 끝났는데 더 볼 길이 없으면
+                거기서 흐름이 끊긴다. */}
+              <button
+                type="button"
+                onClick={() => onOpenAll(row.code)}
+                className="flex w-[168px] shrink-0 snap-start flex-col items-center justify-center gap-2 rounded-[18px] border border-dashed border-[#0d1517]/15 text-[13px] font-bold text-[#3f6f86] transition hover:border-solid hover:bg-white/50 md:w-[200px] md:rounded-[22px] dark:border-white/15 dark:text-cream-200/60 dark:hover:bg-white/5"
+                style={{ aspectRatio: '4 / 5' }}
+              >
+                <ChevronRight size={20} />
+                {label} {row.total.toLocaleString()}
+                {t('slice.countUnit')}
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -375,7 +375,7 @@ function PreviewCard({
       type="button"
       onClick={onClick}
       title={name.display || popup.name}
-      className="group/card w-[168px] shrink-0 snap-start border-0 bg-transparent p-0 text-left transition-transform duration-300 ease-[cubic-bezier(.25,1,.5,1)] hover:-translate-y-2 md:w-[200px]"
+      className="group/card w-[168px] shrink-0 snap-start border-0 bg-transparent p-0 text-left motion-safe:transition-transform motion-safe:duration-200 motion-safe:hover:-translate-y-0.5 md:w-[200px]"
     >
       <div className="relative aspect-[4/5] overflow-hidden rounded-[18px] bg-[#ece9e0] shadow-[0_5px_14px_rgba(10,10,10,.12)] md:rounded-[22px] md:shadow-[0_8px_22px_rgba(10,10,10,.14)] dark:bg-ink-800">
         {cover ? (

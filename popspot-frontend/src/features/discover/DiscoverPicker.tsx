@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { SearchX, X } from 'lucide-react';
 
 import { PopupCard } from '@/components/main/PopupCard';
+import homeStyle from '@/components/main/HomeRefinement.module.css';
 import {
   DISCOVER_CARD_LIMIT,
   categoryOptions,
@@ -95,51 +96,51 @@ export function DiscoverPicker({ popups, wishedIds, onWish, onOpenPopup }: Props
     if (!r.saved) notifyError(t('discover.notSaved'));
   };
 
-  const selectCls =
-    'rounded-pill border border-[var(--color-border)] bg-surface px-3 py-2 text-xs font-semibold text-foreground focus:border-lime-400 focus:outline-none';
-
   return (
-    <section className="mb-10" aria-label={t('discover.title')}>
-      <h3 className="text-xl font-black tracking-tight text-foreground md:text-2xl">
-        {t('discover.title')}
-      </h3>
-      <p className="mt-1 text-xs text-muted-foreground md:text-sm">{t('discover.desc')}</p>
+    <section className={`${homeStyle.family} mb-10`} aria-label={t('discover.title')}>
+      <header className={homeStyle.sectionHead}>
+        <div className="min-w-0">
+          <h3 className={homeStyle.title}>{t('discover.title')}</h3>
+          <p className={homeStyle.description}>{t('discover.desc')}</p>
+        </div>
 
-      <div className="mt-3 flex flex-wrap gap-2">
-        <select
-          value={region ?? ''}
-          onChange={(e) => setRegion((e.target.value || null) as RegionCode | null)}
-          aria-label={t('popall.allRegions')}
-          className={selectCls}
-        >
-          <option value="">{t('popall.allRegions')}</option>
-          {regions.map((o) => (
-            <option key={o.value} value={o.value}>
-              {regionLabel(o.value)} ({o.count})
-            </option>
-          ))}
-        </select>
+        <div className={homeStyle.filters}>
+          <select
+            value={region ?? ''}
+            onChange={(e) => setRegion((e.target.value || null) as RegionCode | null)}
+            aria-label={t('popall.allRegions')}
+            className={homeStyle.select}
+          >
+            <option value="">{t('popall.allRegions')}</option>
+            {regions.map((o) => (
+              <option key={o.value} value={o.value}>
+                {regionLabel(o.value)} ({o.count})
+              </option>
+            ))}
+          </select>
 
-        <select
-          value={category ?? ''}
-          onChange={(e) => setCategory((e.target.value || null) as CategoryCode | null)}
-          aria-label={t('popall.allCategories')}
-          className={selectCls}
-        >
-          <option value="">{t('popall.allCategories')}</option>
-          {categories.map((o) => (
-            <option key={o.value} value={o.value}>
-              {categoryLabelOf(o.value)} ({o.count})
-            </option>
-          ))}
-        </select>
-      </div>
+          <select
+            value={category ?? ''}
+            onChange={(e) => setCategory((e.target.value || null) as CategoryCode | null)}
+            aria-label={t('popall.allCategories')}
+            className={homeStyle.select}
+          >
+            <option value="">{t('popall.allCategories')}</option>
+            {categories.map((o) => (
+              <option key={o.value} value={o.value}>
+                {categoryLabelOf(o.value)} ({o.count})
+              </option>
+            ))}
+          </select>
+        </div>
+      </header>
 
       {result.emptiness === 'none' ? (
         <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
           {result.items.slice(0, DISCOVER_CARD_LIMIT).map((popup) => (
             <div key={popup.id} className="flex flex-col gap-1.5">
               <PopupCard
+                className={homeStyle.card}
                 popup={popup}
                 wished={wishedIds.has(Number(popup.id))}
                 onWish={() => onWish(Number(popup.id))}
@@ -161,7 +162,7 @@ export function DiscoverPicker({ popups, wishedIds, onWish, onOpenPopup }: Props
               <button
                 type="button"
                 onClick={() => handleSkip(Number(popup.id))}
-                className="inline-flex min-h-9 items-center justify-center gap-1 rounded-pill border border-[var(--color-border-strong)] bg-surface px-2 text-[11px] font-semibold text-foreground transition hover:border-lime-400 hover:bg-lime-300/20"
+                className={`${homeStyle.action} text-xs`}
               >
                 <X size={12} aria-hidden />
                 {t('discover.skip')}

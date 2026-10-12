@@ -20,7 +20,8 @@ import {
   Palette,
   Layers,
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
+import polish from '../ScreenPolish.module.css';
 import type { Map as MapLibreMap } from 'maplibre-gl';
 import { bilingual } from '@/lib/bilingual';
 import { isApproximateLocation } from '@/lib/locationPrecision';
@@ -40,6 +41,8 @@ import {
 } from '@/lib/popupSlices';
 
 export interface InteractiveMapProps {
+  /** Opt in only for the map tab and course views; embedded landing maps retain their layout. */
+  refinedControls?: boolean;
   /** 서버가 첫 HTML과 함께 준비한 마커. 있으면 브라우저가 같은 목록을 다시 요청하지 않는다. */
   initialMarkers?: PublicMapMarker[];
   places?: {
@@ -397,8 +400,10 @@ export default function InteractiveMap({
   fitBounds,
   forceCluster = false,
   hideChrome = false,
+  refinedControls = false,
 }: InteractiveMapProps) {
   const { t, locale } = useLocale();
+  const reduceMotion = useReducedMotion();
 
   /**
    * 핀·목록에 보여 줄 이름.
@@ -805,7 +810,10 @@ export default function InteractiveMap({
   const browseCategoryDef = categoryBySlug(categorySlug ?? '');
 
   return (
-    <div className="relative w-full h-full group overflow-hidden rounded-[20px] outline-none bg-ink-900">
+    <div
+      data-list-open={isListOpen}
+      className={`${refinedControls ? `${polish.map} ${polish.controls}` : ''} relative w-full h-full group overflow-hidden rounded-[20px] outline-none bg-ink-900`}
+    >
       {/* v2.21-S2 — 활성 BROWSE 필터 배지 (좌측 상단). 사용자가 어떤 필터가 적용됐는지 즉시 인지. */}
       {!showPath && mode !== 'PLAN' && (activeRegion || activePeriod || activeBrowseCategory) && (
         <div className="absolute top-12 md:top-14 left-3 md:left-4 z-30 flex flex-wrap items-center gap-1.5 max-w-[calc(100%-1.5rem)]">
@@ -850,10 +858,14 @@ export default function InteractiveMap({
           {/* hideChrome — 랜딩 카드는 이미 카테고리별 슬라이스라 칩이 페이지 기능과 겹친다.
               CSS 로 숨기지 않고 DOM 에서 아예 뺀다(InteractiveMapProps.hideChrome 주석 참고). */}
           {!hideChrome && (
-            <div className="absolute top-3 md:top-4 left-3 md:left-4 right-3 md:right-4 z-20 flex gap-1.5 md:gap-2 overflow-x-auto custom-scrollbar pb-1.5 md:pb-2 pl-10 md:pl-0 pr-12 md:pr-14 transition-all">
+            <div
+              data-map-filters
+              className="absolute top-3 md:top-4 left-3 md:left-4 right-3 md:right-4 z-20 flex gap-1.5 md:gap-2 overflow-x-auto custom-scrollbar pb-1.5 md:pb-2 pl-10 md:pl-0 pr-12 md:pr-14 transition-all"
+            >
               {CATEGORIES.map((cat) => (
                 <button
                   key={`cat-btn-${cat}`}
+                  aria-pressed={activeCategory === cat}
                   onClick={() => {
                     setActiveCategory(cat);
                     setSelectedMarker(null);
@@ -873,6 +885,7 @@ export default function InteractiveMap({
           {/* 우측 상단 — 동네 바로가기 + 범례 토글 */}
           <div className="absolute top-3 md:top-4 right-3 md:right-4 z-30">
             <button
+              data-map-control
               onClick={() => setIsExploreOpen((v) => !v)}
               aria-label={t('map.exploreAria')}
               aria-expanded={isExploreOpen}
@@ -888,7 +901,9 @@ export default function InteractiveMap({
             <AnimatePresence>
               {isExploreOpen && (
                 <motion.div
-                  initial={{ opacity: 0, y: -8, scale: 0.96 }}
+                  initial={
+                    refinedControls && reduceMotion ? false : { opacity: 0, y: -8, scale: 0.96 }
+                  }
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: -8, scale: 0.96 }}
                   transition={{ duration: 0.16 }}
@@ -945,10 +960,23 @@ export default function InteractiveMap({
               <AnimatePresence>
                 {isListOpen && (
                   <motion.div
-                    initial={{ y: 80, opacity: 0 }}
+                    data-map-sheet
+                    initial={
+                      refinedControls && reduceMotion
+                        ? false
+                        : { y: refinedControls ? 24 : 80, opacity: 0 }
+                    }
                     animate={{ y: 0, opacity: 1 }}
-                    exit={{ y: 80, opacity: 0 }}
-                    transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                    exit={
+                      refinedControls && reduceMotion
+                        ? { opacity: 0 }
+                        : { y: refinedControls ? 24 : 80, opacity: 0 }
+                    }
+                    transition={
+                      refinedControls
+                        ? { duration: reduceMotion ? 0 : 0.22, ease: 'easeOut' }
+                        : { type: 'spring', stiffness: 300, damping: 30 }
+                    }
                     className={`absolute inset-x-0 bottom-0 z-30 flex flex-col rounded-t-[1.75rem] border-t border-white/10 bg-black/90 shadow-2xl backdrop-blur-xl transition-[height] duration-300 md:inset-y-0 md:right-auto md:w-[280px] md:rounded-none md:border-r md:border-t-0 ${
                       isListExpanded ? 'h-[76%]' : 'h-[40%]'
                     } md:h-auto`}
@@ -956,9 +984,11 @@ export default function InteractiveMap({
                     <div className="border-b border-white/10 p-3 md:p-4">
                       <button
                         type="button"
+                        data-map-handle
+                        aria-expanded={isListExpanded}
                         onClick={() => setIsListExpanded((current) => !current)}
                         className="mx-auto mb-2 block h-1.5 w-12 rounded-full bg-white/35 md:hidden"
-                        aria-label={isListExpanded ? 'Collapse popup list' : 'Expand popup list'}
+                        aria-label={t(isListExpanded ? 'popall.collapseRow' : 'popall.expandRow')}
                       />
                       <div className="flex items-center justify-between">
                         <h3 className="text-white font-bold text-base md:text-lg flex items-center gap-1.5 md:gap-2">
@@ -966,6 +996,8 @@ export default function InteractiveMap({
                           LIST
                         </h3>
                         <button
+                          data-map-control
+                          aria-label={t('common.close')}
                           onClick={() => setIsListOpen(false)}
                           className="p-1 hover:bg-white/10 rounded-full transition-colors"
                         >
@@ -977,7 +1009,10 @@ export default function InteractiveMap({
                       </div>
                     </div>
 
-                    <div className="flex-1 overflow-y-auto custom-scrollbar p-2 md:p-3 space-y-1.5 md:space-y-2">
+                    <div
+                      data-map-list
+                      className="flex-1 overflow-y-auto custom-scrollbar p-2 md:p-3 space-y-1.5 md:space-y-2"
+                    >
                       {listMarkers.length > 0 ? (
                         listMarkers.map((marker, index) => {
                           const shown = shownName(marker);
@@ -988,6 +1023,7 @@ export default function InteractiveMap({
                               role="button"
                               tabIndex={0}
                               aria-label={`${shown.display}${t('map.markerAria')}`}
+                              aria-pressed={selectedMarker?.popupId === marker.popupId}
                               onKeyDown={(e) => {
                                 if (e.key === 'Enter' || e.key === ' ') {
                                   e.preventDefault();
@@ -1062,9 +1098,13 @@ export default function InteractiveMap({
           하단에 빈 틈만 남는다 — hideChrome 이면 그 여백 없이 16px 로 붙인다. */}
       <div
         className="absolute right-3 md:right-4 z-20 flex flex-col gap-1.5 md:gap-2"
-        style={{ bottom: showPath || mode === 'PLAN' || hideChrome ? '16px' : '64px' }}
+        style={{
+          bottom:
+            showPath || mode === 'PLAN' || hideChrome ? '16px' : refinedControls ? '80px' : '64px',
+        }}
       >
         <button
+          data-map-control
           onClick={handleMyLocation}
           aria-label={t('map.myLocationAria')}
           className="p-2 md:p-2.5 bg-black/80 backdrop-blur-md border border-white/20 rounded-lg md:rounded-xl text-white hover:text-primary hover:border-primary transition-colors shadow-lg"
@@ -1074,6 +1114,7 @@ export default function InteractiveMap({
 
         <div className="flex flex-col bg-black/80 backdrop-blur-md border border-white/20 rounded-lg md:rounded-xl overflow-hidden shadow-lg">
           <button
+            data-map-control
             onClick={zoomIn}
             aria-label={t('map.zoomIn')}
             className="p-2 md:p-2.5 text-white hover:text-primary hover:bg-white/10 transition-colors border-b border-white/10 flex items-center justify-center"
@@ -1081,6 +1122,7 @@ export default function InteractiveMap({
             <Plus size={16} className="md:w-[18px] md:h-[18px]" />
           </button>
           <button
+            data-map-control
             onClick={zoomOut}
             aria-label={t('map.zoomOut')}
             className="p-2 md:p-2.5 text-white hover:text-primary hover:bg-white/10 transition-colors flex items-center justify-center"
@@ -1289,7 +1331,10 @@ export default function InteractiveMap({
               zIndex={100}
             >
               <motion.div
-                initial={{ opacity: 0, y: 10, scale: 0.9 }}
+                data-map-detail
+                initial={
+                  refinedControls && reduceMotion ? false : { opacity: 0, y: 10, scale: 0.9 }
+                }
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 10 }}
                 className="relative min-w-[160px] md:min-w-[200px] p-3 md:p-4 bg-black/80 backdrop-blur-md border border-white/20 rounded-xl md:rounded-2xl shadow-2xl text-left cursor-pointer hover:border-primary transition-colors group"
@@ -1300,6 +1345,8 @@ export default function InteractiveMap({
                 }}
               >
                 <button
+                  data-map-control
+                  aria-label={t('common.close')}
                   onClick={(e) => {
                     e.stopPropagation(); // 클릭 이벤트가 상세페이지 이동으로 번지는 것을 막음
                     setSelectedMarker(null);
@@ -1343,6 +1390,7 @@ export default function InteractiveMap({
                     if (onMarkerClick && visibleSelected.popupId)
                       onMarkerClick(visibleSelected.popupId);
                   }}
+                  data-map-control
                   className="w-full py-1.5 md:py-2 bg-white/10 group-hover:bg-primary group-hover:text-black rounded-md md:rounded-lg text-[10px] md:text-xs font-bold transition-all flex items-center justify-center gap-1 text-white cursor-pointer"
                 >
                   {t('map.detailCta')}{' '}

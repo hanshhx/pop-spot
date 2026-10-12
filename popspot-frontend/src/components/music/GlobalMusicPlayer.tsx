@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import polish from '../ScreenPolish.module.css';
 import {
   ChevronDown,
   ChevronUp,
@@ -59,17 +60,18 @@ function MiniPlayerBar() {
   const { current, isPlaying, progress, toggle, next, prev, expand, close, match } =
     useMusicPlayer();
   const { t, locale } = useLocale();
+  const reduceMotion = useReducedMotion();
   if (!current) return null;
 
   const topPopup = match?.popups?.[0];
 
   return (
     <motion.div
-      initial={{ y: 80, opacity: 0 }}
+      initial={reduceMotion ? false : { y: 16, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
-      exit={{ y: 80, opacity: 0 }}
-      transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-      className="fixed bottom-20 left-1/2 z-[90] w-[95%] max-w-[480px] -translate-x-1/2 md:bottom-24 md:max-w-[600px]"
+      exit={{ y: reduceMotion ? 0 : 16, opacity: 0 }}
+      transition={{ duration: reduceMotion ? 0 : 0.2 }}
+      className={`${polish.controls} fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] left-1/2 z-[90] w-[95%] max-w-[480px] -translate-x-1/2 md:bottom-24 md:max-w-[600px]`}
     >
       <div className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-surface/95 shadow-pop backdrop-blur-md">
         {/* 진행바 */}
@@ -81,7 +83,7 @@ function MiniPlayerBar() {
           <button
             type="button"
             onClick={expand}
-            className="flex flex-1 items-center gap-3 text-left"
+            className="flex min-w-0 flex-1 items-center gap-2 rounded-md text-left"
             aria-label={t('player.expand')}
           >
             {/* Spotify CDN 호스트가 next.config.ts 이미지 도메인에 없어 next/image 대신 <img> 사용. */}
@@ -91,18 +93,22 @@ function MiniPlayerBar() {
               alt={current.trackName}
               className="h-10 w-10 shrink-0 rounded-md object-cover"
             />
-            <div className="min-w-0">
-              <p className="truncate text-sm font-bold text-foreground">{current.trackName}</p>
-              <p className="truncate text-xs text-muted-foreground">{current.artistName}</p>
+            <div className="min-w-0 flex-1">
+              <p title={current.trackName} className="truncate text-sm font-bold text-foreground">
+                {current.trackName}
+              </p>
+              <p title={current.artistName} className="truncate text-xs text-muted-foreground">
+                {current.artistName}
+              </p>
             </div>
-            <ChevronUp className="ml-auto h-4 w-4 text-muted-foreground" />
+            <ChevronUp className="ml-auto hidden h-4 w-4 shrink-0 text-muted-foreground sm:block" />
           </button>
 
           <button
             type="button"
             onClick={prev}
             aria-label={t('player.previous')}
-            className="grid h-9 w-9 place-items-center rounded-full text-foreground transition hover:bg-foreground/10"
+            className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-foreground transition hover:bg-foreground/10"
           >
             <SkipBack className="h-4 w-4" />
           </button>
@@ -110,7 +116,7 @@ function MiniPlayerBar() {
             type="button"
             onClick={toggle}
             aria-label={isPlaying ? t('player.pause') : t('player.play')}
-            className="grid h-10 w-10 place-items-center rounded-full bg-lime-300 text-ink-900 shadow-sm transition hover:scale-105"
+            className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-lime-300 text-ink-900 shadow-sm transition hover:scale-105"
           >
             {isPlaying ? (
               <Pause className="h-4 w-4" />
@@ -122,7 +128,7 @@ function MiniPlayerBar() {
             type="button"
             onClick={next}
             aria-label={t('player.next')}
-            className="grid h-9 w-9 place-items-center rounded-full text-foreground transition hover:bg-foreground/10"
+            className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-foreground transition hover:bg-foreground/10"
           >
             <SkipForward className="h-4 w-4" />
           </button>
@@ -134,7 +140,7 @@ function MiniPlayerBar() {
               close();
             }}
             aria-label={t('player.close')}
-            className="grid h-9 w-9 place-items-center rounded-full text-muted-foreground transition hover:bg-foreground/10"
+            className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-muted-foreground transition hover:bg-foreground/10"
           >
             <X className="h-4 w-4" />
           </button>
@@ -179,14 +185,15 @@ function FullScreenPlayer() {
     matchLoading,
   } = useMusicPlayer();
   const { t, locale } = useLocale();
+  const reduceMotion = useReducedMotion();
   if (!current) return null;
 
   return (
     <motion.div
-      initial={{ opacity: 0 }}
+      initial={reduceMotion ? false : { opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[100] flex flex-col bg-black"
+      className={`${polish.controls} fixed inset-0 z-[100] flex flex-col bg-black`}
       role="dialog"
       aria-modal="true"
     >
@@ -210,7 +217,7 @@ function FullScreenPlayer() {
           collapse();
         }}
         aria-label={t('player.collapse')}
-        className="absolute right-4 top-4 z-20 grid place-items-center rounded-full bg-white/10 p-2 text-white backdrop-blur transition hover:bg-white/20"
+        className="absolute right-4 top-4 z-20 grid min-h-11 min-w-11 place-items-center rounded-full bg-white/10 p-2 text-white backdrop-blur transition hover:bg-white/20"
       >
         <ChevronDown className="h-6 w-6" />
       </button>
@@ -228,8 +235,12 @@ function FullScreenPlayer() {
           {(current.artworkUrlHires || current.artworkUrl) && (
             <motion.div
               className="absolute inset-0 grid place-items-center"
-              animate={isPlaying ? { scale: [1, 1.015, 1] } : { scale: 1 }}
-              transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+              animate={isPlaying && !reduceMotion ? { scale: [1, 1.015, 1] } : { scale: 1 }}
+              transition={{
+                duration: reduceMotion ? 0 : 4,
+                repeat: reduceMotion ? 0 : Infinity,
+                ease: 'easeInOut',
+              }}
             >
               <div className="relative">
                 <div
@@ -247,7 +258,7 @@ function FullScreenPlayer() {
           )}
         </div>
 
-        <div className="mt-6 max-w-md text-center text-white">
+        <div className="mt-6 w-full max-w-md break-words text-center text-white">
           <h1 className="text-2xl font-black tracking-tight sm:text-3xl">{current.trackName}</h1>
           <p className="mt-1 text-base text-white/70">{current.artistName}</p>
           {current.albumName && <p className="mt-0.5 text-sm text-white/40">{current.albumName}</p>}
@@ -258,23 +269,20 @@ function FullScreenPlayer() {
         </div>
 
         <div className="mt-8 flex w-full max-w-md flex-col gap-2">
-          <div
-            role="progressbar"
-            aria-valuenow={Math.round(progress)}
-            aria-valuemin={0}
-            aria-valuemax={100}
-            className="group h-1.5 cursor-pointer rounded-full bg-white/15"
-            onClick={(e) => {
-              const rect = e.currentTarget.getBoundingClientRect();
-              const pct = ((e.clientX - rect.left) / rect.width) * 100;
-              seekPercent(pct);
-            }}
-          >
-            <div
-              className="h-full rounded-full bg-white transition-all"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
+          <input
+            type="range"
+            min={0}
+            max={100}
+            step={1}
+            value={Number.isFinite(progress) ? Math.min(100, Math.max(0, progress)) : 0}
+            aria-label={
+              locale === 'ko' ? '재생 위치' : locale === 'ja' ? '再生位置' : 'Playback position'
+            }
+            aria-valuetext={`${formatSeconds(currentSec)} / ${formatSeconds(durationSec)}`}
+            disabled={durationSec <= 0}
+            onChange={(event) => seekPercent(Number(event.target.value))}
+            className="h-8 w-full cursor-pointer accent-white disabled:cursor-default disabled:opacity-50"
+          />
           <div className="flex justify-between font-mono text-[11px] text-white/50">
             <span>{formatSeconds(currentSec)}</span>
             <span>{formatSeconds(durationSec)}</span>
