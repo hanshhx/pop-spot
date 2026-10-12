@@ -75,7 +75,13 @@ type SliceItem = {
 
 const EXPAND_STORAGE_KEY = 'popspot:browse:expanded';
 
-export default function BrowseSection({ initialMarkers }: { initialMarkers?: Marker[] }) {
+export default function BrowseSection({
+  initialMarkers,
+  refined = false,
+}: {
+  initialMarkers?: Marker[];
+  refined?: boolean;
+}) {
   const { t, locale } = useLocale();
   const [markers, setMarkers] = useState<Marker[] | null>(() =>
     initialMarkers && initialMarkers.length > 0 ? initialMarkers : null,
@@ -194,6 +200,7 @@ export default function BrowseSection({ initialMarkers }: { initialMarkers?: Mar
     <>
       <section
         aria-label={t('browse.aria')}
+        data-home-browse={refined || undefined}
         className="relative mb-6 rounded-3xl border-2 bg-gradient-to-br from-white via-lime-50/40 to-white border-lime-300/50 dark:bg-gradient-to-br dark:from-[#111] dark:via-lime-900/20 dark:to-[#111] dark:border-lime-300/25 shadow-xl shadow-lime-500/10 dark:shadow-lime-300/5 overflow-hidden"
       >
         {/* v2.21-S6 — 좌측 라임색 accent stripe 으로 지도/랭킹 카드와 시각적 구분 */}

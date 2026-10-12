@@ -52,7 +52,13 @@ function write(key: string, value: string) {
   }
 }
 
-export default function SeasonBanner({ onExplore }: { onExplore?: () => void }) {
+export default function SeasonBanner({
+  onExplore,
+  className = '',
+}: {
+  onExplore?: () => void;
+  className?: string;
+}) {
   const season = useSeason();
   const copy = SEASON_COPY[season];
   const [visible, setVisible] = useState(false);
@@ -99,7 +105,7 @@ export default function SeasonBanner({ onExplore }: { onExplore?: () => void }) 
       aria-label={copy.lead}
       /* 글자색은 --s-hi-fg 다. 흰색으로 고정하면 여덟 팔레트 중 일곱에서 AA 에 못 미친다
          (근거는 globals.css 계절 블록 주석). */
-      className="relative mb-4 overflow-hidden rounded-2xl px-5 py-5 md:mb-6 md:px-7 md:py-6"
+      className={`${className} relative mb-4 overflow-hidden rounded-2xl px-5 py-5 md:mb-6 md:px-7 md:py-6`}
       style={{ background: 'var(--s-hi)', color: 'var(--s-hi-fg)' }}
     >
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:gap-7">

@@ -4,6 +4,7 @@ import { motion, type Variants } from 'framer-motion';
 import { Route, Music, Ticket, ArrowRight } from 'lucide-react';
 import { localizedLabel, useLocale } from '@/lib/i18n';
 import { REGIONS, type RegionCode } from '@/lib/regions';
+import homeStyle from './HomeRefinement.module.css';
 
 /** 소개용 예시 핀의 지역명 — 표기가 지역 페이지와 어긋나면 같은 곳인지 알 수 없다. */
 function fixedRegionLabel(code: RegionCode, locale: Parameters<typeof localizedLabel>[1]): string {
@@ -286,7 +287,7 @@ export function FeatureTiles({ onNavigate }: Props) {
 export default function FeatureSections({ onNavigate }: Props) {
   const { t } = useLocale();
   return (
-    <div className="mb-16">
+    <div className={`${homeStyle.features} mb-16`}>
       <FeatureShell
         eyebrow={t('feat.courseTitle')}
         EyeIcon={Route}
@@ -308,6 +309,18 @@ export default function FeatureSections({ onNavigate }: Props) {
           btn: 'bg-lime-300 text-ink-900 hover:bg-lime-400',
         }}
       />
+      <button type="button" onClick={() => onNavigate('MUSIC')} className={homeStyle.musicEntry}>
+        <span className={homeStyle.recordDisc} aria-hidden>
+          <Music size={22} />
+        </span>
+        <span>
+          <strong>{t('feat.musicTitle')}</strong>
+          <small>{t('feat.musicDesc')}</small>
+        </span>
+        <span className={homeStyle.action}>
+          {t('feat.musicCta')} <ArrowRight size={15} />
+        </span>
+      </button>
     </div>
   );
 }

@@ -1927,8 +1927,12 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
 
   /* Utilities */
   const sectionVariants: Variants = {
-    hidden: { opacity: 0, y: 50 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.8, ease: 'easeOut' } },
+    hidden: { opacity: 1, y: reduceScreenMotion ? 0 : 10 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: { duration: reduceScreenMotion ? 0 : 0.32, ease: 'easeOut' },
+    },
   };
 
   const getCongestionColor = (level: string) => {
@@ -1955,9 +1959,14 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
     return days > 0 ? days : 0;
   };
 
+  // These screens use the seasonal solid canvas; decorative media stays unmounted.
+  const flatBackdrop = ['MAP', 'COURSE', 'MUSIC', 'PASSPORT', 'MY', 'SCHEDULE'].includes(
+    currentTab,
+  );
+
   return (
     <main
-      className={`${currentTab === 'MAP' ? homeStyle.home : ''} relative min-h-screen overflow-x-clip pb-28 font-sans text-gray-900 transition-colors duration-500 dark:text-white lg:pb-16`}
+      className={`${flatBackdrop ? homeStyle.flat : ''} ${currentTab === 'MAP' ? homeStyle.home : ''} relative min-h-screen overflow-x-clip pb-28 font-sans text-gray-900 transition-colors duration-500 dark:text-white lg:pb-16`}
     >
       {/* 모드별 풀 배경 영상 — 라이트=밝은 스카이라인(light-bg), 다크=생기있는 서울 야경(login-bg).
           영상이 '실제로 보이도록' 스크림은 얕게(home-video-scrim). 콘텐츠는 불투명 카드 위라 가독성은 카드가 담당.
@@ -1973,7 +1982,7 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
             방법이 없어 따로 페이드한다(globals.css 의 theme-bg-fade). 바탕색·스크림까지 같이
             감싸면 그 둘은 이미 색으로 부드럽게 흐르는 중이라 두 번 흔들린 것처럼 보인다. */}
         <div className="theme-bg-fade absolute inset-0">
-          {currentTab !== 'MAP' &&
+          {!flatBackdrop &&
             themeReady &&
             (bgStill ? (
               /* 정지 배경은 영상 감시자·크로스페이드가 필요 없다. 좁은 화면에서 안 그리는 것만
@@ -2014,6 +2023,7 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
 
         {/* 계절 전환 배너 — 재방문자에게 계절당 한 번, 2주 뒤 접힘. 자세한 규칙은 컴포넌트 주석. */}
         <SeasonBanner
+          className={currentTab === 'MAP' ? homeStyle.seasonBanner : undefined}
           /*
            * 예전에는 "계절 한정" 필터를 켰다. 그 필터가 실제로 고르던 것은 이번 계절 안에
            * 마감하는 팝업이었으므로, 같은 목록을 정직한 이름으로 보여 주는 마감임박 정렬로
@@ -2037,7 +2047,9 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
             잠그기만 하고 여는 버튼이 없으면 막다른 길이 된다. 로그인 페이지에도 같은 버튼이
             있지만, 거기까지 가려면 이 화면을 떠나야 한다. */}
         {!user && guestRemainingDays == null && (
-          <div className="mb-4 hidden flex-wrap items-center justify-between gap-2 rounded-2xl border border-[var(--color-border)] bg-surface px-4 py-3 shadow-sm md:mb-6 md:flex">
+          <div
+            className={`${currentTab === 'MAP' ? homeStyle.guestBar : ''} mb-4 hidden flex-wrap items-center justify-between gap-2 rounded-2xl border border-[var(--color-border)] bg-surface px-4 py-3 shadow-sm md:mb-6 md:flex`}
+          >
             <span className="text-xs font-bold md:text-sm">{t('home.guestLockedTitle')}</span>
             <button
               type="button"
@@ -2053,7 +2065,9 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
         )}
 
         {guestRemainingDays != null && (
-          <div className="mb-4 hidden items-center justify-between gap-3 rounded-pill bg-lime-300/85 px-4 py-2 text-ink-900 ring-1 ring-ink-900/10 shadow-sm md:mb-6 md:flex dark:bg-lime-400/95">
+          <div
+            className={`${currentTab === 'MAP' ? homeStyle.guestBar : ''} mb-4 hidden items-center justify-between gap-3 rounded-pill bg-lime-300/85 px-4 py-2 text-ink-900 ring-1 ring-ink-900/10 shadow-sm md:mb-6 md:flex dark:bg-lime-400/95`}
+          >
             <span className="inline-flex items-center gap-1.5 text-xs md:text-sm font-bold">
               <Clock className="size-3.5 md:size-4 shrink-0" aria-hidden />
               {guestRemainingDays > 0
@@ -2073,6 +2087,7 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
         {/* TAB: MAP */}
         {currentTab === 'MAP' && (
           <motion.div
+            className={homeStyle.content}
             initial="hidden"
             whileInView="visible"
             viewport={{ once: true }}
@@ -2116,28 +2131,23 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
                   </button>
                 </div>
               ) : (
-                <div className="relative w-full overflow-hidden rounded-2xl border border-gray-200 bg-white p-5 dark:border-white/10 dark:bg-[#1c1c1e] md:p-8">
+                <div className={homeStyle.hero}>
                   {/* 은은한 라임 글로우 — 칙칙함 대신 활력. 밝지만 텍스트 대비는 유지. */}
-                  <div
-                    aria-hidden
-                    className="pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full bg-lime-300/35 blur-3xl dark:bg-lime-400/20"
-                  />
-                  <div className="relative z-10 flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-                    <div className="min-w-0 text-left">
+                  <div aria-hidden className={homeStyle.heroGlow} />
+                  <div className={homeStyle.heroLayout}>
+                    <div className={homeStyle.heroCopy}>
                       <span className="inline-block mb-3 rounded-pill bg-lime-300 px-3 py-1 text-[10px] md:text-xs font-black tracking-[0.2em] uppercase text-ink-900">
                         {locale === 'ko' ? '오늘의 서울 팝업' : t('stat.open')}
                       </span>
                       <h1 className="text-2xl md:text-4xl font-black leading-tight text-gray-900 dark:text-white">
                         {locale === 'ko' ? (
                           <>
-                            {t('hero.openedPrefix')}
+                            지금 서울 팝업스토어
+                            <br />
                             <span className="text-lime-600 dark:text-lime-300">
-                              {mappablePopupCount || '…'}
-                              {t('count.unit')}
+                              {mappablePopupCount ? mappablePopupCount.toLocaleString() : '…'}곳
                             </span>
-                            {/* 조사는 개수 쪽에 붙인다 — 줄이 바뀌어도 "123개의 / 팝업이" 로 끊긴다. */}
-                            {t('hero.openedJoin')}
-                            <br className="hidden md:block" /> {t('hero.openedSuffix')}
+                            을 만나보세요.
                           </>
                         ) : (
                           <>
@@ -2149,9 +2159,15 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
                         )}
                       </h1>
                       <p className="mt-2 text-sm md:text-base text-gray-600 dark:text-white/70">
-                        {locale === 'ko'
-                          ? '지도에서 일정과 장소를 확인하고, 마음에 드는 팝업을 저장하세요.'
-                          : t('hero.subtitle')}
+                        {locale === 'ko' ? (
+                          <>
+                            지도에서 일정과 장소를 확인하고,
+                            <br />
+                            마음에 드는 팝업을 저장하세요.
+                          </>
+                        ) : (
+                          t('hero.subtitle')
+                        )}
                       </p>
                       <div className="mt-5 flex flex-col gap-2.5 sm:flex-row md:justify-start">
                         <button
@@ -2180,7 +2196,7 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
                     {/* 팝업 정보 클러스터 — 실제 사진이 없으면 이름·장소를 우선 표시.
                         마감 임박(closing) — POP-LOOK 이 가져간 곳과 겹치지 않는다. */}
                     {closing.length > 0 && (
-                      <div className="grid w-full min-w-0 shrink-0 grid-cols-2 gap-2 md:w-[280px]">
+                      <div className={homeStyle.heroCollage}>
                         {closing.map((p, i) => (
                           <button
                             key={p.id}
@@ -2192,9 +2208,17 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
                               router.push(localizedPath(`/popup/${p.id}`, locale));
                             }}
                             aria-label={`${p.name} ${t('common.viewDetail')}`}
-                            className={`aspect-[4/5] overflow-hidden rounded-xl ring-1 ring-black/5 dark:ring-white/10 transition hover:-translate-y-0.5 hover:shadow-lg ${i % 2 === 1 ? 'sm:translate-y-3' : ''}`}
+                            className={`${homeStyle.heroCard} ${i % 2 === 1 ? homeStyle.heroCardOffset : ''}`}
                           >
-                            <PopupCoverVisual popup={p} name={p.name} location={p.location} />
+                            <PopupCoverVisual
+                              popup={p}
+                              name={p.name}
+                              location={p.location}
+                              compact={!!popupCoverUrl(p)}
+                            />
+                            {popupCoverUrl(p) && (
+                              <span className={homeStyle.heroCaption}>{p.name}</span>
+                            )}
                           </button>
                         ))}
                       </div>
@@ -2205,13 +2229,13 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
             </section>
 
             {/* 지역 / 시점 / 카테고리 빠른 필터 (지도 위 진입점) */}
-            <BrowseSection initialMarkers={initialMapMarkers} />
+            <BrowseSection initialMarkers={initialMapMarkers} refined />
 
             {/* 서울 팝업 지도 — 홈의 주인공 (디자인 진단서 P0). 지도 전체폭·크게, 보조 정보는 아래 3열. */}
             <section
               id={HOME_MAP_ID}
               aria-label={t('map.aria')}
-              className="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-10"
+              className={`${homeStyle.mapSection} grid grid-cols-1 lg:grid-cols-12 gap-4 mb-10`}
             >
               {/* Search Zone */}
               <div className="relative z-50 col-span-1 lg:col-span-12">
@@ -2264,29 +2288,39 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
                 />
               </div>
 
-              {/* Map Zone — 배경 분리를 위해 solid 배경 + shadow 로 카드 블록 강화. */}
-              <div className="group relative col-span-1 h-[min(62svh,560px)] min-h-[430px] overflow-hidden rounded-[1.5rem] border border-gray-200 bg-white shadow-lg shadow-black/5 dark:border-white/10 dark:bg-[#111] dark:shadow-black/30 sm:rounded-[2rem] lg:col-span-12 lg:h-[58vh]">
-                <InteractiveMap
-                  initialMarkers={initialMapMarkers}
-                  refinedControls
-                  center={mapCenter}
-                  focusReq={searchFocus}
-                  onMarkerClick={handleMarkerClickToDetail}
-                  filterIds={mapFilterIds}
-                  fitReq={mapFit}
-                />
-                <div className="absolute bottom-4 md:bottom-6 left-4 md:left-6 flex gap-2 z-20">
-                  <span className="backdrop-blur px-3 py-1.5 md:px-4 md:py-2 rounded-full border text-[10px] md:text-xs font-bold flex items-center gap-1.5 md:gap-2 bg-white/80 border-gray-200 text-gray-900 dark:bg-black/60 dark:border-white/10 dark:text-white">
-                    <span className="w-1.5 h-1.5 md:w-2 md:h-2 bg-green-500 rounded-full animate-pulse" />{' '}
-                    {t('bento.live')}
-                  </span>
+              {/* Preserve the map instance and controls inside the reference panel. */}
+              <div className={homeStyle.mapPanel}>
+                <header className={homeStyle.mapHeading}>
+                  <h2>{locale === 'ko' ? '지도에서 한눈에 둘러보기' : t('map.aria')}</h2>
+                  <button type="button" onClick={() => openPopAll()} className={homeStyle.action}>
+                    {t('common.viewAll')} <ArrowRight size={14} />
+                  </button>
+                </header>
+                <div
+                  className={`${homeStyle.mapCanvas} group relative h-[min(62svh,560px)] min-h-[430px] overflow-hidden lg:h-[58vh]`}
+                >
+                  <InteractiveMap
+                    initialMarkers={initialMapMarkers}
+                    refinedControls
+                    center={mapCenter}
+                    focusReq={searchFocus}
+                    onMarkerClick={handleMarkerClickToDetail}
+                    filterIds={mapFilterIds}
+                    fitReq={mapFit}
+                  />
+                  <div className="absolute bottom-4 md:bottom-6 left-4 md:left-6 flex gap-2 z-20">
+                    <span className="backdrop-blur px-3 py-1.5 md:px-4 md:py-2 rounded-full border text-[10px] md:text-xs font-bold flex items-center gap-1.5 md:gap-2 bg-white/80 border-gray-200 text-gray-900 dark:bg-black/60 dark:border-white/10 dark:text-white">
+                      <span className="w-1.5 h-1.5 md:w-2 md:h-2 bg-green-500 rounded-full animate-pulse" />{' '}
+                      {t('bento.live')}
+                    </span>
+                  </div>
                 </div>
               </div>
             </section>
 
             {/* 지도 아래 지름길 — 실시간 혼잡도(공간) + 팝업 캘린더(시간). 누르면 모달이 열린다.
                 최근 본 팝업은 바로 아래 자기 줄에 둔다(같은 묶음이지만 폭이 다르다 — 아래 주석). */}
-            <div className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div className={`${homeStyle.utilities} mb-4 grid grid-cols-1 gap-4 md:grid-cols-2`}>
               {/* 실시간 혼잡도 */}
               <button
                 type="button"
@@ -2390,6 +2424,7 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
                 기본 정렬은 최신순(startDate desc) — 정렬 칩으로 인기순·마감임박순도 고를 수 있다. */}
             <motion.section
               id="trending-rail"
+              data-home-rail
               aria-label={t('section.trending')}
               initial="hidden"
               whileInView="visible"
@@ -2579,7 +2614,9 @@ export default function Home({ initialPopups = EMPTY_POPUPS }: HomeProps) {
                   넘쳐서</b> 다른 것을 덮는다 — overflow 가 visible 이라 잘림 경고도 안 뜬다.
                   1위 카드의 이미지는 object-cover 라 높이가 늘어도 비율이 깨지지 않는다.
                 */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 lg:gap-6 h-auto lg:min-h-[440px]">
+                <div
+                  className={`${homeStyle.lookGrid} grid grid-cols-1 lg:grid-cols-3 gap-5 lg:gap-6 h-auto lg:min-h-[440px]`}
+                >
                   {/* 1위 히어로 */}
                   <article
                     role="button"

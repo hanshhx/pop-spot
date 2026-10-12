@@ -1,7 +1,8 @@
 'use client';
 
-import { Ticket, CalendarDays, ArrowRight } from 'lucide-react';
+import { Ticket, CalendarDays, ArrowRight, MapPin } from 'lucide-react';
 import { useLocale } from '@/lib/i18n';
+import homeStyle from './HomeRefinement.module.css';
 
 /**
  * 홈 하단 발견 존 — 나의 기록 · 언제 갈까.
@@ -30,13 +31,22 @@ export default function HomeBento1a({ onNavigate }: Props) {
   const { t } = useLocale();
 
   return (
-    <section aria-label={t('bento.aria')} className="mb-10 grid grid-cols-1 gap-4 md:grid-cols-2">
+    <section
+      aria-label={t('bento.aria')}
+      className={`${homeStyle.bento} mb-10 grid grid-cols-1 gap-4 md:grid-cols-2`}
+    >
       {/* 나의 기록 (여권) — 유저별 값 없이 기능 설명만 */}
       <button
         type="button"
         onClick={() => onNavigate('PASSPORT')}
         className="group relative overflow-hidden rounded-[2rem] border border-black/[0.06] bg-white p-5 text-left text-ink-900 shadow-pop transition hover:scale-[1.02] md:p-6 dark:border-transparent dark:bg-ink-900 dark:text-cream-200"
       >
+        <div className={homeStyle.passportArt} aria-hidden>
+          <span>POP-SPOT</span>
+          <MapPin size={36} />
+          <strong>PASSPORT</strong>
+          <small>MY POP-UP JOURNEY</small>
+        </div>
         <div
           aria-hidden
           className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-amber-300/25 blur-2xl"
@@ -71,6 +81,9 @@ export default function HomeBento1a({ onNavigate }: Props) {
         onClick={() => onNavigate('SCHEDULE')}
         className="group relative overflow-hidden rounded-[2rem] border border-black/[0.06] bg-white p-5 text-left text-ink-900 shadow-pop transition hover:scale-[1.02] md:p-6 dark:border-transparent dark:bg-ink-900 dark:text-cream-200"
       >
+        <div className={homeStyle.calendarArt} aria-hidden>
+          <CalendarDays size={88} strokeWidth={1} />
+        </div>
         <div
           aria-hidden
           className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-sky-400/25 blur-2xl"
