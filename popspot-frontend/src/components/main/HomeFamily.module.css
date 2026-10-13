@@ -1,0 +1,619 @@
+/* Only POP-ALL and POP-WHY use this treatment. Shared rails and the footer stay unchanged. */
+.panel {
+  margin-block: 52px;
+  padding: 36px;
+  border: 1px solid var(--home-line, var(--s-line));
+  border-radius: 28px;
+  background: var(--s-surface);
+  color: var(--s-ink);
+}
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding-bottom: 26px;
+}
+.head > div:first-child {
+  min-width: 0;
+}
+.description {
+  margin-top: 7px;
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--s-muted);
+}
+.allLogo {
+  position: relative;
+  display: block;
+  width: 224px;
+  height: 48px;
+  max-width: 100%;
+  color: var(--s-ink);
+}
+.allLogo > svg {
+  position: absolute;
+  top: -11px;
+  width: 100%;
+  height: auto;
+}
+.allLogo path[fill='#b4d45f'] {
+  fill: var(--s-accent);
+}
+.whyTitle {
+  margin: 0;
+  font-size: 36px;
+  line-height: 1.5;
+  letter-spacing: -0.035em;
+  font-weight: 650;
+}
+.whyTitle span {
+  color: var(--s-accent);
+}
+.action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 44px;
+  padding: 10px 18px;
+  border: 1px solid var(--home-edge, var(--s-line));
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  background: var(--s-surface);
+  color: var(--s-ink);
+}
+.row {
+  border-top: 1px solid var(--home-line, var(--s-line));
+}
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  width: 100%;
+  min-height: 76px;
+  padding: 15px 0;
+  text-align: left;
+}
+.categoryImage {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--s-soft);
+  color: var(--s-muted);
+}
+.categoryName {
+  font-size: 17px;
+  font-weight: 650;
+}
+.count {
+  padding: 4px 8px;
+  border-radius: 7px;
+  font-size: 11px;
+  line-height: 1.5;
+  white-space: nowrap;
+  background: var(--s-soft);
+  color: var(--s-muted);
+}
+.toggleEnd {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+.toggleLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--s-muted);
+  white-space: nowrap;
+}
+.deck {
+  display: flex;
+  padding-left: 8px;
+}
+.deck > span {
+  width: 30px;
+  height: 36px;
+  margin-left: -8px;
+  overflow: hidden;
+  border: 2px solid var(--s-surface);
+  border-radius: 7px;
+}
+.image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.placeholder {
+  display: flex;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--s-soft);
+  color: var(--s-muted);
+  font-size: 11px;
+}
+.body {
+  overflow: hidden;
+}
+.rail {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: calc((100% - 36px) / 3);
+  align-items: stretch;
+  gap: 18px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  scrollbar-width: thin;
+  scrollbar-color: var(--s-line) transparent;
+  padding: 2px 2px 6px;
+}
+.rail > * {
+  scroll-snap-align: start;
+}
+.rowFoot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0 20px;
+}
+.more,
+.skip {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--s-accent);
+}
+.arrows {
+  display: flex;
+  gap: 8px;
+}
+.arrow {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--home-line, var(--s-line));
+  border-radius: 50%;
+  color: var(--s-muted);
+}
+.arrow:disabled {
+  opacity: 0.3;
+  pointer-events: none;
+}
+.filters {
+  display: flex;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.selectWrap {
+  display: flex;
+  position: relative;
+  min-width: 0;
+}
+.selectWrap > svg {
+  position: absolute;
+  top: 15px;
+  left: 14px;
+  pointer-events: none;
+  color: var(--s-muted);
+}
+.select {
+  min-height: 44px;
+  min-width: 140px;
+  max-width: 220px;
+  padding: 10px 13px 10px 37px;
+  border: 1px solid var(--home-line, var(--s-line));
+  border-radius: 13px;
+  background: var(--home-paper, var(--s-soft));
+  color: var(--s-ink);
+  font-size: 12px;
+}
+@supports (appearance: base-select) {
+  .select,
+  .select::picker(select) {
+    appearance: base-select;
+  }
+  .select::picker(select) {
+    margin-top: 6px;
+    padding: 6px;
+    border: 1px solid var(--s-line);
+    border-radius: 14px;
+    background: var(--s-surface);
+    color: var(--s-ink);
+    box-shadow: 0 14px 36px rgb(20 15 10 / 12%);
+  }
+  .select option {
+    padding: 10px 12px;
+    min-height: 42px;
+    border-radius: 8px;
+  }
+  .select option:hover,
+  .select option:checked {
+    background: var(--s-soft);
+  }
+}
+.grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 16px;
+}
+.card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--home-edge, var(--s-line));
+  border-radius: 18px;
+  background: var(--s-surface);
+}
+.open {
+  width: 100%;
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+}
+.media {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  overflow: hidden;
+  background: var(--s-soft);
+}
+.wide .media {
+  aspect-ratio: 16 / 9;
+}
+.copy {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  width: 100%;
+  padding: 15px 12px 0;
+}
+.wide .copy {
+  padding: 17px 18px;
+}
+.category {
+  margin-bottom: 7px;
+  font-size: 11px;
+  color: var(--s-muted);
+}
+.name {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  min-height: 42px;
+  font-size: 14px;
+  line-height: 1.5;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+.wide .name {
+  font-size: 15px;
+  min-height: 45px;
+}
+.place {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-top: 7px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--s-muted);
+}
+.date {
+  margin-top: auto;
+  padding-top: 13px;
+}
+.date > span {
+  display: block;
+  padding-top: 12px;
+  border-top: 1px solid var(--home-line, var(--s-line));
+  font-size: 10px;
+  line-height: 1.6;
+  color: var(--s-muted);
+}
+.wide .date > span {
+  border: 0;
+  padding-top: 0;
+  font-size: 11px;
+}
+.skip {
+  justify-content: space-between;
+  margin: 3px 12px 4px;
+  gap: 5px;
+  text-align: left;
+}
+.wish {
+  position: absolute;
+  right: 9px;
+  top: 9px;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--s-surface);
+  color: var(--s-muted);
+}
+.wish[aria-pressed='true'] {
+  color: var(--s-accent);
+}
+.cardWrap {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+.badge {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  max-width: calc(100% - 68px);
+  padding: 5px 7px;
+  border-radius: 5px;
+  background: var(--s-surface);
+  color: var(--s-accent);
+  font-size: 10px;
+  font-weight: 650;
+  line-height: 1.4;
+}
+.disclosure {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 8px;
+  width: fit-content;
+  padding: 4px 6px;
+  border-radius: 5px;
+  background: rgb(0 0 0 / 65%);
+  color: white;
+  font-size: 8px;
+  line-height: 1.4;
+}
+.seen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  padding: 12px;
+  background: rgb(0 0 0 / 25%);
+}
+.seen > span {
+  border-radius: 999px;
+  padding: 5px 10px;
+  background: rgb(0 0 0 / 65%);
+  color: white;
+  font-size: 11px;
+}
+.seen ~ .disclosure {
+  right: 90px;
+}
+.card :is(button, a):focus-visible,
+.panel :is(button, select):focus-visible {
+  outline: 2px solid var(--s-accent);
+  outline-offset: -3px;
+}
+.empty {
+  padding-block: 24px;
+  color: var(--s-muted);
+  font-size: 13px;
+}
+@media (hover: hover) and (pointer: fine) {
+  .action:hover,
+  .arrow:hover {
+    background: var(--s-soft);
+  }
+  .card:hover {
+    border-color: var(--s-accent);
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .image {
+    transition: transform 220ms ease;
+  }
+  .action,
+  .arrow,
+  .wish,
+  .skip,
+  .more {
+    transition:
+      background-color 180ms ease,
+      transform 120ms ease;
+  }
+  .panel button:active {
+    transform: scale(0.985);
+  }
+}
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .card:hover .image {
+    transform: scale(1.025);
+  }
+}
+@media (max-width: 1200px) {
+  .grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .grid .media {
+    aspect-ratio: 16 / 10;
+  }
+}
+@media (max-width: 900px) {
+  .head {
+    align-items: flex-start;
+  }
+  .filters {
+    flex-wrap: wrap;
+    max-width: 300px;
+  }
+  .select {
+    min-width: 124px;
+  }
+}
+@media (max-width: 767px) {
+  .panel {
+    padding: 23px 19px;
+    margin-block: 36px;
+    border-radius: 24px;
+  }
+  .head {
+    flex-direction: column;
+    gap: 16px;
+    padding-bottom: 22px;
+  }
+  .allLogo {
+    width: 184px;
+    height: 40px;
+  }
+  .allLogo > svg {
+    top: -9px;
+  }
+  .whyTitle {
+    font-size: 29px;
+    line-height: 44px;
+  }
+  .description {
+    font-size: 12px;
+    margin-top: 5px;
+  }
+  .action {
+    font-size: 12px;
+  }
+  .toggle {
+    min-height: 74px;
+    gap: 9px;
+    padding-block: 14px;
+    flex-wrap: wrap;
+  }
+  .categoryImage {
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+  }
+  .categoryName {
+    font-size: 15px;
+  }
+  .count {
+    font-size: 10px;
+    padding: 3px 6px;
+  }
+  .toggleLabel {
+    font-size: 11px;
+    gap: 5px;
+  }
+  .deck {
+    display: none;
+  }
+  .rail {
+    grid-auto-columns: 86%;
+    gap: 12px;
+  }
+  .rowFoot {
+    padding-bottom: 14px;
+  }
+  .more {
+    font-size: 11px;
+  }
+  .filters {
+    width: 100%;
+    max-width: none;
+    gap: 8px;
+    flex-wrap: nowrap;
+  }
+  .selectWrap {
+    flex: 1;
+  }
+  .select {
+    width: 100%;
+    min-width: 0;
+    font-size: 11px;
+    padding-left: 30px;
+    padding-right: 8px;
+  }
+  .selectWrap > svg {
+    left: 10px;
+    width: 12px;
+  }
+  .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px 10px;
+  }
+  .grid .media {
+    aspect-ratio: 4 / 3;
+  }
+  .card {
+    border-radius: 15px;
+  }
+  .copy,
+  .wide .copy {
+    padding: 12px 10px 0;
+  }
+  .wide .copy {
+    padding-bottom: 12px;
+  }
+  .name,
+  .wide .name {
+    font-size: 13px;
+    min-height: 39px;
+  }
+  .place,
+  .wide .date > span {
+    font-size: 10px;
+  }
+  .category {
+    font-size: 9px;
+  }
+  .date > span {
+    font-size: 9px;
+  }
+  .skip {
+    margin-inline: 10px;
+    font-size: 10px;
+  }
+  .wish {
+    top: 2px;
+    right: 2px;
+    width: 44px;
+    height: 44px;
+    background: transparent;
+  }
+  .wish::before {
+    content: '';
+    position: absolute;
+    inset: 6px;
+    border-radius: 50%;
+    background: var(--s-surface);
+  }
+  .wish svg {
+    position: relative;
+    width: 18px;
+  }
+  .badge {
+    top: 8px;
+    left: 7px;
+    max-width: calc(100% - 53px);
+    font-size: 8px;
+  }
+  .disclosure {
+    font-size: 7px;
+    left: 6px;
+    right: 6px;
+    bottom: 6px;
+  }
+}

@@ -1,10 +1,11 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { SearchX, X } from 'lucide-react';
+import { Grid2X2, MapPin, SearchX } from 'lucide-react';
 
-import { PopupCard } from '@/components/main/PopupCard';
-import homeStyle from '@/components/main/HomeRefinement.module.css';
+import { HomeFamilyCard } from '@/components/main/HomeFamilyCard';
+import homeStyle from '@/components/main/HomeFamily.module.css';
+import { trackVisitEvent } from '@/lib/visitEvent';
 import {
   DISCOVER_CARD_LIMIT,
   categoryOptions,
@@ -32,17 +33,8 @@ import type { PopupStore } from '@/types/popup';
  * <p><b>'넘기기' 는 이번 탐색에서만이다</b>({@code discoverySkips} 는 sessionStorage 를 쓴다).
  * 기획 §4.4 — "영구 취향으로 단정하지 않는다."
  *
- * <p><b>가장 넓은 화면에서는 여섯 장을 한 줄에 편다</b>({@code xl:grid-cols-6}). 카드 수가
- * {@code DISCOVER_CARD_LIMIT} 로 고정이므로 열 수가 6의 약수(2·3·6)가 아니면 마지막 줄에
- * 외톨이가 남고, 여섯 곳을 고른 화면이 잘린 목록처럼 보인다. POP-ALL 은 결과가 수십 개라
- * 남는 줄이 자연스럽지만 여기는 <b>개수 자체가 의미</b>다 — 그래서 POP-ALL 의 5열을 그대로
- * 가져오면 안 된다.
- *
- * <p>중간 폭({@code lg})만 4열이라 두 장이 남는다. 여기서 3열로 내리면 카드가 다시 과하게
- * 커지므로, 짝이 맞는 것보다 크기를 택했다.
- *
- * <p>3열까지만 두면 넓은 화면에서 한 장이 지나치게 커져, 여섯 장을 훑어보는 화면이 아니라
- * 여섯 장을 스크롤하는 화면이 된다.
+ * <p>넓은 화면은 6열, 중간 화면은 3열, 모바일은 2열로 같은 여섯 곳을 유지한다.
+ * 카드와 넘기기는 한 패널에 담되 클릭 동작은 서로 분리한다.
  *
  * <p>빈손일 때 "조건을 완화하세요" 를 말하려면 <b>왜 비었는지</b>부터 갈라야 한다. 재고가 없는
  * 것과 자기가 다 넘긴 것은 다른 상황이고, 뭉뚱그리면 조건이 멀쩡한 사람에게 조건을 고치라고
@@ -97,82 +89,70 @@ export function DiscoverPicker({ popups, wishedIds, onWish, onOpenPopup }: Props
   };
 
   return (
-    <section className={`${homeStyle.family} mb-10`} aria-label={t('discover.title')}>
-      <header className={homeStyle.sectionHead}>
+    <section id="pop-why" className={homeStyle.panel} aria-label={t('discover.title')}>
+      <header className={homeStyle.head}>
         <div className="min-w-0">
-          <h3 className={homeStyle.title}>{t('discover.title')}</h3>
+          <h3 className={homeStyle.whyTitle}>
+            POP-<span>WHY</span>
+          </h3>
           <p className={homeStyle.description}>{t('discover.desc')}</p>
         </div>
 
         <div className={homeStyle.filters}>
-          <select
-            value={region ?? ''}
-            onChange={(e) => setRegion((e.target.value || null) as RegionCode | null)}
-            aria-label={t('popall.allRegions')}
-            className={homeStyle.select}
-          >
-            <option value="">{t('popall.allRegions')}</option>
-            {regions.map((o) => (
-              <option key={o.value} value={o.value}>
-                {regionLabel(o.value)} ({o.count})
-              </option>
-            ))}
-          </select>
+          <label className={homeStyle.selectWrap}>
+            <MapPin size={14} aria-hidden />
+            <select
+              value={region ?? ''}
+              onChange={(e) => setRegion((e.target.value || null) as RegionCode | null)}
+              aria-label={t('popall.allRegions')}
+              className={homeStyle.select}
+            >
+              <option value="">{t('popall.allRegions')}</option>
+              {regions.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {regionLabel(o.value)} ({o.count})
+                </option>
+              ))}
+            </select>
+          </label>
 
-          <select
-            value={category ?? ''}
-            onChange={(e) => setCategory((e.target.value || null) as CategoryCode | null)}
-            aria-label={t('popall.allCategories')}
-            className={homeStyle.select}
-          >
-            <option value="">{t('popall.allCategories')}</option>
-            {categories.map((o) => (
-              <option key={o.value} value={o.value}>
-                {categoryLabelOf(o.value)} ({o.count})
-              </option>
-            ))}
-          </select>
+          <label className={homeStyle.selectWrap}>
+            <Grid2X2 size={14} aria-hidden />
+            <select
+              value={category ?? ''}
+              onChange={(e) => setCategory((e.target.value || null) as CategoryCode | null)}
+              aria-label={t('popall.allCategories')}
+              className={homeStyle.select}
+            >
+              <option value="">{t('popall.allCategories')}</option>
+              {categories.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {categoryLabelOf(o.value)} ({o.count})
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
       </header>
 
       {result.emptiness === 'none' ? (
-        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+        <div className={homeStyle.grid}>
           {result.items.slice(0, DISCOVER_CARD_LIMIT).map((popup) => (
-            <div key={popup.id} className="flex flex-col gap-1.5">
-              <PopupCard
-                className={homeStyle.card}
-                popup={popup}
-                wished={wishedIds.has(Number(popup.id))}
-                onWish={() => onWish(Number(popup.id))}
-                onClick={() => onOpenPopup(Number(popup.id))}
-              />
-              {/*
-                넘기기는 카드 <b>밖</b>에 둔다. 사진 위 우상단은 하트가 이미 쓰고 있고, 거기에
-                버튼을 하나 더 얹으면 2026-09-06 의 겹침 사고와 같은 모양이 된다.
-
-                밖에 두는 대신 <b>자기 바탕을 가져야 한다</b>. 홈 배경은 고정 사진
-                (bg/autumn-light.webp)이고 그 위 크림 스크림이 0.68 에서 0.34 로 옅어진다.
-                POP-WHY 는 페이지 아래쪽이라 사진이 그대로 비쳐, 배경 없는 컨트롤은 나무 위에
-                놓여 사라진다(2026-09-09 에 실제로 안 보인다는 지적을 받았다).
-
-                <b>글자색으로는 못 고친다</b> — 사진 밝기가 자리마다 다르니 어떤 색을 골라도
-                어딘가에서는 묻힌다. 바로 위 셀렉트 칩이 같은 자리에서 잘 보이는 이유도
-                {@code bg-surface} 하나다.
-              */}
-              <button
-                type="button"
-                onClick={() => handleSkip(Number(popup.id))}
-                className={`${homeStyle.action} text-xs`}
-              >
-                <X size={12} aria-hidden />
-                {t('discover.skip')}
-              </button>
-            </div>
+            <HomeFamilyCard
+              key={popup.id}
+              popup={popup}
+              wished={wishedIds.has(Number(popup.id))}
+              onWish={() => onWish(Number(popup.id))}
+              onOpen={() => {
+                trackVisitEvent('popup_open', { popupId: popup.id });
+                onOpenPopup(Number(popup.id));
+              }}
+              onSkip={() => handleSkip(Number(popup.id))}
+            />
           ))}
         </div>
       ) : (
         <div className="mt-4 flex flex-col items-center gap-3 rounded-md border border-dashed border-[var(--color-border-strong)] bg-surface px-3 py-10 text-center">
-          {/* 빈손 화면도 사진 위에 놓인다 — 위 주석과 같은 이유로 상자에 바탕을 준다. */}
           <SearchX size={26} className="text-muted-foreground" aria-hidden />
           <p className="text-sm font-bold text-foreground">
             {result.emptiness === 'all-skipped' ? t('discover.allSkipped') : t('popall.emptyTitle')}
